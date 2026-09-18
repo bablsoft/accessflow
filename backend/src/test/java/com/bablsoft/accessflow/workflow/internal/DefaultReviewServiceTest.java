@@ -172,6 +172,87 @@ class DefaultReviewServiceTest {
         verify(queryRequestStateService, never()).recordApprovalAndAdvance(any());
     }
 
+    /**
+     * #874: a third party's decision on an agent-submitted request never carries the request's
+     * principal — {@code review_decisions.on_behalf_of_user_id} is #622 provenance and confers
+     * eligibility, so it stays NULL for every agent flow.
+     */
+    @Test
+    void aThirdPartyDecisionOnAnAgentSubmissionRecordsNoOnBehalfOf() {
+        when(queryRequestLookupService.findPendingReview(queryId))
+                .thenReturn(Optional.of(viewOnBehalfOf(submitterId, UUID.randomUUID())));
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, false));
+
+        service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok");
+
+        var captor = ArgumentCaptor.forClass(RecordApprovalCommand.class);
+        verify(queryRequestStateService).recordApprovalAndAdvance(captor.capture());
+        assertThat(captor.getValue().reviewerId()).isEqualTo(reviewerId);
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+        assertThat(captor.getValue().delegationId()).isNull();
+    }
+
+    /**
+     * #874: "Alice's agent submits, Alice approves" — the submitter is the agent, but the request
+     * names Alice as the human it was submitted for, so the ban covers her too.
+     */
+    @Test
+    void approveBlocksTheHumanTheSubmitterActedFor() {
+        when(queryRequestLookupService.findPendingReview(queryId))
+                .thenReturn(Optional.of(viewOnBehalfOf(submitterId, reviewerId)));
+
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.REVIEWER),
+                "ok"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(queryRequestStateService, never()).recordApprovalAndAdvance(any());
+    }
+
+    @Test
+    void rejectBlocksTheHumanTheSubmitterActedFor() {
+        when(queryRequestLookupService.findPendingReview(queryId))
+                .thenReturn(Optional.of(viewOnBehalfOf(submitterId, reviewerId)));
+
+        assertThatThrownBy(() -> service.reject(queryId, reviewerContext(UserRoleType.REVIEWER),
+                "no"))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void listPendingFiltersOutQueriesSubmittedOnBehalfOfTheCaller() {
+        var view = viewOnBehalfOf(submitterId, reviewerId);
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void listPendingCarriesTheOnBehalfOfPrincipal() {
+        var alice = UUID.randomUUID();
+        var view = viewOnBehalfOf(submitterId, alice);
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(
+                        new ApproverRule(null, "REVIEWER", 1)))));
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content()).singleElement()
+                .extracting(pending -> pending.onBehalfOfUserId()).isEqualTo(alice);
+    }
+
     @Test
     void approveBlocksAnalystEvenIfMatchedByUserId() {
         // The role gate runs before the plan lookup, so an ANALYST who appears as an
@@ -612,6 +693,14 @@ class DefaultReviewServiceTest {
                 queryId, datasourceId, "ds", organizationId, submittedBy, "submitter@example.com",
                 "SELECT 1", QueryType.SELECT, status, "justification",
                 UUID.randomUUID(), RiskLevel.LOW, 10, "summary", Instant.parse("2025-01-15T10:00:00Z"));
+    }
+
+    private PendingReviewView viewOnBehalfOf(UUID submittedBy, UUID onBehalfOf) {
+        return new PendingReviewView(
+                queryId, datasourceId, "ds", organizationId, submittedBy, "agent@example.com",
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW, "justification",
+                UUID.randomUUID(), RiskLevel.LOW, 10, "summary", Instant.parse("2025-01-15T10:00:00Z"),
+                onBehalfOf);
     }
 
     private ReviewDecisionSnapshot decisionAt(int stage, DecisionType decision, UUID reviewer) {

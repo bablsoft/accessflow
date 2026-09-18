@@ -58,6 +58,46 @@ class AuditEventListenerTest {
                 null, null, false);
     }
 
+    private QueryRequestSnapshot snapshotOnBehalfOf(UUID queryId, UUID onBehalfOf) {
+        return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null,
+                null, null, false, null, null, null, null, onBehalfOf);
+    }
+
+    /**
+     * #874: these listeners run off the request thread, so the request-scoped provenance
+     * contributor cannot see whom the agent acted for; the snapshot carries it and every
+     * lifecycle row gets it explicitly.
+     */
+    @Test
+    void lifecycleRowsCarryTheOnBehalfOfPrincipalFromTheSnapshot() {
+        var queryId = UUID.randomUUID();
+        var alice = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshotOnBehalfOf(queryId, alice)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onAiCompleted(new AiAnalysisCompletedEvent(queryId, UUID.randomUUID(), RiskLevel.LOW));
+
+        var entry = captor.getValue();
+        assertThat(entry.metadata()).containsEntry("on_behalf_of_user_id", alice.toString())
+                .containsEntry("risk_level", "LOW");
+        assertThat(entry.actorId()).isNull();
+    }
+
+    @Test
+    void lifecycleRowsOfAHumanSubmissionCarryNoOnBehalfOfKey() {
+        var queryId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onAiCompleted(new AiAnalysisCompletedEvent(queryId, UUID.randomUUID(), RiskLevel.LOW));
+
+        assertThat(captor.getValue().metadata()).doesNotContainKey("on_behalf_of_user_id");
+    }
+
     @Test
     void onAiCompletedRecordsQueryAiAnalyzed() {
         var queryId = UUID.randomUUID();

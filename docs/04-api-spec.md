@@ -5,6 +5,7 @@
 - **Base path:** `/api/v1`
 - **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`. Programmatic / IaC clients (the Terraform/OpenTofu provider and the reusable CI Actions — see [docs/16-iac.md](16-iac.md)) instead authenticate with an **API key**: `Authorization: ApiKey <af_…>` (or `X-API-Key: <af_…>`). The key inherits its owning user's permissions; mint one at `POST /api/v1/me/api-keys` or bootstrap a service-account key declaratively. The provider drives the existing datasource / review-plan / routing-policy / AI-config / notification-channel CRUD endpoints below — IaC added **no** new endpoints.
 - **Rate limits (#873):** every **API-key-authenticated** request — `/api/v1/**` and `/mcp/**` alike — is counted against the calling identity in a Redis fixed window: a `service_accounts` row's `rate_limit_per_minute` / `rate_limit_per_day` when set, otherwise the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, default `120`; `…_PER_DAY`, default `0` = unlimited). A human's personal key gets the defaults. Over the cap the response is `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` — an RFC 9457 `ProblemDetail` with `limit` and `retryAfterSeconds` properties **and** a real `Retry-After` header (seconds until the window resets). JWT browser sessions are never rate-limited. The limiter is a resource guardrail, not an authorization check, so it **fails open**: when Redis is unreachable the request is served unmetered and a throttled `WARN` is logged.
+- **On-behalf-of attribution (#874):** an **API-key** request may carry `X-AccessFlow-On-Behalf-Of: <user uuid | email>` to record that the agent / CI job acted **for** a specific human. The named human must be an active `HUMAN` member of the caller's organization holding a live delegated-principal grant for that service account (see [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871) and [`/me/service-account-delegations`](#me-service-account-delegations-874)). It is **attribution only**: the effective permission set is always and only the key owner's — the principal never touches `JwtClaims`. The submission it accompanies is stamped with `on_behalf_of_user_id`, every audit row written during the request carries `metadata.on_behalf_of_user_id` (plus `api_key_id` and `service_account`, which every API-key request contributes), and the named human joins the submitter under the self-approval ban. Failure is loud, never silent: `403 ON_BEHALF_OF_NOT_PERMITTED` with a deliberately opaque `reason` — `not_api_key` (a JWT session sent it) or `not_permitted` (unknown, another organization, inactive, not a human, or no live grant — one code, so the header cannot probe which emails exist). On any review / decision surface the header is refused outright with `403 ON_BEHALF_OF_REVIEW_FORBIDDEN`: an agent may act *for* a human when it submits; it may never cast a vote *as* one.
 - **Content-Type:** `application/json`
 - **Error format:** Every error response follows RFC 9457 `ProblemDetail` and includes a `traceId` that correlates the response with backend logs. Frontends should surface the `traceId` next to the error message so users can include it in support requests.
 ```json
@@ -2697,7 +2698,7 @@ whose `content` entries have the same shape as the `granted` rows above.
 | 400 | `VALIDATION_ERROR` | Bean Validation failure — a missing `delegate_user_id` / `starts_at` / `ends_at`, or a `reason` over 500 characters |
 | 403 | `FORBIDDEN` | Caller lacks `QUERY_ADMIN` (admin list only) |
 | 404 | `REVIEW_DELEGATION_NOT_FOUND` | Delegation does not exist, belongs to another organization, **or the caller is not its delegator** — revoke deliberately returns 404 rather than 403, so the endpoint cannot be used to enumerate other people's delegations |
-| 422 | `ILLEGAL_REVIEW_DELEGATION` | Every other rule, all service-side: delegate is the caller, delegate or delegator is not an active member, `ends_at` ≤ `starts_at`, a window that has already closed, `scope_kind`/`scope_id` set inconsistently, a `scope_id` that does not resolve to a resource of that kind, or the caller's open-delegation cap |
+| 422 | `ILLEGAL_REVIEW_DELEGATION` | Every other rule, all service-side: delegate is the caller, delegate or delegator is not an active member, **the delegate is a service account** (review authority can never be handed to an agent — #874; agents are also omitted from `GET /me/review-delegations/candidates`), `ends_at` ≤ `starts_at`, a window that has already closed, `scope_kind`/`scope_id` set inconsistently, a `scope_id` that does not resolve to a resource of that kind, or the caller's open-delegation cap |
 
 ### Effect on existing review responses
 
@@ -2709,6 +2710,34 @@ whose `content` entries have the same shape as the `granted` rows above.
 - `review_decisions[]` on `GET /queries/{id}` gains a nullable `on_behalf_of` object of the same
   shape. `api_review_decisions` and `group_review_decisions` persist the same provenance columns,
   but their read models do not expose them yet.
+
+---
+
+## Me: service-account delegations (#874)
+
+A human's own consent surface for [on-behalf-of attribution](#general): "this service account may act for me". Any signed-in user; no permission beyond that, because a grant confers nothing on the agent and the caller can only ever be the principal. The admin counterpart — granting on a human's behalf — is [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871); both share the delegation object documented there.
+
+### GET /me/service-account-delegations
+
+Every grant naming the caller, newest first, revoked and expired included. **Response 200:** array of delegation objects.
+
+### POST /me/service-account-delegations
+
+```json
+{ "service_account_user_id": "uuid", "expires_at": "2026-12-31T00:00:00Z" }
+```
+`service_account_user_id` is required and must be a service account of the caller's organization; `expires_at` is optional and, when present, in the future. **Response 201:** the delegation object. Audited as `SERVICE_ACCOUNT_DELEGATION_GRANTED` against the account (`channel=self_service`). **Errors:** `400 VALIDATION_ERROR`; `404 SERVICE_ACCOUNT_NOT_FOUND`; `409 SERVICE_ACCOUNT_DELEGATION_EXISTS`; `422 SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID` — including when the caller is itself a service account using its key (an agent can never be a principal); `422 SERVICE_ACCOUNT_DELEGATION_INVALID`.
+
+### DELETE /me/service-account-delegations/{id}
+
+Soft-revokes a grant the caller gave. Idempotent. **Response 204.** **404 `SERVICE_ACCOUNT_DELEGATION_NOT_FOUND`** when the grant does not exist, belongs to another organization, or names a different human — deliberately 404 rather than 403, so the endpoint cannot be used to enumerate other people's grants.
+
+### Effect on submission and review responses
+
+- `on_behalf_of_user_id` (nullable) is exposed on the query detail (`on_behalf_of: { id, email }` on `GET /queries/{id}`), the API-request detail and list (`on_behalf_of_user_id`, `on_behalf_of_email`), the deployment-request detail (`on_behalf_of_user_id`, `on_behalf_of_email`), the request-group detail (`on_behalf_of_user_id`), and every pending-review row (`GET /reviews/pending`, `GET /api-reviews`, `GET /deployment-reviews` — `on_behalf_of_user_id`). Null for a human submission.
+- `POST /queries/{id}/replay` and `POST /request-groups/{id}/submit` honour the header like a fresh submission. A request-group **draft** already naming a *different* principal cannot be submitted for another — `409 REQUEST_GROUP_ON_BEHALF_OF_CONFLICT`; a draft created without the header and submitted with it takes the principal at submit. The deployment trigger's idempotent replay (same `external_run_id`) returns the original row **with the original principal** — a different header on the replay is neither applied nor refused, because the replay never re-submits.
+- The named human is a **submitter identity** for the self-approval ban on all four surfaces: their approval is refused exactly as the submitter's would be (`403` / `409` per surface), the request is hidden from their review queue, and a reviewer covering for them through a reviewer delegation is not eligible either. `review_decisions.on_behalf_of_user_id` (the #622 provenance column) is **never** written from this header — it means "borrowed the delegator's authority" and confers reviewer eligibility.
+- The header is refused (`403 ON_BEHALF_OF_REVIEW_FORBIDDEN`) on `/reviews/**` (attestation reviews included), `/api-reviews/**`, `/deployment-reviews/**`, `/deployment-rollback-reviews/**`, `/request-groups/{id}/approve|reject`, `/lifecycle/erasure-reviews/**`, `/admin/access-requests/**` and `/admin/break-glass/**`; the MCP `review_query` tool answers `permission_denied` when a principal is present.
 
 ---
 
@@ -3550,23 +3579,60 @@ A **bootstrap-declared** key is refused rather than silently un-revoked later: `
 
 **Response 204:** No content. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `SERVICE_ACCOUNT_KEY_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED`.
 
+#### Delegated principals (`/admin/service-accounts/{id}/delegated-principals`) (#874)
+
+Which humans this service account may name in `X-AccessFlow-On-Behalf-Of`. A grant is **consent to be named**, not a transfer of anything: it confers no permission on the account and no review authority in either direction (it is the mirror image of a [reviewer delegation](#review-delegation-endpoints-622), which is why a reviewer delegation can never target a service account — `422 ILLEGAL_REVIEW_DELEGATION`). Grants are soft-revoked so the evidence behind a past submission survives; at most one **live** (unrevoked) grant exists per (account, human) pair. These three endpoints accept `SERVICE_ACCOUNT_MANAGE` **or** `USER_MANAGE` — an admin grants on a human's behalf; the human's own consent surface is [`/me/service-account-delegations`](#me-service-account-delegations-874).
+
+**Delegation object:**
+```json
+{
+  "id": "uuid",
+  "service_account_user_id": "uuid",
+  "service_account_email": "ci-bot@example.com",
+  "principal_user_id": "uuid",
+  "principal_email": "alice@example.com",
+  "granted_by": "uuid",
+  "created_at": "2026-09-18T10:00:00Z",
+  "expires_at": "2026-12-31T00:00:00Z",
+  "revoked_at": null,
+  "status": "ACTIVE"
+}
+```
+`status` is computed at read time — `ACTIVE`, `EXPIRED` (`expires_at` passed) or `REVOKED`; `expires_at` null means open-ended. Emails are resolved at read time and null when the user row is gone.
+
+**`GET /admin/service-accounts/{id}/delegated-principals`** — every grant of the account, newest first, revoked and expired included. **Response 200:** array of delegation objects. **404:** `SERVICE_ACCOUNT_NOT_FOUND`.
+
+**`POST /admin/service-accounts/{id}/delegated-principals`**
+```json
+{ "principal_user_id": "uuid", "expires_at": "2026-12-31T00:00:00Z" }
+```
+`principal_user_id` is required; `expires_at` is optional and, when present, must be in the future. **Response 201:** the delegation object. Audited as `SERVICE_ACCOUNT_DELEGATION_GRANTED` against the account (`delegation_id`, `principal_user_id`, `expires_at`, `channel=admin`). **Errors:** `400 VALIDATION_ERROR`; `404 SERVICE_ACCOUNT_NOT_FOUND` (also for a *human* id — a person can never be made to act for a person); `409 SERVICE_ACCOUNT_DELEGATION_EXISTS` (a live — unrevoked, unexpired — grant already exists; a raced concurrent grant is translated to the same code; an *expired* unrevoked grant is retired and replaced instead); `422 SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID` (principal unknown, in another organization, inactive, or a service account); `422 SERVICE_ACCOUNT_DELEGATION_INVALID` (`expires_at` in the past).
+
+**`DELETE /admin/service-accounts/{id}/delegated-principals/{delegationId}`** — soft-revokes (`revoked_at`, `revoked_by`). Idempotent, and scoped to the account in the path: a grant of a different account is `404 SERVICE_ACCOUNT_DELEGATION_NOT_FOUND`, so the audit row can never name the wrong account. **Response 204.** Audited as `SERVICE_ACCOUNT_DELEGATION_REVOKED`.
+
 #### Service-accounts Error Codes
 
 | Status | `error` code | Cause |
 |--------|--------------|-------|
 | 400 | `VALIDATION_ERROR` | Bean Validation failure (including a field both sent and named in `clear`), or an unreadable body (unknown `role` / `clear` / `managed_by` literal, malformed `grace_period`) |
-| 403 | `FORBIDDEN` | Caller lacks `SERVICE_ACCOUNT_MANAGE` |
+| 403 | `FORBIDDEN` | Caller lacks `SERVICE_ACCOUNT_MANAGE` (or, on the delegated-principals endpoints, both `SERVICE_ACCOUNT_MANAGE` and `USER_MANAGE`) |
+| 403 | `ON_BEHALF_OF_NOT_PERMITTED` | Not this surface's own error — `X-AccessFlow-On-Behalf-Of` on a JWT session (`reason=not_api_key`) or naming a human the calling service account may not act for (`reason=not_permitted`, deliberately opaque) (#874) |
+| 403 | `ON_BEHALF_OF_REVIEW_FORBIDDEN` | Not this surface's own error — `X-AccessFlow-On-Behalf-Of` sent to a review / decision endpoint (#874) |
 | 404 | `SERVICE_ACCOUNT_NOT_FOUND` | Unknown id, another organization, or a human user |
+| 404 | `SERVICE_ACCOUNT_DELEGATION_NOT_FOUND` | Unknown delegation id, another organization, a grant of a different account (admin surface), or not the caller's own grant (`/me`) (#874) |
 | 404 | `SERVICE_ACCOUNT_KEY_NOT_FOUND` | Unknown key id, or the key is not owned by this account |
 | 404 | `ROLE_NOT_FOUND` | `role_id` is not visible to the organization |
 | 409 | `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` | A bootstrap-declared field (`display_name`, `role`, `role_id`) would change on a `BOOTSTRAP` account (`field` property) |
 | 409 | `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` | Revoke / rotate of the key declared in bootstrap YAML — rotate the secret at the source and restart |
 | 409 | `SERVICE_ACCOUNT_KEY_REVOKED` | Rotate of an already-revoked key |
 | 409 | `SERVICE_ACCOUNT_KEY_NAME_CONFLICT` | The account already has a key with that name |
+| 409 | `SERVICE_ACCOUNT_DELEGATION_EXISTS` | A live (unrevoked, unexpired) grant already lets this account act for that human — an expired one is retired and replaced (#874) |
 | 409 | `EMAIL_ALREADY_EXISTS` | A user (of any organization) already has that email |
 | 409 | `QUOTA_EXCEEDED` | The organization's user quota is exhausted — service accounts count |
 | 422 | `SERVICE_ACCOUNT_OWNER_INVALID` | `owner_user_id` is unknown, inactive, in another organization or not a human |
 | 422 | `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | An `mcp_tool_allow_list` entry is not a catalog tool name (`tool` property) |
+| 422 | `SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID` | The named human is unknown, in another organization, inactive, or a service account (#874) |
+| 422 | `SERVICE_ACCOUNT_DELEGATION_INVALID` | `expires_at` is not in the future (#874) |
 | 422 | `ILLEGAL_USER_OPERATION` | The caller (a service account on an admin role, using its own key) tried to deactivate itself or drop its own user-management role |
 | 429 | `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` | Not this surface's own error — any API-key-authenticated request, on any endpoint, over the identity's per-minute or per-day cap (#873). Carries `limit`, `retryAfterSeconds` and a `Retry-After` header; written by the rate-limit filter, so `traceId` is present but the body never goes through the controller advices |
 
@@ -6427,6 +6493,15 @@ Authorization: ApiKey af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 The filter populates a security context identical to the JWT path — downstream code (controllers,
 MCP tools) sees the same `JwtClaims` principal.
 
+An API-key request may add `X-AccessFlow-On-Behalf-Of` (#874) to name the human it acts for:
+
+```
+X-API-Key: af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+X-AccessFlow-On-Behalf-Of: alice@example.com        # or her user uuid
+```
+
+The value is resolved by the same filter that rate-limits API-key traffic and parked in a request attribute — never on the security principal — so nothing on the authorization path can read it and the permission set stays the key owner's. Requirements, error codes and the surfaces that refuse it are in [General](#general); the grants it is checked against are managed under [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871) and [`/me/service-account-delegations`](#me-service-account-delegations-874).
+
 ### GET /admin/saml-config
 
 Returns the current SAML configuration for the caller's organization. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
@@ -8358,6 +8433,13 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `SERVICE_ACCOUNT_KEY_NAME_CONFLICT` | 409 | `ServiceAccountKeyNameConflictException` | The service account already has a key with that name (#871). Body includes `name`. |
 | `SERVICE_ACCOUNT_OWNER_INVALID` | 422 | `ServiceAccountOwnerInvalidException` | `owner_user_id` is unknown, inactive, in another organization or not a `HUMAN` principal (#871). Body includes `ownerUserId`. |
 | `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | 422 | `ServiceAccountUnknownMcpToolException` | An `mcp_tool_allow_list` entry is not a catalog tool name (#871). Body includes `tool`. |
+| `SERVICE_ACCOUNT_DELEGATION_NOT_FOUND` | 404 | `ServiceAccountDelegationNotFoundException` | Unknown delegated-principal grant, another organization, a grant of a different account on the admin surface, or not the caller's own grant on `/me` (#874). Body includes `delegationId`. |
+| `SERVICE_ACCOUNT_DELEGATION_EXISTS` | 409 | `ServiceAccountDelegationExistsException` | A live (unrevoked, unexpired) grant already lets the service account act for that human; an expired one is retired and replaced (#874). Body includes `serviceAccountId`, `principalUserId`. |
+| `SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID` | 422 | `ServiceAccountDelegationPrincipalInvalidException` | The named human is unknown, in another organization, inactive, or a service account (#874). Body includes `principalUserId` when one was given. |
+| `SERVICE_ACCOUNT_DELEGATION_INVALID` | 422 | `ServiceAccountDelegationInvalidException` | `expires_at` is not in the future (#874). |
+| `ON_BEHALF_OF_NOT_PERMITTED` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` on a JWT session (`reason=not_api_key`), or naming a human the calling service account may not act for (`reason=not_permitted` — one opaque code for unknown / other organization / inactive / not human / no live grant) (#874). |
+| `ON_BEHALF_OF_REVIEW_FORBIDDEN` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` sent to a review / decision endpoint — an agent may submit *for* a human, never vote *as* one (#874). |
+| `REQUEST_GROUP_ON_BEHALF_OF_CONFLICT` | 409 | `IllegalRequestGroupStateException.OnBehalfOfConflict` | A request-group draft already naming a different on-behalf-of principal was submitted with another (#874). |
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |

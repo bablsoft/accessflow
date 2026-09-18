@@ -67,7 +67,17 @@ public interface BreakGlassService {
             UUID organizationId,
             boolean isAdmin,
             String submittedIp,
-            String submittedUserAgent) {
+            String submittedUserAgent,
+            /** The human an API-key caller acts for (#874); attribution only, null for a human. */
+            UUID onBehalfOfUserId) {
+
+        /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+        public BreakGlassInput(UUID datasourceId, String sql, String justification,
+                               UUID submitterUserId, UUID organizationId, boolean isAdmin,
+                               String submittedIp, String submittedUserAgent) {
+            this(datasourceId, sql, justification, submitterUserId, organizationId, isAdmin,
+                    submittedIp, submittedUserAgent, null);
+        }
     }
 
     record BreakGlassResult(

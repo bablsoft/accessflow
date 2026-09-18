@@ -32,7 +32,21 @@ public record SubmitDeploymentRequestCommand(
         String justification,
         Instant scheduledFor,
         SubmissionReason submissionReason,
-        String submittedIp) {
+        String submittedIp,
+        /** The human an API-key caller acts for (#874); null for a human submission. */
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public SubmitDeploymentRequestCommand(UUID pipelineId, String environment, UUID organizationId,
+                                          UUID submitterUserId, boolean admin, String version,
+                                          String commitSha, String artifactRef, String runUrl,
+                                          String externalRunId, Map<String, Object> metadata,
+                                          String justification, Instant scheduledFor,
+                                          SubmissionReason submissionReason, String submittedIp) {
+        this(pipelineId, environment, organizationId, submitterUserId, admin, version, commitSha,
+                artifactRef, runUrl, externalRunId, metadata, justification, scheduledFor,
+                submissionReason, submittedIp, null);
+    }
 
     public SubmitDeploymentRequestCommand {
         // A defensive copy that tolerates null values — the metadata is CI-authored JSON, and

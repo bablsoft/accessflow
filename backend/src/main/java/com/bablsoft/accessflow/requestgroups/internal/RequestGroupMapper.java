@@ -54,7 +54,8 @@ final class RequestGroupMapper {
                 group.getExecutionCompletedAt(),
                 group.getCreatedAt(),
                 group.getUpdatedAt(),
-                itemViews);
+                itemViews,
+                group.getOnBehalfOfUserId());
     }
 
     static RequestGroupItemView toItemView(RequestGroupItemEntity i,

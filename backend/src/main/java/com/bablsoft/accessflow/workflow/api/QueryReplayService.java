@@ -24,7 +24,17 @@ public interface QueryReplayService {
 
     record ReplayCommand(UUID originalQueryId, UUID targetDatasourceId, UUID callerUserId,
                          UUID callerOrganizationId, boolean isAdmin, String ipAddress,
-                         String userAgent) {
+                         String userAgent,
+                         /** The human an API-key caller acts for (#874); null for a human. */
+                         UUID onBehalfOfUserId) {
+
+        /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+        public ReplayCommand(UUID originalQueryId, UUID targetDatasourceId, UUID callerUserId,
+                             UUID callerOrganizationId, boolean isAdmin, String ipAddress,
+                             String userAgent) {
+            this(originalQueryId, targetDatasourceId, callerUserId, callerOrganizationId, isAdmin,
+                    ipAddress, userAgent, null);
+        }
     }
 
     record ReplayResult(UUID newQueryId, QueryStatus status, String sourceSchemaHash,

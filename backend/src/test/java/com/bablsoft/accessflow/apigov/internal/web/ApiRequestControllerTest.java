@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestSubmissionResult;
@@ -13,11 +15,13 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +36,7 @@ class ApiRequestControllerTest {
     private ApiRequestService requestService;
     private ApiAssistService assistService;
     private ApiRequestController controller;
+    private OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -43,7 +48,8 @@ class ApiRequestControllerTest {
     void setUp() {
         requestService = mock(ApiRequestService.class);
         assistService = mock(ApiAssistService.class);
-        controller = new ApiRequestController(requestService, assistService);
+        onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
+        controller = new ApiRequestController(requestService, assistService, onBehalfOfPrincipalService);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -71,7 +77,28 @@ class ApiRequestControllerTest {
                 auth(UserRoleType.ANALYST), auditContext);
 
         assertThat(response.id()).isEqualTo(requestId);
-        verify(requestService).submit(any());
+        var captor = ArgumentCaptor.forClass(SubmitApiRequestCommand.class);
+        verify(requestService).submit(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+    }
+
+    /** #874: the principal the filter parked is stamped on the command. */
+    @Test
+    void submitStampsTheOnBehalfOfPrincipal() {
+        var alice = UUID.randomUUID();
+        when(onBehalfOfPrincipalService.current()).thenReturn(Optional.of(alice));
+        when(requestService.submit(any())).thenReturn(new ApiRequestSubmissionResult(requestId, QueryStatus.PENDING_AI));
+        when(requestService.get(eq(requestId), eq(orgId), eq(userId),
+                eq(SystemRolePermissions.of(UserRoleType.ANALYST))))
+                .thenReturn(view());
+
+        controller.submit(new SubmitApiRequestRequest(connectorId, null, "POST", "/charges",
+                null, null, null, null, "{}", null, null, java.util.Map.of(), "need", null, null),
+                auth(UserRoleType.ANALYST), auditContext);
+
+        var captor = ArgumentCaptor.forClass(SubmitApiRequestCommand.class);
+        verify(requestService).submit(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(alice);
     }
 
     @Test

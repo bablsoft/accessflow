@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.QuerySubmissionResult;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
+import com.bablsoft.accessflow.serviceaccounts.internal.web.ApiKeyRequestFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,6 +114,31 @@ class QuerySubmissionControllerIntegrationTest {
         var captor = ArgumentCaptor.forClass(SubmissionInput.class);
         verify(querySubmissionService).submit(captor.capture());
         assertThat(captor.getValue().submissionReason()).isEqualTo(SubmissionReason.USER_SUBMITTED);
+    }
+
+    /**
+     * #874: the filter parks the resolved principal in a request attribute; the controller reads it
+     * through {@code OnBehalfOfPrincipalService} and stamps the submission. MockMvc never runs the
+     * order-0 filter, so the attribute is planted directly — the resolution itself is covered by
+     * {@code OnBehalfOfIntegrationTest} over real HTTP.
+     */
+    @Test
+    void submitStampsTheOnBehalfOfPrincipalParkedByTheFilter() {
+        var alice = UUID.randomUUID();
+        when(querySubmissionService.submit(any()))
+                .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
+
+        var response = mvc.post().uri("/api/v1/queries")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .requestAttr(ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE, alice)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"%s\",\"sql\":\"SELECT 1\"}".formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(alice);
     }
 
     @Test

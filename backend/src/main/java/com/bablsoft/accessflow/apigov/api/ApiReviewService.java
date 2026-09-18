@@ -39,7 +39,20 @@ public interface ApiReviewService {
              * values themselves are on the detail view.
              */
             int variableOverrideCount,
-            Instant createdAt) {
+            Instant createdAt,
+            /** The human an API-key submitter acted for (#874); null for a human submission. */
+            UUID onBehalfOfUserId) {
+
+        /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+        public PendingApiReview(UUID apiRequestId, UUID connectorId, String connectorName,
+                                UUID submittedByUserId, String verb, String requestPath, boolean write,
+                                String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
+                                Integer aiRiskScore, String aiSummary, int currentStage,
+                                int variableOverrideCount, Instant createdAt) {
+            this(apiRequestId, connectorId, connectorName, submittedByUserId, verb, requestPath, write,
+                    justification, aiAnalysisId, aiRiskLevel, aiRiskScore, aiSummary, currentStage,
+                    variableOverrideCount, createdAt, null);
+        }
     }
 
     record DecisionOutcome(UUID decisionId, DecisionType decision, QueryStatus resultingStatus,

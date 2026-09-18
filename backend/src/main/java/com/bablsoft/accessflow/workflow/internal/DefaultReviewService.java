@@ -236,7 +236,7 @@ class DefaultReviewService implements ReviewService {
         if (view.status() != QueryStatus.PENDING_REVIEW) {
             throw new QueryNotPendingReviewException(queryRequestId, view.status());
         }
-        if (view.submittedByUserId().equals(context.userId())) {
+        if (isSubmitterIdentity(view, context.userId())) {
             throw new AccessDeniedException("A reviewer cannot review their own query request");
         }
         // Deliberately before delegation resolution: a delegation widens which requests an
@@ -277,10 +277,20 @@ class DefaultReviewService implements ReviewService {
         var delegations = reviewDelegationLookupService.findActiveForDelegate(
                 context.organizationId(), context.userId(), DelegationScopeKind.DATASOURCE,
                 view.datasourceId());
-        return candidates(context, view.submittedByUserId(), delegations, decisions, currentStage);
+        return candidates(context, view, delegations, decisions, currentStage);
     }
 
-    private static List<ReviewCandidate> candidates(ReviewerContext context, UUID submitterId,
+    /**
+     * The submitter identities of a request: the submitter, plus the human an API-key submitter
+     * acted for (#874). "Alice's agent submits, Alice approves" must fail exactly like Alice
+     * submitting herself — the on-behalf-of principal is a second submitter for the ban, and only
+     * for the ban.
+     */
+    static boolean isSubmitterIdentity(PendingReviewView view, UUID userId) {
+        return userId.equals(view.submittedByUserId()) || userId.equals(view.onBehalfOfUserId());
+    }
+
+    private static List<ReviewCandidate> candidates(ReviewerContext context, PendingReviewView view,
                                                     List<DelegatedIdentity> delegations,
                                                     List<ReviewDecisionSnapshot> decisions,
                                                     int currentStage) {
@@ -288,10 +298,11 @@ class DefaultReviewService implements ReviewService {
         candidates.add(ReviewCandidate.self(context.userId(), context.roleName()));
         delegations.stream().map(ReviewCandidate::borrowed).forEach(candidates::add);
         // The self-approval ban covers both identities: a delegate may not act on a request the
-        // delegator submitted. Drop that candidate rather than reject outright — the delegate may
-        // still qualify in their own right, or through a different delegator.
+        // delegator submitted (or had submitted for them). Drop that candidate rather than reject
+        // outright — the delegate may still qualify in their own right, or through a different
+        // delegator.
         candidates.removeIf(candidate -> candidate.isDelegated()
-                && submitterId.equals(candidate.onBehalfOfUserId()));
+                && isSubmitterIdentity(view, candidate.onBehalfOfUserId()));
         // One authority, one vote. The unique index only stops the acting user voting twice; it
         // cannot see that a delegator already voted personally, or that a different delegate
         // already voted for them.
@@ -368,7 +379,7 @@ class DefaultReviewService implements ReviewService {
      */
     private Optional<ReviewCandidate> actionableAs(PendingReviewView view, ReviewerContext context,
                                                    List<DelegatedIdentity> delegations) {
-        if (view.submittedByUserId().equals(context.userId())) {
+        if (isSubmitterIdentity(view, context.userId())) {
             return Optional.empty();
         }
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElse(null);
@@ -382,7 +393,7 @@ class DefaultReviewService implements ReviewService {
                 .filter(identity -> identity.covers(DelegationScopeKind.DATASOURCE,
                         view.datasourceId()))
                 .toList();
-        return candidates(context, view.submittedByUserId(), applicable, decisions, stage).stream()
+        return candidates(context, view, applicable, decisions, stage).stream()
                 .filter(candidate -> isApproverAtStage(plan, stage, candidate))
                 .filter(candidate -> isInDatasourceScope(view.datasourceId(), candidate.userId()))
                 .findFirst();
@@ -460,7 +471,8 @@ class DefaultReviewService implements ReviewService {
                 matched.onBehalfOfUserId(),
                 delegator == null ? null : delegator.email(),
                 delegator == null ? null : delegator.displayName(),
-                sqlReviewBlockingCount);
+                sqlReviewBlockingCount,
+                view.onBehalfOfUserId());
     }
 
     private static <T> T mapTransitionFailure(UUID queryRequestId,

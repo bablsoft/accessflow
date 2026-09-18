@@ -15,6 +15,9 @@ import com.bablsoft.accessflow.serviceaccounts.api.RotateServiceAccountKeyComman
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountAdminService;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountAdminView;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountClearableField;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationStatus;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationView;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountIssuedKey;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyView;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountRotatedKey;
@@ -35,6 +38,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -52,9 +56,10 @@ import static org.mockito.Mockito.when;
 class ServiceAccountControllerTest {
 
     private final ServiceAccountAdminService service = mock(ServiceAccountAdminService.class);
+    private final ServiceAccountDelegationService delegationService = mock(ServiceAccountDelegationService.class);
     private final AuditLogService auditLogService = mock(AuditLogService.class);
     private final ServiceAccountController controller =
-            new ServiceAccountController(service, auditLogService, messageSource());
+            new ServiceAccountController(service, delegationService, auditLogService, messageSource());
 
     private final UUID organizationId = UUID.randomUUID();
     private final UUID adminId = UUID.randomUUID();
@@ -268,6 +273,97 @@ class ServiceAccountControllerTest {
         var captor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(captor.capture());
         return captor.getValue();
+    }
+
+    // ---- delegated principals (#874) ----
+
+    private ServiceAccountDelegationView delegation(UUID principalId, Instant expiresAt) {
+        return new ServiceAccountDelegationView(UUID.randomUUID(), organizationId, accountId, "bot@example.com",
+                principalId, "alice@example.com", adminId, Instant.EPOCH, expiresAt, null,
+                ServiceAccountDelegationStatus.ACTIVE);
+    }
+
+    @Test
+    void delegationEndpointsAcceptUserManageAsWellAsServiceAccountManage() throws Exception {
+        for (Method method : List.of(
+                ServiceAccountController.class.getDeclaredMethod("listDelegatedPrincipals", UUID.class,
+                        Authentication.class),
+                ServiceAccountController.class.getDeclaredMethod("grantDelegatedPrincipal", UUID.class,
+                        GrantDelegatedPrincipalRequest.class, Authentication.class, RequestAuditContext.class),
+                ServiceAccountController.class.getDeclaredMethod("revokeDelegatedPrincipal", UUID.class,
+                        UUID.class, Authentication.class, RequestAuditContext.class))) {
+            var preAuthorize = method.getAnnotation(PreAuthorize.class);
+            assertThat(preAuthorize).as(method.getName()).isNotNull();
+            assertThat(preAuthorize.value())
+                    .isEqualTo("hasAnyAuthority('PERM_SERVICE_ACCOUNT_MANAGE','PERM_USER_MANAGE')");
+        }
+    }
+
+    @Test
+    void listDelegatedPrincipalsMapsTheViews() {
+        var alice = UUID.randomUUID();
+        when(delegationService.listForServiceAccount(organizationId, accountId))
+                .thenReturn(List.of(delegation(alice, null)));
+
+        var result = controller.listDelegatedPrincipals(accountId, authentication);
+
+        assertThat(result).singleElement().satisfies(r -> {
+            assertThat(r.principalUserId()).isEqualTo(alice);
+            assertThat(r.principalEmail()).isEqualTo("alice@example.com");
+            assertThat(r.status()).isEqualTo(ServiceAccountDelegationStatus.ACTIVE);
+        });
+    }
+
+    @Test
+    void grantDelegatedPrincipalReturns201AndAuditsWithoutTheExpiryWhenOpenEnded() {
+        var alice = UUID.randomUUID();
+        var view = delegation(alice, null);
+        when(delegationService.grant(eq(organizationId), eq(adminId), any())).thenReturn(view);
+
+        var response = controller.grantDelegatedPrincipal(accountId,
+                new GrantDelegatedPrincipalRequest(alice, null), authentication, auditContext);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().id()).isEqualTo(view.id());
+        var command = ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.serviceaccounts.api.GrantServiceAccountDelegationCommand.class);
+        verify(delegationService).grant(eq(organizationId), eq(adminId), command.capture());
+        assertThat(command.getValue().serviceAccountUserId()).isEqualTo(accountId);
+        assertThat(command.getValue().principalUserId()).isEqualTo(alice);
+        var audit = recordedAudit();
+        assertThat(audit.action()).isEqualTo(AuditAction.SERVICE_ACCOUNT_DELEGATION_GRANTED);
+        assertThat(audit.resourceId()).isEqualTo(accountId);
+        assertThat(audit.metadata()).containsEntry("delegation_id", view.id().toString())
+                .containsEntry("principal_user_id", alice.toString())
+                .containsEntry("channel", "admin")
+                .doesNotContainKey("expires_at");
+    }
+
+    @Test
+    void grantDelegatedPrincipalAuditsTheExpiryWhenSet() {
+        var alice = UUID.randomUUID();
+        var expiry = Instant.EPOCH.plusSeconds(3600);
+        when(delegationService.grant(eq(organizationId), eq(adminId), any())).thenReturn(delegation(alice, expiry));
+
+        controller.grantDelegatedPrincipal(accountId, new GrantDelegatedPrincipalRequest(alice, expiry),
+                authentication, auditContext);
+
+        assertThat(recordedAudit().metadata()).containsEntry("expires_at", expiry.toString());
+    }
+
+    @Test
+    void revokeDelegatedPrincipalIsScopedToTheAccountInThePathAndAudits() {
+        var alice = UUID.randomUUID();
+        var view = delegation(alice, null);
+        when(delegationService.revoke(organizationId, adminId, view.id(), accountId, null)).thenReturn(view);
+
+        var response = controller.revokeDelegatedPrincipal(accountId, view.id(), authentication, auditContext);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        var audit = recordedAudit();
+        assertThat(audit.action()).isEqualTo(AuditAction.SERVICE_ACCOUNT_DELEGATION_REVOKED);
+        assertThat(audit.resourceId()).isEqualTo(accountId);
+        assertThat(audit.metadata()).containsEntry("delegation_id", view.id().toString());
     }
 
     private ServiceAccountAdminView view(List<ServiceAccountKeyView> keys) {

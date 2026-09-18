@@ -45,6 +45,8 @@ import java.util.function.Supplier;
 @Slf4j
 class AuditEventListener {
 
+    static final String ON_BEHALF_OF_USER_ID = "on_behalf_of_user_id";
+
     private final AuditLogService auditLogService;
     private final QueryRequestLookupService queryRequestLookupService;
     private final DatasourceLookupService datasourceLookupService;
@@ -394,9 +396,26 @@ class AuditEventListener {
                 log.warn("{} listener received unknown queryRequestId {}", action, queryRequestId);
                 return;
             }
-            auditLogService.record(entryBuilder.apply(snapshot));
+            auditLogService.record(withAttribution(entryBuilder.apply(snapshot), snapshot));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on query {}", action, queryRequestId, ex);
         }
+    }
+
+    /**
+     * These listeners run after commit, off the request thread, so the request-scoped provenance
+     * contributor (#874) has nothing to say here. The one fact that outlives the request — whom an
+     * API-key submitter acted for — is on the snapshot, and every lifecycle row of such a query
+     * carries it explicitly so the trail stays self-describing.
+     */
+    private static AuditEntry withAttribution(AuditEntry entry, QueryRequestSnapshot snapshot) {
+        if (snapshot.onBehalfOfUserId() == null
+                || entry.metadata().containsKey(ON_BEHALF_OF_USER_ID)) {
+            return entry;
+        }
+        var metadata = new HashMap<>(entry.metadata());
+        metadata.put(ON_BEHALF_OF_USER_ID, snapshot.onBehalfOfUserId().toString());
+        return new AuditEntry(entry.action(), entry.resourceType(), entry.resourceId(),
+                entry.organizationId(), entry.actorId(), metadata, entry.ipAddress(), entry.userAgent());
     }
 }

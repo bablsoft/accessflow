@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.config;
 
+import com.bablsoft.accessflow.serviceaccounts.internal.OnBehalfOfResolver;
 import com.bablsoft.accessflow.serviceaccounts.internal.ServiceAccountRateLimiter;
 import com.bablsoft.accessflow.serviceaccounts.internal.web.ApiKeyRequestFilter;
+import com.bablsoft.accessflow.serviceaccounts.internal.web.OnBehalfOfDecisionPaths;
 import jakarta.servlet.DispatcherType;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -27,11 +29,13 @@ class ServiceAccountsConfiguration {
 
     @Bean
     FilterRegistrationBean<ApiKeyRequestFilter> apiKeyRequestFilter(ServiceAccountRateLimiter rateLimiter,
+                                                                    OnBehalfOfResolver onBehalfOfResolver,
                                                                     ObjectMapper objectMapper,
                                                                     MessageSource messageSource,
                                                                     Clock clock) {
         var registration = new FilterRegistrationBean<>(
-                new ApiKeyRequestFilter(rateLimiter, objectMapper, messageSource, clock));
+                new ApiKeyRequestFilter(rateLimiter, onBehalfOfResolver, new OnBehalfOfDecisionPaths(),
+                        objectMapper, messageSource, clock));
         registration.setName("apiKeyRequestFilter");
         registration.setOrder(API_KEY_REQUEST_FILTER_ORDER);
         registration.setDispatcherTypes(DispatcherType.REQUEST);

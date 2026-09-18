@@ -82,7 +82,23 @@ public interface ReviewService {
              * How many deterministic SQL review findings fired at {@code BLOCK} for this query
              * (#864) — the signal that it could not auto-approve; {@code 0} when none.
              */
-            int sqlReviewBlockingCount) {
+            int sqlReviewBlockingCount,
+            /** The human an API-key submitter acted for (#874); null for a human submission. */
+            UUID onBehalfOfUserId) {
+
+        /** Convenience constructor for callers that predate on-behalf-of attribution (#874). */
+        public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,
+                             UUID submittedByUserId, String submittedByEmail, String sqlText,
+                             QueryType queryType, String justification, UUID aiAnalysisId,
+                             RiskLevel aiRiskLevel, Integer aiRiskScore, String aiSummary,
+                             Double approvalProbability, int currentStage, Instant createdAt,
+                             UUID delegatedForUserId, String delegatedForEmail,
+                             String delegatedForDisplayName, int sqlReviewBlockingCount) {
+            this(queryRequestId, datasourceId, datasourceName, submittedByUserId, submittedByEmail,
+                    sqlText, queryType, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
+                    aiSummary, approvalProbability, currentStage, createdAt, delegatedForUserId,
+                    delegatedForEmail, delegatedForDisplayName, sqlReviewBlockingCount, null);
+        }
 
         /** Convenience constructor for callers that predate reviewer delegation. */
         public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,

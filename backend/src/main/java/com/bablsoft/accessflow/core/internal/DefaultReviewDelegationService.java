@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateReviewDelegationCommand;
 import com.bablsoft.accessflow.core.api.DelegationScopeKind;
 import com.bablsoft.accessflow.core.api.IllegalReviewDelegationException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.ReviewDelegateCandidate;
@@ -114,6 +115,8 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
     public List<ReviewDelegateCandidate> listDelegateCandidates(UUID organizationId, UUID callerId) {
         return userRepository.findAllByOrganization_Id(organizationId).stream()
                 .filter(UserEntity::isActive)
+                // A service account can never borrow review authority (#874) — keep it out of the picker.
+                .filter(user -> user.getPrincipalType() == PrincipalType.HUMAN)
                 .filter(user -> !user.getId().equals(callerId))
                 .map(user -> new ReviewDelegateCandidate(user.getId(), user.getEmail(),
                         user.getDisplayName()))
@@ -169,17 +172,21 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
             throw new IllegalReviewDelegationException(msg("error.review_delegation.self"));
         }
         requireActiveMember(command.organizationId(), command.delegatorUserId(), "delegator");
-        requireActiveMember(command.organizationId(), command.delegateUserId(), "delegate");
+        var delegate = requireActiveMember(command.organizationId(), command.delegateUserId(), "delegate");
+        // The reverse of on-behalf-of (#874): a human may let an agent act FOR them, but may never
+        // hand an agent their review AUTHORITY — that is exactly the laundering path the epic closes.
+        if (delegate.getPrincipalType() != PrincipalType.HUMAN) {
+            throw new IllegalReviewDelegationException(msg("error.review_delegation.delegate_service_account"));
+        }
     }
 
-    private void requireActiveMember(UUID organizationId, UUID userId, String label) {
-        var user = userRepository.findById(userId)
+    private UserEntity requireActiveMember(UUID organizationId, UUID userId, String label) {
+        return userRepository.findById(userId)
                 .filter(UserEntity::isActive)
                 .filter(candidate -> candidate.getOrganization() != null
-                        && organizationId.equals(candidate.getOrganization().getId()));
-        if (user.isEmpty()) {
-            throw new IllegalReviewDelegationException(msg("error.review_delegation." + label + "_not_member"));
-        }
+                        && organizationId.equals(candidate.getOrganization().getId()))
+                .orElseThrow(() -> new IllegalReviewDelegationException(
+                        msg("error.review_delegation." + label + "_not_member")));
     }
 
     /** @return the scoped resource's display name, or null for an unrestricted delegation */

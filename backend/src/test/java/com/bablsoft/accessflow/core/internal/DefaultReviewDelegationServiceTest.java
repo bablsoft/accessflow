@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateReviewDelegationCommand;
 import com.bablsoft.accessflow.core.api.DelegationScopeKind;
 import com.bablsoft.accessflow.core.api.IllegalReviewDelegationException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.ReviewDelegationNotFoundException;
 import com.bablsoft.accessflow.core.api.ReviewDelegationScopeResolver;
 import com.bablsoft.accessflow.core.api.ReviewDelegationStatus;
@@ -190,6 +191,19 @@ class DefaultReviewDelegationServiceTest {
                 .hasMessageContaining("delegate_not_member");
     }
 
+    /** #874: review authority can never be handed to a service account. */
+    @Test
+    void rejectsAServiceAccountDelegate() {
+        var bot = member(delegateId, "Bot", "bot@example.com", true);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(delegateId)).thenReturn(Optional.of(bot));
+
+        assertThatThrownBy(() -> service.create(command(null, null)))
+                .isInstanceOf(IllegalReviewDelegationException.class)
+                .hasMessageContaining("delegate_service_account");
+        verify(delegationRepository, never()).save(any());
+    }
+
     @Test
     void rejectsADeactivatedDelegate() {
         var inactive = new UserEntity();
@@ -319,13 +333,16 @@ class DefaultReviewDelegationServiceTest {
     }
 
     @Test
-    void delegateCandidatesExcludeTheCallerAndAnyoneDeactivated() {
+    void delegateCandidatesExcludeTheCallerAnyoneDeactivatedAndServiceAccounts() {
         var other = UUID.randomUUID();
         var inactive = UUID.randomUUID();
+        var bot = member(UUID.randomUUID(), "Bot", "bot@example.com", true);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
         when(userRepository.findAllByOrganization_Id(orgId)).thenReturn(List.of(
                 member(delegatorId, "Me", "me@example.com", true),
                 member(other, "Bob", "bob@example.com", true),
-                member(inactive, "Gone", "gone@example.com", false)));
+                member(inactive, "Gone", "gone@example.com", false),
+                bot));
 
         var candidates = service.listDelegateCandidates(orgId, delegatorId);
 

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.web;
 
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationView;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationStatus;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountAdminView;
@@ -191,5 +193,41 @@ class ServiceAccountWebModelsTest {
         assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ZERO).isGracePeriodPositive()).isFalse();
         assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ofSeconds(-1)).isGracePeriodPositive())
                 .isFalse();
+    }
+    @Test
+    void delegationResponseCopiesEveryField() {
+        var id = UUID.randomUUID();
+        var principal = UUID.randomUUID();
+        var grantedBy = UUID.randomUUID();
+        var view = new ServiceAccountDelegationView(id, ORG, ID, "bot@example.com", principal,
+                "alice@example.com", grantedBy, Instant.EPOCH, Instant.EPOCH.plusSeconds(1),
+                Instant.EPOCH.plusSeconds(2), ServiceAccountDelegationStatus.REVOKED);
+
+        var response = ServiceAccountDelegationResponse.from(view);
+
+        assertThat(response.id()).isEqualTo(id);
+        assertThat(response.serviceAccountUserId()).isEqualTo(ID);
+        assertThat(response.serviceAccountEmail()).isEqualTo("bot@example.com");
+        assertThat(response.principalUserId()).isEqualTo(principal);
+        assertThat(response.principalEmail()).isEqualTo("alice@example.com");
+        assertThat(response.grantedBy()).isEqualTo(grantedBy);
+        assertThat(response.createdAt()).isEqualTo(Instant.EPOCH);
+        assertThat(response.expiresAt()).isEqualTo(Instant.EPOCH.plusSeconds(1));
+        assertThat(response.revokedAt()).isEqualTo(Instant.EPOCH.plusSeconds(2));
+        assertThat(response.status()).isEqualTo(ServiceAccountDelegationStatus.REVOKED);
+    }
+
+    @Test
+    void grantRequestsMapOntoTheCommandWithTheOtherPartyFromTheCaller() {
+        var principal = UUID.randomUUID();
+        var admin = new GrantDelegatedPrincipalRequest(principal, Instant.EPOCH).toCommand(ID);
+        assertThat(admin.serviceAccountUserId()).isEqualTo(ID);
+        assertThat(admin.principalUserId()).isEqualTo(principal);
+        assertThat(admin.expiresAt()).isEqualTo(Instant.EPOCH);
+
+        var self = new GrantMyServiceAccountDelegationRequest(ID, null).toCommand(principal);
+        assertThat(self.serviceAccountUserId()).isEqualTo(ID);
+        assertThat(self.principalUserId()).isEqualTo(principal);
+        assertThat(self.expiresAt()).isNull();
     }
 }

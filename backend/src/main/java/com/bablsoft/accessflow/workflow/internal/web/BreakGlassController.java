@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 class BreakGlassController {
 
     private final BreakGlassService breakGlassService;
+    private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     @PostMapping
     @Operation(summary = "Execute an emergency (break-glass) query immediately, bypassing approval")
@@ -49,7 +51,8 @@ class BreakGlassController {
                 caller.organizationId(),
                 caller.has(Permission.QUERY_ADMIN),
                 auditContext.ipAddress(),
-                auditContext.userAgent()));
+                auditContext.userAgent(),
+                onBehalfOfPrincipalService.current().orElse(null)));
         return BreakGlassExecuteResponse.from(result);
     }
 }

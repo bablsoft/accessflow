@@ -47,7 +47,11 @@ final class RequestGroupSpecifications {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.equal(root.get("organizationId"), organizationId));
             predicates.add(cb.equal(root.get("status"), RequestGroupStatus.PENDING_REVIEW));
+            // Neither the submitter nor the human the submitter acted for (#874): the queue must
+            // hide what the decision would refuse.
             predicates.add(cb.notEqual(root.get("submittedBy"), reviewerId));
+            predicates.add(cb.or(cb.isNull(root.get("onBehalfOfUserId")),
+                    cb.notEqual(root.get("onBehalfOfUserId"), reviewerId)));
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

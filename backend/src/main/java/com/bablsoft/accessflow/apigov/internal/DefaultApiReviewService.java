@@ -125,7 +125,7 @@ public class DefaultApiReviewService implements ApiReviewService {
      * approver" would turn an upgrade into an outage on every un-planned connector.
      */
     private ReviewCandidate guardReviewable(ApiRequestEntity request, ReviewerContext context) {
-        if (request.getSubmittedBy().equals(context.userId())) {
+        if (isSubmitterIdentity(request, context.userId())) {
             throw new SelfApprovalNotAllowedException();
         }
         if (request.getStatus() != QueryStatus.PENDING_REVIEW) {
@@ -211,6 +211,14 @@ public class DefaultApiReviewService implements ApiReviewService {
         return new ApiRequestSpecifications.ReviewReach(identity.onBehalfOfUserId(), reachable);
     }
 
+    /**
+     * The submitter identities of a request: the submitter, plus the human an API-key submitter
+     * acted for (#874) — a second identity for the self-approval ban, and only for the ban.
+     */
+    static boolean isSubmitterIdentity(ApiRequestEntity request, UUID userId) {
+        return userId.equals(request.getSubmittedBy()) || userId.equals(request.getOnBehalfOfUserId());
+    }
+
     private List<ReviewCandidate> candidates(ReviewerContext context, ApiRequestEntity request,
                                              List<ApiReviewDecisionEntity> decided) {
         var delegations = reviewDelegationLookupService.findActiveForDelegate(
@@ -223,7 +231,7 @@ public class DefaultApiReviewService implements ApiReviewService {
         // delegator submitted. Drop that identity rather than reject outright — the caller may
         // still qualify in their own right.
         candidates.removeIf(candidate -> candidate.isDelegated()
-                && request.getSubmittedBy().equals(candidate.onBehalfOfUserId()));
+                && isSubmitterIdentity(request, candidate.onBehalfOfUserId()));
         // One authority, one vote. The unique index only stops the acting user voting twice; it
         // cannot see that a delegator already voted personally, or the reverse.
         //
@@ -309,6 +317,6 @@ public class DefaultApiReviewService implements ApiReviewService {
                 summary != null ? summary.riskLevel() : null,
                 summary != null ? summary.riskScore() : null,
                 summary != null ? summary.summary() : null, STAGE,
-                variableOverrideCount(e.getVariableOverrides()), e.getCreatedAt());
+                variableOverrideCount(e.getVariableOverrides()), e.getCreatedAt(), e.getOnBehalfOfUserId());
     }
 }

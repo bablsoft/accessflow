@@ -1,6 +1,10 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.web;
 
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountBootstrapManagedException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationExistsException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationInvalidException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationNotFoundException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationPrincipalInvalidException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyNameConflictException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyNotFoundException;
@@ -94,6 +98,39 @@ class ServiceAccountExceptionHandler {
                 new Object[] {ex.tool()}, "SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL");
         pd.setProperty("tool", ex.tool());
         return pd;
+    }
+
+    @ExceptionHandler(ServiceAccountDelegationNotFoundException.class)
+    ProblemDetail handleDelegationNotFound(ServiceAccountDelegationNotFoundException ex) {
+        var pd = problem(HttpStatus.NOT_FOUND, "error.service_account_delegation_not_found", null,
+                "SERVICE_ACCOUNT_DELEGATION_NOT_FOUND");
+        pd.setProperty("delegationId", ex.delegationId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ServiceAccountDelegationExistsException.class)
+    ProblemDetail handleDelegationExists(ServiceAccountDelegationExistsException ex) {
+        var pd = problem(HttpStatus.CONFLICT, "error.service_account_delegation_exists", null,
+                "SERVICE_ACCOUNT_DELEGATION_EXISTS");
+        pd.setProperty("serviceAccountId", ex.serviceAccountUserId().toString());
+        pd.setProperty("principalUserId", ex.principalUserId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ServiceAccountDelegationPrincipalInvalidException.class)
+    ProblemDetail handleDelegationPrincipalInvalid(ServiceAccountDelegationPrincipalInvalidException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, "error.service_account_delegation_principal_invalid",
+                null, "SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID");
+        if (ex.principalUserId() != null) {
+            pd.setProperty("principalUserId", ex.principalUserId().toString());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(ServiceAccountDelegationInvalidException.class)
+    ProblemDetail handleDelegationInvalid(ServiceAccountDelegationInvalidException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, "error.service_account_delegation_invalid", null,
+                "SERVICE_ACCOUNT_DELEGATION_INVALID");
     }
 
     private ProblemDetail problem(HttpStatus status, String key, Object[] args, String code) {

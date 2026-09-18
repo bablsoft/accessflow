@@ -171,6 +171,34 @@ human only detaches ownership. Created by `V173`.
 
 ---
 
+## service_account_delegated_principals (`serviceaccounts`, #874)
+
+Which humans a service account may name in `X-AccessFlow-On-Behalf-Of`. A row is **consent to be
+named**, never a transfer of anything: the agent's effective permissions stay its own (the resolved
+principal lives in a request attribute that nothing on the authorization path reads), and it confers
+no review authority in either direction. It is the mirror image of [`review_delegations`](#review_delegations-622),
+which borrows a human's review *authority* — the two must never be confused, which is also why a
+reviewer delegation can never target a service account (`DefaultReviewDelegationService` refuses a
+non-`HUMAN` delegate). Rows are inserted and soft-revoked, never edited (no optimistic lock), so the
+grant that authorised a past submission survives as evidence. Flyway V176 — which also retires
+(`revoked_at = now()`, `revoked_by` NULL) any pre-existing `review_delegations` row whose delegate is
+a service account, the direction the service refuses from now on.
+
+| Column | Type |
+|--------|------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL, FK → `organizations` `ON DELETE CASCADE` |
+| `service_account_user_id` | UUID NOT NULL, FK → `users` `ON DELETE CASCADE` — the agent; must already be `principal_type = SERVICE_ACCOUNT` (a human id is a 404 at grant time) |
+| `principal_user_id` | UUID NOT NULL, FK → `users` `ON DELETE CASCADE` — the human; must be active and `HUMAN` at grant time. `CHECK (service_account_user_id <> principal_user_id)` |
+| `granted_by` | UUID nullable, FK → `users` `ON DELETE SET NULL` — the human themself (`/me/service-account-delegations`) or an admin |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT `now()` |
+| `expires_at` | TIMESTAMPTZ nullable — NULL = open-ended; the header check treats `expires_at <= now()` as absent |
+| `revoked_at` / `revoked_by` | TIMESTAMPTZ / UUID, nullable — soft revoke |
+
+Indexes: `uq_sa_delegated_principals_live` — **partial UNIQUE** `(service_account_user_id, principal_user_id) WHERE revoked_at IS NULL`, so at most one live grant exists per pair (the service pre-checks and translates the raced violation to `409 SERVICE_ACCOUNT_DELEGATION_EXISTS`); `idx_sa_delegated_principals_principal` on `(organization_id, principal_user_id)` for the self-service list. The header hot path is `findLive(service_account_user_id, principal_user_id, now)` — unrevoked and unexpired — after the principal has already passed the organization / active / `HUMAN` checks.
+
+---
+
 ## datasources
 
 A customer database that AccessFlow proxies. Credentials are stored encrypted.
@@ -938,6 +966,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `id` | UUID PK |
 | `datasource_id` | FK → `datasources` |
 | `submitted_by` | FK → `users` |
+| `on_behalf_of_user_id` | UUID nullable (V176, #874) — the human an API-key submitter acted *for*, taken from a validated `X-AccessFlow-On-Behalf-Of` header. No FK (attribution must survive deletion of either party, as with the V143 decision provenance). Attribution and a **second submitter identity** for the self-approval ban — never anything else. Copied onto recurring occurrences. NULL for every human submission |
 | `sql_text` | TEXT — the raw submitted SQL (including any `BEGIN; … COMMIT;` envelope, verbatim, for audit and AI prompting) |
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
@@ -1601,7 +1630,7 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | `action` | VARCHAR(100) — e.g. `QUERY_SUBMITTED`, `QUERY_APPROVED`, `DATASOURCE_CREATED` |
 | `resource_type` | VARCHAR(100) — e.g. `query_request`, `datasource`, `user` |
 | `resource_id` | UUID |
-| `metadata` | JSONB — context-specific details (no query result data) |
+| `metadata` | JSONB — context-specific details (no query result data). Since #874 also the **request provenance** an `audit.api.AuditMetadataContributor` adds on the request thread: on every API-key request `api_key_id` and `service_account` (boolean), plus `on_behalf_of_user_id` when the request named a human. Explicit keys the caller placed on the entry always win on a collision (`trigger=` is never clobbered). Rows written off the request thread (after-commit listeners, scheduled jobs) get nothing from the contributor — the query-lifecycle rows carry `on_behalf_of_user_id` explicitly from the request row instead. A synchronous **null-actor** row written inside an agent's request (e.g. `SQL_REVIEW_BLOCKED`, `trigger=sql_review`) also carries these keys: they describe the request the system action ran in, never an actor claim |
 | `ip_address` | INET |
 | `user_agent` | TEXT |
 | `created_at` | TIMESTAMPTZ |
@@ -1666,6 +1695,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
 | `SQL_REVIEW_RULESET_CREATED` / `SQL_REVIEW_RULESET_UPDATED` / `SQL_REVIEW_RULESET_DELETED` | Admin creates / updates / deletes a SQL review ruleset via the `/admin/sql-review-rulesets` CRUD endpoints (#863). Resource: `sql_review_ruleset`. Metadata on create / update: `name`, `environment` (`DEFAULT` for the organization-wide default), `enabled`, `rule_count`. The read-only `POST /sql-review/evaluate` writes no audit row. |
 | `SERVICE_ACCOUNT_CREATED` / `SERVICE_ACCOUNT_UPDATED` / `SERVICE_ACCOUNT_DEACTIVATED` | Admin creates / updates / deactivates a service account via `/admin/service-accounts` (#871). Resource: `service_account`, `resource_id` = the account's `users.id`. Metadata on create: `email`, `role`; on update: `fields` (the request fields that were present) and `cleared` (the UI-owned fields reset through `clear`) — never their values. Accounts reconciled from bootstrap YAML keep auditing as `API_KEY_CREATED` / `API_KEY_UPDATED` with `source = BOOTSTRAP`. |
+| `SERVICE_ACCOUNT_DELEGATION_GRANTED` / `SERVICE_ACCOUNT_DELEGATION_REVOKED` | A human (`channel=self_service`, via `/me/service-account-delegations`) or an admin (`channel=admin`) let a service account act on a human's behalf, or revoked that grant (#874). Resource: `service_account`. Metadata: `delegation_id`, `principal_user_id`, `expires_at` (when set), `channel`. |
 | `SERVICE_ACCOUNT_KEY_ISSUED` / `SERVICE_ACCOUNT_KEY_ROTATED` / `SERVICE_ACCOUNT_KEY_REVOKED` | Admin issues / rotates / revokes an API key on behalf of a service account (#871). Resource: `service_account`. Metadata: `api_key_id`, `name` (issue); `api_key_id`, `superseded_key_id`, `name`, `superseded_expires_at` (rotate — the old key's new expiry, i.e. the end of the grace window); `api_key_id` (revoke). The raw key is never logged. |
 | `SQL_REVIEW_BLOCKED` | A `BLOCK` SQL review finding suppressed an auto-approve path and forced the request to human review (#864). System-attributed: `actor_id` is NULL. Resource: `query_request` (written by `QueryReviewStateMachine` after the transition) or `request_group` (written by `GroupAiAnalysisListener`). Metadata: `trigger: "sql_review"`, `blocking_rule_ids` (distinct, sorted), `suppressed_paths` — one or more of `ROUTING_AUTO_APPROVE`, `GRANT_FAST_PATH`, `REVIEW_PLAN` for a query, `GROUP_REVIEW_PLAN` for a group — plus `matched_policy_id` when routing was the suppressed path and `blocking_item_ids` for a group. Written **only when the guard changed the outcome**: never for `WARN`, never on a routing `AUTO_REJECT` (the rejection stands), never on the AI-failed path or a plan that already required review (the findings are still on the detail), and never for break-glass, which records findings but is not gated. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
@@ -2579,6 +2609,7 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 |--------|------|-------|
 | `id` | UUID PK | |
 | `connector_id` / `organization_id` / `submitted_by` | UUID | Bare UUIDs. |
+| `on_behalf_of_user_id` | UUID nullable | V176 (#874) — the human an API-key submitter acted for; a second submitter identity for the self-approval ban and the review-queue exclusion. No FK. NULL for a human submission. |
 | `operation_id` | TEXT | Null for a free-form call. |
 | `verb` | VARCHAR(16) | HTTP method / GraphQL op / gRPC method. |
 | `request_path` | TEXT | |
@@ -2694,6 +2725,7 @@ collision.
 |--------|------|-------|
 | `id` | UUID PK | |
 | `pipeline_id` / `environment_id` / `organization_id` / `submitted_by` | UUID | Bare UUIDs. |
+| `on_behalf_of_user_id` | UUID nullable | V176 (#874) — the human a CI job / agent triggered the deployment for; a second submitter identity for the self-approval ban and the review-queue exclusion. No FK. NULL for a human trigger. |
 | `version` | VARCHAR(255) | Artifact version being deployed ("2.4.1"). |
 | `commit_sha` | VARCHAR(64) | |
 | `artifact_ref` / `run_url` / `external_run_id` | TEXT | CI-side artifact and run identity. |
@@ -2745,6 +2777,7 @@ follow-up review. Status enum `deployment_rollback_review_status` = `PENDING_REV
 | `id` | UUID PK | |
 | `deployment_request_id` | UUID NOT NULL UNIQUE, FK → `deployment_requests` `ON DELETE CASCADE` | One review per request — the idempotency backstop for a repeated `ROLLED_BACK` report. |
 | `organization_id` / `pipeline_id` / `environment_id` / `submitted_by` | UUID | Bare UUIDs (no FK), denormalized from the request; `submitted_by` backs the self-acknowledge guard. |
+| `on_behalf_of_user_id` | UUID nullable | V176 (#874) — copied from the request like `submitted_by`; the human the deployment was triggered for cannot acknowledge its rollback either. |
 | `outcome_detail` | TEXT | Copied from the outcome report. |
 | `status` | `deployment_rollback_review_status` | Default `PENDING_REVIEW`. |
 | `reviewed_by` / `review_comment` / `reviewed_at` | — | Set on acknowledgment. |
@@ -2984,6 +3017,7 @@ module boundary).
 |--------|------|-------|
 | `id` | UUID PK | |
 | `organization_id` | UUID | Bare UUID, org-scoped. |
+| `on_behalf_of_user_id` | UUID nullable | V176 (#874) — the human an API-key submitter acted for, set at draft creation or taken at submit; a draft already naming a different principal cannot be submitted for another (`409 REQUEST_GROUP_ON_BEHALF_OF_CONFLICT`). A second submitter identity for the self-approval ban and the queue exclusion. No FK. |
 | `name` | VARCHAR(255) | Group title. |
 | `description` | TEXT | Submitter's justification (nullable). |
 | `status` | `request_group_status` | Group lifecycle (see state machine below). Default `DRAFT`. |

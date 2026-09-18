@@ -278,7 +278,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 aiAnalysis != null ? aiAnalysis.getRiskLevel() : null,
                 aiAnalysis != null ? aiAnalysis.getRiskScore() : null,
                 aiAnalysis != null ? aiAnalysis.getSummary() : null,
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getOnBehalfOfUserId());
     }
 
     private QueryListItemView toListItemView(QueryRequestEntity entity) {
@@ -355,7 +356,16 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getRecurrenceHaltedReason(),
                 entity.getRecurringParentId(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getOnBehalfOfUserId(),
+                onBehalfOfEmail(entity.getOnBehalfOfUserId()));
+    }
+
+    private String onBehalfOfEmail(UUID onBehalfOfUserId) {
+        if (onBehalfOfUserId == null) {
+            return null;
+        }
+        return userRepository.findById(onBehalfOfUserId).map(UserEntity::getEmail).orElse(null);
     }
 
     private Map<UUID, QueryDetailView.ReviewerRef> delegatorRefs(
@@ -464,7 +474,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getRecurrenceRule(),
                 entity.getRecurrenceUntil(),
                 entity.getRecurrenceNextRunAt(),
-                entity.getRecurringParentId());
+                entity.getRecurringParentId(),
+                entity.getOnBehalfOfUserId());
     }
 
     private static final List<QueryStatus> APPROVED_STATUSES =

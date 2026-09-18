@@ -89,6 +89,52 @@ class DefaultApiReviewServiceTest {
         verify(stateService).apply(any(), eq(QueryStatus.APPROVED));
     }
 
+    /**
+     * #874: a third party's decision on an agent-submitted request never carries the request's
+     * principal — {@code api_review_decisions.on_behalf_of_user_id} means "borrowed the
+     * delegator's authority" and confers eligibility, so it stays NULL for every agent flow.
+     */
+    @Test
+    void aThirdPartyDecisionOnAnAgentSubmissionRecordsNoOnBehalfOf() {
+        var request = pending();
+        request.setOnBehalfOfUserId(UUID.randomUUID());
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId)).thenReturn(Optional.of(request));
+        when(decisionRepository.findByApiRequestIdAndReviewerIdAndStage(requestId, reviewerId, 1))
+                .thenReturn(Optional.empty());
+        var saved = new java.util.concurrent.atomic.AtomicReference<ApiReviewDecisionEntity>();
+        when(decisionRepository.save(any())).thenAnswer(i -> {
+            var d = (ApiReviewDecisionEntity) i.getArgument(0);
+            d.setId(UUID.randomUUID());
+            saved.set(d);
+            return d;
+        });
+        when(decisionRepository.countByApiRequestIdAndStageAndDecision(requestId, 1, DecisionType.APPROVED))
+                .thenReturn(1L);
+
+        service.approve(requestId, reviewer(), "ok");
+
+        assertThat(saved.get().getReviewerId()).isEqualTo(reviewerId);
+        assertThat(saved.get().getOnBehalfOfUserId()).isNull();
+        assertThat(saved.get().getDelegationId()).isNull();
+    }
+
+    /** #874: the human the agent acted for is a submitter identity for the ban. */
+    @Test
+    void theHumanTheSubmitterActedForCannotApprove() {
+        var alice = UUID.randomUUID();
+        var own = pending();
+        own.setOnBehalfOfUserId(alice);
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId)).thenReturn(Optional.of(own));
+
+        var ctx = new ReviewerContext(alice, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+        assertThatThrownBy(() -> service.approve(requestId, ctx, "x"))
+                .isInstanceOf(SelfApprovalNotAllowedException.class);
+        assertThatThrownBy(() -> service.reject(requestId, ctx, "x"))
+                .isInstanceOf(SelfApprovalNotAllowedException.class);
+        verify(stateService, never()).apply(any(), any());
+    }
+
     @Test
     void submitterCannotSelfApprove() {
         var own = pending();

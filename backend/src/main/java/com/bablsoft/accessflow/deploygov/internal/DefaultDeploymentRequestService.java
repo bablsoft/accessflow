@@ -244,6 +244,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
         entity.setEnvironmentId(environment.getId());
         entity.setOrganizationId(command.organizationId());
         entity.setSubmittedBy(command.submitterUserId());
+        entity.setOnBehalfOfUserId(command.onBehalfOfUserId());
         entity.setVersion(command.version());
         entity.setCommitSha(command.commitSha());
         entity.setArtifactRef(command.artifactRef());
@@ -359,6 +360,8 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
         var analysis = entity.getAiAnalysisId() == null ? null
                 : aiAnalysisLookupService.findById(entity.getAiAnalysisId()).orElse(null);
         var submitter = userQueryService.findById(entity.getSubmittedBy()).orElse(null);
+        var onBehalfOf = entity.getOnBehalfOfUserId() == null ? null
+                : userQueryService.findById(entity.getOnBehalfOfUserId()).orElse(null);
         return new DeploymentRequestView(
                 entity.getId(),
                 entity.getPipelineId(),
@@ -387,7 +390,9 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 entity.getOutcomeReportedAt(),
                 entity.getOutcomeDetail(),
                 entity.getCreatedAt(),
-                decisions);
+                decisions,
+                entity.getOnBehalfOfUserId(),
+                onBehalfOf != null ? onBehalfOf.email() : null);
     }
 
     private Map<String, Object> readMetadata(String json) {

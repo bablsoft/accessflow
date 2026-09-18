@@ -77,6 +77,21 @@ X-API-Key: af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 (or, equivalently: `Authorization: ApiKey af_…`).
 
+A service account's key may add a second header naming the human the agent is acting **for**
+(#874):
+
+```
+X-API-Key: af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+X-AccessFlow-On-Behalf-Of: alice@example.com      # or her user uuid
+```
+
+It is attribution, not authority: the agent keeps exactly its own permissions, the human must have
+consented first (`POST /api/v1/me/service-account-delegations`, or an admin on their behalf under
+`/admin/service-accounts/{id}/delegated-principals`), every submission and audit row is stamped with
+the human, and the human can then no longer approve what the agent submitted for them. An unknown,
+un-consenting or foreign name is a loud `403 ON_BEHALF_OF_NOT_PERMITTED` — never silently ignored.
+Details under [Limits, errors, and audit](#4-limits-errors-and-audit).
+
 ### Claude Desktop
 
 In your `claude_desktop_config.json`:
@@ -161,7 +176,8 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
 - **Authorization:** all guards run inside the underlying service. Specifically:
   - `submit_query` enforces `canRead` / `canWrite` / `canDdl` on the datasource permission.
   - `get_query_result` requires `SELECT` + `EXECUTED`.
-  - `review_query` enforces stage eligibility + the "no self-approval" rule.
+  - `review_query` enforces stage eligibility + the "no self-approval" rule — which, since #874,
+    also refuses the human a query was submitted *on behalf of*.
   - `get_column_samples` runs through the same governed read path as the schema explorer (AF-443):
     it applies the caller's row-level security predicates and column masks and enforces `canRead` +
     the schema/table allow-list, so a masked column never returns a raw value.
@@ -193,6 +209,18 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   header — not a JSON-RPC error, because the filter runs before the MCP handler. Clients should
   back off for `Retry-After` seconds and resend the same request. The limiter fails open when
   Redis is unavailable, so a Redis blip never stalls an agent.
+- **On-behalf-of (#874).** `X-AccessFlow-On-Behalf-Of` on `POST /mcp` is resolved by the same
+  filter, before the JSON-RPC handler: the named human must be an active person of the agent's
+  organisation holding a live delegated-principal grant for that service account, otherwise the
+  transport answers `HTTP 403 ON_BEHALF_OF_NOT_PERMITTED` (`reason=not_permitted`; a JWT session
+  sending it gets `reason=not_api_key`). It changes **nothing** about what the agent may do — the
+  permission set stays the key owner's — it only records whom the agent acted for:
+  `submit_query` stamps the query's `on_behalf_of_user_id`, and every audit row the request writes
+  carries `on_behalf_of_user_id`, `api_key_id` and `service_account` in its metadata, inside the
+  tamper-evident chain. Because `/mcp` multiplexes every tool through one endpoint, the decision
+  tool is refused at invocation instead of at the transport: **`review_query` returns the structured
+  `permission_denied` whenever a principal is present** — an agent may submit *for* a human, never
+  vote *as* one.
 - **Errors:** tools return a structured `{ code, message }` rather than raw exceptions. Codes:
   - `permission_denied` — caller is not allowed; also returned when the tool is outside the
     caller's allow-list (the message names the tool).
@@ -200,7 +228,11 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   - `invalid_state` — wrong status, wrong query type, etc.
   - `validation_failed` — SQL parse or argument validation.
 - **Audit:** MCP-driven submissions and review decisions hit the same audit log entries as the
-  web UI — the audit row records the user id, the IP/UA of the MCP request, and the action
-  (e.g. `QUERY_SUBMITTED`, `REVIEW_APPROVED`). No new audit action types are introduced.
+  web UI — `submit_query` writes `QUERY_SUBMITTED` itself (`metadata.channel = "mcp"`; no client
+  IP / user agent, because the tool layer has no `RequestAuditContext` the way a controller does —
+  fixed in #874, before which the MCP path wrote no submission row at all) and `review_query`
+  records the decision row like the REST endpoint, likewise without IP / user agent. On an API-key request every row also carries the request provenance
+  (`api_key_id`, `service_account`, `on_behalf_of_user_id` when named). No new audit action
+  types are introduced.
 - **Notifications:** the same notification fanout applies — review queue events, query-status
   changes, etc.

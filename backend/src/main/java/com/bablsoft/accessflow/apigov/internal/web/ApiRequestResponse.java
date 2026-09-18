@@ -43,7 +43,10 @@ public record ApiRequestResponse(
         String responseContentType,
         String errorMessage,
         Instant createdAt,
-        List<ApiReviewDecisionView> decisions) {
+        List<ApiReviewDecisionView> decisions,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId,
+        String onBehalfOfEmail) {
 
     static ApiRequestResponse from(ApiRequestView v) {
         return new ApiRequestResponse(v.id(), v.connectorId(), v.connectorName(), v.submittedBy(),
@@ -53,6 +56,6 @@ public record ApiRequestResponse(
                 v.spanId(),
                 v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(), v.responseTruncated(),
                 v.responseSnapshot(), v.responseSnapshotPreviewTruncated(), v.responseContentType(),
-                v.errorMessage(), v.createdAt(), v.decisions());
+                v.errorMessage(), v.createdAt(), v.decisions(), v.onBehalfOfUserId(), v.onBehalfOfEmail());
     }
 }

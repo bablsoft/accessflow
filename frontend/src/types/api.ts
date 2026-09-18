@@ -943,6 +943,8 @@ export interface PendingReviewItem {
   id: string;
   datasource: { id: string; name: string };
   submitted_by: { id: string; email: string };
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
   sql_text: string;
   query_type: QueryType;
   justification: string;
@@ -1328,6 +1330,8 @@ export interface QueryDetail {
   datasource: DatasourceRef;
   db_type: DbType;
   submitted_by: UserRef;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of?: { id: string; email: string | null } | null;
   sql_text: string;
   query_type: QueryType;
   status: QueryStatus;
@@ -3486,6 +3490,9 @@ export interface ApiRequest {
   connector_name: string | null;
   submitted_by: string;
   submitted_by_email: string | null;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
+  on_behalf_of_email?: string | null;
   operation_id: string | null;
   verb: string;
   request_path: string;
@@ -3558,6 +3565,8 @@ export interface PendingApiReview {
   connector_id: string;
   connector_name: string | null;
   submitted_by_user_id: string;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
   verb: string;
   request_path: string;
   write: boolean;
@@ -3790,6 +3799,8 @@ export interface RequestGroup {
   organization_id: string;
   submitted_by_user_id: string;
   submitted_by_display_name: string | null;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
   name: string;
   description: string | null;
   status: RequestGroupStatus;
@@ -4374,6 +4385,9 @@ export interface DeploymentRequest {
   environment_name: string | null;
   submitted_by: string;
   submitted_by_email: string | null;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
+  on_behalf_of_email?: string | null;
   version: string;
   commit_sha: string | null;
   artifact_ref: string | null;
@@ -4428,6 +4442,8 @@ export interface DeploymentReviewItem {
   environment_id: string;
   environment_name: string | null;
   submitted_by_user_id: string;
+  /** The human an API-key submitter acted for (#874); null for a human submission. */
+  on_behalf_of_user_id?: string | null;
   version: string;
   commit_sha: string | null;
   run_url: string | null;

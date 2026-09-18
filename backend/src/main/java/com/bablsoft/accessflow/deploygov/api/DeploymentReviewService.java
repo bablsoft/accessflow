@@ -51,7 +51,22 @@ public interface DeploymentReviewService {
             String environmentName, UUID submittedByUserId, String version, String commitSha,
             String runUrl, String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
             Integer aiRiskScore, String aiSummary, int currentStage, int requiredApprovals,
-            Instant scheduledFor, Instant createdAt) {
+            Instant scheduledFor, Instant createdAt,
+            /** The human an API-key submitter acted for (#874); null for a human submission. */
+            UUID onBehalfOfUserId) {
+
+        /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+        public PendingDeploymentReview(UUID deploymentRequestId, UUID pipelineId, String pipelineName,
+                                       UUID environmentId, String environmentName, UUID submittedByUserId,
+                                       String version, String commitSha, String runUrl,
+                                       String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
+                                       Integer aiRiskScore, String aiSummary, int currentStage,
+                                       int requiredApprovals, Instant scheduledFor, Instant createdAt) {
+            this(deploymentRequestId, pipelineId, pipelineName, environmentId, environmentName,
+                    submittedByUserId, version, commitSha, runUrl, justification, aiAnalysisId,
+                    aiRiskLevel, aiRiskScore, aiSummary, currentStage, requiredApprovals, scheduledFor,
+                    createdAt, null);
+        }
     }
 
     record DecisionOutcome(UUID decisionId, DecisionType decision, QueryStatus resultingStatus,

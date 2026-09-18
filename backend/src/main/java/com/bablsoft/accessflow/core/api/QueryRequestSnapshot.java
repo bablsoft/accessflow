@@ -24,7 +24,21 @@ public record QueryRequestSnapshot(
         String recurrenceRule,
         Instant recurrenceUntil,
         Instant recurrenceNextRunAt,
-        UUID recurringParentId) {
+        UUID recurringParentId,
+        /** The human an API-key submitter acted for (#874), null for a human submission. */
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public QueryRequestSnapshot(UUID id, UUID datasourceId, UUID organizationId,
+                                UUID submittedByUserId, String sqlText, QueryType queryType,
+                                boolean transactional, QueryStatus status, Instant scheduledFor,
+                                String submittedIp, String submittedUserAgent, boolean ciCdOrigin,
+                                String recurrenceRule, Instant recurrenceUntil,
+                                Instant recurrenceNextRunAt, UUID recurringParentId) {
+        this(id, datasourceId, organizationId, submittedByUserId, sqlText, queryType, transactional,
+                status, scheduledFor, submittedIp, submittedUserAgent, ciCdOrigin,
+                recurrenceRule, recurrenceUntil, recurrenceNextRunAt, recurringParentId, null);
+    }
 
     /** Backward-compatible constructor without the #627 recurrence fields (defaults to absent). */
     public QueryRequestSnapshot(UUID id, UUID datasourceId, UUID organizationId,
@@ -33,6 +47,6 @@ public record QueryRequestSnapshot(
                                 String submittedIp, String submittedUserAgent, boolean ciCdOrigin) {
         this(id, datasourceId, organizationId, submittedByUserId, sqlText, queryType, transactional,
                 status, scheduledFor, submittedIp, submittedUserAgent, ciCdOrigin,
-                null, null, null, null);
+                null, null, null, null, null);
     }
 }

@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
@@ -13,13 +17,17 @@ import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQueryDetail;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQueryResult;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQuerySubmission;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQuerySummary;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -32,6 +40,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class McpToolService {
 
+    private static final Logger log = LoggerFactory.getLogger(McpToolService.class);
     private static final int MAX_PAGE_SIZE = 100;
 
     private final McpCurrentUser currentUser;
@@ -40,6 +49,8 @@ public class McpToolService {
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QuerySubmissionService querySubmissionService;
     private final QueryLifecycleService queryLifecycleService;
+    private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private final AuditLogService auditLogService;
 
     @Tool(name = "list_datasources",
             description = "List the datasources the current user has permission to query.")
@@ -146,9 +157,38 @@ public class McpToolService {
         var input = new QuerySubmissionService.SubmissionInput(
                 datasourceId, sql, justification,
                 claims.userId(), claims.organizationId(), currentUser.isAdmin(), null, null,
-                null, null, false);
+                null, null, false, null, null,
+                onBehalfOfPrincipalService.current().orElse(null));
         var result = querySubmissionService.submit(input);
+        recordSubmitted(claims.organizationId(), claims.userId(), result.id(), datasourceId);
         return new McpQuerySubmission(result.id(), result.status().name());
+    }
+
+    /**
+     * The REST submission endpoint writes {@code QUERY_SUBMITTED} controller-side; the MCP tool
+     * mirrors it (#874) so an agent's submission — and the on-behalf-of provenance the audit
+     * contributor stamps on rows written on this thread — lands in the tamper-evident log, not
+     * only in the mutable request row. No client ip / user agent: the tool layer has no
+     * {@code RequestAuditContext} the way a controller does.
+     */
+    private void recordSubmitted(UUID organizationId, UUID userId, UUID queryId, UUID datasourceId) {
+        try {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("datasource_id", datasourceId.toString());
+            metadata.put("submission_reason", "USER_SUBMITTED");
+            metadata.put("channel", "mcp");
+            auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_SUBMITTED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryId,
+                    organizationId,
+                    userId,
+                    metadata,
+                    null,
+                    null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_SUBMITTED on query {}", queryId, ex);
+        }
     }
 
     @Tool(name = "cancel_query",

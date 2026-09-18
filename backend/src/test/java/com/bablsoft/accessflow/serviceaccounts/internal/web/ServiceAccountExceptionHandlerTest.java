@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.web;
 
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationPrincipalInvalidException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationNotFoundException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationInvalidException;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationExistsException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountBootstrapManagedException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyNameConflictException;
@@ -100,6 +104,50 @@ class ServiceAccountExceptionHandlerTest {
         assertCommon(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL",
                 "error.service_account_unknown_mcp_tool");
         assertThat(pd.getProperties()).containsEntry("tool", "nope");
+    }
+
+    @Test
+    void delegationNotFoundMapsTo404() {
+        var id = UUID.randomUUID();
+        var pd = handler.handleDelegationNotFound(new ServiceAccountDelegationNotFoundException(id));
+        assertCommon(pd, HttpStatus.NOT_FOUND, "SERVICE_ACCOUNT_DELEGATION_NOT_FOUND",
+                "error.service_account_delegation_not_found");
+        assertThat(pd.getProperties()).containsEntry("delegationId", id.toString());
+    }
+
+    @Test
+    void delegationExistsMapsTo409WithBothParties() {
+        var agent = UUID.randomUUID();
+        var alice = UUID.randomUUID();
+        var pd = handler.handleDelegationExists(new ServiceAccountDelegationExistsException(agent, alice));
+        assertCommon(pd, HttpStatus.CONFLICT, "SERVICE_ACCOUNT_DELEGATION_EXISTS",
+                "error.service_account_delegation_exists");
+        assertThat(pd.getProperties()).containsEntry("serviceAccountId", agent.toString())
+                .containsEntry("principalUserId", alice.toString());
+    }
+
+    @Test
+    void delegationPrincipalInvalidMapsTo422() {
+        var alice = UUID.randomUUID();
+        var pd = handler.handleDelegationPrincipalInvalid(
+                new ServiceAccountDelegationPrincipalInvalidException(alice));
+        assertCommon(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID",
+                "error.service_account_delegation_principal_invalid");
+        assertThat(pd.getProperties()).containsEntry("principalUserId", alice.toString());
+    }
+
+    @Test
+    void delegationPrincipalInvalidToleratesANullPrincipal() {
+        var pd = handler.handleDelegationPrincipalInvalid(
+                new ServiceAccountDelegationPrincipalInvalidException(null));
+        assertThat(pd.getProperties()).doesNotContainKey("principalUserId");
+    }
+
+    @Test
+    void delegationInvalidMapsTo422() {
+        var pd = handler.handleDelegationInvalid(new ServiceAccountDelegationInvalidException());
+        assertCommon(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SERVICE_ACCOUNT_DELEGATION_INVALID",
+                "error.service_account_delegation_invalid");
     }
 
     private static void assertCommon(ProblemDetail pd, HttpStatus status, String code, String key) {

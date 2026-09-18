@@ -54,5 +54,27 @@ public record ApiRequestView(
         String responseContentType,
         String errorMessage,
         Instant createdAt,
-        List<ApiReviewDecisionView> decisions) {
+        List<ApiReviewDecisionView> decisions,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId,
+        String onBehalfOfEmail) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public ApiRequestView(UUID id, UUID connectorId, String connectorName, UUID submittedBy,
+                          String submittedByEmail, String operationId, String verb, String requestPath,
+                          boolean write, QueryStatus status, SubmissionReason submissionReason,
+                          String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
+                          Integer aiRiskScore, String aiSummary, ApiBodyType bodyType,
+                          Map<String, String> variableOverrides, Instant scheduledFor, String traceId,
+                          String spanId, Integer responseStatusCode, Integer responseDurationMs,
+                          Long responseBytes, boolean responseTruncated, String responseSnapshot,
+                          boolean responseSnapshotPreviewTruncated, String responseContentType,
+                          String errorMessage, Instant createdAt, List<ApiReviewDecisionView> decisions) {
+        this(id, connectorId, connectorName, submittedBy, submittedByEmail, operationId, verb,
+                requestPath, write, status, submissionReason, justification, aiAnalysisId, aiRiskLevel,
+                aiRiskScore, aiSummary, bodyType, variableOverrides, scheduledFor, traceId, spanId,
+                responseStatusCode, responseDurationMs, responseBytes, responseTruncated,
+                responseSnapshot, responseSnapshotPreviewTruncated, responseContentType, errorMessage,
+                createdAt, decisions, null, null);
+    }
 }

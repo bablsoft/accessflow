@@ -70,6 +70,7 @@ public interface QueryRequestRepository
             where q.status = :status
               and d.organization.id = :orgId
               and q.submittedBy.id <> :userId
+              and (q.onBehalfOfUserId is null or q.onBehalfOfUserId <> :userId)
               and exists (
                 select 1 from ReviewPlanApproverEntity rpa
                  where rpa.reviewPlan = rp

@@ -89,6 +89,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
         group.setId(UUID.randomUUID());
         group.setOrganizationId(command.organizationId());
         group.setSubmittedBy(command.submitterUserId());
+        group.setOnBehalfOfUserId(command.onBehalfOfUserId());
         group.setName(command.name());
         group.setDescription(command.description());
         group.setContinueOnError(command.continueOnError());
@@ -145,6 +146,15 @@ public class DefaultRequestGroupService implements RequestGroupService {
         group.setScheduledFor(command.scheduledFor());
         group.setSubmittedIp(command.submittedIp());
         group.setSubmittedUserAgent(command.submittedUserAgent());
+        // A draft created without the header and submitted with it must not silently drop the
+        // principal; a draft that already names a different one cannot be re-attributed (#874).
+        if (command.onBehalfOfUserId() != null) {
+            if (group.getOnBehalfOfUserId() != null
+                    && !group.getOnBehalfOfUserId().equals(command.onBehalfOfUserId())) {
+                throw new IllegalRequestGroupStateException.OnBehalfOfConflict(group.getStatus());
+            }
+            group.setOnBehalfOfUserId(command.onBehalfOfUserId());
+        }
 
         if (command.breakGlass()) {
             group.setSubmissionReason(com.bablsoft.accessflow.core.api.SubmissionReason.EMERGENCY_ACCESS);

@@ -50,7 +50,9 @@ public record QueryDetailResponse(
         String recurrenceHaltedReason,
         UUID recurringParentId,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        OnBehalfOfRef onBehalfOf) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
         return from(view, null, null);
@@ -133,7 +135,9 @@ public record QueryDetailResponse(
                 view.recurrenceHaltedReason(),
                 view.recurringParentId(),
                 view.createdAt(),
-                view.updatedAt());
+                view.updatedAt(),
+                view.onBehalfOfUserId() == null ? null
+                        : new OnBehalfOfRef(view.onBehalfOfUserId(), view.onBehalfOfEmail()));
     }
 
     /** A ticket auto-created in an external ticketing system for this query (AF-453). */
@@ -339,5 +343,8 @@ public record QueryDetailResponse(
             UUID id,
             String email,
             String displayName) {
+    }
+
+    public record OnBehalfOfRef(UUID id, String email) {
     }
 }

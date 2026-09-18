@@ -3,7 +3,9 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
@@ -80,7 +82,7 @@ final class ApiRequestSpecifications {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.equal(root.get("organizationId"), organizationId));
             predicates.add(cb.equal(root.get("status"), QueryStatus.PENDING_REVIEW));
-            predicates.add(cb.notEqual(root.get("submittedBy"), reviewerId));
+            predicates.add(notSubmitterIdentity(root, cb, reviewerId));
             if (connectorId != null) {
                 predicates.add(cb.equal(root.get("connectorId"), connectorId));
             }
@@ -96,8 +98,7 @@ final class ApiRequestSpecifications {
                     Predicate reachable = root.get("connectorId").in(reach.connectorIds());
                     branches.add(reach.onBehalfOfUserId() == null
                             ? reachable
-                            : cb.and(reachable, cb.notEqual(root.get("submittedBy"),
-                                    reach.onBehalfOfUserId())));
+                            : cb.and(reachable, notSubmitterIdentity(root, cb, reach.onBehalfOfUserId())));
                 }
                 if (branches.isEmpty()) {
                     // Eligible for nothing — an always-false predicate rather than an unfiltered page.
@@ -107,5 +108,16 @@ final class ApiRequestSpecifications {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    /**
+     * Neither the submitter nor the human the submitter acted for (#874): the self-approval ban
+     * covers both identities, and the queue must hide what the decision would refuse.
+     */
+    private static Predicate notSubmitterIdentity(Root<ApiRequestEntity> root, CriteriaBuilder cb,
+                                                  UUID userId) {
+        return cb.and(cb.notEqual(root.get("submittedBy"), userId),
+                cb.or(cb.isNull(root.get("onBehalfOfUserId")),
+                        cb.notEqual(root.get("onBehalfOfUserId"), userId)));
     }
 }

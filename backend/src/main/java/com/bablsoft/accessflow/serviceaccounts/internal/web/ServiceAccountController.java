@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountAdminService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountDelegationView;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -39,6 +41,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -59,6 +62,7 @@ import java.util.UUID;
 class ServiceAccountController {
 
     private final ServiceAccountAdminService adminService;
+    private final ServiceAccountDelegationService delegationService;
     private final AuditLogService auditLogService;
     private final MessageSource messageSource;
 
@@ -191,6 +195,68 @@ class ServiceAccountController {
         recordAudit(AuditAction.SERVICE_ACCOUNT_KEY_REVOKED, id, caller, auditContext,
                 Map.of("api_key_id", keyId.toString()));
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/delegated-principals")
+    @Operation(summary = "List the humans this service account may act on behalf of (#874)")
+    @ApiResponse(responseCode = "200", description = "Grants, newest first, revoked and expired included")
+    @ApiResponse(responseCode = "403", description = "Caller lacks SERVICE_ACCOUNT_MANAGE or USER_MANAGE")
+    @ApiResponse(responseCode = "404", description = "Service account not found")
+    @PreAuthorize("hasAnyAuthority('PERM_SERVICE_ACCOUNT_MANAGE','PERM_USER_MANAGE')")
+    List<ServiceAccountDelegationResponse> listDelegatedPrincipals(@PathVariable UUID id,
+                                                                   Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return delegationService.listForServiceAccount(caller.organizationId(), id).stream()
+                .map(ServiceAccountDelegationResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/{id}/delegated-principals")
+    @Operation(summary = "Let this service account act on behalf of a human (#874) — confers no permission")
+    @ApiResponse(responseCode = "201", description = "Grant created")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "403", description = "Caller lacks SERVICE_ACCOUNT_MANAGE or USER_MANAGE")
+    @ApiResponse(responseCode = "404", description = "Service account not found")
+    @ApiResponse(responseCode = "409", description = "A live grant for this human already exists")
+    @ApiResponse(responseCode = "422", description = "Principal is not an active human of the organization, or expiry is past")
+    @PreAuthorize("hasAnyAuthority('PERM_SERVICE_ACCOUNT_MANAGE','PERM_USER_MANAGE')")
+    ResponseEntity<ServiceAccountDelegationResponse> grantDelegatedPrincipal(
+            @PathVariable UUID id, @Valid @RequestBody GrantDelegatedPrincipalRequest body,
+            Authentication authentication, RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        var view = delegationService.grant(caller.organizationId(), caller.userId(), body.toCommand(id));
+        recordAudit(AuditAction.SERVICE_ACCOUNT_DELEGATION_GRANTED, id, caller, auditContext,
+                delegationMetadata(view));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ServiceAccountDelegationResponse.from(view));
+    }
+
+    @DeleteMapping("/{id}/delegated-principals/{delegationId}")
+    @Operation(summary = "Revoke a delegated-principal grant (idempotent)")
+    @ApiResponse(responseCode = "204", description = "Grant revoked")
+    @ApiResponse(responseCode = "403", description = "Caller lacks SERVICE_ACCOUNT_MANAGE or USER_MANAGE")
+    @ApiResponse(responseCode = "404", description = "Service account or grant not found")
+    @PreAuthorize("hasAnyAuthority('PERM_SERVICE_ACCOUNT_MANAGE','PERM_USER_MANAGE')")
+    ResponseEntity<Void> revokeDelegatedPrincipal(@PathVariable UUID id, @PathVariable UUID delegationId,
+                                                  Authentication authentication,
+                                                  RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        // Scoped to the account in the path: a grant of another account is a 404 here, so the
+        // audit row can never name the wrong service account.
+        var view = delegationService.revoke(caller.organizationId(), caller.userId(), delegationId, id, null);
+        recordAudit(AuditAction.SERVICE_ACCOUNT_DELEGATION_REVOKED, id, caller, auditContext,
+                delegationMetadata(view));
+        return ResponseEntity.noContent().build();
+    }
+
+    private static Map<String, Object> delegationMetadata(ServiceAccountDelegationView view) {
+        var metadata = new HashMap<String, Object>();
+        metadata.put("delegation_id", view.id().toString());
+        metadata.put("principal_user_id", view.principalUserId().toString());
+        metadata.put("channel", "admin");
+        if (view.expiresAt() != null) {
+            metadata.put("expires_at", view.expiresAt().toString());
+        }
+        return metadata;
     }
 
     /**

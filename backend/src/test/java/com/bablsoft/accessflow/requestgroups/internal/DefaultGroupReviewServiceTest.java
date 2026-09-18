@@ -73,6 +73,20 @@ class DefaultGroupReviewServiceTest {
                 SystemRolePermissions.of(UserRoleType.ADMIN));
     }
 
+    /** #874: the human the agent acted for is a submitter identity for the ban. */
+    @Test
+    void theHumanTheSubmitterActedForCannotApproveTheGroup() {
+        var alice = UUID.randomUUID();
+        group.setOnBehalfOfUserId(alice);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+        var aliceContext = new ReviewerContext(alice, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), aliceContext, "ok"))
+                .isInstanceOf(SelfApprovalNotAllowedException.class);
+    }
+
     @Test
     void submitterCannotApproveOwnGroup() {
         when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))

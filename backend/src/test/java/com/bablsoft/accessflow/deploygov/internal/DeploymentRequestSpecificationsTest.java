@@ -39,6 +39,7 @@ class DeploymentRequestSpecificationsTest {
     private Path createdAtPath;
     private Path orgIdPath;
     private Path submittedByPath;
+    private Path onBehalfOfPath;
     private Path pipelineIdPath;
     private Path environmentIdPath;
     private Path versionPath;
@@ -56,6 +57,7 @@ class DeploymentRequestSpecificationsTest {
         createdAtPath = mock(Path.class);
         orgIdPath = mock(Path.class);
         submittedByPath = mock(Path.class);
+        onBehalfOfPath = mock(Path.class);
         pipelineIdPath = mock(Path.class);
         environmentIdPath = mock(Path.class);
         versionPath = mock(Path.class);
@@ -64,6 +66,7 @@ class DeploymentRequestSpecificationsTest {
         when(root.get("createdAt")).thenReturn(createdAtPath);
         lenient().when(root.get("organizationId")).thenReturn(orgIdPath);
         lenient().when(root.get("submittedBy")).thenReturn(submittedByPath);
+        lenient().when(root.get("onBehalfOfUserId")).thenReturn(onBehalfOfPath);
         lenient().when(root.get("pipelineId")).thenReturn(pipelineIdPath);
         lenient().when(root.get("environmentId")).thenReturn(environmentIdPath);
         lenient().when(root.get("version")).thenReturn(versionPath);
@@ -75,6 +78,8 @@ class DeploymentRequestSpecificationsTest {
                 .thenReturn(predicate);
         lenient().when(cb.lessThan(any(Expression.class), any(Instant.class))).thenReturn(predicate);
         lenient().when(cb.notEqual(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        lenient().when(cb.isNull(any(Expression.class))).thenReturn(predicate);
+        lenient().when(cb.or(any(Predicate.class), any(Predicate.class))).thenReturn(predicate);
         lenient().when(cb.and(any(Predicate[].class))).thenReturn(predicate);
         lenient().when(cb.disjunction()).thenReturn(disjunction);
         lenient().when(environmentIdPath.in(any(java.util.Collection.class))).thenReturn(predicate);
@@ -206,6 +211,9 @@ class DeploymentRequestSpecificationsTest {
         verify(cb).equal(orgIdPath, orgId);
         verify(cb).equal(statusPath, QueryStatus.PENDING_REVIEW);
         verify(cb).notEqual(submittedByPath, reviewerId);
+        // #874: neither submitter identity may see the row in the queue.
+        verify(cb).isNull(onBehalfOfPath);
+        verify(cb).notEqual(onBehalfOfPath, reviewerId);
         verify(cb).equal(pipelineIdPath, pipelineId);
         verify(environmentIdPath).in(Set.of(environmentId));
         verify(cb, never()).disjunction();
