@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "3406b4a71a14",
-  "generatedAt": "2026-09-18T11:32:12.276Z",
-  "sourceCommit": "e5ed2adeed453c38e02306a7cd6a62c9936995aa",
+  "corpusVersion": "b9c626942643",
+  "generatedAt": "2026-09-18T11:49:46.574Z",
+  "sourceCommit": "87d19e51ed6e1f0d843993724cd39640008bf5e9",
   "chunkCount": 574,
-  "sha256": "3406b4a71a141b7f612d7a301944579c9e91a77b33ed00170289d04b6e6c53ec",
+  "sha256": "b9c62694264303c27baf1a05b2001743ec5a5efe76dc5e04ae7dbbee0c4be42b",
   "quickReferenceSha256": "d2bdce27da7978646f31277177fe48bce3f17ccff1e70ae3824e87e2d82577ec",
   "sources": [
     {
@@ -13,7 +13,7 @@
       "url": "https://accessflow.io/ai-agents/",
       "section": "AI agents",
       "chunks": 20,
-      "sha256": "0a69b7def0ead54cfd8f430579f3eb69b052646328257cbb337d2eba9a73de48"
+      "sha256": "f3eb2ac43374cdf8566b02e023a2687ae43fda949672cd56fcb94ace8df19374"
     },
     {
       "path": "website/connectors/bigquery/index.html",
@@ -261,7 +261,7 @@
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "section": "Guides",
       "chunks": 12,
-      "sha256": "cd3eb6859f12271b7484ffb18b0d9e4e8bdfff8476b4e09194a2febf605a3c72"
+      "sha256": "f639c5a68d7d59da6be8c7ad5858c559ec48152873629ea8dd4d4d53f0f683f4"
     },
     {
       "path": "website/docs/guides/first-query/index.html",
@@ -325,7 +325,7 @@
       "url": "https://accessflow.io/docs/iac/",
       "section": "Reference",
       "chunks": 8,
-      "sha256": "0de5ed9ec2c6fa64d14d3addd44408602f8ee00f9d7403dc0cca7b73190d2e06"
+      "sha256": "981bc8467c3cc369d858b192875c63769672615b09dc45001a91bd07866f3a40"
     },
     {
       "path": "website/docs/index.html",

@@ -74,7 +74,7 @@
         int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
         # Response headers land in $hf; ra prints an integer Retry-After (empty when absent) and
         # delay turns it into the next sleep, capped at the deadline, falling back to the interval.
-        hf=$(mktemp)
+        hf=$(mktemp); trap "rm -f $hf" EXIT
         ra() { sed -n "s/^[Rr]etry-[Aa]fter:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p" "$hf" | tail -n1; }
         delay() { d=$(ra); [ -n "$d" ] || d="$int"; rem=$(( end - $(date +%s) )); [ "$d" -gt "$rem" ] && d=$(( rem > 0 ? rem : 0 )); echo "$d"; }
         while :; do
@@ -134,7 +134,7 @@
         [ -n "${AF_REQUEST_ID:-}" ] || { echo "no AF_REQUEST_ID — the gate never created a request; nothing to report"; exit 0; }
         body=$(jq -n --arg o "$AF_OUTCOME" --arg d "${AF_DETAIL:-}" "{outcome:\$o} + (if \$d == \"\" then {} else {detail:\$d} end)")
         # A rate-limited report (HTTP 429) is retried honouring Retry-After for up to AF_RETRY_TIMEOUT.
-        hf=$(mktemp); end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
+        hf=$(mktemp); trap "rm -f $hf" EXIT; end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
         while :; do
           resp=$(curl -sS -X POST -D "$hf" -w "\n%{http_code}" -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
           code=$(tail -n1 <<<"$resp"); payload=$(sed "\$d" <<<"$resp")

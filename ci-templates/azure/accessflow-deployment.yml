@@ -102,7 +102,7 @@ steps:
       int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
       # Response headers land in $hf; ra prints an integer Retry-After (empty when absent) and
       # delay turns it into the next sleep, capped at the deadline, falling back to the interval.
-      hf=$(mktemp)
+      hf=$(mktemp); trap "rm -f $hf" EXIT
       ra() { sed -n -E 's/^[Rr]etry-[Aa]fter:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$hf" | tail -n1; }
       delay() { local d rem; d=$(ra); [ -n "$d" ] || d="$int"; rem=$(( end - $(date +%s) )); if [ "$d" -gt "$rem" ]; then d=$(( rem > 0 ? rem : 0 )); fi; echo "$d"; }
       while :; do
@@ -183,7 +183,7 @@ steps:
           # A rate-limited report (HTTP 429) is retried honouring Retry-After for up to retryTimeout.
           secs() { case "$1" in *h) n="${1%h}"; m=3600;; *m) n="${1%m}"; m=60;; *s) n="${1%s}"; m=1;; *) n="$1"; m=1;; esac
                    case "$n" in ""|*[!0-9]*) echo "invalid duration ${1} (use 90, 45s, 30m or 2h)" >&2; exit 1;; esac; echo $(( n * m )); }
-          hf=$(mktemp); end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
+          hf=$(mktemp); trap "rm -f $hf" EXIT; end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
           while :; do
             resp=$(curl -sS -X POST -D "$hf" -w $'\n%{http_code}' -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
             code="${resp##*$'\n'}"; payload="${resp%$'\n'*}"

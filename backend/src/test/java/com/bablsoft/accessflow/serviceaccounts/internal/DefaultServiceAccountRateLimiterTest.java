@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.QueryTimeoutException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -262,11 +263,34 @@ class DefaultServiceAccountRateLimiterTest {
 
     @Test
     void databaseOutageOnTheLimitLookupAlsoFailsOpen() {
-        when(repository.findById(userId)).thenThrow(new QueryTimeoutException("pg timeout"));
+        // An unreachable Postgres / exhausted pool surfaces from the repository's read-only
+        // transaction as CannotCreateTransactionException (a TransactionException, not a
+        // DataAccessException); a statement timeout on a live connection is the DataAccessException.
+        when(repository.findById(userId))
+                .thenThrow(new CannotCreateTransactionException("pool exhausted"))
+                .thenThrow(new QueryTimeoutException("pg timeout"));
         when(clock.instant()).thenReturn(NOW);
 
-        assertThatCode(() -> limiter(120, 0).enforce(userId)).doesNotThrowAnyException();
+        var limiter = limiter(120, 0);
+        assertThatCode(() -> limiter.enforce(userId)).doesNotThrowAnyException();
+        assertThatCode(() -> limiter.enforce(userId)).doesNotThrowAnyException();
         verifyNoInteractions(redisTemplate);
         assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN)).hasSize(1);
+    }
+
+    @Test
+    void exceededWarningIsThrottledPerMinute() {
+        noDetailRow();
+        when(clock.instant()).thenReturn(NOW, NOW, NOW.plusSeconds(61));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(121L);
+        var limiter = limiter(120, 0);
+
+        for (int i = 0; i < 3; i++) {
+            assertThatThrownBy(() -> limiter.enforce(userId))
+                    .isInstanceOf(ServiceAccountRateLimitExceededException.class);
+        }
+
+        assertThat(appender.list.stream().filter(e -> e.getLevel() == Level.WARN)).hasSize(2);
     }
 }

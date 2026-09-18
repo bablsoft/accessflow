@@ -251,7 +251,10 @@ The gate action submits a deployment request (idempotent on the CI run id), poll
 terminal status, or the `wait-timeout` fails the job, while transient 5xx / network errors and
 rate-limited calls (HTTP 429 — every API key is capped per identity, #873) are retried within
 `wait-timeout`, honouring the server's `Retry-After` header; the outcome action retries a 429 for
-`retry-timeout` (default `2m`). GitLab (`.accessflow_deployment_gate` /
+`retry-timeout` (default `2m`). **Known limitation:** only the deployment wrappers retry a 429 — the
+`provision-datasource` / `run-query` actions, their GitLab hidden jobs and the Terraform provider
+still fail on it, so raise the service account's `rate_limit_per_minute` (or the deployment default)
+before fanning many jobs out on one key. GitLab (`.accessflow_deployment_gate` /
 `.accessflow_deployment_outcome` in `ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml`)
 and Azure Pipelines (`ci-templates/azure/accessflow-deployment.yml`, a step template with a
 `deploySteps` list) mirror the same flow, and

@@ -43,7 +43,9 @@ green light: the gate also folds in freeze windows (`frozen`) and deferred relea
 (`scheduled_for`). Transient 5xx / network errors are retried until the deadline, and so is a
 rate-limited call — every API key is capped per identity (#873), and a `429` at any of the four
 beats is retried honouring the server's `Retry-After` header (capped at the remaining deadline;
-the fixed interval is the fallback when the header is missing).
+the fixed interval is the fallback when the header is missing). The `provision-datasource` /
+`run-query` wrappers do **not** retry a 429 yet — raise the account's `rate_limit_per_minute` before
+fanning many query jobs out on one key.
 
 ### GitHub Action inputs — `deployment-gate`
 
@@ -88,7 +90,7 @@ request the gate never released is skipped without failing; reporting an outcome
 [`gitlab/accessflow-deployment.gitlab-ci.yml`](gitlab/accessflow-deployment.gitlab-ci.yml)
 exposes `.accessflow_deployment_gate` and `.accessflow_deployment_outcome`. Variables mirror
 the action inputs (`ACCESSFLOW_ENDPOINT`, `ACCESSFLOW_API_KEY`, `AF_PIPELINE_ID`, `AF_VERSION`,
-`AF_ENVIRONMENT`, `AF_WAIT_TIMEOUT`, `AF_POLL_INTERVAL`, optional `AF_ARTIFACT_REF` /
+`AF_ENVIRONMENT`, `AF_WAIT_TIMEOUT`, `AF_POLL_INTERVAL`, `AF_RETRY_TIMEOUT` on the outcome job, optional `AF_ARTIFACT_REF` /
 `AF_JUSTIFICATION` / `AF_SCHEDULED_FOR` / `AF_METADATA_FILE` / `AF_BREAK_GLASS` / `AF_DETAIL`;
 `commit_sha` and `run_url` come from `$CI_COMMIT_SHA` / `$CI_PIPELINE_URL` automatically);
 `external_run_id` is `$CI_PIPELINE_ID`.
@@ -104,7 +106,7 @@ pre-validate a consumer pipeline with GitLab's own CI Lint (`/-/ci/lint`).
 (`accessflowUrl`, `apiKeyVariable` — the *name* of the secret variable, default
 `accessflow-api-key` — `pipelineId`, `version`, `environment`, `commitSha` — default
 `$(Build.SourceVersion)` — `artifactRef`, `justification`, `scheduledFor`, `metadataFile`,
-`breakGlass`, `waitTimeout`, `pollInterval`, `reportOutcome`), plus `deploySteps` (a
+`breakGlass`, `waitTimeout`, `pollInterval`, `retryTimeout`, `reportOutcome`), plus `deploySteps` (a
 `stepList` run between the gate and the outcome step, so the `condition: always()` outcome
 report sees your deployment's job status). `external_run_id` is `$(Build.BuildId)`. See
 [`examples/azure-deployment-pipeline.yml`](examples/azure-deployment-pipeline.yml).

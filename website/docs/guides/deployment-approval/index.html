@@ -645,8 +645,8 @@
               Every API key has a per-identity request cap (120 per minute by default; a service
               account can be given its own), and the wrappers simply wait the number of seconds
               the server asks for before trying again. A pipeline that hits this constantly is
-              polling too fast — lengthen <code>poll-interval</code>, or raise the account's
-              limit on its admin page.</li>
+              polling too fast — lengthen the poll interval, or have an admin raise the account's
+              limit through the service-account API.</li>
           </ul>
           <div class="docs-callout ok">
             <strong>A real worked example.</strong> The AccessFlow public demo deploys itself

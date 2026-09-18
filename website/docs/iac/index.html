@@ -313,9 +313,12 @@
             Every request an API key makes is counted against that identity — 120 per minute by
             default (<code>ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE</code>), with an
             optional daily cap (<code>…_REQUESTS_PER_DAY</code>, unlimited by default). A service
-            account can carry its own limits, set on its admin page. Over the cap the API answers
-            HTTP 429 with a <code>Retry-After</code> header; the CI wrappers above wait it out, and
-            a signed-in person in the browser is never limited.
+            account can carry its own limits, set by an admin through
+            <code>PUT /api/v1/admin/service-accounts/{id}</code>. Over the cap the API answers
+            HTTP 429 with a <code>Retry-After</code> header. The deployment-gate wrappers below
+            wait it out; the <code>provision-datasource</code> and <code>run-query</code> wrappers
+            and the Terraform provider do not retry a 429 yet, so raise the account's limit before
+            fanning many jobs out on one key. A signed-in person in the browser is never limited.
           </p>
 
           <h3 id="iac-provider">Terraform / OpenTofu provider</h3>

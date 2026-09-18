@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -46,7 +47,8 @@ class DefaultServiceAccountRateLimiter implements ServiceAccountRateLimiter {
     private final ServiceAccountRepository repository;
     private final Clock clock;
 
-    private final AtomicLong lastWarnEpochSecond = new AtomicLong();
+    private final AtomicLong lastOutageWarnEpochSecond = new AtomicLong();
+    private final AtomicLong lastExceededWarnEpochSecond = new AtomicLong();
 
     @Override
     public void enforce(UUID userId) {
@@ -67,8 +69,10 @@ class DefaultServiceAccountRateLimiter implements ServiceAccountRateLimiter {
                 enforceWindow(userId, KEY_PREFIX + userId + ":d:" + epochSecond / DAY_WINDOW.toSeconds(),
                         DAY_WINDOW, limits.perDay(), epochSecond, WINDOW_DAY);
             }
-        } catch (DataAccessException ex) {
-            warnThrottled(userId, ex);
+        } catch (DataAccessException | TransactionException ex) {
+            // TransactionException covers CannotCreateTransactionException — what a Postgres outage
+            // or an exhausted pool surfaces as from the repository's read-only transaction.
+            warnOutageThrottled(userId, ex);
         }
     }
 
@@ -90,21 +94,32 @@ class DefaultServiceAccountRateLimiter implements ServiceAccountRateLimiter {
         }
         if (count != null && count > limit) {
             long remaining = Math.max(1, window.toSeconds() - epochSecond % window.toSeconds());
-            log.warn("API-key rate limit exceeded for user {}: {} > {} requests/{}",
-                    userId, count, limit, windowName);
+            // Throttled: the runaway client this exists for would otherwise produce one WARN per
+            // rejected request.
+            if (throttle(lastExceededWarnEpochSecond, epochSecond)) {
+                log.warn("API-key rate limit exceeded for user {}: {} > {} requests/{}",
+                        userId, count, limit, windowName);
+            } else {
+                log.debug("API-key rate limit exceeded for user {}: {} > {} requests/{}",
+                        userId, count, limit, windowName);
+            }
             throw new ServiceAccountRateLimitExceededException(limit, remaining, windowName);
         }
     }
 
-    private void warnThrottled(UUID userId, DataAccessException ex) {
-        long now = clock.instant().getEpochSecond();
-        long last = lastWarnEpochSecond.get();
-        if (now - last >= WARN_THROTTLE_SECONDS && lastWarnEpochSecond.compareAndSet(last, now)) {
+    private void warnOutageThrottled(UUID userId, RuntimeException ex) {
+        if (throttle(lastOutageWarnEpochSecond, clock.instant().getEpochSecond())) {
             log.warn("API-key rate limiter unavailable — allowing request for user {} unmetered "
                     + "(fail-open): {}", userId, ex.getMessage());
         } else {
             log.debug("API-key rate limiter unavailable — allowing request for user {} unmetered", userId);
         }
+    }
+
+    /** True at most once per {@link #WARN_THROTTLE_SECONDS}; lock-free, safe under concurrent requests. */
+    private static boolean throttle(AtomicLong lastEpochSecond, long now) {
+        long last = lastEpochSecond.get();
+        return now - last >= WARN_THROTTLE_SECONDS && lastEpochSecond.compareAndSet(last, now);
     }
 
     private record Limits(int perMinute, int perDay) {

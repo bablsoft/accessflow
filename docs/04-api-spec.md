@@ -3566,9 +3566,9 @@ A **bootstrap-declared** key is refused rather than silently un-revoked later: `
 | 409 | `EMAIL_ALREADY_EXISTS` | A user (of any organization) already has that email |
 | 409 | `QUOTA_EXCEEDED` | The organization's user quota is exhausted — service accounts count |
 | 422 | `SERVICE_ACCOUNT_OWNER_INVALID` | `owner_user_id` is unknown, inactive, in another organization or not a human |
-| 429 | `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` | Not this surface's own error — any API-key-authenticated request, on any endpoint, over the identity's per-minute or per-day cap (#873). Carries `limit`, `retryAfterSeconds` and a `Retry-After` header; written by the rate-limit filter, so `traceId` is present but the body never goes through the controller advices |
 | 422 | `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | An `mcp_tool_allow_list` entry is not a catalog tool name (`tool` property) |
 | 422 | `ILLEGAL_USER_OPERATION` | The caller (a service account on an admin role, using its own key) tried to deactivate itself or drop its own user-management role |
+| 429 | `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` | Not this surface's own error — any API-key-authenticated request, on any endpoint, over the identity's per-minute or per-day cap (#873). Carries `limit`, `retryAfterSeconds` and a `Retry-After` header; written by the rate-limit filter, so `traceId` is present but the body never goes through the controller advices |
 
 ### Roles & the permission catalog (`/admin/roles`, `/admin/permissions`) *(ROLE_MANAGE — system ADMIN)* (AF-522)
 

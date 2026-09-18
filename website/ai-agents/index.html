@@ -345,7 +345,7 @@
           </div>
           <div class="qa-item">
             <h3>Bounded by a per-identity rate limit</h3>
-            <p>An agent in a runaway loop is capped, not just logged. Every call an API key makes counts against that key's owner — 120 requests a minute by default, with an optional daily ceiling, and a per-account override on the admin page. Over the cap the server answers HTTP 429 with a <span class="mono">Retry-After</span> header so a well-behaved client backs off; a person signed in through the browser is never limited.</p>
+            <p>An agent in a runaway loop is capped, not just logged. Every call an API key makes counts against the identity behind it — 120 requests a minute by default, with an optional daily ceiling, and a per-account override an admin can set through the service-account API. Over the cap the server answers HTTP 429 with a <span class="mono">Retry-After</span> header so a well-behaved client backs off; a person signed in through the browser is never limited.</p>
           </div>
         </div>
       </section>
