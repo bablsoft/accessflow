@@ -62,7 +62,7 @@
         "inLanguage": "en",
         "articleSection": "AI agents",
         "datePublished": "2026-08-25",
-        "dateModified": "2026-09-15",
+        "dateModified": "2026-09-18",
         "url": "https://accessflow.io/ai-agents/",
         "mainEntityOfPage": "https://accessflow.io/ai-agents/",
         "image": "https://accessflow.io/og-image.png",
@@ -254,7 +254,8 @@
         <h2>The agent joins the queue, like everyone else</h2>
         <p>
           AccessFlow exposes a Model Context Protocol server. An agent connects with an API key and
-          gets twelve tools. Submitting a query does not execute it — it enters the same state
+          sees twelve tools; a service account's key can be limited to the subset an admin
+          allow-lists. Submitting a query does not execute it — it enters the same state
           machine a query from the web editor enters.
         </p>
 
@@ -308,8 +309,9 @@
       <section id="guarantees" class="docs-section scroll-pad">
         <h2>What holds, specifically</h2>
         <p>
-          Governance claims are worth only as much as their enforcement point. Each of these is
-          enforced in the service layer, not in the tool wrapper:
+          Governance claims are worth only as much as their enforcement point. All but the last
+          are enforced in the service layer, not in the tool wrapper; the tool allow-list is the one
+          check that runs in the wrapper itself, ahead of the service:
         </p>
 
         <div class="qa-grid">
@@ -336,6 +338,10 @@
           <div class="qa-item">
             <h3>Keys are hashed and revocable</h3>
             <p>The plaintext key is shown exactly once; only a SHA-256 hash is stored, so neither admins nor the system can recover it. Revocation takes effect on the next request.</p>
+          </div>
+          <div class="qa-item">
+            <h3>Scoped to the tools it needs</h3>
+            <p>An admin can restrict a service account to an explicit tool allow-list. Every tool is still listed to every caller, but a call outside the list returns a structured <span class="mono">permission_denied</span> before the service runs — the list can only narrow what the account's role already permits, never widen it.</p>
           </div>
         </div>
       </section>

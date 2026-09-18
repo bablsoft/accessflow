@@ -248,7 +248,10 @@ server and other programmatic clients without a browser session. The flow:
   config exposes `X-API-Key` as an allowed header.
 - **Scope.** A key acts as its owning user — same role, same datasource permissions, same
   review-self-approval block. There is no separate scope model: an API key can hit any endpoint
-  the user can hit, including `/mcp/**`.
+  the user can hit, including `/mcp/**`. The one narrowing is a service account's
+  `mcp_tool_allow_list` (#872): `GuardedToolCallback` wraps every MCP tool and returns
+  `permission_denied` for a tool outside the list before the tool runs. It only ever removes
+  tools — never adds permissions — and REST endpoints are unaffected.
 - **Lifecycle.** Per-user CRUD endpoints live at `/api/v1/me/api-keys` (see
   `docs/04-api-spec.md`). Revocation sets `revoked_at = now()` and is idempotent; revoked or
   expired keys never authenticate.

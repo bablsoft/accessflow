@@ -90,7 +90,10 @@ spring:
           AccessFlow MCP server. Use list_datasources to discover databases you can query,
           submit_query to enqueue a SQL query for review, get_query_status to monitor it,
           and get_query_result once it is EXECUTED. Reviewers can additionally call
-          list_pending_reviews and review_query.
+          list_pending_reviews and review_query. Every tool is advertised to every caller,
+          but a service account may be limited to a subset: a call outside its allow-list
+          returns {"code":"permission_denied"} without running. Report that to the user;
+          do not retry it or reach for another tool to obtain the same data.
 
 server:
   port: ${SERVER_PORT:8080}

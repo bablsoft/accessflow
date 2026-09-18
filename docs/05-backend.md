@@ -3967,6 +3967,15 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
   `McpToolName` wire names (both 422). *Deactivate* delegates to `UserAdminService.deactivateUser`
   (same `UserDeactivatedEvent` fan-out as a human) and revokes nothing: the API-key filter already
   rejects an inactive user, and a later `active = true` restores the account intact.
+- **Tool policy (#872).** `api.ServiceAccountToolPolicyService.isAllowed(userId, toolName)` with
+  `DefaultServiceAccountToolPolicyService` (read-only, one PK lookup on `service_accounts`) is what
+  the `mcp` module's `GuardedToolCallback` consults on every `tools/call`. Decision order: a name
+  outside the `McpToolName` catalog → `false` before any database hit; no detail row (a person) →
+  `true`; `mcp_tool_allow_list IS NULL` → `true`; otherwise the wire name must be in the array
+  (`'{}'` allows nothing). The detail row's presence is the discriminator — `ensureRegistered`
+  creates it in the same transaction that flips `principal_type`, so a person never has one. The
+  policy is consulted for JWT callers too (a person adopted by bootstrap can hold a live access
+  token for a few minutes); it only ever narrows what the role and grants already permit.
 - **Bootstrap coexistence.** `managed_by` decides who owns the *declared* fields (email, display
   name, role, the `bootstrap_declared` key). On a `BOOTSTRAP` account the admin service throws
   `ServiceAccountBootstrapManagedException(field)` (409) when a declared field would **change** —
@@ -4704,19 +4713,37 @@ endpoint contract, row shape, and the full drift rules are in
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`
-(for `JwtClaims` and `ApiKeyService` — though only the filter actually calls the latter) and on
+(for `JwtClaims` and `ApiKeyService` — though only the filter actually calls the latter), on
+`serviceaccounts.api` (the tool allow-list policy, #872 — never the reverse) and on
 `core.api` / `workflow.api` for the underlying services the tools delegate to.
 
 - **Starter.** `spring-ai-starter-mcp-server-webmvc` with `spring.ai.mcp.server.protocol=STATELESS`,
   endpoint defaults to `/mcp`.
 - **Tool services.** `@Tool`-annotated methods on `McpToolService` (query / datasource tools),
   `McpReviewToolService` (reviewer-only, gated with
-  `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`), and `McpDataToolService` (read-mostly
+  `@PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")`), and `McpDataToolService` (read-mostly
   inspection tools: `validate_sql`, `get_column_samples`, `get_audit_log` — delegating to
   `proxy.api` / `audit.api`). `McpCurrentUser` resolves the calling principal from the
   SecurityContext.
-- **Wiring.** `McpServerConfiguration` exposes all three services as a single
-  `MethodToolCallbackProvider` bean — the starter's auto-configuration picks it up.
+- **Wiring.** `McpServerConfiguration` builds one `MethodToolCallbackProvider` over the three
+  services, then wraps **every** emitted callback in `mcp.internal.tools.GuardedToolCallback`
+  (#872) and exposes only the wrapped set as the `ToolCallbackProvider` bean the starter picks up
+  (the raw provider is never a bean — the auto-configuration aggregates every provider it finds).
+- **Tool allow-list (#872).** `GuardedToolCallback` passes `getToolDefinition()` /
+  `getToolMetadata()` straight through (the advertised schema is unchanged) and, in
+  `call(...)`, resolves the caller through `McpCurrentUser` and asks
+  `serviceaccounts.api.ServiceAccountToolPolicyService.isAllowed(userId, toolName)`. On a miss it
+  *returns* the documented `{"code":"permission_denied","message":…}` JSON (localized
+  `error.mcp.tool_not_allowed`) instead of throwing, so the delegate — and the service behind it —
+  never runs; on a hit it forwards the two-argument `call(input, toolContext)`. Reading the
+  `SecurityContext` there is safe because `McpServerStatelessAutoConfiguration` sets
+  `immediateExecution(true)` in a servlet environment — the tool body runs inline on the request thread, the same
+  property `McpCurrentUser` already relies on; `McpToolAllowListIntegrationTest` pins it by
+  verifying the policy was asked with the key owner's id over the real transport. `tools/list` is
+  deliberately **not** filtered: the SDK's stateless list handler ignores the transport context, so
+  every caller sees all twelve tools and a restricted agent learns its limits only when it calls.
+  `McpToolNameParityTest` keeps the `McpToolName` catalog equal to the registered `@Tool` set, and
+  the policy denies any name outside it, so a thirteenth tool defaults closed.
 
 ### Exposed MCP tools
 
@@ -4729,7 +4756,7 @@ The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `s
 | `get_query_result` | `QueryResultPersistenceService.find` | Requires `SELECT` query in `EXECUTED` status. |
 | `submit_query` | `QuerySubmissionService.submit` | Goes through the normal AI-analysis + review workflow. |
 | `cancel_query` | `QueryLifecycleService.cancel` | Submitter-only (enforced in service). |
-| `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize` reviewer/admin. |
+| `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")`. |
 | `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. |
 | `validate_sql` | `QueryParser.parse` (+ `DatasourceAdminService.introspectSchema` for mismatch) | Parse-only; no AI, no execution. Parse errors returned as `valid:false`+`parseError`; schema-mismatch is best-effort (skipped on DB connectivity failure). |
 | `get_column_samples` | `SampleDataService.sample` (AF-443) | Governed sample read — RLS + masking applied, `canRead` + allow-list enforced. |
@@ -4749,7 +4776,10 @@ spring:
         protocol: STATELESS
         instructions: |
           AccessFlow MCP server. Use list_datasources, validate_sql, submit_query,
-          get_query_status, get_column_samples, get_audit_log, …
+          get_query_status, get_column_samples, get_audit_log, … Every tool is advertised
+          to every caller, but a service account may be limited to a subset: a call outside
+          its allow-list returns {"code":"permission_denied"} without running. Report that
+          to the user; do not retry it or reach for another tool to obtain the same data.
 ```
 
 Default endpoint: `POST /mcp` (the security chain already requires authentication on it via
