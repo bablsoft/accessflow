@@ -252,6 +252,15 @@ server and other programmatic clients without a browser session. The flow:
   `mcp_tool_allow_list` (#872): `GuardedToolCallback` wraps every MCP tool and returns
   `permission_denied` for a tool outside the list before the tool runs. It only ever removes
   tools — never adds permissions — and REST endpoints are unaffected.
+- **Rate limiting (#873).** Every API-key-authenticated request is counted per identity by the
+  `serviceaccounts` module's `ApiKeyRequestFilter` (a servlet filter at order 0, inside the
+  security chain, after authentication *and* authorization) — a `service_accounts` row's
+  `rate_limit_per_minute` / `rate_limit_per_day` when set, otherwise the deployment defaults
+  (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, 120; `…_PER_DAY`, 0 = unlimited).
+  Over the cap: `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` with a `Retry-After` header. JWT
+  sessions are never limited. It is a **resource guardrail, not an authorization control**, so it
+  fails open when Redis is unreachable — the request is still authenticated, permission-bounded
+  and audited, and failing closed would take every agent and CI pipeline down on a Redis blip.
 - **Lifecycle.** Per-user CRUD endpoints live at `/api/v1/me/api-keys` (see
   `docs/04-api-spec.md`). Revocation sets `revoked_at = now()` and is idempotent; revoked or
   expired keys never authenticate.

@@ -3,7 +3,9 @@ description: >-
   Gate a deployment on AccessFlow approval: submit a deployment request (idempotent on the
   workflow run id), poll the fail-closed deployment gate until releasable, then confirm
   execution. Fails the job on REJECTED / TIMED_OUT / CANCELLED / FAILED, on a gate 404 (unknown
-  or invisible request — fail closed), or when the wait-timeout elapses. Pair with
+  or invisible request — fail closed), or when the wait-timeout elapses. Transient 5xx /
+  network errors and rate-limited (HTTP 429) calls are retried within wait-timeout, honouring
+  Retry-After. Pair with
   bablsoft/accessflow/.github/actions/deployment-outcome under `if: always()` to report the
   post-deploy outcome.
 author: AccessFlow

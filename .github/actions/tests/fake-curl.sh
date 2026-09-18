@@ -3,19 +3,24 @@
 # responses in call order from $MOCK_DIR/responses/<n> (falling back to responses/default) and
 # logs "<METHOD> <URL>" to $MOCK_DIR/calls.log. A response file's first line is the HTTP status
 # code (or "EXIT <n>" to simulate a curl-level failure); the rest is the body. Honors the
-# `-w '\n%{http_code}'` contract the action scripts use: prints body, newline, code.
+# `-w '\n%{http_code}'` contract the action scripts use: prints body, newline, code. When the
+# script passes `-D <file>`, the response headers are written there: the sidecar
+# $MOCK_DIR/headers/<n> verbatim when it exists (e.g. a Retry-After line, #873), otherwise just a
+# status line.
 set -euo pipefail
 : "${MOCK_DIR:?}"
 
 method="GET"
 url=""
 data=""
+dump=""
 args=("$@")
 i=0
 while [ "$i" -lt "${#args[@]}" ]; do
   case "${args[$i]}" in
     -X) i=$((i + 1)); method="${args[$i]}" ;;
     -d) i=$((i + 1)); data="${args[$i]}" ;;
+    -D) i=$((i + 1)); dump="${args[$i]}" ;;
     -H | -w) i=$((i + 1)) ;;
     -*) ;;
     http://* | https://*) url="${args[$i]}" ;;
@@ -43,4 +48,11 @@ if [[ "$code" == EXIT* ]]; then
   exit "${code#EXIT }"
 fi
 body="$(tail -n +2 "$f")"
+if [ -n "$dump" ]; then
+  if [ -f "$MOCK_DIR/headers/$n" ]; then
+    cp "$MOCK_DIR/headers/$n" "$dump"
+  else
+    printf 'HTTP/1.1 %s\r\n\r\n' "$code" >"$dump"
+  fi
+fi
 printf '%s\n%s' "$body" "$code"

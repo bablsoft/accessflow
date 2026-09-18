@@ -10,7 +10,10 @@ Fail-closed contract: treat a gate **404**, any non-retryable error, a terminal 
 (`REJECTED` / `TIMED_OUT` / `CANCELLED` / `FAILED`) or your own wall-clock timeout as **not
 releasable — fail the pipeline**. Only `releasable: true` followed by a confirmed execution is a
 green light; `status: APPROVED` alone is not (the request may be frozen or scheduled). Transient
-5xx / network errors may be retried until your deadline.
+5xx / network errors may be retried until your deadline, and so may **HTTP 429**: every API key
+is rate-limited per identity (#873), and a `429` at any step carries a `Retry-After` header with
+the seconds until the window resets — sleep that long (capped at your deadline), then repeat the
+call. Nothing about the request changes while you wait.
 
 ## 1. Submit the deployment request
 
@@ -34,6 +37,11 @@ request_id=$(curl -fsS -X POST \
       }' \
   "$ACCESSFLOW_URL/api/v1/deployment-requests" | jq -r '.id')
 ```
+
+`-f` fails on any 4xx, which is right for everything but a `429` — if your key can hit its
+per-identity rate limit here (a busy monorepo fanning out many jobs), drop `-f`, capture
+`%{http_code}` as in step 2, and retry the submit after `Retry-After` seconds; the tuple is
+idempotent, so a retried submit can never open a second review.
 
 `pipeline_id` is the deployment pipeline's UUID (AccessFlow admin page or Terraform output) —
 the trigger API does not resolve names. Optional fields: `artifact_ref`, `justification`,
@@ -62,6 +70,7 @@ Loop (e.g. every 15 s, up to 30 min):
 - `status == EXECUTED` → already confirmed (a previous attempt of this run) → proceed to deploy.
 - HTTP 404 → **fail the pipeline** (unknown or invisible request — the gate never answers
   "releasable" for something it cannot see).
+- HTTP 429 → rate limited; wait `Retry-After` seconds and poll again.
 - Anything else (`PENDING_AI`, `PENDING_REVIEW`, approved-but-frozen, approved-but-scheduled) →
   keep polling; `frozen` / `freeze_reason` / `scheduled_for` explain the wait.
 
@@ -84,6 +93,8 @@ code="${resp##*$'\n'}"; body="${resp%$'\n'*}"
   the confirm (e.g. a freeze window opened) — go back to step 2.
 - `409` with `error: "DEPLOYMENT_REQUEST_INVALID_STATE"` and `currentStatus: "EXECUTED"` (that
   key is camelCase) → a concurrent run confirmed first — treat as success.
+- `429` → rate limited; wait `Retry-After` seconds and go back to step 2 (a re-poll is cheap and
+  the confirm is idempotent-safe: a confirm that did land shows up as `EXECUTED`).
 - Anything else → fail the pipeline.
 
 ## 4. Report the outcome
@@ -108,6 +119,8 @@ code="${resp##*$'\n'}"; body="${resp%$'\n'*}"
   `DEPLOYMENT_OUTCOME_CONFLICT` — a real inconsistency, surface it.
 - HTTP 409 `DEPLOYMENT_REQUEST_INVALID_STATE` means the request never reached `EXECUTED`
   (the gate rejected or timed out) — nothing to report; do not fail your post block on it.
+- HTTP 429 → rate limited; wait `Retry-After` seconds and report again (the report is
+  idempotent for the same outcome).
 
 ## Secret handling
 

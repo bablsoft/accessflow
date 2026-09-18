@@ -32,18 +32,36 @@ to_seconds() {
 timeout_s="$(to_seconds "${AF_WAIT_TIMEOUT:-30m}" wait-timeout)"
 interval_s="$(to_seconds "${AF_POLL_INTERVAL:-15s}" poll-interval)"
 
-# attempt METHOD URL [BODY] — performs the call and prints "<http_code>\n<body>" without failing,
-# so the poll loop can decide per-code (the gate is fail-closed: transient 5xx/network errors are
-# retried until the deadline, while a 404 or 4xx fails the job). Code 000 = curl itself failed.
+# attempt METHOD URL [BODY] — performs the call and prints "<http_code>\n<retry_after>\n<body>"
+# without failing, so the callers can decide per-code (the gate is fail-closed: transient
+# 5xx/network errors and 429 rate limits are retried until the deadline, while a 404 or any other
+# 4xx fails the job). Code 000 = curl itself failed. <retry_after> is the integer Retry-After header
+# a 429 carries (#873), or empty when absent or not a plain number of seconds.
 attempt() {
-  local method="$1" url="$2" data="${3:-}" resp
+  local method="$1" url="$2" data="${3:-}" resp hdr retry_after
+  hdr="$(mktemp)"
   if [ -n "$data" ]; then
     resp="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
-      -d "$data" -w $'\n%{http_code}' "$url")" || { printf '000\n'; return 0; }
+      -d "$data" -D "$hdr" -w $'\n%{http_code}' "$url")" || { rm -f "$hdr"; printf '000\n\n'; return 0; }
   else
-    resp="$(curl -sS -X "$method" "${auth[@]}" -w $'\n%{http_code}' "$url")" || { printf '000\n'; return 0; }
+    resp="$(curl -sS -X "$method" "${auth[@]}" -D "$hdr" -w $'\n%{http_code}' "$url")" \
+      || { rm -f "$hdr"; printf '000\n\n'; return 0; }
   fi
-  printf '%s\n%s' "${resp##*$'\n'}" "${resp%$'\n'*}"
+  retry_after="$(sed -n -E 's/^[Rr]etry-[Aa]fter:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$hdr" | tail -n1)"
+  rm -f "$hdr"
+  printf '%s\n%s\n%s' "${resp##*$'\n'}" "$retry_after" "${resp%$'\n'*}"
+}
+
+# retry_delay RETRY_AFTER — seconds to sleep before the next attempt: the server's Retry-After when
+# it sent one (capped at the time left before the deadline, so a long window ends in the normal
+# timeout path instead of an over-long sleep), otherwise the fixed poll interval.
+retry_delay() {
+  local remaining=$(( deadline - SECONDS ))
+  if [ -n "${1:-}" ]; then
+    if [ "$1" -lt "$remaining" ]; then echo "$1"; else echo $(( remaining > 0 ? remaining : 0 )); fi
+  else
+    echo "$interval_s"
+  fi
 }
 
 # problem MESSAGE BODY — emit a workflow error plus the RFC 9457 ProblemDetail, so failures are
@@ -86,9 +104,22 @@ if [ -n "${AF_METADATA_FILE:-}" ]; then
   body="$(jq --argjson m "$metadata" '. + {metadata: $m}' <<<"$body")"
 fi
 
-resp="$(attempt POST "${base}/deployment-requests" "$body")"
-code="$(head -n1 <<<"$resp")"
-submit="$(tail -n +2 <<<"$resp")"
+deadline=$(( SECONDS + timeout_s ))
+# Submission shares wait-timeout with the poll loop: a 429 (per-identity rate limit, #873) is
+# retried honouring Retry-After; any other failure is still immediately fatal.
+while :; do
+  resp="$(attempt POST "${base}/deployment-requests" "$body")"
+  code="$(sed -n 1p <<<"$resp")"
+  retry_after="$(sed -n 2p <<<"$resp")"
+  submit="$(tail -n +3 <<<"$resp")"
+  if [ "$code" = "429" ] && [ "$SECONDS" -lt "$deadline" ]; then
+    delay="$(retry_delay "$retry_after")"
+    echo "  rate limited (HTTP 429), retrying submission in ${delay}s…"
+    sleep "$delay"
+    continue
+  fi
+  break
+done
 if [ "$code" = "000" ] || [ "$code" -ge 400 ]; then
   problem "Deployment request submission failed (HTTP ${code})" "$submit"
   exit 1
@@ -119,14 +150,20 @@ finish() {
   exit "$2"
 }
 
-deadline=$(( SECONDS + timeout_s ))
 while [ "$SECONDS" -lt "$deadline" ]; do
   resp="$(attempt GET "${base}/deployment-gate?request_id=${request_id}")"
-  code="$(head -n1 <<<"$resp")"
-  gate="$(tail -n +2 <<<"$resp")"
+  code="$(sed -n 1p <<<"$resp")"
+  retry_after="$(sed -n 2p <<<"$resp")"
+  gate="$(tail -n +3 <<<"$resp")"
   if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then
     echo "  gate unreachable (HTTP ${code}), retrying in ${interval_s}s…"
     sleep "$interval_s"
+    continue
+  fi
+  if [ "$code" = "429" ]; then
+    delay="$(retry_delay "$retry_after")"
+    echo "  rate limited (HTTP 429), retrying in ${delay}s…"
+    sleep "$delay"
     continue
   fi
   if [ "$code" = "404" ]; then
@@ -156,8 +193,9 @@ while [ "$SECONDS" -lt "$deadline" ]; do
 
   if [ "$releasable" = "true" ]; then
     resp="$(attempt POST "${base}/deployment-requests/${request_id}/confirm-execution")"
-    ccode="$(head -n1 <<<"$resp")"
-    confirm="$(tail -n +2 <<<"$resp")"
+    ccode="$(sed -n 1p <<<"$resp")"
+    retry_after="$(sed -n 2p <<<"$resp")"
+    confirm="$(tail -n +3 <<<"$resp")"
     if [ "$ccode" = "200" ]; then
       finish EXECUTED 0 "Deployment request $request_id confirmed — gate open, proceeding."
     fi
@@ -184,6 +222,12 @@ while [ "$SECONDS" -lt "$deadline" ]; do
       # reports EXECUTED and succeeds; otherwise we just confirm again.
       echo "  confirm-execution unreachable (HTTP ${ccode}), retrying in ${interval_s}s…"
       sleep "$interval_s"
+      continue
+    fi
+    if [ "$ccode" = "429" ]; then
+      delay="$(retry_delay "$retry_after")"
+      echo "  confirm-execution rate limited (HTTP 429), retrying in ${delay}s…"
+      sleep "$delay"
       continue
     fi
     problem "confirm-execution returned HTTP ${ccode} for request ${request_id}" "$confirm"

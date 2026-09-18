@@ -40,7 +40,10 @@ three platforms, plus a raw-`curl` walkthrough for anything else in
 a terminal status (`REJECTED` / `TIMED_OUT` / `CANCELLED` / `FAILED`), or the wait-timeout
 elapsing fails the job — nothing is ever released by default. `status: APPROVED` alone is not a
 green light: the gate also folds in freeze windows (`frozen`) and deferred releases
-(`scheduled_for`). Transient 5xx / network errors are retried until the deadline.
+(`scheduled_for`). Transient 5xx / network errors are retried until the deadline, and so is a
+rate-limited call — every API key is capped per identity (#873), and a `429` at any of the four
+beats is retried honouring the server's `Retry-After` header (capped at the remaining deadline;
+the fixed interval is the fallback when the header is missing).
 
 ### GitHub Action inputs — `deployment-gate`
 
@@ -74,6 +77,7 @@ the workflow re-attaches to the same request instead of duplicating it.
 | `job-status` | no | — | Pass `${{ job.status }}`: success→`SUCCEEDED`, failure→`FAILED`, cancelled→skip |
 | `outcome` | no | — | Explicit `SUCCEEDED` / `FAILED` / `ROLLED_BACK`; overrides `job-status` |
 | `detail` | no | — | Free-form detail (≤ 4000 chars) |
+| `retry-timeout` | no | `2m` | How long to keep retrying a rate-limited (`429`) report, honouring `Retry-After` |
 
 Output: `status`. Run it with `if: always()` (composite actions have no post-run hook). A
 request the gate never released is skipped without failing; reporting an outcome that

@@ -6,7 +6,8 @@ description: >-
   success maps to SUCCEEDED, failure to FAILED, and a cancelled job reports nothing. Pass an
   explicit `outcome` (e.g. ROLLED_BACK) to override the mapping. A request the gate never
   released is skipped without failing the step; reporting an outcome that conflicts with one
-  already recorded fails.
+  already recorded fails. A rate-limited report (HTTP 429) is retried honouring Retry-After
+  until retry-timeout elapses.
 author: AccessFlow
 branding:
   icon: flag
@@ -33,6 +34,12 @@ inputs:
   detail:
     description: "Optional free-form detail recorded with the outcome (max 4000 chars)."
     required: false
+  retry-timeout:
+    description: >-
+      How long to keep retrying a rate-limited (HTTP 429) report, honouring the server's
+      Retry-After header — e.g. 90, 45s, 2m. Other failures are never retried.
+    required: false
+    default: "2m"
 
 outputs:
   status:
@@ -51,4 +58,5 @@ runs:
         AF_JOB_STATUS: ${{ inputs.job-status }}
         AF_OUTCOME: ${{ inputs.outcome }}
         AF_DETAIL: ${{ inputs.detail }}
+        AF_RETRY_TIMEOUT: ${{ inputs.retry-timeout }}
       run: ${{ github.action_path }}/deployment-outcome.sh

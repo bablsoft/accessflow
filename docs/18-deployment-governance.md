@@ -363,7 +363,10 @@ break-glass deployment that later rolls back must still get its own follow-up.
 
 Every provider integration follows the same four beats — **submit idempotently by run id → poll the
 gate → confirm execution → report the outcome** — and every one of them **fails the job** on a
-`404`, a terminal status, or the configured wait timeout. A pipeline is identified by UUID, since a
+`404`, a terminal status, or the configured wait timeout, while **retrying** transient 5xx /
+network errors and `429` rate limits (#873 caps every API key per identity; the wrappers honour
+the `Retry-After` header at all four beats, capped at the remaining deadline, and the outcome
+reporters bound their retries by a separate `retry-timeout`, default 2 min). A pipeline is identified by UUID, since a
 trigger-only key cannot resolve names. That UUID is copyable straight from the admin UI (#771) —
 truncated on each row of the pipeline list, in full in the pipeline settings header's subtitle —
 rather than having to be read out of the address bar. Both controls copy the whole UUID.
@@ -384,7 +387,8 @@ rather than having to be read out of the address bar. Both controls copy the who
 Copy-paste snippets and input reference live in
 [16-iac.md → Deployment gate](16-iac.md); the admin UI additionally renders a ready-made CI setup
 panel for each pipeline. The wrappers are exercised offline by a fake-curl harness under
-`.github/actions/tests/`.
+`.github/actions/tests/` (which also scripts response headers, so the 429-then-200 sequences and
+the `Retry-After` handling are covered without a backend).
 
 **Service-account setup.** Mint an AccessFlow API key for a dedicated service-account user
 (`POST /api/v1/me/api-keys`, or declaratively through the `bootstrap` module's

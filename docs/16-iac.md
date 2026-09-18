@@ -248,7 +248,10 @@ waits for a terminal status, failing the step on anything other than `EXECUTED`.
 
 The gate action submits a deployment request (idempotent on the CI run id), polls the fail-closed
 `GET /api/v1/deployment-gate` until `releasable: true`, then confirms execution; a 404, a
-terminal status, or the `wait-timeout` fails the job. GitLab (`.accessflow_deployment_gate` /
+terminal status, or the `wait-timeout` fails the job, while transient 5xx / network errors and
+rate-limited calls (HTTP 429 — every API key is capped per identity, #873) are retried within
+`wait-timeout`, honouring the server's `Retry-After` header; the outcome action retries a 429 for
+`retry-timeout` (default `2m`). GitLab (`.accessflow_deployment_gate` /
 `.accessflow_deployment_outcome` in `ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml`)
 and Azure Pipelines (`ci-templates/azure/accessflow-deployment.yml`, a step template with a
 `deploySteps` list) mirror the same flow, and

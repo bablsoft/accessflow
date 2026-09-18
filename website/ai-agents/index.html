@@ -343,6 +343,10 @@
             <h3>Scoped to the tools it needs</h3>
             <p>An admin can restrict a service account to an explicit tool allow-list. Every tool is still listed to every caller, but a call outside the list returns a structured <span class="mono">permission_denied</span> before the service runs — the list can only narrow what the account's role already permits, never widen it.</p>
           </div>
+          <div class="qa-item">
+            <h3>Bounded by a per-identity rate limit</h3>
+            <p>An agent in a runaway loop is capped, not just logged. Every call an API key makes counts against that key's owner — 120 requests a minute by default, with an optional daily ceiling, and a per-account override on the admin page. Over the cap the server answers HTTP 429 with a <span class="mono">Retry-After</span> header so a well-behaved client backs off; a person signed in through the browser is never limited.</p>
+          </div>
         </div>
       </section>
 
