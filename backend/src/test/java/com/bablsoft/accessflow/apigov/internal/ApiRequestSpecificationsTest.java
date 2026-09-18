@@ -35,6 +35,7 @@ class ApiRequestSpecificationsTest {
     private Path createdAtPath;
     private Path orgIdPath;
     private Path submittedByPath;
+    private Path onBehalfOfPath;
     private Path connectorIdPath;
     private Path statusPath;
     private Path verbPath;
@@ -52,6 +53,7 @@ class ApiRequestSpecificationsTest {
         createdAtPath = mock(Path.class);
         orgIdPath = mock(Path.class);
         submittedByPath = mock(Path.class);
+        onBehalfOfPath = mock(Path.class);
         connectorIdPath = mock(Path.class);
         statusPath = mock(Path.class);
         verbPath = mock(Path.class);
@@ -61,6 +63,7 @@ class ApiRequestSpecificationsTest {
         when(root.get("createdAt")).thenReturn(createdAtPath);
         when(root.get("organizationId")).thenReturn(orgIdPath);
         when(root.get("submittedBy")).thenReturn(submittedByPath);
+        lenient().when(root.get("onBehalfOfUserId")).thenReturn(onBehalfOfPath);
         when(root.get("connectorId")).thenReturn(connectorIdPath);
         when(root.get("status")).thenReturn(statusPath);
         when(root.get("verb")).thenReturn(verbPath);
@@ -70,6 +73,9 @@ class ApiRequestSpecificationsTest {
         when(cb.desc(any(Expression.class))).thenReturn(order);
         when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
         when(cb.notEqual(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        lenient().when(cb.isNull(any(Expression.class))).thenReturn(predicate);
+        lenient().when(cb.or(any(Predicate.class), any(Predicate.class))).thenReturn(predicate);
+        lenient().when(cb.and(any(Predicate.class), any(Predicate.class))).thenReturn(predicate);
         when(cb.greaterThanOrEqualTo(any(Expression.class), any(Instant.class))).thenReturn(predicate);
         when(cb.lessThan(any(Expression.class), any(Instant.class))).thenReturn(predicate);
         when(cb.and(any(Predicate[].class))).thenReturn(predicate);
@@ -178,5 +184,37 @@ class ApiRequestSpecificationsTest {
         verify(cb).notEqual(submittedByPath, reviewerId);
         verify(cb, never()).equal(eq(connectorIdPath), any(Object.class));
         verify(cb, never()).equal(eq(verbPath), any(Object.class));
+    }
+
+    /** #874: the queue hides what the decision would refuse — for both submitter identities. */
+    @Test
+    void pendingReviewExcludesRequestsSubmittedOnBehalfOfTheReviewer() {
+        var orgId = UUID.randomUUID();
+        var reviewerId = UUID.randomUUID();
+
+        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, null, null, true,
+                        java.util.List.of())
+                .toPredicate(root, cq, cb);
+
+        verify(cb).notEqual(submittedByPath, reviewerId);
+        verify(cb).isNull(onBehalfOfPath);
+        verify(cb).notEqual(onBehalfOfPath, reviewerId);
+    }
+
+    @Test
+    void perReachDelegatorExclusionCoversBothSubmitterIdentities() {
+        var orgId = UUID.randomUUID();
+        var reviewerId = UUID.randomUUID();
+        var delegator = UUID.randomUUID();
+        var connectorId = UUID.randomUUID();
+        lenient().when(connectorIdPath.in(any(java.util.Collection.class))).thenReturn(predicate);
+
+        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, null, null, false,
+                        java.util.List.of(new ApiRequestSpecifications.ReviewReach(delegator,
+                                java.util.Set.of(connectorId))))
+                .toPredicate(root, cq, cb);
+
+        verify(cb).notEqual(submittedByPath, delegator);
+        verify(cb).notEqual(onBehalfOfPath, delegator);
     }
 }

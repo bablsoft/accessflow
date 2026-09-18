@@ -59,7 +59,8 @@ public class DefaultDeploymentRollbackReviewService implements DeploymentRollbac
     public DeploymentRollbackReviewView acknowledge(UUID id, UUID organizationId, UUID reviewerId,
                                                     String comment) {
         var review = require(id, organizationId);
-        if (review.getSubmittedBy().equals(reviewerId)) {
+        // Neither the submitter nor the human the submitter acted for (#874) may acknowledge.
+        if (review.getSubmittedBy().equals(reviewerId) || reviewerId.equals(review.getOnBehalfOfUserId())) {
             throw new DeploymentRollbackReviewSelfAcknowledgeException(id);
         }
         if (review.getStatus() == DeploymentRollbackReviewStatus.REVIEWED) {

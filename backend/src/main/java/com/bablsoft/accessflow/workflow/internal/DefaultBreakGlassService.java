@@ -87,7 +87,11 @@ class DefaultBreakGlassService implements BreakGlassService {
                 SubmissionReason.EMERGENCY_ACCESS,
                 input.submittedIp(),
                 input.submittedUserAgent(),
-                false));
+                false,
+                null,
+                null,
+                null,
+                input.onBehalfOfUserId()));
         // SQL review findings are recorded for the retro-review but never gate an emergency (#864):
         // break-glass bypasses the decision chain the BLOCK guard lives in, by design.
         sqlReviewFindingService.recordForQuery(queryId,

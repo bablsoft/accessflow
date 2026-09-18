@@ -121,7 +121,7 @@ public class DefaultGroupReviewService implements GroupReviewService {
             throw new IllegalRequestGroupStateException(group.getStatus(),
                     "Group is not pending review");
         }
-        if (group.getSubmittedBy().equals(context.userId())) {
+        if (isSubmitterIdentity(group, context.userId())) {
             throw new SelfApprovalNotAllowedException();
         }
         return new PendingGroup(group, requireEligible(group, context));
@@ -164,8 +164,9 @@ public class DefaultGroupReviewService implements GroupReviewService {
                 group.getCurrentReviewStage());
         for (var delegation : reviewDelegationLookupService.findActiveForDelegate(
                 group.getOrganizationId(), context.userId(), null, null)) {
-            // The self-approval ban covers both identities.
-            if (group.getSubmittedBy().equals(delegation.delegatorUserId())) {
+            // The self-approval ban covers both identities — and, since #874, both submitter
+            // identities.
+            if (isSubmitterIdentity(group, delegation.delegatorUserId())) {
                 continue;
             }
             if (!coversAnyMember(delegation, items)) {
@@ -248,5 +249,13 @@ public class DefaultGroupReviewService implements GroupReviewService {
                        Map<String, Object> metadata) {
         auditLogService.record(new AuditEntry(action, AuditResourceType.REQUEST_GROUP, group.getId(),
                 group.getOrganizationId(), actorId, metadata, null, null));
+    }
+
+    /**
+     * The submitter identities of a group: the submitter, plus the human an API-key submitter
+     * acted for (#874) — a second identity for the self-approval ban, and only for the ban.
+     */
+    static boolean isSubmitterIdentity(RequestGroupEntity group, UUID userId) {
+        return userId.equals(group.getSubmittedBy()) || userId.equals(group.getOnBehalfOfUserId());
     }
 }

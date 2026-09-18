@@ -120,6 +120,7 @@ public class DefaultDeploymentOutcomeService implements DeploymentOutcomeService
         review.setPipelineId(request.getPipelineId());
         review.setEnvironmentId(request.getEnvironmentId());
         review.setSubmittedBy(request.getSubmittedBy());
+        review.setOnBehalfOfUserId(request.getOnBehalfOfUserId());
         review.setOutcomeDetail(detail);
         review.setStatus(DeploymentRollbackReviewStatus.PENDING_REVIEW);
         rollbackReviewRepository.save(review);

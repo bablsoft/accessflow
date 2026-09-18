@@ -35,6 +35,12 @@ class RequestGroupExceptionHandler {
                 "REQUEST_GROUP_NOT_FOUND");
     }
 
+    @ExceptionHandler(IllegalRequestGroupStateException.OnBehalfOfConflict.class)
+    ProblemDetail handleOnBehalfOfConflict(IllegalRequestGroupStateException.OnBehalfOfConflict ex) {
+        return problem(HttpStatus.CONFLICT, msg("error.request_group_on_behalf_of_conflict"),
+                "REQUEST_GROUP_ON_BEHALF_OF_CONFLICT");
+    }
+
     @ExceptionHandler(IllegalRequestGroupStateException.class)
     ProblemDetail handleIllegalState(IllegalRequestGroupStateException ex) {
         var pd = problem(HttpStatus.CONFLICT, msg("error.request_group_invalid_state"),

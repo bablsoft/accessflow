@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupService;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.api.SubmitRequestGroupCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,7 @@ class RequestGroupController {
 
     private final RequestGroupService requestGroupService;
     private final SqlReviewFindingRenderer sqlReviewFindingRenderer;
+    private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -50,7 +52,8 @@ class RequestGroupController {
                                 Authentication authentication) {
         var caller = claims(authentication);
         return RequestGroupResponse.from(requestGroupService.createDraft(
-                body.toCommand(caller.organizationId(), caller.userId(), isAdmin(caller))), renderer());
+                body.toCommand(caller.organizationId(), caller.userId(), isAdmin(caller),
+                        onBehalfOfPrincipalService.current().orElse(null))), renderer());
     }
 
     @GetMapping
@@ -106,7 +109,8 @@ class RequestGroupController {
         var caller = claims(authentication);
         requestGroupService.submit(new SubmitRequestGroupCommand(id, caller.organizationId(),
                 caller.userId(), isAdmin(caller), body.breakGlass(), body.scheduledFor(),
-                auditContext.ipAddress(), auditContext.userAgent()));
+                auditContext.ipAddress(), auditContext.userAgent(),
+                onBehalfOfPrincipalService.current().orElse(null)));
         return RequestGroupResponse.from(requestGroupService.get(id, caller.organizationId(),
                 caller.userId(), isAdmin(caller)), renderer());
     }

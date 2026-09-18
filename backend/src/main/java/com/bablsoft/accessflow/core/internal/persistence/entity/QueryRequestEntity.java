@@ -135,6 +135,11 @@ public class QueryRequestEntity {
     @Column(name = "cicd_origin", nullable = false)
     private boolean ciCdOrigin = false;
 
+    // The human an API-key caller acted FOR (#874). Attribution only — a bare UUID, no association,
+    // no FK — and a second submitter identity for the self-approval guard. Never confers anything.
+    @Column(name = "on_behalf_of_user_id")
+    private UUID onBehalfOfUserId;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

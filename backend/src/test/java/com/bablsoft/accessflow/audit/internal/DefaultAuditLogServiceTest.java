@@ -3,11 +3,13 @@ package com.bablsoft.accessflow.audit.internal;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogQuery;
+import com.bablsoft.accessflow.audit.api.AuditMetadataContributor;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.internal.persistence.entity.AuditLogEntity;
 import com.bablsoft.accessflow.audit.internal.persistence.repo.AuditLogRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
@@ -18,8 +20,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -42,8 +49,10 @@ class DefaultAuditLogServiceTest {
     private final JdbcTemplate auditJdbcTemplate = mock(JdbcTemplate.class);
     private final PlatformTransactionManager auditTxManager = mock(PlatformTransactionManager.class);
     private final TransactionTemplate auditTransactionTemplate = new TransactionTemplate(auditTxManager);
+    private final List<AuditMetadataContributor> contributors = new ArrayList<>();
     private final DefaultAuditLogService service = new DefaultAuditLogService(
-            repository, objectMapper, hasher, auditJdbcTemplate, auditTransactionTemplate);
+            repository, objectMapper, hasher, auditJdbcTemplate, auditTransactionTemplate,
+            provider(contributors));
 
     private final UUID organizationId = UUID.randomUUID();
     private final UUID actorId = UUID.randomUUID();
@@ -59,6 +68,92 @@ class DefaultAuditLogServiceTest {
         when(auditJdbcTemplate.query(any(String.class), any(ResultSetExtractor.class)))
                 .thenReturn(java.time.Instant.parse("2026-01-01T00:00:00Z"));
         when(auditJdbcTemplate.update(any(PreparedStatementCreator.class))).thenReturn(1);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<AuditMetadataContributor> provider(List<AuditMetadataContributor> beans) {
+        var provider = (ObjectProvider<AuditMetadataContributor>) mock(ObjectProvider.class);
+        // The service resolves the stream once, in its constructor; the list is shared so tests
+        // that register a contributor afterwards need a fresh service (see contributorService()).
+        when(provider.orderedStream()).thenAnswer(inv -> beans.stream());
+        return provider;
+    }
+
+    private DefaultAuditLogService contributorService(AuditMetadataContributor... beans) {
+        return new DefaultAuditLogService(repository, objectMapper, hasher, auditJdbcTemplate,
+                auditTransactionTemplate, provider(List.of(beans)));
+    }
+
+    /** Runs the captured insert against a mock connection and returns the JSON bound at index 7. */
+    private String insertedMetadataJson() throws SQLException {
+        var captor = ArgumentCaptor.forClass(PreparedStatementCreator.class);
+        verify(auditJdbcTemplate).update(captor.capture());
+        var connection = mock(Connection.class);
+        var statement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(any(String.class))).thenReturn(statement);
+        captor.getValue().createPreparedStatement(connection);
+        var json = ArgumentCaptor.forClass(String.class);
+        verify(statement).setString(eq(7), json.capture());
+        return json.getValue();
+    }
+
+    private AuditEntry entryWith(Map<String, Object> metadata) {
+        return new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                resourceId, organizationId, actorId, metadata, null, null);
+    }
+
+    @Test
+    void contributedKeysAreWrittenIntoTheRowMetadata() throws SQLException {
+        var service = contributorService(() -> Map.of("on_behalf_of_user_id", "alice",
+                "api_key_id", "key-1"));
+
+        service.record(entryWith(Map.of("channel", "mcp")));
+
+        assertThat(objectMapper.readValue(insertedMetadataJson(), Map.class))
+                .containsEntry("on_behalf_of_user_id", "alice")
+                .containsEntry("api_key_id", "key-1")
+                .containsEntry("channel", "mcp");
+    }
+
+    @Test
+    void explicitMetadataWinsOverContributedKeyOnCollision() throws SQLException {
+        var service = contributorService(() -> Map.of("trigger", "contributed"));
+
+        service.record(entryWith(Map.of("trigger", "sql_review")));
+
+        assertThat(objectMapper.readValue(insertedMetadataJson(), Map.class))
+                .containsEntry("trigger", "sql_review");
+    }
+
+    @Test
+    void throwingContributorStillWritesTheRowWithoutItsKeys() throws SQLException {
+        var service = contributorService(
+                () -> { throw new IllegalStateException("boom"); },
+                () -> Map.of("api_key_id", "key-1"));
+
+        var id = service.record(entryWith(Map.of("channel", "mcp")));
+
+        assertThat(id).isNotNull();
+        assertThat(objectMapper.readValue(insertedMetadataJson(), Map.class))
+                .containsEntry("api_key_id", "key-1")
+                .containsEntry("channel", "mcp");
+    }
+
+    @Test
+    void nullContributionIsIgnored() throws SQLException {
+        var service = contributorService(() -> null);
+
+        service.record(entryWith(Map.of("channel", "mcp")));
+
+        assertThat(objectMapper.readValue(insertedMetadataJson(), Map.class))
+                .containsOnlyKeys("channel");
+    }
+
+    @Test
+    void noContributorsLeavesEmptyMetadataAsEmptyObject() throws SQLException {
+        service.record(entryWith(Map.of()));
+
+        assertThat(insertedMetadataJson()).isEqualTo("{}");
     }
 
     @Test

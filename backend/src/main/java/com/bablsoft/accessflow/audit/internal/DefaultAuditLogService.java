@@ -7,12 +7,16 @@ import com.bablsoft.accessflow.audit.api.AuditLogQuery;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditLogVerificationResult;
 import com.bablsoft.accessflow.audit.api.AuditLogView;
+import com.bablsoft.accessflow.audit.api.AuditMetadataContributor;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.internal.persistence.entity.AuditLogEntity;
 import com.bablsoft.accessflow.audit.internal.persistence.repo.AuditLogRepository;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.SortOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -36,6 +40,8 @@ import java.util.UUID;
 @Service
 class DefaultAuditLogService implements AuditLogService {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultAuditLogService.class);
+
     static final String REASON_ANCHOR_HAS_PREVIOUS = "anchor_has_previous";
     static final String REASON_NULL_HASH_IN_CHAIN = "null_hash_in_chain";
     static final String REASON_PREVIOUS_HASH_MISMATCH = "previous_hash_mismatch";
@@ -46,17 +52,22 @@ class DefaultAuditLogService implements AuditLogService {
     private final AuditChainHasher hasher;
     private final JdbcTemplate auditJdbcTemplate;
     private final TransactionTemplate auditTransactionTemplate;
+    private final List<AuditMetadataContributor> contributors;
 
+    // ObjectProvider, not List: a bare collection parameter demands at least one candidate bean,
+    // which an audit-only slice (or a deployment with no contributor) does not have.
     DefaultAuditLogService(AuditLogRepository repository,
                            ObjectMapper objectMapper,
                            AuditChainHasher hasher,
                            @Qualifier("auditJdbcTemplate") JdbcTemplate auditJdbcTemplate,
-                           @Qualifier("auditTransactionTemplate") TransactionTemplate auditTransactionTemplate) {
+                           @Qualifier("auditTransactionTemplate") TransactionTemplate auditTransactionTemplate,
+                           ObjectProvider<AuditMetadataContributor> contributors) {
         this.repository = repository;
         this.objectMapper = objectMapper;
         this.hasher = hasher;
         this.auditJdbcTemplate = auditJdbcTemplate;
         this.auditTransactionTemplate = auditTransactionTemplate;
+        this.contributors = contributors.orderedStream().toList();
     }
 
     @Override
@@ -64,7 +75,7 @@ class DefaultAuditLogService implements AuditLogService {
         var orgId = entry.organizationId();
         long lockKey = orgId.getMostSignificantBits() ^ orgId.getLeastSignificantBits();
         var id = UUID.randomUUID();
-        var metadataJson = serializeMetadata(entry.metadata());
+        var metadataJson = serializeMetadata(mergeContributed(entry.metadata()));
 
         auditTransactionTemplate.executeWithoutResult(status -> {
             // pg_advisory_xact_lock returns void — wrap in a ResultSetExtractor so the
@@ -235,6 +246,34 @@ class DefaultAuditLogService implements AuditLogService {
         return repository.findDistinctOrganizationIds().stream()
                 .map(orgId -> new AuditChainVerificationSummary(orgId, verify(orgId, null, null)))
                 .toList();
+    }
+
+    /**
+     * Contributed keys first, the entry's own keys last, so explicit metadata always wins on a
+     * collision (a system row's {@code trigger=} is never clobbered by request provenance). Runs
+     * before the advisory lock and before hashing, so the MAC covers what was contributed. A
+     * throwing contributor loses only its own keys — never the row.
+     */
+    private Map<String, Object> mergeContributed(Map<String, Object> explicit) {
+        if (contributors.isEmpty()) {
+            return explicit;
+        }
+        var merged = new LinkedHashMap<String, Object>();
+        for (var contributor : contributors) {
+            try {
+                var contributed = contributor.contribute();
+                if (contributed != null) {
+                    merged.putAll(contributed);
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Audit metadata contributor {} failed; writing the row without its keys",
+                        contributor.getClass().getSimpleName(), ex);
+            }
+        }
+        if (explicit != null) {
+            merged.putAll(explicit);
+        }
+        return merged;
     }
 
     private String serializeMetadata(Map<String, Object> metadata) {

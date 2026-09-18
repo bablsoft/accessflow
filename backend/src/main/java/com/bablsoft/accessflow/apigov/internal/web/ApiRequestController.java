@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +41,7 @@ class ApiRequestController {
 
     private final ApiRequestService requestService;
     private final ApiAssistService assistService;
+    private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -51,7 +53,8 @@ class ApiRequestController {
                               Authentication authentication, RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var result = requestService.submit(body.toCommand(caller.organizationId(), caller.userId(),
-                isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent()));
+                isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent(),
+                onBehalfOfPrincipalService.current().orElse(null)));
         return ApiRequestResponse.from(requestService.get(result.id(), caller.organizationId(),
                 caller.userId(), caller.permissions()));
     }

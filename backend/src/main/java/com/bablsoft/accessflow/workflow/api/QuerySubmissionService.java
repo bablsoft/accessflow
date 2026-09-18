@@ -28,7 +28,20 @@ public interface QuerySubmissionService {
             String submittedUserAgent,
             boolean ciCdOrigin,
             String recurrenceRule,
-            Instant recurrenceUntil) {
+            Instant recurrenceUntil,
+            /** The human an API-key caller acts for (#874); null for a human submission. */
+            UUID onBehalfOfUserId) {
+
+        /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+        public SubmissionInput(UUID datasourceId, String sql, String justification,
+                               UUID submitterUserId, UUID organizationId, boolean isAdmin,
+                               Instant scheduledFor, SubmissionReason submissionReason,
+                               String submittedIp, String submittedUserAgent, boolean ciCdOrigin,
+                               String recurrenceRule, Instant recurrenceUntil) {
+            this(datasourceId, sql, justification, submitterUserId, organizationId, isAdmin,
+                    scheduledFor, submissionReason, submittedIp, submittedUserAgent, ciCdOrigin,
+                    recurrenceRule, recurrenceUntil, null);
+        }
 
         /** Backward-compatible constructor without the #627 recurrence fields. */
         public SubmissionInput(UUID datasourceId, String sql, String justification,
@@ -37,7 +50,7 @@ public interface QuerySubmissionService {
                                String submittedIp, String submittedUserAgent, boolean ciCdOrigin) {
             this(datasourceId, sql, justification, submitterUserId, organizationId, isAdmin,
                     scheduledFor, submissionReason, submittedIp, submittedUserAgent, ciCdOrigin,
-                    null, null);
+                    null, null, null);
         }
     }
 

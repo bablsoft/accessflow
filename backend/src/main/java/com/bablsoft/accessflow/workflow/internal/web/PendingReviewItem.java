@@ -24,7 +24,9 @@ public record PendingReviewItem(
          */
         DelegatorSummary delegatedFor,
         /** Number of {@code BLOCK} SQL review findings — why this row could not auto-approve (#864). */
-        int sqlReviewBlockingCount) {
+        int sqlReviewBlockingCount,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId) {
 
     public static PendingReviewItem from(PendingReview pending) {
         return new PendingReviewItem(
@@ -46,7 +48,8 @@ public record PendingReviewItem(
                         pending.delegatedForUserId(),
                         pending.delegatedForEmail(),
                         pending.delegatedForDisplayName()),
-                pending.sqlReviewBlockingCount());
+                pending.sqlReviewBlockingCount(),
+                pending.onBehalfOfUserId());
     }
 
     public record DatasourceSummary(UUID id, String name) {

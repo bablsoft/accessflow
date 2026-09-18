@@ -13,14 +13,14 @@ public record PendingDeploymentReviewResponse(
         String environmentName, UUID submittedByUserId, String version, String commitSha,
         String runUrl, String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
         Integer aiRiskScore, String aiSummary, int currentStage, int requiredApprovals,
-        Instant scheduledFor, Instant createdAt) {
+        Instant scheduledFor, Instant createdAt, UUID onBehalfOfUserId) {
 
     static PendingDeploymentReviewResponse from(DeploymentReviewService.PendingDeploymentReview p) {
         return new PendingDeploymentReviewResponse(p.deploymentRequestId(), p.pipelineId(),
                 p.pipelineName(), p.environmentId(), p.environmentName(), p.submittedByUserId(),
                 p.version(), p.commitSha(), p.runUrl(), p.justification(), p.aiAnalysisId(),
                 p.aiRiskLevel(), p.aiRiskScore(), p.aiSummary(), p.currentStage(),
-                p.requiredApprovals(), p.scheduledFor(), p.createdAt());
+                p.requiredApprovals(), p.scheduledFor(), p.createdAt(), p.onBehalfOfUserId());
     }
 
     record Page(List<PendingDeploymentReviewResponse> content, int page, int size,

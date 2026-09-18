@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.AiProviderType;
@@ -31,6 +32,7 @@ import org.springframework.security.core.Authentication;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +46,7 @@ class RequestGroupControllerTest {
     private RequestGroupService service;
     private SqlReviewFindingRenderer sqlReviewFindingRenderer;
     private RequestGroupController controller;
+    private OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -54,7 +57,8 @@ class RequestGroupControllerTest {
     void setUp() {
         service = mock(RequestGroupService.class);
         sqlReviewFindingRenderer = mock(SqlReviewFindingRenderer.class);
-        controller = new RequestGroupController(service, sqlReviewFindingRenderer);
+        onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
+        controller = new RequestGroupController(service, sqlReviewFindingRenderer, onBehalfOfPrincipalService);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -178,6 +182,29 @@ class RequestGroupControllerTest {
         verify(service).submit(captor.capture());
         assertThat(captor.getValue().breakGlass()).isTrue();
         assertThat(captor.getValue().submittedIp()).isEqualTo("1.2.3.4");
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+    }
+
+    /** #874: the principal the filter parked is stamped on both the draft and the submission. */
+    @Test
+    void createAndSubmitStampTheOnBehalfOfPrincipal() {
+        var alice = UUID.randomUUID();
+        when(onBehalfOfPrincipalService.current()).thenReturn(Optional.of(alice));
+        when(service.createDraft(any())).thenReturn(view(RequestGroupStatus.DRAFT));
+        when(service.submit(any())).thenReturn(new RequestGroupSubmissionResult(groupId,
+                RequestGroupStatus.PENDING_AI));
+        when(service.get(groupId, orgId, userId, false)).thenReturn(view(RequestGroupStatus.PENDING_AI));
+
+        controller.create(createBody(), auth(UserRoleType.ANALYST));
+        controller.submit(groupId, new SubmitRequestGroupRequest(false, null), auth(UserRoleType.ANALYST),
+                auditContext);
+
+        var created = ArgumentCaptor.forClass(CreateRequestGroupCommand.class);
+        verify(service).createDraft(created.capture());
+        assertThat(created.getValue().onBehalfOfUserId()).isEqualTo(alice);
+        var submitted = ArgumentCaptor.forClass(SubmitRequestGroupCommand.class);
+        verify(service).submit(submitted.capture());
+        assertThat(submitted.getValue().onBehalfOfUserId()).isEqualTo(alice);
     }
 
     @Test

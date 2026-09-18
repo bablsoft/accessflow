@@ -44,7 +44,29 @@ public record DeploymentRequestView(
         Instant outcomeReportedAt,
         String outcomeDetail,
         Instant createdAt,
-        List<DeploymentReviewDecisionView> decisions) {
+        List<DeploymentReviewDecisionView> decisions,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId,
+        String onBehalfOfEmail) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
+                                 UUID environmentId, String environmentName, UUID submittedBy,
+                                 String submittedByEmail, String version, String commitSha,
+                                 String artifactRef, String runUrl, String externalRunId,
+                                 Map<String, Object> metadata, QueryStatus status,
+                                 SubmissionReason submissionReason, String justification,
+                                 UUID aiAnalysisId, RiskLevel aiRiskLevel, Integer aiRiskScore,
+                                 String aiSummary, int requiredApprovals, Instant scheduledFor,
+                                 DeploymentOutcome outcome, Instant outcomeReportedAt,
+                                 String outcomeDetail, Instant createdAt,
+                                 List<DeploymentReviewDecisionView> decisions) {
+        this(id, pipelineId, pipelineName, provider, environmentId, environmentName, submittedBy,
+                submittedByEmail, version, commitSha, artifactRef, runUrl, externalRunId, metadata,
+                status, submissionReason, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
+                aiSummary, requiredApprovals, scheduledFor, outcome, outcomeReportedAt, outcomeDetail,
+                createdAt, decisions, null, null);
+    }
 
     public DeploymentRequestView {
         // Tolerates null values: the metadata round-trips CI-authored JSON, where a null is legal.

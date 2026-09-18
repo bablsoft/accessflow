@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountToolPolicyService;
@@ -22,6 +23,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +41,7 @@ class GuardedToolCallbackTest {
 
     @Mock ToolCallback delegate;
     @Mock ServiceAccountToolPolicyService policy;
+    @Mock OnBehalfOfPrincipalService onBehalfOf;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UUID userId = UUID.randomUUID();
@@ -49,7 +52,10 @@ class GuardedToolCallbackTest {
         var messages = new StaticMessageSource();
         messages.addMessage(GuardedToolCallback.DENIAL_MESSAGE_KEY, Locale.ENGLISH,
                 "Not allowed to call ''{0}''");
-        guarded = new GuardedToolCallback(delegate, policy, new McpCurrentUser(), messages, objectMapper);
+        messages.addMessage(GuardedToolCallback.ON_BEHALF_OF_DENIAL_MESSAGE_KEY, Locale.ENGLISH,
+                "No voting on behalf of another user");
+        guarded = new GuardedToolCallback(delegate, policy, new McpCurrentUser(), onBehalfOf, messages,
+                objectMapper);
         SecurityContextHolder.clearContext();
         LocaleContextHolder.setLocale(Locale.ENGLISH);
     }
@@ -84,6 +90,46 @@ class GuardedToolCallbackTest {
         assertThat(result.get("message").asString()).isEqualTo("Not allowed to call 'submit_query'");
         verify(delegate, never()).call(any());
         verify(delegate, never()).call(any(), any());
+    }
+
+    // ---- on-behalf-of (#874): an agent may submit FOR a human, never vote AS one ----
+
+    @Test
+    void reviewQueryIsDeniedWhenAnOnBehalfOfPrincipalIsPresent() {
+        authenticate(UserRoleType.REVIEWER);
+        when(delegate.getToolDefinition()).thenReturn(definition("review_query"));
+        when(policy.isAllowed(userId, "review_query")).thenReturn(true);
+        when(onBehalfOf.current()).thenReturn(Optional.of(UUID.randomUUID()));
+
+        var result = objectMapper.readTree(guarded.call("{}", new ToolContext(Map.of())));
+
+        assertThat(result.get("code").asString()).isEqualTo("permission_denied");
+        assertThat(result.get("message").asString()).isEqualTo("No voting on behalf of another user");
+        verify(delegate, never()).call(any(), any());
+    }
+
+    @Test
+    void reviewQueryWithoutAPrincipalDelegates() {
+        authenticate(UserRoleType.REVIEWER);
+        when(delegate.getToolDefinition()).thenReturn(definition("review_query"));
+        when(policy.isAllowed(userId, "review_query")).thenReturn(true);
+        when(onBehalfOf.current()).thenReturn(Optional.empty());
+        var context = new ToolContext(Map.of());
+        when(delegate.call("{}", context)).thenReturn("ok");
+
+        assertThat(guarded.call("{}", context)).isEqualTo("ok");
+    }
+
+    @Test
+    void submissionToolsStayAllowedWithAPrincipal() {
+        authenticate(UserRoleType.ANALYST);
+        stubDefinition();
+        when(policy.isAllowed(userId, TOOL)).thenReturn(true);
+        var context = new ToolContext(Map.of());
+        when(delegate.call("{}", context)).thenReturn("ok");
+
+        assertThat(guarded.call("{}", context)).isEqualTo("ok");
+        verify(onBehalfOf, never()).current();
     }
 
     @Test

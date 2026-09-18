@@ -53,6 +53,7 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
         entity.setSubmittedIp(command.submittedIp());
         entity.setSubmittedUserAgent(command.submittedUserAgent());
         entity.setCiCdOrigin(command.ciCdOrigin());
+        entity.setOnBehalfOfUserId(command.onBehalfOfUserId());
         entity.setRecurrenceRule(command.recurrenceRule());
         entity.setRecurrenceUntil(command.recurrenceUntil());
         entity.setRecurrenceNextRunAt(command.recurrenceNextRunAt());
@@ -82,6 +83,8 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
         child.setId(UUID.randomUUID());
         child.setDatasource(parent.getDatasource());
         child.setSubmittedBy(parent.getSubmittedBy());
+        // An occurrence is still "for" whoever the series was submitted for (#874).
+        child.setOnBehalfOfUserId(parent.getOnBehalfOfUserId());
         child.setSqlText(parent.getSqlText());
         child.setQueryType(parent.getQueryType());
         child.setTransactional(parent.isTransactional());

@@ -24,5 +24,18 @@ public record PendingReviewView(
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
         String aiSummary,
-        Instant createdAt) {
+        Instant createdAt,
+        /** The human an API-key submitter acted for (#874); a second submitter identity for the self-approval ban. */
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public PendingReviewView(UUID queryRequestId, UUID datasourceId, String datasourceName,
+                             UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                             String sqlText, QueryType queryType, QueryStatus status,
+                             String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
+                             Integer aiRiskScore, String aiSummary, Instant createdAt) {
+        this(queryRequestId, datasourceId, datasourceName, organizationId, submittedByUserId,
+                submittedByEmail, sqlText, queryType, status, justification, aiAnalysisId,
+                aiRiskLevel, aiRiskScore, aiSummary, createdAt, null);
+    }
 }

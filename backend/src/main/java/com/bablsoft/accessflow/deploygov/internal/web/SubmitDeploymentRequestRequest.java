@@ -48,10 +48,15 @@ public record SubmitDeploymentRequestRequest(
 
     SubmitDeploymentRequestCommand toCommand(UUID organizationId, UUID submitterUserId, boolean admin,
                                              String submittedIp) {
+        return toCommand(organizationId, submitterUserId, admin, submittedIp, null);
+    }
+
+    SubmitDeploymentRequestCommand toCommand(UUID organizationId, UUID submitterUserId, boolean admin,
+                                             String submittedIp, UUID onBehalfOfUserId) {
         return new SubmitDeploymentRequestCommand(pipelineId, environment, organizationId,
                 submitterUserId, admin, version, commitSha, artifactRef, runUrl, externalRunId,
                 metadata, justification, scheduledFor,
                 Boolean.TRUE.equals(breakGlass) ? SubmissionReason.EMERGENCY_ACCESS : null,
-                submittedIp);
+                submittedIp, onBehalfOfUserId);
     }
 }

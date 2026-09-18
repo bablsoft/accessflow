@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.mcp.internal.tools.McpCurrentUser;
 import com.bablsoft.accessflow.mcp.internal.tools.McpDataToolService;
 import com.bablsoft.accessflow.mcp.internal.tools.McpReviewToolService;
 import com.bablsoft.accessflow.mcp.internal.tools.McpToolService;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountToolPolicyService;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -37,6 +38,7 @@ class McpServerConfiguration {
                                                     McpDataToolService dataTools,
                                                     ServiceAccountToolPolicyService toolPolicy,
                                                     McpCurrentUser currentUser,
+                                                    OnBehalfOfPrincipalService onBehalfOfPrincipalService,
                                                     MessageSource messageSource,
                                                     ObjectMapper objectMapper) {
         var unguarded = MethodToolCallbackProvider.builder()
@@ -44,7 +46,8 @@ class McpServerConfiguration {
                 .build();
         var guarded = Arrays.stream(unguarded.getToolCallbacks())
                 .map(callback -> new GuardedToolCallback(
-                        callback, toolPolicy, currentUser, messageSource, objectMapper))
+                        callback, toolPolicy, currentUser, onBehalfOfPrincipalService, messageSource,
+                        objectMapper))
                 .toArray(ToolCallback[]::new);
         return () -> guarded.clone();
     }

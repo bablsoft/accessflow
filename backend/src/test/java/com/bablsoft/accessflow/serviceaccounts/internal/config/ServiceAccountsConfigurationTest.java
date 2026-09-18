@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.config;
 
+import com.bablsoft.accessflow.serviceaccounts.internal.OnBehalfOfResolver;
 import com.bablsoft.accessflow.serviceaccounts.internal.ServiceAccountRateLimiter;
 import com.bablsoft.accessflow.serviceaccounts.internal.web.ApiKeyRequestFilter;
 import jakarta.servlet.DispatcherType;
@@ -29,7 +30,7 @@ class ServiceAccountsConfigurationTest {
     @Test
     void apiKeyRequestFilterRunsInsideTheSecurityChainOnRequestDispatchOnly() throws Exception {
         var registration = new ServiceAccountsConfiguration().apiKeyRequestFilter(
-                mock(ServiceAccountRateLimiter.class), new ObjectMapper(),
+                mock(ServiceAccountRateLimiter.class), mock(OnBehalfOfResolver.class), new ObjectMapper(),
                 mock(MessageSource.class), Clock.systemUTC());
         var servletContext = mock(ServletContext.class);
         var dynamic = mock(FilterRegistration.Dynamic.class);

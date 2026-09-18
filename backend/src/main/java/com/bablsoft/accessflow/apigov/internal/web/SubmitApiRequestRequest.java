@@ -34,9 +34,14 @@ public record SubmitApiRequestRequest(
 
     SubmitApiRequestCommand toCommand(UUID organizationId, UUID userId, boolean admin, String ip,
                                       String userAgent) {
+        return toCommand(organizationId, userId, admin, ip, userAgent, null);
+    }
+
+    SubmitApiRequestCommand toCommand(UUID organizationId, UUID userId, boolean admin, String ip,
+                                      String userAgent, UUID onBehalfOfUserId) {
         return new SubmitApiRequestCommand(connectorId, organizationId, userId, admin, operationId, verb,
                 requestPath, requestHeaders, queryParams, bodyType, requestContentType, requestBody,
                 formFields, binaryFilename, variableOverrides, justification, scheduledFor,
-                submissionReason, ip, userAgent);
+                submissionReason, ip, userAgent, onBehalfOfUserId);
     }
 }

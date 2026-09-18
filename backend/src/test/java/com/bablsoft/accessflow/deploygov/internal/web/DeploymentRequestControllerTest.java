@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
 
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,13 +54,16 @@ class DeploymentRequestControllerTest {
     private DeploymentReviewService reviewService;
     private DeploygovAuditWriter auditWriter;
     private DeploymentRequestController controller;
+    private OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     @BeforeEach
     void setUp() {
         requestService = mock(DeploymentRequestService.class);
         reviewService = mock(DeploymentReviewService.class);
         auditWriter = mock(DeploygovAuditWriter.class);
-        controller = new DeploymentRequestController(requestService, reviewService, auditWriter);
+        onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
+        controller = new DeploymentRequestController(requestService, reviewService, auditWriter,
+                onBehalfOfPrincipalService);
         // The controller delegates the visibility question to the service; mirror the real rule.
         lenient().when(requestService.canViewAll(any())).thenAnswer(invocation -> {
             Set<Permission> permissions = invocation.getArgument(0);
@@ -88,6 +93,22 @@ class DeploymentRequestControllerTest {
         assertThat(captor.getValue().submittedIp()).isEqualTo("10.0.0.1");
         assertThat(captor.getValue().admin()).isFalse();
         assertThat(captor.getValue().environment()).isEqualTo("production");
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+    }
+
+    /** #874: the principal the filter parked is stamped on the command. */
+    @Test
+    void submitStampsTheOnBehalfOfPrincipal() {
+        var alice = UUID.randomUUID();
+        when(onBehalfOfPrincipalService.current()).thenReturn(Optional.of(alice));
+        when(requestService.submit(any()))
+                .thenReturn(new DeploymentRequestSubmissionResult(view(), false));
+
+        controller.submit(submitBody(), auth(false), new RequestAuditContext("10.0.0.1", "curl/8"));
+
+        var captor = ArgumentCaptor.forClass(SubmitDeploymentRequestCommand.class);
+        verify(requestService).submit(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(alice);
     }
 
     @Test

@@ -22,9 +22,14 @@ record CreateRequestGroupRequest(
         List<RequestGroupItemRequest> items) {
 
     CreateRequestGroupCommand toCommand(UUID organizationId, UUID submitterUserId, boolean admin) {
+        return toCommand(organizationId, submitterUserId, admin, null);
+    }
+
+    CreateRequestGroupCommand toCommand(UUID organizationId, UUID submitterUserId, boolean admin,
+                                        UUID onBehalfOfUserId) {
         var order = new AtomicInteger();
         var inputs = items.stream().map(i -> i.toInput(order.getAndIncrement())).toList();
         return new CreateRequestGroupCommand(organizationId, submitterUserId, admin, name, description,
-                continueOnError != null && continueOnError, inputs);
+                continueOnError != null && continueOnError, inputs, onBehalfOfUserId);
     }
 }

@@ -16,5 +16,15 @@ public record SubmitRequestGroupCommand(
         boolean breakGlass,
         Instant scheduledFor,
         String submittedIp,
-        String submittedUserAgent) {
+        String submittedUserAgent,
+        /** The human an API-key caller acts for (#874); null for a human submission. */
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public SubmitRequestGroupCommand(UUID requestGroupId, UUID organizationId, UUID callerUserId,
+                                     boolean admin, boolean breakGlass, Instant scheduledFor,
+                                     String submittedIp, String submittedUserAgent) {
+        this(requestGroupId, organizationId, callerUserId, admin, breakGlass, scheduledFor,
+                submittedIp, submittedUserAgent, null);
+    }
 }

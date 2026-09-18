@@ -103,6 +103,7 @@ public class DefaultApiRequestService implements ApiRequestService {
         entity.setConnectorId(connector.getId());
         entity.setOrganizationId(command.organizationId());
         entity.setSubmittedBy(command.submitterUserId());
+        entity.setOnBehalfOfUserId(command.onBehalfOfUserId());
         entity.setOperationId(command.operationId());
         entity.setVerb(command.verb());
         entity.setRequestPath(command.requestPath());
@@ -319,6 +320,8 @@ public class DefaultApiRequestService implements ApiRequestService {
                 .map(ApiConnectorEntity::getName).orElse(null);
         var submitterEmail = userQueryService.findById(e.getSubmittedBy())
                 .map(UserView::email).orElse(null);
+        var onBehalfOfEmail = e.getOnBehalfOfUserId() == null ? null
+                : userQueryService.findById(e.getOnBehalfOfUserId()).map(UserView::email).orElse(null);
         var summary = e.getAiAnalysisId() != null
                 ? aiAnalysisLookupService.findById(e.getAiAnalysisId()).orElse(null) : null;
         List<ApiReviewDecisionView> decisions = detail
@@ -341,7 +344,8 @@ public class DefaultApiRequestService implements ApiRequestService {
                 e.getTraceId(), e.getSpanId(),
                 e.getResponseStatusCode(), e.getResponseDurationMs(),
                 e.getResponseBytes(), e.isResponseTruncated(), snapshotPreview, previewTruncated,
-                e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions);
+                e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions,
+                e.getOnBehalfOfUserId(), onBehalfOfEmail);
     }
 
     @Override

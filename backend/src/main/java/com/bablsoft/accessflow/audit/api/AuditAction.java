@@ -122,6 +122,9 @@ public enum AuditAction {
     SERVICE_ACCOUNT_KEY_ISSUED,
     SERVICE_ACCOUNT_KEY_ROTATED,
     SERVICE_ACCOUNT_KEY_REVOKED,
+    /** A human → service-account on-behalf-of grant was created / revoked (#874). Resource id = the account. */
+    SERVICE_ACCOUNT_DELEGATION_GRANTED,
+    SERVICE_ACCOUNT_DELEGATION_REVOKED,
 
     /**
      * A {@code BLOCK} SQL review finding suppressed an auto-approve path and forced the request to

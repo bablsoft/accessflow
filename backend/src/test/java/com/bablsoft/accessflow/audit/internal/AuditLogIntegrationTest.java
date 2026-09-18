@@ -28,6 +28,14 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
+import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.serviceaccounts.internal.web.ApiKeyRequestFilter;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +50,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -226,6 +235,99 @@ class AuditLogIntegrationTest {
 
         var ours = auditLogService.query(organizationId, AuditLogQuery.empty(), PageRequest.of(0, 20));
         assertThat(ours.totalElements()).isEqualTo(1);
+    }
+
+    /**
+     * #874: rows written before, during and after a request-scoped provenance contribution still
+     * form one valid chain — the contributed keys are hashed like explicit ones, and rows written
+     * off the request thread are untouched. This is what keeps
+     * {@code ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP} green on an existing deployment.
+     */
+    @Test
+    void chainStaysValidAcrossRowsWrittenWithAndWithoutTheProvenanceContributor() {
+        var alice = UUID.randomUUID();
+        var apiKeyId = UUID.randomUUID();
+        record(0);
+        record(1);
+
+        // The real ServiceAccountProvenanceContributor reads the request attribute and the
+        // security context — populate both on the test thread, as the filter would.
+        var request = new MockHttpServletRequest();
+        request.setAttribute(ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE, alice);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        SecurityContextHolder.getContext().setAuthentication(new StubApiKeyToken(
+                JwtClaims.forSystemRole(submitterId, "bot@example.com", UserRoleType.READONLY, organizationId),
+                apiKeyId));
+        try {
+            record(2);
+            record(3);
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+            SecurityContextHolder.clearContext();
+        }
+        record(4);
+
+        var result = auditLogService.verify(organizationId, null, null);
+        assertThat(result.ok()).isTrue();
+        assertThat(result.rowsChecked()).isEqualTo(5);
+
+        var rows = auditLogService.query(organizationId, AuditLogQuery.empty(), PageRequest.of(0, 10))
+                .content().stream()
+                .sorted(java.util.Comparator.comparing(row -> (Integer) row.metadata().get("i")))
+                .toList();
+        assertThat(rows).hasSize(5);
+        for (var row : rows) {
+            var i = (Integer) row.metadata().get("i");
+            if (i == 2 || i == 3) {
+                assertThat(row.metadata())
+                        .containsEntry("on_behalf_of_user_id", alice.toString())
+                        .containsEntry("api_key_id", apiKeyId.toString())
+                        .containsEntry("service_account", false);
+            } else {
+                assertThat(row.metadata()).doesNotContainKeys("on_behalf_of_user_id", "api_key_id",
+                        "service_account");
+            }
+        }
+    }
+
+    private void record(int i) {
+        auditLogService.record(new AuditEntry(
+                AuditAction.QUERY_SUBMITTED,
+                AuditResourceType.QUERY_REQUEST,
+                queryRequestId,
+                organizationId,
+                submitterId,
+                Map.of("i", i),
+                "10.0.0.1",
+                "ua"));
+    }
+
+    /** The real token is package-private in {@code security}; the marker interface is the contract. */
+    private static final class StubApiKeyToken extends AbstractAuthenticationToken implements ApiKeyAuthentication {
+        private final JwtClaims principal;
+        private final UUID apiKeyId;
+
+        StubApiKeyToken(JwtClaims principal, UUID apiKeyId) {
+            super(List.of());
+            this.principal = principal;
+            this.apiKeyId = apiKeyId;
+            setAuthenticated(true);
+        }
+
+        @Override
+        public UUID apiKeyId() {
+            return apiKeyId;
+        }
+
+        @Override
+        public Object getCredentials() {
+            return null;
+        }
+
+        @Override
+        public Object getPrincipal() {
+            return principal;
+        }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.config;
 
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.mcp.internal.tools.GuardedToolCallback;
 import com.bablsoft.accessflow.mcp.internal.tools.McpCurrentUser;
 import com.bablsoft.accessflow.mcp.internal.tools.McpDataToolService;
@@ -27,7 +28,9 @@ class McpServerConfigurationTest {
                 Mockito.mock(com.bablsoft.accessflow.core.api.QueryRequestLookupService.class),
                 Mockito.mock(com.bablsoft.accessflow.core.api.QueryResultPersistenceService.class),
                 Mockito.mock(com.bablsoft.accessflow.workflow.api.QuerySubmissionService.class),
-                Mockito.mock(com.bablsoft.accessflow.workflow.api.QueryLifecycleService.class));
+                Mockito.mock(com.bablsoft.accessflow.workflow.api.QueryLifecycleService.class),
+                Mockito.mock(OnBehalfOfPrincipalService.class),
+                Mockito.mock(com.bablsoft.accessflow.audit.api.AuditLogService.class));
         var reviewTools = new McpReviewToolService(new McpCurrentUser(),
                 Mockito.mock(com.bablsoft.accessflow.workflow.api.ReviewService.class));
         var dataTools = new McpDataToolService(new McpCurrentUser(),
@@ -37,6 +40,7 @@ class McpServerConfigurationTest {
                 Mockito.mock(com.bablsoft.accessflow.audit.api.AuditLogService.class));
         var provider = config.accessFlowMcpToolCallbacks(queryTools, reviewTools, dataTools,
                 Mockito.mock(ServiceAccountToolPolicyService.class), new McpCurrentUser(),
+                Mockito.mock(OnBehalfOfPrincipalService.class),
                 new StaticMessageSource(), new ObjectMapper());
         assertThat(provider).isNotNull();
         // Every tool object's @Tool methods (7 + 2 + 3 = 12), each behind the allow-list guard.

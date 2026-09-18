@@ -29,7 +29,9 @@ record RequestGroupResponse(
         Instant executionCompletedAt,
         Instant createdAt,
         Instant updatedAt,
-        List<RequestGroupItemResponse> items) {
+        List<RequestGroupItemResponse> items,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId) {
 
     static RequestGroupResponse from(RequestGroupView v,
                                      Function<SqlReviewFinding, String> renderFinding) {
@@ -39,6 +41,7 @@ record RequestGroupResponse(
                 v.currentReviewStage(), v.errorMessage(), v.executionStartedAt(),
                 v.executionCompletedAt(), v.createdAt(), v.updatedAt(),
                 v.items().stream().map(item -> RequestGroupItemResponse.from(item, renderFinding))
-                        .toList());
+                        .toList(),
+                v.onBehalfOfUserId());
     }
 }

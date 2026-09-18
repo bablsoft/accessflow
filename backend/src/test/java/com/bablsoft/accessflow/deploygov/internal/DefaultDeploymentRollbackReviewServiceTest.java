@@ -112,6 +112,20 @@ class DefaultDeploymentRollbackReviewServiceTest {
                 eq(reviewer), any(), any());
     }
 
+    /** #874: the human the deployment was submitted for cannot acknowledge its rollback either. */
+    @Test
+    void theHumanTheSubmitterActedForCannotAcknowledgeTheRollback() {
+        var alice = UUID.randomUUID();
+        var review = review();
+        review.setOnBehalfOfUserId(alice);
+        when(repository.findByIdAndOrganizationId(review.getId(), ORG))
+                .thenReturn(Optional.of(review));
+
+        assertThatThrownBy(() -> service.acknowledge(review.getId(), ORG, alice, null))
+                .isInstanceOf(DeploymentRollbackReviewSelfAcknowledgeException.class);
+        verify(repository, never()).save(any());
+    }
+
     @Test
     void submitterCannotAcknowledgeTheirOwnRollback() {
         var review = review();

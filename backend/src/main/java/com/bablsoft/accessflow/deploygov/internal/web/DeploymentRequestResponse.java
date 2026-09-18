@@ -41,7 +41,10 @@ public record DeploymentRequestResponse(
         String outcomeDetail,
         Instant createdAt,
         List<DeploymentReviewDecisionResponse> decisions,
-        boolean canReview) {
+        boolean canReview,
+        /** The human an API-key submitter acted for (#874); null for a human submission. */
+        UUID onBehalfOfUserId,
+        String onBehalfOfEmail) {
 
     /** Every path but the detail read: reviewer eligibility is a detail-read concern, never computed here. */
     static DeploymentRequestResponse from(DeploymentRequestView view) {
@@ -58,6 +61,6 @@ public record DeploymentRequestResponse(
                 view.scheduledFor(), view.outcome(), view.outcomeReportedAt(), view.outcomeDetail(),
                 view.createdAt(),
                 view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
-                canReview);
+                canReview, view.onBehalfOfUserId(), view.onBehalfOfEmail());
     }
 }

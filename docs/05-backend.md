@@ -1992,7 +1992,11 @@ and still deviate, which is precisely why their "is it due yet" logic cannot be 
 ### Reviewer delegation (#622)
 
 A reviewer sets an out-of-office window naming a delegate; during it the delegate is an eligible
-approver everywhere the delegator was. Resolution lives in `core.api.ReviewDelegationLookupService`
+approver everywhere the delegator was. The delegate must be a `HUMAN` principal — review authority
+can never be handed to a service account (#874; `error.review_delegation.delegate_service_account`,
+and agents are omitted from the candidate picker); the opposite direction, a human letting an
+agent act *for* them without any authority, is `service_account_delegated_principals`. Resolution
+lives in `core.api.ReviewDelegationLookupService`
 and is consumed by `workflow`, `apigov` and `requestgroups` — see
 [03-data-model.md → review_delegations](03-data-model.md#review_delegations-622) for the schema and
 its invariants.
@@ -3651,6 +3655,24 @@ Verification entry points:
   [disaster-recovery runbook](09-deployment.md#disaster-recovery); verification only
   succeeds under the same HMAC key material the rows were written with.
 
+### Metadata contributors (#874)
+
+`audit.api.AuditMetadataContributor` — `Map<String, Object> contribute()` — is the one seam for keys
+every row written on the current thread should carry, without touching the ~50 `record(...)` call
+sites and without a new column (an eleventh canonical field would change the hash of every
+historical row and fail `ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP` everywhere; `metadata` is
+already inside the MAC and `TreeMap`-normalised, so new keys are hash-stable).
+`DefaultAuditLogService` resolves the beans through `ObjectProvider` (a bare `List<>` would demand
+at least one candidate) and merges them **before** serialising and hashing, outside the advisory
+lock: contributed keys first, the entry's own keys last, so explicit metadata wins on a collision
+and a system row's `trigger=` is never clobbered; a throwing contributor loses only its keys, never
+the row (WARN). A contributor must return an empty map off the request thread —
+`@ApplicationModuleListener`s run after commit on another thread and get nothing, which is why the
+query-lifecycle rows in `AuditEventListener` carry `on_behalf_of_user_id` explicitly from the
+snapshot. `serviceaccounts` ships the only implementation
+(`ServiceAccountProvenanceContributor`); the interface lives in `audit.api` precisely so `audit`
+never depends on `security` or `serviceaccounts`.
+
 ### SIEM & WORM audit streaming (#628)
 
 Admin-configurable **external audit sinks** stream `audit_log` rows to SIEM / WORM destinations, managed on `/admin/audit-sinks` (gated by the `AUDIT_SINK_MANAGE` permission — see [04-api-spec.md → Audit Sinks](04-api-spec.md#audit-sinks-adminaudit-sinks--siem--worm-streaming-628)). Four sink types: `SPLUNK_HEC` (newline-stacked HEC envelopes, `Authorization: Splunk <token>`), `SYSLOG_CEF` (RFC 5424 frames carrying CEF:0 over TCP or TLS with RFC 6587 octet-counting; TLS validates against the system truststore, no skip-verify; severity is a v1 heuristic — 7 for actions containing `BREAK_GLASS`/`DELETED`/`REJECTED`, else 5), `HTTPS_BATCH` (JSON array of events, HMAC-signed with the webhook signature contract: `X-AccessFlow-Signature: sha256=<hex>`, `X-AccessFlow-Event: audit.batch`, `X-AccessFlow-Delivery`), and `S3_OBJECT_LOCK` (periodic signed JSONL segments under a WORM retention lock).
@@ -4027,6 +4049,67 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
   `service_account`, never carrying a raw key. `ServiceAccountExceptionHandler`
   (`@Order(HIGHEST_PRECEDENCE)`) maps the module's exceptions; core and security exceptions
   (`EMAIL_ALREADY_EXISTS`, `QUOTA_EXCEEDED`, `ROLE_NOT_FOUND`) keep their global mapping.
+- **On-behalf-of attribution (#874).** An API-key request may carry
+  `X-AccessFlow-On-Behalf-Of: <user uuid | email>` to record that the agent / CI job acted *for* a
+  human. Four pieces, none of which touches the permission set:
+  - **The grant.** `service_account_delegated_principals` (V176) is a human's *consent to be
+    named*: `api.ServiceAccountDelegationService` / `DefaultServiceAccountDelegationService`
+    grants (service account must already be typed — a human id is a 404; the principal must be an
+    active `HUMAN` of the org — the `requireValidOwner` shape; `expires_at` future-or-null; the
+    live-row pre-check plus the raced unique violation both → 409), lists and soft-revokes.
+    Exposed twice: `/admin/service-accounts/{id}/delegated-principals` (`SERVICE_ACCOUNT_MANAGE`
+    **or** `USER_MANAGE`, method-level) and the human's own `/me/service-account-delegations`
+    (`MeServiceAccountDelegationController`, any signed-in user, the caller is always the
+    principal — a service account with its key is refused as a principal). Audited controller-side
+    as `SERVICE_ACCOUNT_DELEGATION_GRANTED` / `_REVOKED`. It is the mirror image of a reviewer
+    delegation (#622), which borrows review *authority*; the reverse direction is barred —
+    `DefaultReviewDelegationService` refuses a non-`HUMAN` delegate and omits agents from the
+    candidate picker.
+  - **The header.** Resolved in the same `ApiKeyRequestFilter` that rate-limits (after the 429
+    check, so a limit is never masked): only an *authenticated* caller can be told off for the
+    header (a stray one on a permitAll path is ignored); on a JWT session it is
+    `403 ON_BEHALF_OF_NOT_PERMITTED reason=not_api_key`; on a review / decision path
+    (`internal.web.OnBehalfOfDecisionPaths` — `/reviews/**`, `/api-reviews/**`,
+    `/deployment-reviews/**`, `/deployment-rollback-reviews/**`,
+    `/request-groups/*/approve|reject`, `/lifecycle/erasure-reviews/**`,
+    `/admin/access-requests/**`, `/admin/break-glass/**`, matched with the security chain's
+    `PathPatternRequestMatcher` family) it is `403 ON_BEHALF_OF_REVIEW_FORBIDDEN` before any
+    lookup; otherwise `internal.DefaultOnBehalfOfResolver` (UUID first, else the exact-match
+    `UserQueryService.findByEmail` login uses; same org, active, `HUMAN`, then
+    `findLive(agent, human, now)`) either yields the principal or the filter writes one opaque
+    `403 … reason=not_permitted` — one code for every miss, so the header cannot probe which emails
+    exist. Fail loud, never silent: a misconfigured agent learns on its first request. On success
+    the id is parked in the request attribute `ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE` — **not**
+    on the `Authentication`, which is untouched, so `JwtClaims` and therefore the permission set
+    can only ever be the key owner's. The only reader is `api.OnBehalfOfPrincipalService`
+    (`DefaultOnBehalfOfPrincipalService`, `RequestContextHolder`, empty off-thread); nothing in
+    `security` or any permission resolver consults it — the guarantee is structural.
+  - **The stamp.** Submission controllers (`QuerySubmissionController`, `BreakGlassController`,
+    `QueryReplayController`, `ApiRequestController`, `DeploymentRequestController`,
+    `RequestGroupController` — draft *and* submit; a draft already naming a different principal is
+    `409 REQUEST_GROUP_ON_BEHALF_OF_CONFLICT`) and the MCP `submit_query` tool pass
+    `current().orElse(null)` into their commands; `on_behalf_of_user_id` lands on
+    `query_requests` (copied onto recurring occurrences), `api_requests`, `deployment_requests`
+    (and the rollback review that copies its `submitted_by`) and `request_groups`. It is then a
+    **second submitter identity** for the self-approval ban — `isSubmitterIdentity(...)` in
+    `DefaultReviewService`, `DefaultApiReviewService`, `DefaultDeploymentReviewService` and
+    `DefaultGroupReviewService` (inline in `DefaultDeploymentRollbackReviewService.acknowledge`),
+    the delegated-candidate exclusions, and the four queue filters — because "Alice tells her agent to submit, then Alice
+    approves" passed the old `reviewerId != submittedBy` check with two different UUIDs.
+    `*_review_decisions.on_behalf_of_user_id` (the #622 provenance) is **never** written from the
+    header: that column confers reviewer eligibility. The MCP `review_query` tool is refused by
+    `GuardedToolCallback` whenever a principal is present (`/mcp` multiplexes every tool, so the
+    path filter cannot tell a vote from a submission). The access / API-call / deployment
+    simulators do not model on-behalf-of.
+  - **The trail.** `audit.api.AuditMetadataContributor` (see "Metadata contributors" under Audit Logging above) is implemented
+    by `internal.ServiceAccountProvenanceContributor`: on every API-key request it adds
+    `api_key_id`, `service_account` (one lazy PK read per audit row — `JwtClaims` carries no
+    `principalType`) and, when present, `on_behalf_of_user_id` to every row written on the request
+    thread, inside the HMAC. `McpToolService.submitQuery` now writes `QUERY_SUBMITTED` itself
+    (`channel=mcp`) so an agent's submission reaches the tamper-evident log, not only the mutable
+    request row. Break-glass retro-review acknowledgement (`break_glass_events.submitted_by`)
+    deliberately keeps the submitter-only guard — admin-only, and the on-behalf-of is on its audit
+    row; a follow-up issue.
 - **Known limitation.** `PUT /admin/users/{id}` does not consult `principal_type`, so a `USER_MANAGE`
   holder can still edit a `BOOTSTRAP` account's display name or role there; #875 hides service
   accounts from the users page.
@@ -4784,7 +4867,7 @@ The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `s
 | `submit_query` | `QuerySubmissionService.submit` | Goes through the normal AI-analysis + review workflow. |
 | `cancel_query` | `QueryLifecycleService.cancel` | Submitter-only (enforced in service). |
 | `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")`. |
-| `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. |
+| `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. Refused with `permission_denied` by `GuardedToolCallback` whenever the request carries an on-behalf-of principal (#874) — an agent may submit *for* a human, never vote *as* one. |
 | `validate_sql` | `QueryParser.parse` (+ `DatasourceAdminService.introspectSchema` for mismatch) | Parse-only; no AI, no execution. Parse errors returned as `valid:false`+`parseError`; schema-mismatch is best-effort (skipped on DB connectivity failure). |
 | `get_column_samples` | `SampleDataService.sample` (AF-443) | Governed sample read — RLS + masking applied, `canRead` + allow-list enforced. |
 | `get_audit_log` | `AuditLogService.query` | `actorId` forced to caller; org-scoped. Returns only the caller's own entries. |

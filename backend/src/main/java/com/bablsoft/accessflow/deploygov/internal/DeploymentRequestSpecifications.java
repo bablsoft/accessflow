@@ -76,7 +76,11 @@ final class DeploymentRequestSpecifications {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.equal(root.get("organizationId"), organizationId));
             predicates.add(cb.equal(root.get("status"), QueryStatus.PENDING_REVIEW));
+            // Neither the submitter nor the human the submitter acted for (#874): the queue must
+            // hide what the decision would refuse.
             predicates.add(cb.notEqual(root.get("submittedBy"), reviewerId));
+            predicates.add(cb.or(cb.isNull(root.get("onBehalfOfUserId")),
+                    cb.notEqual(root.get("onBehalfOfUserId"), reviewerId)));
             if (pipelineId != null) {
                 predicates.add(cb.equal(root.get("pipelineId"), pipelineId));
             }

@@ -198,6 +198,23 @@ class DefaultDeploymentReviewServiceTest {
                 new DeploymentDecidedEvent(requestId, QueryStatus.REJECTED, null));
     }
 
+    /** #874: the human the agent acted for is a submitter identity for the ban. */
+    @Test
+    void theHumanTheSubmitterActedForCannotApproveOrSeeTheRequestAsReviewable() {
+        var alice = UUID.randomUUID();
+        var request = pending();
+        request.setOnBehalfOfUserId(alice);
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(request));
+        var aliceContext = new ReviewerContext(alice, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+
+        assertThatThrownBy(() -> service.approve(requestId, aliceContext, "x"))
+                .isInstanceOf(DeploymentSelfApprovalException.class);
+        assertThat(service.canReview(requestId, aliceContext)).isFalse();
+        verify(stateService, never()).apply(any(), any());
+    }
+
     @Test
     void submitterCannotSelfApproveRegardlessOfRole() {
         when(requestRepository.findByIdAndOrganizationId(requestId, orgId))

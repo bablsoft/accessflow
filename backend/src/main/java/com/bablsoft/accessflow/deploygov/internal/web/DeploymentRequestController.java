@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +52,7 @@ class DeploymentRequestController {
     private final DeploymentRequestService requestService;
     private final DeploymentReviewService reviewService;
     private final DeploygovAuditWriter auditWriter;
+    private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
 
     @PostMapping
     @Operation(summary = "Trigger a governed deployment (JWT or API key; idempotent on the CI run)")
@@ -65,7 +67,7 @@ class DeploymentRequestController {
             Authentication authentication, RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var result = requestService.submit(body.toCommand(caller.organizationId(), caller.userId(),
-                isAdmin(caller), auditContext.ipAddress()));
+                isAdmin(caller), auditContext.ipAddress(), onBehalfOfPrincipalService.current().orElse(null)));
         return ResponseEntity.status(result.replay() ? HttpStatus.OK : HttpStatus.ACCEPTED)
                 .body(DeploymentRequestResponse.from(result.request()));
     }

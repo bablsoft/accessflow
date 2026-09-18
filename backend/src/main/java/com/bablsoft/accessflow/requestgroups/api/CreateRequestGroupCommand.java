@@ -11,5 +11,14 @@ public record CreateRequestGroupCommand(
         String name,
         String description,
         boolean continueOnError,
-        List<RequestGroupItemInput> items) {
+        List<RequestGroupItemInput> items,
+        /** The human an API-key caller acts for (#874); null for a human submission. */
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public CreateRequestGroupCommand(UUID organizationId, UUID submitterUserId, boolean admin,
+                                     String name, String description, boolean continueOnError,
+                                     List<RequestGroupItemInput> items) {
+        this(organizationId, submitterUserId, admin, name, description, continueOnError, items, null);
+    }
 }

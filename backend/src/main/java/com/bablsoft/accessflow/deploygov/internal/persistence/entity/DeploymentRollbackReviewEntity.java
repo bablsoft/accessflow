@@ -51,6 +51,10 @@ public class DeploymentRollbackReviewEntity {
     @Column(name = "submitted_by", nullable = false)
     private UUID submittedBy;
 
+    /** Copied from the deployment request like {@code submittedBy} (#874). */
+    @Column(name = "on_behalf_of_user_id")
+    private UUID onBehalfOfUserId;
+
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
 

@@ -129,7 +129,7 @@ public class DefaultDeploymentReviewService implements DeploymentReviewService {
         }
         return requestRepository.findByIdAndOrganizationId(deploymentRequestId,
                         context.organizationId())
-                .filter(request -> !request.getSubmittedBy().equals(context.userId()))
+                .filter(request -> !isSubmitterIdentity(request, context.userId()))
                 .filter(request -> request.getStatus() == QueryStatus.PENDING_REVIEW)
                 .filter(request -> eligibleApprover(request, context))
                 // A reviewer who already voted at this stage cannot record a second decision: the
@@ -148,7 +148,7 @@ public class DefaultDeploymentReviewService implements DeploymentReviewService {
      * via {@code @PreAuthorize} on the controller.
      */
     private void guardReviewable(DeploymentRequestEntity request, ReviewerContext context) {
-        if (request.getSubmittedBy().equals(context.userId())) {
+        if (isSubmitterIdentity(request, context.userId())) {
             throw new DeploymentSelfApprovalException();
         }
         if (request.getStatus() != QueryStatus.PENDING_REVIEW) {
@@ -265,6 +265,14 @@ public class DefaultDeploymentReviewService implements DeploymentReviewService {
                 summary != null ? summary.riskLevel() : null,
                 summary != null ? summary.riskScore() : null,
                 summary != null ? summary.summary() : null, STAGE, e.getRequiredApprovals(),
-                e.getScheduledFor(), e.getCreatedAt());
+                e.getScheduledFor(), e.getCreatedAt(), e.getOnBehalfOfUserId());
+    }
+
+    /**
+     * The submitter identities of a request: the submitter, plus the human an API-key submitter
+     * acted for (#874) — a second identity for the self-approval ban, and only for the ban.
+     */
+    static boolean isSubmitterIdentity(DeploymentRequestEntity request, UUID userId) {
+        return userId.equals(request.getSubmittedBy()) || userId.equals(request.getOnBehalfOfUserId());
     }
 }

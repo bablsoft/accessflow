@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "b1dcc6a1a83c",
-  "generatedAt": "2026-09-18T12:12:27.898Z",
-  "sourceCommit": "be55733a770489d6362d37bda1b0adbbe93df879",
-  "chunkCount": 574,
-  "sha256": "b1dcc6a1a83c01e2ebca11fd2c44a54fbe0ad964a4c324b557780fa7a5a9def3",
+  "corpusVersion": "88e4f1269a6e",
+  "generatedAt": "2026-09-18T13:42:26.346Z",
+  "sourceCommit": "0aeabe4e0d74ed1c45aa9c8c172ac51de432f077",
+  "chunkCount": 575,
+  "sha256": "88e4f1269a6e08e85c5754c2612c69a7b0402d0d268992baa37b0e4ee07c1272",
   "quickReferenceSha256": "d2bdce27da7978646f31277177fe48bce3f17ccff1e70ae3824e87e2d82577ec",
   "sources": [
     {
@@ -12,8 +12,8 @@
       "title": "Your agent doesn't need your database. It needs an answer",
       "url": "https://accessflow.io/ai-agents/",
       "section": "AI agents",
-      "chunks": 20,
-      "sha256": "f3eb2ac43374cdf8566b02e023a2687ae43fda949672cd56fcb94ace8df19374"
+      "chunks": 21,
+      "sha256": "81634e939cc791128621c8f11fda736e9b96df152684286d3cab66e55febbcdb"
     },
     {
       "path": "website/connectors/bigquery/index.html",

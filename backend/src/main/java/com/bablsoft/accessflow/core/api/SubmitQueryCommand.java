@@ -17,7 +17,20 @@ public record SubmitQueryCommand(
         boolean ciCdOrigin,
         String recurrenceRule,
         Instant recurrenceUntil,
-        Instant recurrenceNextRunAt) {
+        Instant recurrenceNextRunAt,
+        UUID onBehalfOfUserId) {
+
+    /** Backward-compatible constructor without the #874 on-behalf-of principal. */
+    public SubmitQueryCommand(UUID datasourceId, UUID submittedByUserId, String sqlText,
+                              QueryType queryType, boolean transactional, String justification,
+                              Instant scheduledFor, SubmissionReason submissionReason,
+                              String submittedIp, String submittedUserAgent, boolean ciCdOrigin,
+                              String recurrenceRule, Instant recurrenceUntil,
+                              Instant recurrenceNextRunAt) {
+        this(datasourceId, submittedByUserId, sqlText, queryType, transactional, justification,
+                scheduledFor, submissionReason, submittedIp, submittedUserAgent, ciCdOrigin,
+                recurrenceRule, recurrenceUntil, recurrenceNextRunAt, null);
+    }
 
     /** Backward-compatible constructor without the #627 recurrence fields (defaults to absent). */
     public SubmitQueryCommand(UUID datasourceId, UUID submittedByUserId, String sqlText,
@@ -26,6 +39,6 @@ public record SubmitQueryCommand(
                               String submittedIp, String submittedUserAgent, boolean ciCdOrigin) {
         this(datasourceId, submittedByUserId, sqlText, queryType, transactional, justification,
                 scheduledFor, submissionReason, submittedIp, submittedUserAgent, ciCdOrigin,
-                null, null, null);
+                null, null, null, null);
     }
 }

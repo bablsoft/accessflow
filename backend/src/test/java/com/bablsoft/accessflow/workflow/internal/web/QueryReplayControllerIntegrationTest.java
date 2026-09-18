@@ -17,6 +17,8 @@ import com.bablsoft.accessflow.workflow.api.QueryReplayService;
 import com.bablsoft.accessflow.workflow.api.QueryReplayService.ReplayResult;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotNotFoundException;
 import com.bablsoft.accessflow.workflow.api.ReplaySchemaIncompatibleException;
+import com.bablsoft.accessflow.serviceaccounts.internal.web.ApiKeyRequestFilter;
+import com.bablsoft.accessflow.workflow.api.QueryReplayService.ReplayCommand;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -119,6 +121,26 @@ class QueryReplayControllerIntegrationTest {
         assertThat(entry.metadata()).containsEntry("target_datasource_id", targetDsId.toString());
         assertThat(entry.metadata()).containsEntry("source_schema_hash", "src-hash");
         assertThat(entry.metadata()).containsEntry("target_schema_hash", "tgt-hash");
+    }
+
+    /** #874: the principal the filter parked is threaded through the replay command. */
+    @Test
+    void replayStampsTheOnBehalfOfPrincipalParkedByTheFilter() {
+        var alice = UUID.randomUUID();
+        when(queryReplayService.replay(any())).thenReturn(new ReplayResult(
+                UUID.randomUUID(), QueryStatus.PENDING_AI, "src-hash", "tgt-hash", sourceDsId, targetDsId));
+
+        var response = mvc.post().uri("/api/v1/queries/{id}/replay?targetDatasourceId={t}",
+                        originalQueryId, targetDsId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .requestAttr(ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE, alice)
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(ReplayCommand.class);
+        verify(queryReplayService).replay(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(alice);
+        assertThat(captor.getValue().originalQueryId()).isEqualTo(originalQueryId);
     }
 
     @Test

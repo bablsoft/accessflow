@@ -1,5 +1,10 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceView;
@@ -36,6 +41,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +53,8 @@ class McpToolServiceTest {
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QuerySubmissionService querySubmissionService;
     @Mock QueryLifecycleService queryLifecycleService;
+    @Mock OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    @Mock AuditLogService auditLogService;
 
     McpToolService tools;
     UUID userId;
@@ -56,7 +64,8 @@ class McpToolServiceTest {
     void setUp() {
         var currentUser = new McpCurrentUser();
         tools = new McpToolService(currentUser, datasourceAdminService, queryRequestLookupService,
-                queryResultPersistenceService, querySubmissionService, queryLifecycleService);
+                queryResultPersistenceService, querySubmissionService, queryLifecycleService,
+                onBehalfOfPrincipalService, auditLogService);
         userId = UUID.randomUUID();
         orgId = UUID.randomUUID();
         authenticateAs(UserRoleType.ANALYST);
@@ -180,6 +189,34 @@ class McpToolServiceTest {
         assertThat(captor.getValue().organizationId()).isEqualTo(orgId);
         assertThat(result.queryRequestId()).isEqualTo(queryId);
         assertThat(result.status()).isEqualTo("PENDING_AI");
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+        // The MCP surface writes QUERY_SUBMITTED itself (#874) — the REST controller does the same.
+        var audit = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.QUERY_SUBMITTED);
+        assertThat(audit.getValue().resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(audit.getValue().resourceId()).isEqualTo(queryId);
+        assertThat(audit.getValue().actorId()).isEqualTo(userId);
+        assertThat(audit.getValue().organizationId()).isEqualTo(orgId);
+        assertThat(audit.getValue().metadata()).containsEntry("datasource_id", dsId.toString())
+                .containsEntry("channel", "mcp");
+    }
+
+    @Test
+    void submit_query_carries_the_on_behalf_of_principal_and_survives_an_audit_failure() {
+        var alice = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        when(onBehalfOfPrincipalService.current()).thenReturn(Optional.of(alice));
+        when(querySubmissionService.submit(any(QuerySubmissionService.SubmissionInput.class)))
+                .thenReturn(new QuerySubmissionService.QuerySubmissionResult(queryId, QueryStatus.PENDING_AI));
+        doThrow(new IllegalStateException("audit down")).when(auditLogService).record(any());
+
+        var result = tools.submitQuery(UUID.randomUUID(), "SELECT 1", null);
+
+        var captor = ArgumentCaptor.forClass(QuerySubmissionService.SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(alice);
+        assertThat(result.queryRequestId()).isEqualTo(queryId);
     }
 
     @Test

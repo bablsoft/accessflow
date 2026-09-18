@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.serviceaccounts.internal.web;
 
+import com.bablsoft.accessflow.serviceaccounts.internal.OnBehalfOfResolver;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -16,7 +17,9 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
@@ -28,6 +31,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,6 +49,7 @@ class ApiKeyRequestFilterTest {
     private static final Instant NOW = Instant.parse("2026-06-15T12:00:00Z");
 
     @Mock ServiceAccountRateLimiter rateLimiter;
+    @Mock OnBehalfOfResolver onBehalfOfResolver;
     @Mock MessageSource messageSource;
 
     // The Boot-configured mapper unwraps ProblemDetail properties through this mixin; mirror it.
@@ -55,8 +60,8 @@ class ApiKeyRequestFilterTest {
             null, "READONLY", Set.of(), UUID.randomUUID(), false);
 
     private ApiKeyRequestFilter filter() {
-        return new ApiKeyRequestFilter(rateLimiter, objectMapper, messageSource,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        return new ApiKeyRequestFilter(rateLimiter, onBehalfOfResolver, new OnBehalfOfDecisionPaths(),
+                objectMapper, messageSource, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @AfterEach
@@ -169,5 +174,127 @@ class ApiKeyRequestFilterTest {
         assertThat(json.get("detail").asString()).isEqualTo("Too many per day");
         assertThat(json.get("limit").asInt()).isEqualTo(5000);
         assertThat(json.has("traceId")).isFalse();
+    }
+    // ---- X-AccessFlow-On-Behalf-Of (#874) ----
+
+    private static MockHttpServletRequest onBehalfOf(String method, String path, String value) {
+        var request = new MockHttpServletRequest(method, path);
+        request.setServletPath(path);
+        request.addHeader(ApiKeyRequestFilter.ON_BEHALF_OF_HEADER, value);
+        return request;
+    }
+
+    private void stubForbiddenMessage(String key) {
+        when(messageSource.getMessage(eq(key), any(), any(Locale.class))).thenReturn("nope");
+    }
+
+    @Test
+    void headerOnAnonymousRequestIsIgnored() throws Exception {
+        // The security chain never disables anonymous auth, so a permitAll path carries an
+        // AnonymousAuthenticationToken (isAuthenticated() == true) rather than an empty context.
+        SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
+                "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
+        var chain = new MockFilterChain();
+        var response = new MockHttpServletResponse();
+
+        filter().doFilter(onBehalfOf("GET", "/actuator/health", "alice@example.com"), response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+        verifyNoInteractions(onBehalfOfResolver);
+    }
+
+    @Test
+    void headerOnJwtSessionIs403NotApiKey() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken(claims, null, "ROLE_USER"));
+        stubForbiddenMessage("error.on_behalf_of_not_permitted.not_api_key");
+        var chain = new MockFilterChain();
+        var response = new MockHttpServletResponse();
+
+        filter().doFilter(onBehalfOf("POST", "/api/v1/queries", "alice@example.com"), response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(403);
+        var body = objectMapper.readTree(response.getContentAsString());
+        assertThat(body.get("error").asString()).isEqualTo("ON_BEHALF_OF_NOT_PERMITTED");
+        assertThat(body.get("reason").asString()).isEqualTo("not_api_key");
+        assertThat(body.get("timestamp").asString()).isEqualTo(NOW.toString());
+        verifyNoInteractions(onBehalfOfResolver);
+    }
+
+    @Test
+    void headerOnDecisionPathIs403ReviewForbiddenBeforeResolution() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new StubApiKeyToken(claims));
+        stubForbiddenMessage("error.on_behalf_of_review_forbidden");
+        var chain = new MockFilterChain();
+        var response = new MockHttpServletResponse();
+
+        filter().doFilter(onBehalfOf("POST", "/api/v1/reviews/" + UUID.randomUUID() + "/approve",
+                "alice@example.com"), response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(403);
+        var body = objectMapper.readTree(response.getContentAsString());
+        assertThat(body.get("error").asString()).isEqualTo("ON_BEHALF_OF_REVIEW_FORBIDDEN");
+        assertThat(body.has("reason")).isFalse();
+        verifyNoInteractions(onBehalfOfResolver);
+    }
+
+    @Test
+    void unresolvedPrincipalIs403NotPermittedAndNothingIsParked() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new StubApiKeyToken(claims));
+        when(onBehalfOfResolver.resolve(eq(userId), eq(claims.organizationId()), eq("alice@example.com")))
+                .thenReturn(Optional.empty());
+        stubForbiddenMessage("error.on_behalf_of_not_permitted.not_permitted");
+        var chain = new MockFilterChain();
+        var response = new MockHttpServletResponse();
+        var request = onBehalfOf("POST", "/api/v1/queries", "alice@example.com");
+
+        filter().doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNull();
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(objectMapper.readTree(response.getContentAsString()).get("reason").asString())
+                .isEqualTo("not_permitted");
+        assertThat(request.getAttribute(ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    void resolvedPrincipalIsParkedOnTheRequestAndTheAuthenticationIsUntouched() throws Exception {
+        var token = new StubApiKeyToken(claims);
+        SecurityContextHolder.getContext().setAuthentication(token);
+        var alice = UUID.randomUUID();
+        when(onBehalfOfResolver.resolve(eq(userId), eq(claims.organizationId()), eq(alice.toString())))
+                .thenReturn(Optional.of(alice));
+        var chain = new MockFilterChain();
+        var response = new MockHttpServletResponse();
+        var request = onBehalfOf("POST", "/mcp", alice.toString());
+
+        filter().doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(request.getAttribute(ApiKeyRequestFilter.ON_BEHALF_OF_ATTRIBUTE)).isEqualTo(alice);
+        // The permission set can only ever be the key owner's: the Authentication is the same object.
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isSameAs(token);
+        assertThat(token.getPrincipal()).isSameAs(claims);
+        verify(rateLimiter).enforce(userId);
+    }
+
+    @Test
+    void rateLimitWinsOverTheHeader() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new StubApiKeyToken(claims));
+        doThrow(new ServiceAccountRateLimitExceededException(120, 17, "minute"))
+                .when(rateLimiter).enforce(userId);
+        when(messageSource.getMessage(eq("error.service_account_rate_limit_exceeded.minute"),
+                any(), any(Locale.class))).thenReturn("slow down");
+        var response = new MockHttpServletResponse();
+
+        filter().doFilter(onBehalfOf("POST", "/api/v1/queries", "alice@example.com"), response,
+                new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        verifyNoInteractions(onBehalfOfResolver);
     }
 }

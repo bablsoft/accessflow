@@ -261,6 +261,31 @@ server and other programmatic clients without a browser session. The flow:
   sessions are never limited. It is a **resource guardrail, not an authorization control**, so it
   fails open when Redis is unreachable — the request is still authenticated, permission-bounded
   and audited, and failing closed would take every agent and CI pipeline down on a Redis blip.
+- **On-behalf-of attribution (#874).** An API-key request may name the human it acts for with
+  `X-AccessFlow-On-Behalf-Of: <uuid | email>`. Three security properties hold by construction:
+  1. **Zero privilege change.** The header is resolved by the same order-0 `ApiKeyRequestFilter`
+     and parked in a request attribute — never on the `Authentication`. `JwtClaims` is never
+     rebuilt, re-resolved or widened from the named human, and nothing in `security` or any
+     permission resolver reads the attribute; the only reader is
+     `serviceaccounts.api.OnBehalfOfPrincipalService`, consumed by submission controllers and the
+     audit contributor. `OnBehalfOfIntegrationTest` pins it: a READONLY bot naming an ADMIN gets the
+     same 403s and the same `/me` profile with and without the header.
+  2. **Consent, validated, fail-loud.** The named human must be an active `HUMAN` of the same
+     organization holding a live `service_account_delegated_principals` grant for that account
+     (given by the human at `/me/service-account-delegations` or by a `USER_MANAGE` /
+     `SERVICE_ACCOUNT_MANAGE` admin). Any miss is one opaque `403 ON_BEHALF_OF_NOT_PERMITTED
+     reason=not_permitted` — the header cannot enumerate emails — and a JWT session sending it gets
+     `reason=not_api_key`. Nothing is ever silently dropped, so a misconfigured agent is obvious on
+     its first request.
+  3. **Never a vote.** On every review / decision surface the header is refused outright
+     (`403 ON_BEHALF_OF_REVIEW_FORBIDDEN`), the MCP `review_query` tool answers `permission_denied`
+     when a principal is present, and `*_review_decisions.on_behalf_of_user_id` — the #622
+     provenance column that *confers reviewer eligibility* — is never written from it. What the
+     header does do is close the approval-laundering hole: the named human becomes a second
+     submitter identity under the self-approval ban (below).
+  The attribution itself rides in `audit_log.metadata` (`on_behalf_of_user_id`, plus
+  `api_key_id` and `service_account` on every API-key request), inside the HMAC chain — see
+  [Audit Log Integrity](#audit-log-integrity).
 - **Lifecycle.** Per-user CRUD endpoints live at `/api/v1/me/api-keys` (see
   `docs/04-api-spec.md`). Revocation sets `revoked_at = now()` and is idempotent; revoked or
   expired keys never authenticate.
@@ -370,11 +395,16 @@ enforced in the service layer, not the UI:
    `API_REQUEST_REVIEW` in their own right — the permission check runs before delegation is ever
    resolved. Delegation widens *which requests* an already-permitted reviewer may act on.
 2. **The self-approval ban covers both identities.** A delegate can never decide their own request,
-   and can never use a delegation from A to decide a request **A** submitted. Such a request does
-   not appear in their queue and returns 403 if decided directly.
+   and can never use a delegation from A to decide a request **A** submitted — or had submitted
+   *for* them by an agent (#874). Such a request does not appear in their queue and returns 403 if
+   decided directly.
 3. **No transitivity.** Resolution is exactly one hop: A→B→C confers nothing on C. Enforced by
    construction (the lookup never traverses) rather than by validation on write, which creating the
    two delegations in the other order would defeat.
+4. **Never to an agent.** A delegation cannot *target* a service account (#874,
+   `422 ILLEGAL_REVIEW_DELEGATION`; agents are omitted from the candidate picker): review authority
+   is not handed to non-human identities. The opposite direction — a human letting an agent act
+   *for* them with no authority at all — is `service_account_delegated_principals`.
 
 Both parties' `is_active` flags are re-checked on every resolution, so deactivating either one — by
 an admin or by SCIM deprovisioning — stops the delegation conferring eligibility immediately,
@@ -443,7 +473,13 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Attest own access grant | — | — | — | — | — |
 | Export attestation evidence CSV | — | — | — | ✓ | ✓ |
 
-**Key rule:** A user can never approve their own query request, regardless of role.
+**Key rule:** A user can never approve their own query request, regardless of role — and since
+#874 "their own" includes a request an agent or CI job submitted **on their behalf**
+(`on_behalf_of_user_id`). The same widening applies to API requests, deployment requests, rollback
+reviews and request groups: the named human is a submitter identity for the ban, is excluded from
+the review queue, and cannot be reached through a reviewer delegation either. Without it, "Alice
+tells her agent to submit, then Alice approves" passes the `reviewerId != submittedBy` check with
+two different UUIDs.
 
 **Approval likelihood (AF-645):** the advisory approval-outcome prediction is served only to callers
 holding `QUERY_REVIEW` who are not the query's submitter — a reviewer reading their own request is
@@ -1269,6 +1305,7 @@ Implemented today:
 - System-driven state transitions are audited via `@ApplicationModuleListener` in `audit/internal/AuditEventListener` — these run after the publishing transaction commits, on a separate thread; `ip_address` / `user_agent` are NULL on those rows by design.
 - **Audit actors.** `actor_id` is the authenticated user UUID for human-driven writes and NULL for system actors. The system-actor namespace is partitioned by `metadata.source`: `BOOTSTRAP` for env-driven reconciler writes ([AF-196](https://github.com/bablsoft/accessflow/issues/196)), unset for the existing query-lifecycle / datasource-deactivation listeners. Bootstrap writes also carry `metadata.change_kind` (`CREATE` / `UPDATE`) and a best-effort `metadata.changed_fields` list — encrypted fields (passwords, API keys, client secrets) are excluded from the diff because the persisted view masks them. Bootstrap rows participate in the same per-org HMAC chain as user-driven rows, so a mixed run (admin UI edit → restart with env vars → admin UI edit) verifies end-to-end.
 - `metadata` JSONB contains context-specific information but **never** stores query result data (rows returned), passwords, or encryption keys.
+- **Request provenance is inside the chain (#874).** `audit.api.AuditMetadataContributor` beans are merged into `metadata` *before* the row is serialised and hashed, so a contributed key is exactly as tamper-evident as an explicit one, and adding keys this way is hash-stable for every historical row (a new column would not be: `AuditChainHasher` canonicalises a fixed ten-field list). Explicit metadata wins on a collision, so `trigger=` is never clobbered; a throwing contributor never loses the row. The `serviceaccounts` contributor stamps every row written on an API-key request with `api_key_id`, `service_account` and, when the request named a human, `on_behalf_of_user_id`. A synchronous null-actor row written inside such a request (e.g. `SQL_REVIEW_BLOCKED`) carries the same keys — they describe the request the system action ran in, not an actor claim. Rows written off the request thread get nothing from the contributor; the query-lifecycle rows carry `on_behalf_of_user_id` explicitly from the request row.
 - **HMAC-SHA256 hash chain.** Every new row carries `previous_hash` (the predecessor's `current_hash`, NULL only for the org's first chained row) and `current_hash = HMAC-SHA256(key, canonical(row) ‖ previous_hash)`. The canonical form is a length-prefixed concatenation of `id`, `organization_id`, `actor_id`, `action`, `resource_type`, `resource_id`, normalised JSON metadata, `ip_address`, `user_agent`, and ISO-8601 `created_at` — length-prefixed so the encoding is injective. The key is `AUDIT_HMAC_KEY` (hex-encoded, ≥ 32 bytes); when unset, the audit module derives the key from `ENCRYPTION_KEY` via HKDF-SHA256 with info string `accessflow-audit-hmac-v1` and logs a single WARN. Startup fails if neither key is available.
 - **Per-organization insert serialization.** `DefaultAuditLogService.record(...)` takes a Postgres advisory lock (`pg_advisory_xact_lock(orgIdHigh ^ orgIdLow)`) inside the transaction before reading the prior row's hash, so concurrent writes to the same org cannot interleave and break the chain. The lock releases automatically on commit/rollback.
 - **Verifier endpoint.** `GET /api/v1/admin/audit-log/verify` (ADMIN only) walks the chain in ASC order, recomputes each row's HMAC, and returns the first row whose recorded `previous_hash` or `current_hash` does not match — see `docs/04-api-spec.md`. The verifier is scoped to the caller's organization. Pre-V26 rows have NULL hashes and are skipped without counting.

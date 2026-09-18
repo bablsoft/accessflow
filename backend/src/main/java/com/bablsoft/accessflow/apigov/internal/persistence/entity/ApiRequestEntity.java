@@ -43,6 +43,11 @@ public class ApiRequestEntity {
     @Column(name = "submitted_by", nullable = false)
     private UUID submittedBy;
 
+    // The human an API-key submitter acted FOR (#874) — attribution and a second submitter
+    // identity for the self-approval ban. Never confers anything.
+    @Column(name = "on_behalf_of_user_id")
+    private UUID onBehalfOfUserId;
+
     @Column(name = "operation_id", columnDefinition = "text")
     private String operationId;
 
