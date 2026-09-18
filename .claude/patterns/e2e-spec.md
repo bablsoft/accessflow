@@ -64,6 +64,13 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
 - [ ] A plan whose approver's *queue view* the spec asserts on (emptiness, row counts) needs a
       `userId`-scoped approver entry, not `role: 'ADMIN'` — role-scoped plans put every
       concurrent spec's queries into that approver's queue.
+- [ ] Asserting on a user's **notification inbox** (the bell: emptiness, badge count, row count)
+      → that user must be one the spec provisions, holding a run-unique **custom role**
+      (`createRoleViaApi`, e.g. `['QUERY_REVIEW']`) and named as the plan's only approver by
+      `userId`. Not the seeded admin, and not a system `REVIEWER` either: every org-wide fan-out
+      targets `ADMIN` (AI_HIGH_RISK, escalations, break-glass, anomalies) or `REVIEWER + ADMIN`
+      (API_REQUEST_SUBMITTED, plan-less deployment submissions), so concurrent specs keep
+      refilling both. Canonical: `notifications-bell.spec.ts`.
 - [ ] An explicit generous `test.describe.configure({ timeout })` for multi-user setups.
 - [ ] Reaching a page through its **sidebar link** → `expandNavSection(page, group, section)`
       from `helpers/nav.ts` first. Sub-sections start collapsed; only the one holding the current
