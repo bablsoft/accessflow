@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-17",
+      "dateModified": "2026-09-18",
       "url": "https://accessflow.io/docs/iac/",
       "mainEntityOfPage": "https://accessflow.io/docs/iac/",
       "image": "https://accessflow.io/og-image.png",
@@ -268,7 +268,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-17">17 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-18">18 September 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
@@ -309,6 +309,18 @@
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_EXPIRES_AT</code> — optional ISO-8601</li>
           </ul>
           <p>You can also mint a key interactively at <code>POST /api/v1/me/api-keys</code>.</p>
+          <p>
+            Every request an API key makes is counted against that identity — 120 per minute by
+            default (<code>ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE</code>), with an
+            optional daily cap (<code>…_REQUESTS_PER_DAY</code>, unlimited by default). A service
+            account can carry its own limits, set by an admin through
+            <code>PUT /api/v1/admin/service-accounts/{id}</code>. Over the cap the API answers
+            HTTP 429 with a <code>Retry-After</code> header. Every wrapper on this page waits it
+            out rather than failing the job — the GitHub Actions and GitLab jobs for provisioning
+            and queries within their own timeout, the deployment-gate wrappers below within the
+            wait timeout, and the Terraform provider for up to five attempts — so a busy pipeline
+            slows down instead of breaking. A signed-in person in the browser is never limited.
+          </p>
 
           <h3 id="iac-provider">Terraform / OpenTofu provider</h3>
           <div class="code-block">
@@ -450,7 +462,10 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
             review), <strong>poll</strong> the fail-closed gate until it answers releasable,
             <strong>confirm</strong> execution, then <strong>report</strong> the outcome. All of them
             fail the job on a rejection, a timeout, or a gate that returns 404 — an unknown or
-            invisible release is treated as not releasable, never as approved.
+            invisible release is treated as not releasable, never as approved. A passing blip is
+            not a failure: a temporary server error, a dropped connection, or a rate-limited call
+            (HTTP 429 — every API key has a per-identity request cap) is retried until the wait
+            timeout, waiting as long as the server's <code>Retry-After</code> header asks.
           </p>
           <div class="code-block">
             <div class="code-block-head">

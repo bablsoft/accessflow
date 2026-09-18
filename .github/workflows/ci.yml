@@ -648,7 +648,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Shellcheck action scripts
-        run: shellcheck .github/actions/*/*.sh
+        # -x follows the `. harness.sh` source in the test files.
+        run: shellcheck -x .github/actions/*/*.sh
 
       - name: Actionlint (workflows + deployment example)
         # actionlint lints workflow files, not action.yml metadata — the actions themselves are
@@ -662,13 +663,18 @@ jobs:
           rm -f actionlint actionlint_1.7.7_linux_amd64.tar.gz
 
       - name: Action script tests (offline, fake curl)
-        run: bash .github/actions/tests/deployment-gate-test.sh
+        run: |
+          bash .github/actions/tests/deployment-gate-test.sh
+          bash .github/actions/tests/query-actions-test.sh
 
       - name: Validate CI template YAML (GitLab + Azure + examples)
         run: |
           python3 -c 'import sys, yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]' \
             ci-templates/gitlab/*.yml ci-templates/azure/*.yml ci-templates/examples/*.yml
           echo "all CI templates parse as YAML"
+
+      - name: CI template script tests (extracted GitLab + Azure bodies, shellcheck + fake curl)
+        run: bash .github/actions/tests/ci-templates-test.sh
 
       - uses: docker/setup-buildx-action@v4
 

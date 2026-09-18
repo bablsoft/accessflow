@@ -23,6 +23,9 @@ services:
       ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE: "ADMIN"
       ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME: "terraform"
       ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY: "af_acctest_terraform_provider_ci_key_0001"
+      # The per-identity API-key rate limit (#873) is left at its default on purpose: the provider
+      # and the CI wrappers retry a 429 honouring Retry-After, and this stack is where that path is
+      # exercised for real.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/actuator/health || exit 1"]
       interval: 10s

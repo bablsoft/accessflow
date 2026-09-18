@@ -53,6 +53,13 @@ inputs:
   text-to-sql-enabled:
     description: "Optional 'true'/'false'. Like ai-analysis-enabled, needs an AI config when true."
     required: false
+  retry-timeout:
+    description: >-
+      How long to keep retrying a rate-limited call (HTTP 429 — every API key is capped per
+      identity), honouring the server's Retry-After header. A number with an optional s/m/h
+      suffix.
+    required: false
+    default: "2m"
 
 outputs:
   id:
@@ -79,4 +86,5 @@ runs:
         AF_AI_CONFIG_ID: ${{ inputs.ai-config-id }}
         AF_AI_ANALYSIS_ENABLED: ${{ inputs.ai-analysis-enabled }}
         AF_TEXT_TO_SQL_ENABLED: ${{ inputs.text-to-sql-enabled }}
+        AF_RETRY_TIMEOUT: ${{ inputs.retry-timeout }}
       run: ${{ github.action_path }}/provision-datasource.sh

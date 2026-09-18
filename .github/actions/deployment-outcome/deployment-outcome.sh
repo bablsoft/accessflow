@@ -9,6 +9,26 @@ base="${AF_ENDPOINT%/}/api/v1"
 auth=(-H "Authorization: ApiKey ${AF_API_KEY}" -H "X-AccessFlow-CI: true")
 out="${GITHUB_OUTPUT:-/dev/stdout}"
 
+# to_seconds VALUE NAME — parse "90" / "45s" / "30m" / "2h" into seconds.
+to_seconds() {
+  local v="$1" name="$2"
+  if [[ "$v" =~ ^([0-9]+)([smh]?)$ ]]; then
+    local n="${BASH_REMATCH[1]}"
+    case "${BASH_REMATCH[2]}" in
+      h) echo $(( n * 3600 )) ;;
+      m) echo $(( n * 60 )) ;;
+      *) echo "$n" ;;
+    esac
+  else
+    echo "::error::Invalid ${name} '${v}' — use a number with an optional s/m/h suffix (e.g. 90, 45s, 30m, 2h)" >&2
+    return 1
+  fi
+}
+
+retry_timeout_s="$(to_seconds "${AF_RETRY_TIMEOUT:-2m}" retry-timeout)"
+# Fallback pause between rate-limited attempts when the 429 carries no usable Retry-After.
+retry_fallback_s=5
+
 # This step runs under `if: always()` — when the gate step failed before creating a request
 # there is nothing to report, and failing here would only bury the real failure.
 if [ -z "${AF_REQUEST_ID:-}" ]; then
@@ -44,11 +64,28 @@ body="$(jq -n \
   --arg d "${AF_DETAIL:-}" \
   '{outcome: $o} + (if $d == "" then {} else {detail: $d} end)')"
 
-resp="$(curl -sS -X POST "${auth[@]}" -H 'Content-Type: application/json' \
-  -d "$body" -w $'\n%{http_code}' "${base}/deployment-requests/${AF_REQUEST_ID}/outcome")" \
-  || { echo "::error::AccessFlow API unreachable while reporting the outcome"; exit 1; }
-code="${resp##*$'\n'}"
-payload="${resp%$'\n'*}"
+# A 429 (per-identity API-key rate limit, #873) is retried honouring Retry-After until
+# retry-timeout elapses; every other failure is immediately fatal, as before.
+deadline=$(( SECONDS + retry_timeout_s ))
+while :; do
+  hdr="$(mktemp)"
+  resp="$(curl -sS -X POST "${auth[@]}" -H 'Content-Type: application/json' \
+    -d "$body" -D "$hdr" -w $'\n%{http_code}' "${base}/deployment-requests/${AF_REQUEST_ID}/outcome")" \
+    || { rm -f "$hdr"; echo "::error::AccessFlow API unreachable while reporting the outcome"; exit 1; }
+  code="${resp##*$'\n'}"
+  payload="${resp%$'\n'*}"
+  retry_after="$(sed -n -E 's/^[Rr]etry-[Aa]fter:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$hdr" | tail -n1)"
+  rm -f "$hdr"
+  if [ "$code" = "429" ] && [ "$SECONDS" -lt "$deadline" ]; then
+    delay="${retry_after:-$retry_fallback_s}"
+    remaining=$(( deadline - SECONDS ))
+    if [ "$delay" -gt "$remaining" ]; then delay="$remaining"; fi
+    echo "  rate limited (HTTP 429), retrying in ${delay}s…"
+    sleep "$delay"
+    continue
+  fi
+  break
+done
 
 if [ "$code" = "200" ]; then
   status="$(jq -r '.status' <<<"$payload")"
@@ -65,6 +102,6 @@ if [ "$code" = "409" ] && [ "$err" = "DEPLOYMENT_REQUEST_INVALID_STATE" ]; then
   exit 0
 fi
 echo "::error::AccessFlow API POST ${base}/deployment-requests/${AF_REQUEST_ID}/outcome returned HTTP ${code}" >&2
-jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" 2>/dev/null >&2 \
+jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" >&2 2>/dev/null \
   || echo "  $payload" >&2
 exit 1

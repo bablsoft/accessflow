@@ -23,7 +23,8 @@ See [`examples/github-workflow.yml`](examples/github-workflow.yml) and
 
 [`gitlab/accessflow.gitlab-ci.yml`](gitlab/accessflow.gitlab-ci.yml) exposes two `extends`-able
 hidden jobs — `.accessflow_provision_datasource` and `.accessflow_run_query` — that mirror the
-GitHub Actions. `include:` the file and extend a job, setting the `AF_*` variables.
+GitHub Actions. `include:` the file and extend a job, setting the `AF_*` variables
+(`AF_RETRY_TIMEOUT`, default `2m`, bounds the provision job's 429 retries).
 
 See [`examples/gitlab-pipeline.yml`](examples/gitlab-pipeline.yml). The deployment-gate hidden
 jobs live in a separate file — see the next section.
@@ -40,7 +41,12 @@ three platforms, plus a raw-`curl` walkthrough for anything else in
 a terminal status (`REJECTED` / `TIMED_OUT` / `CANCELLED` / `FAILED`), or the wait-timeout
 elapsing fails the job — nothing is ever released by default. `status: APPROVED` alone is not a
 green light: the gate also folds in freeze windows (`frozen`) and deferred releases
-(`scheduled_for`). Transient 5xx / network errors are retried until the deadline.
+(`scheduled_for`). Transient 5xx / network errors are retried until the deadline, and so is a
+rate-limited call — every API key is capped per identity (#873), and a `429` at any of the four
+beats is retried honouring the server's `Retry-After` header (capped at the remaining deadline;
+the fixed interval is the fallback when the header is missing). The `provision-datasource` /
+`run-query` wrappers (GitHub and GitLab alike) retry a 429 the same way — see
+[Rate limits](#rate-limits) below.
 
 ### GitHub Action inputs — `deployment-gate`
 
@@ -74,6 +80,7 @@ the workflow re-attaches to the same request instead of duplicating it.
 | `job-status` | no | — | Pass `${{ job.status }}`: success→`SUCCEEDED`, failure→`FAILED`, cancelled→skip |
 | `outcome` | no | — | Explicit `SUCCEEDED` / `FAILED` / `ROLLED_BACK`; overrides `job-status` |
 | `detail` | no | — | Free-form detail (≤ 4000 chars) |
+| `retry-timeout` | no | `2m` | How long to keep retrying a rate-limited (`429`) report, honouring `Retry-After` |
 
 Output: `status`. Run it with `if: always()` (composite actions have no post-run hook). A
 request the gate never released is skipped without failing; reporting an outcome that
@@ -84,7 +91,7 @@ request the gate never released is skipped without failing; reporting an outcome
 [`gitlab/accessflow-deployment.gitlab-ci.yml`](gitlab/accessflow-deployment.gitlab-ci.yml)
 exposes `.accessflow_deployment_gate` and `.accessflow_deployment_outcome`. Variables mirror
 the action inputs (`ACCESSFLOW_ENDPOINT`, `ACCESSFLOW_API_KEY`, `AF_PIPELINE_ID`, `AF_VERSION`,
-`AF_ENVIRONMENT`, `AF_WAIT_TIMEOUT`, `AF_POLL_INTERVAL`, optional `AF_ARTIFACT_REF` /
+`AF_ENVIRONMENT`, `AF_WAIT_TIMEOUT`, `AF_POLL_INTERVAL`, `AF_RETRY_TIMEOUT` on the outcome job, optional `AF_ARTIFACT_REF` /
 `AF_JUSTIFICATION` / `AF_SCHEDULED_FOR` / `AF_METADATA_FILE` / `AF_BREAK_GLASS` / `AF_DETAIL`;
 `commit_sha` and `run_url` come from `$CI_COMMIT_SHA` / `$CI_PIPELINE_URL` automatically);
 `external_run_id` is `$CI_PIPELINE_ID`.
@@ -100,7 +107,7 @@ pre-validate a consumer pipeline with GitLab's own CI Lint (`/-/ci/lint`).
 (`accessflowUrl`, `apiKeyVariable` — the *name* of the secret variable, default
 `accessflow-api-key` — `pipelineId`, `version`, `environment`, `commitSha` — default
 `$(Build.SourceVersion)` — `artifactRef`, `justification`, `scheduledFor`, `metadataFile`,
-`breakGlass`, `waitTimeout`, `pollInterval`, `reportOutcome`), plus `deploySteps` (a
+`breakGlass`, `waitTimeout`, `pollInterval`, `retryTimeout`, `reportOutcome`), plus `deploySteps` (a
 `stepList` run between the gate and the outcome step, so the `condition: always()` outcome
 report sees your deployment's job status). `external_run_id` is `$(Build.BuildId)`. See
 [`examples/azure-deployment-pipeline.yml`](examples/azure-deployment-pipeline.yml).
@@ -113,6 +120,24 @@ masked/protected CI secret. Triggering needs a per-pipeline `can_trigger` grant 
 it; break-glass has **no** admin bypass). The scripts never enable `set -x` and only ever place
 the key in the `Authorization` header; on Azure the key is mapped through `env:` rather than
 inlined, so it cannot leak into expanded logs.
+
+## Rate limits
+
+Every API key is capped per identity (#873; 120 requests/minute by default, an optional daily
+cap, and per-account overrides). Over the cap the API answers `429` with a `Retry-After` header,
+and every wrapper here waits it out instead of failing the job — the request never reached the
+controller, so a replay is safe:
+
+| Wrapper | Retry budget | Fallback when `Retry-After` is missing |
+|---|---|---|
+| `run-query` action / `.accessflow_run_query` | `timeout-seconds` / `AF_TIMEOUT_SECONDS` (shared with the status polls) | `poll-interval-seconds` / `AF_POLL_INTERVAL_SECONDS` |
+| `provision-datasource` action / `.accessflow_provision_datasource` | `retry-timeout` / `AF_RETRY_TIMEOUT` (default `2m`) | 5 s |
+| `deployment-gate` (all three platforms) | `wait-timeout` (shared with the gate polls) | `poll-interval` |
+| `deployment-outcome` (all three platforms) | `retry-timeout` (default `2m`) | 5 s |
+
+A `Retry-After` longer than the remaining budget is capped at it, so the job ends in its normal
+timeout path. The Terraform provider retries a 429 too (up to five times, honouring `Retry-After`
+up to two minutes per wait).
 
 ## Notes
 

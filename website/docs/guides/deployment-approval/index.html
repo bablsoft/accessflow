@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-18",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -281,7 +281,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-18">18 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -641,6 +641,12 @@
             <li><strong>Approved, but still not releasing.</strong> Approval alone is not a green
               light. The job branches on <em>releasable</em>, which also requires no active freeze
               window and any scheduled time to have passed.</li>
+            <li><strong>The log says "rate limited (HTTP 429), retrying".</strong> Not a failure.
+              Every API key has a per-identity request cap (120 per minute by default; a service
+              account can be given its own), and the wrappers simply wait the number of seconds
+              the server asks for before trying again. A pipeline that hits this constantly is
+              polling too fast — lengthen the poll interval, or have an admin raise the account's
+              limit through the service-account API.</li>
           </ul>
           <div class="docs-callout ok">
             <strong>A real worked example.</strong> The AccessFlow public demo deploys itself

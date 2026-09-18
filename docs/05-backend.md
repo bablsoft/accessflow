@@ -3976,6 +3976,33 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
   creates it in the same transaction that flips `principal_type`, so a person never has one. The
   policy is consulted for JWT callers too (a person adopted by bootstrap can hold a live access
   token for a few minutes); it only ever narrows what the role and grants already permit.
+- **Rate limiting (#873).** `internal.ServiceAccountRateLimiter` / `DefaultServiceAccountRateLimiter`
+  caps **every API-key-authenticated request** per identity — `/mcp/**` and `/api/v1/**` alike,
+  matched by `authentication instanceof security.api.ApiKeyAuthentication`, never a JWT session.
+  It mirrors `DefaultAiRateLimiter`'s Redis idiom (`increment`, `expire` on the first hit of a
+  window) on two fixed windows — `accessflow:serviceaccounts:ratelimit:<userId>:<epochMinute>`
+  (1 min TTL) and `…:<userId>:d:<epochDay>` (24 h TTL), minute checked first. Limits come from
+  the `service_accounts` row (`rate_limit_per_minute` / `rate_limit_per_day`) when set, else from
+  `ServiceAccountRateLimitProperties` (`accessflow.serviceaccounts.rate-limit.*`, defaults 120 /
+  0; `<= 0` disables a window) — so a person's personal key gets the defaults, a free guardrail
+  against a runaway agent or a CI job polling the deployment gate in a tight loop. One PK lookup
+  per request, uncached, like the tool policy. The exceeded exception carries the seconds left in
+  the window, which the filter sends both as the `retryAfterSeconds` property and the
+  `Retry-After` header. **Enforcement point:** `internal.web.ApiKeyRequestFilter`, a plain
+  `OncePerRequestFilter` (not a `@Component`) that `ServiceAccountsConfiguration` registers through
+  a `FilterRegistrationBean` at order `0`. Spring Security's `springSecurityFilterChain` sits at
+  `-100`, so the filter runs *inside* it — after `ApiKeyAuthenticationFilter` populated the
+  `SecurityContext` and after `AuthorizationFilter` committed any 401/403 — and outside
+  `@ControllerAdvice` reach, so it writes the RFC 9457 `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED`
+  itself the way `SecurityExceptionHandler` does (`MessageSource` + `request.getLocale()`, `traceId`
+  from MDC). Registering it here rather than in `SecurityConfiguration` is what keeps
+  `security → serviceaccounts` off the module graph. **Fails open — deliberately.** CLAUDE.md's
+  fail-closed rules govern authorization; a rate limiter is a resource guardrail and the request is
+  still authenticated, permission-bounded and audited, so on `DataAccessException` (Redis down, or
+  the PK lookup timing out) the limiter logs a WARN throttled to once a minute and allows the
+  request. This diverges from `DefaultAiRateLimiter`, which propagates the error because there a
+  failure merely degrades one analysis to human review. The CI wrappers treat the resulting 429 as
+  retryable (see `docs/18-deployment-governance.md` → CI wrappers).
 - **Bootstrap coexistence.** `managed_by` decides who owns the *declared* fields (email, display
   name, role, the `bootstrap_declared` key). On a `BOOTSTRAP` account the admin service throws
   `ServiceAccountBootstrapManagedException(field)` (409) when a declared field would **change** —

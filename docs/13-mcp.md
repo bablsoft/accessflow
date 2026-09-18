@@ -184,6 +184,15 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   filter: an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
   and, if it tries it, gets the structured `permission_denied` below without the service ever being
   invoked. The server `instructions` tell the model to report such a denial rather than retry it.
+- **Rate limits (#873).** Every API-key-authenticated `POST /mcp` counts against the calling
+  identity's per-minute / per-day cap — the service account's `rate_limit_per_minute` /
+  `rate_limit_per_day` when set (`/admin/service-accounts`), otherwise the deployment defaults
+  (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, 120; `…_PER_DAY`, 0 = unlimited).
+  Over the cap the *transport* answers `HTTP 429` with an RFC 9457 `ProblemDetail`
+  (`error: SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED`, `limit`, `retryAfterSeconds`) and a `Retry-After`
+  header — not a JSON-RPC error, because the filter runs before the MCP handler. Clients should
+  back off for `Retry-After` seconds and resend the same request. The limiter fails open when
+  Redis is unavailable, so a Redis blip never stalls an agent.
 - **Errors:** tools return a structured `{ code, message }` rather than raw exceptions. Codes:
   - `permission_denied` — caller is not allowed; also returned when the tool is outside the
     caller's allow-list (the message names the tool).

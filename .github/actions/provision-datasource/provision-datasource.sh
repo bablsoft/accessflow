@@ -10,22 +10,67 @@ set -euo pipefail
 base="${AF_ENDPOINT%/}/api/v1"
 auth=(-H "Authorization: ApiKey ${AF_API_KEY}" -H "X-AccessFlow-CI: true")
 
-# request METHOD URL [BODY] — performs the call, captures body + HTTP status, and on a >=400
-# prints the RFC 9457 ProblemDetail (title/detail) before failing, so errors are debuggable
-# instead of surfacing as a bare `curl --fail` exit code. Echoes the response body on success.
-request() {
-  local method="$1" url="$2" data="${3:-}" out code
-  if [ -n "$data" ]; then
-    out="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
-      -d "$data" -w $'\n%{http_code}' "$url")"
+# to_seconds VALUE NAME — parse "90" / "45s" / "30m" / "2h" into seconds.
+to_seconds() {
+  local v="$1" name="$2"
+  if [[ "$v" =~ ^([0-9]+)([smh]?)$ ]]; then
+    local n="${BASH_REMATCH[1]}"
+    case "${BASH_REMATCH[2]}" in
+      h) echo $(( n * 3600 )) ;;
+      m) echo $(( n * 60 )) ;;
+      *) echo "$n" ;;
+    esac
   else
-    out="$(curl -sS -X "$method" "${auth[@]}" -w $'\n%{http_code}' "$url")"
+    echo "::error::Invalid ${name} '${v}' — use a number with an optional s/m/h suffix (e.g. 90, 45s, 30m, 2h)" >&2
+    return 1
   fi
-  code="${out##*$'\n'}"
-  local body="${out%$'\n'*}"
+}
+
+retry_timeout_s="$(to_seconds "${AF_RETRY_TIMEOUT:-2m}" retry-timeout)"
+# Fallback pause between rate-limited attempts when the 429 carries no usable Retry-After.
+retry_fallback_s=5
+# All three calls (lookup, then create or update) share one retry budget for 429s (#873).
+deadline=$(( SECONDS + retry_timeout_s ))
+
+# retry_delay RETRY_AFTER — seconds to sleep before the next attempt: the server's Retry-After when
+# it sent one, otherwise the fallback; either way capped at the time left before the deadline.
+retry_delay() {
+  local delay="${1:-$retry_fallback_s}" remaining=$(( deadline - SECONDS ))
+  if [ "$delay" -lt "$remaining" ]; then echo "$delay"; else echo $(( remaining > 0 ? remaining : 0 )); fi
+}
+
+# request METHOD URL [BODY] — performs the call, captures body + HTTP status, retries a 429
+# (per-identity API-key rate limit) honouring Retry-After while retry-timeout allows, and on any
+# other >=400 prints the RFC 9457 ProblemDetail (title/detail) before failing, so errors are
+# debuggable instead of surfacing as a bare `curl --fail` exit code. Echoes the response body on
+# success. A 429 is answered by the rate-limit filter ahead of the controller, so re-sending the
+# create is safe — nothing was persisted.
+request() {
+  local method="$1" url="$2" data="${3:-}" out code body hdr retry_after delay
+  while :; do
+    hdr="$(mktemp)"
+    if [ -n "$data" ]; then
+      out="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
+        -d "$data" -D "$hdr" -w $'\n%{http_code}' "$url")" || { rm -f "$hdr"; return 1; }
+    else
+      out="$(curl -sS -X "$method" "${auth[@]}" -D "$hdr" -w $'\n%{http_code}' "$url")" \
+        || { rm -f "$hdr"; return 1; }
+    fi
+    code="${out##*$'\n'}"
+    body="${out%$'\n'*}"
+    retry_after="$(sed -n -E 's/^[Rr]etry-[Aa]fter:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$hdr" | tail -n1)"
+    rm -f "$hdr"
+    if [ "$code" = "429" ] && [ "$SECONDS" -lt "$deadline" ]; then
+      delay="$(retry_delay "$retry_after")"
+      echo "  rate limited (HTTP 429), retrying ${method} in ${delay}s…" >&2
+      sleep "$delay"
+      continue
+    fi
+    break
+  done
   if [ "$code" -ge 400 ]; then
     echo "::error::AccessFlow API ${method} ${url} returned HTTP ${code}" >&2
-    jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$body" 2>/dev/null >&2 \
+    jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$body" >&2 2>/dev/null \
       || echo "  $body" >&2
     return 1
   fi

@@ -4,7 +4,7 @@
 
 - **Base path:** `/api/v1`
 - **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`. Programmatic / IaC clients (the Terraform/OpenTofu provider and the reusable CI Actions — see [docs/16-iac.md](16-iac.md)) instead authenticate with an **API key**: `Authorization: ApiKey <af_…>` (or `X-API-Key: <af_…>`). The key inherits its owning user's permissions; mint one at `POST /api/v1/me/api-keys` or bootstrap a service-account key declaratively. The provider drives the existing datasource / review-plan / routing-policy / AI-config / notification-channel CRUD endpoints below — IaC added **no** new endpoints.
-- **Rate limits:** 1000 req/min general; 100 req/min for query execution endpoints
+- **Rate limits (#873):** every **API-key-authenticated** request — `/api/v1/**` and `/mcp/**` alike — is counted against the calling identity in a Redis fixed window: a `service_accounts` row's `rate_limit_per_minute` / `rate_limit_per_day` when set, otherwise the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, default `120`; `…_PER_DAY`, default `0` = unlimited). A human's personal key gets the defaults. Over the cap the response is `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` — an RFC 9457 `ProblemDetail` with `limit` and `retryAfterSeconds` properties **and** a real `Retry-After` header (seconds until the window resets). JWT browser sessions are never rate-limited. The limiter is a resource guardrail, not an authorization check, so it **fails open**: when Redis is unreachable the request is served unmetered and a throttled `WARN` is logged.
 - **Content-Type:** `application/json`
 - **Error format:** Every error response follows RFC 9457 `ProblemDetail` and includes a `traceId` that correlates the response with backend logs. Frontends should surface the `traceId` next to the error message so users can include it in support requests.
 ```json
@@ -3412,7 +3412,7 @@ This split is what lets an existing install adopt the feature without editing a 
 }
 ```
 
-`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` for unlimited — *enforced by #873*. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
+`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` when the account inherits the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE` / `_PER_DAY`), and a positive integer overrides them for this account — enforced on every API-key request since #873 (see *Rate limits* under General); "unlimited" for one account is not expressible, only the deployment-wide `0`. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
 
 #### GET /admin/service-accounts — Query Parameters
 
@@ -3484,7 +3484,7 @@ Full service account object including `api_keys`. **Response 404:** `SERVICE_ACC
 
 - **Declared fields** — `display_name`, `role` / `role_id`. On a `BOOTSTRAP` account a value that differs from the current one is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (the `ProblemDetail` carries `field`); an equal value is accepted as a no-op, so a full-form client need not special-case bootstrap accounts. `display_name`, when sent, must not be blank.
 - **`active`** — never bootstrap-declared. `false` behaves like `DELETE`; `true` reactivates.
-- **UI-owned fields** — `description`, `owner_user_id`, `mcp_tool_allow_list` (`[]` = no tool), `rate_limit_per_minute`, `rate_limit_per_day` — are set when sent and **reset by name** through `clear`, a set of `DESCRIPTION` \| `OWNER_USER_ID` \| `MCP_TOOL_ALLOW_LIST` (→ `null`, every tool) \| `RATE_LIMIT_PER_MINUTE` \| `RATE_LIMIT_PER_DAY` (→ `null`, unlimited). A field that is both sent and named in `clear` is `400 VALIDATION_ERROR`.
+- **UI-owned fields** — `description`, `owner_user_id`, `mcp_tool_allow_list` (`[]` = no tool), `rate_limit_per_minute`, `rate_limit_per_day` — are set when sent and **reset by name** through `clear`, a set of `DESCRIPTION` \| `OWNER_USER_ID` \| `MCP_TOOL_ALLOW_LIST` (→ `null`, every tool) \| `RATE_LIMIT_PER_MINUTE` \| `RATE_LIMIT_PER_DAY` (→ `null`, back to the deployment default). A field that is both sent and named in `clear` is `400 VALIDATION_ERROR`.
 
 **Response 200:** Updated service account object. **Response 400:** `VALIDATION_ERROR`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `ROLE_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`. **Response 422:** `SERVICE_ACCOUNT_OWNER_INVALID` / `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL`; `ILLEGAL_USER_OPERATION` when the caller is itself the target (a service account on an admin role, authenticating with its own key, cannot deactivate itself or drop its own user-management role — the same self-protection as `PUT /admin/users/{id}`).
 
@@ -3568,6 +3568,7 @@ A **bootstrap-declared** key is refused rather than silently un-revoked later: `
 | 422 | `SERVICE_ACCOUNT_OWNER_INVALID` | `owner_user_id` is unknown, inactive, in another organization or not a human |
 | 422 | `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | An `mcp_tool_allow_list` entry is not a catalog tool name (`tool` property) |
 | 422 | `ILLEGAL_USER_OPERATION` | The caller (a service account on an admin role, using its own key) tried to deactivate itself or drop its own user-management role |
+| 429 | `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` | Not this surface's own error — any API-key-authenticated request, on any endpoint, over the identity's per-minute or per-day cap (#873). Carries `limit`, `retryAfterSeconds` and a `Retry-After` header; written by the rate-limit filter, so `traceId` is present but the body never goes through the controller advices |
 
 ### Roles & the permission catalog (`/admin/roles`, `/admin/permissions`) *(ROLE_MANAGE — system ADMIN)* (AF-522)
 
@@ -6338,7 +6339,9 @@ Disables 2FA after confirming the caller's password. Clears `totp_secret_encrypt
 User-managed API keys for the AccessFlow MCP server and other programmatic clients. Keys inherit
 the owning user's role and datasource permissions exactly. The plaintext key is shown **once** on
 creation — `key_hash` (SHA-256) and `key_prefix` are persisted; the raw key cannot be recovered
-later. See `docs/13-mcp.md` for end-to-end usage.
+later. See `docs/13-mcp.md` for end-to-end usage. Every request a key authenticates is rate-limited
+per identity (#873, *Rate limits* under General) — a personal key gets the deployment defaults; a
+service account's key its own `rate_limit_*` when set.
 
 #### GET /me/api-keys
 

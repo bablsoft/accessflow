@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "e55e9fa5cfd1",
-  "generatedAt": "2026-09-18T09:28:28.660Z",
-  "sourceCommit": "0cdf5f8e186c6d3562d44b15f517e4f9c8512f78",
-  "chunkCount": 573,
-  "sha256": "e55e9fa5cfd11c48008bd0d06e29bc30b9d8469fdb7c706ea6641cb314c05072",
+  "corpusVersion": "b1dcc6a1a83c",
+  "generatedAt": "2026-09-18T12:12:27.898Z",
+  "sourceCommit": "be55733a770489d6362d37bda1b0adbbe93df879",
+  "chunkCount": 574,
+  "sha256": "b1dcc6a1a83c01e2ebca11fd2c44a54fbe0ad964a4c324b557780fa7a5a9def3",
   "quickReferenceSha256": "d2bdce27da7978646f31277177fe48bce3f17ccff1e70ae3824e87e2d82577ec",
   "sources": [
     {
@@ -12,8 +12,8 @@
       "title": "Your agent doesn't need your database. It needs an answer",
       "url": "https://accessflow.io/ai-agents/",
       "section": "AI agents",
-      "chunks": 19,
-      "sha256": "c178297418d52611b8d580426bd3ade37820fc9e6c4de269e481512734ce5d57"
+      "chunks": 20,
+      "sha256": "f3eb2ac43374cdf8566b02e023a2687ae43fda949672cd56fcb94ace8df19374"
     },
     {
       "path": "website/connectors/bigquery/index.html",
@@ -261,7 +261,7 @@
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "section": "Guides",
       "chunks": 12,
-      "sha256": "f5abbdd56025146969471c813144263347ca7eeae8b2eb2451fb4b03d63030a1"
+      "sha256": "f639c5a68d7d59da6be8c7ad5858c559ec48152873629ea8dd4d4d53f0f683f4"
     },
     {
       "path": "website/docs/guides/first-query/index.html",
@@ -325,7 +325,7 @@
       "url": "https://accessflow.io/docs/iac/",
       "section": "Reference",
       "chunks": 8,
-      "sha256": "ee215fe1a89a466c474e776986b230d0e4ee1704af3ebb7f3fa55ac0599a47d5"
+      "sha256": "6daab4eef924ccae27329549c4675122ce85ff583cea0abd508a754a834b8192"
     },
     {
       "path": "website/docs/index.html",
@@ -421,7 +421,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 87,
-      "sha256": "a025c6daf73b6956200bb840d6597155031f58e808313461e10dd67692878e35"
+      "sha256": "0c21b5b595acf35d0c2f7d54c4725252651effa3acd9a1b6454529fce1c21414"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",

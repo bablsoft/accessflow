@@ -35,6 +35,9 @@
 #
 # The gate is fail-closed: a 404, any non-retryable error, a terminal status
 # (REJECTED / TIMED_OUT / CANCELLED / FAILED) or the AF_WAIT_TIMEOUT elapsing fails the job.
+# Transient 5xx / network errors and rate-limited calls (HTTP 429, honouring Retry-After) are
+# retried until the deadline. Note the scripts run under `bash -c '…'`, so a single quote can
+# never appear inside them.
 # Set ACCESSFLOW_API_KEY as a masked, protected CI/CD variable.
 
 .accessflow_deploy_base:
@@ -68,18 +71,30 @@
         add justification "${AF_JUSTIFICATION:-}"; add scheduled_for "${AF_SCHEDULED_FOR:-}"
         [ "${AF_BREAK_GLASS:-false}" = "true" ] && body=$(jq ". + {break_glass:true}" <<<"$body") || true
         [ -n "${AF_METADATA_FILE:-}" ] && body=$(jq --slurpfile m "$AF_METADATA_FILE" ". + {metadata:\$m[0]}" <<<"$body") || true
-        sub=$(curl -fsS -X POST "${hdr[@]}" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests")
+        int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
+        # Response headers land in $hf; ra prints an integer Retry-After (empty when absent) and
+        # delay turns it into the next sleep, capped at the deadline, falling back to the interval.
+        hf=$(mktemp); trap "rm -f $hf" EXIT
+        ra() { sed -n "s/^[Rr]etry-[Aa]fter:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p" "$hf" | tail -n1; }
+        delay() { d=$(ra); [ -n "$d" ] || d="$int"; rem=$(( end - $(date +%s) )); [ "$d" -gt "$rem" ] && d=$(( rem > 0 ? rem : 0 )); echo "$d"; }
+        while :; do
+          resp=$(curl -sS -X POST -D "$hf" -w "\n%{http_code}" "${hdr[@]}" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests") || { echo "submission unreachable"; exit 1; }
+          code=$(tail -n1 <<<"$resp"); sub=$(sed "\$d" <<<"$resp")
+          if [ "$code" = "429" ] && [ "$(date +%s)" -lt "$end" ]; then d=$(delay); echo "  rate limited (HTTP 429), retrying submission in ${d}s…"; sleep "$d"; continue; fi
+          break
+        done
+        [ "$code" -lt 400 ] || { echo "submission failed HTTP $code: $sub"; exit 1; }
         rid=$(jq -r ".id" <<<"$sub")
         [ -n "$rid" ] && [ "$rid" != "null" ] || { echo "submission failed: $sub"; exit 1; }
         echo "AF_REQUEST_ID=$rid" >accessflow-deployment.env
         echo "Deployment request $rid submitted; awaiting releasable gate"
-        int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
         while [ "$(date +%s)" -lt "$end" ]; do
-          resp=$(curl -sS -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-gate?request_id=$rid") || { echo "  gate unreachable, retrying…"; sleep "$int"; continue; }
-          code="${resp##*$'\n'}"; gate="${resp%$'\n'*}"
+          resp=$(curl -sS -D "$hf" -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-gate?request_id=$rid") || { echo "  gate unreachable, retrying…"; sleep "$int"; continue; }
+          code=$(tail -n1 <<<"$resp"); gate=$(sed "\$d" <<<"$resp")
           # Fail closed: 404 (unknown/invisible request) and non-retryable 4xx fail the job.
           [ "$code" = "404" ] && { echo "gate answered 404 for $rid — fail closed, not releasable"; exit 1; }
           [ "$code" -ge 500 ] && { echo "  gate HTTP $code, retrying…"; sleep "$int"; continue; }
+          [ "$code" = "429" ] && { d=$(delay); echo "  rate limited (HTTP 429), retrying in ${d}s…"; sleep "$d"; continue; }
           [ "$code" -ge 400 ] && { echo "gate HTTP $code: $gate"; exit 1; }
           st=$(jq -r ".status" <<<"$gate"); rel=$(jq -r ".releasable" <<<"$gate")
           case "$st" in
@@ -87,8 +102,8 @@
             EXECUTED) echo "Deployment request $rid already confirmed"; exit 0 ;;
           esac
           if [ "$rel" = "true" ]; then
-            cr=$(curl -sS -X POST -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-requests/$rid/confirm-execution") || { echo "  confirm unreachable, retrying…"; sleep "$int"; continue; }
-            cc="${cr##*$'\n'}"; cb="${cr%$'\n'*}"
+            cr=$(curl -sS -X POST -D "$hf" -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-requests/$rid/confirm-execution") || { echo "  confirm unreachable, retrying…"; sleep "$int"; continue; }
+            cc=$(tail -n1 <<<"$cr"); cb=$(sed "\$d" <<<"$cr")
             [ "$cc" = "200" ] && { echo "Deployment request $rid confirmed — gate open"; exit 0; }
             if [ "$cc" = "409" ]; then
               # currentStatus is a ProblemDetail map property — camelCase on the wire.
@@ -96,6 +111,7 @@
               [ "$(jq -r ".currentStatus // empty" <<<"$cb")" = "EXECUTED" ] && { echo "Deployment request $rid confirmed concurrently"; exit 0; }
             fi
             [ "$cc" -ge 500 ] && { echo "  confirm HTTP $cc, retrying…"; sleep "$int"; continue; }
+            [ "$cc" = "429" ] && { d=$(delay); echo "  confirm rate limited (HTTP 429), retrying in ${d}s…"; sleep "$d"; continue; }
             echo "confirm-execution failed HTTP $cc: $cb"; exit 1
           fi
           echo "  status=$st releasable=false, waiting ${int}s…"; sleep "$int"
@@ -107,15 +123,28 @@
   extends: .accessflow_deploy_base
   variables:
     AF_OUTCOME: "SUCCEEDED"
+    AF_RETRY_TIMEOUT: "2m"
   script:
     - |
       bash -euo pipefail -c '
         base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
         : "${ACCESSFLOW_API_KEY:?}"; : "${AF_OUTCOME:?}"
+        secs() { case "$1" in *h) n="${1%h}"; m=3600;; *m) n="${1%m}"; m=60;; *s) n="${1%s}"; m=1;; *) n="$1"; m=1;; esac
+                 case "$n" in ""|*[!0-9]*) echo "invalid duration ${1} (use 90, 45s, 30m or 2h)" >&2; exit 1;; esac; echo $(( n * m )); }
         [ -n "${AF_REQUEST_ID:-}" ] || { echo "no AF_REQUEST_ID — the gate never created a request; nothing to report"; exit 0; }
         body=$(jq -n --arg o "$AF_OUTCOME" --arg d "${AF_DETAIL:-}" "{outcome:\$o} + (if \$d == \"\" then {} else {detail:\$d} end)")
-        resp=$(curl -sS -X POST -w "\n%{http_code}" -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
-        code="${resp##*$'\n'}"; payload="${resp%$'\n'*}"
+        # A rate-limited report (HTTP 429) is retried honouring Retry-After for up to AF_RETRY_TIMEOUT.
+        hf=$(mktemp); trap "rm -f $hf" EXIT; end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
+        while :; do
+          resp=$(curl -sS -X POST -D "$hf" -w "\n%{http_code}" -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
+          code=$(tail -n1 <<<"$resp"); payload=$(sed "\$d" <<<"$resp")
+          if [ "$code" = "429" ] && [ "$(date +%s)" -lt "$end" ]; then
+            d=$(sed -n "s/^[Rr]etry-[Aa]fter:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p" "$hf" | tail -n1); d="${d:-5}"
+            rem=$(( end - $(date +%s) )); [ "$d" -gt "$rem" ] && d=$(( rem > 0 ? rem : 0 ))
+            echo "  rate limited (HTTP 429), retrying in ${d}s…"; sleep "$d"; continue
+          fi
+          break
+        done
         [ "$code" = "200" ] && { echo "Outcome $AF_OUTCOME reported for $AF_REQUEST_ID"; exit 0; }
         # A request the gate never released has no outcome to record — benign under when: on_failure.
         [ "$code" = "409" ] && [ "$(jq -r ".error // empty" <<<"$payload")" = "DEPLOYMENT_REQUEST_INVALID_STATE" ] && { echo "request $AF_REQUEST_ID was never executed; nothing to report"; exit 0; }

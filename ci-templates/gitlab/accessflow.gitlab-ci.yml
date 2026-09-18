@@ -34,11 +34,15 @@
   extends: .accessflow_base
   variables:
     AF_SSL_MODE: "DISABLE"
+    AF_RETRY_TIMEOUT: "2m"
   script:
     - |
       bash -euo pipefail -c '
         base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
         : "${ACCESSFLOW_API_KEY:?}"; : "${AF_NAME:?}"; : "${AF_DB_TYPE:?}"
+        secs() { case "$1" in *h) n="${1%h}"; m=3600;; *m) n="${1%m}"; m=60;; *s) n="${1%s}"; m=1;; *) n="$1"; m=1;; esac
+                 case "$n" in ""|*[!0-9]*) echo "invalid duration ${1} (use 90, 45s, 30m or 2h)" >&2; exit 1;; esac; echo $(( n * m )); }
+        hdr=(-H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true")
         body=$(jq -n --arg name "$AF_NAME" --arg db_type "$AF_DB_TYPE" --arg ssl "${AF_SSL_MODE:-DISABLE}" \
           "{name:\$name, db_type:\$db_type, ssl_mode:\$ssl}")
         add() { [ -n "${2:-}" ] && body=$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body") || true; }
@@ -47,13 +51,30 @@
         add username "${AF_USERNAME:-}"; add password "${AF_PASSWORD:-}"
         add review_plan_id "${AF_REVIEW_PLAN_ID:-}"; add ai_config_id "${AF_AI_CONFIG_ID:-}"
         addn ai_analysis_enabled "${AF_AI_ANALYSIS_ENABLED:-}"; addn text_to_sql_enabled "${AF_TEXT_TO_SQL_ENABLED:-}"
-        existing=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/datasources?size=100")
+        # req METHOD URL [BODY] prints the response body. A rate-limited call (HTTP 429, every API
+        # key is capped per identity) is retried honouring Retry-After (5s fallback) until
+        # AF_RETRY_TIMEOUT elapses; any other >=400 fails the job with the ProblemDetail shown.
+        hf=$(mktemp); trap "rm -f $hf" EXIT; end=$(( $(date +%s) + $(secs "${AF_RETRY_TIMEOUT:-2m}") ))
+        req() { while :; do
+                  if [ -n "${3:-}" ]; then r=$(curl -sS -X "$1" -D "$hf" -w "\n%{http_code}" "${hdr[@]}" -H "Content-Type: application/json" -d "$3" "$2")
+                  else r=$(curl -sS -X "$1" -D "$hf" -w "\n%{http_code}" "${hdr[@]}" "$2"); fi
+                  c=$(tail -n1 <<<"$r"); b=$(sed "\$d" <<<"$r")
+                  if [ "$c" = "429" ] && [ "$(date +%s)" -lt "$end" ]; then
+                    d=$(sed -n "s/^[Rr]etry-[Aa]fter:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p" "$hf" | tail -n1); d="${d:-5}"
+                    rem=$(( end - $(date +%s) )); [ "$d" -gt "$rem" ] && d=$(( rem > 0 ? rem : 0 ))
+                    echo "  rate limited (HTTP 429), retrying $1 in ${d}s…" >&2; sleep "$d"; continue
+                  fi
+                  [ "$c" -lt 400 ] || { echo "$1 $2 failed HTTP $c: $b" >&2; return 1; }
+                  printf "%s" "$b"; return 0
+                done; }
+        existing=$(req GET "$base/datasources?size=100")
         id=$(jq -r --arg n "$AF_NAME" "first(((.content // .)[]? | select(.name==\$n) | .id)) // empty" <<<"$existing")
         if [ -n "$id" ]; then
-          curl -fsS -X PUT -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -d "$body" "$base/datasources/$id" >/dev/null
+          req PUT "$base/datasources/$id" "$body" >/dev/null
         else
-          id=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -d "$body" "$base/datasources" | jq -r ".id")
+          id=$(req POST "$base/datasources" "$body" | jq -r ".id")
         fi
+        [ -n "$id" ] && [ "$id" != "null" ] || { echo "failed to resolve datasource id"; exit 1; }
         echo "Datasource $AF_NAME provisioned: $id"
       '
 
@@ -67,14 +88,32 @@
       bash -euo pipefail -c '
         base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
         : "${ACCESSFLOW_API_KEY:?}"; : "${AF_DATASOURCE_ID:?}"; : "${AF_SQL:?}"
+        hdr=(-H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true")
         body=$(jq -n --arg ds "$AF_DATASOURCE_ID" --arg sql "$AF_SQL" --arg j "${AF_JUSTIFICATION:-}" \
           "{datasource_id:\$ds, sql:\$sql} + (if \$j == \"\" then {} else {justification:\$j} end)")
-        qid=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -H "X-AccessFlow-CI: true" -d "$body" "$base/queries" | jq -r ".id")
+        # req METHOD URL [BODY] prints the response body. Submission, polls and the execute call
+        # share the AF_TIMEOUT_SECONDS budget: a rate-limited call (HTTP 429, every API key is
+        # capped per identity) is retried honouring Retry-After (the poll interval as fallback)
+        # until it elapses; any other >=400 fails the job with the ProblemDetail shown.
+        hf=$(mktemp); trap "rm -f $hf" EXIT; end=$(( $(date +%s) + AF_TIMEOUT_SECONDS ))
+        req() { while :; do
+                  if [ -n "${3:-}" ]; then r=$(curl -sS -X "$1" -D "$hf" -w "\n%{http_code}" "${hdr[@]}" -H "Content-Type: application/json" -d "$3" "$2")
+                  else r=$(curl -sS -X "$1" -D "$hf" -w "\n%{http_code}" "${hdr[@]}" "$2"); fi
+                  c=$(tail -n1 <<<"$r"); b=$(sed "\$d" <<<"$r")
+                  if [ "$c" = "429" ] && [ "$(date +%s)" -lt "$end" ]; then
+                    d=$(sed -n "s/^[Rr]etry-[Aa]fter:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p" "$hf" | tail -n1); d="${d:-$AF_POLL_INTERVAL_SECONDS}"
+                    rem=$(( end - $(date +%s) )); [ "$d" -gt "$rem" ] && d=$(( rem > 0 ? rem : 0 ))
+                    echo "  rate limited (HTTP 429), retrying $1 in ${d}s…" >&2; sleep "$d"; continue
+                  fi
+                  [ "$c" -lt 400 ] || { echo "$1 $2 failed HTTP $c: $b" >&2; return 1; }
+                  printf "%s" "$b"; return 0
+                done; }
+        qid=$(req POST "$base/queries" "$body" | jq -r ".id")
         [ -n "$qid" ] && [ "$qid" != "null" ] || { echo "submission failed"; exit 1; }
         echo "Submitted query $qid"
-        end=$(( $(date +%s) + AF_TIMEOUT_SECONDS )); triggered=0
+        triggered=0
         while [ "$(date +%s)" -lt "$end" ]; do
-          st=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid" | jq -r ".status")
+          st=$(req GET "$base/queries/$qid" | jq -r ".status")
           case "$st" in
             EXECUTED) echo "Query $qid executed"; exit 0 ;;
             APPROVED)
@@ -82,7 +121,7 @@
               # (non-scheduled) queries, then read the synchronous result.
               if [ "$triggered" = "0" ]; then
                 triggered=1
-                est=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid/execute" | jq -r ".status")
+                est=$(req POST "$base/queries/$qid/execute" | jq -r ".status")
                 [ "$est" = "EXECUTED" ] && { echo "Query $qid executed"; exit 0; } || { echo "Query $qid execution ended: $est"; exit 1; }
               fi
               echo "  status=$st"; sleep "$AF_POLL_INTERVAL_SECONDS" ;;
