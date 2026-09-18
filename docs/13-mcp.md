@@ -50,8 +50,9 @@ profile list shows the key's `expires_at` and marks the row **Expired** once tha
 rotates and revokes its keys on its behalf under `/api/v1/admin/service-accounts/{id}/api-keys`.
 Rotation issues the replacement and lets the old key keep working for a grace window
 (`ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE`, default 24 h), so a running agent is never cut off
-mid-session; the account's `mcp_tool_allow_list` is stored here and *will* narrow which of the tools
-below it may call once #872 lands the per-invocation enforcement (nothing reads it yet). Keys declared in bootstrap YAML cannot be revoked or rotated from
+mid-session. The account's `mcp_tool_allow_list` limits which of the tools below its key may
+call: `NULL` allows every tool, `[]` none. It is enforced on every `tools/call` since #872 — see
+[§4](#4-limits-errors-and-audit). Keys declared in bootstrap YAML cannot be revoked or rotated from
 either surface — rotate the secret at the source and restart. Full contract:
 [04-api-spec.md → Service Accounts](04-api-spec.md#service-accounts-adminservice-accounts-service_account_manage-871).
 
@@ -110,10 +111,13 @@ claude mcp add accessflow --transport http \
 curl -s -X POST https://accessflow.example.com/mcp \
   -H "X-API-Key: af_…" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
 ```
 
-You should see all twelve tools listed.
+You should see all twelve tools listed — for every key, including a service account whose
+allow-list excludes most of them (see §4). The stateless transport answers `400` unless `Accept`
+names both `application/json` and `text/event-stream`; real MCP clients send both.
 
 ---
 
@@ -166,8 +170,23 @@ You should see all twelve tools listed.
   - `validate_sql` only parses; it never executes or runs AI analysis. It needs the datasource to be
     visible to the caller (to pick the engine dialect) and reuses the schema introspection the caller
     is already permitted to read for its best-effort mismatch check.
+- **Tool allow-list (#872).** A service account's `mcp_tool_allow_list` (set from
+  `/admin/service-accounts`, #871) decides which tools its key may *invoke*. It is enforced at
+  invocation by a decorator around every registered tool — `GuardedToolCallback` consults
+  `ServiceAccountToolPolicyService` on the request thread before the tool body runs, so no tool
+  (including one added later) can be reached past it. Decision order: a name outside the twelve-tool
+  catalog is denied for everyone; a person (no service-account row) and a service account with a
+  `NULL` list are allowed every tool; `[]` allows none; otherwise the tool must be listed. The
+  usual permission checks then still run inside the tool — the allow-list can only *narrow* what
+  the account's role and grants already permit, never widen it.
+  **`tools/list` still advertises all twelve tools to every caller.** The stateless server's list
+  handler cannot see who is asking, so the allow-list is an enforcement boundary, not a discovery
+  filter: an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
+  and, if it tries it, gets the structured `permission_denied` below without the service ever being
+  invoked. The server `instructions` tell the model to report such a denial rather than retry it.
 - **Errors:** tools return a structured `{ code, message }` rather than raw exceptions. Codes:
-  - `permission_denied` — caller is not allowed.
+  - `permission_denied` — caller is not allowed; also returned when the tool is outside the
+    caller's allow-list (the message names the tool).
   - `not_found` — unknown id, or the resource is in a different org.
   - `invalid_state` — wrong status, wrong query type, etc.
   - `validation_failed` — SQL parse or argument validation.

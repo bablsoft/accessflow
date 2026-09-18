@@ -3412,7 +3412,7 @@ This split is what lets an existing install adopt the feature without editing a 
 }
 ```
 
-`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here, *enforced at MCP invocation by #872* (nothing reads it yet). `rate_limit_*` are `null` for unlimited — *enforced by #873*. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
+`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` for unlimited — *enforced by #873*. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
 
 #### GET /admin/service-accounts — Query Parameters
 
