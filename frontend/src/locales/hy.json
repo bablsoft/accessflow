@@ -33,7 +33,10 @@
     "yes": "Այո",
     "no": "Ոչ",
     "view_docs": "Դիտել փաստաթղթերը",
-    "view_docs_aria": "Դիտել փաստաթղթերը (բացվում է նոր ներդիրում)"
+    "view_docs_aria": "Դիտել փաստաթղթերը (բացվում է նոր ներդիրում)",
+    "on_behalf_of": "{{name}}-ի անունից",
+    "on_behalf_of_tooltip": "API բանալիով զանգողը գործել է այս անձի անունից (X-AccessFlow-On-Behalf-Of)։ Նշված անձը ինքնահաստատման արգելքի համար համարվում է ներկայացնող։",
+    "principal_service_account_tooltip": "Ոչ մարդկային ինքնություն. նույնականանում է միայն API բանալիով և երբեք չի կարող ինտերակտիվ մուտք գործել։"
   },
   "nav": {
     "editor": "SQL խմբագիր",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Տեղակայման փիփլայններ",
     "help_agent": "Օգնության օգնական",
     "governance_domains": "Կառավարման ոլորտներ",
-    "sql_review": "SQL ստուգում"
+    "sql_review": "SQL ստուգում",
+    "service_accounts": "Ծառայողական հաշիվներ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "Այդ միջավայրին արդեն կապված է այլ կանոնակարգ։",
     "sql_review_ruleset_default_conflict": "Կազմակերպությունն արդեն ունի լռելյայն կանոնակարգ։",
     "sql_review_ruleset_invalid": "Կանոնակարգի կարգավորումն անվավեր է։",
-    "sql_review_ruleset_generic": "Չհաջողվեց պահպանել SQL ստուգման կանոնակարգը։"
+    "sql_review_ruleset_generic": "Չհաջողվեց պահպանել SQL ստուգման կանոնակարգը։",
+    "service_account_generic": "Ծառայողական հաշվի գործողությունը ձախողվեց։",
+    "service_account_not_found": "Ծառայողական հաշիվը չի գտնվել։",
+    "service_account_key_not_found": "API բանալին չի գտնվել։",
+    "service_account_key_bootstrap_declared": "Այս բանալին հայտարարված է bootstrap կազմաձևում և այստեղ չի կարող չեղարկվել կամ փոխարինվել. փոխարենը հեռացրեք այն bootstrap հատկորոշումից։",
+    "service_account_key_revoked": "Այս բանալին արդեն չեղարկված է և չի կարող փոխարինվել։",
+    "service_account_key_name_conflict": "Հաշիվն արդեն ունի այդ անունով ակտիվ բանալի։",
+    "service_account_owner_invalid": "Սեփականատերը պետք է լինի այս կազմակերպության ակտիվ անձ։",
+    "service_account_bootstrap_managed": "«{{field}}» դաշտը հայտարարված է bootstrap կազմաձևում և կարող է փոխվել միայն այնտեղ։",
+    "service_account_unknown_mcp_tool": "Անհայտ MCP գործիք՝ {{tool}}։",
+    "service_account_email_exists": "Այդ էլ. հասցեով օգտվող արդեն կա։",
+    "service_account_delegation_not_found": "Պատվիրակումը չի գտնվել։",
+    "service_account_delegation_exists": "Այս անձն արդեն թույլատրում է հաշվին գործել իր անունից։",
+    "service_account_delegation_principal_invalid": "Պրինցիպալը պետք է լինի այս կազմակերպության ակտիվ անձ։",
+    "service_account_delegation_invalid": "Պատվիրակման թիրախը պետք է լինի ակտիվ ծառայողական հաշիվ։"
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "Բանալի",
       "attribute_value": "Արժեք",
       "attribute_add": "Ավելացնել հատկանիշ",
-      "attribute_remove": "Հեռացնել հատկանիշ"
+      "attribute_remove": "Հեռացնել հատկանիշ",
+      "filter_all_principals": "Անձինք և ծառայողական հաշիվներ",
+      "filter_principal_humans": "Միայն անձինք",
+      "filter_principal_service_accounts": "Միայն ծառայողական հաշիվներ",
+      "service_account_hint": "Կառավարեք այս ինքնությունը Ծառայողական հաշիվներ բաժնից։"
     },
     "audit": {
       "title": "Աուդիտի մատյան",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "Առաջին սխալ տողը {{rowId}} — {{reason}}",
       "export_csv": "Արտահանել CSV",
       "export_failed": "Չհաջողվեց արտահանել աուդիտի մատյանը։ Փորձեք նորից։",
-      "export_truncated": "Արտահանումը կտրված է 50 000 տողի սահմանում։ Կիրառեք ավելի նեղ զտիչներ՝ ամբողջ արդյունքը ստանալու համար։"
+      "export_truncated": "Արտահանումը կտրված է 50 000 տողի սահմանում։ Կիրառեք ավելի նեղ զտիչներ՝ ամբողջ արդյունքը ստանալու համար։",
+      "filter_on_behalf_of_placeholder": "Անունից (օգտվողի ID)",
+      "on_behalf_of_label": "Անունից",
+      "via_service_account": "ծառայողական հաշվի միջոցով"
     },
     "ai_analyses": {
       "title": "AI վերլուծություններ",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Ծառայողական հաշիվ"
     },
     "datasource_health": {
       "title": "Տվյալների աղբյուրների վիճակ",
@@ -2505,6 +2531,191 @@
       "param_placeholder_defaults": "Լռելյայն՝ {{values}}",
       "param_required": "Այս կանոնը պահելիս պահանջվում է առնվազն մեկ արժեք։",
       "param_invalid": "«{{value}}»-ը թույլատրելի արժեք չէ։"
+    },
+    "service_accounts": {
+      "title": "Ծառայողական հաշիվներ",
+      "subtitle": "Ոչ մարդկային ինքնություններ, որոնք նույնականանում են API բանալիներով՝ CI փողրակներ, ԱԲ գործակալներ, ինտեգրումներ։",
+      "create": "Ստեղծել ծառայողական հաշիվ",
+      "load_error": "Չհաջողվեց բեռնել ծառայողական հաշիվները",
+      "empty_title": "Դեռ ծառայողական հաշիվներ չկան",
+      "empty_description": "Ստեղծեք մեկը փողրակի կամ գործակալի համար, ապա տրամադրեք նրան API բանալի։",
+      "filter_all_sources": "Կառավարվող ցանկացած տեղից",
+      "col_name": "Անուն",
+      "col_email": "Էլ. հասցե",
+      "col_role": "Դեր",
+      "col_owner": "Սեփականատեր",
+      "col_status": "Կարգավիճակ",
+      "col_managed_by": "Կառավարվում է",
+      "col_keys": "Ակտիվ բանալիներ",
+      "col_last_used": "Վերջին օգտագործում",
+      "col_tools": "MCP գործիքներ",
+      "col_rate_limit": "Հաճախականության սահման",
+      "status_active": "Ակտիվ",
+      "status_inactive": "Ոչ ակտիվ",
+      "tools_all": "Բոլոր գործիքները",
+      "tools_count": "{{allowed}} / {{total}} գործիք",
+      "tools_none": "Գործիքներ չկան",
+      "no_owner": "—",
+      "rate_limit_default": "Տեղակայման լռելյայն",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/րոպե",
+      "rate_per_day": "{{count}}/օր",
+      "never_used": "Երբեք",
+      "managed_by_tooltip": {
+        "UI": "Ստեղծված և կառավարվող այս ադմինիստրատորի էջից։",
+        "BOOTSTRAP": "Հայտարարված է bootstrap կազմաձևում (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*)։ Էլ. հասցեն, ցուցադրվող անունը, դերը և հայտարարված բանալին փոխվում են միայն այնտեղ։"
+      },
+      "validation": {
+        "required": "Այս դաշտը պարտադիր է։",
+        "max_length": "Պետք է լինի առավելագույնը {{max}} նիշ։",
+        "positive_integer": "Պետք է լինի զրոյից մեծ ամբողջ թիվ։"
+      },
+      "create_modal": {
+        "title": "Ստեղծել ծառայողական հաշիվ",
+        "label_email": "Էլ. հասցե",
+        "email_help": "Միայն նույնացուցիչ. ծառայողական հաշիվը երբեք նամակ չի ստանում և մուտք չի գործում։",
+        "label_display_name": "Ցուցադրվող անուն",
+        "label_role": "Դեր",
+        "role_help": "Լռելյայն՝ Միայն ընթերցում։ Դերը որոշում է, թե ինչ կարող են անել հաշվի բանալիները։",
+        "label_owner": "Սեփականատեր",
+        "owner_help": "Այս հաշվի համար պատասխանատու անձը։ Ոչինչ չի տալիս. ցուցադրվում է վերանայողներին։",
+        "owner_placeholder": "Սեփականատեր չկա",
+        "label_description": "Նկարագրություն",
+        "label_rate_limit_per_minute": "Հարցումներ րոպեում",
+        "label_rate_limit_per_day": "Հարցումներ օրում",
+        "rate_limit_help": "Թողեք դատարկ՝ տեղակայման լռելյայնը ժառանգելու համար։",
+        "submit": "Ստեղծել",
+        "success": "Ծառայողական հաշիվը ստեղծվեց"
+      },
+      "review_role_warning": "Այս դերը կարող է հաստատել հայտեր։ Այն ունեցող ծառայողական հաշիվը դառնում է իրավասու հաստատող. գործակալը կարող է հաստատել այն, ինչ ներկայացրել է մեկ այլ գործակալ։",
+      "settings": {
+        "back": "Վերադառնալ ծառայողական հաշիվներ",
+        "load_error": "Չհաջողվեց բեռնել ծառայողական հաշիվը",
+        "not_found": "Ծառայողական հաշիվը չի գտնվել",
+        "bootstrap_banner_title": "Կառավարվում է bootstrap կազմաձևով",
+        "bootstrap_banner_body": "Այս հաշիվը հայտարարված է ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY}-ով։ Էլ. հասցեն, ցուցադրվող անունը, դերը և հայտարարված բանալին այստեղ միայն ընթերցվող են և փոխվում են միայն այդ կազմաձևում. մնացած ամեն ինչ խմբագրելի է։",
+        "tab_overview": "Ընդհանուր",
+        "tab_keys": "API բանալիներ",
+        "tab_tools": "MCP գործիքներ",
+        "tab_limits": "Սահմաններ",
+        "tab_principals": "Անունից գործող պրինցիպալներ",
+        "tab_activity": "Գործունեություն",
+        "deactivate": "Ապաակտիվացնել",
+        "deactivate_confirm_title": "Ապաակտիվացնե՞լ այս ծառայողական հաշիվը։",
+        "deactivate_confirm_body": "Նրա բանալիներն անմիջապես դադարում են նույնականացնել։ Ոչինչ չի չեղարկվում, և վերաակտիվացումը վերականգնում է դրանք։",
+        "deactivate_success": "Ծառայողական հաշիվն ապաակտիվացվեց",
+        "unknown_tab": "Անհայտ ներդիր"
+      },
+      "overview": {
+        "label_email": "Էլ. հասցե",
+        "label_display_name": "Ցուցադրվող անուն",
+        "label_role": "Դեր",
+        "label_owner": "Սեփականատեր",
+        "label_description": "Նկարագրություն",
+        "label_active": "Ակտիվ",
+        "active_help": "Ոչ ակտիվ հաշիվը պահում է իր բանալիները, բայց դրանցից ոչ մեկը չի նույնականացնում։",
+        "bootstrap_readonly": "Հայտարարված է bootstrap կազմաձևում",
+        "owner_placeholder": "Սեփականատեր չկա",
+        "save": "Պահպանել փոփոխությունները",
+        "success": "Ծառայողական հաշիվը թարմացվեց",
+        "nothing_changed": "Պահպանելու բան չկա",
+        "label_created": "Ստեղծվել է",
+        "label_updated": "Թարմացվել է",
+        "label_last_used": "Վերջին օգտագործում"
+      },
+      "keys": {
+        "description": "Բանալիները հաշվի միակ հավատարմագիրն են։ Փոխարինեք, այլ ոչ թե չեղարկեք, երբ սպառողը պետք է շարունակի աշխատել. հին բանալին վավեր է մնում սահմանափակ արտոնյալ ժամկետով։",
+        "issue": "Տրամադրել բանալի",
+        "issue_title": "Տրամադրել API բանալի",
+        "rotate": "Փոխարինել",
+        "rotate_title": "Փոխարինել «{{name}}» API բանալին",
+        "rotate_help": "Տրամադրում է փոխարինող և արտոնյալ ժամկետից հետո ժամկետանց դարձնում այս բանալին։ Մինչ այդ երկու բանալիներն էլ նույնականացնում են. մինչև ավարտը թարմացրեք սպառողին։",
+        "label_grace_hours": "Արտոնյալ ժամկետ (ժամ)",
+        "grace_default_help": "Թողեք դատարկ՝ տեղակայման լռելյայն {{hours}} ժամի համար։",
+        "name_label": "Բանալու անուն",
+        "name_placeholder": "օր.՝ github-actions",
+        "expires_at_label": "Ժամկետ",
+        "expires_at_placeholder": "Երբեք չի ժամկետանցում",
+        "expires_at_help": "Ընտրովի։ Թողեք դատարկ, և բանալին երբեք չի ժամկետանցի. այն կարող եք դեռ չեղարկել։",
+        "issued_title": "Պատճենեք նոր API բանալին",
+        "rotated_title": "Պատճենեք փոխարինող API բանալին",
+        "raw_key_label": "Բանալի",
+        "copy_once_warning": "Բանալին ցուցադրվում է միայն այս անգամ։ Պատճենեք այն հիմա և պահեք ապահով տեղում. այն այլևս հնարավոր չի լինի ստանալ։",
+        "superseded_until": "Նախորդ {{prefix}}… բանալին աշխատում է մինչև {{until}}։",
+        "superseded_until_unknown": "Նախորդ {{prefix}}… բանալին աշխատում է մինչև արտոնյալ ժամկետի ավարտը։",
+        "revoke": "Չեղարկել",
+        "revoke_confirm": "Չեղարկե՞լ «{{name}}» API բանալին։ Այն օգտագործող հաճախորդներն անմիջապես կկորցնեն մուտքը։",
+        "revoked": "API բանալին չեղարկվեց",
+        "issued": "API բանալին տրամադրվեց",
+        "rotated": "API բանալին փոխարինվեց",
+        "bootstrap_declared": "Հայտարարված",
+        "bootstrap_declared_tooltip": "Հայտարարված է bootstrap կազմաձևում։ Այստեղ չի կարող չեղարկվել կամ փոխարինվել. հաջորդ bootstrap գործարկումը կվերաներմուծի այն և կվերակենդանացնի չեղարկված բանալին։ Հեռացնելու համար կազմաձևից ջնջեք ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY-ը։",
+        "empty": "Դեռ API բանալիներ չկան։",
+        "col_name": "Անուն",
+        "col_prefix": "Նախածանց",
+        "col_created": "Ստեղծվել է",
+        "col_last_used": "Վերջին օգտագործում",
+        "col_expires": "Ժամկետ",
+        "col_status": "Կարգավիճակ",
+        "col_actions": "Գործողություններ",
+        "status_active": "Ակտիվ",
+        "status_revoked": "Չեղարկված",
+        "status_expired": "Ժամկետանց",
+        "rotate_name_help": "Նախորդ բանալին պահում է իր անունը արտոնյալ ժամկետի ընթացքում, ուստի փոխարինողին այլ անուն է պետք։"
+      },
+      "tools": {
+        "description": "Որ MCP գործիքները կարող են կանչել այս հաշվի բանալիները։",
+        "mode_all": "Բոլոր գործիքները",
+        "mode_restricted": "Միայն ընտրված գործիքները",
+        "enforcement_note": "MCP սերվերի tools/list-ը այս հաշվին դեռ հայտարարում է բոլոր գործիքները։ Թույլատրված ցանկից դուրս գործիքի կանչը մերժվում է կանչի պահին permission_denied-ով. ցանկը կիրարկման սահման է, ոչ թե հայտնաբերման զտիչ։",
+        "none_selected_warning": "Գործիք ընտրված չէ. այս հաշվի յուրաքանչյուր MCP կանչ մերժվում է։",
+        "save": "Պահպանել ցանկը",
+        "success": "MCP գործիքների թույլատրված ցանկը թարմացվեց",
+        "catalog_error": "Չհաջողվեց բեռնել գործիքների կատալոգը",
+        "mode_label": "Թույլատրված գործիքներ",
+        "tools_label": "Գործիքներ"
+      },
+      "limits": {
+        "description": "Հարցումներ ֆիքսված պատուհանում այս հաշվի բոլոր API բանալիով կանչերի համար (MCP և REST)։ Դատարկը ժառանգում է տեղակայման լռելյայնը. տեղակայման մակարդակում 0-ն նշանակում է անսահմանափակ։",
+        "label_per_minute": "Հարցումներ րոպեում",
+        "label_per_day": "Հարցումներ օրում",
+        "placeholder_default": "Տեղակայման լռելյայն",
+        "save": "Պահպանել սահմանները",
+        "success": "Հաճախականության սահմանները թարմացվեցին"
+      },
+      "principals": {
+        "description": "Անձինք, ովքեր համաձայնում են, որ այս հաշիվը նշի իրենց X-AccessFlow-On-Behalf-Of-ի միջոցով։ Պատվիրակումը թույլտվություն չի տալիս. հաշվի սեփական բանալին է որոշում, թե ինչ կարող է անել, և նշված անձն ինքնահաստատման արգելքի համար համարվում է ներկայացնող։",
+        "grant": "Ավելացնել պրինցիպալ",
+        "grant_title": "Թույլատրել հաշվին գործել անունից",
+        "label_principal": "Անձ",
+        "principal_placeholder": "Ընտրեք անձ",
+        "label_expires_at": "Ժամկետ",
+        "expires_at_placeholder": "Երբեք չի ժամկետանցում",
+        "submit": "Ավելացնել",
+        "success": "Պրինցիպալն ավելացվեց",
+        "revoke": "Չեղարկել",
+        "revoke_confirm": "Չեղարկե՞լ այս պատվիրակումը։ {{email}}-ը նշող հայտերը կմերժվեն։",
+        "revoked": "Պատվիրակումը չեղարկվեց",
+        "empty": "Ոչ ոք չի պատվիրակել այս հաշվին։",
+        "col_principal": "Անձ",
+        "col_granted_by": "Տրամադրել է",
+        "col_created": "Տրամադրվել է",
+        "col_expires": "Ժամկետ",
+        "col_status": "Կարգավիճակ",
+        "col_actions": "Գործողություններ",
+        "granted_self": "Ինքնասպասարկում",
+        "granted_admin": "Ադմին"
+      },
+      "activity": {
+        "description": "Աուդիտի տողեր, որտեղ այս հաշիվը գործողն է։",
+        "open_full": "Բացել աուդիտի մատյանում",
+        "empty": "Դեռ գործունեություն գրանցված չէ։",
+        "load_error": "Չհաջողվեց բեռնել գործունեությունը",
+        "col_when": "Երբ",
+        "col_action": "Գործողություն",
+        "col_resource": "Ռեսուրս",
+        "col_on_behalf_of": "Անունից"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3485,33 @@
       "TEST": "Թեստ",
       "STAGING": "Նախաարտադրական",
       "PRODUCTION": "Արտադրական"
+    },
+    "principal_type": {
+      "HUMAN": "Անձ",
+      "SERVICE_ACCOUNT": "Ծառայողական հաշիվ"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Ակտիվ",
+      "EXPIRED": "Ժամկետանց",
+      "REVOKED": "Չեղարկված"
+    },
+    "mcp_tool": {
+      "list_datasources": "Ցուցակել տվյալների աղբյուրները, որոնք զանգողը կարող է հարցնել",
+      "get_datasource_schema": "Կարդալ տվյալների աղբյուրի սխեման",
+      "list_my_queries": "Ցուցակել զանգողի սեփական հարցման հայտերը",
+      "get_query_status": "Կարդալ հարցման հայտի կարգավիճակը",
+      "get_query_result": "Ստանալ կատարված հարցման արդյունքը",
+      "submit_query": "Ներկայացնել հարցումը վերանայման",
+      "cancel_query": "Չեղարկել սպասող հարցումը",
+      "list_pending_reviews": "Ցուցակել զանգողին սպասող վերանայումները",
+      "review_query": "Հաստատել կամ մերժել հարցումը",
+      "validate_sql": "Վերլուծել և վավերացնել SQL-ը առանց ներկայացնելու",
+      "get_column_samples": "Նմուշառել սյունակի արժեքներ տվյալների աղբյուրից",
+      "get_audit_log": "Կարդալ աուդիտի մատյանը"
     }
   },
   "access": {
@@ -3750,7 +3988,9 @@
         "row_status_forbidden": "Չթույլատրված",
         "row_status_invalid_state": "Այլևս բաց չէ",
         "row_status_not_found": "Չի գտնվել"
-      }
+      },
+      "owned_by": "Սեփականատեր՝ {{name}}",
+      "no_owner": "Սեփականատեր նշանակված չէ"
     },
     "usage": {
       "no_data": "Օգտագործման տվյալներ չկան",

@@ -106,9 +106,8 @@ class PrivilegedAccessController {
 
     /**
      * A misspelled {@code kind} or a non-UUID {@code user_id} is a client error, not a server one.
-     * Nothing maps {@code MethodArgumentTypeMismatchException} globally, so without this the
-     * security module's {@code Exception} catch-all turns it into a 500 (same local handler as the
-     * over-provisioned report).
+     * The global handler (#875) already answers a generic {@code 400 VALIDATION_ERROR}; this local
+     * one wins over it to name the offending parameter (same as the over-provisioned report).
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ProblemDetail handleBadParameter(MethodArgumentTypeMismatchException ex) {

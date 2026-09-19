@@ -25,6 +25,8 @@ public record ServiceAccountAdminView(
         ServiceAccountSource managedBy,
         String description,
         UUID ownerUserId,
+        String ownerEmail,
+        String ownerDisplayName,
         List<String> mcpToolAllowList,
         Integer rateLimitPerMinute,
         Integer rateLimitPerDay,

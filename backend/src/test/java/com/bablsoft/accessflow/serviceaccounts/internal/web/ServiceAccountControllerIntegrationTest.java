@@ -123,12 +123,15 @@ class ServiceAccountControllerIntegrationTest {
         assertThat(get).hasStatus(200);
         assertThat(get).bodyJson().extractingPath("$.email").asString().isEqualTo(email);
         assertThat(get).bodyJson().extractingPath("$.owner_user_id").asString().isEqualTo(admin.getId().toString());
+        assertThat(get).bodyJson().extractingPath("$.owner_email").asString().isEqualTo(admin.getEmail());
+        assertThat(get).bodyJson().extractingPath("$.owner_display_name").asString().isEqualTo(admin.getDisplayName());
         assertThat(get).bodyJson().extractingPath("$.api_keys").asArray().isEmpty();
 
         var list = mvc.get().uri(BASE + "?managed_by=UI").header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .exchange();
         assertThat(list).hasStatus(200);
         assertThat(list).bodyJson().extractingPath("$.content[0].id").asString().isEqualTo(id.toString());
+        assertThat(list).bodyJson().extractingPath("$.content[0].owner_email").asString().isEqualTo(admin.getEmail());
         assertThat(list).bodyJson().extractingPath("$.content[0].api_keys").asArray().isEmpty();
         var filtered = mvc.get().uri(BASE + "?managed_by=BOOTSTRAP")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
@@ -147,6 +150,7 @@ class ServiceAccountControllerIntegrationTest {
         assertThat(update).bodyJson().extractingPath("$.mcp_tool_allow_list").asArray().isEmpty();
         assertThat(update).bodyJson().extractingPath("$.rate_limit_per_day").asNumber().isEqualTo(500);
         assertThat(update).bodyJson().doesNotHavePath("$.owner_user_id");
+        assertThat(update).bodyJson().doesNotHavePath("$.owner_email");
         // Omitted = unchanged.
         assertThat(update).bodyJson().extractingPath("$.description").asString().isEqualTo("reports");
         assertThat(update).bodyJson().extractingPath("$.rate_limit_per_minute").asNumber().isEqualTo(60);
@@ -217,6 +221,17 @@ class ServiceAccountControllerIntegrationTest {
         assertThat(human).bodyJson().extractingPath("$.error").asString().isEqualTo("SERVICE_ACCOUNT_NOT_FOUND");
         assertThat(mvc.get().uri(BASE + "/" + UUID.randomUUID())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange()).hasStatus(404);
+    }
+
+    @Test
+    void mcpToolCatalogIsServedAheadOfTheIdRoute() {
+        var catalog = mvc.get().uri(BASE + "/mcp-tools")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
+        assertThat(catalog).hasStatus(200);
+        assertThat(catalog).bodyJson().extractingPath("$.tools").asArray()
+                .hasSize(12).contains("list_datasources", "submit_query", "validate_sql");
+        assertThat(mvc.get().uri(BASE + "/mcp-tools")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken).exchange()).hasStatus(403);
     }
 
     // ---- bootstrap coexistence --------------------------------------------------------------

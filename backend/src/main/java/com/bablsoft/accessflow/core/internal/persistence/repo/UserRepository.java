@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.repo;
 
 import com.bablsoft.accessflow.core.api.Permission;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,9 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     List<UserEntity> findAllByOrganization_Id(UUID organizationId);
 
     Page<UserEntity> findAllByOrganization_Id(UUID organizationId, Pageable pageable);
+
+    Page<UserEntity> findAllByOrganization_IdAndPrincipalType(
+            UUID organizationId, PrincipalType principalType, Pageable pageable);
 
     List<UserEntity> findAllByOrganization_IdAndRole(UUID organizationId, UserRoleType role);
 

@@ -108,6 +108,7 @@ const users: UserPage = {
       id: 'u-2',
       email: 'bob@example.com',
       display_name: 'Bob',
+      principal_type: 'SERVICE_ACCOUNT',
       role: 'ANALYST',
       role_id: null,
       role_name: 'ANALYST',
@@ -223,11 +224,21 @@ describe('PipelinePermissionsTab', () => {
         [...document.querySelectorAll('.ant-select-item-option-content')].length,
       ).toBeGreaterThan(0),
     );
-    const optionTexts = [...document.querySelectorAll('.ant-select-item-option-content')].map(
-      (o) => o.textContent,
+    // The rendered option carries the service-account badge (#875); the title is the bare label.
+    const optionTexts = [...document.querySelectorAll('.ant-select-item-option')].map((o) =>
+      o.getAttribute('title'),
     );
     expect(optionTexts).toContain('Bob (bob@example.com)');
     expect(optionTexts).not.toContain('Alice (alice@example.com)');
+  });
+
+  it('badges a service account in the user selector (#875)', async () => {
+    render(wrap(<PipelinePermissionsTab pipelineId="pipe-1" />));
+    await screen.findByText('Alice (alice@example.com)');
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'User' }));
+    const option = await screen.findByTitle('Bob (bob@example.com)');
+    expect(within(option).getByTestId('principal-type-tag')).toHaveTextContent('Service account');
   });
 
   it('switches the grant target to Group and grants through the group endpoint', async () => {

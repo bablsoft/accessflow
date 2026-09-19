@@ -90,12 +90,20 @@ class AttestationReviewControllerIntegrationTest {
     @Test
     void listItemsReturns200ForReviewer() {
         when(reviewService.listPendingForReviewer(any(), any()))
-                .thenReturn(new PageResponse<>(List.of(itemView()), 0, 20, 1, 1));
+                .thenReturn(new PageResponse<>(List.of(itemView().withSubject(
+                        com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT,
+                        "owner@example.com", "Owner")), 0, 20, 1, 1));
         var res = mvc.get().uri("/api/v1/reviews/attestations/items")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken).exchange();
         assertThat(res).hasStatus(200);
         assertThat(res).bodyJson().extractingPath("$.content[0].subject_user_email").asString()
                 .isEqualTo("subject@example.com");
+        assertThat(res).bodyJson().extractingPath("$.content[0].subject_principal_type").asString()
+                .isEqualTo("SERVICE_ACCOUNT");
+        assertThat(res).bodyJson().extractingPath("$.content[0].subject_owner_email").asString()
+                .isEqualTo("owner@example.com");
+        assertThat(res).bodyJson().extractingPath("$.content[0].subject_owner_display_name").asString()
+                .isEqualTo("Owner");
     }
 
     @Test

@@ -58,6 +58,7 @@ import type {
   RowSecurityValueType,
   User,
 } from '@/types/api';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 const BUILT_IN_VARIABLES = [':user.id', ':user.email', ':user.role', ':user.groups'];
 
@@ -322,7 +323,11 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
     () =>
       (usersQuery.data?.content ?? [])
         .filter((u: User) => u.active)
-        .map((u: User) => ({ value: u.id, label: userDisplay(u.display_name, u.email) })),
+        .map((u: User) => ({
+          value: u.id,
+          label: userDisplay(u.display_name, u.email),
+          principal_type: u.principal_type ?? 'HUMAN',
+        })),
     [usersQuery.data],
   );
   const groupOptions = useMemo(
@@ -586,6 +591,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
             allowClear
             showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
+            optionRender={renderUserOption}
             loading={usersQuery.isLoading}
           />
         </Form.Item>

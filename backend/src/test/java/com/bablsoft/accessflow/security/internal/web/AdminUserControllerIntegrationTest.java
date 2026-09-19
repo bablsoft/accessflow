@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -85,6 +86,45 @@ class AdminUserControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.content[*].email").asArray()
                 .containsExactlyInAnyOrder("admin@example.com", "analyst@example.com");
         assertThat(result).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(2);
+    }
+
+    @Test
+    void listUsersCarriesPrincipalTypeAndFiltersByIt() {
+        var bot = saveUser(primaryOrg, "bot@example.com", "Bot", UserRoleType.READONLY);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        userRepository.save(bot);
+
+        var all = mvc.get().uri("/api/v1/admin/users")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(all).hasStatus(200);
+        assertThat(all).bodyJson().extractingPath("$.content[?(@.email=='bot@example.com')].principal_type")
+                .asArray().containsExactly("SERVICE_ACCOUNT");
+        assertThat(all).bodyJson().extractingPath("$.content[?(@.email=='admin@example.com')].principal_type")
+                .asArray().containsExactly("HUMAN");
+
+        var bots = mvc.get().uri("/api/v1/admin/users?principal_type=SERVICE_ACCOUNT")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(bots).hasStatus(200);
+        assertThat(bots).bodyJson().extractingPath("$.content[*].email").asArray()
+                .containsExactly("bot@example.com");
+
+        var humans = mvc.get().uri("/api/v1/admin/users?principal_type=HUMAN")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(humans).bodyJson().extractingPath("$.content[*].email").asArray()
+                .containsExactlyInAnyOrder("admin@example.com", "analyst@example.com");
+    }
+
+    @Test
+    void listUsersWithUnknownPrincipalTypeReturns400() {
+        var result = mvc.get().uri("/api/v1/admin/users?principal_type=ROBOT")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").isEqualTo("VALIDATION_ERROR");
     }
 
     @Test

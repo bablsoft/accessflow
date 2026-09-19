@@ -15,6 +15,10 @@ interface ProblemDetail {
   referencedBy?: string[];
   existingDriverId?: string;
   missing_tables?: string[];
+  /** SERVICE_ACCOUNT_BOOTSTRAP_MANAGED — the declared field that cannot change from the UI. */
+  field?: string;
+  /** SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL — the offending tool name. */
+  tool?: string;
 }
 
 export function apiErrorTraceId(err: unknown): string | undefined {
@@ -488,6 +492,42 @@ export function rolesErrorMessage(err: unknown): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.roles_generic');
+}
+
+const SERVICE_ACCOUNT_ERROR_KEYS: Record<string, string> = {
+  SERVICE_ACCOUNT_NOT_FOUND: 'errors.service_account_not_found',
+  SERVICE_ACCOUNT_KEY_NOT_FOUND: 'errors.service_account_key_not_found',
+  SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED: 'errors.service_account_key_bootstrap_declared',
+  SERVICE_ACCOUNT_KEY_REVOKED: 'errors.service_account_key_revoked',
+  SERVICE_ACCOUNT_KEY_NAME_CONFLICT: 'errors.service_account_key_name_conflict',
+  SERVICE_ACCOUNT_OWNER_INVALID: 'errors.service_account_owner_invalid',
+  SERVICE_ACCOUNT_DELEGATION_NOT_FOUND: 'errors.service_account_delegation_not_found',
+  SERVICE_ACCOUNT_DELEGATION_EXISTS: 'errors.service_account_delegation_exists',
+  SERVICE_ACCOUNT_DELEGATION_PRINCIPAL_INVALID: 'errors.service_account_delegation_principal_invalid',
+  SERVICE_ACCOUNT_DELEGATION_INVALID: 'errors.service_account_delegation_invalid',
+  EMAIL_ALREADY_EXISTS: 'errors.service_account_email_exists',
+};
+
+/** Service-account admin errors (#871–#875) — the `field` / `tool` properties ride into the copy. */
+export function serviceAccountErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'SERVICE_ACCOUNT_BOOTSTRAP_MANAGED') {
+      return i18n.t('errors.service_account_bootstrap_managed', { field: body?.field ?? '' });
+    }
+    if (code === 'SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL') {
+      return i18n.t('errors.service_account_unknown_mcp_tool', { tool: body?.tool ?? '' });
+    }
+    const key = code ? SERVICE_ACCOUNT_ERROR_KEYS[code] : undefined;
+    if (key) return i18n.t(key);
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.service_account_generic');
 }
 
 export function routingPolicyErrorMessage(err: unknown): string {

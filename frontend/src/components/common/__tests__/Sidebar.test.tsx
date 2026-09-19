@@ -426,6 +426,26 @@ describe('Sidebar — deployment governance (#696)', () => {
   });
 });
 
+describe('Sidebar — service accounts (#875)', () => {
+  it('shows the Service accounts entry under Identity to an admin, after Roles', () => {
+    expandAll();
+    const { container } = renderSidebar(adminUser);
+    expect(link(screen, 'Service accounts')).toHaveAttribute('href', '/admin/service-accounts');
+    const hrefs = [...container.querySelectorAll('a[href^="/admin/"]')].map((a) => a.getAttribute('href'));
+    expect(hrefs.indexOf('/admin/service-accounts')).toBe(hrefs.indexOf('/admin/roles') + 1);
+  });
+
+  it('hides the entry from a user without SERVICE_ACCOUNT_MANAGE', () => {
+    expandAll();
+    renderSidebar({
+      ...readonlyUser,
+      role: 'REVIEWER',
+      permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
+    });
+    expect(screen.queryByRole('link', { name: /Service accounts/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Sidebar — unified review queue (#772)', () => {
   it('renders exactly one review entry, in the top group, for a user holding every review permission', () => {
     const { container } = renderSidebar({

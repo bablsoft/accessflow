@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "ed560704b259",
-  "generatedAt": "2026-09-18T14:14:32.934Z",
-  "sourceCommit": "7f97c88a4b4a2b062ed436efc534339e38007ecc",
-  "chunkCount": 575,
-  "sha256": "ed560704b2595378e3a8855a8328f6a5ca52504b787e2cde573500e7648d0931",
-  "quickReferenceSha256": "d2bdce27da7978646f31277177fe48bce3f17ccff1e70ae3824e87e2d82577ec",
+  "corpusVersion": "4fe41574930d",
+  "generatedAt": "2026-09-19T17:55:08.534Z",
+  "sourceCommit": "a129cff95d5009679eed76012fb1875982925aa1",
+  "chunkCount": 577,
+  "sha256": "4fe41574930d35fefd42d40b1097d646c5a3a160d39d7a97519b781b8c842f74",
+  "quickReferenceSha256": "6cc72c243dad41d5cf241be9d8b3aeee400f8689ede9fce285d351910bae1795",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -13,7 +13,7 @@
       "url": "https://accessflow.io/ai-agents/",
       "section": "AI agents",
       "chunks": 21,
-      "sha256": "a2c7a245213bd63c1fadc56e71c55099d62de79f3df07051cf2c415954281270"
+      "sha256": "cf3e4a7130865bafe24c031d13a94a2d2083c699b5935d36e36e76c46a60db66"
     },
     {
       "path": "website/connectors/bigquery/index.html",
@@ -228,8 +228,8 @@
       "title": "Users, roles & organizations",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
-      "chunks": 11,
-      "sha256": "706f9a00394951263eeaf32e9718e7f43a899354b7d15457646d6fc1af28a7f4"
+      "chunks": 13,
+      "sha256": "5b3894851a4dfb2560ae870718436a8c1fd4dd44554d59e8051e8c13d3998581"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -333,7 +333,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Documentation",
       "chunks": 15,
-      "sha256": "2675df4319d951b345632323b0d0d93b29655daa300a1cb43b8423afa2049dd2"
+      "sha256": "acf34d0e68b0609de95851b4c96669f8bcbc472df220663edd800356c2c52e70"
     },
     {
       "path": "website/docs/install/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "a926fbc0cb8408fa1abb4de2e580893758a15f5cdf5bbbaea3127a5b12a561db"
+      "sha256": "be75c9e89a9ee8b4d11fe7361e8ada371907d4ece6b9c94118751f0d4496d10b"
     }
   ]
 }

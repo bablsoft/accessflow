@@ -11,6 +11,8 @@ import java.util.UUID;
 /**
  * Wire shape of a service account. {@code mcpToolAllowList} is {@code null} for every tool and
  * empty for none; {@code apiKeys} is populated on a single-account read and empty on the list.
+ * {@code ownerEmail} / {@code ownerDisplayName} are resolved at read time from {@code ownerUserId}
+ * (#875) and null when there is no owner.
  */
 public record ServiceAccountResponse(
         UUID id,
@@ -23,6 +25,8 @@ public record ServiceAccountResponse(
         ServiceAccountSource managedBy,
         String description,
         UUID ownerUserId,
+        String ownerEmail,
+        String ownerDisplayName,
         List<String> mcpToolAllowList,
         Integer rateLimitPerMinute,
         Integer rateLimitPerDay,
@@ -45,6 +49,8 @@ public record ServiceAccountResponse(
                 view.managedBy(),
                 view.description(),
                 view.ownerUserId(),
+                view.ownerEmail(),
+                view.ownerDisplayName(),
                 view.mcpToolAllowList(),
                 view.rateLimitPerMinute(),
                 view.rateLimitPerDay(),

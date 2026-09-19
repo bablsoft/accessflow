@@ -33,7 +33,10 @@
     "yes": "是",
     "no": "否",
     "view_docs": "查看文档",
-    "view_docs_aria": "查看文档（在新标签页中打开）"
+    "view_docs_aria": "查看文档（在新标签页中打开）",
+    "on_behalf_of": "代表 {{name}}",
+    "on_behalf_of_tooltip": "某个 API 密钥调用方代表此人执行了操作（X-AccessFlow-On-Behalf-Of）。在禁止自行审批的规则中，被指名的人视为提交者。",
+    "principal_service_account_tooltip": "非人类身份：仅通过 API 密钥认证，永远无法交互式登录。"
   },
   "nav": {
     "editor": "SQL 编辑器",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "部署流水线",
     "help_agent": "帮助助手",
     "governance_domains": "治理域",
-    "sql_review": "SQL 审查"
+    "sql_review": "SQL 审查",
+    "service_accounts": "服务账号"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "该环境已绑定了另一个规则集。",
     "sql_review_ruleset_default_conflict": "该组织已有默认规则集。",
     "sql_review_ruleset_invalid": "规则集配置无效。",
-    "sql_review_ruleset_generic": "无法保存 SQL 审查规则集。"
+    "sql_review_ruleset_generic": "无法保存 SQL 审查规则集。",
+    "service_account_generic": "服务账号操作失败。",
+    "service_account_not_found": "未找到服务账号。",
+    "service_account_key_not_found": "未找到 API 密钥。",
+    "service_account_key_bootstrap_declared": "此密钥在 bootstrap 配置中声明，无法在此撤销或轮换——请改为从 bootstrap 规范中移除。",
+    "service_account_key_revoked": "此密钥已被撤销，无法轮换。",
+    "service_account_key_name_conflict": "该账号已有同名的有效密钥。",
+    "service_account_owner_invalid": "所有者必须是本组织中的活跃人员。",
+    "service_account_bootstrap_managed": "字段“{{field}}”在 bootstrap 配置中声明，只能在那里修改。",
+    "service_account_unknown_mcp_tool": "未知的 MCP 工具：{{tool}}。",
+    "service_account_email_exists": "该邮箱的用户已存在。",
+    "service_account_delegation_not_found": "未找到委托。",
+    "service_account_delegation_exists": "此人已允许该账号代表其操作。",
+    "service_account_delegation_principal_invalid": "委托人必须是本组织中的活跃人员。",
+    "service_account_delegation_invalid": "委托目标必须是活跃的服务账号。"
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "键",
       "attribute_value": "值",
       "attribute_add": "添加属性",
-      "attribute_remove": "移除属性"
+      "attribute_remove": "移除属性",
+      "filter_all_principals": "人员和服务账号",
+      "filter_principal_humans": "仅人员",
+      "filter_principal_service_accounts": "仅服务账号",
+      "service_account_hint": "在“服务账号”中管理此身份。"
     },
     "audit": {
       "title": "审计日志",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "首个异常行 {{rowId}} — {{reason}}",
       "export_csv": "导出 CSV",
       "export_failed": "导出审计日志失败，请重试。",
-      "export_truncated": "导出已截断到 50,000 行。请使用更精确的筛选条件以获取完整结果。"
+      "export_truncated": "导出已截断到 50,000 行。请使用更精确的筛选条件以获取完整结果。",
+      "filter_on_behalf_of_placeholder": "代表（用户 ID）",
+      "on_behalf_of_label": "代表",
+      "via_service_account": "通过服务账号"
     },
     "ai_analyses": {
       "title": "AI 分析",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "服务账号"
     },
     "datasource_health": {
       "title": "数据源健康",
@@ -2505,6 +2531,191 @@
       "param_placeholder_defaults": "默认：{{values}}",
       "param_required": "存储此规则时至少需要一个值。",
       "param_invalid": "“{{value}}”不是允许的值。"
+    },
+    "service_accounts": {
+      "title": "服务账号",
+      "subtitle": "使用 API 密钥认证的非人类身份——CI 流水线、AI 代理、集成。",
+      "create": "创建服务账号",
+      "load_error": "无法加载服务账号",
+      "empty_title": "还没有服务账号",
+      "empty_description": "为流水线或代理创建一个，然后为其签发 API 密钥。",
+      "filter_all_sources": "任意管理来源",
+      "col_name": "名称",
+      "col_email": "邮箱",
+      "col_role": "角色",
+      "col_owner": "所有者",
+      "col_status": "状态",
+      "col_managed_by": "管理方",
+      "col_keys": "有效密钥",
+      "col_last_used": "最近使用",
+      "col_tools": "MCP 工具",
+      "col_rate_limit": "速率限制",
+      "status_active": "启用",
+      "status_inactive": "停用",
+      "tools_all": "全部工具",
+      "tools_count": "{{allowed}} / {{total}} 个工具",
+      "tools_none": "无工具",
+      "no_owner": "—",
+      "rate_limit_default": "部署默认值",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/分钟",
+      "rate_per_day": "{{count}}/天",
+      "never_used": "从未",
+      "managed_by_tooltip": {
+        "UI": "通过此管理页面创建和管理。",
+        "BOOTSTRAP": "在 bootstrap 配置（ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*）中声明。其邮箱、显示名称、角色和声明的密钥只能在那里修改。"
+      },
+      "validation": {
+        "required": "此字段为必填项。",
+        "max_length": "最多 {{max}} 个字符。",
+        "positive_integer": "必须是大于零的整数。"
+      },
+      "create_modal": {
+        "title": "创建服务账号",
+        "label_email": "邮箱",
+        "email_help": "仅作标识——服务账号从不接收邮件，也从不登录。",
+        "label_display_name": "显示名称",
+        "label_role": "角色",
+        "role_help": "默认为“只读”。角色决定该账号的密钥可以做什么。",
+        "label_owner": "所有者",
+        "owner_help": "对此账号负责的人。不授予任何权限；会显示给审核者。",
+        "owner_placeholder": "无所有者",
+        "label_description": "描述",
+        "label_rate_limit_per_minute": "每分钟请求数",
+        "label_rate_limit_per_day": "每天请求数",
+        "rate_limit_help": "留空以继承部署默认值。",
+        "submit": "创建",
+        "success": "服务账号已创建"
+      },
+      "review_role_warning": "此角色可以审批请求。持有该角色的服务账号会成为合格的审批者——一个代理可能会批准另一个代理提交的内容。",
+      "settings": {
+        "back": "返回服务账号",
+        "load_error": "无法加载服务账号",
+        "not_found": "未找到服务账号",
+        "bootstrap_banner_title": "由 bootstrap 配置管理",
+        "bootstrap_banner_body": "此账号由 ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY} 声明。其邮箱、显示名称、角色和声明的密钥在此为只读，只能在该配置中修改；其余内容仍可编辑。",
+        "tab_overview": "概览",
+        "tab_keys": "API 密钥",
+        "tab_tools": "MCP 工具",
+        "tab_limits": "限制",
+        "tab_principals": "代表的委托人",
+        "tab_activity": "活动",
+        "deactivate": "停用",
+        "deactivate_confirm_title": "停用此服务账号？",
+        "deactivate_confirm_body": "其密钥会立即停止认证。不会撤销任何内容，重新启用即可恢复。",
+        "deactivate_success": "服务账号已停用",
+        "unknown_tab": "未知标签页"
+      },
+      "overview": {
+        "label_email": "邮箱",
+        "label_display_name": "显示名称",
+        "label_role": "角色",
+        "label_owner": "所有者",
+        "label_description": "描述",
+        "label_active": "启用",
+        "active_help": "停用的账号保留其密钥，但没有任何密钥能够认证。",
+        "bootstrap_readonly": "在 bootstrap 配置中声明",
+        "owner_placeholder": "无所有者",
+        "save": "保存更改",
+        "success": "服务账号已更新",
+        "nothing_changed": "没有需要保存的内容",
+        "label_created": "创建时间",
+        "label_updated": "更新时间",
+        "label_last_used": "最近使用"
+      },
+      "keys": {
+        "description": "密钥是该账号唯一的凭证。当使用方必须持续运行时，请轮换而不是撤销：旧密钥在有限的宽限期内仍然有效。",
+        "issue": "签发密钥",
+        "issue_title": "签发 API 密钥",
+        "rotate": "轮换",
+        "rotate_title": "轮换 API 密钥“{{name}}”",
+        "rotate_help": "签发替代密钥，并在宽限期结束后使此密钥过期。在此之前两个密钥都可认证——请在到期前更新使用方。",
+        "label_grace_hours": "宽限期（小时）",
+        "grace_default_help": "留空则使用部署默认值 {{hours}} 小时。",
+        "name_label": "密钥名称",
+        "name_placeholder": "例如 github-actions",
+        "expires_at_label": "过期时间",
+        "expires_at_placeholder": "永不过期",
+        "expires_at_help": "可选。留空则密钥永不过期——仍可随时撤销。",
+        "issued_title": "复制新的 API 密钥",
+        "rotated_title": "复制替代的 API 密钥",
+        "raw_key_label": "密钥",
+        "copy_once_warning": "密钥只显示这一次。请立即复制并妥善保存——之后无法再次获取。",
+        "superseded_until": "之前的密钥 {{prefix}}… 在 {{until}} 之前仍然有效。",
+        "superseded_until_unknown": "之前的密钥 {{prefix}}… 在宽限期结束前仍然有效。",
+        "revoke": "撤销",
+        "revoke_confirm": "撤销 API 密钥“{{name}}”？使用它的客户端会立即失去访问权限。",
+        "revoked": "API 密钥已撤销",
+        "issued": "API 密钥已签发",
+        "rotated": "API 密钥已轮换",
+        "bootstrap_declared": "已声明",
+        "bootstrap_declared_tooltip": "在 bootstrap 配置中声明。无法在此撤销或轮换：下一次 bootstrap 运行会重新导入它并复活已撤销的密钥。要停用它，请从配置中移除 ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY。",
+        "empty": "还没有 API 密钥。",
+        "col_name": "名称",
+        "col_prefix": "前缀",
+        "col_created": "创建时间",
+        "col_last_used": "最近使用",
+        "col_expires": "过期时间",
+        "col_status": "状态",
+        "col_actions": "操作",
+        "status_active": "有效",
+        "status_revoked": "已撤销",
+        "status_expired": "已过期",
+        "rotate_name_help": "旧密钥在宽限期内保留其名称，因此替代密钥需要不同的名称。"
+      },
+      "tools": {
+        "description": "此账号的密钥可以调用哪些 MCP 工具。",
+        "mode_all": "全部工具",
+        "mode_restricted": "仅选中的工具",
+        "enforcement_note": "MCP 服务器的 tools/list 仍会向此账号公布所有工具。调用允许列表之外的工具会在调用时被拒绝并返回 permission_denied——允许列表是执行边界，而不是发现过滤器。",
+        "none_selected_warning": "未选择任何工具：此账号的每次 MCP 调用都会被拒绝。",
+        "save": "保存允许列表",
+        "success": "MCP 工具允许列表已更新",
+        "catalog_error": "无法加载工具目录",
+        "mode_label": "允许的工具",
+        "tools_label": "工具"
+      },
+      "limits": {
+        "description": "此账号所有 API 密钥调用（MCP 和 REST）在固定时间窗口内的请求数。留空则继承部署默认值；部署级别的 0 表示无限制。",
+        "label_per_minute": "每分钟请求数",
+        "label_per_day": "每天请求数",
+        "placeholder_default": "部署默认值",
+        "save": "保存限制",
+        "success": "速率限制已更新"
+      },
+      "principals": {
+        "description": "同意被此账号通过 X-AccessFlow-On-Behalf-Of 指名的人员。委托不授予任何权限：账号自身的密钥决定它能做什么，被指名的人在禁止自行审批的规则中视为提交者。",
+        "grant": "添加委托人",
+        "grant_title": "允许该账号代表以下人员操作",
+        "label_principal": "人员",
+        "principal_placeholder": "选择人员",
+        "label_expires_at": "过期时间",
+        "expires_at_placeholder": "永不过期",
+        "submit": "添加",
+        "success": "委托人已添加",
+        "revoke": "撤销",
+        "revoke_confirm": "撤销此委托？指名 {{email}} 的请求将被拒绝。",
+        "revoked": "委托已撤销",
+        "empty": "还没有人委托给此账号。",
+        "col_principal": "人员",
+        "col_granted_by": "授予方",
+        "col_created": "授予时间",
+        "col_expires": "过期时间",
+        "col_status": "状态",
+        "col_actions": "操作",
+        "granted_self": "自助",
+        "granted_admin": "管理员"
+      },
+      "activity": {
+        "description": "此账号作为操作者的审计记录。",
+        "open_full": "在审计日志中打开",
+        "empty": "尚无活动记录。",
+        "load_error": "无法加载活动",
+        "col_when": "时间",
+        "col_action": "操作",
+        "col_resource": "资源",
+        "col_on_behalf_of": "代表"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3485,33 @@
       "TEST": "测试",
       "STAGING": "预发布",
       "PRODUCTION": "生产"
+    },
+    "principal_type": {
+      "HUMAN": "人员",
+      "SERVICE_ACCOUNT": "服务账号"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "生效中",
+      "EXPIRED": "已过期",
+      "REVOKED": "已撤销"
+    },
+    "mcp_tool": {
+      "list_datasources": "列出调用方可查询的数据源",
+      "get_datasource_schema": "读取数据源架构",
+      "list_my_queries": "列出调用方自己的查询请求",
+      "get_query_status": "读取查询请求状态",
+      "get_query_result": "获取已执行查询的结果",
+      "submit_query": "提交查询以供审核",
+      "cancel_query": "取消待处理的查询",
+      "list_pending_reviews": "列出等待调用方处理的审核",
+      "review_query": "批准或拒绝查询",
+      "validate_sql": "解析并校验 SQL 而不提交",
+      "get_column_samples": "从数据源采样列值",
+      "get_audit_log": "读取审计日志"
     }
   },
   "access": {
@@ -3750,7 +3988,9 @@
         "row_status_forbidden": "不允许",
         "row_status_invalid_state": "已不再开放",
         "row_status_not_found": "未找到"
-      }
+      },
+      "owned_by": "所有者：{{name}}",
+      "no_owner": "未分配所有者"
     },
     "usage": {
       "no_data": "无使用数据",

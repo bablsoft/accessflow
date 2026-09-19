@@ -1138,6 +1138,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/roles                        → RolesPage (lazy; custom roles + permission-matrix editor — AF-522)
 /admin/groups                       → GroupsListPage (lazy; user groups — AF-353)
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
+/admin/service-accounts             → ServiceAccountsPage (lazy; SERVICE_ACCOUNT_MANAGE — non-human identities list + create — #875)
+/admin/service-accounts/:id         → ServiceAccountSettingsPage (lazy; SERVICE_ACCOUNT_MANAGE; tabs synced to ?tab=: overview, api-keys, mcp-tools, limits, principals, activity — #875)
 /admin/audit-log                    → AuditLogPage
 /admin/audit-sinks                  → AuditSinksPage (lazy; external SIEM/WORM audit sinks with per-sink delivery health — #628)
 /admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
@@ -1215,7 +1217,7 @@ still gates each entry.
 | `CONNECTIONS` | **Database** | `/datasources`, `/admin/connectors`, `/admin/drivers` |
 | | **API** *(domain `apis`)* | `/api-connectors` |
 | | **Deployments** *(domain `deployments`)* | `/admin/deployment-pipelines` |
-| `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
+| `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/service-accounts`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
 | | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/sql-review`, `/admin/over-provisioned-access`, `/admin/privileged-access`, `/admin/break-glass` |
 | | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
@@ -1445,6 +1447,72 @@ and the types (`SqlReviewRuleset`, `SqlReviewRule`, `SqlReviewFinding`, `SqlRevi
 in `src/types/api.ts`. The page header's *View docs* link is `docsAnchor="cfg-sql-review"` (#866 —
 `DOCS_ANCHOR_PAGES` → `configuration/review-workflows/`, the section beside routing policies). The
 feature chapter is [docs/19-sql-review.md](19-sql-review.md).
+
+### Service accounts admin pages (#875, epic #867)
+
+The web surface for non-human identities. API module `src/api/serviceAccounts.ts`
+(`serviceAccountKeys` factory: `lists/list/details/detail/delegations(id)/mcpTools`; the twelve
+functions over `/admin/service-accounts` incl. `listMcpTools`, which unwraps
+`GET /admin/service-accounts/mcp-tools`). Types in `src/types/api.ts` (`ServiceAccount`,
+`ServiceAccountKey`, `ServiceAccountDelegation`, `UpdateServiceAccountInput` with its `clear`
+list, `PrincipalType`, `ServiceAccountSource`). Enum labels `principalTypeLabel` /
+`serviceAccountSourceLabel` / `serviceAccountDelegationStatusLabel` / `mcpToolDescription`
+(`enums.mcp_tool.<wire name>`, empty for a tool this build does not know) in
+`src/utils/enumLabels.ts`; errors through `serviceAccountErrorMessage` (`SERVICE_ACCOUNT_*`
+codes, the 409's `field` and the 422's `tool` interpolated into the copy). Every string is
+`t()`-keyed under `admin.service_accounts.*`.
+
+The encoding decisions live in the pure, coverage-listed
+`src/pages/admin/service-accounts/serviceAccountForm.ts`, never in a component:
+
+- **Validation parity** is a constraint *table* per backend record (`CREATE_FORM_CONSTRAINTS`,
+  `UPDATE_FORM_CONSTRAINTS`, `KEY_FORM_CONSTRAINTS`) that `fieldRules(t, …)` turns into AntD rules.
+  `__tests__/createFormParity.test.ts` reads the Java request records with `readFileSync` and
+  asserts the tables against their `@NotBlank` / `@Email` / `@Size(max)` / `@Positive`
+  annotations field for field — a constraint added on one side alone fails the build.
+- **MCP tools** are three-valued on the wire (`null` = every tool, `[]` = none, else the names)
+  and a PUT reads `null` as *unchanged*, so the form holds `{ mode: 'ALL' | 'RESTRICTED', tools }`:
+  `ALL` saves as `{ clear: ['MCP_TOOL_ALLOW_LIST'] }`, `RESTRICTED` as the list (an empty set sends
+  `[]` and the tab warns that every call will be denied). The tab repeats the #872 caveat that
+  `tools/list` still advertises every tool — the allow-list is an enforcement boundary.
+- **Limits**: a blanked `InputNumber` means "back to the deployment default", which is the field
+  name in `clear`; untouched fields are omitted.
+- **Overview** sends only changed fields (blank description / unset owner go through `clear`).
+  On a `BOOTSTRAP` account the declared fields (display name, role) are disabled in the form *and*
+  stripped by `overviewUpdateInput`, so an untouched submit is a no-op rather than a 409 round trip;
+  the page shows one banner naming `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*` as the source.
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/admin/service-accounts` | `ServiceAccountsPage` | Server-paged list — display name, email, role pill, owner (`owner_display_name`/`owner_email`, resolved server-side), status, `ManagedByTag` (UI / Bootstrap), active key count, last used, tool count ("2 / 12 tools", "All tools", "No tools" — the total comes from the catalog query), rate limit ("60/min · 500/day" or "Deployment default"). `managed_by` filter. Create modal: email, display name, role (READONLY preselected once roles load; `RoleField` shows a warning `Alert` when the chosen role carries any `*_REVIEW` permission, because the account becomes an eligible approver), owner (people only — `useHumanUserOptions` calls `listUsers({ principal_type: 'HUMAN' })`), description, two rate limits. Create navigates into settings. |
+| `/admin/service-accounts/:id` | `ServiceAccountSettingsPage` | Header: display name, email, `ManagedByTag`, active tag, **Deactivate** (`Popconfirm`) and Back. Tabs in `src/components/serviceaccounts/`: **Overview** (`ServiceAccountOverviewTab`), **API keys** (`ServiceAccountKeysTab` — key table with a `Declared` tag on `bootstrap_declared` keys; *Issue key* and *Rotate* modals share the `ApiKeysSection` future-only `ExpiresAtPicker`; the rotate modal takes a grace in hours → `PT{n}H`, default PT24H; `IssuedKeyModal` is the show-once treatment (`copy_once_warning` + `Typography.Paragraph copyable`) and, after a rotation, states until when the superseded key keeps working; a declared key's Rotate/Revoke are disabled inside one tooltip that explains the re-import would resurrect it and names the env var to remove), **MCP tools** (`ServiceAccountToolsTab` — radio + `Checkbox.Group` over the server catalog), **Limits** (`ServiceAccountLimitsTab`), **On-behalf-of principals** (`ServiceAccountPrincipalsTab` — delegations table with status pill and revoke on `ACTIVE`; grant modal with a people-only picker and optional expiry), **Activity** (`ServiceAccountActivityTab` — `auditKeys.list({ actor_id })`, `OnBehalfOfTag` per row, and an *Open in audit log* link to `/admin/audit-log?actor_id=<id>`). Synced to `?tab=` (unknown → `overview`). |
+
+**Keeping robots legible (#875).** `principal_type` now rides on every user-shaped payload the
+UI lists, and three shared components in `src/components/common/` render it:
+`PrincipalTypeTag` (a pill only for `SERVICE_ACCOUNT`; nothing for a person, so it can sit beside
+any user cell), `renderUserOption` (an AntD `Select optionRender` that keeps the option `label` a
+plain string — every picker's `showSearch.optionFilterProp: 'label'` still works — and draws the
+badge beside it; fed by `userSelectOptions` in `src/utils/userOptions.ts`), and `ManagedByTag`.
+`UsersPage` badges agents, routes their row action to the service-account page instead of the
+edit modal, and offers a *People and service accounts / People only / Service accounts only*
+filter that is server-side (`?principal_type=`) because an agent can sit on any page; the default
+shows everyone. The eight `listUsers`-fed pickers (group members, pipeline / connector / datasource
+permission grants, masking, row-security and export-policy reveal lists) badge agents through
+`renderUserOption`; `GroupDetailPage` badges members. `AttestationWorklistPage` and the campaign
+item table badge a service-account subject and the worklist adds an *Owned by {name}* / *No owner
+assigned* line from `subject_owner_*`, so a reviewer recognises the human accountable for a
+robot's grant.
+
+**On-behalf-of chips (#874).** `OnBehalfOfTag` (`src/components/common/`) is the one treatment:
+a blue `Tag` reading *on behalf of {name}* with a tooltip, the review queue's *Delegated* tag
+look (#622). It renders beside the submitter on `QueryDetailPage` (`query.on_behalf_of`),
+`ApiRequestDetailPage` and `DeploymentDetailPage` (`on_behalf_of_email` / `_user_id`), and under
+the actor on `AuditLogPage` rows (`on_behalf_of_email`, resolved server-side from
+`metadata.on_behalf_of_user_id`; a *via service account* line when `metadata.service_account`).
+`AuditLogPage` gained an *On behalf of (user id)* filter (`onBehalfOfUserId`) and seeds `actor_id`
+/ `on_behalf_of_user_id` from the URL once on mount, which is what the Activity tab links into.
+The action / resource-type filter lists include the `SERVICE_ACCOUNT_*` actions and the
+`service_account` resource.
 
 ### OAuth 2.0 sign-in
 

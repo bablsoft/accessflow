@@ -19,9 +19,11 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
+import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 import {
   auditKeys,
   exportAuditLogCsv,
@@ -50,6 +52,7 @@ const RESOURCE_TYPES = [
   'deployment_pipeline',
   'deployment_request',
   'break_glass_event',
+  'service_account',
 ];
 
 const ACTIONS = [
@@ -96,6 +99,14 @@ const ACTIONS = [
   'API_BREAK_GLASS_REVIEWED',
   'ACCESS_SIMULATION_RUN',
   'PRIVILEGED_ACCESS_REPORT_VIEWED',
+  'SERVICE_ACCOUNT_CREATED',
+  'SERVICE_ACCOUNT_UPDATED',
+  'SERVICE_ACCOUNT_DEACTIVATED',
+  'SERVICE_ACCOUNT_KEY_ISSUED',
+  'SERVICE_ACCOUNT_KEY_ROTATED',
+  'SERVICE_ACCOUNT_KEY_REVOKED',
+  'SERVICE_ACCOUNT_DELEGATION_GRANTED',
+  'SERVICE_ACCOUNT_DELEGATION_REVOKED',
 ];
 
 const actionColor = (a: string): string => {
@@ -116,10 +127,16 @@ const actionColor = (a: string): string => {
 
 export function AuditLogPage() {
   const { t } = useTranslation();
+  // Deep links pre-filter the log: a service account's Activity tab opens ?actor_id=<agent>, and
+  // an on-behalf-of chip can open ?on_behalf_of_user_id=<person> (#875). Read once, then local.
+  const [searchParams] = useSearchParams();
   const [page, setPage] = useState(0);
   const [action, setAction] = useState<string>('all');
   const [resourceType, setResourceType] = useState<string>('all');
-  const [actorId, setActorId] = useState('');
+  const [actorId, setActorId] = useState(() => searchParams.get('actor_id') ?? '');
+  const [onBehalfOfUserId, setOnBehalfOfUserId] = useState(
+    () => searchParams.get('on_behalf_of_user_id') ?? '',
+  );
   const [resourceId, setResourceId] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [detail, setDetail] = useState<AuditEvent | null>(null);
@@ -148,11 +165,12 @@ export function AuditLogPage() {
       action: action === 'all' ? undefined : action,
       resource_type: resourceType === 'all' ? undefined : resourceType,
       actor_id: actorId.trim() || undefined,
+      on_behalf_of_user_id: onBehalfOfUserId.trim() || undefined,
       resource_id: resourceId.trim() || undefined,
       from: range?.[0]?.toISOString(),
       to: range?.[1]?.toISOString(),
     }),
-    [page, action, resourceType, actorId, resourceId, range],
+    [page, action, resourceType, actorId, onBehalfOfUserId, resourceId, range],
   );
 
   const exportCsv = useMutation({
@@ -246,6 +264,17 @@ export function AuditLogPage() {
           value={actorId}
           onChange={(e) => {
             setActorId(e.target.value);
+            setPage(0);
+          }}
+          style={{ width: 240 }}
+          className="mono"
+        />
+        <Input
+          placeholder={t('admin.audit.filter_on_behalf_of_placeholder')}
+          aria-label={t('admin.audit.filter_on_behalf_of_placeholder')}
+          value={onBehalfOfUserId}
+          onChange={(e) => {
+            setOnBehalfOfUserId(e.target.value);
             setPage(0);
           }}
           style={{ width: 240 }}
@@ -352,6 +381,7 @@ export function AuditLogPage() {
                 render: (_v, e) => {
                   const name = userDisplay(e.actor_display_name, e.actor_email)
                     || t('admin.audit.actor_unknown');
+                  const onBehalfOfId = e.metadata.on_behalf_of_user_id;
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Avatar name={name} size={20} />
@@ -362,6 +392,15 @@ export function AuditLogPage() {
                             {e.actor_email}
                           </div>
                         )}
+                        {e.metadata.service_account === true && (
+                          <div className="muted" style={{ fontSize: 10 }}>
+                            {t('admin.audit.via_service_account')}
+                          </div>
+                        )}
+                        <OnBehalfOfTag
+                          email={e.on_behalf_of_email}
+                          userId={typeof onBehalfOfId === 'string' ? onBehalfOfId : null}
+                        />
                       </div>
                     </div>
                   );
@@ -453,6 +492,7 @@ export function AuditLogPage() {
                 <Row k="actor.id" v={detail.actor_id ?? '—'} />
                 <Row k="actor.email" v={detail.actor_email ?? '—'} />
                 <Row k="actor.display_name" v={detail.actor_display_name ?? '—'} />
+                <Row k="on_behalf_of.email" v={detail.on_behalf_of_email ?? '—'} />
                 <Row k="resource.type" v={detail.resource_type} />
                 <Row k="resource.id" v={detail.resource_id ?? '—'} />
                 <Row k="ip" v={detail.ip_address ?? '—'} />

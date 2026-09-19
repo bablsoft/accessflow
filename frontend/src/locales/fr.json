@@ -33,7 +33,10 @@
     "yes": "Oui",
     "no": "Non",
     "view_docs": "Voir la documentation",
-    "view_docs_aria": "Voir la documentation (s'ouvre dans un nouvel onglet)"
+    "view_docs_aria": "Voir la documentation (s'ouvre dans un nouvel onglet)",
+    "on_behalf_of": "pour le compte de {{name}}",
+    "on_behalf_of_tooltip": "Un appelant par clé d'API a agi pour cette personne (X-AccessFlow-On-Behalf-Of). La personne nommée compte comme demandeur pour l'interdiction d'auto-approbation.",
+    "principal_service_account_tooltip": "Une identité non humaine : elle s'authentifie uniquement par clé d'API et ne peut jamais se connecter de façon interactive."
   },
   "nav": {
     "editor": "Éditeur SQL",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Pipelines de déploiement",
     "help_agent": "Assistant d’aide",
     "governance_domains": "Domaines de gouvernance",
-    "sql_review": "Revue SQL"
+    "sql_review": "Revue SQL",
+    "service_accounts": "Comptes de service"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "Un autre jeu de règles est déjà lié à cet environnement.",
     "sql_review_ruleset_default_conflict": "L'organisation a déjà un jeu de règles par défaut.",
     "sql_review_ruleset_invalid": "La configuration du jeu de règles est invalide.",
-    "sql_review_ruleset_generic": "Impossible d'enregistrer le jeu de règles de revue SQL."
+    "sql_review_ruleset_generic": "Impossible d'enregistrer le jeu de règles de revue SQL.",
+    "service_account_generic": "L'opération sur le compte de service a échoué.",
+    "service_account_not_found": "Compte de service introuvable.",
+    "service_account_key_not_found": "Clé d'API introuvable.",
+    "service_account_key_bootstrap_declared": "Cette clé est déclarée dans la configuration de bootstrap et ne peut être ni révoquée ni renouvelée ici — retirez-la plutôt de la spécification de bootstrap.",
+    "service_account_key_revoked": "Cette clé est déjà révoquée et ne peut pas être renouvelée.",
+    "service_account_key_name_conflict": "Le compte possède déjà une clé active portant ce nom.",
+    "service_account_owner_invalid": "Le propriétaire doit être une personne active de cette organisation.",
+    "service_account_bootstrap_managed": "Le champ « {{field}} » est déclaré dans la configuration de bootstrap et ne peut changer que là.",
+    "service_account_unknown_mcp_tool": "Outil MCP inconnu : {{tool}}.",
+    "service_account_email_exists": "Un utilisateur avec cet e-mail existe déjà.",
+    "service_account_delegation_not_found": "Délégation introuvable.",
+    "service_account_delegation_exists": "Cette personne autorise déjà le compte à agir pour son compte.",
+    "service_account_delegation_principal_invalid": "Le principal doit être une personne active de cette organisation.",
+    "service_account_delegation_invalid": "La cible de la délégation doit être un compte de service actif."
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "Clé",
       "attribute_value": "Valeur",
       "attribute_add": "Ajouter un attribut",
-      "attribute_remove": "Supprimer l’attribut"
+      "attribute_remove": "Supprimer l’attribut",
+      "filter_all_principals": "Personnes et comptes de service",
+      "filter_principal_humans": "Personnes uniquement",
+      "filter_principal_service_accounts": "Comptes de service uniquement",
+      "service_account_hint": "Gérez cette identité depuis Comptes de service."
     },
     "audit": {
       "title": "Journal d'audit",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "Première ligne invalide {{rowId}} — {{reason}}",
       "export_csv": "Exporter en CSV",
       "export_failed": "Échec de l'export du journal d'audit. Veuillez réessayer.",
-      "export_truncated": "Export tronqué à 50 000 lignes. Appliquez des filtres plus précis pour couvrir l'ensemble du résultat."
+      "export_truncated": "Export tronqué à 50 000 lignes. Appliquez des filtres plus précis pour couvrir l'ensemble du résultat.",
+      "filter_on_behalf_of_placeholder": "Pour le compte de (ID utilisateur)",
+      "on_behalf_of_label": "Pour le compte de",
+      "via_service_account": "via un compte de service"
     },
     "ai_analyses": {
       "title": "Analyses IA",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Compte de service"
     },
     "datasource_health": {
       "title": "Santé des sources de données",
@@ -2505,6 +2531,191 @@
       "param_placeholder_defaults": "Par défaut : {{values}}",
       "param_required": "Au moins une valeur est requise lorsque cette règle est stockée.",
       "param_invalid": "« {{value}} » n’est pas une valeur autorisée."
+    },
+    "service_accounts": {
+      "title": "Comptes de service",
+      "subtitle": "Identités non humaines qui s'authentifient par clé d'API — pipelines CI, agents IA, intégrations.",
+      "create": "Créer un compte de service",
+      "load_error": "Impossible de charger les comptes de service",
+      "empty_title": "Aucun compte de service pour le moment",
+      "empty_description": "Créez-en un pour un pipeline ou un agent, puis émettez-lui une clé d'API.",
+      "filter_all_sources": "Gérés partout",
+      "col_name": "Nom",
+      "col_email": "E-mail",
+      "col_role": "Rôle",
+      "col_owner": "Propriétaire",
+      "col_status": "Statut",
+      "col_managed_by": "Géré par",
+      "col_keys": "Clés actives",
+      "col_last_used": "Dernière utilisation",
+      "col_tools": "Outils MCP",
+      "col_rate_limit": "Limite de débit",
+      "status_active": "Actif",
+      "status_inactive": "Inactif",
+      "tools_all": "Tous les outils",
+      "tools_count": "{{allowed}} / {{total}} outils",
+      "tools_none": "Aucun outil",
+      "no_owner": "—",
+      "rate_limit_default": "Valeur par défaut du déploiement",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/min",
+      "rate_per_day": "{{count}}/jour",
+      "never_used": "Jamais",
+      "managed_by_tooltip": {
+        "UI": "Créé et géré depuis cette page d'administration.",
+        "BOOTSTRAP": "Déclaré dans la configuration de bootstrap (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*). Son e-mail, son nom, son rôle et sa clé déclarée ne changent que là."
+      },
+      "validation": {
+        "required": "Ce champ est obligatoire.",
+        "max_length": "Doit comporter au plus {{max}} caractères.",
+        "positive_integer": "Doit être un nombre entier supérieur à zéro."
+      },
+      "create_modal": {
+        "title": "Créer un compte de service",
+        "label_email": "E-mail",
+        "email_help": "Un simple identifiant — un compte de service ne reçoit jamais de courrier et ne se connecte jamais.",
+        "label_display_name": "Nom d'affichage",
+        "label_role": "Rôle",
+        "role_help": "Par défaut, Lecture seule. Le rôle décide de ce que les clés du compte peuvent faire.",
+        "label_owner": "Propriétaire",
+        "owner_help": "La personne responsable de ce compte. Ne confère rien ; affiché aux relecteurs.",
+        "owner_placeholder": "Aucun propriétaire",
+        "label_description": "Description",
+        "label_rate_limit_per_minute": "Requêtes par minute",
+        "label_rate_limit_per_day": "Requêtes par jour",
+        "rate_limit_help": "Laissez vide pour hériter de la valeur par défaut du déploiement.",
+        "submit": "Créer",
+        "success": "Compte de service créé"
+      },
+      "review_role_warning": "Ce rôle peut approuver des demandes. Un compte de service qui le détient devient un approbateur éligible — un agent pourrait approuver ce qu'un autre agent a soumis.",
+      "settings": {
+        "back": "Retour aux comptes de service",
+        "load_error": "Impossible de charger le compte de service",
+        "not_found": "Compte de service introuvable",
+        "bootstrap_banner_title": "Géré par la configuration de bootstrap",
+        "bootstrap_banner_body": "Ce compte est déclaré par ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY}. Son e-mail, son nom, son rôle et sa clé déclarée sont en lecture seule ici et ne changent que dans cette configuration ; tout le reste reste modifiable.",
+        "tab_overview": "Vue d'ensemble",
+        "tab_keys": "Clés d'API",
+        "tab_tools": "Outils MCP",
+        "tab_limits": "Limites",
+        "tab_principals": "Principaux « pour le compte de »",
+        "tab_activity": "Activité",
+        "deactivate": "Désactiver",
+        "deactivate_confirm_title": "Désactiver ce compte de service ?",
+        "deactivate_confirm_body": "Ses clés cessent immédiatement de s'authentifier. Rien n'est révoqué, et une réactivation les restaure.",
+        "deactivate_success": "Compte de service désactivé",
+        "unknown_tab": "Onglet inconnu"
+      },
+      "overview": {
+        "label_email": "E-mail",
+        "label_display_name": "Nom d'affichage",
+        "label_role": "Rôle",
+        "label_owner": "Propriétaire",
+        "label_description": "Description",
+        "label_active": "Actif",
+        "active_help": "Un compte inactif conserve ses clés, mais aucune ne s'authentifie.",
+        "bootstrap_readonly": "Déclaré dans la configuration de bootstrap",
+        "owner_placeholder": "Aucun propriétaire",
+        "save": "Enregistrer les modifications",
+        "success": "Compte de service mis à jour",
+        "nothing_changed": "Rien à enregistrer",
+        "label_created": "Créé",
+        "label_updated": "Mis à jour",
+        "label_last_used": "Dernière utilisation"
+      },
+      "keys": {
+        "description": "Les clés sont la seule information d'identification du compte. Renouvelez plutôt que de révoquer quand un consommateur doit continuer à fonctionner : l'ancienne clé reste valide pendant une période de grâce bornée.",
+        "issue": "Émettre une clé",
+        "issue_title": "Émettre une clé d'API",
+        "rotate": "Renouveler",
+        "rotate_title": "Renouveler la clé d'API « {{name}} »",
+        "rotate_help": "Émet un remplacement et fait expirer cette clé après la période de grâce. Les deux clés s'authentifient jusque-là — mettez le consommateur à jour avant l'échéance.",
+        "label_grace_hours": "Période de grâce (heures)",
+        "grace_default_help": "Laissez vide pour la valeur par défaut du déploiement, soit {{hours}} heures.",
+        "name_label": "Nom de la clé",
+        "name_placeholder": "p. ex. github-actions",
+        "expires_at_label": "Expire",
+        "expires_at_placeholder": "N'expire jamais",
+        "expires_at_help": "Facultatif. Laissez vide et la clé n'expire jamais — vous pouvez toujours la révoquer.",
+        "issued_title": "Copiez la nouvelle clé d'API",
+        "rotated_title": "Copiez la clé d'API de remplacement",
+        "raw_key_label": "Clé",
+        "copy_once_warning": "C'est la seule fois où la clé est affichée. Copiez-la maintenant et conservez-la en lieu sûr — elle ne pourra plus être récupérée.",
+        "superseded_until": "La clé précédente {{prefix}}… fonctionne encore jusqu'au {{until}}.",
+        "superseded_until_unknown": "La clé précédente {{prefix}}… fonctionne encore jusqu'à la fin de la période de grâce.",
+        "revoke": "Révoquer",
+        "revoke_confirm": "Révoquer la clé d'API « {{name}} » ? Les clients qui l'utilisent perdent l'accès immédiatement.",
+        "revoked": "Clé d'API révoquée",
+        "issued": "Clé d'API émise",
+        "rotated": "Clé d'API renouvelée",
+        "bootstrap_declared": "Déclarée",
+        "bootstrap_declared_tooltip": "Déclarée dans la configuration de bootstrap. Elle ne peut être ni révoquée ni renouvelée ici : la prochaine exécution de bootstrap la réimporterait et ressusciterait une clé révoquée. Pour la retirer, supprimez ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY de la configuration.",
+        "empty": "Aucune clé d'API pour le moment.",
+        "col_name": "Nom",
+        "col_prefix": "Préfixe",
+        "col_created": "Créée",
+        "col_last_used": "Dernière utilisation",
+        "col_expires": "Expire",
+        "col_status": "Statut",
+        "col_actions": "Actions",
+        "status_active": "Active",
+        "status_revoked": "Révoquée",
+        "status_expired": "Expirée",
+        "rotate_name_help": "L'ancienne clé garde son nom pendant sa période de grâce ; le remplacement en a donc besoin d'un autre."
+      },
+      "tools": {
+        "description": "Les outils MCP que les clés de ce compte peuvent appeler.",
+        "mode_all": "Tous les outils",
+        "mode_restricted": "Uniquement les outils sélectionnés",
+        "enforcement_note": "tools/list du serveur MCP continue d'annoncer tous les outils à ce compte. Un appel à un outil hors de la liste est refusé à l'invocation avec permission_denied — la liste est une frontière d'application, pas un filtre de découverte.",
+        "none_selected_warning": "Aucun outil sélectionné : tout appel MCP de ce compte est refusé.",
+        "save": "Enregistrer la liste",
+        "success": "Liste d'outils MCP mise à jour",
+        "catalog_error": "Impossible de charger le catalogue d'outils",
+        "mode_label": "Outils autorisés",
+        "tools_label": "Outils"
+      },
+      "limits": {
+        "description": "Requêtes par fenêtre fixe sur tous les appels par clé d'API de ce compte (MCP et REST). Vide hérite de la valeur par défaut du déploiement ; 0 au niveau du déploiement signifie illimité.",
+        "label_per_minute": "Requêtes par minute",
+        "label_per_day": "Requêtes par jour",
+        "placeholder_default": "Valeur par défaut du déploiement",
+        "save": "Enregistrer les limites",
+        "success": "Limites de débit mises à jour"
+      },
+      "principals": {
+        "description": "Personnes qui consentent à être nommées par ce compte via X-AccessFlow-On-Behalf-Of. Une délégation ne confère aucune permission : la clé du compte décide de ce qu'il peut faire, et la personne nommée compte comme demandeur pour l'interdiction d'auto-approbation.",
+        "grant": "Ajouter un principal",
+        "grant_title": "Autoriser le compte à agir pour le compte de",
+        "label_principal": "Personne",
+        "principal_placeholder": "Sélectionnez une personne",
+        "label_expires_at": "Expire",
+        "expires_at_placeholder": "N'expire jamais",
+        "submit": "Ajouter",
+        "success": "Principal ajouté",
+        "revoke": "Révoquer",
+        "revoke_confirm": "Révoquer cette délégation ? Les demandes nommant {{email}} seront refusées.",
+        "revoked": "Délégation révoquée",
+        "empty": "Personne n'a délégué à ce compte.",
+        "col_principal": "Personne",
+        "col_granted_by": "Accordée par",
+        "col_created": "Accordée",
+        "col_expires": "Expire",
+        "col_status": "Statut",
+        "col_actions": "Actions",
+        "granted_self": "Libre-service",
+        "granted_admin": "Admin"
+      },
+      "activity": {
+        "description": "Lignes d'audit où ce compte est l'acteur.",
+        "open_full": "Ouvrir dans le journal d'audit",
+        "empty": "Aucune activité enregistrée pour le moment.",
+        "load_error": "Impossible de charger l'activité",
+        "col_when": "Quand",
+        "col_action": "Action",
+        "col_resource": "Ressource",
+        "col_on_behalf_of": "Pour le compte de"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3485,33 @@
       "TEST": "Test",
       "STAGING": "Préproduction",
       "PRODUCTION": "Production"
+    },
+    "principal_type": {
+      "HUMAN": "Personne",
+      "SERVICE_ACCOUNT": "Compte de service"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Active",
+      "EXPIRED": "Expirée",
+      "REVOKED": "Révoquée"
+    },
+    "mcp_tool": {
+      "list_datasources": "Lister les sources de données que l'appelant peut interroger",
+      "get_datasource_schema": "Lire le schéma d'une source de données",
+      "list_my_queries": "Lister les demandes de requête de l'appelant",
+      "get_query_status": "Lire l'état d'une demande de requête",
+      "get_query_result": "Récupérer le résultat d'une requête exécutée",
+      "submit_query": "Soumettre une requête à la revue",
+      "cancel_query": "Annuler une requête en attente",
+      "list_pending_reviews": "Lister les revues en attente de l'appelant",
+      "review_query": "Approuver ou rejeter une requête",
+      "validate_sql": "Analyser et valider du SQL sans le soumettre",
+      "get_column_samples": "Échantillonner des valeurs de colonnes d'une source de données",
+      "get_audit_log": "Lire le journal d'audit"
     }
   },
   "access": {
@@ -3750,7 +3988,9 @@
         "row_status_forbidden": "Non autorisé",
         "row_status_invalid_state": "Plus ouvert",
         "row_status_not_found": "Introuvable"
-      }
+      },
+      "owned_by": "Propriétaire : {{name}}",
+      "no_owner": "Aucun propriétaire assigné"
     },
     "usage": {
       "no_data": "Aucune donnée d'utilisation",

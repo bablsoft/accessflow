@@ -51,6 +51,7 @@ import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { buildDeploymentTimelineStages } from './buildDeploymentTimelineStages';
 import type { DeploymentDecision, DeploymentRequest } from '@/types/api';
+import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 
 /**
  * Mirrors DefaultDeploymentRequestService.cancel: PENDING_REVIEW always, and APPROVED only while
@@ -324,7 +325,15 @@ export default function DeploymentDetailPage() {
                   {
                     key: 'submitter',
                     label: t('deploygov.detail.submitter'),
-                    children: request.submitted_by_email ?? request.submitted_by,
+                    children: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        {request.submitted_by_email ?? request.submitted_by}
+                        <OnBehalfOfTag
+                          email={request.on_behalf_of_email}
+                          userId={request.on_behalf_of_user_id}
+                        />
+                      </span>
+                    ),
                   },
                   {
                     key: 'reason',

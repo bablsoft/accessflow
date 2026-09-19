@@ -577,8 +577,11 @@ clears `revoked_at` on every changed reconcile, so a revoke would only appear to
 next restart; the 409 names the real remediation (rotate the secret at the bootstrap source, then
 restart). **Known limitation:** `PUT /admin/users/{id}` (`USER_MANAGE`) does not consult
 `principal_type`, so it can still change a `BOOTSTRAP` account's display name or role — the
-bootstrap-managed 409 is enforced on the service-account surface only, and #875 hides service
-accounts from the users page. Since #869 the discriminator itself is enforced on the sign-in
+bootstrap-managed 409 is enforced on the service-account surface only. The users page (#875)
+therefore lists service accounts with a *Service account* badge and a principal-type filter
+(default: everyone) but routes their row action to `/admin/service-accounts/{id}` instead of the
+user edit modal, so the UI never offers the unguarded path; `GET /admin/users` exposes
+`principal_type` and accepts `?principal_type=` for exactly this. Since #869 the discriminator itself is enforced on the sign-in
 surface — password, refresh, SAML and OAuth2 all reject a `SERVICE_ACCOUNT` (see "API key
 authentication" above) — while by API key a service account still authenticates and is authorized
 exactly as the role on its **own** `users` row dictates — `owner_user_id` (the human it acts for)

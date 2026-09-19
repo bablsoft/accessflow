@@ -107,6 +107,16 @@ const DeploymentListPage = lazy(() => import('@/pages/deployments/DeploymentList
 const DeploymentDetailPage = lazy(() => import('@/pages/deployments/DeploymentDetailPage'));
 const DeploymentVersionsPage = lazy(() => import('@/pages/deployments/DeploymentVersionsPage'));
 const PipelineVersionsPage = lazy(() => import('@/pages/deployments/PipelineVersionsPage'));
+const ServiceAccountsPage = lazy(() =>
+  import('@/pages/admin/service-accounts/ServiceAccountsPage').then((m) => ({
+    default: m.ServiceAccountsPage,
+  })),
+);
+const ServiceAccountSettingsPage = lazy(() =>
+  import('@/pages/admin/service-accounts/ServiceAccountSettingsPage').then((m) => ({
+    default: m.ServiceAccountSettingsPage,
+  })),
+);
 const DeploymentPipelinesPage = lazy(() =>
   import('@/pages/admin/deployments/DeploymentPipelinesPage').then((m) => ({
     default: m.DeploymentPipelinesPage,
@@ -461,6 +471,26 @@ export function App() {
               <AuthGuard requirePermission={'ROLE_MANAGE'}>
                 <Suspense fallback={null}>
                   <RolesPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/service-accounts"
+            element={
+              <AuthGuard requirePermission={'SERVICE_ACCOUNT_MANAGE'}>
+                <Suspense fallback={null}>
+                  <ServiceAccountsPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/service-accounts/:id"
+            element={
+              <AuthGuard requirePermission={'SERVICE_ACCOUNT_MANAGE'}>
+                <Suspense fallback={null}>
+                  <ServiceAccountSettingsPage />
                 </Suspense>
               </AuthGuard>
             }

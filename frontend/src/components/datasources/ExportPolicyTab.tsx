@@ -52,6 +52,7 @@ import type {
   ExportPolicyMode,
   User,
 } from '@/types/api';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 export function ExportPolicyTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
@@ -328,7 +329,11 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
     () =>
       (usersQuery.data?.content ?? [])
         .filter((u: User) => u.active)
-        .map((u: User) => ({ value: u.id, label: userDisplay(u.display_name, u.email) })),
+        .map((u: User) => ({
+          value: u.id,
+          label: userDisplay(u.display_name, u.email),
+          principal_type: u.principal_type ?? 'HUMAN',
+        })),
     [usersQuery.data],
   );
   const groupOptions = useMemo(
@@ -495,6 +500,7 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
             allowClear
             showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
+            optionRender={renderUserOption}
             loading={usersQuery.isLoading}
           />
         </Form.Item>

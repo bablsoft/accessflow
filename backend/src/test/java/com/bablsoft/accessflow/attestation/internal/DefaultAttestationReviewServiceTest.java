@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.attestation.internal.persistence.repo.Attestation
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,6 +50,7 @@ class DefaultAttestationReviewServiceTest {
     @Mock AttestationItemStateService itemStateService;
     @Mock ReviewerEligibilityService reviewerEligibilityService;
     @Mock MessageSource messageSource;
+    @Mock AttestationSubjectResolver subjectResolver;
     @InjectMocks DefaultAttestationReviewService service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -81,6 +83,11 @@ class DefaultAttestationReviewServiceTest {
         return c;
     }
 
+    @BeforeEach
+    void passThroughSubjectResolver() {
+        lenient().when(subjectResolver.enrich(any(), any())).thenAnswer(inv -> inv.getArgument(1));
+    }
+
     @Test
     void listReturnsEmptyForNonReviewerRole() {
         var page = service.listPendingForReviewer(
@@ -105,6 +112,7 @@ class DefaultAttestationReviewServiceTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).subjectUserId()).isEqualTo(subjectId);
+        verify(subjectResolver).enrich(eq(orgId), any());
     }
 
     /**

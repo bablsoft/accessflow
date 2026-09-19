@@ -180,6 +180,34 @@ class AuditLogSpecificationsTest {
     }
 
     @Test
+    void onBehalfOfFilterMatchesTheMetadataKey() {
+        var organizationId = UUID.randomUUID();
+        var principal = UUID.randomUUID();
+        var metadataPath = mock(Path.class);
+        var literal = mock(Expression.class);
+        var extracted = mock(Expression.class);
+        when(root.get("metadata")).thenReturn(metadataPath);
+        when(cb.literal("on_behalf_of_user_id")).thenReturn(literal);
+        when(cb.function(eq("jsonb_extract_path_text"), eq(String.class), eq(metadataPath), eq(literal)))
+                .thenReturn(extracted);
+        var query = new AuditLogQuery(null, null, null, null, null, null, principal);
+
+        AuditLogSpecifications.forQuery(organizationId, query).toPredicate(root, cq, cb);
+
+        verify(cb).equal(organizationIdPath, organizationId);
+        verify(cb).equal(extracted, principal.toString());
+        verify(cb, never()).equal(eq(actorIdPath), any(Object.class));
+    }
+
+    @Test
+    void emptyFilterNeverTouchesTheMetadataColumn() {
+        AuditLogSpecifications.forQuery(UUID.randomUUID(), AuditLogQuery.empty()).toPredicate(root, cq, cb);
+
+        verify(root, never()).get("metadata");
+        verify(cb, never()).function(any(String.class), any(), any(Expression.class), any(Expression.class));
+    }
+
+    @Test
     void resultsAreOrderedByCreatedAtDesc() {
         AuditLogSpecifications.forQuery(UUID.randomUUID(), AuditLogQuery.empty())
                 .toPredicate(root, cq, cb);

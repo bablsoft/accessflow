@@ -308,6 +308,8 @@ class AdminUserGroupControllerIntegrationTest {
                 .containsExactlyInAnyOrder("rev@example.com", "analyst@example.com");
         assertThat(result).bodyJson().extractingPath("$.members[*].source").asArray()
                 .containsExactlyInAnyOrder("MANUAL", "IDP");
+        assertThat(result).bodyJson().extractingPath("$.members[*].principal_type").asArray()
+                .containsExactly("HUMAN", "HUMAN");
     }
 
     @Test
