@@ -160,42 +160,41 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
       render: (_v, key) => {
         const status = keyStatus(key);
         if (status === 'revoked') return null;
-        const locked = key.bootstrap_declared;
-        const lockTooltip = locked ? t('admin.service_accounts.keys.bootstrap_declared_tooltip') : undefined;
+        if (key.bootstrap_declared) {
+          // A declared key can be neither revoked nor rotated here: a re-import would resurrect
+          // it (DefaultApiKeyService). The tooltip points at the real remediation.
+          return (
+            <Tooltip title={t('admin.service_accounts.keys.bootstrap_declared_tooltip')}>
+              <Space size={4} data-testid="declared-key-actions">
+                <Button size="small" disabled>
+                  {t('admin.service_accounts.keys.rotate')}
+                </Button>
+                <Button size="small" danger disabled>
+                  {t('admin.service_accounts.keys.revoke')}
+                </Button>
+              </Space>
+            </Tooltip>
+          );
+        }
         return (
           <Space size={4}>
-            <Tooltip title={lockTooltip}>
-              <Button
-                size="small"
-                disabled={locked}
-                aria-label={t('admin.service_accounts.keys.rotate')}
-                onClick={() => {
-                  rotateForm.setFieldsValue({ name: key.name, expires_at: null, grace_hours: null });
-                  setRotating(key);
-                }}
-              >
-                {t('admin.service_accounts.keys.rotate')}
-              </Button>
-            </Tooltip>
+            <Button size="small" onClick={() => setRotating(key)}>
+              {t('admin.service_accounts.keys.rotate')}
+            </Button>
             <Popconfirm
               title={t('admin.service_accounts.keys.revoke_confirm', { name: key.name })}
               okText={t('admin.service_accounts.keys.revoke')}
               cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
-              disabled={locked}
               onConfirm={() => revokeMutation.mutate(key.id)}
             >
-              <Tooltip title={lockTooltip}>
-                <Button
-                  size="small"
-                  danger
-                  disabled={locked}
-                  aria-label={t('admin.service_accounts.keys.revoke')}
-                  loading={revokeMutation.isPending && revokeMutation.variables === key.id}
-                >
-                  {t('admin.service_accounts.keys.revoke')}
-                </Button>
-              </Tooltip>
+              <Button
+                size="small"
+                danger
+                loading={revokeMutation.isPending && revokeMutation.variables === key.id}
+              >
+                {t('admin.service_accounts.keys.revoke')}
+              </Button>
             </Popconfirm>
           </Space>
         );
@@ -276,9 +275,11 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
           {t('admin.service_accounts.keys.rotate_help')}
         </Typography.Paragraph>
         <Form<KeyFormValues>
+          key={rotating?.id}
           form={rotateForm}
           name="rotateServiceAccountKey"
           layout="vertical"
+          initialValues={{ name: rotating?.name ?? '', expires_at: null, grace_hours: null }}
           onFinish={(values) => {
             if (rotating) rotateMutation.mutate({ key: rotating, values });
           }}
