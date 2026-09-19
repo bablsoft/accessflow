@@ -155,6 +155,7 @@ export async function listUsers(filters: UserListFilters = {}): Promise<UserPage
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
   if (filters.sort) params.sort = filters.sort;
+  if (filters.principal_type) params.principal_type = filters.principal_type;
   const { data } = await apiClient.get<UserPage>(USERS_BASE, { params });
   return data;
 }
@@ -187,6 +188,7 @@ export async function listAuditEvents(
 ): Promise<AuditLogPage> {
   const params: Record<string, string | number> = {};
   if (filters.actor_id) params.actorId = filters.actor_id;
+  if (filters.on_behalf_of_user_id) params.onBehalfOfUserId = filters.on_behalf_of_user_id;
   if (filters.action) params.action = filters.action;
   if (filters.resource_type) params.resourceType = filters.resource_type;
   if (filters.resource_id) params.resourceId = filters.resource_id;
@@ -222,6 +224,7 @@ export async function exportAuditLogCsv(
 ): Promise<AuditLogExportResult> {
   const params: Record<string, string> = {};
   if (filters.actor_id) params.actorId = filters.actor_id;
+  if (filters.on_behalf_of_user_id) params.onBehalfOfUserId = filters.on_behalf_of_user_id;
   if (filters.action) params.action = filters.action;
   if (filters.resource_type) params.resourceType = filters.resource_type;
   if (filters.resource_id) params.resourceId = filters.resource_id;

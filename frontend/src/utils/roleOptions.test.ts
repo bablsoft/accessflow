@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '@/i18n';
 import type { RoleSummary } from '@/types/api';
-import { roleDisplayName, roleSelectOptions } from './roleOptions';
+import { isReviewCapableRole, roleDisplayName, roleSelectOptions } from './roleOptions';
 
 function role(partial: Partial<RoleSummary>): RoleSummary {
   return {
@@ -54,5 +54,13 @@ describe('roleSelectOptions', () => {
 
   it('returns an empty array for no roles', () => {
     expect(roleSelectOptions([], t, 'name')).toEqual([]);
+  });
+});
+
+describe('isReviewCapableRole (#875)', () => {
+  it('is true for any *_REVIEW permission and false otherwise', () => {
+    expect(isReviewCapableRole(role({ permissions: ['QUERY_SUBMIT', 'DEPLOYMENT_REVIEW'] }))).toBe(true);
+    expect(isReviewCapableRole(role({ permissions: ['QUERY_SUBMIT', 'USER_MANAGE'] }))).toBe(false);
+    expect(isReviewCapableRole(undefined)).toBe(false);
   });
 });

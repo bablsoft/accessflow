@@ -33,7 +33,10 @@
     "yes": "Yes",
     "no": "No",
     "view_docs": "View docs",
-    "view_docs_aria": "View docs (opens in a new tab)"
+    "view_docs_aria": "View docs (opens in a new tab)",
+    "on_behalf_of": "on behalf of {{name}}",
+    "on_behalf_of_tooltip": "An API-key caller acted for this person (X-AccessFlow-On-Behalf-Of). The named person is treated as a submitter for the self-approval ban.",
+    "principal_service_account_tooltip": "A non-human identity: it authenticates with an API key only and can never sign in interactively."
   },
   "nav": {
     "editor": "Query editor",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Deployment Pipelines",
     "help_agent": "Help assistant",
     "governance_domains": "Governance domains",
-    "sql_review": "SQL review"
+    "sql_review": "SQL review",
+    "service_accounts": "Service accounts"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "Another ruleset is already bound to that environment.",
     "sql_review_ruleset_default_conflict": "The organization already has a default ruleset.",
     "sql_review_ruleset_invalid": "The ruleset configuration is invalid.",
-    "sql_review_ruleset_generic": "Could not save the SQL review ruleset."
+    "sql_review_ruleset_generic": "Could not save the SQL review ruleset.",
+    "service_account_generic": "Service account operation failed.",
+    "service_account_not_found": "Service account not found.",
+    "service_account_key_not_found": "API key not found.",
+    "service_account_key_bootstrap_declared": "This key is declared in the bootstrap configuration and cannot be revoked or rotated here — remove it from the bootstrap spec instead.",
+    "service_account_key_revoked": "This key is already revoked and cannot be rotated.",
+    "service_account_key_name_conflict": "The account already has an active key with that name.",
+    "service_account_owner_invalid": "The owner must be an active person in this organization.",
+    "service_account_bootstrap_managed": "The field \"{{field}}\" is declared in the bootstrap configuration and can only change there.",
+    "service_account_unknown_mcp_tool": "Unknown MCP tool: {{tool}}.",
+    "service_account_email_exists": "A user with that email already exists.",
+    "service_account_delegation_not_found": "Delegation not found.",
+    "service_account_delegation_exists": "This person already permits the account to act on their behalf.",
+    "service_account_delegation_principal_invalid": "The principal must be an active person in this organization.",
+    "service_account_delegation_invalid": "The delegation target must be an active service account."
   },
   "editor": {
     "text_to_sql": {
@@ -1588,7 +1606,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Service account"
     },
     "users": {
       "title": "Users",
@@ -1642,7 +1661,11 @@
       "attribute_key": "Key",
       "attribute_value": "Value",
       "attribute_add": "Add attribute",
-      "attribute_remove": "Remove attribute"
+      "attribute_remove": "Remove attribute",
+      "filter_all_principals": "People and service accounts",
+      "filter_principal_humans": "People only",
+      "filter_principal_service_accounts": "Service accounts only",
+      "service_account_hint": "Manage this identity from Service accounts."
     },
     "audit": {
       "title": "Audit log",
@@ -1673,7 +1696,10 @@
       "chain_invalid_detail": "First bad row {{rowId}} — {{reason}}",
       "export_csv": "Export CSV",
       "export_failed": "Failed to export audit log. Please try again.",
-      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set."
+      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set.",
+      "filter_on_behalf_of_placeholder": "On behalf of (user id)",
+      "on_behalf_of_label": "On behalf of",
+      "via_service_account": "via service account"
     },
     "ai_analyses": {
       "title": "AI analyses",
@@ -2505,6 +2531,188 @@
       "param_placeholder_defaults": "Default: {{values}}",
       "param_required": "At least one value is required when this rule is stored.",
       "param_invalid": "\"{{value}}\" is not an allowed value."
+    },
+    "service_accounts": {
+      "title": "Service accounts",
+      "subtitle": "Non-human identities that authenticate with API keys — CI pipelines, AI agents, integrations.",
+      "create": "Create service account",
+      "load_error": "Could not load service accounts",
+      "empty_title": "No service accounts yet",
+      "empty_description": "Create one for a pipeline or an agent, then issue it an API key.",
+      "filter_all_sources": "Managed anywhere",
+      "col_name": "Name",
+      "col_email": "Email",
+      "col_role": "Role",
+      "col_owner": "Owner",
+      "col_status": "Status",
+      "col_managed_by": "Managed by",
+      "col_keys": "Active keys",
+      "col_last_used": "Last used",
+      "col_tools": "MCP tools",
+      "col_rate_limit": "Rate limit",
+      "status_active": "Active",
+      "status_inactive": "Inactive",
+      "tools_all": "All tools",
+      "tools_count": "{{allowed}} / {{total}} tools",
+      "tools_none": "No tools",
+      "no_owner": "—",
+      "rate_limit_default": "Deployment default",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/min",
+      "rate_per_day": "{{count}}/day",
+      "never_used": "Never",
+      "managed_by_tooltip": {
+        "UI": "Created and managed from this admin page.",
+        "BOOTSTRAP": "Declared in the bootstrap configuration (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*). Its email, display name, role and declared key change only there."
+      },
+      "validation": {
+        "required": "This field is required.",
+        "max_length": "Must be at most {{max}} characters.",
+        "positive_integer": "Must be a whole number greater than zero."
+      },
+      "create_modal": {
+        "title": "Create service account",
+        "label_email": "Email",
+        "email_help": "An identifier only — a service account never receives mail and never signs in.",
+        "label_display_name": "Display name",
+        "label_role": "Role",
+        "role_help": "Defaults to Read-only. The role decides what the account's keys may do.",
+        "label_owner": "Owner",
+        "owner_help": "The person accountable for this account. Confers nothing; shown to reviewers.",
+        "owner_placeholder": "No owner",
+        "label_description": "Description",
+        "label_rate_limit_per_minute": "Requests per minute",
+        "label_rate_limit_per_day": "Requests per day",
+        "rate_limit_help": "Leave blank to inherit the deployment default.",
+        "submit": "Create",
+        "success": "Service account created"
+      },
+      "review_role_warning": "This role can approve requests. A service account holding it becomes an eligible approver — an agent could approve what another agent submitted.",
+      "settings": {
+        "back": "Back to service accounts",
+        "load_error": "Could not load the service account",
+        "not_found": "Service account not found",
+        "bootstrap_banner_title": "Managed by the bootstrap configuration",
+        "bootstrap_banner_body": "This account is declared by ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY}. Its email, display name, role and declared key are read-only here and change only in that configuration; everything else stays editable.",
+        "tab_overview": "Overview",
+        "tab_keys": "API keys",
+        "tab_tools": "MCP tools",
+        "tab_limits": "Limits",
+        "tab_principals": "On-behalf-of principals",
+        "tab_activity": "Activity",
+        "deactivate": "Deactivate",
+        "deactivate_confirm_title": "Deactivate this service account?",
+        "deactivate_confirm_body": "Its keys stop authenticating immediately. Nothing is revoked, and re-activating restores them.",
+        "deactivate_success": "Service account deactivated",
+        "unknown_tab": "Unknown tab"
+      },
+      "overview": {
+        "label_email": "Email",
+        "label_display_name": "Display name",
+        "label_role": "Role",
+        "label_owner": "Owner",
+        "label_description": "Description",
+        "label_active": "Active",
+        "active_help": "An inactive account keeps its keys, but none of them authenticate.",
+        "bootstrap_readonly": "Declared in the bootstrap configuration",
+        "owner_placeholder": "No owner",
+        "save": "Save changes",
+        "success": "Service account updated",
+        "nothing_changed": "Nothing to save",
+        "label_created": "Created",
+        "label_updated": "Updated",
+        "label_last_used": "Last used"
+      },
+      "keys": {
+        "description": "Keys are the account's only credential. Rotate rather than revoke when a consumer must keep running: the old key stays valid for a bounded grace period.",
+        "issue": "Issue key",
+        "issue_title": "Issue an API key",
+        "rotate": "Rotate",
+        "rotate_title": "Rotate API key \"{{name}}\"",
+        "rotate_help": "Issues a replacement and expires this key after the grace period. Both keys authenticate until then — update the consumer before it lapses.",
+        "label_grace_hours": "Grace period (hours)",
+        "grace_default_help": "Leave blank for the deployment default of {{hours}} hours.",
+        "name_label": "Key name",
+        "name_placeholder": "e.g. github-actions",
+        "expires_at_label": "Expires",
+        "expires_at_placeholder": "Never expires",
+        "expires_at_help": "Optional. Leave empty and the key never expires — you can still revoke it.",
+        "issued_title": "Copy the new API key",
+        "rotated_title": "Copy the replacement API key",
+        "raw_key_label": "Key",
+        "copy_once_warning": "This is the only time the key is shown. Copy it now and store it somewhere safe — it cannot be retrieved again.",
+        "superseded_until": "The previous key {{prefix}}… keeps working until {{until}}.",
+        "superseded_until_unknown": "The previous key {{prefix}}… keeps working until the grace period ends.",
+        "revoke": "Revoke",
+        "revoke_confirm": "Revoke API key \"{{name}}\"? Clients using it lose access immediately.",
+        "revoked": "API key revoked",
+        "issued": "API key issued",
+        "rotated": "API key rotated",
+        "bootstrap_declared": "Declared",
+        "bootstrap_declared_tooltip": "Declared in the bootstrap configuration. It cannot be revoked or rotated here: the next bootstrap run would re-import it and resurrect a revoked key. To retire it, remove ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY from the configuration.",
+        "empty": "No API keys yet.",
+        "col_name": "Name",
+        "col_prefix": "Prefix",
+        "col_created": "Created",
+        "col_last_used": "Last used",
+        "col_expires": "Expires",
+        "col_status": "Status",
+        "col_actions": "Actions",
+        "status_active": "Active",
+        "status_revoked": "Revoked",
+        "status_expired": "Expired"
+      },
+      "tools": {
+        "description": "Which MCP tools this account's keys may call.",
+        "mode_all": "Every tool",
+        "mode_restricted": "Only the selected tools",
+        "enforcement_note": "The MCP server's tools/list still advertises every tool to this account. A call to a tool outside the allow-list is denied at invocation with permission_denied — the allow-list is an enforcement boundary, not a discovery filter.",
+        "none_selected_warning": "No tools selected: every MCP call from this account is denied.",
+        "save": "Save allow-list",
+        "success": "MCP tool allow-list updated",
+        "catalog_error": "Could not load the tool catalog"
+      },
+      "limits": {
+        "description": "Requests per fixed window across every API-key call this account makes (MCP and REST). Blank inherits the deployment default; 0 at the deployment level means unlimited.",
+        "label_per_minute": "Requests per minute",
+        "label_per_day": "Requests per day",
+        "placeholder_default": "Deployment default",
+        "save": "Save limits",
+        "success": "Rate limits updated"
+      },
+      "principals": {
+        "description": "People who consent to be named by this account through X-AccessFlow-On-Behalf-Of. A delegation confers no permission: the account's own key decides what it may do, and the named person counts as a submitter for the self-approval ban.",
+        "grant": "Add principal",
+        "grant_title": "Allow the account to act on behalf of",
+        "label_principal": "Person",
+        "principal_placeholder": "Select a person",
+        "label_expires_at": "Expires",
+        "expires_at_placeholder": "Never expires",
+        "submit": "Add",
+        "success": "Principal added",
+        "revoke": "Revoke",
+        "revoke_confirm": "Revoke this delegation? Requests naming {{email}} will be refused.",
+        "revoked": "Delegation revoked",
+        "empty": "No one has delegated to this account.",
+        "col_principal": "Person",
+        "col_granted_by": "Granted by",
+        "col_created": "Granted",
+        "col_expires": "Expires",
+        "col_status": "Status",
+        "col_actions": "Actions",
+        "granted_self": "Self-service",
+        "granted_admin": "Admin"
+      },
+      "activity": {
+        "description": "Audit rows where this account is the actor.",
+        "open_full": "Open in audit log",
+        "empty": "No activity recorded yet.",
+        "load_error": "Could not load activity",
+        "col_when": "When",
+        "col_action": "Action",
+        "col_resource": "Resource",
+        "col_on_behalf_of": "On behalf of"
+      }
     }
   },
   "notifications": {
@@ -3298,6 +3506,33 @@
       "TEST": "Test",
       "STAGING": "Staging",
       "PRODUCTION": "Production"
+    },
+    "principal_type": {
+      "HUMAN": "Person",
+      "SERVICE_ACCOUNT": "Service account"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "REVOKED": "Revoked"
+    },
+    "mcp_tool": {
+      "list_datasources": "List the datasources the caller can query",
+      "get_datasource_schema": "Read a datasource schema",
+      "list_my_queries": "List the caller's own query requests",
+      "get_query_status": "Read a query request's status",
+      "get_query_result": "Fetch an executed query's result",
+      "submit_query": "Submit a query for review",
+      "cancel_query": "Cancel a pending query",
+      "list_pending_reviews": "List reviews awaiting the caller",
+      "review_query": "Approve or reject a query",
+      "validate_sql": "Parse and validate SQL without submitting it",
+      "get_column_samples": "Sample column values from a datasource",
+      "get_audit_log": "Read the audit log"
     }
   },
   "access": {
@@ -3750,7 +3985,9 @@
         "row_status_forbidden": "Not allowed",
         "row_status_invalid_state": "No longer open",
         "row_status_not_found": "Not found"
-      }
+      },
+      "owned_by": "Owned by {{name}}",
+      "no_owner": "No owner assigned"
     },
     "usage": {
       "no_data": "No usage data",

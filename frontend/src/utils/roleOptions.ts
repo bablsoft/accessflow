@@ -29,3 +29,11 @@ export function roleSelectOptions(
     label: roleDisplayName(t, role),
   }));
 }
+
+/**
+ * A role that makes its holder an eligible approver somewhere (#875): any `*_REVIEW`
+ * permission. A service account on such a role can approve, so the UI warns before assigning it.
+ */
+export function isReviewCapableRole(role: Pick<RoleSummary, 'permissions'> | undefined): boolean {
+  return !!role && role.permissions.some((permission) => permission.endsWith('_REVIEW'));
+}

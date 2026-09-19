@@ -56,6 +56,16 @@ describe('api/admin', () => {
     expect(result.content[0]?.email).toBe('alice@example.com');
   });
 
+  it('listUsers forwards the principal-type filter', async () => {
+    get.mockResolvedValueOnce({
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
+    });
+    await adminApi.listUsers({ size: 100, principal_type: 'HUMAN' });
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/users', {
+      params: { size: 100, principal_type: 'HUMAN' },
+    });
+  });
+
   it('listUsers omits unset params', async () => {
     get.mockResolvedValueOnce({
       data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
@@ -106,6 +116,7 @@ describe('api/admin', () => {
     });
     await adminApi.listAuditEvents({
       actor_id: 'u-1',
+      on_behalf_of_user_id: 'u-2',
       action: 'USER_LOGIN',
       resource_type: 'user',
       resource_id: 'r-1',
@@ -118,6 +129,7 @@ describe('api/admin', () => {
     expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log', {
       params: {
         actorId: 'u-1',
+        onBehalfOfUserId: 'u-2',
         action: 'USER_LOGIN',
         resourceType: 'user',
         resourceId: 'r-1',
@@ -182,6 +194,7 @@ describe('api/admin', () => {
 
     const result = await adminApi.exportAuditLogCsv({
       actor_id: 'u-1',
+      on_behalf_of_user_id: 'u-2',
       action: 'USER_LOGIN',
       resource_type: 'user',
       resource_id: 'r-1',
@@ -196,6 +209,7 @@ describe('api/admin', () => {
     expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log/export.csv', {
       params: {
         actorId: 'u-1',
+        onBehalfOfUserId: 'u-2',
         action: 'USER_LOGIN',
         resourceType: 'user',
         resourceId: 'r-1',

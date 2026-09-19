@@ -6,6 +6,7 @@ import {
   auditSinkErrorMessage,
   queryReplayErrorMessage,
   rolesErrorMessage,
+  serviceAccountErrorMessage,
 } from './apiErrors';
 
 function axiosError(status: number, data: unknown): AxiosError {
@@ -156,5 +157,48 @@ describe('rolesErrorMessage (AF-522)', () => {
   it('falls back to the generic message for unknown errors', () => {
     const msg = rolesErrorMessage({});
     expect(msg).toMatch(/role/i);
+  });
+});
+
+describe('serviceAccountErrorMessage (#875)', () => {
+  it('interpolates the declared field into the bootstrap-managed message', () => {
+    const msg = serviceAccountErrorMessage(
+      axiosError(409, { error: 'SERVICE_ACCOUNT_BOOTSTRAP_MANAGED', field: 'display_name' }),
+    );
+    expect(msg).toContain('display_name');
+    expect(msg).toMatch(/bootstrap/i);
+  });
+
+  it('interpolates the offending tool into the unknown-tool message', () => {
+    const msg = serviceAccountErrorMessage(
+      axiosError(422, { error: 'SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL', tool: 'drop_everything' }),
+    );
+    expect(msg).toContain('drop_everything');
+  });
+
+  it('maps the code table to friendly messages', () => {
+    expect(
+      serviceAccountErrorMessage(axiosError(409, { error: 'SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED' })),
+    ).toMatch(/bootstrap/i);
+    expect(serviceAccountErrorMessage(axiosError(409, { error: 'EMAIL_ALREADY_EXISTS' }))).toMatch(
+      /already exists/i,
+    );
+    expect(
+      serviceAccountErrorMessage(axiosError(422, { error: 'SERVICE_ACCOUNT_OWNER_INVALID' })),
+    ).toMatch(/owner/i);
+  });
+
+  it('prefers the backend detail, then the title, for unmapped codes', () => {
+    expect(serviceAccountErrorMessage(axiosError(400, { error: 'OTHER', detail: 'specific' }))).toBe(
+      'specific',
+    );
+    expect(serviceAccountErrorMessage(axiosError(400, { error: 'OTHER', title: 'Bad Request' }))).toBe(
+      'Bad Request',
+    );
+  });
+
+  it('falls back to the generic message for unknown errors', () => {
+    expect(serviceAccountErrorMessage({})).toMatch(/service account/i);
+    expect(serviceAccountErrorMessage(new Error('boom'))).toBe('boom');
   });
 });

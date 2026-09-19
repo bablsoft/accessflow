@@ -114,6 +114,9 @@ export type RagStoreType = 'PGVECTOR' | 'QDRANT';
 
 export type VotingStrategy = 'WEIGHTED_AVERAGE' | 'MAX_RISK' | 'MAJORITY';
 
+/** Person vs non-human identity (#868). Service accounts hold API keys only and never sign in. */
+export type PrincipalType = 'HUMAN' | 'SERVICE_ACCOUNT';
+
 export interface User {
   id: string;
   email: string;
@@ -129,6 +132,8 @@ export interface User {
   last_login_at: string | null;
   preferred_language: string | null;
   created_at: string;
+  /** Tells a service account from a person on the admin list (#875); absent = a person. */
+  principal_type?: PrincipalType;
 }
 
 export interface MeProfile {
@@ -1819,6 +1824,11 @@ export interface AuditEvent {
   actor_id: string | null;
   actor_email: string | null;
   actor_display_name: string | null;
+  /**
+   * The person an API-key caller acted for (#874), resolved from `metadata.on_behalf_of_user_id`
+   * (#875). Absent when the row carries no attribution or the user is gone.
+   */
+  on_behalf_of_email?: string | null;
   action: string;
   resource_type: string;
   resource_id: string | null;
@@ -1832,6 +1842,8 @@ export type AuditLogPage = PageEnvelope<AuditEvent>;
 
 export interface AuditLogFilters {
   actor_id?: string;
+  /** Rows whose metadata names this person as the on-behalf-of principal (#874). */
+  on_behalf_of_user_id?: string;
   action?: string;
   resource_type?: string;
   resource_id?: string;
@@ -1859,6 +1871,8 @@ export interface UserListFilters {
   page?: number;
   size?: number;
   sort?: string;
+  /** Server-side principal filter (#875); omitted = every principal. */
+  principal_type?: PrincipalType;
 }
 
 export interface DatasourcePermission {
@@ -2426,6 +2440,129 @@ export interface CreateApiKeyResponse {
   raw_key: string;
 }
 
+// ── Service accounts (epic #867, admin UI #875) ──────────────────────────────
+
+/** Who declares the account: the admin UI, or the bootstrap reconciler's env spec. */
+export type ServiceAccountSource = 'UI' | 'BOOTSTRAP';
+
+/** UI-owned fields a PUT resets by name — `null` in the body means "unchanged", never "clear". */
+export type ServiceAccountClearableField =
+  | 'DESCRIPTION'
+  | 'OWNER_USER_ID'
+  | 'MCP_TOOL_ALLOW_LIST'
+  | 'RATE_LIMIT_PER_MINUTE'
+  | 'RATE_LIMIT_PER_DAY';
+
+export type ServiceAccountDelegationStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+
+export interface ServiceAccountKey extends ApiKey {
+  /** Declared by the bootstrap spec: can be neither revoked nor rotated from the UI. */
+  bootstrap_declared: boolean;
+}
+
+export interface ServiceAccount {
+  id: string;
+  email: string;
+  display_name: string;
+  role: Role | null;
+  role_id: string | null;
+  role_name: string;
+  active: boolean;
+  managed_by: ServiceAccountSource;
+  description: string | null;
+  owner_user_id: string | null;
+  owner_email: string | null;
+  owner_display_name: string | null;
+  /** `null` = every tool, `[]` = none, else the allowed wire names (#872). */
+  mcp_tool_allow_list: string[] | null;
+  /** `null` = the deployment default (#873). */
+  rate_limit_per_minute: number | null;
+  rate_limit_per_day: number | null;
+  active_api_key_count: number;
+  last_used_at: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Populated on a single-account read only; the list always returns `[]`. */
+  api_keys: ServiceAccountKey[];
+}
+
+export type ServiceAccountPage = PageEnvelope<ServiceAccount>;
+
+export interface ServiceAccountListFilters {
+  page?: number;
+  size?: number;
+  managed_by?: ServiceAccountSource;
+}
+
+export interface CreateServiceAccountInput {
+  email: string;
+  display_name: string;
+  role?: Role | null;
+  role_id?: string | null;
+  description?: string | null;
+  owner_user_id?: string | null;
+  mcp_tool_allow_list?: string[] | null;
+  rate_limit_per_minute?: number | null;
+  rate_limit_per_day?: number | null;
+}
+
+export interface UpdateServiceAccountInput {
+  display_name?: string;
+  role?: Role | null;
+  role_id?: string | null;
+  active?: boolean;
+  description?: string;
+  owner_user_id?: string;
+  mcp_tool_allow_list?: string[];
+  rate_limit_per_minute?: number;
+  rate_limit_per_day?: number;
+  clear?: ServiceAccountClearableField[];
+}
+
+export interface IssueServiceAccountKeyInput {
+  name: string;
+  expires_at?: string | null;
+}
+
+export interface IssuedServiceAccountKey {
+  api_key: ServiceAccountKey;
+  raw_key: string;
+}
+
+export interface RotateServiceAccountKeyInput extends IssueServiceAccountKeyInput {
+  /** ISO-8601 duration the superseded key keeps working (default: the deployment's PT24H). */
+  grace_period?: string | null;
+}
+
+export interface RotatedServiceAccountKey extends IssuedServiceAccountKey {
+  /** The old key, now carrying the `expires_at` the grace window ends at. */
+  superseded_key: ServiceAccountKey;
+}
+
+/** A person's consent to be named by an agent through `X-AccessFlow-On-Behalf-Of` (#874). */
+export interface ServiceAccountDelegation {
+  id: string;
+  service_account_user_id: string;
+  service_account_email: string;
+  principal_user_id: string;
+  principal_email: string;
+  granted_by: string;
+  created_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  status: ServiceAccountDelegationStatus;
+}
+
+export interface GrantDelegatedPrincipalInput {
+  principal_user_id: string;
+  expires_at?: string | null;
+}
+
+export interface McpToolCatalog {
+  tools: string[];
+}
+
 // System SMTP configuration (per-org global SMTP for invitations + email fallback)
 export interface SystemSmtpConfig {
   organization_id: string;
@@ -2726,6 +2863,8 @@ export interface UserGroupMember {
   display_name: string | null;
   source: GroupMembershipSource;
   joined_at: string;
+  /** Absent = a person (#875). */
+  principal_type?: PrincipalType;
 }
 
 // ── Datasource reviewers (AF-353) ────────────────────────────────────────────
@@ -3059,6 +3198,11 @@ export interface AttestationItem {
   subject_user_id: string;
   subject_user_email: string;
   subject_user_display_name: string;
+  /** Resolved at read time (#875); null when the subject no longer exists. */
+  subject_principal_type?: PrincipalType | null;
+  /** The owning person of a service-account subject (#875); null otherwise. */
+  subject_owner_email?: string | null;
+  subject_owner_display_name?: string | null;
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
