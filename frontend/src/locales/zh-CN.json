@@ -2660,7 +2660,8 @@
         "col_actions": "操作",
         "status_active": "有效",
         "status_revoked": "已撤销",
-        "status_expired": "已过期"
+        "status_expired": "已过期",
+        "rotate_name_help": "旧密钥在宽限期内保留其名称，因此替代密钥需要不同的名称。"
       },
       "tools": {
         "description": "此账号的密钥可以调用哪些 MCP 工具。",

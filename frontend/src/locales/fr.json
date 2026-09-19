@@ -2660,7 +2660,8 @@
         "col_actions": "Actions",
         "status_active": "Active",
         "status_revoked": "Révoquée",
-        "status_expired": "Expirée"
+        "status_expired": "Expirée",
+        "rotate_name_help": "L'ancienne clé garde son nom pendant sa période de grâce ; le remplacement en a donc besoin d'un autre."
       },
       "tools": {
         "description": "Les outils MCP que les clés de ce compte peuvent appeler.",

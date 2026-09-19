@@ -171,7 +171,8 @@ describe('ServiceAccountSettingsPage', () => {
 
     await waitFor(() =>
       expect(rotateServiceAccountKey).toHaveBeenCalledWith('sa-1', 'k-1', {
-        name: 'github-actions',
+        // The old key stays live through the grace, so the suggested name must differ.
+        name: `github-actions-${new Date().toISOString().slice(0, 10)}`,
         expires_at: null,
         grace_period: 'PT12H',
       }),

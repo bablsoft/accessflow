@@ -13,6 +13,7 @@ import {
   limitsUpdateInput,
   overviewFormFromAccount,
   overviewUpdateInput,
+  suggestedRotationName,
   toolsFormFromAccount,
   toolsUpdateInput,
 } from '../serviceAccountForm';
@@ -219,6 +220,14 @@ describe('keys', () => {
     expect(keyStatus({ revoked_at: null, expires_at: '2026-09-18T00:00:00Z' }, now)).toBe('expired');
     expect(keyStatus({ revoked_at: null, expires_at: '2026-09-20T00:00:00Z' }, now)).toBe('active');
     expect(keyStatus({ revoked_at: null, expires_at: null })).toBe('active');
+  });
+
+  it('suggests a dated replacement name that never collides with the live key', () => {
+    const now = new Date('2026-09-19T10:00:00Z');
+    expect(suggestedRotationName('github-actions', now)).toBe('github-actions-2026-09-19');
+    // A second rotation replaces the previous stamp instead of stacking them.
+    expect(suggestedRotationName('github-actions-2026-09-01', now)).toBe('github-actions-2026-09-19');
+    expect(suggestedRotationName('x'.repeat(120), now)).toHaveLength(100);
   });
 
   it('encodes the grace period as an ISO duration or keeps the default', () => {

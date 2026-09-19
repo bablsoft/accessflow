@@ -239,6 +239,17 @@ export function keyStatus(
   return 'active';
 }
 
+/**
+ * The replacement key's suggested name. The superseded key stays live through the grace window,
+ * so the API refuses a name that collides with it (`SERVICE_ACCOUNT_KEY_NAME_CONFLICT`) — the
+ * spec's own example is `github-actions` → `github-actions-2026-09`. Trimmed to the 100-char cap.
+ */
+export function suggestedRotationName(name: string, now: Date = new Date()): string {
+  const stamp = now.toISOString().slice(0, 10);
+  const base = name.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+  return `${base.slice(0, KEY_FORM_CONSTRAINTS.name.max - stamp.length - 1)}-${stamp}`;
+}
+
 /** The rotation grace as the API's ISO-8601 duration; `undefined` keeps the deployment default. */
 export function gracePeriodOf(hours: number | null | undefined): string | undefined {
   if (typeof hours !== 'number' || !Number.isFinite(hours) || hours <= 0) return undefined;

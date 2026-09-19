@@ -2660,7 +2660,8 @@
         "col_actions": "Acciones",
         "status_active": "Activa",
         "status_revoked": "Revocada",
-        "status_expired": "Caducada"
+        "status_expired": "Caducada",
+        "rotate_name_help": "La clave anterior conserva su nombre mientras dura el periodo de gracia, así que el reemplazo necesita otro."
       },
       "tools": {
         "description": "Qué herramientas MCP pueden invocar las claves de esta cuenta.",

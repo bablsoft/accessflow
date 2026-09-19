@@ -2660,7 +2660,8 @@
         "col_actions": "Aktionen",
         "status_active": "Aktiv",
         "status_revoked": "Widerrufen",
-        "status_expired": "Abgelaufen"
+        "status_expired": "Abgelaufen",
+        "rotate_name_help": "Der vorherige Key behält seinen Namen, solange seine Karenzzeit läuft; der Ersatz braucht daher einen anderen."
       },
       "tools": {
         "description": "Welche MCP-Tools die Keys dieses Accounts aufrufen dürfen.",

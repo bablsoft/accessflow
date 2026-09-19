@@ -2660,7 +2660,8 @@
         "col_actions": "Actions",
         "status_active": "Active",
         "status_revoked": "Revoked",
-        "status_expired": "Expired"
+        "status_expired": "Expired",
+        "rotate_name_help": "The previous key keeps its name while it works out its grace period, so the replacement needs a different one."
       },
       "tools": {
         "description": "Which MCP tools this account's keys may call.",

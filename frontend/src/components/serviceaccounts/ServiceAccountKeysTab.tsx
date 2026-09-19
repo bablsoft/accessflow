@@ -37,6 +37,7 @@ import {
   fieldRules,
   gracePeriodOf,
   keyStatus,
+  suggestedRotationName,
 } from '@/pages/admin/service-accounts/serviceAccountForm';
 import { ExpiresAtPicker } from './ExpiresAtPicker';
 import { IssuedKeyModal } from './IssuedKeyModal';
@@ -208,6 +209,7 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
       <Form.Item
         name="name"
         label={t('admin.service_accounts.keys.name_label')}
+        extra={form === 'rotate' ? t('admin.service_accounts.keys.rotate_name_help') : undefined}
         rules={fieldRules(t, KEY_FORM_CONSTRAINTS.name)}
       >
         <Input placeholder={t('admin.service_accounts.keys.name_placeholder')} autoFocus={form === 'issue'} />
@@ -279,7 +281,11 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
           form={rotateForm}
           name="rotateServiceAccountKey"
           layout="vertical"
-          initialValues={{ name: rotating?.name ?? '', expires_at: null, grace_hours: null }}
+          initialValues={{
+            name: rotating ? suggestedRotationName(rotating.name) : '',
+            expires_at: null,
+            grace_hours: null,
+          }}
           onFinish={(values) => {
             if (rotating) rotateMutation.mutate({ key: rotating, values });
           }}

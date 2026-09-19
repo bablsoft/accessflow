@@ -88,7 +88,8 @@ test.describe('service-accounts admin UI (#875)', () => {
     const issued = page.getByRole('dialog').filter({ hasText: 'Copy the new API key' });
     await expect(issued).toBeVisible();
     await expect(issued.getByTestId('issued-raw-key')).toContainText(/^af_/);
-    await issued.getByRole('button', { name: 'Close' }).click();
+    // The modal's X icon is also named "Close"; the footer button is the one the copy flow uses.
+    await issued.locator('.ant-modal-footer').getByRole('button', { name: 'Close' }).click();
     const keyRow = activeTabPanel(page).getByRole('row').filter({ hasText: 'github-actions' });
     await expect(keyRow).toBeVisible();
     await expect(keyRow.getByText('Active')).toBeVisible();
@@ -101,7 +102,7 @@ test.describe('service-accounts admin UI (#875)', () => {
     const rotated = page.getByRole('dialog').filter({ hasText: 'Copy the replacement API key' });
     await expect(rotated).toBeVisible();
     await expect(rotated.getByTestId('superseded-key-note')).toContainText('keeps working until');
-    await rotated.getByRole('button', { name: 'Close' }).click();
+    await rotated.locator('.ant-modal-footer').getByRole('button', { name: 'Close' }).click();
     await expect(
       activeTabPanel(page).getByRole('row').filter({ hasText: 'github-actions' }),
     ).toHaveCount(2);
@@ -112,7 +113,9 @@ test.describe('service-accounts admin UI (#875)', () => {
     await expect(toolsPanel.getByTestId('tools-enforcement-note')).toContainText('tools/list');
     await toolsPanel.getByRole('radio', { name: 'Only the selected tools' }).check();
     await expect(toolsPanel.getByTestId('tools-none-warning')).toBeVisible();
-    await toolsPanel.getByRole('checkbox', { name: /validate_sql/ }).check();
+    // AntD hides the native input; the label text is the click target.
+    await toolsPanel.getByText('validate_sql', { exact: true }).click();
+    await expect(toolsPanel.getByRole('checkbox', { name: /validate_sql/ })).toBeChecked();
     const saveTools = page.waitForResponse(
       (r) => r.request().method() === 'PUT' && r.url().includes(`/admin/service-accounts/${created.id}`),
       { timeout: 15_000 },
