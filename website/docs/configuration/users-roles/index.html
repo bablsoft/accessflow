@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Users, roles &amp; organizations — AccessFlow docs</title>
-  <meta name="description" content="Configure AccessFlow organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access." />
+  <meta name="description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, and grant just-in-time or break-glass access." />
 
   <link rel="canonical" href="https://accessflow.io/docs/configuration/users-roles/" />
   <meta name="robots" content="index, follow" />
@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-19",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -228,6 +228,7 @@
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles & RBAC</a>
             <a href="#cfg-groups">User groups</a>
+            <a href="#cfg-service-accounts">Service accounts</a>
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
@@ -271,7 +272,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-19">19 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -643,7 +644,65 @@
             <figcaption><code>/admin/groups</code> — organisation-scoped user groups; open one to manage members.</figcaption>
           </figure>
 
-          <!-- Datasources -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-service-accounts">Service accounts</h2>
+          <p>
+            <strong>What it is.</strong> Non-human identities — a CI pipeline, an AI agent, an
+            integration — that authenticate with an API key and never sign in. A service account
+            carries a role like any user, so the same permissions and the same per-datasource grants
+            apply, but it has no password, cannot use SSO, and is badged as a
+            <em>Service account</em> wherever people are listed so a reviewer never mistakes a robot
+            for a colleague.
+          </p>
+          <p><strong>Configure it.</strong> Manage them from <code>/admin/service-accounts</code> (requires the <em>Manage service accounts</em> permission, held by admins):</p>
+          <ol>
+            <li><strong>Create an account.</strong> Click <em>Create service account</em>, give it an
+              email (an identifier only — it never receives mail), a display name and a role. The role
+              defaults to <em>Read-only</em>; the page warns when you pick a role that can approve
+              requests, because an agent on such a role becomes an eligible approver. Optionally name an
+              <em>owner</em> — the person accountable for the account, shown to attestation reviewers.</li>
+            <li><strong>Issue a key.</strong> On the <em>API keys</em> tab, <em>Issue key</em> shows the
+              plaintext exactly once — copy it into the pipeline or agent's secret store. Keys are the
+              account's only credential.</li>
+            <li><strong>Rotate rather than revoke.</strong> <em>Rotate</em> issues a replacement and
+              keeps the old key working for a grace period (24 hours by default, or the number of hours
+              you enter), so a consumer can be updated without an outage. <em>Revoke</em> cuts access
+              immediately.</li>
+            <li><strong>Restrict its MCP tools.</strong> The <em>MCP tools</em> tab limits which tools
+              the account's keys may call on the <a href="/ai-agents/">MCP server</a>. The server still
+              advertises every tool to the account; a call outside the allow-list is denied when it is
+              invoked — the list is an enforcement boundary, not a discovery filter.</li>
+            <li><strong>Cap its request rate.</strong> The <em>Limits</em> tab sets per-minute and
+              per-day request ceilings for this account; leave a field blank to inherit the deployment
+              default.</li>
+            <li><strong>Let it act on someone's behalf.</strong> The <em>On-behalf-of principals</em>
+              tab lists the people who consent to be named by this account through the
+              <code>X-AccessFlow-On-Behalf-Of</code> header. A delegation confers no permission — the
+              account's own key decides what it may do — but the named person appears as an
+              <em>on behalf of</em> chip on the request and in the audit log, and counts as a submitter
+              for the self-approval ban.</li>
+            <li><strong>Review its activity.</strong> The <em>Activity</em> tab is the audit log
+              pre-filtered to the account; <code>/admin/audit-log</code> can also filter by the person
+              an account acted for.</li>
+          </ol>
+          <p>
+            <strong>Bootstrap-managed accounts.</strong> An account declared through
+            <code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_&lt;n&gt;_*</code> (see
+            <a href="/docs/iac/#iac-service-account">Infrastructure as code</a>) shows a
+            <em>Bootstrap</em> badge. Its email, display name, role and declared key are read-only on
+            the page and change only in that configuration — the declared key can be neither revoked
+            nor rotated here, because the next bootstrap run would re-import it. Everything else
+            (owner, description, tools, limits, delegations, extra keys) stays editable.
+          </p>
+          <p>
+            <strong>Where robots show up.</strong> <code>/admin/users</code> lists service accounts
+            alongside people with a badge and a <em>People / Service accounts</em> filter; group member
+            and permission pickers badge them too; and an attestation reviewer sees the account's owner
+            next to its grant.
+          </p>
+
         </section>
 
       </article>

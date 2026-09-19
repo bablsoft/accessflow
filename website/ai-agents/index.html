@@ -62,7 +62,7 @@
         "inLanguage": "en",
         "articleSection": "AI agents",
         "datePublished": "2026-08-25",
-        "dateModified": "2026-09-18",
+        "dateModified": "2026-09-19",
         "url": "https://accessflow.io/ai-agents/",
         "mainEntityOfPage": "https://accessflow.io/ai-agents/",
         "image": "https://accessflow.io/og-image.png",
@@ -341,15 +341,15 @@
           </div>
           <div class="qa-item">
             <h3>Scoped to the tools it needs</h3>
-            <p>An admin can restrict a service account to an explicit tool allow-list. Every tool is still listed to every caller, but a call outside the list returns a structured <span class="mono">permission_denied</span> before the service runs — the list can only narrow what the account's role already permits, never widen it.</p>
+            <p>An admin can restrict a service account to an explicit tool allow-list — a checkbox list on the account's <em>MCP tools</em> tab under <a href="/docs/configuration/users-roles/#cfg-service-accounts">Service accounts</a>. Every tool is still listed to every caller, but a call outside the list returns a structured <span class="mono">permission_denied</span> before the service runs — the list can only narrow what the account's role already permits, never widen it.</p>
           </div>
           <div class="qa-item">
             <h3>Bounded by a per-identity rate limit</h3>
-            <p>An agent in a runaway loop is capped, not just logged. Every call an API key makes counts against the identity behind it — 120 requests a minute by default, with an optional daily ceiling, and a per-account override an admin can set through the service-account API. Over the cap the server answers HTTP 429 with a <span class="mono">Retry-After</span> header so a well-behaved client backs off; a person signed in through the browser is never limited.</p>
+            <p>An agent in a runaway loop is capped, not just logged. Every call an API key makes counts against the identity behind it — 120 requests a minute by default, with an optional daily ceiling, and a per-account override an admin can set on the account's <em>Limits</em> tab. Over the cap the server answers HTTP 429 with a <span class="mono">Retry-After</span> header so a well-behaved client backs off; a person signed in through the browser is never limited.</p>
           </div>
           <div class="qa-item">
             <h3>Acting for a named person</h3>
-            <p>An agent can say whom it is working for by adding an <span class="mono">X-AccessFlow-On-Behalf-Of</span> header naming that person, once they have consented (through their own delegation endpoint, or an admin on their behalf). Naming someone changes nothing about what the agent may do — its permissions stay its own. The person is recorded on the submission and on every audit entry written while that call is handled, inside the tamper-evident chain, and can no longer approve that submission themselves. A name the agent may not use, or the header on a review action, gets HTTP 403 from the same filter that rate-limits, before anything runs — never a quiet ignore.</p>
+            <p>An agent can say whom it is working for by adding an <span class="mono">X-AccessFlow-On-Behalf-Of</span> header naming that person, once they have consented (through their own delegation endpoint, or an admin on the account's <em>On-behalf-of principals</em> tab). Naming someone changes nothing about what the agent may do — its permissions stay its own. The person is recorded on the submission and on every audit entry written while that call is handled, inside the tamper-evident chain, and can no longer approve that submission themselves. A name the agent may not use, or the header on a review action, gets HTTP 403 from the same filter that rate-limits, before anything runs — never a quiet ignore.</p>
           </div>
         </div>
       </section>

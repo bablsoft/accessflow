@@ -33,7 +33,10 @@
     "yes": "Да",
     "no": "Нет",
     "view_docs": "Документация",
-    "view_docs_aria": "Открыть документацию (в новой вкладке)"
+    "view_docs_aria": "Открыть документацию (в новой вкладке)",
+    "on_behalf_of": "от имени {{name}}",
+    "on_behalf_of_tooltip": "Вызывающий с API-ключом действовал от имени этого человека (X-AccessFlow-On-Behalf-Of). Названный человек считается отправителем для запрета самоодобрения.",
+    "principal_service_account_tooltip": "Нечеловеческая идентичность: аутентифицируется только API-ключом и никогда не может войти интерактивно."
   },
   "nav": {
     "editor": "Редактор SQL",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Пайплайны развертываний",
     "help_agent": "Помощник",
     "governance_domains": "Области управления",
-    "sql_review": "Проверка SQL"
+    "sql_review": "Проверка SQL",
+    "service_accounts": "Сервисные аккаунты"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "К этой среде уже привязан другой набор правил.",
     "sql_review_ruleset_default_conflict": "У организации уже есть набор правил по умолчанию.",
     "sql_review_ruleset_invalid": "Конфигурация набора правил недопустима.",
-    "sql_review_ruleset_generic": "Не удалось сохранить набор правил проверки SQL."
+    "sql_review_ruleset_generic": "Не удалось сохранить набор правил проверки SQL.",
+    "service_account_generic": "Операция с сервисным аккаунтом не удалась.",
+    "service_account_not_found": "Сервисный аккаунт не найден.",
+    "service_account_key_not_found": "API-ключ не найден.",
+    "service_account_key_bootstrap_declared": "Этот ключ объявлен в bootstrap-конфигурации и не может быть отозван или ротирован здесь — удалите его из bootstrap-спецификации.",
+    "service_account_key_revoked": "Этот ключ уже отозван и не может быть ротирован.",
+    "service_account_key_name_conflict": "У аккаунта уже есть активный ключ с таким именем.",
+    "service_account_owner_invalid": "Владелец должен быть активным человеком в этой организации.",
+    "service_account_bootstrap_managed": "Поле «{{field}}» объявлено в bootstrap-конфигурации и может меняться только там.",
+    "service_account_unknown_mcp_tool": "Неизвестный инструмент MCP: {{tool}}.",
+    "service_account_email_exists": "Пользователь с таким email уже существует.",
+    "service_account_delegation_not_found": "Делегирование не найдено.",
+    "service_account_delegation_exists": "Этот человек уже разрешает аккаунту действовать от его имени.",
+    "service_account_delegation_principal_invalid": "Принципал должен быть активным человеком в этой организации.",
+    "service_account_delegation_invalid": "Целью делегирования должен быть активный сервисный аккаунт."
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "Ключ",
       "attribute_value": "Значение",
       "attribute_add": "Добавить атрибут",
-      "attribute_remove": "Удалить атрибут"
+      "attribute_remove": "Удалить атрибут",
+      "filter_all_principals": "Люди и сервисные аккаунты",
+      "filter_principal_humans": "Только люди",
+      "filter_principal_service_accounts": "Только сервисные аккаунты",
+      "service_account_hint": "Управляйте этой идентичностью в разделе «Сервисные аккаунты»."
     },
     "audit": {
       "title": "Журнал аудита",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "Первая сбойная строка {{rowId}} — {{reason}}",
       "export_csv": "Экспортировать в CSV",
       "export_failed": "Не удалось экспортировать журнал аудита. Попробуйте ещё раз.",
-      "export_truncated": "Экспорт ограничен 50 000 строками. Сузьте фильтры, чтобы охватить весь результат."
+      "export_truncated": "Экспорт ограничен 50 000 строками. Сузьте фильтры, чтобы охватить весь результат.",
+      "filter_on_behalf_of_placeholder": "От имени (ID пользователя)",
+      "on_behalf_of_label": "От имени",
+      "via_service_account": "через сервисный аккаунт"
     },
     "ai_analyses": {
       "title": "Анализы ИИ",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Сервисный аккаунт"
     },
     "datasource_health": {
       "title": "Состояние источников данных",
@@ -2505,6 +2531,188 @@
       "param_placeholder_defaults": "По умолчанию: {{values}}",
       "param_required": "При сохранении этого правила требуется хотя бы одно значение.",
       "param_invalid": "«{{value}}» — недопустимое значение."
+    },
+    "service_accounts": {
+      "title": "Сервисные аккаунты",
+      "subtitle": "Нечеловеческие идентичности, аутентифицирующиеся API-ключами — CI-конвейеры, ИИ-агенты, интеграции.",
+      "create": "Создать сервисный аккаунт",
+      "load_error": "Не удалось загрузить сервисные аккаунты",
+      "empty_title": "Сервисных аккаунтов пока нет",
+      "empty_description": "Создайте аккаунт для конвейера или агента, затем выпустите ему API-ключ.",
+      "filter_all_sources": "Любой источник управления",
+      "col_name": "Имя",
+      "col_email": "Email",
+      "col_role": "Роль",
+      "col_owner": "Владелец",
+      "col_status": "Статус",
+      "col_managed_by": "Управляется",
+      "col_keys": "Активные ключи",
+      "col_last_used": "Последнее использование",
+      "col_tools": "Инструменты MCP",
+      "col_rate_limit": "Лимит запросов",
+      "status_active": "Активен",
+      "status_inactive": "Неактивен",
+      "tools_all": "Все инструменты",
+      "tools_count": "{{allowed}} / {{total}} инструментов",
+      "tools_none": "Нет инструментов",
+      "no_owner": "—",
+      "rate_limit_default": "По умолчанию развёртывания",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/мин",
+      "rate_per_day": "{{count}}/день",
+      "never_used": "Никогда",
+      "managed_by_tooltip": {
+        "UI": "Создан и управляется с этой страницы администрирования.",
+        "BOOTSTRAP": "Объявлен в bootstrap-конфигурации (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*). Email, отображаемое имя, роль и объявленный ключ меняются только там."
+      },
+      "validation": {
+        "required": "Это поле обязательно.",
+        "max_length": "Не более {{max}} символов.",
+        "positive_integer": "Должно быть целым числом больше нуля."
+      },
+      "create_modal": {
+        "title": "Создать сервисный аккаунт",
+        "label_email": "Email",
+        "email_help": "Только идентификатор — сервисный аккаунт никогда не получает почту и не входит в систему.",
+        "label_display_name": "Отображаемое имя",
+        "label_role": "Роль",
+        "role_help": "По умолчанию — «Только чтение». Роль определяет, что могут делать ключи аккаунта.",
+        "label_owner": "Владелец",
+        "owner_help": "Человек, ответственный за этот аккаунт. Ничего не даёт; показывается проверяющим.",
+        "owner_placeholder": "Без владельца",
+        "label_description": "Описание",
+        "label_rate_limit_per_minute": "Запросов в минуту",
+        "label_rate_limit_per_day": "Запросов в день",
+        "rate_limit_help": "Оставьте пустым, чтобы наследовать значение развёртывания по умолчанию.",
+        "submit": "Создать",
+        "success": "Сервисный аккаунт создан"
+      },
+      "review_role_warning": "Эта роль может одобрять запросы. Сервисный аккаунт с ней становится допустимым одобряющим — агент сможет одобрить то, что отправил другой агент.",
+      "settings": {
+        "back": "Назад к сервисным аккаунтам",
+        "load_error": "Не удалось загрузить сервисный аккаунт",
+        "not_found": "Сервисный аккаунт не найден",
+        "bootstrap_banner_title": "Управляется bootstrap-конфигурацией",
+        "bootstrap_banner_body": "Этот аккаунт объявлен через ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY}. Email, отображаемое имя, роль и объявленный ключ здесь доступны только для чтения и меняются только в той конфигурации; всё остальное редактируется.",
+        "tab_overview": "Обзор",
+        "tab_keys": "API-ключи",
+        "tab_tools": "Инструменты MCP",
+        "tab_limits": "Лимиты",
+        "tab_principals": "Принципалы «от имени»",
+        "tab_activity": "Активность",
+        "deactivate": "Деактивировать",
+        "deactivate_confirm_title": "Деактивировать этот сервисный аккаунт?",
+        "deactivate_confirm_body": "Его ключи немедленно перестают аутентифицировать. Ничего не отзывается, повторная активация восстанавливает их.",
+        "deactivate_success": "Сервисный аккаунт деактивирован",
+        "unknown_tab": "Неизвестная вкладка"
+      },
+      "overview": {
+        "label_email": "Email",
+        "label_display_name": "Отображаемое имя",
+        "label_role": "Роль",
+        "label_owner": "Владелец",
+        "label_description": "Описание",
+        "label_active": "Активен",
+        "active_help": "Неактивный аккаунт сохраняет ключи, но ни один из них не аутентифицирует.",
+        "bootstrap_readonly": "Объявлено в bootstrap-конфигурации",
+        "owner_placeholder": "Без владельца",
+        "save": "Сохранить изменения",
+        "success": "Сервисный аккаунт обновлён",
+        "nothing_changed": "Нечего сохранять",
+        "label_created": "Создан",
+        "label_updated": "Обновлён",
+        "label_last_used": "Последнее использование"
+      },
+      "keys": {
+        "description": "Ключи — единственные учётные данные аккаунта. Ротируйте, а не отзывайте, если потребитель должен продолжать работать: старый ключ действует в течение ограниченного льготного периода.",
+        "issue": "Выпустить ключ",
+        "issue_title": "Выпустить API-ключ",
+        "rotate": "Ротировать",
+        "rotate_title": "Ротировать API-ключ «{{name}}»",
+        "rotate_help": "Выпускает замену и делает этот ключ недействительным по истечении льготного периода. До этого работают оба ключа — обновите потребителя заранее.",
+        "label_grace_hours": "Льготный период (часы)",
+        "grace_default_help": "Оставьте пустым для значения по умолчанию — {{hours}} ч.",
+        "name_label": "Имя ключа",
+        "name_placeholder": "напр. github-actions",
+        "expires_at_label": "Истекает",
+        "expires_at_placeholder": "Никогда не истекает",
+        "expires_at_help": "Необязательно. Оставьте пустым — ключ не истечёт; его всё равно можно отозвать.",
+        "issued_title": "Скопируйте новый API-ключ",
+        "rotated_title": "Скопируйте API-ключ замены",
+        "raw_key_label": "Ключ",
+        "copy_once_warning": "Ключ показывается только один раз. Скопируйте его сейчас и сохраните в надёжном месте — получить его снова невозможно.",
+        "superseded_until": "Предыдущий ключ {{prefix}}… продолжает работать до {{until}}.",
+        "superseded_until_unknown": "Предыдущий ключ {{prefix}}… продолжает работать до конца льготного периода.",
+        "revoke": "Отозвать",
+        "revoke_confirm": "Отозвать API-ключ «{{name}}»? Использующие его клиенты немедленно потеряют доступ.",
+        "revoked": "API-ключ отозван",
+        "issued": "API-ключ выпущен",
+        "rotated": "API-ключ ротирован",
+        "bootstrap_declared": "Объявлен",
+        "bootstrap_declared_tooltip": "Объявлен в bootstrap-конфигурации. Здесь его нельзя отозвать или ротировать: следующий запуск bootstrap повторно импортирует его и воскресит отозванный ключ. Чтобы вывести ключ из эксплуатации, удалите ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY из конфигурации.",
+        "empty": "API-ключей пока нет.",
+        "col_name": "Имя",
+        "col_prefix": "Префикс",
+        "col_created": "Создан",
+        "col_last_used": "Последнее использование",
+        "col_expires": "Истекает",
+        "col_status": "Статус",
+        "col_actions": "Действия",
+        "status_active": "Активен",
+        "status_revoked": "Отозван",
+        "status_expired": "Истёк"
+      },
+      "tools": {
+        "description": "Какие инструменты MCP могут вызывать ключи этого аккаунта.",
+        "mode_all": "Все инструменты",
+        "mode_restricted": "Только выбранные инструменты",
+        "enforcement_note": "tools/list сервера MCP по-прежнему объявляет этому аккаунту все инструменты. Вызов инструмента вне списка отклоняется при вызове с permission_denied — список является границей применения, а не фильтром обнаружения.",
+        "none_selected_warning": "Инструменты не выбраны: каждый MCP-вызов этого аккаунта отклоняется.",
+        "save": "Сохранить список",
+        "success": "Список инструментов MCP обновлён",
+        "catalog_error": "Не удалось загрузить каталог инструментов"
+      },
+      "limits": {
+        "description": "Запросов за фиксированное окно по всем вызовам этого аккаунта с API-ключом (MCP и REST). Пустое значение наследует значение развёртывания по умолчанию; 0 на уровне развёртывания означает без ограничений.",
+        "label_per_minute": "Запросов в минуту",
+        "label_per_day": "Запросов в день",
+        "placeholder_default": "По умолчанию развёртывания",
+        "save": "Сохранить лимиты",
+        "success": "Лимиты запросов обновлены"
+      },
+      "principals": {
+        "description": "Люди, согласившиеся быть названными этим аккаунтом через X-AccessFlow-On-Behalf-Of. Делегирование не даёт прав: что может аккаунт, решает его собственный ключ, а названный человек считается отправителем для запрета самоодобрения.",
+        "grant": "Добавить принципала",
+        "grant_title": "Разрешить аккаунту действовать от имени",
+        "label_principal": "Человек",
+        "principal_placeholder": "Выберите человека",
+        "label_expires_at": "Истекает",
+        "expires_at_placeholder": "Никогда не истекает",
+        "submit": "Добавить",
+        "success": "Принципал добавлен",
+        "revoke": "Отозвать",
+        "revoke_confirm": "Отозвать это делегирование? Запросы с именем {{email}} будут отклонены.",
+        "revoked": "Делегирование отозвано",
+        "empty": "Никто не делегировал этому аккаунту.",
+        "col_principal": "Человек",
+        "col_granted_by": "Выдано",
+        "col_created": "Выдано",
+        "col_expires": "Истекает",
+        "col_status": "Статус",
+        "col_actions": "Действия",
+        "granted_self": "Самообслуживание",
+        "granted_admin": "Администратор"
+      },
+      "activity": {
+        "description": "Строки аудита, где этот аккаунт является актором.",
+        "open_full": "Открыть в журнале аудита",
+        "empty": "Активность пока не зафиксирована.",
+        "load_error": "Не удалось загрузить активность",
+        "col_when": "Когда",
+        "col_action": "Действие",
+        "col_resource": "Ресурс",
+        "col_on_behalf_of": "От имени"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3482,33 @@
       "TEST": "Тестирование",
       "STAGING": "Предпродакшен",
       "PRODUCTION": "Продакшен"
+    },
+    "principal_type": {
+      "HUMAN": "Человек",
+      "SERVICE_ACCOUNT": "Сервисный аккаунт"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Активно",
+      "EXPIRED": "Истекло",
+      "REVOKED": "Отозвано"
+    },
+    "mcp_tool": {
+      "list_datasources": "Список источников данных, доступных вызывающему",
+      "get_datasource_schema": "Чтение схемы источника данных",
+      "list_my_queries": "Список собственных запросов вызывающего",
+      "get_query_status": "Чтение статуса запроса",
+      "get_query_result": "Получение результата выполненного запроса",
+      "submit_query": "Отправка запроса на проверку",
+      "cancel_query": "Отмена ожидающего запроса",
+      "list_pending_reviews": "Список проверок, ожидающих вызывающего",
+      "review_query": "Одобрение или отклонение запроса",
+      "validate_sql": "Разбор и проверка SQL без отправки",
+      "get_column_samples": "Выборка значений столбца из источника данных",
+      "get_audit_log": "Чтение журнала аудита"
     }
   },
   "access": {
@@ -3750,7 +3985,9 @@
         "row_status_forbidden": "Не разрешено",
         "row_status_invalid_state": "Больше не открыто",
         "row_status_not_found": "Не найдено"
-      }
+      },
+      "owned_by": "Владелец: {{name}}",
+      "no_owner": "Владелец не назначен"
     },
     "usage": {
       "no_data": "Нет данных об использовании",

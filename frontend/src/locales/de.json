@@ -33,7 +33,10 @@
     "yes": "Ja",
     "no": "Nein",
     "view_docs": "Dokumentation",
-    "view_docs_aria": "Dokumentation anzeigen (wird in einem neuen Tab geöffnet)"
+    "view_docs_aria": "Dokumentation anzeigen (wird in einem neuen Tab geöffnet)",
+    "on_behalf_of": "im Auftrag von {{name}}",
+    "on_behalf_of_tooltip": "Ein API-Key-Aufrufer hat für diese Person gehandelt (X-AccessFlow-On-Behalf-Of). Die genannte Person gilt für das Selbstgenehmigungsverbot als Einreicher.",
+    "principal_service_account_tooltip": "Eine nicht-menschliche Identität: sie authentifiziert sich nur per API-Key und kann sich nie interaktiv anmelden."
   },
   "nav": {
     "editor": "SQL-Editor",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Deployment-Pipelines",
     "help_agent": "Hilfe-Assistent",
     "governance_domains": "Governance-Bereiche",
-    "sql_review": "SQL-Prüfung"
+    "sql_review": "SQL-Prüfung",
+    "service_accounts": "Service-Accounts"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "Diesem Umfeld ist bereits ein anderer Regelsatz zugeordnet.",
     "sql_review_ruleset_default_conflict": "Die Organisation hat bereits einen Standard-Regelsatz.",
     "sql_review_ruleset_invalid": "Die Regelsatz-Konfiguration ist ungültig.",
-    "sql_review_ruleset_generic": "Der SQL-Prüfregelsatz konnte nicht gespeichert werden."
+    "sql_review_ruleset_generic": "Der SQL-Prüfregelsatz konnte nicht gespeichert werden.",
+    "service_account_generic": "Vorgang am Service-Account fehlgeschlagen.",
+    "service_account_not_found": "Service-Account nicht gefunden.",
+    "service_account_key_not_found": "API-Key nicht gefunden.",
+    "service_account_key_bootstrap_declared": "Dieser Key ist in der Bootstrap-Konfiguration deklariert und kann hier weder widerrufen noch rotiert werden – entfernen Sie ihn stattdessen aus der Bootstrap-Spezifikation.",
+    "service_account_key_revoked": "Dieser Key ist bereits widerrufen und kann nicht rotiert werden.",
+    "service_account_key_name_conflict": "Der Account hat bereits einen aktiven Key mit diesem Namen.",
+    "service_account_owner_invalid": "Der Eigentümer muss eine aktive Person in dieser Organisation sein.",
+    "service_account_bootstrap_managed": "Das Feld „{{field}}“ ist in der Bootstrap-Konfiguration deklariert und kann nur dort geändert werden.",
+    "service_account_unknown_mcp_tool": "Unbekanntes MCP-Tool: {{tool}}.",
+    "service_account_email_exists": "Ein Benutzer mit dieser E-Mail existiert bereits.",
+    "service_account_delegation_not_found": "Delegation nicht gefunden.",
+    "service_account_delegation_exists": "Diese Person erlaubt dem Account bereits, in ihrem Auftrag zu handeln.",
+    "service_account_delegation_principal_invalid": "Der Prinzipal muss eine aktive Person in dieser Organisation sein.",
+    "service_account_delegation_invalid": "Das Delegationsziel muss ein aktiver Service-Account sein."
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "Schlüssel",
       "attribute_value": "Wert",
       "attribute_add": "Attribut hinzufügen",
-      "attribute_remove": "Attribut entfernen"
+      "attribute_remove": "Attribut entfernen",
+      "filter_all_principals": "Personen und Service-Accounts",
+      "filter_principal_humans": "Nur Personen",
+      "filter_principal_service_accounts": "Nur Service-Accounts",
+      "service_account_hint": "Diese Identität unter Service-Accounts verwalten."
     },
     "audit": {
       "title": "Audit-Log",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "Erste fehlerhafte Zeile {{rowId}} — {{reason}}",
       "export_csv": "CSV exportieren",
       "export_failed": "Audit-Log konnte nicht exportiert werden. Bitte erneut versuchen.",
-      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verwende engere Filter, um das gesamte Ergebnis zu erfassen."
+      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verwende engere Filter, um das gesamte Ergebnis zu erfassen.",
+      "filter_on_behalf_of_placeholder": "Im Auftrag von (Benutzer-ID)",
+      "on_behalf_of_label": "Im Auftrag von",
+      "via_service_account": "über Service-Account"
     },
     "ai_analyses": {
       "title": "KI-Analysen",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Service-Account"
     },
     "datasource_health": {
       "title": "Datenquellen-Zustand",
@@ -2505,6 +2531,188 @@
       "param_placeholder_defaults": "Standard: {{values}}",
       "param_required": "Mindestens ein Wert ist erforderlich, wenn diese Regel gespeichert wird.",
       "param_invalid": "„{{value}}“ ist kein zulässiger Wert."
+    },
+    "service_accounts": {
+      "title": "Service-Accounts",
+      "subtitle": "Nicht-menschliche Identitäten, die sich per API-Key authentifizieren – CI-Pipelines, KI-Agenten, Integrationen.",
+      "create": "Service-Account erstellen",
+      "load_error": "Service-Accounts konnten nicht geladen werden",
+      "empty_title": "Noch keine Service-Accounts",
+      "empty_description": "Erstellen Sie einen für eine Pipeline oder einen Agenten und stellen Sie ihm dann einen API-Key aus.",
+      "filter_all_sources": "Beliebig verwaltet",
+      "col_name": "Name",
+      "col_email": "E-Mail",
+      "col_role": "Rolle",
+      "col_owner": "Eigentümer",
+      "col_status": "Status",
+      "col_managed_by": "Verwaltet von",
+      "col_keys": "Aktive Keys",
+      "col_last_used": "Zuletzt verwendet",
+      "col_tools": "MCP-Tools",
+      "col_rate_limit": "Ratenlimit",
+      "status_active": "Aktiv",
+      "status_inactive": "Inaktiv",
+      "tools_all": "Alle Tools",
+      "tools_count": "{{allowed}} / {{total}} Tools",
+      "tools_none": "Keine Tools",
+      "no_owner": "—",
+      "rate_limit_default": "Deployment-Standard",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/min",
+      "rate_per_day": "{{count}}/Tag",
+      "never_used": "Nie",
+      "managed_by_tooltip": {
+        "UI": "Über diese Admin-Seite erstellt und verwaltet.",
+        "BOOTSTRAP": "In der Bootstrap-Konfiguration (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*) deklariert. E-Mail, Anzeigename, Rolle und der deklarierte Key ändern sich nur dort."
+      },
+      "validation": {
+        "required": "Dieses Feld ist erforderlich.",
+        "max_length": "Darf höchstens {{max}} Zeichen lang sein.",
+        "positive_integer": "Muss eine ganze Zahl größer als null sein."
+      },
+      "create_modal": {
+        "title": "Service-Account erstellen",
+        "label_email": "E-Mail",
+        "email_help": "Nur eine Kennung – ein Service-Account erhält nie E-Mails und meldet sich nie an.",
+        "label_display_name": "Anzeigename",
+        "label_role": "Rolle",
+        "role_help": "Standard ist Nur-Lesen. Die Rolle bestimmt, was die Keys des Accounts dürfen.",
+        "label_owner": "Eigentümer",
+        "owner_help": "Die für diesen Account verantwortliche Person. Verleiht nichts; wird Prüfern angezeigt.",
+        "owner_placeholder": "Kein Eigentümer",
+        "label_description": "Beschreibung",
+        "label_rate_limit_per_minute": "Anfragen pro Minute",
+        "label_rate_limit_per_day": "Anfragen pro Tag",
+        "rate_limit_help": "Leer lassen, um den Deployment-Standard zu übernehmen.",
+        "submit": "Erstellen",
+        "success": "Service-Account erstellt"
+      },
+      "review_role_warning": "Diese Rolle kann Anfragen genehmigen. Ein Service-Account mit dieser Rolle wird zum berechtigten Genehmiger – ein Agent könnte genehmigen, was ein anderer Agent eingereicht hat.",
+      "settings": {
+        "back": "Zurück zu Service-Accounts",
+        "load_error": "Der Service-Account konnte nicht geladen werden",
+        "not_found": "Service-Account nicht gefunden",
+        "bootstrap_banner_title": "Von der Bootstrap-Konfiguration verwaltet",
+        "bootstrap_banner_body": "Dieser Account wird durch ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY} deklariert. E-Mail, Anzeigename, Rolle und der deklarierte Key sind hier schreibgeschützt und ändern sich nur in dieser Konfiguration; alles andere bleibt bearbeitbar.",
+        "tab_overview": "Übersicht",
+        "tab_keys": "API-Keys",
+        "tab_tools": "MCP-Tools",
+        "tab_limits": "Limits",
+        "tab_principals": "Im-Auftrag-von-Prinzipale",
+        "tab_activity": "Aktivität",
+        "deactivate": "Deaktivieren",
+        "deactivate_confirm_title": "Diesen Service-Account deaktivieren?",
+        "deactivate_confirm_body": "Seine Keys authentifizieren sofort nicht mehr. Nichts wird widerrufen, und eine Reaktivierung stellt sie wieder her.",
+        "deactivate_success": "Service-Account deaktiviert",
+        "unknown_tab": "Unbekannter Tab"
+      },
+      "overview": {
+        "label_email": "E-Mail",
+        "label_display_name": "Anzeigename",
+        "label_role": "Rolle",
+        "label_owner": "Eigentümer",
+        "label_description": "Beschreibung",
+        "label_active": "Aktiv",
+        "active_help": "Ein inaktiver Account behält seine Keys, aber keiner davon authentifiziert.",
+        "bootstrap_readonly": "In der Bootstrap-Konfiguration deklariert",
+        "owner_placeholder": "Kein Eigentümer",
+        "save": "Änderungen speichern",
+        "success": "Service-Account aktualisiert",
+        "nothing_changed": "Nichts zu speichern",
+        "label_created": "Erstellt",
+        "label_updated": "Aktualisiert",
+        "label_last_used": "Zuletzt verwendet"
+      },
+      "keys": {
+        "description": "Keys sind das einzige Anmeldemittel des Accounts. Rotieren statt widerrufen, wenn ein Verbraucher weiterlaufen muss: der alte Key bleibt für eine begrenzte Karenzzeit gültig.",
+        "issue": "Key ausstellen",
+        "issue_title": "API-Key ausstellen",
+        "rotate": "Rotieren",
+        "rotate_title": "API-Key „{{name}}“ rotieren",
+        "rotate_help": "Stellt einen Ersatz aus und lässt diesen Key nach der Karenzzeit ablaufen. Bis dahin authentifizieren beide Keys – aktualisieren Sie den Verbraucher rechtzeitig.",
+        "label_grace_hours": "Karenzzeit (Stunden)",
+        "grace_default_help": "Leer lassen für den Deployment-Standard von {{hours}} Stunden.",
+        "name_label": "Key-Name",
+        "name_placeholder": "z. B. github-actions",
+        "expires_at_label": "Läuft ab",
+        "expires_at_placeholder": "Läuft nie ab",
+        "expires_at_help": "Optional. Leer lassen, und der Key läuft nie ab – Sie können ihn trotzdem widerrufen.",
+        "issued_title": "Neuen API-Key kopieren",
+        "rotated_title": "Ersatz-API-Key kopieren",
+        "raw_key_label": "Key",
+        "copy_once_warning": "Dies ist das einzige Mal, dass der Key angezeigt wird. Kopieren Sie ihn jetzt und bewahren Sie ihn sicher auf – er kann nicht erneut abgerufen werden.",
+        "superseded_until": "Der vorherige Key {{prefix}}… funktioniert noch bis {{until}}.",
+        "superseded_until_unknown": "Der vorherige Key {{prefix}}… funktioniert noch bis zum Ende der Karenzzeit.",
+        "revoke": "Widerrufen",
+        "revoke_confirm": "API-Key „{{name}}“ widerrufen? Clients, die ihn verwenden, verlieren sofort den Zugriff.",
+        "revoked": "API-Key widerrufen",
+        "issued": "API-Key ausgestellt",
+        "rotated": "API-Key rotiert",
+        "bootstrap_declared": "Deklariert",
+        "bootstrap_declared_tooltip": "In der Bootstrap-Konfiguration deklariert. Er kann hier weder widerrufen noch rotiert werden: der nächste Bootstrap-Lauf würde ihn erneut importieren und einen widerrufenen Key wiederbeleben. Entfernen Sie zum Stilllegen ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY aus der Konfiguration.",
+        "empty": "Noch keine API-Keys.",
+        "col_name": "Name",
+        "col_prefix": "Präfix",
+        "col_created": "Erstellt",
+        "col_last_used": "Zuletzt verwendet",
+        "col_expires": "Läuft ab",
+        "col_status": "Status",
+        "col_actions": "Aktionen",
+        "status_active": "Aktiv",
+        "status_revoked": "Widerrufen",
+        "status_expired": "Abgelaufen"
+      },
+      "tools": {
+        "description": "Welche MCP-Tools die Keys dieses Accounts aufrufen dürfen.",
+        "mode_all": "Alle Tools",
+        "mode_restricted": "Nur die ausgewählten Tools",
+        "enforcement_note": "tools/list des MCP-Servers bewirbt diesem Account weiterhin alle Tools. Ein Aufruf eines Tools außerhalb der Allow-List wird beim Aufruf mit permission_denied abgelehnt – die Allow-List ist eine Durchsetzungsgrenze, kein Entdeckungsfilter.",
+        "none_selected_warning": "Keine Tools ausgewählt: jeder MCP-Aufruf dieses Accounts wird abgelehnt.",
+        "save": "Allow-List speichern",
+        "success": "MCP-Tool-Allow-List aktualisiert",
+        "catalog_error": "Der Tool-Katalog konnte nicht geladen werden"
+      },
+      "limits": {
+        "description": "Anfragen pro festem Zeitfenster über alle API-Key-Aufrufe dieses Accounts (MCP und REST). Leer übernimmt den Deployment-Standard; 0 auf Deployment-Ebene bedeutet unbegrenzt.",
+        "label_per_minute": "Anfragen pro Minute",
+        "label_per_day": "Anfragen pro Tag",
+        "placeholder_default": "Deployment-Standard",
+        "save": "Limits speichern",
+        "success": "Ratenlimits aktualisiert"
+      },
+      "principals": {
+        "description": "Personen, die zustimmen, von diesem Account über X-AccessFlow-On-Behalf-Of genannt zu werden. Eine Delegation verleiht keine Berechtigung: der eigene Key des Accounts entscheidet, was er darf, und die genannte Person gilt für das Selbstgenehmigungsverbot als Einreicher.",
+        "grant": "Prinzipal hinzufügen",
+        "grant_title": "Dem Account erlauben, im Auftrag zu handeln von",
+        "label_principal": "Person",
+        "principal_placeholder": "Person auswählen",
+        "label_expires_at": "Läuft ab",
+        "expires_at_placeholder": "Läuft nie ab",
+        "submit": "Hinzufügen",
+        "success": "Prinzipal hinzugefügt",
+        "revoke": "Widerrufen",
+        "revoke_confirm": "Diese Delegation widerrufen? Anfragen, die {{email}} nennen, werden abgelehnt.",
+        "revoked": "Delegation widerrufen",
+        "empty": "Niemand hat an diesen Account delegiert.",
+        "col_principal": "Person",
+        "col_granted_by": "Erteilt von",
+        "col_created": "Erteilt",
+        "col_expires": "Läuft ab",
+        "col_status": "Status",
+        "col_actions": "Aktionen",
+        "granted_self": "Selbstbedienung",
+        "granted_admin": "Admin"
+      },
+      "activity": {
+        "description": "Audit-Zeilen, in denen dieser Account der Akteur ist.",
+        "open_full": "Im Audit-Log öffnen",
+        "empty": "Noch keine Aktivität aufgezeichnet.",
+        "load_error": "Aktivität konnte nicht geladen werden",
+        "col_when": "Wann",
+        "col_action": "Aktion",
+        "col_resource": "Ressource",
+        "col_on_behalf_of": "Im Auftrag von"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3482,33 @@
       "TEST": "Test",
       "STAGING": "Staging",
       "PRODUCTION": "Produktion"
+    },
+    "principal_type": {
+      "HUMAN": "Person",
+      "SERVICE_ACCOUNT": "Service-Account"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Aktiv",
+      "EXPIRED": "Abgelaufen",
+      "REVOKED": "Widerrufen"
+    },
+    "mcp_tool": {
+      "list_datasources": "Datenquellen auflisten, die der Aufrufer abfragen darf",
+      "get_datasource_schema": "Schema einer Datenquelle lesen",
+      "list_my_queries": "Eigene Abfrageanfragen des Aufrufers auflisten",
+      "get_query_status": "Status einer Abfrageanfrage lesen",
+      "get_query_result": "Ergebnis einer ausgeführten Abfrage abrufen",
+      "submit_query": "Abfrage zur Prüfung einreichen",
+      "cancel_query": "Ausstehende Abfrage abbrechen",
+      "list_pending_reviews": "Prüfungen auflisten, die auf den Aufrufer warten",
+      "review_query": "Abfrage genehmigen oder ablehnen",
+      "validate_sql": "SQL parsen und validieren, ohne es einzureichen",
+      "get_column_samples": "Spaltenwerte aus einer Datenquelle stichprobenartig lesen",
+      "get_audit_log": "Audit-Log lesen"
     }
   },
   "access": {
@@ -3750,7 +3985,9 @@
         "row_status_forbidden": "Nicht erlaubt",
         "row_status_invalid_state": "Nicht mehr offen",
         "row_status_not_found": "Nicht gefunden"
-      }
+      },
+      "owned_by": "Eigentümer: {{name}}",
+      "no_owner": "Kein Eigentümer zugewiesen"
     },
     "usage": {
       "no_data": "Keine Nutzungsdaten",

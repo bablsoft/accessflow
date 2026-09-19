@@ -187,7 +187,9 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
     visible to the caller (to pick the engine dialect) and reuses the schema introspection the caller
     is already permitted to read for its best-effort mismatch check.
 - **Tool allow-list (#872).** A service account's `mcp_tool_allow_list` (set from
-  `/admin/service-accounts`, #871) decides which tools its key may *invoke*. It is enforced at
+  `/admin/service-accounts`, #871 — since #875 a checkbox list on the account's **MCP tools**
+  tab, built from `GET /admin/service-accounts/mcp-tools`, which serves this enum's wire names)
+  decides which tools its key may *invoke*. It is enforced at
   invocation by a decorator around every registered tool — `GuardedToolCallback` consults
   `ServiceAccountToolPolicyService` on the request thread before the tool body runs, so no tool
   (including one added later) can be reached past it. Decision order: a name outside the twelve-tool
@@ -197,7 +199,7 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   the account's role and grants already permit, never widen it.
   **`tools/list` still advertises all twelve tools to every caller.** The stateless server's list
   handler cannot see who is asking, so the allow-list is an enforcement boundary, not a discovery
-  filter: an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
+  filter (the MCP tools tab repeats exactly this caveat, because support gets asked): an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
   and, if it tries it, gets the structured `permission_denied` below without the service ever being
   invoked. The server `instructions` tell the model to report such a denial rather than retry it.
 - **Rate limits (#873).** Every API-key-authenticated `POST /mcp` counts against the calling

@@ -102,6 +102,8 @@ import type {
   UpdateDatasourceInput,
   User,
 } from '@/types/api';
+import { userSelectOptions } from '@/utils/userOptions';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 export function DatasourceSettingsPage() {
   const { t } = useTranslation();
@@ -1462,10 +1464,8 @@ function GrantAccessModal({
                   ? t('datasources.settings.grant_user_loading')
                   : t('datasources.settings.grant_user_empty')
               }
-              options={eligible.map((u) => ({
-                value: u.id,
-                label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-              }))}
+              options={userSelectOptions(eligible)}
+              optionRender={renderUserOption}
             />
           </Form.Item>
         )}

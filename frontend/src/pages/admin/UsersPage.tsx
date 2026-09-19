@@ -14,6 +14,7 @@ import {
 import {
   DeleteOutlined,
   EditOutlined,
+  RobotOutlined,
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -21,11 +22,13 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
 import { RolePill } from '@/components/common/RolePill';
 import { Pill } from '@/components/common/Pill';
+import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
 import {
   createInvitation,
   createUser,
@@ -54,6 +57,7 @@ import type {
   AuthProvider,
   CreateUserInput,
   InviteUserInput,
+  PrincipalType,
   RoleSummary,
   UpdateUserInput,
   User,
@@ -103,13 +107,22 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | string>('all');
   const [providerFilter, setProviderFilter] = useState<'all' | AuthProvider>('all');
+  // Service accounts are listed alongside people by default, badged (#875); the filter is
+  // server-side because a service account can sit on any page.
+  const [principalFilter, setPrincipalFilter] = useState<'all' | PrincipalType>('all');
+  const navigate = useNavigate();
   const [inviting, setInviting] = useState(false);
   const [invitingByEmail, setInvitingByEmail] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
 
   const filters = useMemo(
-    () => ({ page, size: PAGE_SIZE, sort: 'email,asc' as const }),
-    [page],
+    () => ({
+      page,
+      size: PAGE_SIZE,
+      sort: 'email,asc' as const,
+      ...(principalFilter === 'all' ? {} : { principal_type: principalFilter }),
+    }),
+    [page, principalFilter],
   );
   const usersQuery = useQuery({
     queryKey: userKeys.list(filters),
@@ -282,6 +295,20 @@ export function UsersPage() {
             ...enumOptions(AUTH_PROVIDER_VALUES, authProviderLabel, t),
           ]}
         />
+        <Select<'all' | PrincipalType>
+          aria-label={t('admin.users.filter_all_principals')}
+          value={principalFilter}
+          onChange={(value) => {
+            setPrincipalFilter(value);
+            setPage(0);
+          }}
+          style={{ width: 220 }}
+          options={[
+            { value: 'all', label: t('admin.users.filter_all_principals') },
+            { value: 'HUMAN', label: t('admin.users.filter_principal_humans') },
+            { value: 'SERVICE_ACCOUNT', label: t('admin.users.filter_principal_service_accounts') },
+          ]}
+        />
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
         {usersQuery.isLoading ? (
@@ -317,7 +344,10 @@ export function UsersPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={label} size={28} />
                       <div>
-                        <div style={{ fontSize: 13 }}>{label}</div>
+                        <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {label}
+                          <PrincipalTypeTag principalType={u.principal_type} />
+                        </div>
                         <div className="mono muted" style={{ fontSize: 11 }}>
                           {u.email}
                         </div>
@@ -392,12 +422,25 @@ export function UsersPage() {
                   <Dropdown
                     menu={{
                       items: [
-                        {
-                          key: 'edit',
-                          icon: <EditOutlined />,
-                          label: t('common.edit'),
-                          onClick: () => setEditing(u),
-                        },
+                        // A service account's identity lives on its own page: the users
+                        // endpoint does not know about bootstrap-declared fields (#875).
+                        ...(u.principal_type === 'SERVICE_ACCOUNT'
+                          ? [
+                              {
+                                key: 'service-account',
+                                icon: <RobotOutlined />,
+                                label: t('admin.users.service_account_hint'),
+                                onClick: () => navigate(`/admin/service-accounts/${u.id}`),
+                              },
+                            ]
+                          : [
+                              {
+                                key: 'edit',
+                                icon: <EditOutlined />,
+                                label: t('common.edit'),
+                                onClick: () => setEditing(u),
+                              },
+                            ]),
                         {
                           key: 'deactivate',
                           icon: <DeleteOutlined />,

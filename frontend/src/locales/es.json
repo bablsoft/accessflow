@@ -33,7 +33,10 @@
     "yes": "Sí",
     "no": "No",
     "view_docs": "Ver documentación",
-    "view_docs_aria": "Ver documentación (se abre en una pestaña nueva)"
+    "view_docs_aria": "Ver documentación (se abre en una pestaña nueva)",
+    "on_behalf_of": "en nombre de {{name}}",
+    "on_behalf_of_tooltip": "Un llamador con clave de API actuó por esta persona (X-AccessFlow-On-Behalf-Of). La persona nombrada cuenta como solicitante para la prohibición de autoaprobación.",
+    "principal_service_account_tooltip": "Una identidad no humana: se autentica solo con una clave de API y nunca puede iniciar sesión de forma interactiva."
   },
   "nav": {
     "editor": "Editor SQL",
@@ -105,7 +108,8 @@
     "deploymentPipelines": "Pipelines de despliegue",
     "help_agent": "Asistente de ayuda",
     "governance_domains": "Dominios de gobernanza",
-    "sql_review": "Revisión SQL"
+    "sql_review": "Revisión SQL",
+    "service_accounts": "Cuentas de servicio"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -429,7 +433,21 @@
     "sql_review_ruleset_environment_conflict": "Otro conjunto de reglas ya está vinculado a ese entorno.",
     "sql_review_ruleset_default_conflict": "La organización ya tiene un conjunto de reglas predeterminado.",
     "sql_review_ruleset_invalid": "La configuración del conjunto de reglas no es válida.",
-    "sql_review_ruleset_generic": "No se pudo guardar el conjunto de reglas de revisión SQL."
+    "sql_review_ruleset_generic": "No se pudo guardar el conjunto de reglas de revisión SQL.",
+    "service_account_generic": "La operación sobre la cuenta de servicio falló.",
+    "service_account_not_found": "Cuenta de servicio no encontrada.",
+    "service_account_key_not_found": "Clave de API no encontrada.",
+    "service_account_key_bootstrap_declared": "Esta clave está declarada en la configuración de bootstrap y no puede revocarse ni rotarse aquí; elimínela de la especificación de bootstrap.",
+    "service_account_key_revoked": "Esta clave ya está revocada y no puede rotarse.",
+    "service_account_key_name_conflict": "La cuenta ya tiene una clave activa con ese nombre.",
+    "service_account_owner_invalid": "El propietario debe ser una persona activa de esta organización.",
+    "service_account_bootstrap_managed": "El campo «{{field}}» está declarado en la configuración de bootstrap y solo puede cambiar allí.",
+    "service_account_unknown_mcp_tool": "Herramienta MCP desconocida: {{tool}}.",
+    "service_account_email_exists": "Ya existe un usuario con ese correo.",
+    "service_account_delegation_not_found": "Delegación no encontrada.",
+    "service_account_delegation_exists": "Esta persona ya permite que la cuenta actúe en su nombre.",
+    "service_account_delegation_principal_invalid": "El principal debe ser una persona activa de esta organización.",
+    "service_account_delegation_invalid": "El destino de la delegación debe ser una cuenta de servicio activa."
   },
   "editor": {
     "text_to_sql": {
@@ -1584,7 +1602,11 @@
       "attribute_key": "Clave",
       "attribute_value": "Valor",
       "attribute_add": "Añadir atributo",
-      "attribute_remove": "Eliminar atributo"
+      "attribute_remove": "Eliminar atributo",
+      "filter_all_principals": "Personas y cuentas de servicio",
+      "filter_principal_humans": "Solo personas",
+      "filter_principal_service_accounts": "Solo cuentas de servicio",
+      "service_account_hint": "Gestione esta identidad desde Cuentas de servicio."
     },
     "audit": {
       "title": "Registro de auditoría",
@@ -1615,7 +1637,10 @@
       "chain_invalid_detail": "Primera fila inválida {{rowId}} — {{reason}}",
       "export_csv": "Exportar CSV",
       "export_failed": "No se pudo exportar el registro de auditoría. Inténtalo de nuevo.",
-      "export_truncated": "Exportación truncada en 50 000 filas. Aplica filtros más estrictos para capturar todo el resultado."
+      "export_truncated": "Exportación truncada en 50 000 filas. Aplica filtros más estrictos para capturar todo el resultado.",
+      "filter_on_behalf_of_placeholder": "En nombre de (ID de usuario)",
+      "on_behalf_of_label": "En nombre de",
+      "via_service_account": "vía cuenta de servicio"
     },
     "ai_analyses": {
       "title": "Análisis de IA",
@@ -2238,7 +2263,8 @@
       "members_empty": {
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
-      }
+      },
+      "member_service_account_hint": "Cuenta de servicio"
     },
     "datasource_health": {
       "title": "Estado de fuentes de datos",
@@ -2505,6 +2531,188 @@
       "param_placeholder_defaults": "Predeterminado: {{values}}",
       "param_required": "Se requiere al menos un valor cuando se almacena esta regla.",
       "param_invalid": "\"{{value}}\" no es un valor permitido."
+    },
+    "service_accounts": {
+      "title": "Cuentas de servicio",
+      "subtitle": "Identidades no humanas que se autentican con claves de API: pipelines de CI, agentes de IA, integraciones.",
+      "create": "Crear cuenta de servicio",
+      "load_error": "No se pudieron cargar las cuentas de servicio",
+      "empty_title": "Aún no hay cuentas de servicio",
+      "empty_description": "Cree una para un pipeline o un agente y luego emítale una clave de API.",
+      "filter_all_sources": "Gestionadas en cualquier lugar",
+      "col_name": "Nombre",
+      "col_email": "Correo",
+      "col_role": "Rol",
+      "col_owner": "Propietario",
+      "col_status": "Estado",
+      "col_managed_by": "Gestionada por",
+      "col_keys": "Claves activas",
+      "col_last_used": "Último uso",
+      "col_tools": "Herramientas MCP",
+      "col_rate_limit": "Límite de tasa",
+      "status_active": "Activa",
+      "status_inactive": "Inactiva",
+      "tools_all": "Todas las herramientas",
+      "tools_count": "{{allowed}} / {{total}} herramientas",
+      "tools_none": "Sin herramientas",
+      "no_owner": "—",
+      "rate_limit_default": "Predeterminado del despliegue",
+      "rate_limit_summary": "{{value}}",
+      "rate_per_minute": "{{count}}/min",
+      "rate_per_day": "{{count}}/día",
+      "never_used": "Nunca",
+      "managed_by_tooltip": {
+        "UI": "Creada y gestionada desde esta página de administración.",
+        "BOOTSTRAP": "Declarada en la configuración de bootstrap (ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*). Su correo, nombre, rol y clave declarada solo cambian allí."
+      },
+      "validation": {
+        "required": "Este campo es obligatorio.",
+        "max_length": "Debe tener como máximo {{max}} caracteres.",
+        "positive_integer": "Debe ser un número entero mayor que cero."
+      },
+      "create_modal": {
+        "title": "Crear cuenta de servicio",
+        "label_email": "Correo",
+        "email_help": "Solo un identificador: una cuenta de servicio nunca recibe correo ni inicia sesión.",
+        "label_display_name": "Nombre para mostrar",
+        "label_role": "Rol",
+        "role_help": "Por defecto, Solo lectura. El rol decide qué pueden hacer las claves de la cuenta.",
+        "label_owner": "Propietario",
+        "owner_help": "La persona responsable de esta cuenta. No otorga nada; se muestra a los revisores.",
+        "owner_placeholder": "Sin propietario",
+        "label_description": "Descripción",
+        "label_rate_limit_per_minute": "Solicitudes por minuto",
+        "label_rate_limit_per_day": "Solicitudes por día",
+        "rate_limit_help": "Deje en blanco para heredar el valor predeterminado del despliegue.",
+        "submit": "Crear",
+        "success": "Cuenta de servicio creada"
+      },
+      "review_role_warning": "Este rol puede aprobar solicitudes. Una cuenta de servicio con él se convierte en aprobador elegible: un agente podría aprobar lo que otro agente envió.",
+      "settings": {
+        "back": "Volver a cuentas de servicio",
+        "load_error": "No se pudo cargar la cuenta de servicio",
+        "not_found": "Cuenta de servicio no encontrada",
+        "bootstrap_banner_title": "Gestionada por la configuración de bootstrap",
+        "bootstrap_banner_body": "Esta cuenta está declarada por ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_{EMAIL, DISPLAY_NAME, ROLE, API_KEY_NAME, API_KEY}. Su correo, nombre, rol y clave declarada son de solo lectura aquí y solo cambian en esa configuración; todo lo demás sigue siendo editable.",
+        "tab_overview": "Resumen",
+        "tab_keys": "Claves de API",
+        "tab_tools": "Herramientas MCP",
+        "tab_limits": "Límites",
+        "tab_principals": "Principales en nombre de",
+        "tab_activity": "Actividad",
+        "deactivate": "Desactivar",
+        "deactivate_confirm_title": "¿Desactivar esta cuenta de servicio?",
+        "deactivate_confirm_body": "Sus claves dejan de autenticar de inmediato. No se revoca nada, y reactivarla las restaura.",
+        "deactivate_success": "Cuenta de servicio desactivada",
+        "unknown_tab": "Pestaña desconocida"
+      },
+      "overview": {
+        "label_email": "Correo",
+        "label_display_name": "Nombre para mostrar",
+        "label_role": "Rol",
+        "label_owner": "Propietario",
+        "label_description": "Descripción",
+        "label_active": "Activa",
+        "active_help": "Una cuenta inactiva conserva sus claves, pero ninguna autentica.",
+        "bootstrap_readonly": "Declarado en la configuración de bootstrap",
+        "owner_placeholder": "Sin propietario",
+        "save": "Guardar cambios",
+        "success": "Cuenta de servicio actualizada",
+        "nothing_changed": "Nada que guardar",
+        "label_created": "Creada",
+        "label_updated": "Actualizada",
+        "label_last_used": "Último uso"
+      },
+      "keys": {
+        "description": "Las claves son la única credencial de la cuenta. Rote en lugar de revocar cuando un consumidor deba seguir funcionando: la clave antigua sigue siendo válida durante un periodo de gracia limitado.",
+        "issue": "Emitir clave",
+        "issue_title": "Emitir una clave de API",
+        "rotate": "Rotar",
+        "rotate_title": "Rotar la clave de API «{{name}}»",
+        "rotate_help": "Emite un reemplazo y caduca esta clave tras el periodo de gracia. Ambas claves autentican hasta entonces; actualice el consumidor antes de que venza.",
+        "label_grace_hours": "Periodo de gracia (horas)",
+        "grace_default_help": "Deje en blanco para el valor predeterminado del despliegue de {{hours}} horas.",
+        "name_label": "Nombre de la clave",
+        "name_placeholder": "p. ej. github-actions",
+        "expires_at_label": "Caduca",
+        "expires_at_placeholder": "Nunca caduca",
+        "expires_at_help": "Opcional. Déjelo vacío y la clave nunca caduca; aún puede revocarla.",
+        "issued_title": "Copie la nueva clave de API",
+        "rotated_title": "Copie la clave de API de reemplazo",
+        "raw_key_label": "Clave",
+        "copy_once_warning": "Esta es la única vez que se muestra la clave. Cópiela ahora y guárdela en un lugar seguro; no podrá recuperarla de nuevo.",
+        "superseded_until": "La clave anterior {{prefix}}… sigue funcionando hasta {{until}}.",
+        "superseded_until_unknown": "La clave anterior {{prefix}}… sigue funcionando hasta que termine el periodo de gracia.",
+        "revoke": "Revocar",
+        "revoke_confirm": "¿Revocar la clave de API «{{name}}»? Los clientes que la usan pierden el acceso de inmediato.",
+        "revoked": "Clave de API revocada",
+        "issued": "Clave de API emitida",
+        "rotated": "Clave de API rotada",
+        "bootstrap_declared": "Declarada",
+        "bootstrap_declared_tooltip": "Declarada en la configuración de bootstrap. No puede revocarse ni rotarse aquí: la próxima ejecución de bootstrap la reimportaría y resucitaría una clave revocada. Para retirarla, elimine ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_API_KEY de la configuración.",
+        "empty": "Aún no hay claves de API.",
+        "col_name": "Nombre",
+        "col_prefix": "Prefijo",
+        "col_created": "Creada",
+        "col_last_used": "Último uso",
+        "col_expires": "Caduca",
+        "col_status": "Estado",
+        "col_actions": "Acciones",
+        "status_active": "Activa",
+        "status_revoked": "Revocada",
+        "status_expired": "Caducada"
+      },
+      "tools": {
+        "description": "Qué herramientas MCP pueden invocar las claves de esta cuenta.",
+        "mode_all": "Todas las herramientas",
+        "mode_restricted": "Solo las herramientas seleccionadas",
+        "enforcement_note": "tools/list del servidor MCP sigue anunciando todas las herramientas a esta cuenta. Una llamada a una herramienta fuera de la lista se deniega al invocarla con permission_denied: la lista es un límite de aplicación, no un filtro de descubrimiento.",
+        "none_selected_warning": "Ninguna herramienta seleccionada: se deniega toda llamada MCP de esta cuenta.",
+        "save": "Guardar lista",
+        "success": "Lista de herramientas MCP actualizada",
+        "catalog_error": "No se pudo cargar el catálogo de herramientas"
+      },
+      "limits": {
+        "description": "Solicitudes por ventana fija sobre todas las llamadas con clave de API de esta cuenta (MCP y REST). En blanco hereda el valor predeterminado del despliegue; 0 a nivel de despliegue significa sin límite.",
+        "label_per_minute": "Solicitudes por minuto",
+        "label_per_day": "Solicitudes por día",
+        "placeholder_default": "Predeterminado del despliegue",
+        "save": "Guardar límites",
+        "success": "Límites de tasa actualizados"
+      },
+      "principals": {
+        "description": "Personas que consienten ser nombradas por esta cuenta mediante X-AccessFlow-On-Behalf-Of. Una delegación no otorga permisos: la clave de la cuenta decide qué puede hacer, y la persona nombrada cuenta como solicitante para la prohibición de autoaprobación.",
+        "grant": "Añadir principal",
+        "grant_title": "Permitir que la cuenta actúe en nombre de",
+        "label_principal": "Persona",
+        "principal_placeholder": "Seleccione una persona",
+        "label_expires_at": "Caduca",
+        "expires_at_placeholder": "Nunca caduca",
+        "submit": "Añadir",
+        "success": "Principal añadido",
+        "revoke": "Revocar",
+        "revoke_confirm": "¿Revocar esta delegación? Las solicitudes que nombren a {{email}} serán rechazadas.",
+        "revoked": "Delegación revocada",
+        "empty": "Nadie ha delegado en esta cuenta.",
+        "col_principal": "Persona",
+        "col_granted_by": "Otorgada por",
+        "col_created": "Otorgada",
+        "col_expires": "Caduca",
+        "col_status": "Estado",
+        "col_actions": "Acciones",
+        "granted_self": "Autoservicio",
+        "granted_admin": "Admin"
+      },
+      "activity": {
+        "description": "Filas de auditoría donde esta cuenta es el actor.",
+        "open_full": "Abrir en el registro de auditoría",
+        "empty": "Aún no hay actividad registrada.",
+        "load_error": "No se pudo cargar la actividad",
+        "col_when": "Cuándo",
+        "col_action": "Acción",
+        "col_resource": "Recurso",
+        "col_on_behalf_of": "En nombre de"
+      }
     }
   },
   "notifications": {
@@ -3274,6 +3482,33 @@
       "TEST": "Pruebas",
       "STAGING": "Preproducción",
       "PRODUCTION": "Producción"
+    },
+    "principal_type": {
+      "HUMAN": "Persona",
+      "SERVICE_ACCOUNT": "Cuenta de servicio"
+    },
+    "service_account_source": {
+      "UI": "UI",
+      "BOOTSTRAP": "Bootstrap"
+    },
+    "service_account_delegation_status": {
+      "ACTIVE": "Activa",
+      "EXPIRED": "Caducada",
+      "REVOKED": "Revocada"
+    },
+    "mcp_tool": {
+      "list_datasources": "Listar las fuentes de datos que el llamador puede consultar",
+      "get_datasource_schema": "Leer el esquema de una fuente de datos",
+      "list_my_queries": "Listar las solicitudes de consulta propias del llamador",
+      "get_query_status": "Leer el estado de una solicitud de consulta",
+      "get_query_result": "Obtener el resultado de una consulta ejecutada",
+      "submit_query": "Enviar una consulta a revisión",
+      "cancel_query": "Cancelar una consulta pendiente",
+      "list_pending_reviews": "Listar las revisiones pendientes del llamador",
+      "review_query": "Aprobar o rechazar una consulta",
+      "validate_sql": "Analizar y validar SQL sin enviarlo",
+      "get_column_samples": "Muestrear valores de columnas de una fuente de datos",
+      "get_audit_log": "Leer el registro de auditoría"
     }
   },
   "access": {
@@ -3750,7 +3985,9 @@
         "row_status_forbidden": "No permitido",
         "row_status_invalid_state": "Ya no está abierto",
         "row_status_not_found": "No encontrado"
-      }
+      },
+      "owned_by": "Propietario: {{name}}",
+      "no_owner": "Sin propietario asignado"
     },
     "usage": {
       "no_data": "Sin datos de uso",

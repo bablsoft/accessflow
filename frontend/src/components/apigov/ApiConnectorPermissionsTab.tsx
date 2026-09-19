@@ -26,6 +26,8 @@ import type {
   ApiOperation,
   User,
 } from '@/types/api';
+import { userSelectOptions } from '@/utils/userOptions';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 type GrantTarget = 'user' | 'group';
 
@@ -343,10 +345,8 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
                   ? t('apiGov.settings.userLoading')
                   : t('apiGov.settings.userEmpty')
               }
-              options={eligible.map((u) => ({
-                value: u.id,
-                label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-              }))}
+              options={userSelectOptions(eligible)}
+              optionRender={renderUserOption}
             />
           </Form.Item>
         )}

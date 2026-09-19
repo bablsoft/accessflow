@@ -100,6 +100,29 @@ describe('AttestationWorklistPage', () => {
     });
   });
 
+  it('badges a service-account subject and names its owner (#875)', async () => {
+    listWorklistMock.mockResolvedValue(
+      pageOf([
+        item({
+          subject_user_email: 'ci-bot@example.com',
+          subject_user_display_name: 'CI bot',
+          subject_principal_type: 'SERVICE_ACCOUNT',
+          subject_owner_email: 'alice@example.com',
+          subject_owner_display_name: 'Alice',
+        }),
+        item({ id: 'item-2', subject_user_email: 'orphan@example.com', subject_principal_type: 'SERVICE_ACCOUNT' }),
+      ]),
+    );
+
+    render(wrap(<AttestationWorklistPage />));
+
+    await screen.findByText('ci-bot@example.com');
+    expect(screen.getAllByTestId('principal-type-tag')).toHaveLength(2);
+    const owners = screen.getAllByTestId('subject-owner').map((el) => el.textContent);
+    expect(owners).toEqual(['Owned by Alice', 'No owner assigned']);
+    expect(screen.queryByText('SERVICE_ACCOUNT')).not.toBeInTheDocument();
+  });
+
   it('shows an empty state when there is nothing to review', async () => {
     listWorklistMock.mockResolvedValue(pageOf([]));
 

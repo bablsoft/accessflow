@@ -24,13 +24,13 @@ describe('PrincipalTypeTag', () => {
 
   it('renderUserOption shows the label and badges only service accounts', () => {
     const { rerender } = render(
-      renderUserOption({ data: { value: 'u-1', label: 'Bot (bot@example.com)', principal_type: 'SERVICE_ACCOUNT' } }),
+      renderUserOption({ data: { label: 'Bot (bot@example.com)', principal_type: 'SERVICE_ACCOUNT' } }),
     );
     expect(screen.getByText('Bot (bot@example.com)')).toBeInTheDocument();
     expect(screen.getByTestId('principal-type-tag')).toBeInTheDocument();
 
     rerender(
-      renderUserOption({ data: { value: 'u-2', label: 'Alice (alice@example.com)', principal_type: 'HUMAN' } }),
+      renderUserOption({ data: { label: 'Alice (alice@example.com)', principal_type: 'HUMAN' } }),
     );
     expect(screen.getByText('Alice (alice@example.com)')).toBeInTheDocument();
     expect(screen.queryByTestId('principal-type-tag')).not.toBeInTheDocument();

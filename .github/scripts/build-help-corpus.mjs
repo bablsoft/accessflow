@@ -534,6 +534,8 @@ const ROUTES = [
   ['/admin/groups', 'User groups and the grants attached to them.'],
   ['/admin/groups/:id', 'One group: its members and the permissions it grants them.', 'open a row in Groups'],
   ['/admin/roles', 'Roles and the permissions each one carries.'],
+  ['/admin/service-accounts', 'Service accounts: non-human identities for CI pipelines, AI agents and integrations, with their API keys.'],
+  ['/admin/service-accounts/:id', 'One service account: overview, API keys (issue, rotate, revoke), MCP tool allow-list, rate limits, on-behalf-of principals and activity.', 'open an account from Service accounts'],
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
   ['/admin/organizations/:id', 'One organization and its settings.', 'open a row in Organizations'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],

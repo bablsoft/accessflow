@@ -29,6 +29,9 @@ import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
 import type { GroupMembershipSource, UserGroupMember } from '@/types/api';
+import { userSelectOptions } from '@/utils/userOptions';
+import { renderUserOption } from '@/components/common/renderUserOption';
+import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
 
 const SOURCE_TAG_COLOR: Record<GroupMembershipSource, string> = {
   MANUAL: 'blue',
@@ -102,7 +105,12 @@ export function GroupDetailPage() {
       title: t('admin.groups.members_columns.display_name'),
       dataIndex: 'display_name',
       key: 'display_name',
-      render: (val: string | null) => val ?? '—',
+      render: (val: string | null, member: UserGroupMember) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {val ?? '—'}
+          <PrincipalTypeTag principalType={member.principal_type} />
+        </span>
+      ),
     },
     {
       title: t('admin.groups.members_columns.source'),
@@ -229,10 +237,8 @@ export function GroupDetailPage() {
                 String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
               }}
               placeholder={t('admin.groups.fields.user_placeholder')}
-              options={availableUsers.map((u) => ({
-                value: u.id,
-                label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-              }))}
+              options={userSelectOptions(availableUsers)}
+              optionRender={renderUserOption}
             />
           </Form.Item>
         </Form>
