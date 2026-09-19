@@ -2460,27 +2460,31 @@ export interface ServiceAccountKey extends ApiKey {
   bootstrap_declared: boolean;
 }
 
+/**
+ * Nullable fields are *absent* on the wire (the backend serializes with `non_null` inclusion), so
+ * every one of them is optional here and the helpers test with `== null`, never `=== null`.
+ */
 export interface ServiceAccount {
   id: string;
   email: string;
   display_name: string;
-  role: Role | null;
-  role_id: string | null;
+  role?: Role | null;
+  role_id?: string | null;
   role_name: string;
   active: boolean;
   managed_by: ServiceAccountSource;
-  description: string | null;
-  owner_user_id: string | null;
-  owner_email: string | null;
-  owner_display_name: string | null;
+  description?: string | null;
+  owner_user_id?: string | null;
+  owner_email?: string | null;
+  owner_display_name?: string | null;
   /** `null` = every tool, `[]` = none, else the allowed wire names (#872). */
-  mcp_tool_allow_list: string[] | null;
+  mcp_tool_allow_list?: string[] | null;
   /** `null` = the deployment default (#873). */
-  rate_limit_per_minute: number | null;
-  rate_limit_per_day: number | null;
+  rate_limit_per_minute?: number | null;
+  rate_limit_per_day?: number | null;
   active_api_key_count: number;
-  last_used_at: string | null;
-  last_login_at: string | null;
+  last_used_at?: string | null;
+  last_login_at?: string | null;
   created_at: string;
   updated_at: string;
   /** Populated on a single-account read only; the list always returns `[]`. */
@@ -2549,8 +2553,8 @@ export interface ServiceAccountDelegation {
   principal_email: string;
   granted_by: string;
   created_at: string;
-  expires_at: string | null;
-  revoked_at: string | null;
+  expires_at?: string | null;
+  revoked_at?: string | null;
   status: ServiceAccountDelegationStatus;
 }
 

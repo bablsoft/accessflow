@@ -88,10 +88,10 @@ export function ServiceAccountsPage() {
 
   const rateLimit = (row: ServiceAccount): string => {
     const parts: string[] = [];
-    if (row.rate_limit_per_minute !== null) {
+    if (row.rate_limit_per_minute != null) {
       parts.push(t('admin.service_accounts.rate_per_minute', { count: row.rate_limit_per_minute }));
     }
-    if (row.rate_limit_per_day !== null) {
+    if (row.rate_limit_per_day != null) {
       parts.push(t('admin.service_accounts.rate_per_day', { count: row.rate_limit_per_day }));
     }
     return parts.length > 0 ? parts.join(' · ') : t('admin.service_accounts.rate_limit_default');

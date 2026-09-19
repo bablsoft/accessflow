@@ -2670,7 +2670,9 @@
         "none_selected_warning": "No tools selected: every MCP call from this account is denied.",
         "save": "Save allow-list",
         "success": "MCP tool allow-list updated",
-        "catalog_error": "Could not load the tool catalog"
+        "catalog_error": "Could not load the tool catalog",
+        "mode_label": "Allowed tools",
+        "tools_label": "Tools"
       },
       "limits": {
         "description": "Requests per fixed window across every API-key call this account makes (MCP and REST). Blank inherits the deployment default; 0 at the deployment level means unlimited.",

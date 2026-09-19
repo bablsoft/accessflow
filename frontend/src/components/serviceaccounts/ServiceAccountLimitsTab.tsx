@@ -18,8 +18,8 @@ export function ServiceAccountLimitsTab({ account }: { account: ServiceAccount }
 
   useEffect(() => {
     form.setFieldsValue({
-      rate_limit_per_minute: account.rate_limit_per_minute,
-      rate_limit_per_day: account.rate_limit_per_day,
+      rate_limit_per_minute: account.rate_limit_per_minute ?? null,
+      rate_limit_per_day: account.rate_limit_per_day ?? null,
     });
   }, [account, form]);
 

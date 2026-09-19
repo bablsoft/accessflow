@@ -77,6 +77,7 @@ export function fieldRules(t: TFunction, constraints: FieldConstraints): Rule[] 
 //
 // The wire shape is three-valued: `null` = every tool, `[]` = none, else the allowed names. A PUT
 // with `null`/omitted means "unchanged", so returning to "every tool" goes through `clear`.
+// On a GET the null case arrives as an *absent* key (non_null serialization), hence `== null`.
 
 export type ToolsMode = 'ALL' | 'RESTRICTED';
 
@@ -88,7 +89,7 @@ export interface ToolsFormValues {
 export function toolsFormFromAccount(
   account: Pick<ServiceAccount, 'mcp_tool_allow_list'>,
 ): ToolsFormValues {
-  return account.mcp_tool_allow_list === null
+  return account.mcp_tool_allow_list == null
     ? { mode: 'ALL', tools: [] }
     : { mode: 'RESTRICTED', tools: [...account.mcp_tool_allow_list] };
 }
@@ -104,7 +105,7 @@ export function allowedToolCount(
   account: Pick<ServiceAccount, 'mcp_tool_allow_list'>,
   catalog: readonly string[] | undefined,
 ): { allowed: number; total: number } | null {
-  if (account.mcp_tool_allow_list === null) return null;
+  if (account.mcp_tool_allow_list == null) return null;
   return { allowed: account.mcp_tool_allow_list.length, total: catalog?.length ?? 0 };
 }
 
@@ -126,12 +127,12 @@ export function limitsUpdateInput(
   const input: UpdateServiceAccountInput = {};
   const clear: ServiceAccountClearableField[] = [];
   const perMinute = values.rate_limit_per_minute ?? null;
-  if (perMinute !== current.rate_limit_per_minute) {
+  if (perMinute !== (current.rate_limit_per_minute ?? null)) {
     if (perMinute === null) clear.push('RATE_LIMIT_PER_MINUTE');
     else input.rate_limit_per_minute = perMinute;
   }
   const perDay = values.rate_limit_per_day ?? null;
-  if (perDay !== current.rate_limit_per_day) {
+  if (perDay !== (current.rate_limit_per_day ?? null)) {
     if (perDay === null) clear.push('RATE_LIMIT_PER_DAY');
     else input.rate_limit_per_day = perDay;
   }
@@ -152,8 +153,8 @@ export interface OverviewFormValues {
 export function overviewFormFromAccount(account: ServiceAccount): OverviewFormValues {
   return {
     display_name: account.display_name,
-    role_id: account.role_id,
-    owner_user_id: account.owner_user_id,
+    role_id: account.role_id ?? null,
+    owner_user_id: account.owner_user_id ?? null,
     description: account.description ?? '',
     active: account.active,
   };
@@ -177,10 +178,10 @@ export function overviewUpdateInput(
   if (!isBootstrapManaged(account)) {
     const displayName = values.display_name.trim();
     if (displayName && displayName !== account.display_name) input.display_name = displayName;
-    if (values.role_id && values.role_id !== account.role_id) input.role_id = values.role_id;
+    if (values.role_id && values.role_id !== (account.role_id ?? null)) input.role_id = values.role_id;
   }
   const owner = values.owner_user_id ?? null;
-  if (owner !== account.owner_user_id) {
+  if (owner !== (account.owner_user_id ?? null)) {
     if (owner === null) clear.push('OWNER_USER_ID');
     else input.owner_user_id = owner;
   }

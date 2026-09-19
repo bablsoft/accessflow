@@ -133,9 +133,9 @@ class AdminEffectiveAccessController {
     }
 
     /**
-     * A misspelled {@code capability} is a client error. Nothing maps
-     * {@code MethodArgumentTypeMismatchException} globally, so without this the security module's
-     * {@code Exception} catch-all turns it into a 500.
+     * A misspelled {@code capability} is a client error. The global handler (#875) already
+     * answers a generic {@code 400 VALIDATION_ERROR}; this local one wins over it to name the
+     * offending parameter.
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ProblemDetail handleBadParameter(MethodArgumentTypeMismatchException ex) {

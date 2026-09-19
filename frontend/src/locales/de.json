@@ -2670,7 +2670,9 @@
         "none_selected_warning": "Keine Tools ausgewählt: jeder MCP-Aufruf dieses Accounts wird abgelehnt.",
         "save": "Allow-List speichern",
         "success": "MCP-Tool-Allow-List aktualisiert",
-        "catalog_error": "Der Tool-Katalog konnte nicht geladen werden"
+        "catalog_error": "Der Tool-Katalog konnte nicht geladen werden",
+        "mode_label": "Erlaubte Tools",
+        "tools_label": "Tools"
       },
       "limits": {
         "description": "Anfragen pro festem Zeitfenster über alle API-Key-Aufrufe dieses Accounts (MCP und REST). Leer übernimmt den Deployment-Standard; 0 auf Deployment-Ebene bedeutet unbegrenzt.",

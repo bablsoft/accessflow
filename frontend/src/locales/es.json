@@ -2670,7 +2670,9 @@
         "none_selected_warning": "Ninguna herramienta seleccionada: se deniega toda llamada MCP de esta cuenta.",
         "save": "Guardar lista",
         "success": "Lista de herramientas MCP actualizada",
-        "catalog_error": "No se pudo cargar el catálogo de herramientas"
+        "catalog_error": "No se pudo cargar el catálogo de herramientas",
+        "mode_label": "Herramientas permitidas",
+        "tools_label": "Herramientas"
       },
       "limits": {
         "description": "Solicitudes por ventana fija sobre todas las llamadas con clave de API de esta cuenta (MCP y REST). En blanco hereda el valor predeterminado del despliegue; 0 a nivel de despliegue significa sin límite.",

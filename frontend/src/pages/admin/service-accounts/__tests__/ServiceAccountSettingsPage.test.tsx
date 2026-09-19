@@ -4,6 +4,7 @@ import { App as AntdApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
 import type { ServiceAccount } from '@/types/api';
 import { HUMANS, MCP_TOOLS, ROLES, account, key, page } from './fixtures';
@@ -71,6 +72,11 @@ function wrap(node: ReactNode, entry = '/admin/service-accounts/sa-1') {
 }
 
 const panel = () => screen.getByRole('tabpanel');
+
+function axiosError(status: number, data: unknown): AxiosError {
+  const response = { data, status, statusText: '', headers: {}, config: {} as never } as AxiosResponse;
+  return new AxiosError('Request failed', undefined, undefined, undefined, response);
+}
 
 describe('ServiceAccountSettingsPage', () => {
   beforeEach(() => {
@@ -313,9 +319,38 @@ describe('ServiceAccountSettingsPage', () => {
     expect(await screen.findByText('list-route')).toBeInTheDocument();
   });
 
-  it('shows the not-found state when the account is gone', async () => {
-    getServiceAccount.mockRejectedValue(new Error('404'));
+  it('shows the load error with the server detail and a retry, never "not found", on a failure', async () => {
+    getServiceAccount.mockRejectedValueOnce(
+      axiosError(500, { error: 'INTERNAL', detail: 'database is on fire' }),
+    );
     render(wrap(<ServiceAccountSettingsPage />));
-    expect(await screen.findByText('Service account not found')).toBeInTheDocument();
+    expect(await screen.findByText('Could not load the service account')).toBeInTheDocument();
+    expect(screen.getByText('database is on fire')).toBeInTheDocument();
+    expect(screen.queryByText('Service account not found')).not.toBeInTheDocument();
+
+    getServiceAccount.mockResolvedValueOnce(account());
+    fireEvent.click(screen.getByText('Retry').closest('button')!);
+    expect(await screen.findByRole('heading', { name: 'CI bot' })).toBeInTheDocument();
+  });
+
+  it('sends the picked expiry as an ISO instant when issuing a key', async () => {
+    issueServiceAccountKey.mockResolvedValue({ api_key: key({ id: 'k-2', name: 'ci' }), raw_key: 'af_raw' });
+    render(wrap(<ServiceAccountSettingsPage />, '/admin/service-accounts/sa-1?tab=api-keys'));
+    await screen.findByRole('heading', { name: 'CI bot' });
+
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Issue key' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Key name'), { target: { value: 'ci' } });
+    // The picker is the Form.Item's controlled child: typing a date into it must reach the form.
+    const picker = within(dialog).getByLabelText('Expires');
+    fireEvent.mouseDown(picker);
+    fireEvent.change(picker, { target: { value: '2099-01-02 03:04:05' } });
+    fireEvent.keyDown(picker, { key: 'Enter', code: 'Enter' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue key' }));
+
+    await waitFor(() => expect(issueServiceAccountKey).toHaveBeenCalled());
+    const payload = issueServiceAccountKey.mock.calls[0]?.[1] as { expires_at: string | null };
+    // Local wall-clock in, UTC instant out — compare instants, not calendar days.
+    expect(payload.expires_at).toBe(new Date('2099-01-02T03:04:05').toISOString());
   });
 });

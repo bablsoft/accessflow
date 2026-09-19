@@ -130,7 +130,8 @@ test.describe('service-accounts admin UI (#875)', () => {
     await page.getByRole('button', { name: 'Back to service accounts' }).click();
     const listRow = page.getByRole('row').filter({ hasText: email });
     await findRowAcrossPages(page, listRow);
-    await expect(listRow.getByText('1 / 12 tools')).toBeVisible();
+    // The catalog size is the server's; only the allowed count is this spec's business.
+    await expect(listRow.getByText(/^1 \/ \d+ tools$/)).toBeVisible();
     await expect(listRow.getByTestId('managed-by-tag')).toHaveText('UI');
   });
 

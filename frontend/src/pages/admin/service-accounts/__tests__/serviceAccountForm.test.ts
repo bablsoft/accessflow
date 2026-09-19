@@ -62,8 +62,10 @@ describe('fieldRules', () => {
 });
 
 describe('MCP tools encoding', () => {
-  it('reads null as every tool and an array (even empty) as restricted', () => {
+  it('reads null — or the absent key the non_null serializer sends — as every tool, and an array (even empty) as restricted', () => {
     expect(toolsFormFromAccount(account())).toEqual({ mode: 'ALL', tools: [] });
+    expect(toolsFormFromAccount({})).toEqual({ mode: 'ALL', tools: [] });
+    expect(allowedToolCount({}, ['a'])).toBeNull();
     expect(toolsFormFromAccount(account({ mcp_tool_allow_list: [] }))).toEqual({
       mode: 'RESTRICTED',
       tools: [],
@@ -108,6 +110,8 @@ describe('limitsUpdateInput', () => {
     expect(limitsUpdateInput({ rate_limit_per_minute: null, rate_limit_per_day: undefined }, current)).toEqual({
       clear: ['RATE_LIMIT_PER_MINUTE'],
     });
+    // The wire omits null limits entirely; an untouched blank form is still a no-op.
+    expect(limitsUpdateInput({}, {})).toEqual({});
   });
 });
 
@@ -143,6 +147,16 @@ describe('overview encoding', () => {
         current,
       ),
     ).toEqual({ owner_user_id: 'u-2', description: 'new' });
+  });
+
+  it('treats absent owner / role keys like null', () => {
+    const sparse = account();
+    delete sparse.owner_user_id;
+    delete sparse.role_id;
+    expect(overviewFormFromAccount(sparse).owner_user_id).toBeNull();
+    expect(
+      overviewUpdateInput({ display_name: 'Bot', role_id: null, owner_user_id: null, description: '', active: true }, sparse),
+    ).toEqual({});
   });
 
   it('never sends the declared fields of a bootstrap-managed account', () => {

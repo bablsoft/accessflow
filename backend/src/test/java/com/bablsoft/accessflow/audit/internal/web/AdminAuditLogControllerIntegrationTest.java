@@ -496,6 +496,33 @@ class AdminAuditLogControllerIntegrationTest {
                 .asBoolean().isFalse();
     }
 
+    /**
+     * #875: an export filtered by a person must not be recorded under the attribution key — that
+     * row would read back as "the admin exported on this person's behalf" through the very filter
+     * and chip this change adds, inside an INSERT-only chain that can never be corrected.
+     */
+    @Test
+    void exportFilteredByOnBehalfOfRecordsTheFilterUnderItsOwnKey() throws Exception {
+        var exported = mvc.get().uri("/api/v1/admin/audit-log/export.csv?onBehalfOfUserId=" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(exported).hasStatus(200);
+
+        var exportRow = mvc.get().uri("/api/v1/admin/audit-log?action=AUDIT_LOG_EXPORTED")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(exportRow).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(exportRow).bodyJson().extractingPath("$.content[0].metadata.filter_on_behalf_of_user_id")
+                .asString().isEqualTo(analyst.getId().toString());
+        assertThat(exportRow.getResponse().getContentAsString()).doesNotContain("\"on_behalf_of_email\"");
+
+        // The attribution filter does not surface the export row.
+        var attributed = mvc.get().uri("/api/v1/admin/audit-log?onBehalfOfUserId=" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(attributed).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(0);
+    }
+
     @Test
     void filterByActionWorks() {
         auditLogService.record(new AuditEntry(

@@ -2670,7 +2670,9 @@
         "none_selected_warning": "未选择任何工具：此账号的每次 MCP 调用都会被拒绝。",
         "save": "保存允许列表",
         "success": "MCP 工具允许列表已更新",
-        "catalog_error": "无法加载工具目录"
+        "catalog_error": "无法加载工具目录",
+        "mode_label": "允许的工具",
+        "tools_label": "工具"
       },
       "limits": {
         "description": "此账号所有 API 密钥调用（MCP 和 REST）在固定时间窗口内的请求数。留空则继承部署默认值；部署级别的 0 表示无限制。",

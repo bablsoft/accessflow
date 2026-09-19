@@ -43,7 +43,7 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
         layout="vertical"
         onFinish={(values) => saveMutation.mutate(toolsUpdateInput(values))}
       >
-        <Form.Item name="mode">
+        <Form.Item name="mode" label={t('admin.service_accounts.tools.mode_label')}>
           <Radio.Group
             options={[
               { value: 'ALL', label: t('admin.service_accounts.tools.mode_all') },
@@ -62,7 +62,7 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
                 title={t('admin.service_accounts.tools.none_selected_warning')}
               />
             )}
-            <Form.Item name="tools">
+            <Form.Item name="tools" label={t('admin.service_accounts.tools.tools_label')}>
               <Checkbox.Group style={{ width: '100%' }}>
                 <Space orientation="vertical" size={6}>
                   {(catalogQuery.data ?? []).map((tool) => {

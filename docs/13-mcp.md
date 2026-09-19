@@ -199,7 +199,7 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   the account's role and grants already permit, never widen it.
   **`tools/list` still advertises all twelve tools to every caller.** The stateless server's list
   handler cannot see who is asking, so the allow-list is an enforcement boundary, not a discovery
-  filter (the MCP tools tab repeats exactly this caveat, because support gets asked): an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
+  filter — the MCP tools tab in the admin UI states the same: an agent limited to `["list_datasources", "validate_sql"]` still *sees* `submit_query`
   and, if it tries it, gets the structured `permission_denied` below without the service ever being
   invoked. The server `instructions` tell the model to report such a denial rather than retry it.
 - **Rate limits (#873).** Every API-key-authenticated `POST /mcp` counts against the calling

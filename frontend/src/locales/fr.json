@@ -2670,7 +2670,9 @@
         "none_selected_warning": "Aucun outil sélectionné : tout appel MCP de ce compte est refusé.",
         "save": "Enregistrer la liste",
         "success": "Liste d'outils MCP mise à jour",
-        "catalog_error": "Impossible de charger le catalogue d'outils"
+        "catalog_error": "Impossible de charger le catalogue d'outils",
+        "mode_label": "Outils autorisés",
+        "tools_label": "Outils"
       },
       "limits": {
         "description": "Requêtes par fenêtre fixe sur tous les appels par clé d'API de ce compte (MCP et REST). Vide hérite de la valeur par défaut du déploiement ; 0 au niveau du déploiement signifie illimité.",

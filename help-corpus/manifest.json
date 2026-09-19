@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "1a59ee5139b1",
-  "generatedAt": "2026-09-19T13:50:23.269Z",
-  "sourceCommit": "4c38f311669520748346677b60ccac81c21fed95",
+  "corpusVersion": "4fe41574930d",
+  "generatedAt": "2026-09-19T14:03:29.807Z",
+  "sourceCommit": "6f3b1d9ca56ac2339831a8a115804f4bf8ec8331",
   "chunkCount": 577,
-  "sha256": "1a59ee5139b156949c4da44b5438a91f9c8cbe17b5cec874a0c7528295c19c1c",
+  "sha256": "4fe41574930d35fefd42d40b1097d646c5a3a160d39d7a97519b781b8c842f74",
   "quickReferenceSha256": "6cc72c243dad41d5cf241be9d8b3aeee400f8689ede9fce285d351910bae1795",
   "sources": [
     {
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 13,
-      "sha256": "06f174534240249923489ca77ddc650acf8bd912fc266d883ee8202c0b60c5ec"
+      "sha256": "5b3894851a4dfb2560ae870718436a8c1fd4dd44554d59e8051e8c13d3998581"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -333,7 +333,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Documentation",
       "chunks": 15,
-      "sha256": "2675df4319d951b345632323b0d0d93b29655daa300a1cb43b8423afa2049dd2"
+      "sha256": "acf34d0e68b0609de95851b4c96669f8bcbc472df220663edd800356c2c52e70"
     },
     {
       "path": "website/docs/install/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "9033c1219c3520934c649ba9cb6a716da5b6da28fcb7cb9ff3d0ea99bfc5659b"
+      "sha256": "64277b53aa927e6dc0b6f7e4f9c82fc7a2f8dede05dd625acd46caa7d7a1061f"
     }
   ]
 }

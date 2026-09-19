@@ -219,7 +219,10 @@ class AdminAuditLogController {
                 metadata.put("resource_id", filter.resourceId().toString());
             }
             if (filter.onBehalfOfUserId() != null) {
-                metadata.put("on_behalf_of_user_id", filter.onBehalfOfUserId().toString());
+                // Not "on_behalf_of_user_id": that key means the actor acted FOR this person and is
+                // what the attribution filter and chip read back — an export filtered by bob must not
+                // become a row claiming the admin exported on bob's behalf.
+                metadata.put("filter_on_behalf_of_user_id", filter.onBehalfOfUserId().toString());
             }
             if (filter.from() != null) {
                 metadata.put("from", filter.from().toString());

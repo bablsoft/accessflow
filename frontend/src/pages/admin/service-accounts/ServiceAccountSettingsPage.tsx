@@ -1,8 +1,9 @@
-import { Alert, App, Button, Empty, Popconfirm, Skeleton, Space, Tabs, Tag } from 'antd';
+import { Alert, App, Button, Popconfirm, Skeleton, Space, Tabs, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
 import { ServiceAccountActivityTab } from '@/components/serviceaccounts/ServiceAccountActivityTab';
 import { ServiceAccountKeysTab } from '@/components/serviceaccounts/ServiceAccountKeysTab';
@@ -93,8 +94,16 @@ export function ServiceAccountSettingsPage() {
       />
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 28px' }}>
         {accountQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
-        {!accountQuery.isLoading && !account && (
-          <Empty description={t('admin.service_accounts.settings.not_found')} />
+        {accountQuery.isError && (
+          // A 500 or a network failure is not "gone": keep the server detail and offer a retry.
+          <EmptyState
+            title={t('admin.service_accounts.settings.load_error')}
+            description={serviceAccountErrorMessage(accountQuery.error)}
+            action={<Button onClick={() => accountQuery.refetch()}>{t('common.retry')}</Button>}
+          />
+        )}
+        {!accountQuery.isLoading && !accountQuery.isError && !account && (
+          <EmptyState title={t('admin.service_accounts.settings.not_found')} />
         )}
         {account && isBootstrapManaged(account) && (
           <Alert
