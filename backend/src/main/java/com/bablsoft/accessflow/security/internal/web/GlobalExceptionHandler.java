@@ -97,6 +97,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -129,12 +130,14 @@ class GlobalExceptionHandler {
         return pd;
     }
 
-    @ExceptionHandler({HandlerMethodValidationException.class, ConstraintViolationException.class})
+    @ExceptionHandler({HandlerMethodValidationException.class, ConstraintViolationException.class,
+            MethodArgumentTypeMismatchException.class})
     ProblemDetail handleParameterValidation(Exception ex) {
         // Bean Validation constraints on controller method parameters (e.g. @Min/@Max on a
         // @RequestParam under @Validated) — map to 400 rather than the catch-all 500. The AOP
         // @Validated path throws ConstraintViolationException; the web-native path throws
-        // HandlerMethodValidationException.
+        // HandlerMethodValidationException. An unconvertible query value (an unknown enum
+        // literal such as ?principal_type=ROBOT, a malformed UUID) is the same client error.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg("error.validation_failed"));
         pd.setProperty("error", "VALIDATION_ERROR");
         pd.setProperty("timestamp", Instant.now().toString());

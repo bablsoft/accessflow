@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipView;
 
@@ -12,7 +13,8 @@ public record UserGroupMemberResponse(
         String email,
         String displayName,
         UserGroupMembershipSourceType source,
-        Instant joinedAt
+        Instant joinedAt,
+        PrincipalType principalType
 ) {
     public static UserGroupMemberResponse from(UserGroupMembershipView view) {
         return new UserGroupMemberResponse(
@@ -21,7 +23,8 @@ public record UserGroupMemberResponse(
                 view.userEmail(),
                 view.userDisplayName(),
                 view.source(),
-                view.joinedAt()
+                view.joinedAt(),
+                view.principalType()
         );
     }
 }

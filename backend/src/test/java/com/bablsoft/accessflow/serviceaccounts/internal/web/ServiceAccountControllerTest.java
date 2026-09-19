@@ -112,6 +112,17 @@ class ServiceAccountControllerTest {
     }
 
     @Test
+    void mcpToolsListsTheCatalogInEnumOrder() {
+        var result = controller.mcpTools();
+
+        assertThat(result.tools()).containsExactly(
+                java.util.Arrays.stream(com.bablsoft.accessflow.serviceaccounts.api.McpToolName.values())
+                        .map(com.bablsoft.accessflow.serviceaccounts.api.McpToolName::toolName)
+                        .toArray(String[]::new));
+        assertThat(result.tools()).hasSize(12).contains("list_datasources", "validate_sql", "get_audit_log");
+    }
+
+    @Test
     void getMapsTheViewWithItsKeys() {
         when(service.get(organizationId, accountId)).thenReturn(view(List.of(key("ci", true))));
 
@@ -369,7 +380,8 @@ class ServiceAccountControllerTest {
     private ServiceAccountAdminView view(List<ServiceAccountKeyView> keys) {
         return new ServiceAccountAdminView(accountId, organizationId, "bot@example.com", "Bot",
                 UserRoleType.READONLY, UUID.randomUUID(), "READONLY", true, ServiceAccountSource.UI, "d", null,
-                List.of("validate_sql"), 10, null, keys.size(), null, null, Instant.EPOCH, Instant.EPOCH, keys);
+                null, null, List.of("validate_sql"), 10, null, keys.size(), null, null, Instant.EPOCH, Instant.EPOCH,
+                keys);
     }
 
     private static ServiceAccountKeyView key(String name, boolean declared) {

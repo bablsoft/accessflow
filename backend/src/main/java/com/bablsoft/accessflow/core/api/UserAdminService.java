@@ -6,7 +6,12 @@ import java.util.UUID;
 
 public interface UserAdminService {
 
-    PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest);
+    default PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest) {
+        return listUsers(organizationId, null, pageRequest);
+    }
+
+    /** Lists the organization's users, optionally only one {@link PrincipalType} (#875). */
+    PageResponse<UserView> listUsers(UUID organizationId, PrincipalType principalType, PageRequest pageRequest);
 
     UserView createUser(CreateUserCommand command);
 

@@ -13,6 +13,7 @@ public record AuditLogResponse(
         UUID actorId,
         String actorEmail,
         String actorDisplayName,
+        String onBehalfOfEmail,
         AuditAction action,
         String resourceType,
         UUID resourceId,
@@ -21,13 +22,19 @@ public record AuditLogResponse(
         String userAgent,
         Instant createdAt
 ) {
-    public static AuditLogResponse from(AuditLogView view, String actorEmail, String actorDisplayName) {
+    /**
+     * {@code onBehalfOfEmail} (#875) resolves the {@code metadata.on_behalf_of_user_id} attribution
+     * (#874) to a person; null when the row carries none or the user is gone.
+     */
+    public static AuditLogResponse from(AuditLogView view, String actorEmail, String actorDisplayName,
+                                        String onBehalfOfEmail) {
         return new AuditLogResponse(
                 view.id(),
                 view.organizationId(),
                 view.actorId(),
                 actorEmail,
                 actorDisplayName,
+                onBehalfOfEmail,
                 view.action(),
                 view.resourceType().dbValue(),
                 view.resourceId(),

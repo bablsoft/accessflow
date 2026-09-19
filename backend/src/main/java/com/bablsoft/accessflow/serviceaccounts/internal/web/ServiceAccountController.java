@@ -77,6 +77,14 @@ class ServiceAccountController {
                 SpringPageableAdapter.toPageRequest(pageable)));
     }
 
+    @GetMapping("/mcp-tools")
+    @Operation(summary = "The MCP tool names a service account's allow-list may reference")
+    @ApiResponse(responseCode = "200", description = "Tool catalog, in the order the MCP server advertises it")
+    @ApiResponse(responseCode = "403", description = "Caller lacks SERVICE_ACCOUNT_MANAGE")
+    McpToolCatalogResponse mcpTools() {
+        return McpToolCatalogResponse.current();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a service account with its API keys")
     @ApiResponse(responseCode = "200", description = "Service account")

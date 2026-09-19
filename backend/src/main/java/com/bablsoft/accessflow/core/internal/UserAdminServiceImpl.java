@@ -55,7 +55,8 @@ class UserAdminServiceImpl implements UserAdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest) {
+    public PageResponse<UserView> listUsers(UUID organizationId, PrincipalType principalType,
+                                            PageRequest pageRequest) {
         // Default to newest-first when the caller specifies no sort — without it the
         // page order is unspecified heap order and a freshly provisioned user can land
         // on any page. Mirrors DatasourceAdminServiceImpl.listForAdmin.
@@ -63,8 +64,10 @@ class UserAdminServiceImpl implements UserAdminService {
                 ? new PageRequest(pageRequest.page(), pageRequest.size(),
                         java.util.List.of(SortOrder.desc("createdAt")))
                 : pageRequest;
-        var page = userRepository.findAllByOrganization_Id(
-                organizationId, PageAdapter.toSpringPageable(effective));
+        var pageable = PageAdapter.toSpringPageable(effective);
+        var page = principalType == null
+                ? userRepository.findAllByOrganization_Id(organizationId, pageable)
+                : userRepository.findAllByOrganization_IdAndPrincipalType(organizationId, principalType, pageable);
         return PageAdapter.toPageResponse(page.map(this::toView));
     }
 

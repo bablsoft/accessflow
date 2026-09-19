@@ -12,6 +12,8 @@ import java.util.UUID;
 /** Builds JPA {@link Specification}s for the audit log read endpoint. */
 final class AuditLogSpecifications {
 
+    static final String ON_BEHALF_OF_KEY = "on_behalf_of_user_id";
+
     private AuditLogSpecifications() {
     }
 
@@ -51,6 +53,13 @@ final class AuditLogSpecifications {
             }
             if (query.to() != null) {
                 predicates.add(cb.lessThan(root.get("createdAt"), query.to()));
+            }
+            if (query.onBehalfOfUserId() != null) {
+                // The attribution lives in the JSONB metadata (#874) — audit_log has no column for it.
+                predicates.add(cb.equal(
+                        cb.function("jsonb_extract_path_text", String.class,
+                                root.get("metadata"), cb.literal(ON_BEHALF_OF_KEY)),
+                        query.onBehalfOfUserId().toString()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

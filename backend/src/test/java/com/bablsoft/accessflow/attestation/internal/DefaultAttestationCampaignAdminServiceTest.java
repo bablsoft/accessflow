@@ -39,6 +39,7 @@ class DefaultAttestationCampaignAdminServiceTest {
     @Mock AttestationItemRepository itemRepository;
     @Mock AttestationLifecycleService lifecycleService;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock AttestationSubjectResolver subjectResolver;
     @InjectMocks DefaultAttestationCampaignAdminService service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -105,6 +106,36 @@ class DefaultAttestationCampaignAdminServiceTest {
         assertThat(view.pendingItems()).isEqualTo(2);
         assertThat(view.certifiedItems()).isEqualTo(3);
         assertThat(view.revokedItems()).isEqualTo(1);
+    }
+
+    @Test
+    void listItemsResolvesSubjectsThroughTheResolver() {
+        when(campaignRepository.findByIdAndOrganizationId(campaignId, orgId))
+                .thenReturn(Optional.of(scheduledOrgCampaign()));
+        var item = new com.bablsoft.accessflow.attestation.internal.persistence.entity.AttestationItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setCampaignId(campaignId);
+        item.setOrganizationId(orgId);
+        item.setSubjectUserId(UUID.randomUUID());
+        item.setDecision(AttestationItemDecision.PENDING);
+        when(itemRepository.findByCampaignId(eq(campaignId), any()))
+                .thenReturn(new PageImpl<>(List.of(item),
+                        org.springframework.data.domain.PageRequest.of(0, 20), 1));
+        when(subjectResolver.enrich(eq(orgId), any())).thenAnswer(inv -> {
+            List<com.bablsoft.accessflow.attestation.api.AttestationItemView> views = inv.getArgument(1);
+            return views.stream().map(v -> v.withSubject(
+                    com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT, "owner@example.com", "Owner"))
+                    .toList();
+        });
+
+        var page = service.listItems(campaignId, orgId, PageRequest.of(0, 20));
+
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).singleElement().satisfies(v -> {
+            assertThat(v.subjectPrincipalType())
+                    .isEqualTo(com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT);
+            assertThat(v.subjectOwnerEmail()).isEqualTo("owner@example.com");
+        });
     }
 
     @Test

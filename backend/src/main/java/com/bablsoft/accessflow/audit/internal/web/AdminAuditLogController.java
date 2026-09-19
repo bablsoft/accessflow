@@ -76,6 +76,8 @@ class AdminAuditLogController {
             @RequestParam(required = false) Instant from,
             @Parameter(description = "Exclusive upper bound on createdAt")
             @RequestParam(required = false) Instant to,
+            @Parameter(description = "Filter by the person an API-key caller acted on behalf of (#874)")
+            @RequestParam(required = false) UUID onBehalfOfUserId,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
@@ -84,16 +86,20 @@ class AdminAuditLogController {
         }
         validateSort(pageable.getSort());
         var resourceTypeEnum = parseResourceType(resourceType);
-        var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
+        var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to,
+                onBehalfOfUserId);
         PageResponse<AuditLogView> page = auditLogService.query(organizationId, filter,
                 SpringPageableAdapter.toPageRequest(pageable));
-        Map<UUID, UserView> actors = lookupActors(organizationId, page);
+        Map<UUID, UserView> users = lookupUsers(organizationId, page);
         return AuditLogPageResponse.from(page.map(view -> {
-            UserView actor = view.actorId() == null ? null : actors.get(view.actorId());
+            UserView actor = view.actorId() == null ? null : users.get(view.actorId());
+            UUID onBehalfOfId = onBehalfOfUserId(view);
+            UserView onBehalfOf = onBehalfOfId == null ? null : users.get(onBehalfOfId);
             return AuditLogResponse.from(
                     view,
                     actor == null ? null : actor.email(),
-                    actor == null ? null : actor.displayName());
+                    actor == null ? null : actor.displayName(),
+                    onBehalfOf == null ? null : onBehalfOf.email());
         }));
     }
 
@@ -115,12 +121,15 @@ class AdminAuditLogController {
             @RequestParam(required = false) Instant from,
             @Parameter(description = "Exclusive upper bound on createdAt")
             @RequestParam(required = false) Instant to,
+            @Parameter(description = "Filter by the person an API-key caller acted on behalf of (#874)")
+            @RequestParam(required = false) UUID onBehalfOfUserId,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @AuthenticationPrincipal(expression = "userId") UUID callerUserId,
             RequestAuditContext auditContext,
             HttpServletResponse response) throws IOException {
         var resourceTypeEnum = parseResourceType(resourceType);
-        var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
+        var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to,
+                onBehalfOfUserId);
         long matched = auditLogCsvService.count(organizationId, filter);
         boolean truncated = matched > AuditLogCsvService.MAX_EXPORT_ROWS;
 
@@ -158,17 +167,38 @@ class AdminAuditLogController {
         return auditLogService.verify(organizationId, from, to);
     }
 
-    private Map<UUID, UserView> lookupActors(UUID organizationId, PageResponse<AuditLogView> page) {
-        Set<UUID> actorIds = new HashSet<>();
+    /** One lookup for the page's actors and its on-behalf-of principals (#874) alike. */
+    private Map<UUID, UserView> lookupUsers(UUID organizationId, PageResponse<AuditLogView> page) {
+        Set<UUID> ids = new HashSet<>();
         for (AuditLogView view : page.content()) {
             if (view.actorId() != null) {
-                actorIds.add(view.actorId());
+                ids.add(view.actorId());
+            }
+            UUID onBehalfOf = onBehalfOfUserId(view);
+            if (onBehalfOf != null) {
+                ids.add(onBehalfOf);
             }
         }
-        if (actorIds.isEmpty()) {
+        if (ids.isEmpty()) {
             return Map.of();
         }
-        return userAdminService.findByIds(organizationId, actorIds);
+        return userAdminService.findByIds(organizationId, ids);
+    }
+
+    /** The metadata value is caller-stamped JSON: anything that is not a UUID is ignored. */
+    private static UUID onBehalfOfUserId(AuditLogView view) {
+        if (view.metadata() == null) {
+            return null;
+        }
+        var raw = view.metadata().get("on_behalf_of_user_id");
+        if (!(raw instanceof String text)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(text);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private void recordExportAudit(UUID organizationId, UUID callerUserId, AuditLogQuery filter,
@@ -187,6 +217,9 @@ class AdminAuditLogController {
             }
             if (filter.resourceId() != null) {
                 metadata.put("resource_id", filter.resourceId().toString());
+            }
+            if (filter.onBehalfOfUserId() != null) {
+                metadata.put("on_behalf_of_user_id", filter.onBehalfOfUserId().toString());
             }
             if (filter.from() != null) {
                 metadata.put("from", filter.from().toString());

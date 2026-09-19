@@ -43,6 +43,7 @@ class DefaultAttestationReviewService implements AttestationReviewService {
     private final AttestationItemStateService itemStateService;
     private final ReviewerEligibilityService reviewerEligibilityService;
     private final MessageSource messageSource;
+    private final AttestationSubjectResolver subjectResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,10 +55,10 @@ class DefaultAttestationReviewService implements AttestationReviewService {
         var pageable = withDefaultSort(AttestationPageAdapter.toSpringPageable(pageRequest));
         var page = itemRepository.findItemsByCampaignStatusAndDecision(context.organizationId(),
                 AttestationCampaignStatus.OPEN, AttestationItemDecision.PENDING, pageable);
-        var visible = page.getContent().stream()
+        var visible = subjectResolver.enrich(context.organizationId(), page.getContent().stream()
                 .filter(item -> isEligible(context, item))
                 .map(AttestationViewMapper::toItemView)
-                .toList();
+                .toList());
         return new PageResponse<>(visible, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }

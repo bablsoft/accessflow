@@ -44,8 +44,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * The admin half of the service-account lifecycle (#871). The {@code users} row is always written
@@ -79,11 +81,16 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
                 ? repository.findAllByOrganizationId(organizationId, pageable)
                 : repository.findAllByOrganizationIdAndManagedBy(organizationId, managedBy, pageable);
         var ids = page.getContent().stream().map(ServiceAccountEntity::getUserId).toList();
-        var users = userAdminService.findByIds(organizationId, ids);
+        // One lookup covers the accounts and their owners (#875) — never a query per row.
+        var ownerIds = page.getContent().stream().map(ServiceAccountEntity::getOwnerUserId)
+                .filter(Objects::nonNull).toList();
+        var users = userAdminService.findByIds(organizationId,
+                Stream.concat(ids.stream(), ownerIds.stream()).distinct().toList());
         var keys = apiKeyService.listByUserIds(ids);
         var now = clock.instant();
         return ServiceAccountPageAdapter.toPageResponse(page.map(entity -> toView(entity,
-                users.get(entity.getUserId()), keys.getOrDefault(entity.getUserId(), List.of()), now, false)));
+                users.get(entity.getUserId()), owner(users, entity),
+                keys.getOrDefault(entity.getUserId(), List.of()), now, false)));
     }
 
     @Override
@@ -293,11 +300,22 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
     }
 
     private ServiceAccountAdminView detail(ServiceAccountEntity entity) {
-        var user = requireUser(entity.getOrganizationId(), entity.getUserId());
-        return toView(entity, user, apiKeyService.list(entity.getUserId()), clock.instant(), true);
+        var ids = entity.getOwnerUserId() == null ? List.of(entity.getUserId())
+                : List.of(entity.getUserId(), entity.getOwnerUserId());
+        var users = userAdminService.findByIds(entity.getOrganizationId(), ids);
+        var user = users.get(entity.getUserId());
+        if (user == null) {
+            throw new ServiceAccountNotFoundException(entity.getUserId());
+        }
+        return toView(entity, user, owner(users, entity), apiKeyService.list(entity.getUserId()),
+                clock.instant(), true);
     }
 
-    private static ServiceAccountAdminView toView(ServiceAccountEntity entity, UserView user,
+    private static UserView owner(Map<UUID, UserView> users, ServiceAccountEntity entity) {
+        return entity.getOwnerUserId() == null ? null : users.get(entity.getOwnerUserId());
+    }
+
+    private static ServiceAccountAdminView toView(ServiceAccountEntity entity, UserView user, UserView owner,
                                                   List<ApiKeyView> keys, Instant now, boolean includeKeys) {
         if (user == null) {
             // The detail row cascades from users, so this is a detached-user race at worst.
@@ -318,6 +336,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
                 entity.getManagedBy(),
                 entity.getDescription(),
                 entity.getOwnerUserId(),
+                owner == null ? null : owner.email(),
+                owner == null ? null : owner.displayName(),
                 entity.getMcpToolAllowList() == null ? null : List.of(entity.getMcpToolAllowList()),
                 entity.getRateLimitPerMinute(),
                 entity.getRateLimitPerDay(),

@@ -340,7 +340,8 @@ class DefaultUserGroupService implements UserGroupService {
                 user.getEmail(),
                 user.getDisplayName(),
                 mapSource(entity.getSource()),
-                entity.getJoinedAt());
+                entity.getJoinedAt(),
+                user.getPrincipalType());
     }
 
     private static UserGroupMembershipSourceType mapSource(UserGroupMembershipSource source) {

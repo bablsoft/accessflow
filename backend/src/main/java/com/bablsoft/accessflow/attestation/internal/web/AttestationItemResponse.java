@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
 import com.bablsoft.accessflow.attestation.api.AttestationItemDecision;
 import com.bablsoft.accessflow.attestation.api.AttestationItemView;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -44,7 +45,10 @@ public record AttestationItemResponse(
         UUID decidedBy,
         Instant decidedAt,
         String decisionComment,
-        Instant createdAt) {
+        Instant createdAt,
+        PrincipalType subjectPrincipalType,
+        String subjectOwnerEmail,
+        String subjectOwnerDisplayName) {
 
     public static AttestationItemResponse from(AttestationItemView v) {
         return new AttestationItemResponse(v.id(), v.campaignId(), v.permissionId(),
@@ -53,6 +57,7 @@ public record AttestationItemResponse(
                 v.permissionExpiresAt(), v.permissionCreatedAt(), v.usageLastUsedAt(),
                 v.usageCount(), v.usageGrantedTargetCount(), v.usageUsedTargetCount(),
                 v.usageRecommendation(), v.decision(), v.closeReason(), v.decidedBy(), v.decidedAt(),
-                v.decisionComment(), v.createdAt());
+                v.decisionComment(), v.createdAt(), v.subjectPrincipalType(), v.subjectOwnerEmail(),
+                v.subjectOwnerDisplayName());
     }
 }

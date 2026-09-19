@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 
@@ -18,7 +19,8 @@ public record AdminUserResponse(
         boolean active,
         boolean totpEnabled,
         Instant lastLoginAt,
-        Instant createdAt
+        Instant createdAt,
+        PrincipalType principalType
 ) {
     public static AdminUserResponse from(UserView view) {
         return new AdminUserResponse(
@@ -32,7 +34,8 @@ public record AdminUserResponse(
                 view.active(),
                 view.totpEnabled(),
                 view.lastLoginAt(),
-                view.createdAt()
+                view.createdAt(),
+                view.principalType()
         );
     }
 }
