@@ -75,6 +75,7 @@ import type { LinkedTicketRef, QueryDetail, QueryOccurrence } from '@/types/api'
 import { QueryDiffCard } from './QueryDiffCard';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
+import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 
 export function QueryDetailPage() {
   const { t } = useTranslation();
@@ -290,6 +291,11 @@ export function QueryDetailPage() {
         subtitle={
           <>
             {t('queries.detail.submitted_by')} <strong>{query.submitted_by.display_name}</strong>{' '}
+            {query.on_behalf_of && (
+              <>
+                <OnBehalfOfTag email={query.on_behalf_of.email} userId={query.on_behalf_of.id} />{' '}
+              </>
+            )}
             · {fmtDate(query.created_at)} ·{' '}
             <span className="mono">{query.datasource.name}</span>
           </>

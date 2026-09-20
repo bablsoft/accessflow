@@ -25,6 +25,8 @@ import type {
   DeploymentPipelinePermission,
   User,
 } from '@/types/api';
+import { userSelectOptions } from '@/utils/userOptions';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 type GrantTarget = 'user' | 'group';
 
@@ -296,10 +298,8 @@ export function PipelinePermissionsTab({ pipelineId }: { pipelineId: string }) {
               placeholder={t('deploygov.settings.userPlaceholder')}
               style={{ maxWidth: 360 }}
               loading={usersQuery.isLoading}
-              options={eligible.map((u) => ({
-                value: u.id,
-                label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-              }))}
+              options={userSelectOptions(eligible)}
+              optionRender={renderUserOption}
             />
           </Form.Item>
         )}

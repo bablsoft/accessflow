@@ -30,6 +30,7 @@ class DefaultAttestationCampaignAdminService implements AttestationCampaignAdmin
     private final AttestationItemRepository itemRepository;
     private final AttestationLifecycleService lifecycleService;
     private final DatasourceAdminService datasourceAdminService;
+    private final AttestationSubjectResolver subjectResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,9 +59,11 @@ class DefaultAttestationCampaignAdminService implements AttestationCampaignAdmin
                                                        PageRequest pageRequest) {
         loadInOrg(campaignId, organizationId);
         var pageable = AttestationPageAdapter.toSpringPageable(pageRequest);
-        return AttestationPageAdapter.toPageResponse(
+        var page = AttestationPageAdapter.toPageResponse(
                         itemRepository.findByCampaignId(campaignId, pageable))
                 .map(AttestationViewMapper::toItemView);
+        return new PageResponse<>(subjectResolver.enrich(organizationId, page.content()), page.page(),
+                page.size(), page.totalElements(), page.totalPages());
     }
 
     @Override

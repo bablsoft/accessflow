@@ -7,6 +7,7 @@
 - **Rate limits (#873):** every **API-key-authenticated** request — `/api/v1/**` and `/mcp/**` alike — is counted against the calling identity in a Redis fixed window: a `service_accounts` row's `rate_limit_per_minute` / `rate_limit_per_day` when set, otherwise the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, default `120`; `…_PER_DAY`, default `0` = unlimited). A human's personal key gets the defaults. Over the cap the response is `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` — an RFC 9457 `ProblemDetail` with `limit` and `retryAfterSeconds` properties **and** a real `Retry-After` header (seconds until the window resets). JWT browser sessions are never rate-limited. The limiter is a resource guardrail, not an authorization check, so it **fails open**: when Redis is unreachable the request is served unmetered and a throttled `WARN` is logged.
 - **On-behalf-of attribution (#874):** an **API-key** request may carry `X-AccessFlow-On-Behalf-Of: <user uuid | email>` to record that the agent / CI job acted **for** a specific human. The named human must be an active `HUMAN` member of the caller's organization holding a live delegated-principal grant for that service account (see [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871) and [`/me/service-account-delegations`](#me-service-account-delegations-874)). It is **attribution only**: the effective permission set is always and only the key owner's — the principal never touches `JwtClaims`. The submission it accompanies is stamped with `on_behalf_of_user_id`, every audit row written during the request carries `metadata.on_behalf_of_user_id` (plus `api_key_id` and `service_account`, which every API-key request contributes), and the named human joins the submitter under the self-approval ban. Failure is loud, never silent: `403 ON_BEHALF_OF_NOT_PERMITTED` with a deliberately opaque `reason` — `not_api_key` (a JWT session sent it) or `not_permitted` (unknown, another organization, inactive, not a human, or no live grant — one code, so the header cannot probe which emails exist). On any review / decision surface the header is refused outright with `403 ON_BEHALF_OF_REVIEW_FORBIDDEN`: an agent may act *for* a human when it submits; it may never cast a vote *as* one.
 - **Content-Type:** `application/json`
+- **Unconvertible path / query values (#875):** a value Spring cannot bind — an unknown enum literal such as `?principal_type=ROBOT`, a malformed UUID in a path or query — is a client error and answers `400 VALIDATION_ERROR` from the global handler, the same shape as a Bean Validation failure, on every endpoint. (Before #875 only endpoints with a local handler did; the rest fell into the `500` catch-all.)
 - **Error format:** Every error response follows RFC 9457 `ProblemDetail` and includes a `traceId` that correlates the response with backend logs. Frontends should surface the `traceId` next to the error message so users can include it in support requests.
 ```json
 {
@@ -2892,6 +2893,14 @@ the service layer). `POST /items/bulk` request body: `{ "item_ids": [...], "deci
 "comment": "…" }` (max 100 ids); the response carries a `results` array with a per-row `status`
 (`SUCCESS`/`FORBIDDEN`/`INVALID_STATE`/`NOT_FOUND`).
 
+Every item row (`/admin/attestation-campaigns/{id}/items` and `/reviews/attestations/items`) carries
+the snapshotted `subject_user_id` / `subject_user_email` / `subject_user_display_name` plus three
+fields resolved at read time (#875): `subject_principal_type` (`HUMAN` / `SERVICE_ACCOUNT`, `null`
+when the subject no longer exists) and, for a service account, `subject_owner_email` /
+`subject_owner_display_name` (its owning person, `null` when it has none) — so a reviewer recognises
+a robot's grant and the human accountable for it instead of revoking what they do not recognise.
+The evidence CSV keeps its snapshot columns only.
+
 ### Attestation Error Codes
 
 | Status | `error` code | Cause |
@@ -3211,6 +3220,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `POST` | `/admin/service-accounts/{id}/api-keys` | Issue an API key on behalf of the account — plaintext shown once (`201`) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `POST` | `/admin/service-accounts/{id}/api-keys/{keyId}/rotate` | Rotate a key: issue the replacement and expire the old one after a grace window (`201`) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `DELETE` | `/admin/service-accounts/{id}/api-keys/{keyId}` | Revoke a key (`204`); a bootstrap-declared key is refused with `409 SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `GET` | `/admin/service-accounts/mcp-tools` | The MCP tool names an allow-list may reference, in catalog order — what the admin UI's MCP tools tab is built from (#875) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `GET` | `/admin/system-smtp` | Get the organization's system SMTP configuration (404 when unset) |
 | `PUT` | `/admin/system-smtp` | Create or update the system SMTP configuration |
 | `DELETE` | `/admin/system-smtp` | Remove the system SMTP configuration |
@@ -3292,6 +3302,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 | `sort` | string | e.g. `email,asc` (Spring Data sort syntax). When omitted, defaults to `createdAt,desc` (newest first). |
+| `principal_type` | enum | Optional — `HUMAN` or `SERVICE_ACCOUNT` (#875). Omitted = every principal. An unknown literal is `400 VALIDATION_ERROR`. |
 
 **Response 200:**
 ```json
@@ -3307,7 +3318,8 @@ Deletes one of the caller's conversations and, by cascade, its messages.
       "auth_provider": "LOCAL",
       "active": true,
       "last_login_at": "2026-05-04T10:15:00Z",
-      "created_at": "2026-04-01T09:00:00Z"
+      "created_at": "2026-04-01T09:00:00Z",
+      "principal_type": "HUMAN"
     }
   ],
   "page": 0,
@@ -3317,7 +3329,9 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 }
 ```
 
-Results are scoped to the caller's organization.
+Results are scoped to the caller's organization. Service accounts (#867) are listed alongside
+people — `principal_type` tells them apart so the admin UI can badge them (#875); filter with
+`principal_type=HUMAN` for a people-only picker.
 
 ### POST /admin/users — Request Body
 
@@ -3418,6 +3432,8 @@ This split is what lets an existing install adopt the feature without editing a 
   "managed_by": "UI",
   "description": "Runs the nightly reporting queries",
   "owner_user_id": "uuid",
+  "owner_email": "alice@company.com",
+  "owner_display_name": "Alice",
   "mcp_tool_allow_list": ["list_datasources", "validate_sql"],
   "rate_limit_per_minute": 60,
   "rate_limit_per_day": null,
@@ -3441,7 +3457,7 @@ This split is what lets an existing install adopt the feature without editing a 
 }
 ```
 
-`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` when the account inherits the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE` / `_PER_DAY`), and a positive integer overrides them for this account — enforced on every API-key request since #873 (see *Rate limits* under General); "unlimited" for one account is not expressible, only the deployment-wide `0`. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
+`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `owner_email` / `owner_display_name` (#875) are resolved from `owner_user_id` at read time in the same user lookup as the account itself — `null` when there is no owner, or the owner was hard-deleted. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` when the account inherits the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE` / `_PER_DAY`), and a positive integer overrides them for this account — enforced on every API-key request since #873 (see *Rate limits* under General); "unlimited" for one account is not expressible, only the deployment-wide `0`. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
 
 #### GET /admin/service-accounts — Query Parameters
 
@@ -3783,13 +3799,14 @@ Deletes the group and cascades to memberships and `datasource_reviewers` rows th
       "email": "alice@example.com",
       "display_name": "Alice Engineer",
       "source": "MANUAL",
-      "joined_at": "2026-05-28T12:00:00Z"
+      "joined_at": "2026-05-28T12:00:00Z",
+      "principal_type": "HUMAN"
     }
   ]
 }
 ```
 
-`source` is `MANUAL` for admin-added members and `IDP` for memberships synced from a SAML/OAuth2 login.
+`source` is `MANUAL` for admin-added members and `IDP` for memberships synced from a SAML/OAuth2 login. `principal_type` (`HUMAN` / `SERVICE_ACCOUNT`, #875) lets the group page badge a service account that was added as a member.
 
 #### POST /admin/groups/{id}/members — Request Body
 
@@ -5489,6 +5506,7 @@ Admin CRUD on sinks is audited best-effort as `AUDIT_SINK_CREATED` / `AUDIT_SINK
 | `resourceId` | UUID | Filter by specific resource |
 | `from` | ISO datetime | Inclusive lower bound on `created_at` |
 | `to` | ISO datetime | Exclusive upper bound on `created_at` |
+| `onBehalfOfUserId` | UUID | Filter to rows whose `metadata.on_behalf_of_user_id` names this person — the requests an API-key caller made *for* them (#874, #875). Matches inside the JSONB metadata; nothing else on the row changes. |
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 500). Requests over the cap get `400 BAD_AUDIT_QUERY` |
 | `sort` | string | Spring Data sort syntax; default `createdAt,DESC`. Allowed properties: `createdAt`, `action`, `resourceType`. Other values return 400 `BAD_AUDIT_QUERY`. |
@@ -5505,10 +5523,11 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
       "actor_id": "uuid",
       "actor_email": "alice@company.com",
       "actor_display_name": "Alice",
+      "on_behalf_of_email": "bob@company.com",
       "action": "QUERY_SUBMITTED",
       "resource_type": "query_request",
       "resource_id": "uuid",
-      "metadata": {"datasource_id": "uuid"},
+      "metadata": {"datasource_id": "uuid", "on_behalf_of_user_id": "uuid", "api_key_id": "uuid", "service_account": true},
       "ip_address": "10.0.0.1",
       "user_agent": "Mozilla/5.0",
       "created_at": "2026-05-06T10:30:00Z"
@@ -5521,7 +5540,7 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
 }
 ```
 
-`actor_id`, `actor_email`, `actor_display_name`, `ip_address`, and `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion). `actor_email`/`actor_display_name` are server-side joins on the `users` table within the caller's organization; if the actor was hard-deleted (or originated outside the org), only `actor_id` is returned.
+`actor_id`, `actor_email`, `actor_display_name`, `ip_address`, and `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion). `actor_email`/`actor_display_name` are server-side joins on the `users` table within the caller's organization; if the actor was hard-deleted (or originated outside the org), only `actor_id` is returned. `on_behalf_of_email` (#875) is the same join for `metadata.on_behalf_of_user_id` (#874), resolved in the same lookup as the actors; omitted when the row carries no attribution, the value is not a UUID, or the person is gone — the raw metadata key is always still there.
 
 ### GET /admin/audit-log/verify — Tamper-Evidence Check
 
@@ -5571,7 +5590,7 @@ ADMIN role required (otherwise 403).
 
 Streams a CSV of audit-log rows matching the same filter set as `GET /admin/audit-log`, minus pagination (`page`, `size`, `sort` are not bound on this endpoint). Rows are emitted in `createdAt DESC` order. ADMIN role required (otherwise 403).
 
-**Query parameters** (all optional): `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to` — same semantics as `GET /admin/audit-log`.
+**Query parameters** (all optional): `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`, `onBehalfOfUserId` — same semantics as `GET /admin/audit-log`. The CSV columns are unchanged: the attribution rides in `metadata_json`.
 
 **Response**:
 - `200 OK`
@@ -5590,7 +5609,7 @@ timestamp,organization_id,actor_email,action,resource_type,resource_id,ip_addres
 - `current_hash` / `previous_hash` — lowercase hex of the HMAC-SHA256 chain bytes. Empty for pre-V26 rows that have NULL hashes.
 - `metadata_json` — the row's JSONB metadata as a single string, RFC 4180 quoted when it contains a comma, quote, CR, or LF.
 
-**Audit of the export action** — every successful call writes a new `AUDIT_LOG_EXPORTED` row whose `metadata` captures the filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). The export is therefore part of the same tamper-evident chain it is exporting.
+**Audit of the export action** — every successful call writes a new `AUDIT_LOG_EXPORTED` row whose `metadata` captures the filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`, and `filter_on_behalf_of_user_id` for `onBehalfOfUserId` — deliberately *not* the `on_behalf_of_user_id` attribution key, which would make the export row read as done on that person's behalf) and the row counts (`matched_rows`, `truncated`). The export is therefore part of the same tamper-evident chain it is exporting.
 
 **Response 400:** unknown `resourceType`. `error: BAD_AUDIT_QUERY`.
 

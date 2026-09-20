@@ -59,6 +59,7 @@ import type {
   MaskingStrategy,
   User,
 } from '@/types/api';
+import { renderUserOption } from '@/components/common/renderUserOption';
 
 export function MaskingTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
@@ -298,7 +299,11 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
     () =>
       (usersQuery.data?.content ?? [])
         .filter((u: User) => u.active)
-        .map((u: User) => ({ value: u.id, label: userDisplay(u.display_name, u.email) })),
+        .map((u: User) => ({
+          value: u.id,
+          label: userDisplay(u.display_name, u.email),
+          principal_type: u.principal_type ?? 'HUMAN',
+        })),
     [usersQuery.data],
   );
   const groupOptions = useMemo(
@@ -530,6 +535,7 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
             allowClear
             showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
+            optionRender={renderUserOption}
             loading={usersQuery.isLoading}
           />
         </Form.Item>

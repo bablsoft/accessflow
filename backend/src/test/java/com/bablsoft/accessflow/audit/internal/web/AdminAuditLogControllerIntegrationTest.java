@@ -131,6 +131,44 @@ class AdminAuditLogControllerIntegrationTest {
     }
 
     @Test
+    void onBehalfOfRowsResolveTheEmailAndFilter() throws Exception {
+        var actorlessRow = UUID.randomUUID();
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), org.getId(), admin.getId(),
+                Map.of("on_behalf_of_user_id", analyst.getId().toString(), "service_account", true),
+                null, null));
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                actorlessRow, org.getId(), admin.getId(),
+                Map.of("on_behalf_of_user_id", UUID.randomUUID().toString()), null, null));
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), org.getId(), admin.getId(), Map.of("on_behalf_of_user_id", "not-a-uuid"),
+                null, null));
+
+        var filtered = mvc.get().uri("/api/v1/admin/audit-log?onBehalfOfUserId=" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(filtered).hasStatus(200);
+        assertThat(filtered).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(filtered).bodyJson().extractingPath("$.content[0].on_behalf_of_email").asString()
+                .isEqualTo("analyst@example.com");
+        assertThat(filtered).bodyJson().extractingPath("$.content[0].actor_email").asString()
+                .isEqualTo("admin@example.com");
+
+        var all = mvc.get().uri("/api/v1/admin/audit-log?resourceId=" + actorlessRow)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        // An unknown principal, or a garbage value, is not resolved — the key stays in metadata only.
+        assertThat(all).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(all.getResponse().getContentAsString()).doesNotContain("\"on_behalf_of_email\"");
+
+        var bad = mvc.get().uri("/api/v1/admin/audit-log?onBehalfOfUserId=nope")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(bad).hasStatus(400);
+    }
+
+    @Test
     void analystGets403() {
         var result = mvc.get().uri("/api/v1/admin/audit-log")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
@@ -456,6 +494,33 @@ class AdminAuditLogControllerIntegrationTest {
                 .asNumber().isEqualTo(1);
         assertThat(listResult).bodyJson().extractingPath("$.content[0].metadata.truncated")
                 .asBoolean().isFalse();
+    }
+
+    /**
+     * #875: an export filtered by a person must not be recorded under the attribution key — that
+     * row would read back as "the admin exported on this person's behalf" through the very filter
+     * and chip this change adds, inside an INSERT-only chain that can never be corrected.
+     */
+    @Test
+    void exportFilteredByOnBehalfOfRecordsTheFilterUnderItsOwnKey() throws Exception {
+        var exported = mvc.get().uri("/api/v1/admin/audit-log/export.csv?onBehalfOfUserId=" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(exported).hasStatus(200);
+
+        var exportRow = mvc.get().uri("/api/v1/admin/audit-log?action=AUDIT_LOG_EXPORTED")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(exportRow).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(exportRow).bodyJson().extractingPath("$.content[0].metadata.filter_on_behalf_of_user_id")
+                .asString().isEqualTo(analyst.getId().toString());
+        assertThat(exportRow.getResponse().getContentAsString()).doesNotContain("\"on_behalf_of_email\"");
+
+        // The attribution filter does not surface the export row.
+        var attributed = mvc.get().uri("/api/v1/admin/audit-log?onBehalfOfUserId=" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(attributed).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(0);
     }
 
     @Test

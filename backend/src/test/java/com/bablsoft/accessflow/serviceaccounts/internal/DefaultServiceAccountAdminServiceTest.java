@@ -117,6 +117,42 @@ class DefaultServiceAccountAdminServiceTest {
     }
 
     @Test
+    void listResolvesOwnersInTheSameLookup() {
+        var ownerId = UUID.randomUUID();
+        entity.setOwnerUserId(ownerId);
+        when(repository.findAllByOrganizationId(eq(ORG), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity)));
+        when(userAdminService.findByIds(ORG, List.of(userId, ownerId)))
+                .thenReturn(Map.of(userId, user(userId), ownerId, user(ownerId, true, PrincipalType.HUMAN)));
+        when(apiKeyService.listByUserIds(List.of(userId))).thenReturn(Map.of());
+
+        var page = service.list(ORG, null, PageRequest.of(0, 20));
+
+        assertThat(page.content()).singleElement().satisfies(v -> {
+            assertThat(v.ownerUserId()).isEqualTo(ownerId);
+            assertThat(v.ownerEmail()).isEqualTo(ownerId + "@example.com");
+            assertThat(v.ownerDisplayName()).isEqualTo("Bot");
+        });
+        verify(userAdminService).findByIds(ORG, List.of(userId, ownerId));
+    }
+
+    @Test
+    void listLeavesOwnerFieldsNullWhenTheOwnerIsGone() {
+        var ownerId = UUID.randomUUID();
+        entity.setOwnerUserId(ownerId);
+        when(repository.findAllByOrganizationId(eq(ORG), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity)));
+        when(userAdminService.findByIds(ORG, List.of(userId, ownerId))).thenReturn(Map.of(userId, user(userId)));
+        when(apiKeyService.listByUserIds(List.of(userId))).thenReturn(Map.of());
+
+        var page = service.list(ORG, null, PageRequest.of(0, 20));
+
+        assertThat(page.content().get(0).ownerUserId()).isEqualTo(ownerId);
+        assertThat(page.content().get(0).ownerEmail()).isNull();
+        assertThat(page.content().get(0).ownerDisplayName()).isNull();
+    }
+
+    @Test
     void listFiltersByManagedByWhenGiven() {
         when(repository.findAllByOrganizationIdAndManagedBy(eq(ORG), eq(ServiceAccountSource.BOOTSTRAP),
                 any(Pageable.class))).thenReturn(new PageImpl<>(List.of(),
@@ -156,6 +192,30 @@ class DefaultServiceAccountAdminServiceTest {
         assertThat(view.activeApiKeyCount()).isEqualTo(2);
         assertThat(view.mcpToolAllowList()).containsExactly("validate_sql");
         assertThat(view.roleName()).isEqualTo("ANALYST");
+    }
+
+    @Test
+    void getResolvesTheOwner() {
+        var ownerId = UUID.randomUUID();
+        entity.setOwnerUserId(ownerId);
+        stubLoad();
+        when(userAdminService.findByIds(ORG, List.of(userId, ownerId)))
+                .thenReturn(Map.of(userId, user(userId), ownerId, user(ownerId, true, PrincipalType.HUMAN)));
+        when(apiKeyService.list(userId)).thenReturn(List.of());
+
+        var view = service.get(ORG, userId);
+
+        assertThat(view.ownerEmail()).isEqualTo(ownerId + "@example.com");
+        assertThat(view.ownerDisplayName()).isEqualTo("Bot");
+    }
+
+    @Test
+    void getFailsLoudlyWhenTheUserRowIsGone() {
+        stubLoad();
+        when(userAdminService.findByIds(ORG, List.of(userId))).thenReturn(Map.of());
+
+        assertThatThrownBy(() -> service.get(ORG, userId))
+                .isInstanceOf(ServiceAccountNotFoundException.class);
     }
 
     @Test
@@ -264,6 +324,9 @@ class DefaultServiceAccountAdminServiceTest {
         var roleId = UUID.randomUUID();
         entity.setOwnerUserId(ACTOR);
         entity.setRateLimitPerMinute(5);
+        // The detail read resolves the owner in the same lookup (#875).
+        when(userAdminService.findByIds(ORG, List.of(userId, ACTOR)))
+                .thenReturn(Map.of(userId, user(userId), ACTOR, user(ACTOR, true, PrincipalType.HUMAN)));
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand("Renamed", null, roleId, false,
                 null, null, List.of(), null, 500, null));

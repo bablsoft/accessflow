@@ -32,6 +32,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-languages': 'configuration/users-roles/',
   'cfg-users': 'configuration/users-roles/',
   'cfg-roles': 'configuration/users-roles/',
+  'cfg-service-accounts': 'configuration/users-roles/',
   'cfg-access-requests': 'configuration/users-roles/',
   'cfg-break-glass': 'configuration/users-roles/',
   'cfg-groups': 'configuration/users-roles/',

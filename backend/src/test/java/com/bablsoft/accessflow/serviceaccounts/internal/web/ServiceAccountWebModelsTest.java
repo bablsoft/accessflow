@@ -31,7 +31,8 @@ class ServiceAccountWebModelsTest {
                 Instant.EPOCH.plusSeconds(1), Instant.EPOCH.plusSeconds(2), Instant.EPOCH.plusSeconds(3));
         var owner = UUID.randomUUID();
         var view = new ServiceAccountAdminView(ID, ORG, "bot@example.com", "Bot", UserRoleType.ANALYST, null,
-                "custom", false, ServiceAccountSource.BOOTSTRAP, "d", owner, List.of("validate_sql"), 1, 2, 1,
+                "custom", false, ServiceAccountSource.BOOTSTRAP, "d", owner, "owner@example.com", "Owner",
+                List.of("validate_sql"), 1, 2, 1,
                 Instant.EPOCH.plusSeconds(1), Instant.EPOCH.plusSeconds(4), Instant.EPOCH, Instant.EPOCH.plusSeconds(5),
                 List.of(key));
 
@@ -47,6 +48,8 @@ class ServiceAccountWebModelsTest {
         assertThat(response.managedBy()).isEqualTo(ServiceAccountSource.BOOTSTRAP);
         assertThat(response.description()).isEqualTo("d");
         assertThat(response.ownerUserId()).isEqualTo(owner);
+        assertThat(response.ownerEmail()).isEqualTo("owner@example.com");
+        assertThat(response.ownerDisplayName()).isEqualTo("Owner");
         assertThat(response.mcpToolAllowList()).containsExactly("validate_sql");
         assertThat(response.rateLimitPerMinute()).isEqualTo(1);
         assertThat(response.rateLimitPerDay()).isEqualTo(2);
@@ -70,17 +73,26 @@ class ServiceAccountWebModelsTest {
     @Test
     void responseKeepsANullAllowListMeaningEveryTool() {
         var view = new ServiceAccountAdminView(ID, ORG, "e", "n", null, UUID.randomUUID(), "r", true,
-                ServiceAccountSource.UI, null, null, null, null, null, 0, null, null, Instant.EPOCH, Instant.EPOCH, null);
+                ServiceAccountSource.UI, null, null, null, null, null, null, null, 0, null, null, Instant.EPOCH,
+                Instant.EPOCH, null);
         var response = ServiceAccountResponse.from(view);
         assertThat(response.mcpToolAllowList()).isNull();
         assertThat(response.apiKeys()).isEmpty();
     }
 
     @Test
+    void mcpToolCatalogIsTheEnumWireNames() {
+        var catalog = McpToolCatalogResponse.current();
+        assertThat(catalog.tools()).hasSize(com.bablsoft.accessflow.serviceaccounts.api.McpToolName.values().length)
+                .doesNotHaveDuplicates()
+                .allSatisfy(name -> assertThat(name).matches("[a-z_]+"));
+    }
+
+    @Test
     void pageResponseCopiesThePageShape() {
         var view = new ServiceAccountAdminView(ID, ORG, "e", "n", null, null, "r", true,
-                ServiceAccountSource.UI, null, null, List.of(), null, null, 0, null, null, Instant.EPOCH, Instant.EPOCH,
-                List.of());
+                ServiceAccountSource.UI, null, null, null, null, List.of(), null, null, 0, null, null, Instant.EPOCH,
+                Instant.EPOCH, List.of());
         var page = ServiceAccountPageResponse.from(new PageResponse<>(List.of(view), 2, 10, 21, 3));
         assertThat(page.content()).singleElement().extracting(ServiceAccountResponse::id).isEqualTo(ID);
         assertThat(page.page()).isEqualTo(2);

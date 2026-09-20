@@ -25,6 +25,7 @@ import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type { ApiReviewDecision } from '@/types/api';
+import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 
 export default function ApiRequestDetailPage() {
   const { t } = useTranslation();
@@ -176,7 +177,15 @@ export default function ApiRequestDetailPage() {
                   {
                     key: 'submitter',
                     label: t('apiGov.requests.submitter'),
-                    children: request.submitted_by_email ?? request.submitted_by,
+                    children: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        {request.submitted_by_email ?? request.submitted_by}
+                        <OnBehalfOfTag
+                          email={request.on_behalf_of_email}
+                          userId={request.on_behalf_of_user_id}
+                        />
+                      </span>
+                    ),
                   },
                   {
                     key: 'reason',

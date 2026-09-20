@@ -40,6 +40,7 @@ import type { AttestationItem, AttestationItemDecision } from '@/types/api';
 import { downloadBlob } from '@/utils/downloadBlob';
 import { AttestationCapabilities } from '@/components/attestation/AttestationCapabilities';
 import { AttestationUsageCell } from '@/components/attestation/AttestationUsageCell';
+import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
 
 const PAGE_SIZE = 20;
 
@@ -241,7 +242,10 @@ export default function CampaignDetailPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Avatar name={item.subject_user_email} size={24} />
                     <div>
-                      <div style={{ fontSize: 13 }}>{item.subject_user_display_name}</div>
+                      <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {item.subject_user_display_name}
+                        <PrincipalTypeTag principalType={item.subject_principal_type} />
+                      </div>
                       <div className="mono muted" style={{ fontSize: 11 }}>
                         {item.subject_user_email}
                       </div>

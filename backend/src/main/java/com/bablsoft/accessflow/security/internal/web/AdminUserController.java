@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -53,12 +55,15 @@ class AdminUserController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    @Operation(summary = "List users in the caller's organization (paginated)")
+    @Operation(summary = "List users in the caller's organization (paginated), optionally filtered by principal type")
     @ApiResponse(responseCode = "200", description = "Page of users")
     @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
-    UserPageResponse listUsers(Authentication authentication, Pageable pageable) {
+    UserPageResponse listUsers(Authentication authentication,
+                               @RequestParam(name = "principal_type", required = false)
+                               PrincipalType principalType,
+                               Pageable pageable) {
         var caller = currentClaims(authentication);
-        var page = userAdminService.listUsers(caller.organizationId(),
+        var page = userAdminService.listUsers(caller.organizationId(), principalType,
                         SpringPageableAdapter.toPageRequest(pageable))
                 .map(AdminUserResponse::from);
         return UserPageResponse.from(page);

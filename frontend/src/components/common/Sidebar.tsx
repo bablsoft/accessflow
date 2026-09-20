@@ -43,6 +43,7 @@ import {
   CheckSquareOutlined,
   BlockOutlined,
   DeploymentUnitOutlined,
+  RobotOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -213,6 +214,7 @@ export function Sidebar({
             { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, permissions: ['USER_MANAGE'] },
             { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, permissions: ['GROUP_MANAGE'] },
             { id: 'roles', to: '/admin/roles', label: t('nav.roles'), icon: <SafetyOutlined />, permissions: ['ROLE_MANAGE'] },
+            { id: 'service-accounts', to: '/admin/service-accounts', label: t('nav.service_accounts'), icon: <RobotOutlined />, permissions: ['SERVICE_ACCOUNT_MANAGE'] },
             { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, permissions: ['SSO_CONFIGURE'] },
             { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, permissions: ['SSO_CONFIGURE'] },
             { id: 'scim', to: '/admin/scim', label: t('nav.scim'), icon: <CloudSyncOutlined />, permissions: ['SSO_CONFIGURE'] },

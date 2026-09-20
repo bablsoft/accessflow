@@ -237,6 +237,30 @@ class AuditLogIntegrationTest {
         assertThat(ours.totalElements()).isEqualTo(1);
     }
 
+    /** #875: the on-behalf-of filter runs against the JSONB metadata on a real Postgres. */
+    @Test
+    void queryFiltersByOnBehalfOfUserIdInsideTheMetadata() {
+        var principal = UUID.randomUUID();
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                queryRequestId, organizationId, submitterId,
+                Map.of("on_behalf_of_user_id", principal.toString(), "service_account", true), null, null));
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), organizationId, submitterId,
+                Map.of("on_behalf_of_user_id", UUID.randomUUID().toString()), null, null));
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), organizationId, submitterId, Map.of(), null, null));
+
+        var filtered = auditLogService.query(organizationId,
+                new AuditLogQuery(null, null, null, null, null, null, principal), PageRequest.of(0, 20));
+
+        assertThat(filtered.totalElements()).isEqualTo(1);
+        assertThat(filtered.content().get(0).resourceId()).isEqualTo(queryRequestId);
+        assertThat(filtered.content().get(0).metadata()).containsEntry("on_behalf_of_user_id", principal.toString());
+
+        var unfiltered = auditLogService.query(organizationId, AuditLogQuery.empty(), PageRequest.of(0, 20));
+        assertThat(unfiltered.totalElements()).isEqualTo(3);
+    }
+
     /**
      * #874: rows written before, during and after a request-scoped provenance contribution still
      * form one valid chain — the contributed keys are hashed like explicit ones, and rows written

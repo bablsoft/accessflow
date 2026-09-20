@@ -81,6 +81,7 @@ Where things are in the app
     Users · /admin/users · needs USER_MANAGE — Create, deactivate and re-invite users; assign roles and permissions.
     Groups · /admin/groups · needs GROUP_MANAGE — User groups and the grants attached to them.
     Roles · /admin/roles · needs ROLE_MANAGE — Roles and the permissions each one carries.
+    Service accounts · /admin/service-accounts · needs SERVICE_ACCOUNT_MANAGE — Service accounts: non-human identities for CI pipelines, AI agents and integrations, with their API keys.
     SAML / SSO · /admin/saml · needs SSO_CONFIGURE — SAML 2.0 single sign-on.
     OAuth providers · /admin/oauth2 · needs SSO_CONFIGURE — OAuth 2.0 / OIDC sign-in providers.
     SCIM Provisioning · /admin/scim · needs SSO_CONFIGURE — SCIM 2.0 provisioning tokens and attribute mapping.
@@ -200,6 +201,7 @@ Screens with no menu entry
   /reset-password/:token — Set a new password from the link in that email. How you get there: the link in the password-reset email.
   /invite/:token — Accept an invitation and choose a password. How you get there: the link in the invitation email.
   /admin/groups/:id — One group: its members and the permissions it grants them. How you get there: open a row in Groups.
+  /admin/service-accounts/:id — One service account: overview, API keys (issue, rotate, revoke), MCP tool allow-list, rate limits, on-behalf-of principals and activity. How you get there: open an account from Service accounts.
   /admin/organizations/:id — One organization and its settings. How you get there: open a row in Organizations.
   /admin/attestation/:id — One campaign: its scope, progress and evidence export. How you get there: open a campaign from Attestation.
   /admin/ai-configs/new — Add an AI provider configuration. How you get there: the add action on AI configurations.

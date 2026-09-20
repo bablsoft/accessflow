@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipView;
 import com.bablsoft.accessflow.core.api.UserGroupView;
@@ -66,12 +67,22 @@ class UserGroupDtoMappersTest {
         assertThat(response.displayName()).isEqualTo("Alice");
         assertThat(response.source()).isEqualTo(UserGroupMembershipSourceType.MANUAL);
         assertThat(response.joinedAt()).isEqualTo(joined);
+        assertThat(response.principalType()).isEqualTo(PrincipalType.HUMAN);
+    }
+
+    @Test
+    void userGroupMemberResponseCarriesServiceAccountPrincipalType() {
+        var view = new UserGroupMembershipView(UUID.randomUUID(), UUID.randomUUID(), "bot@example.com",
+                "Bot", UserGroupMembershipSourceType.MANUAL, Instant.now(), PrincipalType.SERVICE_ACCOUNT);
+
+        assertThat(UserGroupMemberResponse.from(view).principalType()).isEqualTo(PrincipalType.SERVICE_ACCOUNT);
     }
 
     @Test
     void userGroupMemberListResponseExposesMembers() {
         var member = new UserGroupMemberResponse(UUID.randomUUID(), UUID.randomUUID(),
-                "alice@example.com", "Alice", UserGroupMembershipSourceType.IDP, Instant.now());
+                "alice@example.com", "Alice", UserGroupMembershipSourceType.IDP, Instant.now(),
+                PrincipalType.HUMAN);
         var list = new UserGroupMemberListResponse(List.of(member));
 
         assertThat(list.members()).containsExactly(member);

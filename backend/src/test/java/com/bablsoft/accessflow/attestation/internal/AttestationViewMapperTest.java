@@ -74,6 +74,10 @@ class AttestationViewMapperTest {
         assertThat(v.decision()).isEqualTo(AttestationItemDecision.REVOKED);
         assertThat(v.closeReason()).isEqualTo(AttestationItemCloseReason.REVIEWER);
         assertThat(v.decisionComment()).isEqualTo("no longer needed");
+        // Subject resolution is a read-time pass (#875), never part of the snapshot mapping.
+        assertThat(v.subjectPrincipalType()).isNull();
+        assertThat(v.subjectOwnerEmail()).isNull();
+        assertThat(v.subjectOwnerDisplayName()).isNull();
     }
 
     @Test

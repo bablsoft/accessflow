@@ -9,7 +9,10 @@ import type {
   ApiVariableKind,
   ApiProtocol,
   DelegationScopeKind,
+  PrincipalType,
   ReviewDelegationStatus,
+  ServiceAccountDelegationStatus,
+  ServiceAccountSource,
   SqlReviewRuleCategory,
   SqlReviewSeverity,
   ApiSchemaType,
@@ -753,3 +756,33 @@ export const DATASOURCE_ENVIRONMENTS: readonly DatasourceEnvironment[] = [
 
 export const datasourceEnvironmentLabel = (t: TFunction, v: DatasourceEnvironment): string =>
   t(`enums.datasource_environment.${v}` as const);
+
+// ── Service accounts (epic #867, admin UI #875) ──────────────────────────────
+
+export const PRINCIPAL_TYPES: readonly PrincipalType[] = ['HUMAN', 'SERVICE_ACCOUNT'] as const;
+
+export const principalTypeLabel = (t: TFunction, v: PrincipalType): string =>
+  t(`enums.principal_type.${v}` as const);
+
+export const SERVICE_ACCOUNT_SOURCES: readonly ServiceAccountSource[] = ['UI', 'BOOTSTRAP'] as const;
+
+export const serviceAccountSourceLabel = (t: TFunction, v: ServiceAccountSource): string =>
+  t(`enums.service_account_source.${v}` as const);
+
+export const SERVICE_ACCOUNT_DELEGATION_STATUSES: readonly ServiceAccountDelegationStatus[] = [
+  'ACTIVE',
+  'EXPIRED',
+  'REVOKED',
+] as const;
+
+export const serviceAccountDelegationStatusLabel = (
+  t: TFunction,
+  v: ServiceAccountDelegationStatus,
+): string => t(`enums.service_account_delegation_status.${v}` as const);
+
+/**
+ * One-line description of an MCP tool by wire name (#872). The catalog comes from the server, so
+ * a tool this build does not know yet renders its name alone rather than a raw key.
+ */
+export const mcpToolDescription = (t: TFunction, toolName: string): string =>
+  t(`enums.mcp_tool.${toolName}`, { defaultValue: '' });

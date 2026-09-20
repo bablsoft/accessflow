@@ -44,6 +44,13 @@ import {
   sqlReviewRuleCategoryLabel,
   DATASOURCE_ENVIRONMENTS,
   datasourceEnvironmentLabel,
+  PRINCIPAL_TYPES,
+  principalTypeLabel,
+  SERVICE_ACCOUNT_SOURCES,
+  serviceAccountSourceLabel,
+  SERVICE_ACCOUNT_DELEGATION_STATUSES,
+  serviceAccountDelegationStatusLabel,
+  mcpToolDescription,
 } from './enumLabels';
 
 const t = ((key: string) => key) as unknown as TFunction;
@@ -301,5 +308,31 @@ describe('SQL review labels (#865)', () => {
     for (const v of DATASOURCE_ENVIRONMENTS) {
       expect(datasourceEnvironmentLabel(t, v)).toBe(`enums.datasource_environment.${v}`);
     }
+  });
+});
+
+describe('service-account enum labels (#875)', () => {
+  it('maps principal types to enums.principal_type keys', () => {
+    expect(PRINCIPAL_TYPES).toEqual(['HUMAN', 'SERVICE_ACCOUNT']);
+    expect(principalTypeLabel(t, 'SERVICE_ACCOUNT')).toBe('enums.principal_type.SERVICE_ACCOUNT');
+  });
+
+  it('maps managed-by sources to enums.service_account_source keys', () => {
+    expect(SERVICE_ACCOUNT_SOURCES).toEqual(['UI', 'BOOTSTRAP']);
+    expect(serviceAccountSourceLabel(t, 'BOOTSTRAP')).toBe('enums.service_account_source.BOOTSTRAP');
+  });
+
+  it('maps delegation statuses to their own namespace, apart from review delegations', () => {
+    expect(SERVICE_ACCOUNT_DELEGATION_STATUSES).toEqual(['ACTIVE', 'EXPIRED', 'REVOKED']);
+    expect(serviceAccountDelegationStatusLabel(t, 'EXPIRED')).toBe(
+      'enums.service_account_delegation_status.EXPIRED',
+    );
+  });
+
+  it('describes an MCP tool by wire name and stays empty for an unknown one', () => {
+    const real = ((key: string, opts?: { defaultValue?: string }) =>
+      key === 'enums.mcp_tool.validate_sql' ? 'Parse SQL' : (opts?.defaultValue ?? key)) as unknown as TFunction;
+    expect(mcpToolDescription(real, 'validate_sql')).toBe('Parse SQL');
+    expect(mcpToolDescription(real, 'brand_new_tool')).toBe('');
   });
 });

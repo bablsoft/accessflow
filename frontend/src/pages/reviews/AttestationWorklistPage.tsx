@@ -28,6 +28,8 @@ import { attestationItemDecisionColor } from '@/utils/statusColors';
 import type { AttestationBulkRowStatus, AttestationItem } from '@/types/api';
 import { AttestationCapabilities } from '@/components/attestation/AttestationCapabilities';
 import { AttestationUsageCell } from '@/components/attestation/AttestationUsageCell';
+import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
+import { userDisplay } from '@/utils/userDisplay';
 
 const PAGE_SIZE = 20;
 
@@ -128,10 +130,24 @@ export default function AttestationWorklistPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Avatar name={item.subject_user_email} size={24} />
             <div>
-              <div style={{ fontSize: 13 }}>{item.subject_user_display_name}</div>
+              <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {item.subject_user_display_name}
+                <PrincipalTypeTag principalType={item.subject_principal_type} />
+              </div>
               <div className="mono muted" style={{ fontSize: 11 }}>
                 {item.subject_user_email}
               </div>
+              {item.subject_principal_type === 'SERVICE_ACCOUNT' && (
+                // A reviewer must see the person accountable for a robot's grant (#875), or
+                // they revoke what they do not recognise.
+                <div className="muted" style={{ fontSize: 11 }} data-testid="subject-owner">
+                  {item.subject_owner_email
+                    ? t('attestation.worklist.owned_by', {
+                        name: userDisplay(item.subject_owner_display_name, item.subject_owner_email),
+                      })
+                    : t('attestation.worklist.no_owner')}
+                </div>
+              )}
             </div>
           </div>
         ),

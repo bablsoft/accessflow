@@ -77,6 +77,14 @@ class ServiceAccountController {
                 SpringPageableAdapter.toPageRequest(pageable)));
     }
 
+    @GetMapping("/mcp-tools")
+    @Operation(summary = "The MCP tool names a service account's allow-list may reference")
+    @ApiResponse(responseCode = "200", description = "Tool catalog, in the order the MCP server advertises it")
+    @ApiResponse(responseCode = "403", description = "Caller lacks SERVICE_ACCOUNT_MANAGE")
+    McpToolCatalogResponse mcpTools() {
+        return McpToolCatalogResponse.current();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get a service account with its API keys")
     @ApiResponse(responseCode = "200", description = "Service account")
@@ -262,8 +270,9 @@ class ServiceAccountController {
     /**
      * A body that will not deserialize (an unknown {@code role} literal, a malformed
      * {@code grace_period}) or an unknown {@code managed_by} query value is a client error. Nothing
-     * maps either globally, so without this the security module's {@code Exception} catch-all
-     * turns them into a 500 — the sqlreview precedent.
+     * maps the unreadable body globally, so without this the security module's {@code Exception}
+     * catch-all turns it into a 500 — the sqlreview precedent; the type mismatch is also caught by
+     * the global handler since #875, and stays here for the module-specific detail.
      */
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     ProblemDetail handleUnreadableInput(Exception ex) {

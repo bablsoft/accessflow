@@ -89,6 +89,26 @@ class UserAdminServiceImplTest {
     }
 
     @Test
+    void listUsersWithPrincipalTypeUsesTheFilteredQuery() {
+        var bot = buildUser(userId, orgId, "bot@example.com", UserRoleType.READONLY);
+        bot.setPrincipalType(com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT);
+        var pageable = org.springframework.data.domain.PageRequest.of(0, 20,
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        when(userRepository.findAllByOrganization_IdAndPrincipalType(orgId,
+                com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT, pageable))
+                .thenReturn(new PageImpl<>(List.of(bot)));
+
+        var page = service.listUsers(orgId, com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).principalType())
+                .isEqualTo(com.bablsoft.accessflow.core.api.PrincipalType.SERVICE_ACCOUNT);
+        verify(userRepository, never()).findAllByOrganization_Id(any(), any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
     void createUserPersistsHashedPasswordAndLocalProvider() {
         var org = new OrganizationEntity();
         org.setId(orgId);
