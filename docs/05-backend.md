@@ -4439,12 +4439,17 @@ as apigov does:
   or cross-org id is the existing `404 DATASOURCE_NOT_FOUND` (the discovery-module precedent — no
   deploygov handler involved), and `sort_order` is a **real ladder**: an omitted position appends at
   `max + 1` (`0` on an empty pipeline), an explicit duplicate is pre-checked
-  (`existsByPipelineIdAndSortOrder`, excluding the row itself on update so resending the current
-  position is never a conflict) → `DeploymentEnvironmentSortOrderConflictException` (`409
+  (`existsByPipelineIdAndSortOrder` on create, `existsByPipelineIdAndSortOrderAndIdNot` on update
+  — and an update skips the check entirely when the position is unchanged, so resending the
+  current one is never a conflict) → `DeploymentEnvironmentSortOrderConflictException` (`409
   DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT`), and the raced unique violation on
   `uq_deployment_environments_pipeline_sort_order` is translated to the same exception around
-  `saveAndFlush` exactly as `DefaultDeploymentRoutingPolicyService` does for priorities — any other
-  `DuplicateKeyException` keeps its identity. The entity → `DeploymentEnvironmentView` mapping is
+  `saveAndFlush` (the `DefaultDeploymentRoutingPolicyService` priority shape). The catch is the
+  `DataIntegrityViolationException` superclass on purpose — Hibernate's translator hands a PG
+  `23505` raised through `saveAndFlush` back as exactly that type, never the narrower
+  `DuplicateKeyException`, because no `SQLExceptionTranslator` bean is wired (`DeploygovPersistenceIntegrationTest`
+  pins the type and the constraint name on the most specific cause); any violation naming another
+  constraint keeps its identity. The entity → `DeploymentEnvironmentView` mapping is
   the one package-private `DeploymentEnvironmentViewMapper`, shared with both lookup services.
 - `DeploymentPermissionService` — the per-user and per-group trigger-grant quartets
   (list/grant/update/revoke; grant upserts by `(pipeline, user)` / `(pipeline, group)`, update

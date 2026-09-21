@@ -459,10 +459,10 @@
             before <code>production</code>. It is filled in for you (one past the last
             environment) and no two environments on a pipeline may share a value; if you type one
             that is taken, AccessFlow tells you and keeps the old order. <strong>Database</strong>
-            is optional: pick the datasource this environment's schema changes land on when you
-            want to promote database changes along the same ladder later. Leave it on
-            <strong>Deploy-only</strong> for an environment that only receives deployments — nothing
-            about the approval or the gate changes either way.
+            is optional: pick the datasource that backs this environment when you want AccessFlow
+            to know which database an environment stands for. Leave it empty for an environment
+            that only receives deployments — nothing about the approval or the gate changes either
+            way.
           </p>
           <p>
             Environments are also where <strong>break-glass</strong> is switched on. An emergency
@@ -474,10 +474,10 @@
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-environments-dark.webp"
-                   alt="The environments tab of a deployment pipeline, listing ordered environments with their tags, bound database, required approval count, review requirement, review plan override and break-glass opt-in."
+                   alt="The environments tab of a deployment pipeline, listing ordered environments with their tags, required approval count, review requirement, review plan override and break-glass opt-in."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, optional database, required approvals, review-plan override and break-glass, per environment.</figcaption>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override and break-glass, per environment.</figcaption>
           </figure>
         </section>
 

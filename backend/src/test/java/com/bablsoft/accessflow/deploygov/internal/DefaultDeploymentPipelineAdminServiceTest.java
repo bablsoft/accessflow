@@ -25,7 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
@@ -521,7 +521,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenReturn(false);
         when(environmentRepository.existsByPipelineIdAndSortOrder(pipelineId, 2)).thenReturn(false);
         when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
-                .thenThrow(new DuplicateKeyException("duplicate key value violates unique constraint \""
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint \""
                         + DefaultDeploymentPipelineAdminService.SORT_ORDER_CONSTRAINT + "\""));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
@@ -530,18 +530,34 @@ class DefaultDeploymentPipelineAdminServiceTest {
     }
 
     @Test
-    void createEnvironmentRethrowsUnrelatedUniqueViolation() {
+    void createEnvironmentRethrowsUnrelatedIntegrityViolation() {
         when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
                 .thenReturn(Optional.of(pipeline()));
         when(environmentRepository.existsByPipelineIdAndName(pipelineId, "production"))
                 .thenReturn(false);
         when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
-                .thenThrow(new DuplicateKeyException(
+                .thenThrow(new DataIntegrityViolationException(
                         "duplicate key value violates unique constraint \"uq_deployment_environments_pipeline_name\""));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null)))
-                .isInstanceOf(DuplicateKeyException.class);
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void createEnvironmentRethrowsAViolationWithoutAMessage() {
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.existsByPipelineIdAndName(pipelineId, "production"))
+                .thenReturn(false);
+        when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
+                .thenThrow(new DataIntegrityViolationException(null));
+
+        assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null)))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .isNot(new org.assertj.core.api.Condition<>(
+                        DeploymentEnvironmentSortOrderConflictException.class::isInstance, "translated"));
     }
 
     @Test
@@ -700,7 +716,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
         when(environmentRepository.existsByPipelineIdAndSortOrderAndIdNot(pipelineId, 7, environment.getId()))
                 .thenReturn(false);
         when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
-                .thenThrow(new DuplicateKeyException("duplicate key value violates unique constraint \""
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint \""
                         + DefaultDeploymentPipelineAdminService.SORT_ORDER_CONSTRAINT + "\""));
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),

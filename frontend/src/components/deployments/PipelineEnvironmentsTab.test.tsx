@@ -241,6 +241,37 @@ describe('PipelineEnvironmentsTab', () => {
     );
   });
 
+  it('requires an Order in the edit modal — a cleared value would otherwise silently keep the old one', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('production'));
+    // Edit mode does not offer the "leave empty to append" hint.
+    expect(screen.queryByText(/Leave empty to append/)).not.toBeInTheDocument();
+
+    const order = screen.getByLabelText('Order');
+    fireEvent.change(order, { target: { value: '' } });
+    fireEvent.blur(order);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(order.closest('.ant-form-item')).toHaveClass('ant-form-item-has-error'),
+    );
+    expect(updateDeploymentEnvironment).not.toHaveBeenCalled();
+  });
+
+  it('offers the append hint only when creating', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getByRole('button', { name: /add environment/i }));
+    await screen.findByRole('dialog');
+
+    expect(screen.getByText(/Leave empty to append/)).toBeInTheDocument();
+  });
+
   it('clamps a negative order to 0 — the @Min(0) parity rule is never reachable from the field', async () => {
     render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
     await screen.findByText('staging');

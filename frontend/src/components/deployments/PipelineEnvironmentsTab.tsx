@@ -312,11 +312,17 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
               placeholder={t('deploygov.settings.envTagsPlaceholder')}
             />
           </Form.Item>
+          {/* Blank means "append" only on create — the update path reads null as "leave unchanged",
+              so in edit mode the position is required rather than silently kept. */}
           <Form.Item
             name="sort_order"
             label={t('deploygov.settings.envSortOrder')}
-            extra={t('deploygov.settings.envSortOrderHelp')}
-            rules={[{ type: 'number', min: 0 }]}
+            extra={
+              modalFor === 'create'
+                ? `${t('deploygov.settings.envSortOrderHelp')} ${t('deploygov.settings.envSortOrderAppendHint')}`
+                : t('deploygov.settings.envSortOrderHelp')
+            }
+            rules={[{ type: 'number', min: 0 }, { required: modalFor !== 'create' }]}
           >
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>

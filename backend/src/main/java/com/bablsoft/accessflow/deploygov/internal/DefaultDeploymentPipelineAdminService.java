@@ -22,7 +22,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentP
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -262,12 +262,15 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     /**
      * The pre-checks above lose a race between two admins; the unique constraint does not. Only the
      * ladder-position constraint is translated — any other violation keeps its own identity rather
-     * than surfacing as a misleading "sort order in use" 409.
+     * than surfacing as a misleading "sort order in use" 409. The catch is the {@code
+     * DataIntegrityViolationException} superclass on purpose: Hibernate's translator maps a PG
+     * 23505 raised through {@code saveAndFlush} to exactly that type (no {@code
+     * SQLExceptionTranslator} is wired, so it is never narrowed to {@code DuplicateKeyException}).
      */
     private DeploymentEnvironmentEntity saveEnvironment(DeploymentEnvironmentEntity entity) {
         try {
             return environmentRepository.saveAndFlush(entity);
-        } catch (DuplicateKeyException ex) {
+        } catch (DataIntegrityViolationException ex) {
             var cause = ex.getMostSpecificCause().getMessage();
             if (cause != null && cause.contains(SORT_ORDER_CONSTRAINT)) {
                 throw new DeploymentEnvironmentSortOrderConflictException(entity.getSortOrder());

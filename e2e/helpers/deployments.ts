@@ -55,10 +55,6 @@ export async function createDeploymentEnvironmentViaApi(
     requireReview?: boolean;
     /** Free-form grouping labels (#741) — at most 10, each at most 32 chars. */
     tags?: string[];
-    /** Ladder position (#877) — unique per pipeline; omitted = appended after the last one. */
-    sortOrder?: number;
-    /** The datasource the environment's schema changes land on (#877); omitted = deploy-only. */
-    datasourceId?: string;
   },
 ): Promise<CreatedDeploymentEnvironment> {
   const res = await request.post(
@@ -68,8 +64,6 @@ export async function createDeploymentEnvironmentViaApi(
       data: {
         name: options.name,
         ...(options.tags === undefined ? {} : { tags: options.tags }),
-        ...(options.sortOrder === undefined ? {} : { sort_order: options.sortOrder }),
-        ...(options.datasourceId === undefined ? {} : { datasource_id: options.datasourceId }),
         ...(options.requiredApprovals === undefined
           ? {}
           : { required_approvals: options.requiredApprovals }),

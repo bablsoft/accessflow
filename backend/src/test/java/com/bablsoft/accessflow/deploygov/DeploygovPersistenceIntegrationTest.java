@@ -168,9 +168,15 @@ class DeploygovPersistenceIntegrationTest {
         assertThat(environmentRepository.existsByPipelineIdAndSortOrderAndIdNot(
                 pipeline.getId(), 1, bound.getId())).isFalse();
 
-        // V177: a sibling on the same ladder position is refused by the database itself.
+        // V177: a sibling on the same ladder position is refused by the database itself. Pinned as
+        // the exact type + cause message the admin service's race translation keys on: Hibernate's
+        // translator yields the plain DataIntegrityViolationException (never DuplicateKeyException),
+        // and the constraint name rides on the most specific cause.
         assertThatThrownBy(() -> newEnvironment(pipeline.getId(), "staging", 1))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isExactlyInstanceOf(DataIntegrityViolationException.class)
+                .satisfies(ex -> assertThat(((DataIntegrityViolationException) ex)
+                        .getMostSpecificCause().getMessage())
+                        .contains("uq_deployment_environments_pipeline_sort_order"));
         // Another pipeline may reuse the position freely.
         assertThat(newEnvironment(newPipeline().getId(), "staging", 1).getSortOrder()).isEqualTo(1);
     }

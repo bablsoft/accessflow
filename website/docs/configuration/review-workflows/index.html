@@ -810,10 +810,9 @@ APPROVED → FAILED (execution error)</pre>
             deployments</strong>. A <strong>deployment pipeline</strong> names a provider (GitHub
             Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic)
             and holds ordered <strong>environments</strong> — <code>dev</code>,
-            <code>staging</code>, <code>production</code>, each on its own rung of the promotion
-            ladder — each of which can require review, set its own approval count, override the
-            <a href="#cfg-review-plans">review plan</a>, opt in to break-glass, and optionally name
-            the database its schema changes land on. A CI job asks AccessFlow for permission to release, the request flows
+            <code>staging</code>, <code>production</code> — each of which can require review, set its
+            own approval count, override the <a href="#cfg-review-plans">review plan</a>, opt in
+            to break-glass, and optionally name the database that backs it. A CI job asks AccessFlow for permission to release, the request flows
             through AI release-risk analysis, <a href="#cfg-routing-policies">routing policies</a> and
             human approval, and the job blocks on a <strong>fail-closed gate</strong> until every
             required approval is granted. The submitter — for a pipeline, the user who owns the API
