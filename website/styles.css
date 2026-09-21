@@ -1519,6 +1519,20 @@ footer {
   align-items: center;
   gap: 6px;
 }
+.footer-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  margin-right: 24px;
+}
+.footer-social a {
+  display: inline-flex;
+  color: var(--fg-dim);
+  transition: color 0.15s;
+}
+.footer-social a:hover { color: var(--fg); }
+.footer-social svg { width: 14px; height: 14px; }
 .status-dot {
   width: 6px;
   height: 6px;
@@ -1582,6 +1596,7 @@ footer {
   .rm-planned ul { flex-direction: column; }
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
   .footer-bar { flex-direction: column; gap: 16px; }
+  .footer-social { margin: 0; }
   .arch-canvas { padding: 24px; }
   .arch-services { grid-template-columns: 1fr; }
   .terminal-body { font-size: 11px; }

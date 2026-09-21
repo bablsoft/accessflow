@@ -319,7 +319,14 @@ site, and some indexes still show that title. Anchoring alone does not tell a kn
 *which* AccessFlow this is, so `Organization` says `bablsoft (maker of AccessFlow)`,
 `SoftwareApplication` says `AccessFlow by bablsoft` / `bablsoft AccessFlow` and points its own
 `sameAs` at the repo, and the homepage adds a `screenshot`. Every page carries the pair — also
-tested. Add real profiles to `sameAs` when they exist; never invent one.
+tested. Add real profiles to `sameAs` when they exist; never invent one. The one social
+profile so far is the X account, `https://x.com/AccessFlowIO` — it sits in the
+`Organization` `sameAs` on every page and is the single icon in the footer bar
+(`.footer-social`, between the copyright and the version status). A second network goes in
+both places: another `<a>` inside `.footer-social` on all 59 footers (the byte-identical footer
+guard means one mechanical edit), and another `sameAs` entry on the `Organization` block only —
+the `SoftwareApplication` entity keeps pointing at the repo. A shared footer link is a
+site-wide mechanical edit, so it bumps no page dates.
 
 `BreadcrumbList` depth follows URL depth: two levels for a
 top-level page, three for anything nested — the eleven `docs/` chapters
