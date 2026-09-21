@@ -17,7 +17,7 @@ import com.bablsoft.accessflow.deploygov.internal.routing.DeploymentRoutingCondi
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
@@ -207,8 +207,10 @@ class DefaultDeploymentRoutingPolicyServiceTest {
 
     @Test
     void aConcurrentWriteLosingTheUniqueIndexBecomesAPriorityConflict() {
-        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(new DuplicateKeyException(
-                "duplicate key", new RuntimeException(
+        // The plain DataIntegrityViolationException is what Hibernate's translator really throws
+        // for a unique violation; DuplicateKeyException never reaches the service.
+        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException(
+                "could not execute statement", new RuntimeException(
                         "ERROR: duplicate key value violates unique constraint "
                                 + "\"uq_deployment_routing_policies_org_priority\"")));
 
@@ -219,14 +221,27 @@ class DefaultDeploymentRoutingPolicyServiceTest {
     }
 
     @Test
-    void anUnrelatedDuplicateKeyKeepsItsOwnIdentity() {
-        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(new DuplicateKeyException(
-                "duplicate key", new RuntimeException("violates unique constraint \"some_other_uq\"")));
+    void anUnrelatedIntegrityViolationKeepsItsOwnIdentity() {
+        var unrelated = new DataIntegrityViolationException(
+                "could not execute statement",
+                new RuntimeException("violates unique constraint \"some_other_uq\""));
+        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(unrelated);
 
         assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
                 "p", DeploymentRoutingConditions.NONE, DeploymentRoutingAction.AUTO_APPROVE, null,
                 10, true)))
-                .isInstanceOf(DuplicateKeyException.class);
+                .isSameAs(unrelated);
+    }
+
+    @Test
+    void anIntegrityViolationWithoutAMessageIsRethrownUnchanged() {
+        var messageless = new DataIntegrityViolationException(null);
+        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(messageless);
+
+        assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
+                "p", DeploymentRoutingConditions.NONE, DeploymentRoutingAction.AUTO_APPROVE, null,
+                10, true)))
+                .isSameAs(messageless);
     }
 
     @Test

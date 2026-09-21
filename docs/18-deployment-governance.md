@@ -168,7 +168,8 @@ auto-reject a release.
 **Routing.** `DeploymentRoutingPolicyEngine` walks the organization's enabled policies in
 ascending `priority` and the first match wins. `priority` is unique per organization
 (`uq_deployment_routing_policies_org_priority`); the API returns `409` ahead of it and the index is
-the concurrency backstop. Conditions are a typed JSON record — `environments`, `providers`,
+the concurrency backstop (the raced `DataIntegrityViolationException` naming the index is translated
+to the same `409`). Conditions are a typed JSON record — `environments`, `providers`,
 `minRiskLevel`, `versionGlobs`, `daysOfWeek` + `startTime`/`endTime`/`timezone` — evaluated as a
 conjunction in the order environment → provider → risk → version glob → time window. An empty
 condition object matches everything. A policy scoped to a `pipeline_id` that does not match is
