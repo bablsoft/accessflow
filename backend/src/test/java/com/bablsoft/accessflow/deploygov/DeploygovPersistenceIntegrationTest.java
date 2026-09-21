@@ -405,6 +405,36 @@ class DeploygovPersistenceIntegrationTest {
     }
 
     @Test
+    void routingPolicyPriorityIsUniquePerOrganization() {
+        var organizationId = UUID.randomUUID();
+        routingPolicyRepository.saveAndFlush(newRoutingPolicy(organizationId, 10));
+
+        // V152: a second policy on the same priority is refused by the database itself. Pinned as
+        // the exact type + cause message DefaultDeploymentRoutingPolicyService's race translation
+        // keys on: Hibernate's translator yields the plain DataIntegrityViolationException (never
+        // DuplicateKeyException), and the index name rides on the most specific cause.
+        assertThatThrownBy(() -> routingPolicyRepository.saveAndFlush(
+                newRoutingPolicy(organizationId, 10)))
+                .isExactlyInstanceOf(DataIntegrityViolationException.class)
+                .satisfies(ex -> assertThat(((DataIntegrityViolationException) ex)
+                        .getMostSpecificCause().getMessage())
+                        .contains("uq_deployment_routing_policies_org_priority"));
+        // Another organization may reuse the priority freely.
+        routingPolicyRepository.saveAndFlush(newRoutingPolicy(UUID.randomUUID(), 10));
+    }
+
+    private static DeploymentRoutingPolicyEntity newRoutingPolicy(UUID organizationId, int priority) {
+        var policy = new DeploymentRoutingPolicyEntity();
+        policy.setId(UUID.randomUUID());
+        policy.setOrganizationId(organizationId);
+        policy.setName("policy " + priority);
+        policy.setConditions("{}");
+        policy.setAction(DeploymentRoutingAction.AUTO_APPROVE);
+        policy.setPriority(priority);
+        return policy;
+    }
+
+    @Test
     void persistsAndReloadsUserAndGroupPermissions() {
         var pipeline = newPipeline();
 

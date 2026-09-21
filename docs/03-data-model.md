@@ -2846,7 +2846,10 @@ nullable `required_approvals`, `priority` (lowest wins, default 100), `enabled`.
 `priority` is **unique per organization** — `uq_deployment_routing_policies_org_priority` (V152,
 #691) — so "first enabled match by ascending priority" is deterministic; the service returns
 `409 DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT` ahead of it and the index is the concurrency
-backstop.
+backstop: a raced insert surfaces from Hibernate's translator as the plain
+`DataIntegrityViolationException` (never `DuplicateKeyException` — no `SQLExceptionTranslator` is
+installed), which the service catches and maps to the same `409` when the index name is on the
+most specific cause; any other constraint keeps its own identity.
 
 `conditions` is a flat object; every present key is AND-ed and an absent/empty key is
 unconstrained (`{}` matches everything):

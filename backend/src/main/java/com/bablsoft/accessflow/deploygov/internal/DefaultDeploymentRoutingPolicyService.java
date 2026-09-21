@@ -17,7 +17,7 @@ import com.bablsoft.accessflow.deploygov.internal.routing.DeploymentRoutingCondi
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -124,9 +124,12 @@ public class DefaultDeploymentRoutingPolicyService implements DeploymentRoutingP
     private DeploymentRoutingPolicyEntity save(DeploymentRoutingPolicyEntity entity, int priority) {
         try {
             return routingPolicyRepository.saveAndFlush(entity);
-        } catch (DuplicateKeyException ex) {
-            // Only the priority index is translated; any other constraint must keep its own
-            // identity rather than surfacing to the admin as a misleading "priority in use" 409.
+        } catch (DataIntegrityViolationException ex) {
+            // Hibernate's translator yields the plain DataIntegrityViolationException for a unique
+            // violation (never DuplicateKeyException — no SQLExceptionTranslator is installed), so
+            // this is the type a raced insert actually throws. Only the priority index is
+            // translated; any other constraint must keep its own identity rather than surfacing to
+            // the admin as a misleading "priority in use" 409.
             if (namesPriorityIndex(ex)) {
                 throw new DeploymentRoutingPolicyPriorityConflictException(priority);
             }
@@ -134,7 +137,7 @@ public class DefaultDeploymentRoutingPolicyService implements DeploymentRoutingP
         }
     }
 
-    private static boolean namesPriorityIndex(DuplicateKeyException ex) {
+    private static boolean namesPriorityIndex(DataIntegrityViolationException ex) {
         var cause = ex.getMostSpecificCause().getMessage();
         return cause != null && cause.contains(PRIORITY_INDEX);
     }
