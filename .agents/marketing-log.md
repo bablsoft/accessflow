@@ -12,10 +12,13 @@ Newest entries first inside each section. Dates are ISO (YYYY-MM-DD).
 | GitHub | https://github.com/bablsoft/accessflow (+ Discussions, Issues) | 6 stars / 3 forks on 2026-09-21 |
 | Website | https://accessflow.io — `website/` in this repo, static, no build | SEO meta + JSON-LD on every page; sourced comparison pages under `/compare/` |
 | Social share image | `website/og-image.png` | **Stale — still says v2.4** (site is on v2.6). Regenerate. |
+| Product Hunt | account: new/barely used (warm up daily) | Launch planned Tue 2026-10-13 with v2.8.0 — see [`launch-producthunt.md`](launch-producthunt.md) |
 | Founder personal account | TBD | Not yet used for AccessFlow content |
 | LinkedIn / Bluesky / Mastodon / Reddit / HN | — | Not started |
 
 ## Done
+
+- **2026-09-21 — Product Hunt launch plan + demo video.** Plan, listing copy, maker comment, 3-week supporter plan and launch-day runbook in `launch-producthunt.md`. 53 s captioned demo recorded with Playwright against the e2e stack (API remapped to 18080 to dodge `lst-backend`; realistic WireMock AI mapping registered at runtime; six `@acme.io` users seeded so masking shows; mock AI config renamed to `OpenAI (gpt-4o)`). Assets + re-runnable `record-demo.mts` in `~/Downloads/accessflow-ph-launch/`.
 
 - **2026-09-21 — Website footer social link.** X icon link in the footer bar of all 59 pages + `https://x.com/AccessFlowIO` in the `Organization` JSON-LD `sameAs`. Branch `chore/AF-website-footer-x-link`, commit `369c40fa` (not yet pushed / PR'd at time of writing).
 - **2026-09-21 — First X thread (product intro, company voice).** 7 tweets, "missing middle" hook, images from `website/images/docs/`. https://x.com/AccessFlowIO/status/2101946284990984227. Intended as the evergreen pinned intro (not yet pinned). Draft text in the session scratchpad only; canonical copy is the live thread.
@@ -24,7 +27,8 @@ Newest entries first inside each section. Dates are ISO (YYYY-MM-DD).
 
 ## In flight
 
-- Push `chore/AF-website-footer-x-link` and open the PR.
+- PR #1055 (`chore/AF-website-footer-x-link`) open — footer X link + marketing context.
+- Product Hunt: week-1 tasks in `launch-producthunt.md` (PH account warm-up, Coming-soon page, supporter sheet, OG image regen, video upload).
 
 ## Next (suggested, unscheduled)
 
@@ -34,7 +38,7 @@ Newest entries first inside each section. Dates are ISO (YYYY-MM-DD).
 4. **Get out of X's new-account reach limit** — daily 30-min engagement routine from the social skill: follow ~20–50 accounts in DB/security/platform, reply with substance, quote-post from a founder account.
 5. **Fill the TBDs in `product-marketing.md`** — customer language, founder voice, business-model intent. Sources: GitHub discussions, X replies, Reddit/HN threads. Consider `/marketing-skills:customer-research`.
 6. **Content pillars + 2–4 week calendar** (`/marketing-skills:social` → "ongoing content plan"). Candidate pillars: the reviewed-statement idea; AI-agent governance / MCP; per-engine deep dives (18 connector pages already exist to repurpose); release notes; honest comparisons.
-7. **Launch posts beyond X** — Show HN / r/devops / r/PostgreSQL / r/dataengineering (`/marketing-skills:launch`), and LinkedIn for the security/compliance buyer.
+7. **Launch posts beyond X** — Show HN the Tuesday after PH, then r/devops / r/PostgreSQL / r/dataengineering, and LinkedIn for the security/compliance buyer.
 8. **Social listening** — set up `.agents/listening-sources.md` (social skill's `references/listening.md`) for "shared prod credentials", "database access approval", "StrongDM alternative", "Teleport database access".
 9. **Release cadence hook** — each `prep-gh-release` run should also produce a changelog-derived social post; milestones 2.7.0 (2026-09-30), 2.8.0 (10-13), 2.9.0 (10-27), 2.10.0 (11-10).
 
