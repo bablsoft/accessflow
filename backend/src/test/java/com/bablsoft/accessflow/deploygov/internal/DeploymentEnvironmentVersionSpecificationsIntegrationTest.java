@@ -50,15 +50,16 @@ class DeploymentEnvironmentVersionSpecificationsIntegrationTest {
         pipelineRepository.saveAndFlush(pipeline);
         pipelineId = pipeline.getId();
 
-        taggedRowId = versionRow(environment("prod-acme", new String[]{"acme", "eu"}));
-        untaggedRowId = versionRow(environment("staging", new String[0]));
+        taggedRowId = versionRow(environment("prod-acme", 1, new String[]{"acme", "eu"}));
+        untaggedRowId = versionRow(environment("staging", 0, new String[0]));
     }
 
-    private DeploymentEnvironmentEntity environment(String name, String[] tags) {
+    private DeploymentEnvironmentEntity environment(String name, int sortOrder, String[] tags) {
         var environment = new DeploymentEnvironmentEntity();
         environment.setId(UUID.randomUUID());
         environment.setPipelineId(pipelineId);
         environment.setName(name);
+        environment.setSortOrder(sortOrder);
         environment.setTags(tags);
         return environmentRepository.saveAndFlush(environment);
     }

@@ -2667,7 +2667,8 @@ the group-permission table keeps the real FKs of its V111 template. **V151** see
 `DEPLOYMENT_PIPELINE_MANAGE` (ADMIN) and `DEPLOYMENT_REVIEW` (ADMIN + REVIEWER) permissions.
 **V156** (#741) adds free-form environment `tags` and the `deployment_environment_versions`
 current-version projection. **V157** (#742) adds `deployment_requests.executed_at` — the drift
-math's time axis.
+math's time axis. **V177** (#877, epic #870) adds `deployment_environments.datasource_id` and
+makes `sort_order` a real, unique promotion ladder.
 
 The feature narrative — lifecycle, gate contract, freeze-window semantics, CI wrappers — is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -2698,6 +2699,24 @@ labels (customer, region, tier, …) capped in Java at 10 per environment / 32 c
 mirroring `query_templates.tags` (AF-364); a customer-specific target is simply its own
 environment row tagged accordingly (e.g. `prod-acme` tagged `acme`) — there is no customer
 entity and no fixed semantics on tag values.
+
+**V177** (#877, epic #870) makes environments usable as schema-promotion targets:
+
+- `datasource_id UUID` — nullable, **bare UUID with no FK** (the module's V149 convention, like
+  `review_plan_id`), indexed by `idx_deployment_environments_datasource_id`. The datasource the
+  environment's schema changes land on; `NULL` is a deploy-only environment, so every pre-#877
+  behaviour is untouched. The admin service validates the binding at write time through the
+  org-scoped datasource lookup (a cross-org id reads as `404 DATASOURCE_NOT_FOUND`); reads never
+  re-validate, so a datasource deleted later leaves the id dangling and the UI shows the raw id.
+- `CONSTRAINT uq_deployment_environments_pipeline_sort_order UNIQUE (pipeline_id, sort_order)`.
+  V149 declared `sort_order INTEGER NOT NULL DEFAULT 0` with no uniqueness and the service defaulted
+  it to `0`, so every environment sat at `0` unless an admin typed a number — a "lower-ordered
+  environments must be applied" gate would have evaluated the empty set and failed **open**. V177
+  first **backfills** each pipeline's rows to distinct, contiguous values from `0` in their current
+  `(sort_order, name)` order (a hand-typed `10/20/30` becomes `0/1/2`), then adds the constraint.
+  From here on the service appends an omitted `sort_order` at `max + 1` and rejects an explicit
+  duplicate with `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` (pre-checked, and the raced unique
+  violation is translated to the same code).
 
 ### deployment_freeze_windows
 

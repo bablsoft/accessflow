@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loginViaApi } from '../helpers/datasources';
+import { createPostgresDatasource, deleteDatasource, loginViaApi } from '../helpers/datasources';
 import { activeTabPanel, clickTab, findRowAcrossPages } from '../helpers/ui';
 import {
   createDeploymentPipelineViaApi,
@@ -15,6 +15,7 @@ test.describe.configure({ timeout: 90_000 });
 test.describe.serial('deployment pipeline administration (#696)', () => {
   let adminAccessToken = '';
   const createdPipelineIds: string[] = [];
+  const createdDatasourceIds: string[] = [];
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -28,6 +29,9 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
         // eslint-disable-next-line no-console
         console.warn(`pipeline cleanup skipped for ${id}: ${String(err)}`);
       }
+    }
+    for (const id of createdDatasourceIds) {
+      await deleteDatasource(request, adminAccessToken, id);
     }
   });
 
@@ -79,6 +83,10 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
       aiAnalysisEnabled: false,
     });
     createdPipelineIds.push(pipeline.id);
+    const datasource = await createPostgresDatasource(request, adminAccessToken, {
+      name: `e2e-env-db-${Date.now()}`,
+    });
+    createdDatasourceIds.push(datasource.id);
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/deployment-pipelines/${pipeline.id}`);
@@ -105,8 +113,74 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
       { timeout: 15_000 },
     );
     await envDialog.getByRole('button', { name: 'Save' }).click();
-    expect((await envResponse).status()).toBe(201);
-    await expect(envPanel.locator('.ant-table-row', { hasText: 'staging' })).toBeVisible();
+    const stagingBody = (await (await envResponse).json()) as {
+      sort_order: number;
+      datasource_id?: string | null;
+    };
+    const stagingRow = envPanel.locator('.ant-table-row', { hasText: 'staging' });
+    await expect(stagingRow).toBeVisible();
+    // A first environment with the Order field left as prefilled lands at 0, deploy-only (#877).
+    expect(stagingBody.sort_order).toBe(0);
+    // The backend omits null fields on the wire.
+    expect(stagingBody.datasource_id ?? null).toBeNull();
+    await expect(stagingRow).toContainText('Deploy-only (no database)');
+
+    // A second environment bound to a database through the new Database select (#877). The
+    // prefilled Order is the server's own default (one past the last rung), so the unique
+    // (pipeline, sort_order) constraint is never tripped by the UI.
+    await envPanel.getByRole('button', { name: 'Add environment' }).click();
+    const prodDialog = page.getByRole('dialog').filter({ hasText: 'Add environment' });
+    await expect(prodDialog).toBeVisible();
+    const prodNameInput = prodDialog.getByLabel('Name', { exact: true });
+    await prodNameInput.fill('production');
+    await expect(prodNameInput).toHaveValue('production');
+    await expect(prodDialog.getByLabel('Order')).toHaveValue('1');
+    // The Form is named `deployment_environment`, so its control ids are namespaced.
+    await prodDialog.locator('#deployment_environment_datasource_id').click();
+    await prodDialog.locator('#deployment_environment_datasource_id').fill(datasource.name);
+    await page
+      .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+      .getByTitle(datasource.name)
+      .first()
+      .click();
+    const prodResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        new URL(r.url()).pathname.endsWith(`/deployment-pipelines/${pipeline.id}/environments`),
+      { timeout: 15_000 },
+    );
+    await prodDialog.getByRole('button', { name: 'Save' }).click();
+    const prodRaw = await prodResponse;
+    expect(prodRaw.status()).toBe(201);
+    const prodBody = (await prodRaw.json()) as { sort_order: number; datasource_id: string | null };
+    expect(prodBody.sort_order).toBe(1);
+    expect(prodBody.datasource_id).toBe(datasource.id);
+    await expect(
+      envPanel.locator('.ant-table-row', { hasText: 'production' }),
+    ).toContainText(datasource.name);
+
+    // Editing the bound environment onto a taken position is refused with the server's 409 detail.
+    await envPanel
+      .locator('.ant-table-row', { hasText: 'production' })
+      .getByRole('button', { name: 'Edit' })
+      .click();
+    const editDialog = page.getByRole('dialog').filter({ hasText: 'Edit environment' });
+    await expect(editDialog).toBeVisible();
+    await expect(editDialog.getByLabel('Name', { exact: true })).toHaveValue('production');
+    await editDialog.getByLabel('Order').fill('0');
+    const conflictResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new URL(r.url()).pathname.includes(`/deployment-pipelines/${pipeline.id}/environments/`),
+      { timeout: 15_000 },
+    );
+    await editDialog.getByRole('button', { name: 'Save' }).click();
+    expect((await conflictResponse).status()).toBe(409);
+    await expect(
+      page.getByText('An environment with this sort order already exists on this pipeline'),
+    ).toBeVisible();
+    await editDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(editDialog).toBeHidden();
 
     // Permissions tab — grant the admin's own user can_trigger via the form.
     await clickTab(page, 'Permissions');

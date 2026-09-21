@@ -24,6 +24,8 @@ import {
   updateDeploymentEnvironment,
 } from '@/api/deploymentPipelines';
 import { deploymentVersionKeys } from '@/api/deploymentVersions';
+import { datasourceKeys, listDatasources } from '@/api/datasources';
+import { nextSortOrder } from './environmentLadder';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
@@ -32,12 +34,16 @@ import type { DeploymentEnvironment } from '@/types/api';
 interface EnvironmentFormValues {
   name: string;
   tags: string[];
-  sort_order: number;
+  /** A cleared InputNumber yields null; the server then appends to the ladder (#877). */
+  sort_order: number | null;
   require_review: boolean;
   required_approvals?: number | null;
   review_plan_id?: string | null;
   allow_break_glass: boolean;
+  datasource_id?: string | null;
 }
+
+const DATASOURCE_PAGE = { page: 0, size: 200 };
 
 export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) {
   const { t } = useTranslation();
@@ -55,6 +61,11 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     queryKey: reviewPlanKeys.lists(),
     queryFn: () => listReviewPlans(),
   });
+  // Likewise for the table's Database column (#877).
+  const datasourcesQuery = useQuery({
+    queryKey: datasourceKeys.list(DATASOURCE_PAGE),
+    queryFn: () => listDatasources(DATASOURCE_PAGE),
+  });
 
   useEffect(() => {
     if (modalFor === null) return;
@@ -62,11 +73,12 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
       form.setFieldsValue({
         name: '',
         tags: [],
-        sort_order: (envsQuery.data?.length ?? 0) * 10,
+        sort_order: nextSortOrder(envsQuery.data ?? []),
         require_review: true,
         required_approvals: null,
         review_plan_id: null,
         allow_break_glass: false,
+        datasource_id: null,
       });
     } else {
       form.setFieldsValue({
@@ -77,6 +89,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         required_approvals: modalFor.required_approvals,
         review_plan_id: modalFor.review_plan_id,
         allow_break_glass: modalFor.allow_break_glass,
+        datasource_id: modalFor.datasource_id,
       });
     }
   }, [modalFor, form, envsQuery.data]);
@@ -97,11 +110,12 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         return createDeploymentEnvironment(pipelineId, {
           name: values.name,
           tags: values.tags ?? [],
-          sort_order: values.sort_order,
+          sort_order: values.sort_order ?? null,
           require_review: values.require_review,
           required_approvals: values.required_approvals ?? null,
           review_plan_id: values.review_plan_id ?? null,
           allow_break_glass: values.allow_break_glass,
+          datasource_id: values.datasource_id ?? null,
         });
       }
       return updateDeploymentEnvironment(pipelineId, (modalFor as DeploymentEnvironment).id, {
@@ -109,13 +123,15 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         // Always an array, never null/omitted: the server reads null as "leave unchanged", so
         // clearing every tag in the UI would otherwise silently no-op.
         tags: values.tags ?? [],
-        sort_order: values.sort_order,
+        sort_order: values.sort_order ?? null,
         require_review: values.require_review,
         required_approvals: values.required_approvals ?? null,
         clear_required_approvals: values.required_approvals == null,
         review_plan_id: values.review_plan_id ?? null,
         clear_review_plan: values.review_plan_id == null,
         allow_break_glass: values.allow_break_glass,
+        datasource_id: values.datasource_id ?? null,
+        clear_datasource: values.datasource_id == null,
       });
     },
     onSuccess: () => {
@@ -144,6 +160,13 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     id == null
       ? t('deploygov.settings.envInherited')
       : reviewPlansQuery.data?.find((p) => p.id === id)?.name ?? id;
+  const datasourceOptions = (datasourcesQuery.data?.content ?? []).map((d) => ({
+    value: d.id,
+    label: d.name,
+  }));
+  // A bare UUID with no FK: a datasource deleted since binding still shows as its raw id.
+  const datasourceName = (id: string | null) =>
+    id == null ? null : datasourceOptions.find((o) => o.value === id)?.label ?? id;
 
   const columns: TableColumnsType<DeploymentEnvironment> = [
     { title: t('deploygov.settings.envSortOrder'), dataIndex: 'sort_order', width: 80 },
@@ -158,6 +181,13 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         ) : (
           <span className="muted">—</span>
         ),
+    },
+    {
+      title: t('deploygov.settings.envDatasource'),
+      dataIndex: 'datasource_id',
+      width: 160,
+      render: (v: string | null) =>
+        datasourceName(v) ?? <span className="muted">{t('deploygov.settings.envDatasourceNone')}</span>,
     },
     {
       title: t('deploygov.settings.envRequireReview'),
@@ -250,7 +280,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         >
           {/* Parity with Create/UpdateDeploymentEnvironmentRequest:
               name @NotBlank @Size(max 255), tags @Size(max 10) with each element @Size(max 32),
-              required_approvals @Min(1). */}
+              sort_order @Min(0), required_approvals @Min(1). */}
           <Form.Item
             name="name"
             label={t('deploygov.settings.envName')}
@@ -282,8 +312,32 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
               placeholder={t('deploygov.settings.envTagsPlaceholder')}
             />
           </Form.Item>
-          <Form.Item name="sort_order" label={t('deploygov.settings.envSortOrder')}>
+          {/* Blank means "append" only on create — the update path reads null as "leave unchanged",
+              so in edit mode the position is required rather than silently kept. */}
+          <Form.Item
+            name="sort_order"
+            label={t('deploygov.settings.envSortOrder')}
+            extra={
+              modalFor === 'create'
+                ? `${t('deploygov.settings.envSortOrderHelp')} ${t('deploygov.settings.envSortOrderAppendHint')}`
+                : t('deploygov.settings.envSortOrderHelp')
+            }
+            rules={[{ type: 'number', min: 0 }, { required: modalFor !== 'create' }]}
+          >
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            name="datasource_id"
+            label={t('deploygov.settings.envDatasource')}
+            extra={t('deploygov.settings.envDatasourceHelp')}
+          >
+            <Select
+              allowClear
+              showSearch={{ optionFilterProp: 'label' }}
+              placeholder={t('deploygov.settings.envDatasourceNone')}
+              loading={datasourcesQuery.isLoading}
+              options={datasourceOptions}
+            />
           </Form.Item>
           <Form.Item
             name="require_review"

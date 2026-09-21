@@ -162,6 +162,7 @@ export default defineConfig({
         'src/components/deployments/freezeWindowCalendar.ts',
         'src/components/deployments/deploymentRoutingPolicyForm.ts',
         'src/components/deployments/versionMatrix.ts',
+        'src/components/deployments/environmentLadder.ts',
         'src/pages/requestGroups/groupBuilder.ts',
         'src/pages/lifecycle/erasureConfigForm.ts',
         'src/realtime/collabProvider.ts',

@@ -123,7 +123,7 @@ class DefaultDeploymentSimulationServiceTest {
     private DeploymentEnvironmentView environment(boolean requireReview, Integer approvals,
                                                   UUID planReference, boolean allowBreakGlass) {
         return new DeploymentEnvironmentView(environmentId, pipelineId, "production", 1,
-                requireReview, approvals, planReference, allowBreakGlass, null, List.of());
+                requireReview, approvals, planReference, allowBreakGlass, null, List.of(), null);
     }
 
     private static DeploymentDecision decision(QueryStatus status) {

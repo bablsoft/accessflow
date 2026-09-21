@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-18",
+      "dateModified": "2026-09-21",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-18">18 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-21">21 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -452,6 +452,17 @@
             per customer, the usual shape is one environment named <code>prod-acme</code> tagged
             <code>acme</code> and <code>prod</code>, so you can later ask for everything belonging
             to that customer, or everything in production, in one view.
+          </p>
+          <p>
+            Two more fields shape the environment's place in the pipeline. <strong>Order</strong>
+            is its rung on the promotion ladder — <code>dev</code> before <code>staging</code>
+            before <code>production</code>. It is filled in for you (one past the last
+            environment) and no two environments on a pipeline may share a value; if you type one
+            that is taken, AccessFlow tells you and keeps the old order. <strong>Database</strong>
+            is optional: pick the datasource that backs this environment when you want AccessFlow
+            to know which database an environment stands for. Leave it empty for an environment
+            that only receives deployments — nothing about the approval or the gate changes either
+            way.
           </p>
           <p>
             Environments are also where <strong>break-glass</strong> is switched on. An emergency

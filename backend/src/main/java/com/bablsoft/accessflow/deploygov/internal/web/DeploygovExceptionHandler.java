@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentSortOrderConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
@@ -67,6 +68,14 @@ class DeploygovExceptionHandler {
     ProblemDetail handleDuplicateEnvironmentName(DuplicateDeploymentEnvironmentNameException ex) {
         return problem(HttpStatus.CONFLICT, msg("error.deployment_environment_duplicate_name"),
                 "DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME");
+    }
+
+    @ExceptionHandler(DeploymentEnvironmentSortOrderConflictException.class)
+    ProblemDetail handleEnvironmentSortOrderConflict(DeploymentEnvironmentSortOrderConflictException ex) {
+        var problem = problem(HttpStatus.CONFLICT, msg("error.deployment_environment_sort_order_conflict"),
+                "DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT");
+        problem.setProperty("sortOrder", ex.getSortOrder());
+        return problem;
     }
 
     @ExceptionHandler(DeploymentPermissionNotFoundException.class)

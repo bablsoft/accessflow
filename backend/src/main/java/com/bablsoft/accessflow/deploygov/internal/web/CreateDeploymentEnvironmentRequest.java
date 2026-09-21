@@ -12,6 +12,7 @@ public record CreateDeploymentEnvironmentRequest(
         @NotBlank(message = "{validation.deployment_environment.name.required}")
         @Size(max = 255, message = "{validation.deployment_environment.name.size}")
         String name,
+        @Min(value = 0, message = "{validation.deployment_environment.sort_order.min}")
         Integer sortOrder,
         Boolean requireReview,
         @Min(value = 1, message = "{validation.deployment_environment.required_approvals.min}")
@@ -19,10 +20,11 @@ public record CreateDeploymentEnvironmentRequest(
         UUID reviewPlanId,
         Boolean allowBreakGlass,
         @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
-        List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags) {
+        List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
+        UUID datasourceId) {
 
     CreateDeploymentEnvironmentCommand toCommand() {
         return new CreateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
-                requiredApprovals, reviewPlanId, allowBreakGlass, tags);
+                requiredApprovals, reviewPlanId, allowBreakGlass, tags, datasourceId);
     }
 }

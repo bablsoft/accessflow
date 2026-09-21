@@ -7968,19 +7968,27 @@ request. `clearAiConfig: true` unassigns `aiConfigId` the same way.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/deployment-pipelines/{id}/environments` | **Admin.** List the pipeline's environments, ordered by `sortOrder` then name. |
-| `POST` | `/deployment-pipelines/{id}/environments` | **Admin.** Create an environment (`201`). `409 DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` when the pipeline already has an environment with that name. |
-| `PUT` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Update an environment. `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND` when the environment is missing or belongs to a different pipeline. |
+| `POST` | `/deployment-pipelines/{id}/environments` | **Admin.** Create an environment (`201`). `409 DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` when the pipeline already has an environment with that name; `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` when another environment of the pipeline already holds the requested `sortOrder` (#877); `404 DATASOURCE_NOT_FOUND` when `datasourceId` does not resolve inside the caller's organization. |
+| `PUT` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Update an environment. `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND` when the environment is missing or belongs to a different pipeline; the same `409` / `404` codes as `POST` for `sortOrder` and `datasourceId`. |
 | `DELETE` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Delete an environment (`204`). |
 
-`CreateDeploymentEnvironmentRequest` fields: `name` (1–255, required), `sortOrder` (promotion
-order, default `0`), `requireReview` (default `true`), `requiredApprovals` (≥1, nullable —
-overrides the pipeline plan's approval count for this environment), `reviewPlanId` (nullable
-per-environment plan override, validated like the pipeline's), `allowBreakGlass` (default
-`false`), and — #741 — `tags` (string array, ≤10 tags of ≤32 chars each; free-form labels with
-no fixed semantics — customer, region, tier. The service trims, drops blanks and de-duplicates).
-Environment responses include `tags`. On the **update** body `tags = null` (or omitted) leaves
-the tag list unchanged; an explicit `[]` clears it — tags are replaced as a whole list, so there
-is no `clearTags` flag.
+`CreateDeploymentEnvironmentRequest` fields: `name` (1–255, required), `sortOrder` (position in
+the pipeline's promotion ladder, `≥ 0`, **unique per pipeline** — omitted or `null` appends the
+environment one past the pipeline's current last position, `0` on an empty pipeline; an explicit
+value already held by a sibling is `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT`, whose
+`ProblemDetail` carries `sortOrder` — #877), `requireReview` (default `true`), `requiredApprovals`
+(≥1, nullable — overrides the pipeline plan's approval count for this environment), `reviewPlanId`
+(nullable per-environment plan override, validated like the pipeline's), `allowBreakGlass`
+(default `false`), `datasourceId` (nullable — the datasource this environment's schema changes
+land on, validated through the org-scoped datasource lookup so a missing or cross-org id is `404
+DATASOURCE_NOT_FOUND`; `null` = deploy-only — #877), and — #741 — `tags` (string array, ≤10 tags
+of ≤32 chars each; free-form labels with no fixed semantics — customer, region, tier. The service
+trims, drops blanks and de-duplicates). Environment responses include `tags` and `datasourceId`.
+On the **update** body `tags = null` (or omitted) leaves the tag list unchanged; an explicit `[]`
+clears it — tags are replaced as a whole list, so there is no `clearTags` flag. `datasourceId`
+follows the `clearReviewPlan` shape instead: omitted or `null` leaves the binding unchanged, and
+`clearDatasource: true` unbinds (wins over any `datasourceId` sent in the same request). Resending
+the environment's current `sortOrder` is never a conflict.
 
 ### Trigger permissions
 
@@ -8414,6 +8422,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_PIPELINE_DUPLICATE_NAME` | 409 | A deployment pipeline with that name already exists in the org (#688). |
 | `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | 404 | Unknown environment id, or the environment belongs to a different pipeline (#688, also the history endpoint's rule — #742). |
 | `DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` | 409 | The pipeline already has an environment with that name (#688). |
+| `DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` | 409 | Another environment of the pipeline already holds the requested `sortOrder` (`sortOrder` property) — the ladder position is unique per pipeline (#877). |
 | `DEPLOYMENT_PERMISSION_NOT_FOUND` | 404 | Unknown pipeline-permission id, or the grant belongs to a different pipeline (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND` | 404 | Unknown freeze-window id, or the window is in another organization (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_INVALID` | 400 | Freeze-window shape/scope violation — mixed one-off and recurring fields, inverted bounds, bad timezone or day numbers, or `environmentId` without a matching `pipelineId` (#688). |

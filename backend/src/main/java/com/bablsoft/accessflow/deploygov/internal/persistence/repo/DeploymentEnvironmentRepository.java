@@ -16,6 +16,14 @@ public interface DeploymentEnvironmentRepository
 
     boolean existsByPipelineIdAndName(UUID pipelineId, String name);
 
+    boolean existsByPipelineIdAndSortOrder(UUID pipelineId, int sortOrder);
+
+    boolean existsByPipelineIdAndSortOrderAndIdNot(UUID pipelineId, int sortOrder, UUID id);
+
+    /** Highest {@code sort_order} on the pipeline, or null when it has no environments yet. */
+    @Query("select max(e.sortOrder) from DeploymentEnvironmentEntity e where e.pipelineId = :pipelineId")
+    Integer findMaxSortOrderByPipelineId(@Param("pipelineId") UUID pipelineId);
+
     /** Trigger resolution: a CI job names its environment, it does not know the id. */
     Optional<DeploymentEnvironmentEntity> findByPipelineIdAndNameIgnoreCase(UUID pipelineId, String name);
 

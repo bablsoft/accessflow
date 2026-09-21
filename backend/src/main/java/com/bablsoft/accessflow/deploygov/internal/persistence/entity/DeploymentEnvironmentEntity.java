@@ -50,6 +50,13 @@ public class DeploymentEnvironmentEntity {
     private boolean allowBreakGlass = false;
 
     /**
+     * The datasource this environment's schema changes land on (#877). Bare UUID, no FK — the row
+     * survives deletion of the datasource, like {@code reviewPlanId}. Null = deploy-only environment.
+     */
+    @Column(name = "datasource_id")
+    private UUID datasourceId;
+
+    /**
      * Free-form labels (customer, region, tier, …) — no fixed semantics. The ≤10 / ≤32-char caps
      * live on the web request records only (the AF-364 precedent); the service normalizes but
      * does not cap, and the column carries no constraint.

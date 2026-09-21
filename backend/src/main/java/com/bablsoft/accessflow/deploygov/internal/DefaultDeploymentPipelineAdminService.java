@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
@@ -7,6 +8,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentEnvironmentCommand;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentPipelineCommand;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentSortOrderConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
@@ -20,6 +22,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentP
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -32,9 +35,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DefaultDeploymentPipelineAdminService implements DeploymentPipelineAdminService {
 
+    /** V177's per-pipeline ladder-position constraint — the only violation translated to a 409. */
+    static final String SORT_ORDER_CONSTRAINT = "uq_deployment_environments_pipeline_sort_order";
+
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
     private final ReviewPlanLookupService reviewPlanLookupService;
+    private final DatasourceAdminService datasourceAdminService;
 
     @Override
     @Transactional(readOnly = true)
@@ -123,7 +130,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     public List<DeploymentEnvironmentView> listEnvironments(UUID pipelineId, UUID organizationId) {
         require(pipelineId, organizationId);
         return environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId).stream()
-                .map(DefaultDeploymentPipelineAdminService::toEnvironmentView)
+                .map(DeploymentEnvironmentViewMapper::toView)
                 .toList();
     }
 
@@ -136,17 +143,25 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
             throw new DuplicateDeploymentEnvironmentNameException(command.name());
         }
         requireReviewPlanInOrganization(command.reviewPlanId(), organizationId);
+        requireDatasourceInOrganization(command.datasourceId(), organizationId);
+        // Null appends to the ladder; an explicit position must be free (#877).
+        int sortOrder = command.sortOrder() != null ? command.sortOrder() : nextSortOrder(pipelineId);
+        if (command.sortOrder() != null
+                && environmentRepository.existsByPipelineIdAndSortOrder(pipelineId, sortOrder)) {
+            throw new DeploymentEnvironmentSortOrderConflictException(sortOrder);
+        }
         var entity = new DeploymentEnvironmentEntity();
         entity.setId(UUID.randomUUID());
         entity.setPipelineId(pipelineId);
         entity.setName(command.name());
-        entity.setSortOrder(command.sortOrder() != null ? command.sortOrder() : 0);
+        entity.setSortOrder(sortOrder);
         entity.setRequireReview(command.requireReview() == null || command.requireReview());
         entity.setRequiredApprovals(command.requiredApprovals());
         entity.setReviewPlanId(command.reviewPlanId());
         entity.setAllowBreakGlass(Boolean.TRUE.equals(command.allowBreakGlass()));
         entity.setTags(toTagArray(command.tags()));
-        return toEnvironmentView(environmentRepository.save(entity));
+        entity.setDatasourceId(command.datasourceId());
+        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity));
     }
 
     @Override
@@ -162,7 +177,12 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
             }
             entity.setName(command.name());
         }
-        if (command.sortOrder() != null) {
+        // The edit form always resends the current position, so an unchanged value is never a conflict.
+        if (command.sortOrder() != null && command.sortOrder() != entity.getSortOrder()) {
+            if (environmentRepository.existsByPipelineIdAndSortOrderAndIdNot(
+                    pipelineId, command.sortOrder(), entity.getId())) {
+                throw new DeploymentEnvironmentSortOrderConflictException(command.sortOrder());
+            }
             entity.setSortOrder(command.sortOrder());
         }
         if (command.requireReview() != null) {
@@ -185,7 +205,13 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         if (command.tags() != null) {
             entity.setTags(toTagArray(command.tags()));
         }
-        return toEnvironmentView(environmentRepository.save(entity));
+        if (Boolean.TRUE.equals(command.clearDatasource())) {
+            entity.setDatasourceId(null);
+        } else if (command.datasourceId() != null) {
+            requireDatasourceInOrganization(command.datasourceId(), organizationId);
+            entity.setDatasourceId(command.datasourceId());
+        }
+        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity));
     }
 
     @Override
@@ -216,19 +242,49 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
                 .orElseThrow(() -> new ReviewPlanNotFoundException(reviewPlanId));
     }
 
+    /**
+     * Same shape for the datasource binding (#877): {@code getForAdmin} throws
+     * {@code DatasourceNotFoundException} both when the id is unknown and when it belongs to
+     * another organization, so the caller sees one 404 either way.
+     */
+    private void requireDatasourceInOrganization(UUID datasourceId, UUID organizationId) {
+        if (datasourceId == null) {
+            return;
+        }
+        datasourceAdminService.getForAdmin(datasourceId, organizationId);
+    }
+
+    private int nextSortOrder(UUID pipelineId) {
+        var max = environmentRepository.findMaxSortOrderByPipelineId(pipelineId);
+        return max == null ? 0 : max + 1;
+    }
+
+    /**
+     * The pre-checks above lose a race between two admins; the unique constraint does not. Only the
+     * ladder-position constraint is translated — any other violation keeps its own identity rather
+     * than surfacing as a misleading "sort order in use" 409. The catch is the {@code
+     * DataIntegrityViolationException} superclass on purpose: Hibernate's translator maps a PG
+     * 23505 raised through {@code saveAndFlush} to exactly that type (no {@code
+     * SQLExceptionTranslator} is wired, so it is never narrowed to {@code DuplicateKeyException}).
+     */
+    private DeploymentEnvironmentEntity saveEnvironment(DeploymentEnvironmentEntity entity) {
+        try {
+            return environmentRepository.saveAndFlush(entity);
+        } catch (DataIntegrityViolationException ex) {
+            var cause = ex.getMostSpecificCause().getMessage();
+            if (cause != null && cause.contains(SORT_ORDER_CONSTRAINT)) {
+                throw new DeploymentEnvironmentSortOrderConflictException(entity.getSortOrder());
+            }
+            throw ex;
+        }
+    }
+
     private static DeploymentPipelineView toView(DeploymentPipelineEntity e) {
         return new DeploymentPipelineView(
                 e.getId(), e.getOrganizationId(), e.getName(), e.getProvider(),
                 e.getRepositoryUrl(), e.getProjectRef(), e.getReviewPlanId(),
                 e.isAiAnalysisEnabled(), e.getAiConfigId(), e.isActive(),
                 e.getCreatedAt(), e.getUpdatedAt());
-    }
-
-    private static DeploymentEnvironmentView toEnvironmentView(DeploymentEnvironmentEntity e) {
-        return new DeploymentEnvironmentView(
-                e.getId(), e.getPipelineId(), e.getName(), e.getSortOrder(), e.isRequireReview(),
-                e.getRequiredApprovals(), e.getReviewPlanId(), e.isAllowBreakGlass(), e.getCreatedAt(),
-                List.of(e.getTags()));
     }
 
     private static String[] toTagArray(List<String> tags) {

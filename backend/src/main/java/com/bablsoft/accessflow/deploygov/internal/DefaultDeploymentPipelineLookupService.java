@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.deploygov.internal;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineLookupService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
-import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
@@ -11,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,7 +36,7 @@ class DefaultDeploymentPipelineLookupService implements DeploymentPipelineLookup
     public Optional<DeploymentEnvironmentView> findEnvironment(UUID pipelineId, UUID environmentId) {
         return environmentRepository.findById(environmentId)
                 .filter(e -> e.getPipelineId().equals(pipelineId))
-                .map(DefaultDeploymentPipelineLookupService::toView);
+                .map(DeploymentEnvironmentViewMapper::toView);
     }
 
     private static DeploymentPipelineView toView(DeploymentPipelineEntity e) {
@@ -46,12 +44,5 @@ class DefaultDeploymentPipelineLookupService implements DeploymentPipelineLookup
                 e.getProvider(), e.getRepositoryUrl(), e.getProjectRef(), e.getReviewPlanId(),
                 e.isAiAnalysisEnabled(), e.getAiConfigId(), e.isActive(), e.getCreatedAt(),
                 e.getUpdatedAt());
-    }
-
-    private static DeploymentEnvironmentView toView(DeploymentEnvironmentEntity e) {
-        return new DeploymentEnvironmentView(e.getId(), e.getPipelineId(), e.getName(),
-                e.getSortOrder(), e.isRequireReview(), e.getRequiredApprovals(),
-                e.getReviewPlanId(), e.isAllowBreakGlass(), e.getCreatedAt(),
-                e.getTags() == null ? List.of() : List.of(e.getTags()));
     }
 }

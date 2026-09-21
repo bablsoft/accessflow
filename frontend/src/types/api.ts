@@ -4345,22 +4345,27 @@ export interface DeploymentEnvironment {
   name: string;
   /** Free-form grouping labels (#741). Never null — the server defaults to `[]`. */
   tags: string[];
+  /** Position in the pipeline's promotion ladder — unique per pipeline (#877). */
   sort_order: number;
   require_review: boolean;
   required_approvals: number | null;
   review_plan_id: string | null;
   allow_break_glass: boolean;
+  /** The datasource this environment's schema changes land on; null = deploy-only (#877). */
+  datasource_id: string | null;
   created_at: string;
 }
 
 export interface CreateDeploymentEnvironmentInput {
   name: string;
   tags?: string[];
-  sort_order?: number;
+  /** Omitted or null appends after the pipeline's current last environment (#877). */
+  sort_order?: number | null;
   require_review?: boolean;
   required_approvals?: number | null;
   review_plan_id?: string | null;
   allow_break_glass?: boolean;
+  datasource_id?: string | null;
 }
 
 export interface UpdateDeploymentEnvironmentInput {
@@ -4377,6 +4382,9 @@ export interface UpdateDeploymentEnvironmentInput {
   review_plan_id?: string | null;
   clear_review_plan?: boolean;
   allow_break_glass?: boolean | null;
+  /** Null leaves the binding unchanged; `clear_datasource: true` unbinds and wins (#877). */
+  datasource_id?: string | null;
+  clear_datasource?: boolean;
 }
 
 export interface DeploymentPipelinePermission {

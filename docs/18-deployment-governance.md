@@ -85,6 +85,20 @@ opt-in that defaults to `false`. Approval count resolves in a fixed precedence:
 `environment.required_approvals` → the resolved plan's `minApprovalsRequired()` → 1. Plan
 resolution follows the same shape: the environment override wins over the pipeline's.
 
+Since #877 (the first slice of the schema-change-set epic #870) the ladder is **real**:
+`sort_order` is unique within a pipeline, an environment created without one is appended after
+the current last rung, and an explicit duplicate is refused with `409
+DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT`. Before that every environment sat at `0` unless an
+admin typed a number, so a "lower-ordered environments must be applied" gate would have evaluated
+the empty set and failed open; the V177 migration renumbered each pipeline's existing environments
+once, to `0, 1, 2, …` in their previous `(sort_order, name)` order. An environment may also name
+the **datasource** its schema changes land on (`datasource_id`, validated inside the pipeline's
+organization — a cross-org id reads as `404`); left empty it is a deploy-only environment and
+nothing about deployments changes. Neither the gate, approval, routing nor version tracking reads
+the binding — it exists for the promotion ladder a schema change set will walk, and a
+`deploygov.api` lookup (`DeploymentEnvironmentLookupService`, plus `DeploymentFreezeLookupService`
+for freeze windows) exposes both to other modules without touching `deploygov.internal`.
+
 Environments also carry free-form **tags** (#741) — at most 10, each ≤ 32 chars, no fixed
 semantics — for grouping across pipelines by customer, region, or tier; the "same application,
 different versions, different customers" case is modelled as one environment row per customer

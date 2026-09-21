@@ -4433,7 +4433,24 @@ as apigov does:
 - `DeploymentPipelineAdminService` — pipeline CRUD (paginated via `core.api.PageRequest`/`PageResponse`)
   plus environment CRUD. Environments are listed by `sort_order` then name; per-environment
   `requiredApprovals`/`reviewPlanId` overrides are cleared with explicit `clearRequiredApprovals`/
-  `clearReviewPlan` flags (the apigov null-means-unchanged update convention).
+  `clearReviewPlan` flags (the apigov null-means-unchanged update convention). Since #877 the same
+  shape covers the environment's optional **datasource binding** (`datasourceId` /
+  `clearDatasource`), validated through `core.api.DatasourceAdminService.getForAdmin` so a missing
+  or cross-org id is the existing `404 DATASOURCE_NOT_FOUND` (the discovery-module precedent — no
+  deploygov handler involved), and `sort_order` is a **real ladder**: an omitted position appends at
+  `max + 1` (`0` on an empty pipeline), an explicit duplicate is pre-checked
+  (`existsByPipelineIdAndSortOrder` on create, `existsByPipelineIdAndSortOrderAndIdNot` on update
+  — and an update skips the check entirely when the position is unchanged, so resending the
+  current one is never a conflict) → `DeploymentEnvironmentSortOrderConflictException` (`409
+  DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT`), and the raced unique violation on
+  `uq_deployment_environments_pipeline_sort_order` is translated to the same exception around
+  `saveAndFlush` (the `DefaultDeploymentRoutingPolicyService` priority shape). The catch is the
+  `DataIntegrityViolationException` superclass on purpose — Hibernate's translator hands a PG
+  `23505` raised through `saveAndFlush` back as exactly that type, never the narrower
+  `DuplicateKeyException`, because no `SQLExceptionTranslator` bean is wired (`DeploygovPersistenceIntegrationTest`
+  pins the type and the constraint name on the most specific cause); any violation naming another
+  constraint keeps its identity. The entity → `DeploymentEnvironmentView` mapping is
+  the one package-private `DeploymentEnvironmentViewMapper`, shared with both lookup services.
 - `DeploymentPermissionService` — the per-user and per-group trigger-grant quartets
   (list/grant/update/revoke; grant upserts by `(pipeline, user)` / `(pipeline, group)`, update
   preserves `created_by`/`created_at` provenance), plus
@@ -4445,6 +4462,24 @@ as apigov does:
   tightening the DDL doesn't have — an `environment_id` scope requires its `pipeline_id`.
   Violations throw `IllegalDeploymentFreezeWindowException` with the message resolved through
   `MessageSource` at the throw site → `400 DEPLOYMENT_FREEZE_WINDOW_INVALID`.
+
+**Lookups for other modules (#877, epic #870).** Two narrow `deploygov.api` services exist so the
+future `schemachange` module never reaches into `deploygov.internal`:
+
+- `DeploymentEnvironmentLookupService` — `listByPipeline(pipelineId)` (the ladder in `sort_order`,
+  then name) and `findById(environmentId)`, both returning `DeploymentEnvironmentView` with its
+  `datasourceId`. Deliberately **not** org-scoped: a consumer resolves the pipeline through
+  `DeploymentPipelineLookupService.findPipeline(pipelineId, orgId)` first (or checks the view's
+  `pipelineId` against it), which keeps the module's 404-never-403 shape. Implemented by
+  `DefaultDeploymentEnvironmentLookupService`.
+- `DeploymentFreezeLookupService` — `evaluate(org, pipeline, environment[, at])` returning
+  `Optional<ActiveDeploymentFreezeView>` (`windowId`, `behavior`, `reason`).
+  `DefaultDeploymentFreezeLookupService` is pure delegation to the package-private
+  `FreezeWindowEvaluator` below — it drops only the ranking fields (`specificity`, `createdAt`) —
+  so the evaluator's contract survives the hop unchanged: most-specific scope wins, `REJECT` beats
+  `HOLD` within a tier, and an unevaluable window fails closed to an active `HOLD`.
+  `DefaultDeploymentFreezeLookupServiceTest` asserts those three through the delegation over a
+  real evaluator.
 
 **Effective permission resolution.** `deploygov/internal/EffectiveDeploymentPermissionResolver`
 mirrors apigov's `EffectiveApiConnectorPermissionResolver` (AF-530) collapsed to a deployment
