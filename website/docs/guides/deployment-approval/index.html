@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-18",
+      "dateModified": "2026-09-21",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-18">18 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-21">21 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -454,6 +454,17 @@
             to that customer, or everything in production, in one view.
           </p>
           <p>
+            Two more fields shape the environment's place in the pipeline. <strong>Order</strong>
+            is its rung on the promotion ladder — <code>dev</code> before <code>staging</code>
+            before <code>production</code>. It is filled in for you (one past the last
+            environment) and no two environments on a pipeline may share a value; if you type one
+            that is taken, AccessFlow tells you and keeps the old order. <strong>Database</strong>
+            is optional: pick the datasource this environment's schema changes land on when you
+            want to promote database changes along the same ladder later. Leave it on
+            <strong>Deploy-only</strong> for an environment that only receives deployments — nothing
+            about the approval or the gate changes either way.
+          </p>
+          <p>
             Environments are also where <strong>break-glass</strong> is switched on. An emergency
             deploy needs both a break-glass grant on the pipeline and this opt-in on the target
             environment; there is no admin bypass for either half. Leave it off unless you have
@@ -463,10 +474,10 @@
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-environments-dark.webp"
-                   alt="The environments tab of a deployment pipeline, listing ordered environments with their tags, required approval count, review requirement, review plan override and break-glass opt-in."
+                   alt="The environments tab of a deployment pipeline, listing ordered environments with their tags, bound database, required approval count, review requirement, review plan override and break-glass opt-in."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override and break-glass, per environment.</figcaption>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, optional database, required approvals, review-plan override and break-glass, per environment.</figcaption>
           </figure>
         </section>
 

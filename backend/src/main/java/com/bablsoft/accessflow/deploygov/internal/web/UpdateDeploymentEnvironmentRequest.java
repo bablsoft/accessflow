@@ -10,6 +10,7 @@ import java.util.UUID;
 public record UpdateDeploymentEnvironmentRequest(
         @Size(min = 1, max = 255, message = "{validation.deployment_environment.name.size}")
         String name,
+        @Min(value = 0, message = "{validation.deployment_environment.sort_order.min}")
         Integer sortOrder,
         Boolean requireReview,
         @Min(value = 1, message = "{validation.deployment_environment.required_approvals.min}")
@@ -19,11 +20,13 @@ public record UpdateDeploymentEnvironmentRequest(
         Boolean clearReviewPlan,
         Boolean allowBreakGlass,
         @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
-        List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags) {
+        List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
+        UUID datasourceId,
+        Boolean clearDatasource) {
 
     UpdateDeploymentEnvironmentCommand toCommand() {
         return new UpdateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
                 requiredApprovals, clearRequiredApprovals, reviewPlanId, clearReviewPlan,
-                allowBreakGlass, tags);
+                allowBreakGlass, tags, datasourceId, clearDatasource);
     }
 }

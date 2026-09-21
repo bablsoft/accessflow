@@ -109,8 +109,9 @@ class DeploymentPipelineController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create an environment on a pipeline")
     @ApiResponse(responseCode = "201", description = "Environment created")
-    @ApiResponse(responseCode = "404", description = "Pipeline or review plan not found")
-    @ApiResponse(responseCode = "409", description = "An environment with this name already exists")
+    @ApiResponse(responseCode = "404", description = "Pipeline, review plan, or datasource not found")
+    @ApiResponse(responseCode = "409",
+            description = "An environment with this name or sort order already exists")
     DeploymentEnvironmentResponse createEnvironment(
             @PathVariable UUID id, @Valid @RequestBody CreateDeploymentEnvironmentRequest body,
             Authentication authentication) {
@@ -122,8 +123,10 @@ class DeploymentPipelineController {
     @PutMapping("/{id}/environments/{envId}")
     @Operation(summary = "Update an environment (null fields stay unchanged)")
     @ApiResponse(responseCode = "200", description = "Environment updated")
-    @ApiResponse(responseCode = "404", description = "Pipeline, environment, or review plan not found")
-    @ApiResponse(responseCode = "409", description = "An environment with this name already exists")
+    @ApiResponse(responseCode = "404",
+            description = "Pipeline, environment, review plan, or datasource not found")
+    @ApiResponse(responseCode = "409",
+            description = "An environment with this name or sort order already exists")
     DeploymentEnvironmentResponse updateEnvironment(
             @PathVariable UUID id, @PathVariable UUID envId,
             @Valid @RequestBody UpdateDeploymentEnvironmentRequest body,

@@ -2,18 +2,26 @@ package com.bablsoft.accessflow.deploygov.internal;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupMembershipEntity;
+import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentEnvironmentCommand;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentPipelineCommand;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentLookupService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentSortOrderConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowCommand;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionService;
@@ -69,6 +77,9 @@ class DeploygovAdminIntegrationTest {
     @Autowired UserGroupMembershipRepository membershipRepository;
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired DatasourceRepository datasourceRepository;
+    @Autowired CredentialEncryptionService encryptionService;
+    @Autowired DeploymentEnvironmentLookupService environmentLookupService;
 
     // These tests commit rows into the shared Testcontainers DB. The
     // deployment_pipeline_group_permissions.created_by FK to users has no ON DELETE, so leaving
@@ -84,6 +95,7 @@ class DeploygovAdminIntegrationTest {
         membershipRepository.deleteAll();
         userGroupRepository.deleteAll();
         userRepository.deleteAll();
+        datasourceRepository.deleteAll();
         organizationRepository.deleteAll();
     }
 
@@ -126,9 +138,9 @@ class DeploygovAdminIntegrationTest {
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
 
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false, null));
+                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false, null, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true, null));
+                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true, null, null));
 
         var environments = pipelineService.listEnvironments(pipeline.id(), org.getId());
         assertThat(environments).extracting(v -> v.name())
@@ -148,26 +160,89 @@ class DeploygovAdminIntegrationTest {
         // Create normalizes: trimmed, blanks dropped, de-duplicated.
         var created = pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("prod-acme", 1, true, null, null, false,
-                        List.of(" acme ", "", "acme", "eu")));
+                        List.of(" acme ", "", "acme", "eu"), null));
         assertThat(created.tags()).containsExactly("acme", "eu");
 
         // Update replaces the whole list.
         var replaced = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of("globex")));
+                        null, List.of("globex"), null, null));
         assertThat(replaced.tags()).containsExactly("globex");
 
         // Null leaves tags untouched.
         var unchanged = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, 3, null, null, null, null, null,
-                        null, null));
+                        null, null, null, null));
         assertThat(unchanged.tags()).containsExactly("globex");
 
         // An explicit empty list clears.
         var cleared = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of()));
+                        null, List.of(), null, null));
         assertThat(cleared.tags()).isEmpty();
+    }
+
+    @Test
+    void environmentSortOrderAppendsWhenOmittedAndIsUniquePerPipeline() {
+        var org = saveOrg();
+        var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
+
+        var dev = pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("dev", null, null, null, null, null, null, null));
+        var staging = pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("staging", null, null, null, null, null, null, null));
+        assertThat(dev.sortOrder()).isZero();
+        assertThat(staging.sortOrder()).isEqualTo(1);
+
+        assertThatThrownBy(() -> pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("production", 1, null, null, null, null, null, null)))
+                .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
+        assertThatThrownBy(() -> pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
+                new UpdateDeploymentEnvironmentCommand(null, 0, null, null, null, null, null,
+                        null, null, null, null)))
+                .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
+
+        // Resending the current position is not a conflict; moving to a free one works.
+        assertThat(pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
+                new UpdateDeploymentEnvironmentCommand(null, 1, null, null, null, null, null,
+                        null, null, null, null)).sortOrder()).isEqualTo(1);
+        assertThat(pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
+                new UpdateDeploymentEnvironmentCommand(null, 5, null, null, null, null, null,
+                        null, null, null, null)).sortOrder()).isEqualTo(5);
+    }
+
+    @Test
+    void environmentDatasourceBindingIsOrgScopedAndClearable() {
+        var org = saveOrg();
+        var otherOrg = saveOrg();
+        var datasource = saveDatasource(org);
+        var foreignDatasource = saveDatasource(otherOrg);
+        var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
+
+        var bound = pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
+                        datasource.getId()));
+        assertThat(bound.datasourceId()).isEqualTo(datasource.getId());
+
+        // A datasource of another organization reads as "not found", never as "exists elsewhere".
+        assertThatThrownBy(() -> pipelineService.updateEnvironment(pipeline.id(), org.getId(), bound.id(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, null, foreignDatasource.getId(), null)))
+                .isInstanceOf(DatasourceNotFoundException.class);
+        assertThatThrownBy(() -> pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("staging", null, null, null, null, null, null,
+                        UUID.randomUUID())))
+                .isInstanceOf(DatasourceNotFoundException.class);
+
+        var cleared = pipelineService.updateEnvironment(pipeline.id(), org.getId(), bound.id(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, null, null, true));
+        assertThat(cleared.datasourceId()).isNull();
+        assertThat(environmentLookupService.findById(bound.id()).orElseThrow().datasourceId()).isNull();
+        assertThat(environmentLookupService.listByPipeline(pipeline.id()))
+                .extracting(v -> v.name()).containsExactly("production");
     }
 
     @Test
@@ -246,7 +321,7 @@ class DeploygovAdminIntegrationTest {
         var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false, null));
+                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false, null, null));
 
         // Recurring Friday-evening window in Berlin, scoped to the environment.
         var recurring = freezeWindowService.create(new DeploymentFreezeWindowCommand(org.getId(),
@@ -282,6 +357,27 @@ class DeploygovAdminIntegrationTest {
 
         freezeWindowService.delete(recurring.id(), org.getId());
         assertThat(freezeWindowRepository.findById(recurring.id())).isEmpty();
+    }
+
+    private DatasourceEntity saveDatasource(OrganizationEntity org) {
+        var ds = new DatasourceEntity();
+        ds.setId(UUID.randomUUID());
+        ds.setOrganization(org);
+        ds.setName("ds-" + UUID.randomUUID());
+        ds.setDbType(DbType.POSTGRESQL);
+        ds.setHost("nope.invalid");
+        ds.setPort(65000);
+        ds.setDatabaseName("appdb");
+        ds.setUsername("svc");
+        ds.setPasswordEncrypted(encryptionService.encrypt("seed-password"));
+        ds.setSslMode(SslMode.DISABLE);
+        ds.setConnectionPoolSize(10);
+        ds.setMaxRowsPerQuery(1000);
+        ds.setRequireReviewReads(false);
+        ds.setRequireReviewWrites(true);
+        ds.setAiAnalysisEnabled(false);
+        ds.setActive(true);
+        return datasourceRepository.save(ds);
     }
 
     private OrganizationEntity saveOrg() {

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentSortOrderConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
@@ -45,6 +46,18 @@ class DeploygovExceptionHandlerTest {
         when(messageSource.getMessage(any(String.class), any(), any()))
                 .thenAnswer(inv -> inv.getArgument(0));
         handler = new DeploygovExceptionHandler(messageSource);
+    }
+
+    @Test
+    void environmentSortOrderConflictIs409WithThePosition() {
+        var pd = handler.handleEnvironmentSortOrderConflict(
+                new DeploymentEnvironmentSortOrderConflictException(4));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT")
+                .containsEntry("sortOrder", 4);
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_environment_sort_order_conflict");
     }
 
     @Test

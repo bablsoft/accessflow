@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
-import type { DeploymentEnvironment, ReviewPlan } from '@/types/api';
+import type { Datasource, DeploymentEnvironment, ReviewPlan } from '@/types/api';
 
 const {
   listDeploymentEnvironments,
@@ -12,12 +12,14 @@ const {
   updateDeploymentEnvironment,
   deleteDeploymentEnvironment,
   listReviewPlans,
+  listDatasources,
 } = vi.hoisted(() => ({
   listDeploymentEnvironments: vi.fn(),
   createDeploymentEnvironment: vi.fn(),
   updateDeploymentEnvironment: vi.fn(),
   deleteDeploymentEnvironment: vi.fn(),
   listReviewPlans: vi.fn(),
+  listDatasources: vi.fn(),
 }));
 
 vi.mock('@/api/deploymentPipelines', async () => {
@@ -38,6 +40,11 @@ vi.mock('@/api/reviewPlans', async () => {
   return { ...actual, listReviewPlans };
 });
 
+vi.mock('@/api/datasources', async () => {
+  const actual = await vi.importActual<typeof import('@/api/datasources')>('@/api/datasources');
+  return { ...actual, listDatasources };
+});
+
 const { PipelineEnvironmentsTab } = await import('./PipelineEnvironmentsTab');
 
 const staging: DeploymentEnvironment = {
@@ -50,6 +57,7 @@ const staging: DeploymentEnvironment = {
   required_approvals: 2,
   review_plan_id: 'plan-1',
   allow_break_glass: false,
+  datasource_id: null,
   created_at: '2026-08-01T10:00:00Z',
 };
 
@@ -63,8 +71,16 @@ const production: DeploymentEnvironment = {
   required_approvals: null,
   review_plan_id: null,
   allow_break_glass: true,
+  datasource_id: 'ds-1',
   created_at: '2026-08-01T10:00:00Z',
 };
+
+const warehouse = {
+  id: 'ds-1',
+  organization_id: 'org-1',
+  name: 'Warehouse',
+  db_type: 'POSTGRESQL',
+} as Datasource;
 
 const plan: ReviewPlan = {
   id: 'plan-1',
@@ -97,6 +113,14 @@ describe('PipelineEnvironmentsTab', () => {
     vi.clearAllMocks();
     listDeploymentEnvironments.mockResolvedValue([staging, production]);
     listReviewPlans.mockResolvedValue([plan]);
+    listDatasources.mockResolvedValue({
+      content: [warehouse],
+      page: 0,
+      size: 200,
+      total_elements: 1,
+      total_pages: 1,
+      last: true,
+    });
     createDeploymentEnvironment.mockResolvedValue(staging);
     updateDeploymentEnvironment.mockResolvedValue(staging);
     deleteDeploymentEnvironment.mockResolvedValue(undefined);
@@ -132,13 +156,108 @@ describe('PipelineEnvironmentsTab', () => {
     expect(input).toEqual({
       name: 'qa',
       tags: [],
-      // Default sort order = existing rows * 10.
-      sort_order: 20,
+      // Default sort order = one past the current last rung (0, 10 → 11), the server's own default.
+      sort_order: 11,
       require_review: true,
       required_approvals: null,
       review_plan_id: null,
       allow_break_glass: false,
+      datasource_id: null,
     });
+  });
+
+  it('renders the bound datasource name and the deploy-only placeholder', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+
+    await screen.findByText('staging');
+    await screen.findByText('Warehouse');
+    // staging is deploy-only.
+    expect(screen.getAllByText('Deploy-only (no database)').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the raw id when the bound datasource no longer exists', async () => {
+    listDeploymentEnvironments.mockResolvedValue([{ ...production, datasource_id: 'ds-gone' }]);
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+
+    await screen.findByText('production');
+    expect(await screen.findByText('ds-gone')).toBeInTheDocument();
+  });
+
+  it('binds a datasource on create', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getByRole('button', { name: /add environment/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'qa' } });
+
+    // Open the Database select and pick the only option.
+    const select = dialog.querySelector('#deployment_environment_datasource_id')!;
+    fireEvent.mouseDown(select);
+    fireEvent.click(await screen.findByTitle('Warehouse'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(createDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(createDeploymentEnvironment.mock.calls[0]![1]).toEqual(
+      expect.objectContaining({ name: 'qa', datasource_id: 'ds-1' }),
+    );
+  });
+
+  it('sends clear_datasource when the binding is removed in the edit modal', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    // production (second row) is bound to ds-1.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('production'));
+
+    const clear = dialog
+      .querySelector('#deployment_environment_datasource_id')!
+      .closest('.ant-select')!
+      .querySelector('.ant-select-clear')!;
+    fireEvent.mouseDown(clear);
+    fireEvent.click(clear);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ datasource_id: null, clear_datasource: true, sort_order: 10 }),
+    );
+  });
+
+  it('keeps the binding on an edit that does not touch it', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('production'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ datasource_id: 'ds-1', clear_datasource: false }),
+    );
+  });
+
+  it('clamps a negative order to 0 — the @Min(0) parity rule is never reachable from the field', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('production'));
+
+    const order = screen.getByLabelText('Order');
+    fireEvent.change(order, { target: { value: '-1' } });
+    fireEvent.blur(order);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ sort_order: 0 }),
+    );
   });
 
   it('prefills the edit modal and sends clear_required_approvals when the count is cleared', async () => {

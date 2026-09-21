@@ -362,7 +362,7 @@ class OnBehalfOfIntegrationTest {
         var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
                 "payments-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null, null, null, false, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false, null));
+                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false, null, null));
         permissionService.grantPermission(pipeline.id(), org.getId(), user.getId(),
                 new GrantDeploymentPermissionCommand(user.getId(), true, false, null));
         return pipeline.id();

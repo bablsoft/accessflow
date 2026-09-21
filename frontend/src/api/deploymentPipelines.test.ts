@@ -37,6 +37,7 @@ const environmentFixture = {
   required_approvals: 2,
   review_plan_id: null,
   allow_break_glass: false,
+  datasource_id: null,
   created_at: '2026-08-20T10:15:00Z',
 };
 
@@ -147,9 +148,15 @@ describe('api/deploymentPipelines', () => {
     });
 
     put.mockResolvedValue({ data: environmentFixture });
-    await api.updateDeploymentEnvironment('p-1', 'env-1', { required_approvals: 3 });
+    await api.updateDeploymentEnvironment('p-1', 'env-1', {
+      required_approvals: 3,
+      datasource_id: null,
+      clear_datasource: true,
+    });
     expect(put).toHaveBeenCalledWith('/api/v1/deployment-pipelines/p-1/environments/env-1', {
       required_approvals: 3,
+      datasource_id: null,
+      clear_datasource: true,
     });
 
     del.mockResolvedValue({ data: undefined });

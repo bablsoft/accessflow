@@ -91,11 +91,16 @@ class DeploygovPersistenceIntegrationTest {
     }
 
     private DeploymentEnvironmentEntity newEnvironment(UUID pipelineId, String name) {
+        return newEnvironment(pipelineId, name, 1);
+    }
+
+    /** V177 makes (pipeline, sort_order) unique, so a second environment needs its own position. */
+    private DeploymentEnvironmentEntity newEnvironment(UUID pipelineId, String name, int sortOrder) {
         var environment = new DeploymentEnvironmentEntity();
         environment.setId(UUID.randomUUID());
         environment.setPipelineId(pipelineId);
         environment.setName(name);
-        environment.setSortOrder(1);
+        environment.setSortOrder(sortOrder);
         return environmentRepository.saveAndFlush(environment);
     }
 
@@ -143,8 +148,31 @@ class DeploygovPersistenceIntegrationTest {
         assertThat(reloaded.getTags()).containsExactly("acme", "eu");
 
         var untagged = environmentRepository
-                .findById(newEnvironment(pipeline.getId(), "staging").getId()).orElseThrow();
+                .findById(newEnvironment(pipeline.getId(), "staging", 0).getId()).orElseThrow();
         assertThat(untagged.getTags()).isEmpty();
+    }
+
+    @Test
+    void environmentDatasourceBindingRoundTripsAndSortOrderIsUniquePerPipeline() {
+        var pipeline = newPipeline();
+        var datasourceId = UUID.randomUUID();
+        var bound = newEnvironment(pipeline.getId(), "production", 1);
+        bound.setDatasourceId(datasourceId);
+        environmentRepository.saveAndFlush(bound);
+
+        assertThat(environmentRepository.findById(bound.getId()).orElseThrow().getDatasourceId())
+                .isEqualTo(datasourceId);
+        assertThat(environmentRepository.findMaxSortOrderByPipelineId(pipeline.getId())).isEqualTo(1);
+        assertThat(environmentRepository.findMaxSortOrderByPipelineId(UUID.randomUUID())).isNull();
+        assertThat(environmentRepository.existsByPipelineIdAndSortOrder(pipeline.getId(), 1)).isTrue();
+        assertThat(environmentRepository.existsByPipelineIdAndSortOrderAndIdNot(
+                pipeline.getId(), 1, bound.getId())).isFalse();
+
+        // V177: a sibling on the same ladder position is refused by the database itself.
+        assertThatThrownBy(() -> newEnvironment(pipeline.getId(), "staging", 1))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        // Another pipeline may reuse the position freely.
+        assertThat(newEnvironment(newPipeline().getId(), "staging", 1).getSortOrder()).isEqualTo(1);
     }
 
     @Test

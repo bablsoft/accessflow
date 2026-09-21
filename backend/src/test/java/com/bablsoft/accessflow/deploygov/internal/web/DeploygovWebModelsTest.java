@@ -98,8 +98,9 @@ class DeploygovWebModelsTest {
     @Test
     void environmentRequestsMapOntoCommands() {
         var planId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
         var create = new CreateDeploymentEnvironmentRequest("production", 2, false, 3, planId,
-                true, List.of("acme", "eu")).toCommand();
+                true, List.of("acme", "eu"), datasourceId).toCommand();
         assertThat(create.name()).isEqualTo("production");
         assertThat(create.sortOrder()).isEqualTo(2);
         assertThat(create.requireReview()).isFalse();
@@ -107,21 +108,25 @@ class DeploygovWebModelsTest {
         assertThat(create.reviewPlanId()).isEqualTo(planId);
         assertThat(create.allowBreakGlass()).isTrue();
         assertThat(create.tags()).containsExactly("acme", "eu");
+        assertThat(create.datasourceId()).isEqualTo(datasourceId);
 
         var update = new UpdateDeploymentEnvironmentRequest(null, null, null, null, true, null,
-                true, null, null).toCommand();
+                true, null, null, null, true).toCommand();
         assertThat(update.clearRequiredApprovals()).isTrue();
         assertThat(update.clearReviewPlan()).isTrue();
         assertThat(update.name()).isNull();
         // Null tags must survive the mapping untouched — it is the "leave unchanged" signal.
         assertThat(update.tags()).isNull();
+        assertThat(update.datasourceId()).isNull();
+        assertThat(update.clearDatasource()).isTrue();
     }
 
     @Test
     void environmentResponseCopiesTheViewIncludingTags() {
+        var datasourceId = UUID.randomUUID();
         var view = new DeploymentEnvironmentView(
                 UUID.randomUUID(), UUID.randomUUID(), "production", 1, true, 2, null, false,
-                Instant.now(), List.of("acme"));
+                Instant.now(), List.of("acme"), datasourceId);
         var response = DeploymentEnvironmentResponse.from(view);
 
         assertThat(response.id()).isEqualTo(view.id());
@@ -134,6 +139,7 @@ class DeploygovWebModelsTest {
         assertThat(response.allowBreakGlass()).isFalse();
         assertThat(response.createdAt()).isEqualTo(view.createdAt());
         assertThat(response.tags()).containsExactly("acme");
+        assertThat(response.datasourceId()).isEqualTo(datasourceId);
     }
 
     @Test

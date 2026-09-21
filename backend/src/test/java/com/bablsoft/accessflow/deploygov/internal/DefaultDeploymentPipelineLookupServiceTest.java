@@ -102,6 +102,18 @@ class DefaultDeploymentPipelineLookupServiceTest {
         assertThat(view.requiredApprovals()).isEqualTo(2);
         assertThat(view.allowBreakGlass()).isTrue();
         assertThat(view.tags()).containsExactly("prod");
+        assertThat(view.datasourceId()).isNull();
+    }
+
+    @Test
+    void findEnvironmentCarriesTheDatasourceBinding() {
+        var datasourceId = UUID.randomUUID();
+        var entity = environment(pipelineId);
+        entity.setDatasourceId(datasourceId);
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(entity));
+
+        assertThat(service.findEnvironment(pipelineId, environmentId).orElseThrow().datasourceId())
+                .isEqualTo(datasourceId);
     }
 
     @Test
