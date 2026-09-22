@@ -15,9 +15,15 @@
 #    Analytics. It is enabled in the dashboard with AUTOMATIC injection, so the
 #    beacon <script src> is added at the edge and appears in no file here — which
 #    is exactly why it went unnoticed that script-src was blocking it and the
-#    beacon had never once run. These two origins are the ONLY third parties the
-#    site talks to; websiteCsp.test.ts pins that list, so a third one has to be a
-#    deliberate edit rather than a quiet drift.
+#    beacon had never once run.
+#  - chat.accessflow.io is the Cloudflare AI Search instance behind the chat bubble
+#    app.js injects on every page: script-src for the version-pinned web-component
+#    bundle it loads from /assets/v<x.y.z>/, connect-src for the streamed
+#    /snippet-chat-completions calls. Nothing else is opened for it — the widget
+#    fetches no images or fonts.
+#    Those three origins are the ONLY third parties the site talks to;
+#    websiteCsp.test.ts pins that list, so a fourth one has to be a deliberate edit
+#    rather than a quiet drift.
 #  - style-src keeps 'unsafe-inline' only because 36 inline style="" attributes
 #    remain site-wide. There are no inline <style> blocks. Move those 36 into
 #    styles.css and this can tighten to 'self'. websitePages.test.ts pins the count
@@ -29,7 +35,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-m1EaAXpDarTf/8ASCyWPa6/ZDODIJgodhhLFdCZAbT0=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-m1EaAXpDarTf/8ASCyWPa6/ZDODIJgodhhLFdCZAbT0=' https://static.cloudflareinsights.com https://chat.accessflow.io; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://cloudflareinsights.com https://chat.accessflow.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Vendor connector logos and the favicon: effectively static, safe to pin hard.
 /db-icons/*

@@ -12,6 +12,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8090", "--directory", "website"],
       "port": 8090
+    },
+    {
+      "name": "website-wrangler",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd website && wrangler dev --port 8091 --local"],
+      "port": 8091
     }
   ]
 }

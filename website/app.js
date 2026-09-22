@@ -1,4 +1,5 @@
-// AccessFlow public site — vanilla JS for tab switching, copy button, and how-it-works stepper.
+// AccessFlow public site — vanilla JS for tab switching, copy button, how-it-works stepper,
+// the theme toggle and the AI chat bubble.
 
 (function () {
   'use strict';
@@ -118,6 +119,77 @@
     start();
   }
 
+  // The theme the page is actually rendering: the explicit <html data-theme> set by
+  // the inline bootstrap script / the toggle, else the OS preference — the same
+  // rule styles.css applies. Shared by the toggle and the chat bubble.
+  function resolveTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'light' || attr === 'dark') return attr;
+    var mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+    return mql && mql.matches ? 'light' : 'dark';
+  }
+
+  // Cloudflare AI Search chat bubble (https://github.com/cloudflare/ai-search-snippet).
+  // Injected here rather than authored into the markup because the site has no build
+  // step: every page hand-copies its <head> and footer, and websitePages.test.ts pins
+  // the footer byte-identical across all of them. One function is the single source
+  // of truth for the version pin, the endpoint and the copy. The bundle is a native
+  // web component; its colours come from the `chat-bubble-snippet { --search-snippet-* }`
+  // block in styles.css, which maps them onto the site tokens, so the widget follows
+  // the light/dark toggle without any per-theme code here beyond the `theme`
+  // attribute (which only drives the widget's own color-scheme).
+  //
+  // Bumping the widget: change the /assets/vX.Y.Z/ segment, `curl -I` the new URL to
+  // confirm chat.accessflow.io serves it, and re-run the frontend website tests —
+  // websiteCsp.test.ts checks this origin against the CSP in _headers.
+  var CHAT_SCRIPT = 'https://chat.accessflow.io/assets/v0.0.43/search-snippet.chat.es.js';
+  var CHAT_API = 'https://chat.accessflow.io/';
+
+  function syncChatTheme(theme) {
+    var bubble = document.querySelector('chat-bubble-snippet');
+    if (bubble) bubble.setAttribute('theme', theme);
+  }
+
+  function initChatBubble() {
+    if (document.querySelector('chat-bubble-snippet')) return;
+
+    var bubble = document.createElement('chat-bubble-snippet');
+    bubble.setAttribute('api-url', CHAT_API);
+    bubble.setAttribute('hide-branding', 'true');
+    bubble.setAttribute('theme', resolveTheme());
+    bubble.setAttribute('placeholder', 'Ask about AccessFlow…');
+
+    // Copy goes through the `translations` JS property, not the attribute of the
+    // same name: in v0.0.43 the attribute only reaches the bubble header, while the
+    // inner chat view (empty state, avatars, loading lines) is handed the property
+    // override alone. The setter also exists only once the module has upgraded the
+    // element, so it has to wait for the definition.
+    var translations = {
+      chatTitle: 'Ask AccessFlow',
+      chatEmptyTitle: 'Ask anything about AccessFlow',
+      chatEmptyDescription: 'Answers come from the documentation on this site — installing, connectors, review workflows, security.',
+      assistantAvatar: 'AF',
+      loadingMessages: ['Reading the docs…', 'Checking the guides…', 'Almost there…'],
+    };
+    if (window.customElements && customElements.whenDefined) {
+      customElements.whenDefined('chat-bubble-snippet').then(function () {
+        bubble.translations = translations;
+      });
+    }
+
+    var script = document.createElement('script');
+    script.type = 'module';
+    script.src = CHAT_SCRIPT;
+    // A blocked or failed CDN load must not leave an inert element behind: the
+    // custom element only renders once the module defines it, so remove it.
+    script.addEventListener('error', function () {
+      if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
+    });
+
+    document.body.appendChild(bubble);
+    document.head.appendChild(script);
+  }
+
   function initThemeToggle() {
     var STORAGE_KEY = 'accessflow.theme';
     var root = document.documentElement;
@@ -125,12 +197,6 @@
     if (!buttons.length) return;
 
     var mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
-
-    function currentTheme() {
-      var attr = root.getAttribute('data-theme');
-      if (attr === 'light' || attr === 'dark') return attr;
-      return mql && mql.matches ? 'light' : 'dark';
-    }
 
     // A figure only has both variants when the authored markup points its <source>
     // and its <img> at different files. capture.ts writes both twins for every
@@ -175,18 +241,19 @@
     }
 
     function syncButtons() {
-      var t = currentTheme();
+      var t = resolveTheme();
       var goingTo = t === 'light' ? 'dark' : 'light';
       buttons.forEach(function (btn) {
         btn.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
         btn.setAttribute('aria-label', 'Switch to ' + goingTo + ' theme');
       });
       swapDocsImages(t);
+      syncChatTheme(t);
     }
 
     buttons.forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var next = currentTheme() === 'light' ? 'dark' : 'light';
+        var next = resolveTheme() === 'light' ? 'dark' : 'light';
         root.setAttribute('data-theme', next);
         try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* private mode — ignore */ }
         syncButtons();
@@ -290,6 +357,7 @@
     initInstallTabs();
     initCopyButtons();
     initFlowStepper();
+    initChatBubble();
     initThemeToggle();
   });
 })();
