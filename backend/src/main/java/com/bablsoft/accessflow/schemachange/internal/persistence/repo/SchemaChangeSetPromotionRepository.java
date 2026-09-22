@@ -34,6 +34,12 @@ public interface SchemaChangeSetPromotionRepository extends JpaRepository<Schema
     @Query("select p from SchemaChangeSetPromotionEntity p where p.requestGroupId = :requestGroupId")
     Optional<SchemaChangeSetPromotionEntity> findByRequestGroupIdForUpdate(@Param("requestGroupId") UUID requestGroupId);
 
+    /** The same row lock for the cancel path, which races the projection listener on one row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from SchemaChangeSetPromotionEntity p where p.id = :id and p.organizationId = :organizationId")
+    Optional<SchemaChangeSetPromotionEntity> findByIdAndOrganizationIdForUpdate(@Param("id") UUID id,
+                                                                                @Param("organizationId") UUID organizationId);
+
     /** The ladder probe (#880): has the set an {@code APPLIED} promotion on a lower rung? */
     boolean existsByChangeSet_IdAndEnvironmentIdAndStatus(UUID changeSetId, UUID environmentId,
                                                          SchemaChangePromotionStatus status);

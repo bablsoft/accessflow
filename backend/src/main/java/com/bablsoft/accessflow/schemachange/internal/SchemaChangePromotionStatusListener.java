@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
 import com.bablsoft.accessflow.audit.api.AuditAction;
-import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupService;
@@ -19,7 +18,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.util.HashMap;
@@ -43,8 +41,6 @@ class SchemaChangePromotionStatusListener {
 
     private final SchemaChangeSetPromotionRepository promotionRepository;
     private final RequestGroupService requestGroupService;
-    private final DatasourceAdminService datasourceAdminService;
-    private final ObjectMapper objectMapper;
     private final SchemaChangeAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
@@ -56,8 +52,11 @@ class SchemaChangePromotionStatusListener {
         try {
             project(event);
         } catch (RuntimeException ex) {
-            log.warn("Could not project request group {} status {} onto its promotion: {}",
-                    event.requestGroupId(), event.newStatus(), ex.getMessage());
+            // ERROR, not WARN: a lost projection strands the promotion in a non-terminal status
+            // after its DDL may already have run, which freezes the change set and blocks every
+            // higher rung. There is no retry — an operator has to see this.
+            log.error("Could not project request group {} status {} onto its promotion",
+                    event.requestGroupId(), event.newStatus(), ex);
         }
     }
 
@@ -76,10 +75,10 @@ class SchemaChangePromotionStatusListener {
         }
         promotion.setStatus(next);
         switch (next) {
-            case APPLIED -> {
-                promotion.setAppliedAt(clock.instant());
-                takeSnapshot(promotion);
-            }
+            // The snapshot is deliberately NOT taken here: it is remote I/O against the customer
+            // database, and this transaction holds the promotion row's write lock. It runs in
+            // SchemaChangePromotionSnapshotListener once this transition is committed and visible.
+            case APPLIED -> promotion.setAppliedAt(clock.instant());
             case FAILED, PARTIALLY_APPLIED -> promotion.setErrorMessage(firstFailure(promotion));
             default -> {
                 // IN_REVIEW / APPROVED / CANCELLED carry no extra state.
@@ -90,24 +89,6 @@ class SchemaChangePromotionStatusListener {
         eventPublisher.publishEvent(new SchemaChangePromotionStatusChangedEvent(promotion.getId(),
                 promotion.getChangeSet().getId(), promotion.getEnvironmentId(), promotion.getOrganizationId(),
                 promotion.getPromotedBy(), current, next));
-    }
-
-    /**
-     * The PROMOTION_SNAPSHOT drift baseline (#881): the target introspected as close to the
-     * transition as possible. Anything changed out of band in between is baked in, which is why
-     * the timestamp is always recorded; an introspection failure leaves the snapshot null and the
-     * transition intact.
-     */
-    private void takeSnapshot(SchemaChangeSetPromotionEntity promotion) {
-        try {
-            var schema = datasourceAdminService.introspectSchemaForSystem(promotion.getDatasourceId(),
-                    promotion.getOrganizationId());
-            promotion.setSchemaSnapshot(objectMapper.writeValueAsString(schema));
-            promotion.setSnapshotTakenAt(clock.instant());
-        } catch (RuntimeException ex) {
-            log.warn("Could not snapshot datasource {} after promotion {}: {}", promotion.getDatasourceId(),
-                    promotion.getId(), ex.getMessage());
-        }
     }
 
     /** The group never records its own error; the first FAILED member holds the reason. */
@@ -133,6 +114,7 @@ class SchemaChangePromotionStatusListener {
             case APPLIED -> AuditAction.SCHEMA_CHANGE_PROMOTION_APPLIED;
             case PARTIALLY_APPLIED -> AuditAction.SCHEMA_CHANGE_PROMOTION_PARTIALLY_APPLIED;
             case FAILED -> AuditAction.SCHEMA_CHANGE_PROMOTION_FAILED;
+            // A rejected or timed-out group lands here too; group_status below says which.
             case CANCELLED -> AuditAction.SCHEMA_CHANGE_PROMOTION_CANCELLED;
             case PENDING, IN_REVIEW, APPROVED -> null;
         };

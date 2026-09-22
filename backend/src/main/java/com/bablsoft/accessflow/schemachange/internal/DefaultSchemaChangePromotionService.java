@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The promotion path (#880, epic #870): promote a change set to one deployment environment as an
@@ -181,19 +182,28 @@ public class DefaultSchemaChangePromotionService implements SchemaChangePromotio
         return toView(requirePromotion(organizationId, promotionId));
     }
 
+    /**
+     * The listing deliberately omits {@code schemaSnapshot} — a whole introspection per row, on an
+     * unpaginated read the UI polls. {@link #get} serves it.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<SchemaChangePromotionView> listForChangeSet(UUID organizationId, UUID changeSetId) {
-        requireChangeSet(organizationId, changeSetId);
+        var changeSet = requireChangeSet(organizationId, changeSetId);
+        var names = environmentLookupService.listByPipeline(changeSet.getPipelineId()).stream()
+                .collect(Collectors.toMap(DeploymentEnvironmentView::id, DeploymentEnvironmentView::name));
         return promotionRepository.findAllByChangeSet_IdOrderBySubmittedAtDesc(changeSetId).stream()
-                .map(this::toView)
+                .map(p -> withoutSnapshot(toView(p, names.get(p.getEnvironmentId()))))
                 .toList();
     }
 
     @Override
     @Transactional
     public void cancel(UUID organizationId, UUID actorId, UUID promotionId) {
-        var promotion = requirePromotion(organizationId, promotionId);
+        // Under the same row lock the projection listener takes: otherwise a concurrent transition
+        // bumps @Version and the flush below fails as an unmapped optimistic-lock error (500).
+        var promotion = promotionRepository.findByIdAndOrganizationIdForUpdate(promotionId, organizationId)
+                .orElseThrow(() -> new SchemaChangePromotionNotFoundException(promotionId));
         var current = promotion.getStatus();
         if (current.isTerminal()) {
             throw new SchemaChangePromotionNotCancellableException(promotionId, current);
@@ -326,6 +336,13 @@ public class DefaultSchemaChangePromotionService implements SchemaChangePromotio
                 .map(DeploymentEnvironmentView::name)
                 .orElse(null);
         return toView(p, environmentName);
+    }
+
+    private static SchemaChangePromotionView withoutSnapshot(SchemaChangePromotionView view) {
+        return new SchemaChangePromotionView(view.id(), view.organizationId(), view.changeSetId(),
+                view.environmentId(), view.environmentName(), view.datasourceId(), view.requestGroupId(),
+                view.status(), view.statementsChecksum(), view.promotedBy(), view.submittedAt(), view.appliedAt(),
+                view.errorMessage(), null, view.snapshotTakenAt());
     }
 
     static SchemaChangePromotionView toView(SchemaChangeSetPromotionEntity p, String environmentName) {

@@ -514,29 +514,41 @@ class DefaultSchemaChangePromotionServiceTest {
         assertThat(service.get(organizationId, promotion.getId()).environmentName()).isNull();
     }
 
+    /** One ladder lookup for every row, and no megabyte-sized snapshot on a list the UI polls. */
     @Test
-    void listForChangeSetRequiresTheSetInTheOrganizationFirst() {
+    void listForChangeSetNamesEnvironmentsInOneLookupAndOmitsSnapshots() {
         changeSet(SchemaChangeSetStatus.ACTIVE);
         var promotion = promotion(SchemaChangePromotionStatus.APPLIED);
+        promotion.setSchemaSnapshot("{\"schemas\":[]}");
+        promotion.setSnapshotTakenAt(now);
         when(promotionRepository.findAllByChangeSet_IdOrderBySubmittedAtDesc(changeSetId))
                 .thenReturn(List.of(promotion));
-        when(environmentLookupService.findById(devId)).thenReturn(Optional.empty());
+        when(environmentLookupService.listByPipeline(pipelineId))
+                .thenReturn(List.of(environment(devId, "dev", 0, devDatasourceId, false)));
 
-        assertThat(service.listForChangeSet(organizationId, changeSetId)).hasSize(1);
+        assertThat(service.listForChangeSet(organizationId, changeSetId)).singleElement()
+                .extracting("environmentName", "schemaSnapshot", "snapshotTakenAt")
+                .containsExactly("dev", null, now);
+        verify(environmentLookupService, never()).findById(any());
+    }
 
+    @Test
+    void listForChangeSetRequiresTheSetInTheOrganizationFirst() {
         when(changeSetRepository.findByIdAndOrganizationId(changeSetId, otherOrganizationId))
                 .thenReturn(Optional.empty());
+
         assertThatThrownBy(() -> service.listForChangeSet(otherOrganizationId, changeSetId))
                 .isInstanceOf(SchemaChangeSetNotFoundException.class);
     }
 
     // ---- cancel ----
 
+    /** Cancel reads under the same row lock the projection listener takes — see the repository javadoc. */
     @Test
-    void cancelsThroughTheGroupAndAuditsTheRealActor() {
+    void cancelsThroughTheGroupUnderTheRowLockAndAuditsTheRealActor() {
         var canceller = UUID.randomUUID();
         var promotion = promotion(SchemaChangePromotionStatus.IN_REVIEW);
-        when(promotionRepository.findByIdAndOrganizationId(promotion.getId(), organizationId))
+        when(promotionRepository.findByIdAndOrganizationIdForUpdate(promotion.getId(), organizationId))
                 .thenReturn(Optional.of(promotion));
 
         service.cancel(organizationId, canceller, promotion.getId());
@@ -562,7 +574,7 @@ class DefaultSchemaChangePromotionServiceTest {
             names = {"APPLIED", "FAILED", "PARTIALLY_APPLIED", "CANCELLED"})
     void refusesToCancelATerminalPromotion(SchemaChangePromotionStatus terminal) {
         var promotion = promotion(terminal);
-        when(promotionRepository.findByIdAndOrganizationId(promotion.getId(), organizationId))
+        when(promotionRepository.findByIdAndOrganizationIdForUpdate(promotion.getId(), organizationId))
                 .thenReturn(Optional.of(promotion));
 
         assertThatThrownBy(() -> service.cancel(organizationId, actorId, promotion.getId()))
@@ -573,7 +585,7 @@ class DefaultSchemaChangePromotionServiceTest {
     @Test
     void translatesAGroupThatCanNoLongerBeCancelled() {
         var promotion = promotion(SchemaChangePromotionStatus.APPROVED);
-        when(promotionRepository.findByIdAndOrganizationId(promotion.getId(), organizationId))
+        when(promotionRepository.findByIdAndOrganizationIdForUpdate(promotion.getId(), organizationId))
                 .thenReturn(Optional.of(promotion));
         org.mockito.Mockito.doThrow(new IllegalRequestGroupStateException(RequestGroupStatus.EXECUTING, "running"))
                 .when(requestGroupService).cancel(groupId, organizationId, actorId);
@@ -586,7 +598,7 @@ class DefaultSchemaChangePromotionServiceTest {
     @Test
     void refusesToCancelAPromotionOfAnotherOrganization() {
         var promotionId = UUID.randomUUID();
-        when(promotionRepository.findByIdAndOrganizationId(promotionId, otherOrganizationId))
+        when(promotionRepository.findByIdAndOrganizationIdForUpdate(promotionId, otherOrganizationId))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.cancel(otherOrganizationId, actorId, promotionId))

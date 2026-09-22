@@ -37,7 +37,6 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionReviewUnenf
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetService;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInput;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
-import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import net.javacrumbs.shedlock.core.LockConfiguration;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
@@ -91,7 +90,6 @@ class SchemaChangePromotionIntegrationTest {
     @Autowired DeploymentEnvironmentRepository environmentRepository;
     @Autowired DatasourceConnectionPoolManager poolManager;
     @Autowired CredentialEncryptionService encryptionService;
-    @Autowired JwtService jwtService;
     @Autowired JdbcTemplate jdbcTemplate;
 
     /**

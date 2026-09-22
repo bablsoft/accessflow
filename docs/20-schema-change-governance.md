@@ -210,7 +210,7 @@ check rather than a Bean Validation `@Size` because a `@Size` cannot read a runt
 
 ## 5. REST surface
 
-Documented in [04-api-spec.md → Schema Change Governance](04-api-spec.md#schema-change-governance-879-epic-870):
+Documented in [04-api-spec.md → Schema Change Governance](04-api-spec.md#schema-change-governance-879-880-epic-870):
 `POST /schema-change-sets` (201), `GET /schema-change-sets` (page; `pipeline_id`, `status`),
 `GET /{id}`, `PUT /{id}`, `PUT /{id}/statements`, `DELETE /{id}` (204). Wire names are snake_case;
 `ProblemDetail` extension properties (`statementIndex`, `queryType`, `currentStatus`, …) are
@@ -247,7 +247,7 @@ a caller learns which check refused first.
    column unique, but the gate asserts it anyway: over an all-equal column "every lower-ordered
    environment" is the empty set and the next check would pass vacuously, which is the one failure
    mode this feature must not have.
-9. **The ladder gate** — every environment with a lower `sort_order` **that binds a datasource**
+9. **The ladder gate** — every environment ("rung") with a lower `sort_order` **that binds a datasource**
    must record an `APPLIED` promotion of this change set. Unbound rungs are skipped (they are
    deploy-only); the first blocking rung is named in the refusal. `APPLIED` is the only status
    that counts.
@@ -339,10 +339,18 @@ bearing:
 
 ### The post-apply snapshot
 
-On the transition to `APPLIED` the target is introspected through
-`DatasourceAdminService.introspectSchemaForSystem` and the `DatabaseSchemaView` stored as JSON in
+Once the `APPLIED` transition is **committed**, a second listener
+(`SchemaChangePromotionSnapshotListener`) introspects the target through
+`DatasourceAdminService.introspectSchemaForSystem` and stores the `DatabaseSchemaView` as JSON in
 `schema_snapshot` with `snapshot_taken_at`. This is the `PROMOTION_SNAPSHOT` drift baseline #881
 reads.
+
+It is a separate listener on purpose: introspection opens a connection to the customer database,
+and doing that inside the projection transaction would hold the promotion row's write lock and an
+application connection across remote I/O — and would keep the applied status invisible to every
+reader until the introspection finished. The follow-up is idempotent (it writes only while the
+promotion is still `APPLIED` with no snapshot), so a promotion can legitimately read `APPLIED`
+with a null snapshot for a moment, or permanently if the target was unreachable.
 
 The honest caveat: this is the schema **as introspected shortly after** the DDL landed, not the
 schema the DDL produced. Anything changed out of band in between — including by another
@@ -353,6 +361,25 @@ baseline is recoverable, losing the status is not.
 
 On `FAILED` / `PARTIALLY_APPLIED` the first failed member's message is copied onto
 `error_message` — the group itself never records one.
+
+### Known gaps
+
+Two are worth knowing before relying on this path, and both are candidates for follow-up work
+rather than defects in the gate:
+
+- **The freeze window is evaluated at submission, not at execution.** A review-gated promotion can
+  sit in `PENDING_REVIEW` for hours; if a freeze is declared in the meantime, approval still
+  releases it to the run job. `deploygov`'s own gate re-evaluates the freeze at release time, and
+  this path has no equivalent because the executor belongs to `requestgroups`.
+- **A lost status projection is not retried.** The listener has no event registry behind it, so an
+  exception (logged at `ERROR`) or a JVM restart between the group's commit and the async task
+  leaves the promotion in a non-terminal status *after* its DDL may already have run — which
+  freezes the change set and blocks every higher rung, with no in-module repair.
+
+A `PARTIALLY_APPLIED` promotion is likewise a dead end by design: it freezes the change set (it is
+not `FAILED` or `CANCELLED`) while the ladder counts only `APPLIED`, so the set can neither be
+edited nor advanced. Half-migrated state is a human problem; author a new change set for the
+remainder.
 
 ### Cancelling
 

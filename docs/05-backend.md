@@ -4936,10 +4936,15 @@ conflict — and writes nothing until all of them pass; the order is pinned by t
 because a caller observes which one refused. Three rules are load bearing:
 
 - **`can_ddl` is enforced here**, through `DatasourceUserPermissionLookupService.findFor`, with no
-  admin flag on that path. The group is then created and submitted with `admin = true` so
-  `DefaultRequestGroupService.validatePermission` is skipped entirely: its `QUERY_ADMIN` early
-  return is the bypass this module must not inherit, and for an `OTHER`-classified statement it
-  would demand `can_write`. Do not "fix" this by passing `admin = false`.
+  admin flag on that path — a stricter rule than the one being delegated past, which is why the
+  group is then created and submitted with `admin = true`. That flag makes
+  `DefaultRequestGroupService.validatePermission` return before its own check, and the check is
+  the wrong one twice over: its `admin` argument is `caller.has(Permission.QUERY_ADMIN)` at the
+  controller, so a `QUERY_ADMIN` holder would be exempted outright, and for an `OTHER`-classified
+  statement (`GRANT`, `COMMENT ON`) it demands `can_write`, a DML permission that says nothing
+  about schema authority. Note the corollary: a `can_ddl`-only user can issue a `GRANT` inside a
+  change set that they could not submit as a standalone query. Do not "fix" this by passing
+  `admin = false`.
 - **The ladder is asserted, not trusted.** Duplicate `sort_order` values are a 409 even though
   V177 made the column unique: over an all-equal column the ladder gate evaluates the empty set
   and fails open.
@@ -4964,9 +4969,16 @@ stays asynchronous so a failure cannot run inline inside the group executor, and
 wrapped in a catch-all. The row is read through `findByRequestGroupIdForUpdate`
 (`PESSIMISTIC_WRITE`) and only ever moves forward — `SchemaChangePromotionStatusMapper.advances`
 — because events from the AI-listener transaction and the job thread can reorder, and because the
-cancel endpoint writes the same row. On `APPLIED` it introspects the target
-(`introspectSchemaForSystem`, its own `REQUIRES_NEW` transaction) and stores the
-`DatabaseSchemaView` as JSON; a failure there leaves the snapshot null and the transition intact.
+cancel endpoint writes the same row. On `APPLIED` it stamps `appliedAt` and stops; the
+snapshot is taken afterwards by `SchemaChangePromotionSnapshotListener`, a second after-commit
+listener on the module's own event, so the projection transaction never holds the row lock or an
+application connection across an `introspectSchemaForSystem` round trip to the customer database.
+That follow-up is idempotent and non-fatal: a failure leaves the snapshot null and the transition
+intact. A projection that is lost entirely (an exception — logged at `ERROR` — or a restart
+between the group's commit and the async task) is **not** retried, and strands the promotion in a
+non-terminal status; the freeze window is likewise evaluated only at submission, never re-checked
+before the run job executes. Both are recorded in
+[20-schema-change-governance.md → Known gaps](20-schema-change-governance.md#known-gaps).
 
 ## MCP server (mcp module)
 

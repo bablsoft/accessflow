@@ -3,8 +3,6 @@ package com.bablsoft.accessflow.schemachange.internal;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
-import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
-import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
@@ -34,8 +32,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import tools.jackson.databind.ObjectMapper;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -60,8 +56,6 @@ class SchemaChangePromotionStatusListenerTest {
     @Mock
     private RequestGroupService requestGroupService;
     @Mock
-    private DatasourceAdminService datasourceAdminService;
-    @Mock
     private AuditLogService auditLogService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -79,8 +73,7 @@ class SchemaChangePromotionStatusListenerTest {
     @BeforeEach
     void setUp() {
         listener = new SchemaChangePromotionStatusListener(promotionRepository, requestGroupService,
-                datasourceAdminService, new ObjectMapper(), new SchemaChangeAuditWriter(auditLogService),
-                eventPublisher, Clock.fixed(now, ZoneOffset.UTC));
+                new SchemaChangeAuditWriter(auditLogService), eventPublisher, Clock.fixed(now, ZoneOffset.UTC));
         lenient().when(promotionRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -141,7 +134,7 @@ class SchemaChangePromotionStatusListenerTest {
         listener.onRequestGroupStatusChanged(event(RequestGroupStatus.EXECUTED));
 
         verify(promotionRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(eventPublisher, auditLogService, datasourceAdminService);
+        verifyNoInteractions(eventPublisher, auditLogService);
     }
 
     /** Group events are async and may reorder: a promotion never moves backwards. */
@@ -166,34 +159,10 @@ class SchemaChangePromotionStatusListenerTest {
         verifyNoInteractions(auditLogService, eventPublisher);
     }
 
+    /** The snapshot itself is SchemaChangePromotionSnapshotListener's job — remote I/O stays out of this transaction. */
     @Test
-    void appliedStampsTheSnapshotAndTheAppliedTimestamp() {
+    void appliedStampsTheTimestampAndLeavesTheSnapshotToTheFollowUpListener() {
         var promotion = givenPromotion(SchemaChangePromotionStatus.APPROVED);
-        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
-                .thenReturn(new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
-                        List.of(new DatabaseSchemaView.Table("t",
-                                List.of(new DatabaseSchemaView.Column("id", "int4", false, true)), List.of()))))));
-
-        listener.onRequestGroupStatusChanged(event(RequestGroupStatus.EXECUTED));
-
-        assertThat(promotion.getStatus()).isEqualTo(SchemaChangePromotionStatus.APPLIED);
-        assertThat(promotion.getAppliedAt()).isEqualTo(now);
-        assertThat(promotion.getSnapshotTakenAt()).isEqualTo(now);
-        assertThat(promotion.getSchemaSnapshot()).contains("\"public\"").contains("\"t\"");
-        var entry = ArgumentCaptor.forClass(AuditEntry.class);
-        verify(auditLogService).record(entry.capture());
-        assertThat(entry.getValue().action()).isEqualTo(AuditAction.SCHEMA_CHANGE_PROMOTION_APPLIED);
-        assertThat(entry.getValue().actorId()).isNull();
-        assertThat(entry.getValue().metadata()).containsEntry("trigger", "request_group")
-                .containsEntry("group_status", "EXECUTED");
-    }
-
-    /** An unreachable target must not lose the transition — only the baseline. */
-    @Test
-    void appliedWithoutIntrospectionKeepsTheTransitionAndLeavesTheSnapshotNull() {
-        var promotion = givenPromotion(SchemaChangePromotionStatus.APPROVED);
-        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
-                .thenThrow(new IllegalStateException("connection refused"));
 
         listener.onRequestGroupStatusChanged(event(RequestGroupStatus.EXECUTED));
 
@@ -201,6 +170,12 @@ class SchemaChangePromotionStatusListenerTest {
         assertThat(promotion.getAppliedAt()).isEqualTo(now);
         assertThat(promotion.getSchemaSnapshot()).isNull();
         assertThat(promotion.getSnapshotTakenAt()).isNull();
+        var entry = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(entry.capture());
+        assertThat(entry.getValue().action()).isEqualTo(AuditAction.SCHEMA_CHANGE_PROMOTION_APPLIED);
+        assertThat(entry.getValue().actorId()).isNull();
+        assertThat(entry.getValue().metadata()).containsEntry("trigger", "request_group")
+                .containsEntry("group_status", "EXECUTED");
     }
 
     @Test
@@ -216,7 +191,6 @@ class SchemaChangePromotionStatusListenerTest {
         assertThat(promotion.getStatus()).isEqualTo(SchemaChangePromotionStatus.PARTIALLY_APPLIED);
         assertThat(promotion.getErrorMessage()).isEqualTo("relation \"t\" does not exist");
         assertThat(promotion.getSchemaSnapshot()).isNull();
-        verifyNoInteractions(datasourceAdminService);
         var entry = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(entry.capture());
         assertThat(entry.getValue().action()).isEqualTo(AuditAction.SCHEMA_CHANGE_PROMOTION_PARTIALLY_APPLIED);

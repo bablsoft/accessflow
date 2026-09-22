@@ -8470,9 +8470,12 @@ an `APPROVED` promotion can no longer be cancelled.
 **Status projection.** The promotion mirrors its group: `PENDING_REVIEW → IN_REVIEW`,
 `APPROVED → APPROVED`, `EXECUTED → APPLIED`, `PARTIALLY_EXECUTED → PARTIALLY_APPLIED`,
 `FAILED → FAILED`, and `REJECTED` / `TIMED_OUT` / `CANCELLED → CANCELLED`. Only `APPLIED` counts
-toward the ladder gate. On `APPLIED` the target is introspected and the result stored as
-`schema_snapshot` with `snapshot_taken_at` — the `PROMOTION_SNAPSHOT` drift baseline (#881). On
-`FAILED` / `PARTIALLY_APPLIED` the first failed member's message is copied onto `error_message`.
+toward the ladder gate. Once `APPLIED` is committed the target is introspected and the result stored as `schema_snapshot`
+with `snapshot_taken_at` — the `PROMOTION_SNAPSHOT` drift baseline (#881). That happens a moment
+after the status changes and can fail without affecting it, so a promotion may read `APPLIED` with
+a null snapshot. On `FAILED` / `PARTIALLY_APPLIED` the first failed member's message is copied
+onto `error_message`. The **list** endpoint omits `schema_snapshot` (it is a whole introspection
+per row); read one promotion to get it.
 
 Response shape (`202` on promote; the two reads return the same):
 
@@ -8495,10 +8498,15 @@ Response shape (`202` on promote; the two reads return the same):
 }
 ```
 
-Every transition is audited against the `schema_change_promotion` resource:
-`SCHEMA_CHANGE_PROMOTION_SUBMITTED` and `_CANCELLED` carry the acting user, while `_APPLIED`,
-`_PARTIALLY_APPLIED` and `_FAILED` are system rows with a null actor and
-`trigger=request_group`. Notifications follow in #882.
+Every **outcome** is audited against the `schema_change_promotion` resource — the intermediate
+`IN_REVIEW` and `APPROVED` projections are not, since the request group already records its own
+review trail. `SCHEMA_CHANGE_PROMOTION_SUBMITTED` carries the acting user; `_APPLIED`,
+`_PARTIALLY_APPLIED` and `_FAILED` are system rows with a null actor and `trigger=request_group`.
+`_CANCELLED` appears on both paths: with the acting user when someone cancels, and as a system row
+when the group was **rejected or timed out** — those project onto the same `CANCELLED` promotion
+status, and `metadata.group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) is what tells them
+apart. Do not filter `_CANCELLED` on a non-null actor expecting to see every cancellation.
+Notifications follow in #882.
 
 ## Data Lifecycle Manager (AF-499)
 
