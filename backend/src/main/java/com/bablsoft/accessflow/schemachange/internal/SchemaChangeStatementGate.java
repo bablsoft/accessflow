@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -11,6 +12,7 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetNoTargetDatasourc
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementBlockedException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInput;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeStatementFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +64,8 @@ class SchemaChangeStatementGate {
     /**
      * @throws SchemaChangeSetNoTargetDatasourceException statements were supplied and no
      *         environment of the pipeline binds a datasource
+     * @throws SchemaChangeSetTargetDatasourceMissingException an environment binds a datasource
+     *         that no longer exists in the organization
      * @throws SchemaChangeSetStatementInvalidException the first statement that fails a shape,
      *         parse or classification check
      * @throws SchemaChangeSetStatementBlockedException any {@code BLOCK} finding, after every
@@ -106,8 +110,17 @@ class SchemaChangeStatementGate {
                 .filter(Objects::nonNull)
                 .forEach(datasourceIds::add);
         return datasourceIds.stream()
-                .map(id -> new Target(id, datasourceAdminService.getForAdmin(id, organizationId).dbType()))
+                .map(id -> new Target(id, dbTypeOf(organizationId, pipelineId, id)))
                 .toList();
+    }
+
+    /** The binding is a bare id (no FK): a deleted datasource stays bound and must read as a change-set error. */
+    private DbType dbTypeOf(UUID organizationId, UUID pipelineId, UUID datasourceId) {
+        try {
+            return datasourceAdminService.getForAdmin(datasourceId, organizationId).dbType();
+        } catch (DatasourceNotFoundException ex) {
+            throw new SchemaChangeSetTargetDatasourceMissingException(pipelineId, datasourceId);
+        }
     }
 
     private QueryType classify(int index, String text, Set<DbType> dbTypes) {

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
@@ -14,6 +15,7 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementBlockedE
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInput;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidException.Reason;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeStatementFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
@@ -96,6 +98,17 @@ class SchemaChangeStatementGateTest {
                 .isInstanceOf(SchemaChangeSetNoTargetDatasourceException.class)
                 .extracting("pipelineId").isEqualTo(pipelineId);
         verifyNoInteractions(datasourceAdminService, queryParser, sqlReviewService);
+    }
+
+    @Test
+    void aBoundDatasourceThatNoLongerExistsReadsAsAChangeSetConflict() {
+        when(datasourceAdminService.getForAdmin(prodDatasourceId, organizationId))
+                .thenThrow(new DatasourceNotFoundException(prodDatasourceId));
+
+        assertThatThrownBy(() -> gate.validate(organizationId, pipelineId, inputs(CREATE)))
+                .isInstanceOf(SchemaChangeSetTargetDatasourceMissingException.class)
+                .extracting("pipelineId", "datasourceId").containsExactly(pipelineId, prodDatasourceId);
+        verifyNoInteractions(queryParser, sqlReviewService);
     }
 
     @Test

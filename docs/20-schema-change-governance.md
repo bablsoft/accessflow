@@ -11,8 +11,9 @@ that already succeeded in staging — followed by a scheduled **drift** job that
 environment's live schema has wandered away from where it is supposed to be.
 
 It lives in the `schemachange` Spring Modulith module (`com.bablsoft.accessflow.schemachange`),
-laid out like `deploygov`. It depends on `core`, `deploygov`, `proxy` and `sqlreview` through
-their `api/` packages; nothing depends on it yet, so the graph stays acyclic. It composes two
+laid out like `deploygov`. It depends on `core`, `deploygov`, `proxy`, `sqlreview` and `security`
+(for `JwtClaims`) through their `api/` packages; nothing depends on it yet, so the graph stays
+acyclic. It composes two
 primitives the codebase already has: **deployment environments** (the ordered promotion targets
 under a pipeline, now each optionally bound to the datasource its schema changes land on, #877)
 and **request groups** (a bundle of ordered members with aggregated AI analysis, union-of-approvers
@@ -81,13 +82,16 @@ reads as `404`, never as `403`.
 `PUT /{id}` updates `name` / `description` / `status` with null-means-unchanged semantics. The
 only status an author may set by hand is `ARCHIVED` (from `DRAFT` or `ACTIVE`; the same value is a
 no-op); any other target is `409 SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION`. Un-archiving is
-deliberately not offered in v1. Name and description stay editable on archived and frozen sets —
-only the statements and the row's existence are protected.
+deliberately not offered in v1. Archiving protects the **statements** (`PUT …/statements` is
+`409 SCHEMA_CHANGE_SET_ARCHIVED`), not the row: an archived set that was never promoted can still
+be deleted, and name and description stay editable on archived and frozen sets alike. What refuses
+`DELETE` is the freeze (§3), not the status.
 
 `PUT /{id}/statements` replaces the **whole** ordered list (an empty list clears it). Replacement is
-delete-then-reinsert through a bulk JPQL delete — the `request_group_items` precedent — which is
-what sidesteps the `UNIQUE (change_set_id, sequence_order)` reordering problem: a derived entity
-delete would be flushed *after* the new inserts and trip the constraint on the reused positions.
+delete-then-reinsert — the `request_group_items` precedent — but through a bulk JPQL delete rather
+than a derived one, which is what sidesteps the `UNIQUE (change_set_id, sequence_order)` reordering
+problem: a derived entity delete would be flushed *after* the new inserts and trip the constraint
+on the reused positions.
 
 ## 2. The validation gate
 
@@ -99,7 +103,10 @@ steps.
 `sort_order`) that bind a `datasource_id` are the change set's targets, resolved through
 `DatasourceAdminService.getForAdmin` inside the organization. A non-empty statement list on a
 pipeline with no bound environment is `409 SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE`; an empty list
-needs no target at all, so a set can be created before its ladder is wired. **Every bound rung is
+needs no target at all, so a set can be created before its ladder is wired. The binding is a bare
+id with no foreign key, so a deleted datasource stays bound — that reads as
+`409 SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING` (rebind or clear the environment), never as a
+skipped rung: a rung the gate cannot see is one the ladder gate cannot count either. **Every bound rung is
 consulted**, not only the entry rung: a change set walks the whole ladder, so a rule that only
 blocks on `PRODUCTION` is caught at authoring rather than at the last promotion.
 
@@ -114,7 +121,10 @@ procedural block is not mistaken for an envelope; on SQL Server a leading `BEGIN
 read as one and must be unwrapped.
 
 **Parse.** The statement is parsed through the engine-aware `proxy.api.QueryParser` for the
-`DbType` of every distinct target datasource. A parse failure is
+`DbType` of every distinct target datasource — JSqlParser for the relational engines, the plugin's
+own parser for an engine-managed `DbType` such as MongoDB, so a change set targeting a
+non-relational rung is parsed and classified by that engine and the parser-gap list below does
+not describe it. A parse failure is
 `422 SCHEMA_CHANGE_SET_STATEMENT_INVALID`, with the parser's own already-localized reason as the
 second argument of the message ("Statement 3 of the change set could not be parsed: …").
 
@@ -130,22 +140,27 @@ classification on `queryType`. `DDL` *and* `OTHER` are admitted, and the stored 
 records which. What this buys and what it costs, stated plainly:
 
 - **Admitted that a strict gate would refuse:** `COMMENT ON`, `GRANT`, `ALTER TYPE … ADD VALUE`,
-  `REFRESH MATERIALIZED VIEW`, `CREATE FUNCTION` (which JSqlParser classifies as DDL).
-- **Admitted that is not schema-only:** `MERGE`, `UPSERT`, `CALL`, and — because JSqlParser 5 falls
-  back to an *unsupported statement* rather than an error for a good deal of unrecognised text —
-  some malformed input. The gate is "not DML", not "is DDL": a change set cannot smuggle a
+  `REFRESH MATERIALIZED VIEW`. (`CREATE FUNCTION` is classified `DDL` by JSqlParser and would have
+  passed either way.)
+- **Admitted that is not schema-only:** `MERGE`, `UPSERT`, `CALL`, session settings in the
+  `SET name = value` form, and — because JSqlParser 5 falls back to an *unsupported statement*
+  rather than an error for a good deal of unrecognised text — some malformed input. The gate is "not DML", not "is DDL": a change set cannot smuggle a
   `DELETE`, but a data backfill written as `MERGE` passes authoring. The controls that catch it are
   the ones every promotion already has (#880): per-member AI analysis, the deterministic SQL review
   rules at the request-group chokepoint, and human review. A strict per-organization mode is a
   possible follow-up; it was not built because it would make the feature unusable on real
   migrations before anyone asked for it.
-- **Still refused, because the parser cannot read them:** `DO $$ … $$` blocks, `REVOKE`,
-  `CREATE EXTENSION`, `CREATE INDEX CONCURRENTLY`, `SET`. These are parser gaps, not policy — they
-  surface as `…_STATEMENT_INVALID`, and widening the parser is a separate piece of work.
+- **Still refused, because the parser cannot read them** (checked against JSqlParser 5.3 at the
+  time of writing): `DO $$ … $$` blocks, `REVOKE`, `CREATE EXTENSION`, `CREATE INDEX CONCURRENTLY`
+  and the `SET name TO value` spelling. These are parser gaps, not policy — they surface as
+  `…_STATEMENT_INVALID`, and widening the parser is a separate piece of work.
 
 **Deterministic SQL review.** Finally the statement is evaluated by `sqlreview.api.SqlReviewService`
 against the ruleset resolved for **each** target datasource (its environment's ruleset, else the
-organization default, else none — [19-sql-review.md](19-sql-review.md)). A `BLOCK` finding on any
+organization default, else none — [19-sql-review.md](19-sql-review.md)). The rule catalog covers
+the relational engines only: a non-relational target answers *not applicable* with no findings, so
+everything in this step — including the `drop_statement` default below — holds for relational
+rungs and is simply absent for a plugin-engine rung. A `BLOCK` finding on any
 statement against any target refuses the save with `422 SCHEMA_CHANGE_SET_STATEMENT_BLOCKED`,
 whose body carries every blocking finding (`findings[]`, each with `statement_index`,
 `datasource_id`, `rule_id`, `severity`, `line_number` and a `message` rendered into the caller's

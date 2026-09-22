@@ -94,6 +94,19 @@ class SchemaChangeApiExceptionsTest {
     }
 
     @Test
+    void targetDatasourceMissingCarriesBothIds() {
+        var pipelineId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+
+        var ex = new SchemaChangeSetTargetDatasourceMissingException(pipelineId, datasourceId);
+
+        assertThat(ex).isInstanceOf(SchemaChangeException.class);
+        assertThat(ex.pipelineId()).isEqualTo(pipelineId);
+        assertThat(ex.datasourceId()).isEqualTo(datasourceId);
+        assertThat(ex.getMessage()).contains(pipelineId.toString()).contains(datasourceId.toString());
+    }
+
+    @Test
     void statementLimitCarriesLimitAndActual() {
         var ex = new SchemaChangeSetStatementLimitException(50, 51);
 

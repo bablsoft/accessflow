@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementBlockedE
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementLimitException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatusTransitionException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -63,6 +64,15 @@ class SchemaChangeExceptionHandler {
         var pd = problem(HttpStatus.CONFLICT, msg("error.schema_change_set_no_target_datasource"),
                 "SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE");
         pd.setProperty("pipelineId", ex.pipelineId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangeSetTargetDatasourceMissingException.class)
+    ProblemDetail handleTargetDatasourceMissing(SchemaChangeSetTargetDatasourceMissingException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_change_set_target_datasource_missing"),
+                "SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING");
+        pd.setProperty("pipelineId", ex.pipelineId());
+        pd.setProperty("datasourceId", ex.datasourceId());
         return pd;
     }
 

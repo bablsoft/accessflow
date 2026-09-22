@@ -8366,8 +8366,9 @@ order). `UpdateSchemaChangeSetRequest` fields: `name` (3–255), `description` (
 
 1. **Target resolution** — the pipeline's environments (`deploygov`, in `sort_order`) that bind a
    `datasource_id` are the change set's targets. A non-empty statement list on a pipeline with
-   no bound environment is refused with `409 SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE`; an empty
-   list never needs a target.
+   no bound environment is refused with `409 SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE`, and a
+   binding to a datasource that no longer exists with
+   `409 SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING`; an empty list never needs a target.
 2. **Shape** — a statement that opens a transaction (`BEGIN` / `START TRANSACTION`) is refused
    with `422 SCHEMA_CHANGE_SET_STATEMENT_TRANSACTION_ENVELOPE`; text holding more than one
    statement (a `;` outside string literals, quoted identifiers, comments and `$tag$ … $tag$`
@@ -8534,6 +8535,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `SCHEMA_CHANGE_SET_NOT_FOUND` | 404 | Unknown change-set id, or the set is in another organization (#879). |
 | `SCHEMA_CHANGE_SET_NAME_CONFLICT` | 409 | A change set with that name already exists under the same pipeline (#879). |
 | `SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE` | 409 | Statements were supplied but no environment of the pipeline binds a datasource, so there is nothing to parse or review against (#879). |
+| `SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING` | 409 | An environment of the pipeline binds a datasource that no longer exists in the organization (`pipelineId`, `datasourceId`) — the binding is a bare id, so a deleted datasource stays bound; rebind or clear it (#879). |
 | `SCHEMA_CHANGE_SET_STATEMENT_LIMIT` | 400 | More statements than `ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS` allows (`limit`, `actual`) (#879). |
 | `SCHEMA_CHANGE_SET_STATEMENT_INVALID` | 422 | Statement `statementIndex` could not be parsed for a target datasource's engine; `detail` carries the parser's reason (#879). |
 | `SCHEMA_CHANGE_SET_STATEMENT_DML` | 422 | Statement `statementIndex` classifies as `SELECT` / `INSERT` / `UPDATE` / `DELETE` (`queryType`) — a change set carries schema statements only (#879). |

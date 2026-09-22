@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidE
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementLimitException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatusTransitionException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeStatementFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
@@ -96,6 +97,19 @@ class SchemaChangeExceptionHandlerTest {
         assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE",
                 "error.schema_change_set_no_target_datasource");
         assertThat(pd.getProperties()).containsEntry("pipelineId", pipelineId);
+    }
+
+    @Test
+    void targetDatasourceMissingIs409WithBothIds() {
+        var pipelineId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+
+        var pd = handler.handleTargetDatasourceMissing(
+                new SchemaChangeSetTargetDatasourceMissingException(pipelineId, datasourceId));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING",
+                "error.schema_change_set_target_datasource_missing");
+        assertThat(pd.getProperties()).containsEntry("pipelineId", pipelineId).containsEntry("datasourceId", datasourceId);
     }
 
     @Test
