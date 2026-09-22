@@ -97,8 +97,9 @@ roles these rows are display/catalog data only (runtime resolution answers from
 | `permission` | VARCHAR(100) NOT NULL — a `Permission` enum name |
 
 Catalog values added after `V114` are seeded for the system roles that hold them by their own
-one-file migration (`V134`, `V146`, `V148`, `V151`, `V171`, `V174` — the last two seed
-`SQL_REVIEW_MANAGE` (#861) and `SERVICE_ACCOUNT_MANAGE` (#868) for `ADMIN`);
+one-file migration (`V134`, `V146`, `V148`, `V151`, `V171`, `V174`, `V179` — the last three seed
+`SQL_REVIEW_MANAGE` (#861), `SERVICE_ACCOUNT_MANAGE` (#868) and `SCHEMA_CHANGE_MANAGE` (#878)
+for `ADMIN`);
 `SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
 
 ---
@@ -2960,6 +2961,168 @@ engine or a clean evaluation leaves no rows behind.
 > `idx_query_sql_review_findings_group_item` on `request_group_item_id`; reads order by
 > `(statement_index, line_number)`. The reviewer queue's `sql_review_blocking_count` is one
 > `GROUP BY query_request_id` over the page's ids with `severity = 'BLOCK'` bound as a parameter.
+
+---
+
+## Schema change governance (`schemachange`, #878 / epic #870)
+
+Governed DDL change sets: a set of statements authored once, reviewed once, and promoted along a
+`deploygov` pipeline's environment ladder as an ordered `requestgroups` request group, with a
+scheduled drift job that compares each environment's live schema against a baseline. #878 lands
+the storage and type foundation only (migration `V178` + the `V179` permission seed): five
+tables, the JPA entities and repositories and the declared-but-unimplemented `schemachange.api`
+contracts. Nothing reads or writes these tables until #879 (authoring), #880 (promotion) and #881
+(drift). Five PG enums, created in `V178`:
+
+- `schema_change_set_status` — `DRAFT` | `ACTIVE` | `ARCHIVED`.
+- `schema_change_promotion_status` — `PENDING` | `IN_REVIEW` | `APPROVED` (the three
+  **non-terminal** states) | `APPLIED` | `FAILED` | `PARTIALLY_APPLIED` | `CANCELLED` (terminal).
+  A promotion is one attempt to land a change set on one environment: it is created `PENDING`,
+  mirrors its request group through `IN_REVIEW` → `APPROVED`, and ends in one of four outcomes —
+  `APPLIED` (every statement ran), `PARTIALLY_APPLIED` (the first statements ran and a later one
+  failed, so the environment is half-migrated — there is **no rollback at all**, each statement
+  runs autocommit), `FAILED` (the first statement failed; nothing landed) or `CANCELLED` (the
+  group was rejected, timed out or was cancelled before anything ran). Only `APPLIED` counts
+  toward the ladder gate. `SchemaChangePromotionStatus.isTerminal()` is the one code-side
+  definition of the terminal set and mirrors the partial unique index below.
+- `schema_drift_baseline` — `PREVIOUS_ENVIRONMENT` (the adjacent lower environment in the ladder)
+  | `BASELINE_ENVIRONMENT` (an admin-designated reference environment) | `PROMOTION_SNAPSHOT`
+  (the schema introspected right after the last `APPLIED` promotion to this environment — the
+  mode that catches out-of-band changes).
+- `schema_drift_finding_kind` — `MISSING_IN_TARGET` | `UNEXPECTED_IN_TARGET` | `TYPE_MISMATCH` |
+  `NULLABILITY_MISMATCH` | `PRIMARY_KEY_MISMATCH` | `FOREIGN_KEY_MISMATCH`.
+- `schema_drift_finding_status` — `OPEN` | `ACKNOWLEDGED` | `RESOLVED`.
+
+Cross-module references (`organization_id`, `pipeline_id`, `environment_id`, `datasource_id`,
+`request_group_id`, `created_by`, `promoted_by`) are **bare UUID columns with no foreign key** —
+the `deploygov` convention (`V149`) — so a change-set row and its promotion history survive
+deletion of the pipeline, environment, datasource or user they name. Only the intra-module
+parent → child links carry a real `ON DELETE CASCADE`.
+
+### schema_change_sets
+
+One authored change set per pipeline. The statement list is mutable only while no promotion of
+the set has landed anything — every promotion row is absent, `FAILED` or `CANCELLED`; an
+`APPLIED` or `PARTIALLY_APPLIED` promotion freezes it (#879's freeze gate). `statements_checksum`
+is the SHA-256 over the ordered statement text: #879 writes it here at every statement change,
+and #880 copies the value onto each promotion row at submission as evidence of what was sent.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL — bare id, no FK |
+| `pipeline_id` | UUID NOT NULL — bare id → `deployment_pipelines`, no FK |
+| `name` | VARCHAR(255) NOT NULL |
+| `description` | TEXT NULL |
+| `status` | `schema_change_set_status` NOT NULL DEFAULT `'DRAFT'` |
+| `statements_checksum` | CHAR(64) NULL — SHA-256 hex of the ordered statements, maintained by the authoring service (#879); NULL for a set that has never had statements |
+| `created_by` | UUID NULL — bare user id, no FK |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> **Constraints:** `uq_schema_change_sets_org_pipeline_name` UNIQUE `(organization_id,
+> pipeline_id, name)` — its btree also serves the per-pipeline listing, so there is no separate
+> `(organization_id, pipeline_id)` index.
+
+### schema_change_set_statements
+
+The ordered statements of a change set. Replacement is delete-then-reinsert (the
+`request_group_items` precedent) through a bulk JPQL delete that runs immediately — a derived
+entity delete would be flushed *after* the new inserts and trip the unique constraint on the
+reused positions.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `change_set_id` | UUID NOT NULL, FK → `schema_change_sets` ON DELETE CASCADE |
+| `sequence_order` | INTEGER NOT NULL — zero-based position |
+| `sql_text` | TEXT NOT NULL — one statement, already parsed and classified by #879 |
+| `query_type` | `query_type` NOT NULL — the existing PG enum (`V6`); the authoring gate (#879) decides which classifications a change set may carry |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> **Constraints:** `uq_schema_change_set_statements_order` UNIQUE `(change_set_id,
+> sequence_order)`.
+
+### schema_change_set_promotions
+
+One row per attempt to promote a change set to one environment. The promotion is executed as a
+`requestgroups` group (`request_group_id`, set by #880) whose status is projected back onto
+`status`; `statements_checksum` is copied from the change set at submission as evidence of
+exactly what was sent; `schema_snapshot` is the post-apply introspection that the
+`PROMOTION_SNAPSHOT` drift baseline reads.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL — bare id, no FK |
+| `change_set_id` | UUID NOT NULL, FK → `schema_change_sets` ON DELETE CASCADE |
+| `environment_id` | UUID NOT NULL — bare id → `deployment_environments`, no FK |
+| `datasource_id` | UUID NOT NULL — the environment's bound datasource at submission time; bare id, no FK |
+| `request_group_id` | UUID NULL — bare id → `request_groups`, no FK; NULL until the group is created |
+| `status` | `schema_change_promotion_status` NOT NULL DEFAULT `'PENDING'` |
+| `statements_checksum` | CHAR(64) NOT NULL — the change set's checksum at submission |
+| `promoted_by` | UUID NULL — bare user id, no FK |
+| `submitted_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+| `applied_at` | TIMESTAMPTZ NULL — set on the transition to `APPLIED` |
+| `error_message` | TEXT NULL — the failing statement's error on `FAILED` / `PARTIALLY_APPLIED` |
+| `schema_snapshot` | JSONB NULL — the engine-neutral `DatabaseSchemaView` introspected after apply |
+| `snapshot_taken_at` | TIMESTAMPTZ NULL |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+
+> **Constraints:** partial unique index `uq_schema_change_set_promotions_open` on
+> `(change_set_id, environment_id) WHERE status IN ('PENDING', 'IN_REVIEW', 'APPROVED')` — at most
+> one non-terminal promotion per change set per environment; a new attempt is only possible once
+> the previous one reached a terminal state. Indexes `idx_schema_change_set_promotions_set_env`
+> on `(change_set_id, environment_id)` and `idx_schema_change_set_promotions_group` on
+> `(request_group_id)`.
+
+### schema_drift_scans
+
+One row per drift scan of one environment (#881 writes them). `applicable = false` records that
+the engine samples rather than reads a catalog (Redis, MongoDB) and was therefore not diffed;
+`partial = true` that the table cap or time budget cut the scan short.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL — bare id, no FK |
+| `pipeline_id` | UUID NOT NULL — bare id, no FK |
+| `environment_id` | UUID NOT NULL — bare id, no FK |
+| `datasource_id` | UUID NOT NULL — bare id, no FK |
+| `baseline` | `schema_drift_baseline` NOT NULL — the mode this scan diffed against |
+| `started_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+| `finished_at` | TIMESTAMPTZ NULL |
+| `applicable` | BOOLEAN NOT NULL DEFAULT true |
+| `findings_count` | INTEGER NOT NULL DEFAULT 0 |
+| `partial` | BOOLEAN NOT NULL DEFAULT false |
+| `error_message` | TEXT NULL — why the scan could not complete, or why no baseline resolved |
+
+> Index `idx_schema_drift_scans_org_env_started` on `(organization_id, environment_id,
+> started_at DESC)`.
+
+### schema_drift_findings
+
+One row per drifted object path, owned by the scan that last observed it. Drift **never writes**
+to the customer database — findings are recorded, acknowledged or resolved, never corrected.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL — bare id, no FK |
+| `scan_id` | UUID NOT NULL, FK → `schema_drift_scans` ON DELETE CASCADE |
+| `environment_id` | UUID NOT NULL — bare id, no FK (denormalised for the worklist filter) |
+| `object_path` | VARCHAR(1024) NOT NULL — `schema.table.column` (or `schema.table`) |
+| `finding_kind` | `schema_drift_finding_kind` NOT NULL |
+| `expected_value` | TEXT NULL — the baseline's value |
+| `actual_value` | TEXT NULL — the target's value |
+| `status` | `schema_drift_finding_status` NOT NULL DEFAULT `'OPEN'` |
+| `first_detected_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+| `last_seen_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+| `resolved_at` | TIMESTAMPTZ NULL |
+
+> Indexes `idx_schema_drift_findings_org_status_seen` on `(organization_id, status, last_seen_at
+> DESC)` — the open-findings worklist — and `idx_schema_drift_findings_scan` on `(scan_id)`, which
+> the cascade and the per-scan read both walk (Postgres does not index FK columns).
 
 ---
 
