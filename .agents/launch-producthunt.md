@@ -1,13 +1,13 @@
 # Product Hunt launch plan — AccessFlow
 
 Context: [`product-marketing.md`](product-marketing.md) · progress: [`marketing-log.md`](marketing-log.md)
-Written 2026-09-21. Starting position: new PH account, no supporter list, no email list, 6 GitHub stars, @AccessFlowIO under X's new-account reach limit.
+Written 2026-09-21; **launch postponed 2026-09-22, no new date set** — the plan below is written relative to **T-0**, the launch day, so it survives any date. Starting position: new PH account, no supporter list, no email list, 6 GitHub stars, @AccessFlowIO under X's new-account reach limit.
 
 ## Recommendation
 
-**Launch with v2.8.0 on Tuesday 2026-10-13** (the milestone's due date; Tue–Thu are the strongest PH days, and a launch goes live at 00:01 PT). That gives three weeks — the minimum to warm up a new PH account and build a supporter list from nothing.
+**Pick a Tuesday, three weeks out, that lands on or just after a release tag.** Tue–Thu are the strongest PH days; a launch goes live at 00:01 PT; and three weeks is the minimum to warm a new PH account and build a supporter list from nothing. The nearest milestones are 2.8.0 (due 2026-10-13), 2.9.0 (2026-10-27) and 2.10.0 (2026-11-10) — any of them works as the peg. The listing never has to name a version; it is "AccessFlow".
 
-v2.7.0 (due 2026-09-30) is nine days out: launching then means a cold account and no one lined up. If 2.8.0 slips, launch on the first Tuesday after the tag; the listing doesn't have to say "2.8", it's "AccessFlow".
+Do **not** launch inside a week of deciding: a cold account with nobody lined up is the one failure mode entirely within your control.
 
 **Honest expectation.** With zero network the realistic win is a polished listing, 50–150 upvotes, a dozen substantive comments, a permanent backlink and the first batch of customer language — not Product of the Day. Treat it as the first of many launches (every release is another one).
 
@@ -28,10 +28,12 @@ v2.7.0 (due 2026-09-30) is nine days out: launching then means a cold account an
 | Recording script (re-runnable against the e2e stack) | Done | `record-demo.mts` — needs `E2E_API_BASE=http://localhost:18080`, the WireMock override and the acme.io users; see marketing-log 2026-09-21 |
 | Hero/thumbnail 240×240 + gallery 1270×760 crops | TODO | crop from `og-image.png` (after the v2.6 regen) and the stills |
 | Video hosted (PH takes a YouTube/Loom link) | TODO | upload captioned MP4 to YouTube as unlisted, or add a voiceover to the clean cut first |
-| `website/og-image.png` says v2.4 | TODO | regenerate before launch — it's the image every share renders |
-| 2.8.0 changelog entry | ships with the release | `website/changelog/` via prep-gh-release |
+| `website/og-image.png` | **Done 2026-09-22** | re-cut at v2.6 (procedure: `website/README.md` → "Regenerating og-image.png"); re-cut again if the version pill or engine count moves before launch |
+| Changelog entry for the pegged release | ships with the release | `website/changelog/` via prep-gh-release |
 
-Known blemish in the video: the app header reads `v0.0.0` (e2e build) and the results show `display_name NULL` for the seeded users. Both are small; re-record after 2.8.0 if you want the real version string.
+Known blemish in the video and the two feature screenshots: the sidebar header reads `v0.0.0` (e2e build) and the demo results show `display_name NULL` for the seeded users. Both are small; re-capture against a versioned build if you want the real version string.
+
+Re-running the capture scripts needs three manual steps that are **not** in the scripts (see the marketing log entry for 2026-09-21): remap the backend to host port 18080 via a compose override, register the realistic WireMock AI mapping (the stock e2e mock answers "Mock analysis for AF-347"), and set the mock `ai_config`'s API key + name.
 
 ## Listing copy (draft — edit freely)
 
@@ -62,30 +64,30 @@ Known blemish in the video: the app header reads `v0.0.0` (e2e build) and the re
 
 ## Three-week plan
 
-### Week 1 · Sep 22 – 28 · warm up and set up
+### Week 1 (T-21 → T-15) · warm up and set up
 - **PH account (you, daily, 10 min):** complete profile (photo, bio, links), follow the Open Source / Developer Tools / Security topics, upvote 3–5 products you actually like and leave 1–2 substantive comments per day. New, inactive accounts are weighted down; three weeks of genuine activity is the fix.
 - **Set up the PH "Coming soon" teaser page** for AccessFlow so people can subscribe to be notified on launch day; link it from X and GitHub.
-- **X:** post the v2.6.0 release thread (unposted since Sep 15), pin the intro thread, start the 30-min daily engagement routine on the ~40 accounts listed this session.
-- **GitHub:** pinned Discussion "AccessFlow launches on Product Hunt Oct 13 — feedback wanted"; a `## Launching` note in the README is optional.
+- **X:** keep the 30-min daily engagement routine going on the ~40 accounts listed in the 2026-09-21 session. (The intro and v2.6.0 threads are already posted — see the marketing log.)
+- **GitHub:** pinned Discussion "AccessFlow launches on Product Hunt <date> — feedback wanted"; a `## Launching` note in the README is optional.
 - **Supporter list:** a spreadsheet of 30–50 real people you can DM (ex-colleagues, friends in platform/security, OSS maintainers you've helped, anyone who starred the repo). Column: name, channel, what they'd genuinely say.
 - **Hunter:** ask one person with PH history in devtools/security to hunt it. If nobody, self-hunt — it matters less than it used to.
-- Regenerate `og-image.png`; decide voiceover vs captions and upload the video to YouTube (unlisted).
+- Decide voiceover vs captions and upload the video to YouTube (unlisted).
 
-### Week 2 · Sep 29 – Oct 5 · line people up
-- **DM wave 1** (personal, one at a time): "We launch on PH on Oct 13. No upvote ask — I'd value an honest comment or a question. Here's the 50-second demo." Track replies.
+### Week 2 (T-14 → T-8) · line people up
+- **DM wave 1** (personal, one at a time): "We launch on PH on <date>. No upvote ask — I'd value an honest comment or a question. Here's the 50-second demo." Track replies.
 - Ask 5 people to be **first-hour commenters** with a real question each (gives you something to answer and signals a live maker).
 - Post in communities you're actually a member of (Slack/Discord groups, a newsletter you're in). Not Reddit/HN — those get their own launch the following week.
 - Draft the 2.8.0 blog/changelog copy so launch day has a "what's new" link.
 - Dry-run the listing in PH's draft mode; check every link, image size and the video embed.
 
-### Week 3 · Oct 6 – 12 · final approach
-- Teaser thread on X (Oct 8–9): the demo GIF/clip + "launching Tuesday".
-- Reminder DM wave 2 (Oct 12, short).
+### Week 3 (T-7 → T-1) · final approach
+- Teaser thread on X (T-5 / T-4): the demo clip + "launching Tuesday".
+- Reminder DM wave 2 (T-1, short).
 - Schedule the launch-day X posts; pre-write the maker comment and the ten answers.
-- Tag v2.8.0 (release runs via `prep-gh-release`); confirm `version.json` and the changelog anchor are live.
-- Sleep before 00:01 PT — that's 09:01 CEST if you're in Europe; plan the day accordingly.
+- Tag the pegged release (runs via `prep-gh-release`); confirm `version.json` and the changelog anchor are live.
+- Sleep before 00:01 PT — that is 09:01 CEST / 10:01 AMT; plan the day accordingly.
 
-## Launch day runbook (Tuesday 2026-10-13, times PT)
+## Launch day runbook (T-0, a Tuesday; times PT)
 
 | Time | Action |
 |---|---|
@@ -101,7 +103,7 @@ Known blemish in the video: the app header reads `v0.0.0` (e2e build) and the re
 
 Rules: never explicitly ask for upvotes (PH penalises it and so do people); don't buy or swap votes; don't launch Show HN the same day — do that the following Tuesday with the PH comments as ammunition.
 
-## Post-launch (Oct 14 – 20)
+## Post-launch (T+1 → T+7)
 - Reply to every remaining comment; DM thank-yous to everyone who showed up.
 - Add the PH badge to `website/` (a shared footer/nav element → site-wide mechanical edit) and a line in the README.
 - Harvest **customer language** from PH comments into `product-marketing.md` (Customer Language section — currently TBD).
