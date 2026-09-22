@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.schemachange.api;
 
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +24,7 @@ class SchemaChangeApiRecordsTest {
                 QueryType.DDL, Instant.EPOCH));
 
         var view = new SchemaChangeSetView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "n", null,
-                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, statements);
+                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, statements, null);
         statements.clear();
 
         assertThat(view.statements()).hasSize(1);
@@ -29,9 +32,41 @@ class SchemaChangeApiRecordsTest {
     }
 
     @Test
+    void changeSetViewCopiesReviewWarningsAndTreatsNullAsEmpty() {
+        var finding = new SchemaChangeStatementFinding(2, UUID.randomUUID(),
+                new SqlReviewFinding("ddl_statement", SqlReviewSeverity.WARN, 0, 1, Map.of("statement_type", "DROP")));
+        var warnings = new ArrayList<>(List.of(finding));
+
+        var view = new SchemaChangeSetView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "n", null,
+                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, null, warnings);
+        warnings.clear();
+
+        assertThat(view.reviewWarnings()).containsExactly(finding);
+        assertThatThrownBy(() -> view.reviewWarnings().clear()).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(new SchemaChangeSetView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "n", null,
+                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, null, null).reviewWarnings())
+                .isEmpty();
+    }
+
+    @Test
+    void statementFindingDelegatesBlockingAndRejectsNulls() {
+        var datasourceId = UUID.randomUUID();
+        var block = new SqlReviewFinding("drop_statement", SqlReviewSeverity.BLOCK, 0, null, Map.of());
+        var warn = new SqlReviewFinding("ddl_statement", SqlReviewSeverity.WARN, 0, null, Map.of());
+
+        assertThat(new SchemaChangeStatementFinding(0, datasourceId, block).isBlocking()).isTrue();
+        assertThat(new SchemaChangeStatementFinding(1, datasourceId, warn).isBlocking()).isFalse();
+        assertThat(new SchemaChangeStatementFinding(1, datasourceId, warn))
+                .extracting("statementIndex", "datasourceId", "finding").containsExactly(1, datasourceId, warn);
+        assertThatThrownBy(() -> new SchemaChangeStatementFinding(0, null, warn)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new SchemaChangeStatementFinding(0, datasourceId, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void changeSetViewTreatsNullStatementsAsEmpty() {
         var view = new SchemaChangeSetView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "n", null,
-                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, null);
+                SchemaChangeSetStatus.DRAFT, null, null, Instant.EPOCH, Instant.EPOCH, null, null);
 
         assertThat(view.statements()).isEmpty();
     }
@@ -63,7 +98,7 @@ class SchemaChangeApiRecordsTest {
         var finding = new SchemaDriftFindingView(id, orgId, refId, refId, "public.t.c",
                 SchemaDriftFindingKind.MISSING_IN_TARGET, "int", null, SchemaDriftFindingStatus.RESOLVED, at, at, at);
         var set = new SchemaChangeSetView(id, orgId, refId, "n", "d", SchemaChangeSetStatus.ARCHIVED, "b".repeat(64),
-                refId, at, at, List.of(statement));
+                refId, at, at, List.of(statement), null);
 
         assertThat(statement).extracting("id", "sequenceOrder", "sqlText", "queryType", "createdAt")
                 .containsExactly(id, 3, "CREATE TABLE t (id INT)", QueryType.DDL, at);

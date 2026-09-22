@@ -501,6 +501,11 @@ accessflow:
     # became releasable (HOLD freeze ended, scheduled_for arrived) and announces each one once via
     # DeploymentReleasableEvent. ShedLock makes this safe under horizontal scaling.
     release-check: ${ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK:PT1M}
+  schemachange:
+    # Hard cap on statements per schema change set (#879). Promotion (#880) analyses every statement
+    # as a request-group member, each re-introspecting the datasource, so the cap bounds LLM calls
+    # and customer-database round-trips per change set and per environment.
+    max-statements: ${ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS:50}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

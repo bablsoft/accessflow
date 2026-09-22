@@ -4855,6 +4855,75 @@ endpoint contract, row shape, and the full drift rules are in
   transaction and `Clock` as the tracker's `deployed_at`; pre-existing executed rows were
   backfilled with `COALESCE(outcome_reported_at, updated_at)`.
 
+## Schema change governance (schemachange module, epic #870)
+
+The **`schemachange/` module** authors governed DDL **change sets** once and (from #880) promotes
+them along a `deploygov` pipeline's environment ladder as ordered `requestgroups` groups, with a
+scheduled drift job (#881). The feature narrative — the DDL gate decision and its exclusions, the
+freeze predicate, the checksum contract — is
+[20-schema-change-governance.md](20-schema-change-governance.md); the tables are in
+[03-data-model.md](03-data-model.md#schema-change-governance-schemachange-878--epic-870); the
+endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-epic-870). This
+section records the engineering rules of the **authoring half (#879)**.
+
+**Layout.** `api/` (contracts, views, one exception per documented error code), `events/`
+(`@NamedInterface` marker only until #880), `internal/` — `config/SchemaChangeProperties`
+(`accessflow.schemachange.max-statements`, default 50), `DefaultSchemaChangeSetService`,
+`SchemaChangeStatementGate`, the JDK-only `SchemaChangeStatementScanner` and
+`SchemaChangeChecksum`, `SchemaChangeSetSpecifications`, `persistence/{entity,repo}` and `web/`.
+It depends on `core.api`, `deploygov.api` (`DeploymentPipelineLookupService.findPipeline` for the
+404-never-403 pipeline check, `DeploymentEnvironmentLookupService.listByPipeline` for the ladder),
+`proxy.api.QueryParser`, `sqlreview.api` and `security.api.JwtClaims`; nothing depends on it.
+
+**The gate (`SchemaChangeStatementGate.validate`).** Runs on `create` and `replaceStatements`,
+in statement order, and is the only place statements are judged: (1) targets = the distinct
+bound datasources of the pipeline's environments in ladder order, loaded with
+`DatasourceAdminService.getForAdmin` — none, with statements supplied, is
+`SchemaChangeSetNoTargetDatasourceException` (409); an empty list short-circuits before any
+lookup; (2) `SchemaChangeStatementScanner` refuses a leading `BEGIN` / `START TRANSACTION` and
+any non-trailing `;` outside literals, quoted identifiers, comments and `$tag$` blocks — before
+the parser, so the refusal names the change-set context; (3) `QueryParser.parse(text, dbType)`
+for every distinct target `DbType`, `InvalidSqlException` wrapped as
+`SchemaChangeSetStatementInvalidException.unparseable(index, ex.getMessage())` (the parser
+message is already locale-resolved at its throw site and becomes the `{1}` argument);
+(4) **gate rule (a)** — `SELECT` / `INSERT` / `UPDATE` / `DELETE` are refused, `DDL` *and* `OTHER`
+admitted; the stored `query_type` is the first target's classification; (5)
+`SqlReviewService.evaluate(org, datasourceId, text)` per target — every finding is wrapped as
+`SchemaChangeStatementFinding(statementIndex, datasourceId, finding)`, `BLOCK`s are aggregated
+across all statements and thrown once as `SchemaChangeSetStatementBlockedException`, `WARN`s are
+returned and ride on the view's `reviewWarnings` (write responses only; never persisted). The
+statement text handed on is the **normalised** form (`SchemaChangeChecksum.normalize`: trim, one
+trailing `;` off), which is what the rows store and what the checksum hashes.
+
+**Service rules (`DefaultSchemaChangeSetService`).** `(organizationId, changeSetId)` parameter
+order, `findByIdAndOrganizationId` → `SchemaChangeSetNotFoundException` for missing and foreign
+ids alike. `create`: pipeline lookup → cap → name pre-check → gate → `saveAndFlush` with the
+raced `uq_schema_change_sets_org_pipeline_name` violation translated from
+`DataIntegrityViolationException` (never `DuplicateKeyException` — Hibernate does not narrow it)
+→ statement rows `0..n-1`. `update`: name change re-checks the guard; `status` may only become
+`ARCHIVED` (equal is a no-op, anything else `SchemaChangeSetStatusTransitionException`) —
+`ACTIVE` belongs to #880. `replaceStatements`: `ARCHIVED` → `SchemaChangeSetArchivedException`;
+frozen (`existsByChangeSet_IdAndStatusIn(id, FREEZING_STATUSES)` where the set is every promotion
+status except `FAILED` / `CANCELLED`) → `SchemaChangeSetFrozenException`; cap; gate; the bulk
+JPQL `deleteAllByChangeSetId` (runs immediately, so reinserting the same `sequence_order` in the
+same transaction never trips the unique constraint) → reinsert → checksum (NULL when empty).
+`delete` applies the same freeze probe; the DB cascade removes statements and promotions. The
+listing goes through `JpaSpecificationExecutor` with `SchemaChangeSetSpecifications.forFilter`,
+which adds the `pipelineId` / `status` predicates only when set — the criteria-API shape that
+avoids the PG-enum "could not determine data type of parameter" failure of a nullable JPQL
+parameter — and batch-loads the page's statements in one query.
+
+**Web layer.** `SchemaChangeSetController` (`/api/v1/schema-change-sets`, class-level
+`@PreAuthorize("hasAuthority('PERM_SCHEMA_CHANGE_MANAGE')")`) and `SchemaChangeExceptionHandler`
+(`@Order(HIGHEST_PRECEDENCE)`) both inject `sqlreview.api.SqlReviewFindingRenderer` and render
+finding text with `LocaleContextHolder.getLocale()` — the locale is resolved at the web layer, the
+service stays locale-free, exactly as `SqlReviewController` does. `ProblemDetail` extension
+properties are camelCase (`statementIndex`, `queryType`, `limit` / `actual`, `currentStatus` /
+`requestedStatus`, `findings`); the four `Reason`s of `SchemaChangeSetStatementInvalidException`
+map to four distinct 422 codes. Bean Validation: name 3–255, description ≤ 2000, each `sql_text`
+non-blank and ≤ 100 000 chars; the statement *count* is the service-side cap because a `@Size`
+cannot read a property. No audit rows and no notifications until #882.
+
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`

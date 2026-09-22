@@ -276,7 +276,7 @@ accessflow/
 │   │   ├── apigov/           # API Access Governance — governed outbound REST/SOAP/GraphQL/gRPC calls
 │   │   ├── deploygov/        # Deployment approval governance — pipelines, the fail-closed CI gate, freeze windows
 │   │   ├── sqlreview/        # Deterministic SQL review rules — per-environment rulesets, BLOCK escalates and never rejects
-│   │   ├── schemachange/     # Governed DDL change sets — promotion along a pipeline's environment ladder + schema drift (persistence foundation, #878)
+│   │   ├── schemachange/     # Governed DDL change sets — authoring + the DDL validation gate (#879); promotion along a pipeline's environment ladder + schema drift follow
 │   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
@@ -318,6 +318,7 @@ accessflow/
 | [`docs/17-api-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md) | API Access Governance — govern outbound REST/SOAP/GraphQL/gRPC calls (connectors, schema ingestion, permissions; review/AI pipeline planned) |
 | [`docs/18-deployment-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md) | Deployment Approval Governance — gate CI/CD deployments: pipelines, environments, trigger grants, the fail-closed gate, freeze windows, break-glass, outcome reporting |
 | [`docs/19-sql-review.md`](https://github.com/bablsoft/accessflow/blob/main/docs/19-sql-review.md) | Deterministic SQL Review Rules — the named rule catalog, per-environment `OFF` / `WARN` / `BLOCK` severity, ruleset resolution, the submission chokepoint (`BLOCK` escalates, never rejects), live editor lint, documented exemptions |
+| [`docs/20-schema-change-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/20-schema-change-governance.md) | Schema Change Governance — governed DDL change sets authored once under a deployment pipeline: the "not DML" validation gate and what it admits, deterministic-SQL-review `BLOCK` refusing the save, freeze-on-promotion, the statements checksum, the statement cap; promotion and drift follow |
 | [Integrations &amp; boundaries](https://accessflow.io/docs/integrations/) | Every way into AccessFlow (web UI, REST API, MCP, Terraform, CI, SCIM, SSO) and what it is not — no ODBC/JDBC/ADO.NET driver, no database wire protocol, no hosted edition |
 | [Changelog](https://accessflow.io/changelog/) | Every stable release, newest first, one permanent link per version — what a self-hosted install's update hint opens |
 
