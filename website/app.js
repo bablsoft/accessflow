@@ -150,6 +150,58 @@
     if (bubble) bubble.setAttribute('theme', theme);
   }
 
+  // The bubble keeps its conversation in memory only (the widget's localStorage
+  // session store belongs to its sibling <chat-page-snippet>), and this is a
+  // multi-page site: every link — including the docs citations the assistant
+  // itself emits — would otherwise wipe the chat and close the window. So the
+  // page snapshots {open, messages} on the way out and puts them back on the way
+  // in. sessionStorage, not localStorage, on purpose: the conversation lives as
+  // long as the tab and never outlives it.
+  //
+  // The restore leans on three v0.0.43 members the widget does not document —
+  // toggleChat(), isExpanded and chatView.setMessages() (the view is only created
+  // on first expand, so the window has to be toggled open before it can be fed).
+  // Every access is guarded and the whole thing fails soft: a bump that renames
+  // any of them degrades to a fresh chat, never to a broken page. Re-verify after
+  // bumping (README → "The AI chat bubble").
+  var CHAT_STORAGE_KEY = 'accessflow.chat';
+  var CHAT_MAX_MESSAGES = 40;
+
+  function saveChat(bubble) {
+    try {
+      if (typeof bubble.getMessages !== 'function') return;
+      var messages = bubble.getMessages().filter(function (m) {
+        return m && typeof m.content === 'string' && m.content !== '';
+      }).slice(-CHAT_MAX_MESSAGES);
+      // A user turn whose reply was still streaming would be re-sent as context
+      // with no answer; drop it rather than persist half a conversation.
+      var last = messages[messages.length - 1];
+      if (last && last.role === 'user') messages.pop();
+      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+        open: !!bubble.isExpanded,
+        messages: messages,
+      }));
+    } catch (e) { /* private mode or storage full — ignore */ }
+  }
+
+  function restoreChat(bubble) {
+    var saved;
+    try { saved = JSON.parse(sessionStorage.getItem(CHAT_STORAGE_KEY)); } catch (e) { saved = null; }
+    if (!saved || (!saved.open && !(saved.messages && saved.messages.length))) return;
+    try {
+      if (typeof bubble.toggleChat !== 'function') return;
+      bubble.toggleChat();
+      var view = bubble.chatView;
+      if (view && typeof view.setMessages === 'function' && saved.messages && saved.messages.length) {
+        view.setMessages(saved.messages);
+      }
+      // Both toggles land in one frame, so a closed window never flashes open.
+      if (!saved.open) bubble.toggleChat();
+    } catch (e) {
+      try { sessionStorage.removeItem(CHAT_STORAGE_KEY); } catch (_) { /* ignore */ }
+    }
+  }
+
   function initChatBubble() {
     if (document.querySelector('chat-bubble-snippet')) return;
 
@@ -174,8 +226,15 @@
     if (window.customElements && customElements.whenDefined) {
       customElements.whenDefined('chat-bubble-snippet').then(function () {
         bubble.translations = translations;
+        restoreChat(bubble);
       });
     }
+
+    // Snapshot on every way off the page (pagehide covers links, back/forward and
+    // bfcache) and after each completed reply, so a crash mid-visit loses at most
+    // the turn in flight.
+    window.addEventListener('pagehide', function () { saveChat(bubble); });
+    bubble.addEventListener('message', function () { saveChat(bubble); });
 
     var script = document.createElement('script');
     script.type = 'module';

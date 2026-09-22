@@ -162,6 +162,17 @@ describe('website chat bubble', () => {
     expect(appJs).toContain("setAttribute('hide-branding', 'true')");
   });
 
+  it('persists the conversation per tab, never per browser', () => {
+    // The chat survives navigation through a snapshot in sessionStorage, which the
+    // browser drops with the tab. localStorage would outlive the visit; the only
+    // thing the site keeps there is the theme choice.
+    expect(appJs).toContain("sessionStorage.setItem(CHAT_STORAGE_KEY");
+    expect(appJs).toContain("CHAT_STORAGE_KEY = 'accessflow.chat'");
+    const localStorageKeys = [...appJs.matchAll(/localStorage\.\w+\((\w+)/g)].map((m) => m[1]);
+    expect(new Set(localStorageKeys)).toEqual(new Set(['STORAGE_KEY']));
+    expect(appJs).toContain("STORAGE_KEY = 'accessflow.theme'");
+  });
+
   it('keeps the widget themed from the site tokens', () => {
     const block = stylesCss.match(/chat-bubble-snippet \{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(block).not.toBe('');
