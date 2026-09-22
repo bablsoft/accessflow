@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Validates that V178 applies and every schemachange JPA entity maps to its table — entity ↔ DDL
  * parity under {@code ddl-auto=validate}, including the five new pg enum {@code columnDefinition}s
  * plus the shared {@code query_type}, the {@code char(64)} checksums and the jsonb snapshot, both
- * {@code ON DELETE CASCADE}s, the two plain unique constraints and the partial unique index that
+ * {@code ON DELETE CASCADE}s, the bulk statement delete, the two plain unique constraints and the partial unique index that
  * keeps at most one non-terminal promotion per change set and environment — booting the full
  * application context so the new module wires cleanly. Cross-module ids are bare UUIDs (no FK), so
  * no organization / pipeline / environment rows are needed.
@@ -191,15 +191,25 @@ class SchemaChangePersistenceIntegrationTest {
     }
 
     @Test
-    void derivedStatementDeleteClearsTheSet() {
+    void bulkStatementDeleteAllowsReinsertingTheSameOrderInOneTransaction() {
         var set = savedChangeSet();
         statementRepository.saveAndFlush(newStatement(set, 0));
+        statementRepository.saveAndFlush(newStatement(set, 1));
+        var replacement = newStatement(set, 0);
+        replacement.setSqlText("ALTER TABLE orders DROP COLUMN legacy_flag");
 
-        // A derived delete needs a transaction; the caller supplies it in production too.
-        new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> statementRepository.deleteAllByChangeSet_Id(set.getId()));
+        // The delete-then-reinsert the authoring service (#879) will do: the bulk delete must run
+        // ahead of the new INSERT or the reused sequence_order trips the unique constraint at flush.
+        var deleted = new TransactionTemplate(transactionManager).execute(status -> {
+            var count = statementRepository.deleteAllByChangeSetId(set.getId());
+            statementRepository.save(replacement);
+            return count;
+        });
 
-        assertThat(statementRepository.findAllByChangeSet_IdOrderBySequenceOrderAsc(set.getId())).isEmpty();
+        assertThat(deleted).isEqualTo(2);
+        assertThat(statementRepository.findAllByChangeSet_IdOrderBySequenceOrderAsc(set.getId()))
+                .singleElement()
+                .satisfies(s -> assertThat(s.getSqlText()).contains("DROP COLUMN"));
     }
 
     @Test

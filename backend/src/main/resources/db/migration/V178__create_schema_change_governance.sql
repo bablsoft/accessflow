@@ -39,8 +39,6 @@ CREATE TABLE schema_change_sets (
     CONSTRAINT uq_schema_change_sets_org_pipeline_name UNIQUE (organization_id, pipeline_id, name)
 );
 
-CREATE INDEX idx_schema_change_sets_org_pipeline ON schema_change_sets (organization_id, pipeline_id);
-
 CREATE TABLE schema_change_set_statements (
     id             UUID        PRIMARY KEY,
     change_set_id  UUID        NOT NULL REFERENCES schema_change_sets(id) ON DELETE CASCADE,
@@ -117,3 +115,5 @@ CREATE TABLE schema_drift_findings (
 );
 
 CREATE INDEX idx_schema_drift_findings_org_status_seen ON schema_drift_findings (organization_id, status, last_seen_at DESC);
+-- Postgres does not index FK columns: the scan cascade and the per-scan findings read both walk scan_id.
+CREATE INDEX idx_schema_drift_findings_scan            ON schema_drift_findings (scan_id);

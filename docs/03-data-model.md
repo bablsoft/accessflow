@@ -2970,19 +2970,21 @@ Governed DDL change sets: a set of statements authored once, reviewed once, and 
 `deploygov` pipeline's environment ladder as an ordered `requestgroups` request group, with a
 scheduled drift job that compares each environment's live schema against a baseline. #878 lands
 the storage and type foundation only (migration `V178` + the `V179` permission seed): five
-tables, five PG enums, the JPA entities and repositories and the declared-but-unimplemented
-`schemachange.api` contracts. Nothing reads or writes these tables until #879 (authoring), #880
-(promotion) and #881 (drift). Five PG enums, created in `V178`:
+tables, the JPA entities and repositories and the declared-but-unimplemented `schemachange.api`
+contracts. Nothing reads or writes these tables until #879 (authoring), #880 (promotion) and #881
+(drift). Five PG enums, created in `V178`:
 
 - `schema_change_set_status` — `DRAFT` | `ACTIVE` | `ARCHIVED`.
 - `schema_change_promotion_status` — `PENDING` | `IN_REVIEW` | `APPROVED` (the three
   **non-terminal** states) | `APPLIED` | `FAILED` | `PARTIALLY_APPLIED` | `CANCELLED` (terminal).
   A promotion is one attempt to land a change set on one environment: it is created `PENDING`,
-  mirrors its request group through `IN_REVIEW` → `APPROVED`, and ends `APPLIED` (every statement
-  ran), `PARTIALLY_APPLIED` (a statement failed part-way — there is **no rollback at all**, each
-  statement runs autocommit), `FAILED` or `CANCELLED` (the group was rejected, timed out or was
-  cancelled). Only `APPLIED` counts toward the ladder gate. `SchemaChangePromotionStatus.isTerminal()`
-  is the one code-side definition of the terminal set and mirrors the partial unique index below.
+  mirrors its request group through `IN_REVIEW` → `APPROVED`, and ends in one of four outcomes —
+  `APPLIED` (every statement ran), `PARTIALLY_APPLIED` (the first statements ran and a later one
+  failed, so the environment is half-migrated — there is **no rollback at all**, each statement
+  runs autocommit), `FAILED` (the first statement failed; nothing landed) or `CANCELLED` (the
+  group was rejected, timed out or was cancelled before anything ran). Only `APPLIED` counts
+  toward the ladder gate. `SchemaChangePromotionStatus.isTerminal()` is the one code-side
+  definition of the terminal set and mirrors the partial unique index below.
 - `schema_drift_baseline` — `PREVIOUS_ENVIRONMENT` (the adjacent lower environment in the ladder)
   | `BASELINE_ENVIRONMENT` (an admin-designated reference environment) | `PROMOTION_SNAPSHOT`
   (the schema introspected right after the last `APPLIED` promotion to this environment — the
@@ -2999,9 +3001,11 @@ parent → child links carry a real `ON DELETE CASCADE`.
 
 ### schema_change_sets
 
-One authored change set per pipeline. The statement list is mutable while every promotion of the
-set is absent or terminal-without-apply; once promoted, `statements_checksum` (SHA-256 over the
-ordered statement text, written by #879) freezes it.
+One authored change set per pipeline. The statement list is mutable only while no promotion of
+the set has landed anything — every promotion row is absent, `FAILED` or `CANCELLED`; an
+`APPLIED` or `PARTIALLY_APPLIED` promotion freezes it (#879's freeze gate). `statements_checksum`
+is the SHA-256 over the ordered statement text: #879 writes it here at every statement change,
+and #880 copies the value onto each promotion row at submission as evidence of what was sent.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -3011,20 +3015,21 @@ ordered statement text, written by #879) freezes it.
 | `name` | VARCHAR(255) NOT NULL |
 | `description` | TEXT NULL |
 | `status` | `schema_change_set_status` NOT NULL DEFAULT `'DRAFT'` |
-| `statements_checksum` | CHAR(64) NULL — SHA-256 hex of the ordered statements; NULL until #879 computes it |
+| `statements_checksum` | CHAR(64) NULL — SHA-256 hex of the ordered statements, maintained by the authoring service (#879); NULL for a set that has never had statements |
 | `created_by` | UUID NULL — bare user id, no FK |
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 
 > **Constraints:** `uq_schema_change_sets_org_pipeline_name` UNIQUE `(organization_id,
-> pipeline_id, name)`; index `idx_schema_change_sets_org_pipeline` on `(organization_id,
-> pipeline_id)`.
+> pipeline_id, name)` — its btree also serves the per-pipeline listing, so there is no separate
+> `(organization_id, pipeline_id)` index.
 
 ### schema_change_set_statements
 
 The ordered statements of a change set. Replacement is delete-then-reinsert (the
-`request_group_items` precedent), which also sidesteps the reordering problem of the unique
-constraint.
+`request_group_items` precedent) through a bulk JPQL delete that runs immediately — a derived
+entity delete would be flushed *after* the new inserts and trip the unique constraint on the
+reused positions.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -3115,8 +3120,9 @@ to the customer database — findings are recorded, acknowledged or resolved, ne
 | `last_seen_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 | `resolved_at` | TIMESTAMPTZ NULL |
 
-> Index `idx_schema_drift_findings_org_status_seen` on `(organization_id, status, last_seen_at
-> DESC)` — the open-findings worklist.
+> Indexes `idx_schema_drift_findings_org_status_seen` on `(organization_id, status, last_seen_at
+> DESC)` — the open-findings worklist — and `idx_schema_drift_findings_scan` on `(scan_id)`, which
+> the cascade and the per-scan read both walk (Postgres does not index FK columns).
 
 ---
 

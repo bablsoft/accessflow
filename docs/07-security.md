@@ -460,7 +460,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
 | Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
 | Manage service accounts (`SERVICE_ACCOUNT_MANAGE`, #868) | — | — | — | ✓ | — |
-| Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, #878) | — | — | — | ✓ | — |
+| Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, seeded by #878; gates nothing until #879–#881 add the endpoints) | — | — | — | ✓ | — |
 | Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
