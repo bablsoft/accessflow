@@ -40,6 +40,15 @@ const inlineScripts = (html: string): string[] =>
 
 const sha256 = (body: string) => `sha256-${createHash('sha256').update(body).digest('base64')}`;
 
+/** The Cloudflare AI Search instance behind the chat bubble (custom domain). */
+const CHAT_ORIGIN = 'https://chat.accessflow.io';
+
+const cspDirective = (csp: string) => (name: string) =>
+  csp
+    .split(';')
+    .map((d) => d.trim())
+    .find((d) => d.startsWith(`${name} `)) ?? '';
+
 describe('website CSP', () => {
   const headers = readFileSync(path.join(website, '_headers'), 'utf8');
   const htmlFiles = readHtmlFiles();
@@ -71,23 +80,31 @@ describe('website CSP', () => {
     expect(declared.filter((h) => !live.has(h))).toEqual([]);
   });
 
-  it('permits exactly one third party, and only where it is needed', () => {
+  it('permits exactly two third parties, and only where each is needed', () => {
     // The site was zero-third-party until Cloudflare Web Analytics. That is enabled
     // with AUTOMATIC injection, so the beacon <script src> is added at the edge and
     // exists in no file in this repo — which is how script-src silently blocked it
-    // for its whole life. Pinning the origin list here means the next third party
-    // has to be an explicit edit to this test, not a quiet addition to _headers.
-    const ALLOWED = ['https://static.cloudflareinsights.com', 'https://cloudflareinsights.com'];
+    // for its whole life. The second is the Cloudflare AI Search instance behind the
+    // chat bubble app.js injects (see the 'website chat bubble' block below).
+    // Pinning the origin list here means the next third party has to be an explicit
+    // edit to this test, not a quiet addition to _headers.
+    const ALLOWED = [
+      'https://static.cloudflareinsights.com',
+      'https://cloudflareinsights.com',
+      CHAT_ORIGIN,
+    ];
     const csp = headers.match(/Content-Security-Policy:\s*(.+)/)?.[1] ?? '';
     const origins = [...csp.matchAll(/https?:\/\/[^\s;']+/g)].map((m) => m[0]);
     expect([...new Set(origins)].sort(), 'unexpected third-party origin in CSP').toEqual(
       [...ALLOWED].sort(),
     );
-    // The beacon loads as a script and posts its payload; nothing else is opened up.
-    const directive = (name: string) =>
-      csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? '';
+    // The beacon loads as a script and posts its payload; the chat widget loads as a
+    // script and streams its completions; nothing else is opened up.
+    const directive = cspDirective(csp);
     expect(directive('script-src')).toContain('https://static.cloudflareinsights.com');
     expect(directive('connect-src')).toContain('https://cloudflareinsights.com');
+    expect(directive('script-src')).toContain(CHAT_ORIGIN);
+    expect(directive('connect-src')).toContain(CHAT_ORIGIN);
     for (const d of ['img-src', 'font-src', 'style-src', 'default-src', 'base-uri', 'form-action']) {
       expect(directive(d), `${d} must stay first-party`).not.toMatch(/https?:\/\//);
     }
@@ -104,5 +121,61 @@ describe('website CSP', () => {
     // Scripts must never fall back to blanket inline execution.
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-eval'/);
+  });
+});
+
+describe('website chat bubble', () => {
+  // website/ has no build step, so the chat bubble is injected by app.js on every
+  // page rather than authored into 59 hand-copied HTML files. That makes app.js the
+  // only place the widget's origin, version pin and attributes live — and the only
+  // place a drift away from the CSP above could start. These checks tie the two
+  // files together and keep the user-facing contract (branding hidden, site-token
+  // theming) from silently disappearing.
+  const headers = readFileSync(path.join(website, '_headers'), 'utf8');
+  const csp = headers.match(/Content-Security-Policy:\s*(.+)/)?.[1] ?? '';
+  const directive = cspDirective(csp);
+  const appJs = readFileSync(path.join(website, 'app.js'), 'utf8');
+  const stylesCss = readFileSync(path.join(website, 'styles.css'), 'utf8');
+
+  it('loads one version-pinned chat bundle from an origin script-src allows', () => {
+    const scripts = [...appJs.matchAll(/https:\/\/[^'"\s]+search-snippet[^'"\s]*\.js/g)].map(
+      (m) => m[0],
+    );
+    expect(scripts).toHaveLength(1);
+    const url = new URL(scripts[0]!);
+    expect(url.origin).toBe(CHAT_ORIGIN);
+    // The unversioned root path is what the upstream README shows, but the custom
+    // domain answers it with 401; only the immutable /assets/v<x.y.z>/ files exist.
+    expect(url.pathname).toMatch(/^\/assets\/v\d+\.\d+\.\d+\/search-snippet\.chat\.es\.js$/);
+    expect(directive('script-src')).toContain(url.origin);
+  });
+
+  it('points api-url at an origin connect-src allows', () => {
+    const apiUrl = appJs.match(/CHAT_API = '([^']+)'/)?.[1];
+    expect(apiUrl).toBeDefined();
+    expect(new URL(apiUrl!).origin).toBe(CHAT_ORIGIN);
+    expect(directive('connect-src')).toContain(CHAT_ORIGIN);
+    expect(appJs).toContain("setAttribute('api-url', CHAT_API)");
+  });
+
+  it('hides the vendor branding', () => {
+    expect(appJs).toContain("setAttribute('hide-branding', 'true')");
+  });
+
+  it('keeps the widget themed from the site tokens', () => {
+    const block = stylesCss.match(/chat-bubble-snippet \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(block).not.toBe('');
+    for (const prop of [
+      '--search-snippet-primary-color: var(--accent)',
+      '--search-snippet-background: var(--bg-1)',
+      '--search-snippet-text-color: var(--fg)',
+      '--search-snippet-font-family: var(--sans)',
+    ]) {
+      expect(block).toContain(prop);
+    }
+    // app.js mirrors the site theme onto the element; styles.css keys color-scheme
+    // off that same attribute.
+    expect(appJs).toContain("setAttribute('theme', resolveTheme())");
+    expect(stylesCss).toContain('chat-bubble-snippet[theme="dark"] { color-scheme: dark; }');
   });
 });

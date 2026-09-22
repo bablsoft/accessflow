@@ -138,6 +138,51 @@
   }
 }
 
+/* AI chat bubble — the Cloudflare AI Search <chat-bubble-snippet> web component that
+   app.js injects on every page. It renders in a shadow DOM and only knows the
+   --search-snippet-* / --chat-bubble-* custom properties, so this block is the whole
+   bridge from the site tokens above: every var() here re-resolves on the theme
+   toggle, and the widget's own dark palette (which it only applies under the OS
+   prefers-color-scheme, never from its theme attribute) is overridden outright.
+   The two literals are the site's own: #0A0D11 is the .btn-primary text-on-accent
+   colour, the oklch is .btn-primary:hover. */
+
+chat-bubble-snippet {
+  --search-snippet-primary-color: var(--accent);
+  --search-snippet-primary-hover: oklch(0.88 0.17 145);
+  --search-snippet-background: var(--bg-1);
+  --search-snippet-surface: var(--bg-2);
+  --search-snippet-hover-background: var(--bg-3);
+  --search-snippet-text-color: var(--fg);
+  --search-snippet-text-secondary: var(--fg-mute);
+  --search-snippet-text-description: var(--fg-dim);
+  --search-snippet-border-color: var(--line-strong);
+  --search-snippet-focus-ring: var(--accent-bg);
+  --search-snippet-error-color: var(--danger);
+  --search-snippet-warning-color: var(--warn);
+  --search-snippet-success-color: var(--accent);
+  --search-snippet-user-message-bg: var(--accent);
+  --search-snippet-user-message-text: #0A0D11;
+  --search-snippet-assistant-message-bg: var(--bg-2);
+  --search-snippet-assistant-message-text: var(--fg);
+  --search-snippet-font-family: var(--sans);
+  --search-snippet-font-family-mono: var(--mono);
+  --search-snippet-border-radius: var(--radius-lg);
+  --search-snippet-shadow: var(--shadow-soft);
+  --search-snippet-shadow-lg: var(--shadow-strong);
+  --chat-bubble-window-shadow: var(--shadow-strong);
+  --chat-bubble-button-shadow: var(--shadow-soft);
+  --chat-bubble-button-icon-color: #0A0D11;
+  --chat-bubble-button-radius: var(--radius-lg);
+  --chat-bubble-button-size: 52px;
+  --chat-bubble-button-icon-size: 24px;
+  --chat-bubble-button-z-index: 60; /* above the sticky .nav (50) */
+}
+/* The widget sets color-scheme from its theme attribute only for "light"; mirror
+   both so native scrollbars and form controls inside the window match the site. */
+chat-bubble-snippet[theme="dark"] { color-scheme: dark; }
+chat-bubble-snippet[theme="light"] { color-scheme: light; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {

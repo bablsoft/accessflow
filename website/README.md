@@ -139,7 +139,7 @@ the right.
 website/
 ├── index.html       # Landing page — a hub of teasers linking to the topic pages
 ├── styles.css       # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
-├── app.js           # Vanilla JS: install tabs, copy buttons, how-it-works stepper
+├── app.js           # Vanilla JS: install tabs, copy buttons, how-it-works stepper, theme toggle, AI chat bubble injection
 ├── favicon.svg      # Brand mark (shared with frontend/public/favicon.svg)
 ├── favicon.ico      # 32+16 px raster fallback — browsers and crawlers request it unprompted
 ├── apple-touch-icon.png # 180 px, from logo.png — iOS ignores an SVG touch icon
@@ -266,8 +266,46 @@ Each page marks its own nav item with `aria-current="page"` and `nav-link-active
 **longest URL prefix**, so the three `/features/*` spokes light up `Features` and every
 `/docs/**` chapter lights up `Docs`. `/` and `/ai-agents/` are not nav items and mark nothing.
 
-No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
-at runtime.**
+No frameworks, no bundlers, no CDN runtime — **the only thing fetched from a third-party
+origin at runtime is the AI chat bubble below**, from `chat.accessflow.io`, and it is loaded
+after `DOMContentLoaded` so it never sits on the critical path.
+
+### The AI chat bubble
+
+Every page carries a floating chat bubble (bottom-right) backed by a **Cloudflare AI Search**
+instance that has been fed the sitemap plus the design docs, exposed on the custom domain
+`https://chat.accessflow.io`. It is Cloudflare's own
+[`<chat-bubble-snippet>`](https://github.com/cloudflare/ai-search-snippet) web component —
+nothing in this repo renders a chat UI.
+
+It is **injected by `initChatBubble()` in `app.js`, not authored into the markup**, for the
+same reason the nav has no dropdown: the site has no build step, every page hand-copies its
+`<head>` and footer, and `websitePages.test.ts` pins the footer byte-identical across all of
+them. One function holds the version pin (`/assets/v<x.y.z>/search-snippet.chat.es.js` — the
+unversioned root path the upstream README shows answers 401 on the custom domain), the
+`api-url`, `hide-branding="true"`, the placeholder and the `translations` copy. The element's
+`theme` attribute mirrors the resolved site theme and the toggle keeps it in sync.
+
+The colours are not the widget's. The component renders in a shadow DOM and only reads its
+own `--search-snippet-*` / `--chat-bubble-*` custom properties, so the
+`chat-bubble-snippet { … }` block in `styles.css` maps every one of them onto the site tokens
+(`--accent`, `--bg-1`, `--fg`, `--sans`, `--radius-lg`, …). That block is the whole bridge:
+because the values are `var()` references they re-resolve on the theme toggle for free, and it
+overrides the widget's built-in dark palette outright — which matters, since the widget only
+ever applies that palette from the OS `prefers-color-scheme`, never from its `theme`
+attribute. Restyle the site and the bubble follows; restyle the bubble in that block only.
+
+Visitor privacy, stated plainly: **a question typed into the bubble is sent to Cloudflare AI
+Search** (the streamed `POST /snippet-chat-completions` on `chat.accessflow.io`) and answered
+from the indexed docs. Nothing else leaves the page — the widget fetches no images or fonts,
+and its "Powered by" footer is hidden.
+
+To bump the widget, change the `/assets/vX.Y.Z/` segment of `CHAT_SCRIPT` in `app.js`,
+`curl -I` the new URL to confirm the custom domain serves it (the `@cloudflare/ai-search-snippet`
+npm version is the one to look for), and run the frontend website tests:
+`websiteCsp.test.ts` checks that the origin `app.js` loads from and posts to is the one the
+CSP in `_headers` allows, that the path is version-pinned, that branding stays hidden and that
+the `styles.css` token bridge is still there.
 
 Geist and Geist Mono (SIL OFL 1.1) are vendored in `fonts/` rather than loaded from Google
 Fonts, which removes two DNS+TLS handshakes from the critical path before first paint and
@@ -552,10 +590,12 @@ would stop it uploading and silently disable every rule.
 
 ### Third parties in the CSP
 
-The site talks to exactly **two** third-party origins, both Cloudflare Web Analytics:
+The site talks to exactly **three** third-party origins. Two are Cloudflare Web Analytics:
 `https://static.cloudflareinsights.com` in `script-src` and `https://cloudflareinsights.com`
-in `connect-src`. Everything else — fonts, images, scripts, styles — is first-party, which is
-why `default-src` is `'self'`.
+in `connect-src`. The third is the AI chat bubble's Cloudflare AI Search instance,
+`https://chat.accessflow.io`, in `script-src` (the version-pinned component bundle) and
+`connect-src` (the streamed chat completions) — see "The AI chat bubble" above. Everything
+else — fonts, images, styles — is first-party, which is why `default-src` is `'self'`.
 
 Web Analytics is enabled in the Cloudflare dashboard with **automatic injection**: the beacon
 `<script src>` is added at the edge and appears in no file in this repo. It is also only
@@ -565,10 +605,12 @@ no trace of it and looks byte-identical to the source here. That combination hid
 Web Analytics had never once received a hit. `curl` of the beacon URL returns 200; the same
 URL inside the page recorded as a blocked request.
 
-If you ever disable Web Analytics, remove both origins and the `ALLOWED` list in
-[`websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts) — which pins the
-permitted origin list precisely so a third party cannot drift in unnoticed the way this one
-drifted out.
+If you ever disable Web Analytics, remove both origins from `_headers` and from the `ALLOWED`
+list in [`websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts) — which
+pins the permitted origin list precisely so a third party cannot drift in unnoticed the way
+this one drifted out. Removing the chat bubble is the same edit plus deleting
+`initChatBubble()` from `app.js` and the `chat-bubble-snippet` block from `styles.css`; the
+`website chat bubble` tests in that file will point at whichever half was forgotten.
 
 ### Regenerating the CSP script hash
 
