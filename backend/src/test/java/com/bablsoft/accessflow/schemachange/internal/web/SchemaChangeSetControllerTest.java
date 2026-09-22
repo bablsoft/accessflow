@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -58,6 +59,12 @@ class SchemaChangeSetControllerTest {
                         + ":" + ((Locale) inv.getArgument(1)).toLanguageTag());
         controller = new SchemaChangeSetController(service, renderer);
         LocaleContextHolder.setLocale(Locale.GERMANY);
+    }
+
+    /** The holder is thread-local and surefire runs every class in one fork — a leaked locale breaks unrelated tests. */
+    @AfterEach
+    void resetLocale() {
+        LocaleContextHolder.resetLocaleContext();
     }
 
     @Test
