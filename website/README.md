@@ -295,6 +295,15 @@ overrides the widget's built-in dark palette outright — which matters, since t
 ever applies that palette from the OS `prefers-color-scheme`, never from its `theme`
 attribute. Restyle the site and the bubble follows; restyle the bubble in that block only.
 
+The conversation survives navigation. The widget keeps its messages in memory only, and this
+is a multi-page site — every link, including the docs citations the assistant itself emits,
+would otherwise wipe the chat and close the window. So `app.js` snapshots the messages and the
+open/closed state into **`sessionStorage`** (`accessflow.chat`) on `pagehide` and after each
+reply, and restores them once the element is defined on the next page. Per tab, gone when the
+tab closes, never sent anywhere. The restore leans on three members v0.0.43 does not document
+— `toggleChat()`, `isExpanded` and `chatView.setMessages()` — behind guards that degrade to a
+fresh chat, never to a broken page.
+
 Visitor privacy, stated plainly: **a question typed into the bubble is sent to Cloudflare AI
 Search** (the streamed `POST /snippet-chat-completions` on `chat.accessflow.io`) and answered
 from the indexed docs. Nothing else leaves the page — the widget fetches no images or fonts,
@@ -305,7 +314,10 @@ To bump the widget, change the `/assets/vX.Y.Z/` segment of `CHAT_SCRIPT` in `ap
 npm version is the one to look for), and run the frontend website tests:
 `websiteCsp.test.ts` checks that the origin `app.js` loads from and posts to is the one the
 CSP in `_headers` allows, that the path is version-pinned, that branding stays hidden and that
-the `styles.css` token bridge is still there.
+the `styles.css` token bridge is still there. Then check the one thing no test can: open a
+chat, ask something, click a citation link in the answer, and confirm the window reopens with
+the same turns — that is the undocumented-member restore above, and a rename upstream turns
+it silently into a fresh chat.
 
 Geist and Geist Mono (SIL OFL 1.1) are vendored in `fonts/` rather than loaded from Google
 Fonts, which removes two DNS+TLS handshakes from the critical path before first paint and
