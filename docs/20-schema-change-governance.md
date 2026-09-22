@@ -11,21 +11,21 @@ that already succeeded in staging — followed by a scheduled **drift** job that
 environment's live schema has wandered away from where it is supposed to be.
 
 It lives in the `schemachange` Spring Modulith module (`com.bablsoft.accessflow.schemachange`),
-laid out like `deploygov`. It depends on `core`, `deploygov`, `proxy`, `sqlreview` and `security`
-(for `JwtClaims`) through their `api/` packages; nothing depends on it yet, so the graph stays
-acyclic. It composes two
+laid out like `deploygov`. It depends on `core`, `deploygov`, `proxy`, `sqlreview`, `requestgroups`,
+`audit` and `security` (for `JwtClaims`) through their `api/` and `events/` packages; nothing
+depends on it yet, so the graph stays acyclic. It composes two
 primitives the codebase already has: **deployment environments** (the ordered promotion targets
-under a pipeline, now each optionally bound to the datasource its schema changes land on, #877)
+under a pipeline, each optionally bound to the datasource its schema changes land on, #877)
 and **request groups** (a bundle of ordered members with aggregated AI analysis, union-of-approvers
-review and an ordered executor — the shape a promotion will take in #880).
+review and an ordered executor — the shape a promotion takes, #880).
 
-> **Delivery status.** In progress for the v2.7 milestone: the persistence foundation (#878) and
-> the **authoring half** — change-set CRUD, the DDL validation gate, freeze-on-promotion and the
-> `/schema-change-sets` REST surface (#879) — are on `main`. Promotion with the ladder gate,
-> freeze-window check and request-group wiring (#880), the schema drift job (#881), notification
-> and audit fan-out (#882), the web UI (#883) and the website sweep (#884) follow. Until #880 lands
-> nothing sets a change set `ACTIVE`, nothing writes a promotion row, and the freeze described
-> below can only be triggered by rows written by hand.
+> **Delivery status.** In progress for the v2.7 milestone: the persistence foundation (#878), the
+> **authoring half** — change-set CRUD, the DDL validation gate, freeze-on-promotion and the
+> `/schema-change-sets` REST surface (#879) — and **promotion** with the ladder gate, freeze-window
+> check, request-group wiring and the post-apply snapshot (#880) are on `main`. The schema drift
+> job (#881), the notification fan-out (#882), the web UI (#883) and the website sweep (#884)
+> follow. Promotion audit is in place; notifications are not, so a promotion waiting for approval
+> is currently silent.
 
 > **The one sentence to remember.** A change set is a *set of schema statements*, not a
 > transaction: each statement runs on its own, autocommit, so there is **no rollback at all** —
@@ -40,16 +40,20 @@ review and an ordered executor — the shape a promotion will take in #880).
 com.bablsoft.accessflow.schemachange/
 ├── api/
 │   ├── SchemaChangeSetService            # list / get / create / update / replaceStatements / delete (#879)
-│   ├── SchemaChangePromotionService      # declared; implemented by #880
+│   ├── SchemaChangePromotionService      # promote / get / listForChangeSet / cancel (#880)
 │   ├── SchemaDriftService                # declared; implemented by #881
 │   ├── SchemaChangeSetView, SchemaChangeSetStatementView, SchemaChangeStatementFinding
 │   ├── Create/UpdateSchemaChangeSetCommand, SchemaChangeSetStatementInput, SchemaChangeSetListFilter
 │   ├── SchemaChangeSetStatus, SchemaChangePromotionStatus, SchemaDrift* enums
 │   └── SchemaChangeException + one subclass per documented error code
-├── events/                               # @NamedInterface marker only until #880
+├── events/SchemaChangePromotionStatusChangedEvent   # every promotion transition (#880)
 └── internal/
     ├── config/SchemaChangeProperties     # accessflow.schemachange.max-statements
     ├── DefaultSchemaChangeSetService     # org-scoped CRUD, freeze + archive guards, checksum
+    ├── DefaultSchemaChangePromotionService         # the promotion gate + request-group wiring (§6)
+    ├── SchemaChangePromotionStatusListener         # projects the group's status back (§6)
+    ├── SchemaChangePromotionStatusMapper           # the status table + the monotonic guard
+    ├── SchemaChangeAuditWriter           # swallowing audit wrapper, the DeploygovAuditWriter shape
     ├── SchemaChangeStatementGate         # the validation gate (§2)
     ├── SchemaChangeStatementScanner      # JDK-only envelope / multi-statement pre-checks
     ├── SchemaChangeChecksum              # SHA-256 over the ordered, normalised statements
@@ -76,7 +80,7 @@ reads as `404`, never as `403`.
 | Status | Meaning | Who sets it |
 |---|---|---|
 | `DRAFT` | Being authored. | `POST` creates here. |
-| `ACTIVE` | Promoted at least once. | The promotion service (#880) — never the update endpoint. |
+| `ACTIVE` | Promoted at least once. | The promotion service (§6) — never the update endpoint. |
 | `ARCHIVED` | Retired; can no longer be promoted or have its statements edited. | `PUT /{id}` with `status: ARCHIVED`. |
 
 `PUT /{id}` updates `name` / `description` / `status` with null-means-unchanged semantics. The
@@ -214,11 +218,162 @@ camelCase like every other module's. The listing filter is a criteria-API `Speci
 adds the `status` predicate only when set — a JPQL `(:status is null or s.status = :status)`
 against the PG enum column fails with "could not determine data type of parameter".
 
+## 6. Promotion (#880)
+
+A **promotion** is one attempt to land a change set on one environment. It is created as a
+`schema_change_set_promotions` row and executed as a `requestgroups` group — one `QUERY` member
+per statement, in authored order, `continue_on_error = false` — which is what buys per-statement
+AI analysis, the union-of-approvers review, the ordered executor and the existing audit trail
+with no new member kind. The REST surface is
+[04-api-spec.md → Promotions](04-api-spec.md#promotions-880).
+
+### The gate
+
+Twelve checks, in a fixed order, every one failing closed; nothing is written until all of them
+pass. The order is pinned by `DefaultSchemaChangePromotionServiceTest` because it is observable —
+a caller learns which check refused first.
+
+1. **Change set** — resolved org-scoped: a foreign id is `404`, never `403`.
+2. **Not archived** — `409 SCHEMA_CHANGE_SET_ARCHIVED`.
+3. **Has statements** — `409 SCHEMA_CHANGE_SET_EMPTY`. An empty set has a `null` checksum and
+   nothing to attest, and `statements_checksum` on the promotion row is `NOT NULL`.
+4. **Environment on this pipeline** — through `DeploymentPipelineLookupService.findEnvironment`,
+   so an environment of another pipeline or another organization is `404`.
+5. **Environment binds a datasource** — a deploy-only rung is `422`; there is nothing to apply to.
+6. **That datasource still exists** — the binding is a bare id with no FK, so a deleted datasource
+   stays bound and is refused, never skipped.
+7. **`can_ddl` on the target, for the promoting user** — see below.
+8. **The ladder is a ladder** — the pipeline's `sort_order` values must be distinct. #877 made the
+   column unique, but the gate asserts it anyway: over an all-equal column "every lower-ordered
+   environment" is the empty set and the next check would pass vacuously, which is the one failure
+   mode this feature must not have.
+9. **The ladder gate** — every environment with a lower `sort_order` **that binds a datasource**
+   must record an `APPLIED` promotion of this change set. Unbound rungs are skipped (they are
+   deploy-only); the first blocking rung is named in the refusal. `APPLIED` is the only status
+   that counts.
+10. **Freeze windows** — through `DeploymentFreezeLookupService`. Both `HOLD` and `REJECT` refuse a
+    promotion, which is also what makes it fail closed: an unevaluable window degrades to `HOLD`.
+11. **Review is enforceable** — see below.
+12. **No open promotion** for this (change set, environment) pair. Pre-checked and, when two
+    promoters race, translated from the `uq_schema_change_set_promotions_open` partial unique
+    index to the same `409`. The row is flushed *before* the group is created, so a lost race
+    never leaves an orphan request group.
+
+### `can_ddl`, and why the group is created as an admin
+
+Promotion requires an active `can_ddl` grant on the target datasource for the promoting user —
+**for everyone, including organization admins**. It is checked here, against
+`core.api.DatasourceUserPermissionLookupService.findFor`, which is a pure grant merge with no
+admin concept.
+
+The group is then created and submitted with `admin = true`, deliberately.
+`requestgroups`' own per-member check exempts `QUERY_ADMIN` holders — the bypass this module must
+not inherit — and, for a statement classified `OTHER` (`GRANT`, `COMMENT ON`,
+`ALTER TYPE … ADD VALUE`), it would demand `can_write`, a DML permission that says nothing about
+schema authority. So `schemachange` owns the authorization decision and applies it uniformly to
+every statement, which is strictly stronger than what delegating would have produced. The `admin`
+flag has no other effect: it is not persisted, and routing, review and execution never read it.
+
+### Review strictness — a property of the datasource, not the environment
+
+A group's review plan is resolved from the **target datasource** alone
+(`GroupReviewPlanResolver` → `ReviewPlanLookupService.findForDatasource`). The environment's
+`require_review`, `required_approvals` and `review_plan_id` are never consulted on this path, and
+a datasource with no plan makes the group **auto-approve**. Left alone, an environment marked
+`require_review = true` and bound to a plan-less datasource would apply DDL to production within a
+minute, unreviewed.
+
+Rather than document that as a caveat, promotion refuses it: if the environment requires review
+and the target datasource has no review plan requiring human approval, the promotion is
+`422 SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE`. The fix is an admin's choice — attach a plan
+that requires approval to the datasource, or clear `require_review` on the environment. What is
+still true, and worth stating plainly: **the number of approvals and the approver set come from
+the datasource's plan**, so a per-environment `required_approvals` override is not honoured by a
+promotion.
+
+### How an approved promotion actually runs
+
+Approval does not execute anything: the group review service moves the group to `APPROVED` and
+stops, and `ScheduledGroupRunJob` only picks up groups with `scheduled_for` set. A promotion
+submitted with a null `scheduled_for` would therefore be approved and then sit forever.
+
+Promotion submits the group with **`scheduled_for = now`**, so the existing ShedLock-guarded job
+runs it on its next tick — at most `ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL` (default `PT1M`)
+after approval. The alternative — listening for the `APPROVED` transition and calling `execute`
+directly — was rejected because there is no event-publication registry in this deployment: a
+process that dies between the commit and the async listener would lose the trigger and strand the
+promotion. The job re-reads the database every tick and cannot lose it.
+
+The one cost: `requestgroups` only allows cancelling an `APPROVED` group whose `scheduled_for` is
+still in the future, so **an `APPROVED` promotion can no longer be cancelled**. `PENDING` and
+`IN_REVIEW` promotions can.
+
+### Status projection
+
+`SchemaChangePromotionStatusListener` consumes `requestgroups.events.RequestGroupStatusChangedEvent`
+and projects it:
+
+| Group status | Promotion status |
+|---|---|
+| `PENDING_REVIEW` | `IN_REVIEW` |
+| `APPROVED` | `APPROVED` |
+| `EXECUTED` | `APPLIED` |
+| `PARTIALLY_EXECUTED` | `PARTIALLY_APPLIED` |
+| `FAILED` | `FAILED` |
+| `REJECTED` / `TIMED_OUT` / `CANCELLED` | `CANCELLED` |
+| `DRAFT` / `PENDING_AI` / `EXECUTING` | *(ignored)* |
+
+Events for groups this module did not create are ignored. Two implementation details are load
+bearing:
+
+- It is **not** an `@ApplicationModuleListener`. The group's execution transitions are published
+  from the scheduled job with no surrounding transaction, and a plain after-commit listener never
+  sees those — the promotion would stop at `APPROVED`. The listener is
+  `@Async @Transactional(REQUIRES_NEW) @TransactionalEventListener(AFTER_COMMIT, fallbackExecution = true)`,
+  the `WorkflowMetricsListener` precedent. It stays asynchronous on purpose: in the fallback path
+  a synchronous handler would run inline inside the group executor, where a failure could strand
+  the group mid-run. Its whole body is wrapped in a catch-all that logs and continues.
+- Transitions are **monotonic**. Events arrive asynchronously from two different threads and can
+  reorder, so a promotion only ever moves forward and a terminal status is final. The row is read
+  under a pessimistic lock so two listener threads and the cancel endpoint serialise on it.
+
+### The post-apply snapshot
+
+On the transition to `APPLIED` the target is introspected through
+`DatasourceAdminService.introspectSchemaForSystem` and the `DatabaseSchemaView` stored as JSON in
+`schema_snapshot` with `snapshot_taken_at`. This is the `PROMOTION_SNAPSHOT` drift baseline #881
+reads.
+
+The honest caveat: this is the schema **as introspected shortly after** the DDL landed, not the
+schema the DDL produced. Anything changed out of band in between — including by another
+promotion to the same datasource — is baked into the baseline. That is why the timestamp is always
+recorded, and why the snapshot is taken as close to the transition as possible. An introspection
+failure (an unreachable target) leaves the snapshot null and the transition intact: losing the
+baseline is recoverable, losing the status is not.
+
+On `FAILED` / `PARTIALLY_APPLIED` the first failed member's message is copied onto
+`error_message` — the group itself never records one.
+
+### Cancelling
+
+`POST /schema-change-promotions/{id}/cancel` cancels a non-terminal promotion by cancelling its
+group. `requestgroups` only lets the **submitter** cancel, so the call is made as the promoter;
+the resulting `REQUEST_GROUP_CANCELLED` audit row therefore names the promoter rather than the
+person who clicked cancel. The `SCHEMA_CHANGE_PROMOTION_CANCELLED` row written here names the real
+actor and carries `cancelled_on_behalf_of_submitter: true`, so the two are reconcilable.
+
 ## Audit & permissions
 
-`SCHEMA_CHANGE_MANAGE` is the only permission this part introduces. Nothing is audited or notified
-yet — #882 adds the `SCHEMA_CHANGE_*` audit actions and the notification fan-out for promotions;
-authoring CRUD follows the same "admin CRUD audit is a follow-up" stance `deploygov` took.
+`SCHEMA_CHANGE_MANAGE` is the only permission this feature introduces. Promotion writes one audit
+row per transition against the `schema_change_promotion` resource:
+`SCHEMA_CHANGE_PROMOTION_SUBMITTED` and `_CANCELLED` carry the acting user and their request
+provenance, while `_APPLIED`, `_PARTIALLY_APPLIED` and `_FAILED` are system rows with a null actor
+and `trigger=request_group` — the `deploygov` convention. No migration was needed:
+`audit_log.action` and `resource_type` are `VARCHAR(100)`.
+
+Nothing is **notified** yet — #882 adds the notification fan-out, so a promotion waiting for
+approval is currently silent. Authoring CRUD audit follows the same "admin CRUD audit is a
+follow-up" stance `deploygov` took.
 
 ## Out of scope (by design)
 
@@ -228,6 +383,9 @@ authoring CRUD follows the same "admin CRUD audit is a follow-up" stance `deploy
 - **No strict DDL-only mode** in v1 — see §2 for what `OTHER` admits and why.
 - **No un-archive**, no manual `ACTIVE`.
 - **No `can_ddl` check at authoring.** Promotion enforces it on the target datasource for the
-  promoting user (#880); authoring only needs `SCHEMA_CHANGE_MANAGE`.
+  promoting user (§6); authoring only needs `SCHEMA_CHANGE_MANAGE`.
+- **No per-environment approval override.** Approval strictness comes from the target datasource's
+  review plan; the environment can only require that one exists (§6).
+- **No cancelling an approved promotion** — it is already queued for its run (§6).
 - **No persisted review findings** for change sets — warnings are computed on the write and
   returned once.

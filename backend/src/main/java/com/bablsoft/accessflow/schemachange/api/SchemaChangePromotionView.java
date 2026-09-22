@@ -5,8 +5,9 @@ import java.util.UUID;
 
 /**
  * One promotion attempt of a change set to one environment (#878, epic #870). {@code requestGroupId}
- * is null until the promotion service (#880) has created the group; {@code schemaSnapshot} carries
- * the post-apply introspection as JSON and is null before the transition to
+ * is null until the promotion service (#880) has created the group; {@code environmentName} is
+ * resolved at read time and null once the environment has been deleted; {@code schemaSnapshot}
+ * carries the post-apply introspection as JSON and is null before the transition to
  * {@link SchemaChangePromotionStatus#APPLIED}.
  */
 public record SchemaChangePromotionView(
@@ -14,6 +15,7 @@ public record SchemaChangePromotionView(
         UUID organizationId,
         UUID changeSetId,
         UUID environmentId,
+        String environmentName,
         UUID datasourceId,
         UUID requestGroupId,
         SchemaChangePromotionStatus status,

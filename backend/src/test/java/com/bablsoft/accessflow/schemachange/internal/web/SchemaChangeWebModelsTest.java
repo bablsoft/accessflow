@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.schemachange.internal.web;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementView;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionView;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetView;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeStatementFinding;
@@ -88,5 +90,33 @@ class SchemaChangeWebModelsTest {
         assertThat(replace.toInputs()).extracting("sqlText").containsExactly("C");
         assertThat(update.toCommand()).extracting("name", "description", "status")
                 .containsExactly("n", null, SchemaChangeSetStatus.ARCHIVED);
+    }
+
+    @Test
+    void promotionResponseCarriesEveryViewFieldButTheOrganization() {
+        var environmentId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var view = new SchemaChangePromotionView(id, orgId, pipelineId, environmentId, "staging", datasourceId, groupId,
+                SchemaChangePromotionStatus.APPLIED, "a".repeat(64), userId, at, at.plusSeconds(60), null,
+                "{\"schemas\":[]}", at.plusSeconds(61));
+
+        var response = SchemaChangePromotionResponse.from(view);
+
+        assertThat(response).extracting("id", "changeSetId", "environmentId", "environmentName", "datasourceId",
+                        "requestGroupId", "status", "statementsChecksum", "promotedBy", "submittedAt", "appliedAt",
+                        "errorMessage", "schemaSnapshot", "snapshotTakenAt")
+                .containsExactly(id, pipelineId, environmentId, "staging", datasourceId, groupId,
+                        SchemaChangePromotionStatus.APPLIED, "a".repeat(64), userId, at, at.plusSeconds(60), null,
+                        "{\"schemas\":[]}", at.plusSeconds(61));
+    }
+
+    @Test
+    void promoteRequestConvertsToCommandWithProvenance() {
+        var environmentId = UUID.randomUUID();
+
+        var command = new PromoteSchemaChangeSetRequest(environmentId).toCommand("10.0.0.7", "curl/8");
+
+        assertThat(command).extracting("environmentId", "submittedIp", "submittedUserAgent")
+                .containsExactly(environmentId, "10.0.0.7", "curl/8");
     }
 }

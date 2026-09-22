@@ -1,8 +1,21 @@
 package com.bablsoft.accessflow.schemachange.internal.web;
 
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeEnvironmentNoDatasourceException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeEnvironmentNotFoundException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangePipelineNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionConflictException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionDdlForbiddenException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionFrozenException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionLadderBlockedException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionLadderInvalidException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotCancellableException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionReviewUnenforceableException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetArchivedException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetEmptyException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetFrozenException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetNameConflictException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetNoTargetDatasourceException;
@@ -198,6 +211,140 @@ class SchemaChangeExceptionHandlerTest {
         assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION",
                 "error.schema_change_set_invalid_status_transition[DRAFT, ACTIVE]");
         assertThat(pd.getProperties()).containsEntry("currentStatus", "DRAFT").containsEntry("requestedStatus", "ACTIVE");
+    }
+
+    // ---- promotion (#880) ----
+
+    @Test
+    void promotionNotFoundIs404() {
+        var pd = handler.handlePromotionNotFound(new SchemaChangePromotionNotFoundException(UUID.randomUUID()));
+
+        assertProblem(pd, HttpStatus.NOT_FOUND, "SCHEMA_CHANGE_PROMOTION_NOT_FOUND",
+                "error.schema_change_promotion_not_found");
+    }
+
+    @Test
+    void environmentNotFoundIs404WithTheEnvironmentId() {
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handleEnvironmentNotFound(new SchemaChangeEnvironmentNotFoundException(environmentId));
+
+        assertProblem(pd, HttpStatus.NOT_FOUND, "SCHEMA_CHANGE_ENVIRONMENT_NOT_FOUND",
+                "error.schema_change_environment_not_found");
+        assertThat(pd.getProperties()).containsEntry("environmentId", environmentId);
+    }
+
+    @Test
+    void environmentNoDatasourceIs422() {
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handleEnvironmentNoDatasource(new SchemaChangeEnvironmentNoDatasourceException(environmentId));
+
+        assertProblem(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SCHEMA_CHANGE_ENVIRONMENT_NO_DATASOURCE",
+                "error.schema_change_environment_no_datasource");
+        assertThat(pd.getProperties()).containsEntry("environmentId", environmentId);
+    }
+
+    @Test
+    void emptySetIs409() {
+        var pd = handler.handleEmpty(new SchemaChangeSetEmptyException(UUID.randomUUID()));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_SET_EMPTY", "error.schema_change_set_empty");
+    }
+
+    @Test
+    void ladderInvalidIs409WithThePipelineId() {
+        var pipelineId = UUID.randomUUID();
+
+        var pd = handler.handleLadderInvalid(new SchemaChangePromotionLadderInvalidException(pipelineId));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_LADDER_INVALID",
+                "error.schema_change_promotion_ladder_invalid");
+        assertThat(pd.getProperties()).containsEntry("pipelineId", pipelineId);
+    }
+
+    @Test
+    void ladderBlockedIs409NamingTheRung() {
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handleLadderBlocked(
+                new SchemaChangePromotionLadderBlockedException(UUID.randomUUID(), environmentId, "staging"));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_LADDER_BLOCKED",
+                "error.schema_change_promotion_ladder_blocked[staging]");
+        assertThat(pd.getProperties()).containsEntry("blockingEnvironmentId", environmentId)
+                .containsEntry("blockingEnvironmentName", "staging");
+    }
+
+    @Test
+    void frozenIs409WithWindowAndBehavior() {
+        var environmentId = UUID.randomUUID();
+        var windowId = UUID.randomUUID();
+
+        var pd = handler.handleFrozenWindow(
+                new SchemaChangePromotionFrozenException(environmentId, windowId, FreezeBehavior.REJECT, "release"));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_FROZEN",
+                "error.schema_change_promotion_frozen[REJECT]");
+        assertThat(pd.getProperties()).containsEntry("environmentId", environmentId)
+                .containsEntry("freezeWindowId", windowId).containsEntry("behavior", "REJECT")
+                .containsEntry("reason", "release");
+    }
+
+    @Test
+    void frozenWithoutReasonOmitsTheProperty() {
+        var pd = handler.handleFrozenWindow(
+                new SchemaChangePromotionFrozenException(UUID.randomUUID(), UUID.randomUUID(), FreezeBehavior.HOLD, null));
+
+        assertThat(pd.getProperties()).containsEntry("behavior", "HOLD").doesNotContainKey("reason");
+    }
+
+    @Test
+    void reviewUnenforceableIs422() {
+        var environmentId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+
+        var pd = handler.handleReviewUnenforceable(
+                new SchemaChangePromotionReviewUnenforceableException(environmentId, datasourceId));
+
+        assertProblem(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE",
+                "error.schema_change_promotion_review_unenforceable");
+        assertThat(pd.getProperties()).containsEntry("environmentId", environmentId)
+                .containsEntry("datasourceId", datasourceId);
+    }
+
+    @Test
+    void ddlForbiddenIs403() {
+        var datasourceId = UUID.randomUUID();
+
+        var pd = handler.handleDdlForbidden(new SchemaChangePromotionDdlForbiddenException(datasourceId));
+
+        assertProblem(pd, HttpStatus.FORBIDDEN, "SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN",
+                "error.schema_change_promotion_ddl_forbidden");
+        assertThat(pd.getProperties()).containsEntry("datasourceId", datasourceId);
+    }
+
+    @Test
+    void promotionConflictIs409() {
+        var changeSetId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handlePromotionConflict(new SchemaChangePromotionConflictException(changeSetId, environmentId));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_CONFLICT",
+                "error.schema_change_promotion_conflict");
+        assertThat(pd.getProperties()).containsEntry("changeSetId", changeSetId)
+                .containsEntry("environmentId", environmentId);
+    }
+
+    @Test
+    void notCancellableIs409WithTheStatus() {
+        var pd = handler.handleNotCancellable(
+                new SchemaChangePromotionNotCancellableException(UUID.randomUUID(), SchemaChangePromotionStatus.APPLIED));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE",
+                "error.schema_change_promotion_not_cancellable[APPLIED]");
+        assertThat(pd.getProperties()).containsEntry("currentStatus", "APPLIED");
     }
 
     private static void assertProblem(ProblemDetail pd, HttpStatus status, String error, String detail) {

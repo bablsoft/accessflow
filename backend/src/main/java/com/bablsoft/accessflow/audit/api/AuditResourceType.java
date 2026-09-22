@@ -59,7 +59,9 @@ public enum AuditResourceType {
     AUDIT_SINK("audit_sink"),
     DEPLOYMENT_PIPELINE("deployment_pipeline"),
     DEPLOYMENT_REQUEST("deployment_request"),
-    DEPLOYMENT_ROLLBACK_REVIEW("deployment_rollback_review");
+    DEPLOYMENT_ROLLBACK_REVIEW("deployment_rollback_review"),
+    /** #880: one promotion of a schema change set to a deployment environment (epic #870). */
+    SCHEMA_CHANGE_PROMOTION("schema_change_promotion");
 
     private final String dbValue;
 
