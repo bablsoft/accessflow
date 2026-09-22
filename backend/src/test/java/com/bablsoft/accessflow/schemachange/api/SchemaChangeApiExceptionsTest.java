@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.schemachange.api;
 
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import org.junit.jupiter.api.Test;
@@ -182,5 +183,108 @@ class SchemaChangeApiExceptionsTest {
         assertThat(ex.currentStatus()).isEqualTo(SchemaChangeSetStatus.DRAFT);
         assertThat(ex.requestedStatus()).isEqualTo(SchemaChangeSetStatus.ACTIVE);
         assertThat(ex.getMessage()).contains("DRAFT").contains("ACTIVE");
+    }
+
+    // ---- promotion (#880) ----
+
+    @Test
+    void environmentNotFoundCarriesTheEnvironmentId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangeEnvironmentNotFoundException(id);
+
+        assertThat(ex).isInstanceOf(SchemaChangeException.class);
+        assertThat(ex.environmentId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void environmentNoDatasourceCarriesTheEnvironmentId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangeEnvironmentNoDatasourceException(id);
+
+        assertThat(ex.environmentId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void emptySetCarriesTheChangeSetId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangeSetEmptyException(id);
+
+        assertThat(ex.changeSetId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void ladderInvalidCarriesThePipelineId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionLadderInvalidException(id);
+
+        assertThat(ex.pipelineId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void ladderBlockedNamesTheBlockingRung() {
+        var changeSetId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionLadderBlockedException(changeSetId, environmentId, "staging");
+
+        assertThat(ex.changeSetId()).isEqualTo(changeSetId);
+        assertThat(ex.blockingEnvironmentId()).isEqualTo(environmentId);
+        assertThat(ex.blockingEnvironmentName()).isEqualTo("staging");
+        assertThat(ex.getMessage()).contains(changeSetId.toString()).contains("staging").contains(environmentId.toString());
+    }
+
+    @Test
+    void frozenCarriesWindowBehaviorAndReason() {
+        var environmentId = UUID.randomUUID();
+        var windowId = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionFrozenException(environmentId, windowId, FreezeBehavior.HOLD, "year end");
+
+        assertThat(ex.environmentId()).isEqualTo(environmentId);
+        assertThat(ex.freezeWindowId()).isEqualTo(windowId);
+        assertThat(ex.behavior()).isEqualTo(FreezeBehavior.HOLD);
+        assertThat(ex.reason()).isEqualTo("year end");
+        assertThat(ex.getMessage()).contains("HOLD").contains(windowId.toString());
+    }
+
+    @Test
+    void reviewUnenforceableCarriesEnvironmentAndDatasource() {
+        var environmentId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionReviewUnenforceableException(environmentId, datasourceId);
+
+        assertThat(ex.environmentId()).isEqualTo(environmentId);
+        assertThat(ex.datasourceId()).isEqualTo(datasourceId);
+        assertThat(ex.getMessage()).contains(environmentId.toString()).contains(datasourceId.toString());
+    }
+
+    @Test
+    void ddlForbiddenCarriesTheDatasourceId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionDdlForbiddenException(id);
+
+        assertThat(ex.datasourceId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void notCancellableCarriesPromotionAndStatus() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaChangePromotionNotCancellableException(id, SchemaChangePromotionStatus.APPLIED);
+
+        assertThat(ex.promotionId()).isEqualTo(id);
+        assertThat(ex.currentStatus()).isEqualTo(SchemaChangePromotionStatus.APPLIED);
+        assertThat(ex.getMessage()).contains(id.toString()).contains("APPLIED");
     }
 }

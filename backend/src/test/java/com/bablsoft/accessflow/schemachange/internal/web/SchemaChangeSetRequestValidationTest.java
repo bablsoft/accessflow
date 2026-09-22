@@ -75,4 +75,12 @@ class SchemaChangeSetRequestValidationTest {
         assertThat(validator.validate(new UpdateSchemaChangeSetRequest("ab", "x".repeat(2001), null)))
                 .extracting(v -> v.getPropertyPath().toString()).containsExactlyInAnyOrder("name", "description");
     }
+
+    @Test
+    void promoteRequiresAnEnvironmentId() {
+        assertThat(validator.validate(new PromoteSchemaChangeSetRequest(null)))
+                .extracting(v -> v.getPropertyPath().toString())
+                .containsExactly("environmentId");
+        assertThat(validator.validate(new PromoteSchemaChangeSetRequest(UUID.randomUUID()))).isEmpty();
+    }
 }

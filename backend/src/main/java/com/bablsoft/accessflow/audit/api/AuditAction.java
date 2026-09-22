@@ -245,5 +245,20 @@ public enum AuditAction {
     DEPLOYMENT_TIMED_OUT,
     DEPLOYMENT_CANCELLED,
     /** #695: a deployment break-glass retro-review acknowledged (was generic BREAK_GLASS_REVIEWED). */
-    DEPLOYMENT_BREAK_GLASS_REVIEWED
+    DEPLOYMENT_BREAK_GLASS_REVIEWED,
+
+    /**
+     * #880 (epic #870): schema change-set promotion lifecycle. SUBMITTED carries the acting user.
+     * APPLIED / PARTIALLY_APPLIED / FAILED are system rows (null actor,
+     * {@code trigger=request_group}) projected from the promotion's request group. CANCELLED is
+     * written on two paths: by the cancel endpoint with the acting user, and — because a rejected
+     * or timed-out group also projects onto the {@code CANCELLED} promotion status — as a system
+     * row whose {@code group_status} metadata says whether it was REJECTED, TIMED_OUT or CANCELLED.
+     * Do not read a null actor on this action as "unattributed": read {@code group_status}.
+     */
+    SCHEMA_CHANGE_PROMOTION_SUBMITTED,
+    SCHEMA_CHANGE_PROMOTION_APPLIED,
+    SCHEMA_CHANGE_PROMOTION_PARTIALLY_APPLIED,
+    SCHEMA_CHANGE_PROMOTION_FAILED,
+    SCHEMA_CHANGE_PROMOTION_CANCELLED
 }

@@ -91,7 +91,7 @@ class SchemaChangeApiRecordsTest {
         var at = Instant.parse("2026-09-22T10:00:00Z");
 
         var statement = new SchemaChangeSetStatementView(id, 3, "CREATE TABLE t (id INT)", QueryType.DDL, at);
-        var promotion = new SchemaChangePromotionView(id, orgId, refId, refId, refId, refId,
+        var promotion = new SchemaChangePromotionView(id, orgId, refId, refId, "staging", refId, refId,
                 SchemaChangePromotionStatus.APPLIED, "a".repeat(64), refId, at, at, "boom", "{}", at);
         var scan = new SchemaDriftScanView(id, orgId, refId, refId, refId, SchemaDriftBaseline.PROMOTION_SNAPSHOT,
                 at, at, false, 2, true, "budget");
@@ -102,10 +102,10 @@ class SchemaChangeApiRecordsTest {
 
         assertThat(statement).extracting("id", "sequenceOrder", "sqlText", "queryType", "createdAt")
                 .containsExactly(id, 3, "CREATE TABLE t (id INT)", QueryType.DDL, at);
-        assertThat(promotion).extracting("id", "organizationId", "changeSetId", "environmentId", "datasourceId",
-                        "requestGroupId", "status", "statementsChecksum", "promotedBy", "submittedAt", "appliedAt",
-                        "errorMessage", "schemaSnapshot", "snapshotTakenAt")
-                .containsExactly(id, orgId, refId, refId, refId, refId, SchemaChangePromotionStatus.APPLIED,
+        assertThat(promotion).extracting("id", "organizationId", "changeSetId", "environmentId", "environmentName",
+                        "datasourceId", "requestGroupId", "status", "statementsChecksum", "promotedBy", "submittedAt",
+                        "appliedAt", "errorMessage", "schemaSnapshot", "snapshotTakenAt")
+                .containsExactly(id, orgId, refId, refId, "staging", refId, refId, SchemaChangePromotionStatus.APPLIED,
                         "a".repeat(64), refId, at, at, "boom", "{}", at);
         assertThat(scan).extracting("id", "organizationId", "pipelineId", "environmentId", "datasourceId", "baseline",
                         "startedAt", "finishedAt", "applicable", "findingsCount", "partial", "errorMessage")
@@ -127,6 +127,7 @@ class SchemaChangeApiRecordsTest {
 
         var update = new UpdateSchemaChangeSetCommand("n", "d", SchemaChangeSetStatus.ACTIVE);
         var promote = new PromoteSchemaChangeSetCommand(environmentId);
+        var promoteWithProvenance = new PromoteSchemaChangeSetCommand(environmentId, "10.0.0.1", "curl/8");
         var input = new SchemaChangeSetStatementInput("ALTER TABLE t ADD c INT");
         var filter = new SchemaChangeSetListFilter(environmentId, SchemaChangeSetStatus.DRAFT);
 
@@ -134,6 +135,10 @@ class SchemaChangeApiRecordsTest {
         assertThat(update.description()).isEqualTo("d");
         assertThat(update.status()).isEqualTo(SchemaChangeSetStatus.ACTIVE);
         assertThat(promote.environmentId()).isEqualTo(environmentId);
+        assertThat(promote.submittedIp()).isNull();
+        assertThat(promote.submittedUserAgent()).isNull();
+        assertThat(promoteWithProvenance).extracting("environmentId", "submittedIp", "submittedUserAgent")
+                .containsExactly(environmentId, "10.0.0.1", "curl/8");
         assertThat(input.sqlText()).startsWith("ALTER TABLE");
         assertThat(filter.pipelineId()).isEqualTo(environmentId);
         assertThat(filter.status()).isEqualTo(SchemaChangeSetStatus.DRAFT);

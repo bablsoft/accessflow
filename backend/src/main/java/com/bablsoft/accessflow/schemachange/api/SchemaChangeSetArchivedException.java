@@ -2,7 +2,9 @@ package com.bablsoft.accessflow.schemachange.api;
 
 import java.util.UUID;
 
-/** Statement edits on an {@code ARCHIVED} change set (#879). Mapped to HTTP 409. */
+/**
+ * Statement edits (#879) or a promotion (#880) of an {@code ARCHIVED} change set. Mapped to HTTP 409.
+ */
 public final class SchemaChangeSetArchivedException extends SchemaChangeException {
 
     private final UUID changeSetId;

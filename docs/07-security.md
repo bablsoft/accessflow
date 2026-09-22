@@ -625,11 +625,10 @@ review queue) are subject to the same read authorization as the objects they han
 
 **Schema change governance (#878, epic #870):** `SCHEMA_CHANGE_MANAGE` sits in the
 `WORKFLOW_ADMIN` group beside `ROUTING_POLICY_MANAGE` and `SQL_REVIEW_MANAGE` and is held by
-`ADMIN` only (seeded by `V179`, the same `VARCHAR`-catalog convention as `V171`/`V174`). #878 ships
-only the permission and the `schemachange` storage — nothing is gated by it yet. Once #879–#881
-land it will gate change-set authoring, promotion and the drift worklist; it is deliberately a
-functional permission, not a bypass: promoting a change set will additionally require `can_ddl` on
-the target datasource for the promoting user, admins included, and freeze windows apply.
+`ADMIN` only (seeded by `V179`, the same `VARCHAR`-catalog convention as `V171`/`V174`). It gates
+change-set authoring (#879) and promotion (#880); the drift worklist follows in #881. It is
+deliberately a functional permission, not a bypass — see
+[Schema change promotion security](#schema-change-promotion-security-880) below.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
@@ -1265,6 +1264,47 @@ deployment's submitter can never acknowledge their own rollback — the same "ne
 rule as break-glass, enforced in the service.
 
 ---
+
+## Schema change promotion security (#880)
+
+Promoting a change set applies DDL to a real database, so `schemachange` keeps three guarantees of
+its own rather than inheriting them from the request group it delegates to. The full narrative is
+[20-schema-change-governance.md → Promotion](20-schema-change-governance.md#6-promotion-880).
+
+- **`can_ddl` on the target datasource, for everyone.** `SCHEMA_CHANGE_MANAGE` lets a user author
+  and promote; it never grants schema authority on a database. Every promotion additionally
+  requires an active `can_ddl` grant for the **promoting user** on the environment's bound
+  datasource, checked in `DefaultSchemaChangePromotionService` against
+  `DatasourceUserPermissionLookupService.findFor` — a pure grant merge with **no admin
+  exemption**. An organization admin without the grant is refused with
+  `403 SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN` before anything is written.
+- **The group is then created as an admin, deliberately.** `requestgroups`' own per-member check
+  returns early for `QUERY_ADMIN` holders — precisely the bypass this module must not inherit —
+  and, for a statement classified `OTHER` (`GRANT`, `COMMENT ON`, `ALTER TYPE … ADD VALUE`), it
+  would demand `can_write`, a DML permission that says nothing about schema authority. So
+  `schemachange` makes the authorization decision itself and applies it to every statement, which
+  is strictly stronger than delegating would have been. The flag is not persisted and never
+  reaches routing, review or execution. Do not "fix" it by passing `admin = false`.
+- **The ladder and freeze windows fail closed.** A promotion to an environment is refused until
+  every lower-ordered environment *that binds a datasource* records an `APPLIED` promotion of the
+  same change set, and refused outright while any freeze window is in effect — `HOLD` as well as
+  `REJECT`, since an unevaluable window degrades to `HOLD`. The gate also asserts that the
+  pipeline's `sort_order` values are distinct: over an all-equal column "every lower-ordered
+  environment" is the empty set and the check would pass vacuously.
+
+Two properties of this path are worth stating plainly because they are not what a reader might
+assume:
+
+- **Approval strictness is a property of the target datasource, not the environment.** A group's
+  review plan is resolved from the datasource alone, so a per-environment `required_approvals` or
+  `review_plan_id` override is not honoured. To stop that from silently weakening a production
+  rung, a promotion to an environment with `require_review = true` whose datasource has no plan
+  requiring human approval is refused with
+  `422 SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE` rather than auto-approved.
+- **Cancel attribution is split.** The group's own cancel is submitter-only, so it is invoked as
+  the promoter; the `REQUEST_GROUP_CANCELLED` audit row therefore names the promoter while the
+  `SCHEMA_CHANGE_PROMOTION_CANCELLED` row names the real caller and carries
+  `cancelled_on_behalf_of_submitter: true`.
 
 ## Custom JDBC Driver Trust Boundary
 

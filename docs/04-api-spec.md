@@ -8334,14 +8334,15 @@ behaviour. A broken freeze must still hold deployments; a broken routing policy 
 auto-approve or auto-reject, and skipping it drops the deployment through to the environment's
 `requireReview` (which defaults to `true`).
 
-## Schema Change Governance (#879, epic #870)
+## Schema Change Governance (#879, #880, epic #870)
 
 Governed DDL **change sets**: an ordered list of schema statements authored once under a
-`deploygov` pipeline, validated at save time, and later promoted along that pipeline's
-environment ladder (#880) with a scheduled drift job (#881). This section covers the
-**authoring** surface only — create, edit, reorder and freeze. Everything under
-`/schema-change-sets` requires the **`SCHEMA_CHANGE_MANAGE`** permission and is org-scoped: a
-change set or pipeline in another organization reads as `404`, never as `403`.
+`deploygov` pipeline, validated at save time, and promoted along that pipeline's environment
+ladder (#880), with a scheduled drift job to follow (#881). This section covers **authoring**
+(create, edit, reorder, freeze) and **promotion**. Everything under `/schema-change-sets` and
+`/schema-change-promotions` requires the **`SCHEMA_CHANGE_MANAGE`** permission and is org-scoped:
+a change set, pipeline, environment or promotion in another organization reads as `404`, never as
+`403`.
 
 The feature narrative is [20-schema-change-governance.md](20-schema-change-governance.md).
 
@@ -8426,7 +8427,86 @@ Response shape (`POST` / `PUT …/statements`; reads return the same with `revie
 `review_warnings` entries carry the same per-finding shape as
 [`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863) plus the change set's
 `statement_index` and the `datasource_id` whose ruleset produced it; `message` is rendered into
-the caller's `Accept-Language`. Nothing about the set is audited or notified yet (#882).
+the caller's `Accept-Language`. Authoring CRUD is not audited or notified yet (#882).
+
+### Promotions (#880)
+
+A **promotion** is one attempt to land a change set on one environment of its pipeline. It runs
+as a `requestgroups` request group — one `QUERY` member per statement, in authored order — so it
+inherits aggregated AI analysis, union-of-approvers review and the ordered executor. There is no
+rollback: each statement runs on its own, autocommit.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/schema-change-sets/{id}/promotions` | Promote the change set to one environment (`202`). Body `{ "environment_id" }`. Runs the gate below and returns the promotion in `PENDING`. |
+| `GET` | `/schema-change-sets/{id}/promotions` | The change set's promotions, newest first. `404 SCHEMA_CHANGE_SET_NOT_FOUND`. |
+| `GET` | `/schema-change-promotions/{id}` | One promotion, including `schema_snapshot` once applied. `404 SCHEMA_CHANGE_PROMOTION_NOT_FOUND`. |
+| `POST` | `/schema-change-promotions/{id}/cancel` | Cancel a promotion whose group has not been approved (`204`). `409 SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE` once it is terminal, executing, or approved for its run. |
+
+**The promotion gate**, in this order, every check failing closed and nothing written until all
+of them pass:
+
+| # | Check | Refusal |
+|---|-------|---------|
+| 1 | The change set exists in the caller's organization | `404 SCHEMA_CHANGE_SET_NOT_FOUND` |
+| 2 | It is not archived | `409 SCHEMA_CHANGE_SET_ARCHIVED` |
+| 3 | It has statements | `409 SCHEMA_CHANGE_SET_EMPTY` |
+| 4 | The environment is on the change set's pipeline | `404 SCHEMA_CHANGE_ENVIRONMENT_NOT_FOUND` |
+| 5 | The environment binds a datasource | `422 SCHEMA_CHANGE_ENVIRONMENT_NO_DATASOURCE` (`environmentId`) |
+| 6 | That datasource still exists | `409 SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING` |
+| 7 | The promoting user holds `can_ddl` on it — **no admin exemption** | `403 SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN` (`datasourceId`) |
+| 8 | The pipeline's environments carry distinct `sort_order` values | `409 SCHEMA_CHANGE_PROMOTION_LADDER_INVALID` (`pipelineId`) |
+| 9 | Every lower-ordered environment **that binds a datasource** records an `APPLIED` promotion of this set | `409 SCHEMA_CHANGE_PROMOTION_LADDER_BLOCKED` (`blockingEnvironmentId`, `blockingEnvironmentName`) |
+| 10 | No freeze window is in effect — `HOLD` and `REJECT` both refuse | `409 SCHEMA_CHANGE_PROMOTION_FROZEN` (`environmentId`, `freezeWindowId`, `behavior`, `reason`) |
+| 11 | If the environment requires review, the target datasource's review plan actually requires human approval | `422 SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE` (`environmentId`, `datasourceId`) |
+| 12 | No non-terminal promotion of this set to this environment exists | `409 SCHEMA_CHANGE_PROMOTION_CONFLICT` (`changeSetId`, `environmentId`) |
+
+On success the change set moves `DRAFT → ACTIVE`, the promotion row records
+`statements_checksum` recomputed from the statements it sent, and the request group is submitted
+with `scheduled_for = now` so the existing `ScheduledGroupRunJob` runs it as soon as it is
+approved (within `ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL`, default `PT1M`). One consequence:
+an `APPROVED` promotion can no longer be cancelled.
+
+**Status projection.** The promotion mirrors its group: `PENDING_REVIEW → IN_REVIEW`,
+`APPROVED → APPROVED`, `EXECUTED → APPLIED`, `PARTIALLY_EXECUTED → PARTIALLY_APPLIED`,
+`FAILED → FAILED`, and `REJECTED` / `TIMED_OUT` / `CANCELLED → CANCELLED`. Only `APPLIED` counts
+toward the ladder gate. Once `APPLIED` is committed the target is introspected and the result stored as `schema_snapshot`
+with `snapshot_taken_at` — the `PROMOTION_SNAPSHOT` drift baseline (#881). That happens a moment
+after the status changes and can fail without affecting it, so a promotion may read `APPLIED` with
+a null snapshot. On `FAILED` / `PARTIALLY_APPLIED` the first failed member's message is copied
+onto `error_message`. The **list** endpoint omits `schema_snapshot` (it is a whole introspection
+per row); read one promotion to get it.
+
+Response shape (`202` on promote; the two reads return the same):
+
+```json
+{
+  "id": "aa11…",
+  "change_set_id": "6f0e…",
+  "environment_id": "c2d3…",
+  "environment_name": "staging",
+  "datasource_id": "d4e5…",
+  "request_group_id": "9b8c…",
+  "status": "PENDING",
+  "statements_checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "promoted_by": "1a2b…",
+  "submitted_at": "2026-09-22T10:20:00Z",
+  "applied_at": null,
+  "error_message": null,
+  "schema_snapshot": null,
+  "snapshot_taken_at": null
+}
+```
+
+Every **outcome** is audited against the `schema_change_promotion` resource — the intermediate
+`IN_REVIEW` and `APPROVED` projections are not, since the request group already records its own
+review trail. `SCHEMA_CHANGE_PROMOTION_SUBMITTED` carries the acting user; `_APPLIED`,
+`_PARTIALLY_APPLIED` and `_FAILED` are system rows with a null actor and `trigger=request_group`.
+`_CANCELLED` appears on both paths: with the acting user when someone cancels, and as a system row
+when the group was **rejected or timed out** — those project onto the same `CANCELLED` promotion
+status, and `metadata.group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) is what tells them
+apart. Do not filter `_CANCELLED` on a non-null actor expecting to see every cancellation.
+Notifications follow in #882.
 
 ## Data Lifecycle Manager (AF-499)
 

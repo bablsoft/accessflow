@@ -4857,23 +4857,28 @@ endpoint contract, row shape, and the full drift rules are in
 
 ## Schema change governance (schemachange module, epic #870)
 
-The **`schemachange/` module** authors governed DDL **change sets** once and (from #880) promotes
-them along a `deploygov` pipeline's environment ladder as ordered `requestgroups` groups, with a
-scheduled drift job (#881). The feature narrative — the DDL gate decision and its exclusions, the
-freeze predicate, the checksum contract — is
+The **`schemachange/` module** authors governed DDL **change sets** once and promotes them along a
+`deploygov` pipeline's environment ladder as ordered `requestgroups` groups, with a scheduled
+drift job to follow (#881). The feature narrative — the DDL gate decision and its exclusions, the
+freeze predicate, the checksum contract, the promotion gate and its trade-offs — is
 [20-schema-change-governance.md](20-schema-change-governance.md); the tables are in
 [03-data-model.md](03-data-model.md#schema-change-governance-schemachange-878--epic-870); the
-endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-epic-870). This
-section records the engineering rules of the **authoring half (#879)**.
+endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-epic-870). This
+section records the engineering rules of the **authoring half (#879)** and the **promotion half
+(#880)**.
 
 **Layout.** `api/` (contracts, views, one exception per documented error code), `events/`
-(`@NamedInterface` marker only until #880), `internal/` — `config/SchemaChangeProperties`
+(`SchemaChangePromotionStatusChangedEvent`), `internal/` — `config/SchemaChangeProperties`
 (`accessflow.schemachange.max-statements`, default 50), `DefaultSchemaChangeSetService`,
 `SchemaChangeStatementGate`, the JDK-only `SchemaChangeStatementScanner` and
-`SchemaChangeChecksum`, `SchemaChangeSetSpecifications`, `persistence/{entity,repo}` and `web/`.
-It depends on `core.api`, `deploygov.api` (`DeploymentPipelineLookupService.findPipeline` for the
-404-never-403 pipeline check, `DeploymentEnvironmentLookupService.listByPipeline` for the ladder),
-`proxy.api.QueryParser`, `sqlreview.api` and `security.api.JwtClaims`; nothing depends on it.
+`SchemaChangeChecksum`, `SchemaChangeSetSpecifications`,
+`DefaultSchemaChangePromotionService`, `SchemaChangePromotionStatusListener`, the pure
+`SchemaChangePromotionStatusMapper`, `SchemaChangeAuditWriter`, `persistence/{entity,repo}` and
+`web/`. It depends on `core.api`, `deploygov.api`
+(`DeploymentPipelineLookupService.findPipeline`/`.findEnvironment` for the 404-never-403 checks,
+`DeploymentEnvironmentLookupService.listByPipeline` for the ladder, `DeploymentFreezeLookupService`
+for the freeze), `proxy.api.QueryParser`, `sqlreview.api`, `requestgroups.api` + `requestgroups.events`,
+`audit.api` and `security.api.JwtClaims`; nothing depends on it.
 
 **The gate (`SchemaChangeStatementGate.validate`).** Runs on `create` and `replaceStatements`,
 in statement order, and is the only place statements are judged: (1) targets = the distinct
@@ -4902,7 +4907,7 @@ raced `uq_schema_change_sets_org_pipeline_name` violation translated from
 `DataIntegrityViolationException` (never `DuplicateKeyException` — Hibernate does not narrow it)
 → statement rows `0..n-1`. `update`: name change re-checks the guard; `status` may only become
 `ARCHIVED` (equal is a no-op, anything else `SchemaChangeSetStatusTransitionException`) —
-`ACTIVE` belongs to #880. `replaceStatements`: `ARCHIVED` → `SchemaChangeSetArchivedException`;
+`ACTIVE` belongs to the promotion service. `replaceStatements`: `ARCHIVED` → `SchemaChangeSetArchivedException`;
 frozen (`existsByChangeSet_IdAndStatusIn(id, FREEZING_STATUSES)` where the set is every promotion
 status except `FAILED` / `CANCELLED`) → `SchemaChangeSetFrozenException`; cap; gate; the bulk
 JPQL `deleteAllByChangeSetId` (runs immediately, so reinserting the same `sequence_order` in the
@@ -4922,7 +4927,58 @@ properties are camelCase (`statementIndex`, `queryType`, `limit` / `actual`, `cu
 `requestedStatus`, `findings`); the four `Reason`s of `SchemaChangeSetStatementInvalidException`
 map to four distinct 422 codes. Bean Validation: name 3–255, description ≤ 2000, each `sql_text`
 non-blank and ≤ 100 000 chars; the statement *count* is the service-side cap because a `@Size`
-cannot read a property. No audit rows and no notifications until #882.
+cannot read a property. Authoring writes no audit rows (#882).
+
+**Promotion (`DefaultSchemaChangePromotionService`, #880).** `promote` runs twelve checks in a
+fixed order — change set, archive, statements, environment, bound datasource, datasource exists,
+`can_ddl`, ladder distinctness, ladder gate, freeze, review enforceability, open-promotion
+conflict — and writes nothing until all of them pass; the order is pinned by the service test
+because a caller observes which one refused. Three rules are load bearing:
+
+- **`can_ddl` is enforced here**, through `DatasourceUserPermissionLookupService.findFor`, with no
+  admin flag on that path — a stricter rule than the one being delegated past, which is why the
+  group is then created and submitted with `admin = true`. That flag makes
+  `DefaultRequestGroupService.validatePermission` return before its own check, and the check is
+  the wrong one twice over: its `admin` argument is `caller.has(Permission.QUERY_ADMIN)` at the
+  controller, so a `QUERY_ADMIN` holder would be exempted outright, and for an `OTHER`-classified
+  statement (`GRANT`, `COMMENT ON`) it demands `can_write`, a DML permission that says nothing
+  about schema authority. Note the corollary: a `can_ddl`-only user can issue a `GRANT` inside a
+  change set that they could not submit as a standalone query. Do not "fix" this by passing
+  `admin = false`.
+- **The ladder is asserted, not trusted.** Duplicate `sort_order` values are a 409 even though
+  V177 made the column unique: over an all-equal column the ladder gate evaluates the empty set
+  and fails open.
+- **The group carries `scheduledFor = clock.instant()`**, so the existing `ScheduledGroupRunJob`
+  is the execution trigger. Approval alone never executes a group, and an event-driven `execute`
+  would be lost on a crash between commit and the async listener (there is no event-publication
+  registry). The cost is that an `APPROVED` promotion is no longer cancellable.
+
+The promotion row is `saveAndFlush`ed *before* `createDraft`, with the raced
+`uq_schema_change_set_promotions_open` violation translated to
+`SchemaChangePromotionConflictException`, so a lost race never leaves an orphan group.
+`SchemaChangeChecksum.of` is recomputed from the statement rows and compared with the set's stored
+value — a mismatch is an `IllegalStateException` (corruption), not a 4xx.
+
+**Status projection (`SchemaChangePromotionStatusListener`).** Consumes
+`requestgroups.events.RequestGroupStatusChangedEvent` as
+`@Async @Transactional(REQUIRES_NEW) @TransactionalEventListener(AFTER_COMMIT, fallbackExecution = true)`
+— **not** `@ApplicationModuleListener`, because `GroupExecutionService` publishes the execution
+transitions with no surrounding transaction and a plain after-commit listener would never see
+them (the promotion would stop at `APPROVED`); `WorkflowMetricsListener` is the precedent. It
+stays asynchronous so a failure cannot run inline inside the group executor, and its body is
+wrapped in a catch-all. The row is read through `findByRequestGroupIdForUpdate`
+(`PESSIMISTIC_WRITE`) and only ever moves forward — `SchemaChangePromotionStatusMapper.advances`
+— because events from the AI-listener transaction and the job thread can reorder, and because the
+cancel endpoint writes the same row. On `APPLIED` it stamps `appliedAt` and stops; the
+snapshot is taken afterwards by `SchemaChangePromotionSnapshotListener`, a second after-commit
+listener on the module's own event, so the projection transaction never holds the row lock or an
+application connection across an `introspectSchemaForSystem` round trip to the customer database.
+That follow-up is idempotent and non-fatal: a failure leaves the snapshot null and the transition
+intact. A projection that is lost entirely (an exception — logged at `ERROR` — or a restart
+between the group's commit and the async task) is **not** retried, and strands the promotion in a
+non-terminal status; the freeze window is likewise evaluated only at submission, never re-checked
+before the run job executes. Both are recorded in
+[20-schema-change-governance.md → Known gaps](20-schema-change-governance.md#known-gaps).
 
 ## MCP server (mcp module)
 

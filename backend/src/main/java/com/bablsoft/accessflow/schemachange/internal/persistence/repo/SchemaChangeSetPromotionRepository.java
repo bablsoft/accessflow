@@ -2,7 +2,11 @@ package com.bablsoft.accessflow.schemachange.internal.persistence.repo;
 
 import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetPromotionEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,4 +24,27 @@ public interface SchemaChangeSetPromotionRepository extends JpaRepository<Schema
 
     /** The promotion a request group was created for, if any — the status-projection lookup. */
     Optional<SchemaChangeSetPromotionEntity> findByRequestGroupId(UUID requestGroupId);
+
+    /**
+     * The same lookup under a row lock (#880): group status events arrive asynchronously and may
+     * reorder, so the projection listener and the cancel path serialise on the promotion row
+     * instead of losing an optimistic-lock race.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from SchemaChangeSetPromotionEntity p where p.requestGroupId = :requestGroupId")
+    Optional<SchemaChangeSetPromotionEntity> findByRequestGroupIdForUpdate(@Param("requestGroupId") UUID requestGroupId);
+
+    /** The same row lock for the cancel path, which races the projection listener on one row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from SchemaChangeSetPromotionEntity p where p.id = :id and p.organizationId = :organizationId")
+    Optional<SchemaChangeSetPromotionEntity> findByIdAndOrganizationIdForUpdate(@Param("id") UUID id,
+                                                                                @Param("organizationId") UUID organizationId);
+
+    /** The ladder probe (#880): has the set an {@code APPLIED} promotion on a lower rung? */
+    boolean existsByChangeSet_IdAndEnvironmentIdAndStatus(UUID changeSetId, UUID environmentId,
+                                                         SchemaChangePromotionStatus status);
+
+    /** The open-promotion pre-check (#880) — the partial unique index catches what this misses. */
+    boolean existsByChangeSet_IdAndEnvironmentIdAndStatusIn(UUID changeSetId, UUID environmentId,
+                                                           Collection<SchemaChangePromotionStatus> statuses);
 }

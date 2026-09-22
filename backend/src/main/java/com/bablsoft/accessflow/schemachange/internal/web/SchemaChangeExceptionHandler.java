@@ -1,7 +1,18 @@
 package com.bablsoft.accessflow.schemachange.internal.web;
 
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeEnvironmentNoDatasourceException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeEnvironmentNotFoundException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangePipelineNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionConflictException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionDdlForbiddenException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionFrozenException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionLadderBlockedException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionLadderInvalidException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotCancellableException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionReviewUnenforceableException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetArchivedException;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetEmptyException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetFrozenException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetNameConflictException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetNoTargetDatasourceException;
@@ -139,6 +150,101 @@ class SchemaChangeExceptionHandler {
                 "SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION");
         pd.setProperty("currentStatus", ex.currentStatus().name());
         pd.setProperty("requestedStatus", ex.requestedStatus().name());
+        return pd;
+    }
+
+    // ---- promotion (#880) ----
+
+    @ExceptionHandler(SchemaChangePromotionNotFoundException.class)
+    ProblemDetail handlePromotionNotFound(SchemaChangePromotionNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.schema_change_promotion_not_found"),
+                "SCHEMA_CHANGE_PROMOTION_NOT_FOUND");
+    }
+
+    @ExceptionHandler(SchemaChangeEnvironmentNotFoundException.class)
+    ProblemDetail handleEnvironmentNotFound(SchemaChangeEnvironmentNotFoundException ex) {
+        var pd = problem(HttpStatus.NOT_FOUND, msg("error.schema_change_environment_not_found"),
+                "SCHEMA_CHANGE_ENVIRONMENT_NOT_FOUND");
+        pd.setProperty("environmentId", ex.environmentId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangeEnvironmentNoDatasourceException.class)
+    ProblemDetail handleEnvironmentNoDatasource(SchemaChangeEnvironmentNoDatasourceException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.schema_change_environment_no_datasource"),
+                "SCHEMA_CHANGE_ENVIRONMENT_NO_DATASOURCE");
+        pd.setProperty("environmentId", ex.environmentId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangeSetEmptyException.class)
+    ProblemDetail handleEmpty(SchemaChangeSetEmptyException ex) {
+        return problem(HttpStatus.CONFLICT, msg("error.schema_change_set_empty"), "SCHEMA_CHANGE_SET_EMPTY");
+    }
+
+    @ExceptionHandler(SchemaChangePromotionLadderInvalidException.class)
+    ProblemDetail handleLadderInvalid(SchemaChangePromotionLadderInvalidException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_change_promotion_ladder_invalid"),
+                "SCHEMA_CHANGE_PROMOTION_LADDER_INVALID");
+        pd.setProperty("pipelineId", ex.pipelineId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionLadderBlockedException.class)
+    ProblemDetail handleLadderBlocked(SchemaChangePromotionLadderBlockedException ex) {
+        var pd = problem(HttpStatus.CONFLICT,
+                msg("error.schema_change_promotion_ladder_blocked", ex.blockingEnvironmentName()),
+                "SCHEMA_CHANGE_PROMOTION_LADDER_BLOCKED");
+        pd.setProperty("blockingEnvironmentId", ex.blockingEnvironmentId());
+        pd.setProperty("blockingEnvironmentName", ex.blockingEnvironmentName());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionFrozenException.class)
+    ProblemDetail handleFrozenWindow(SchemaChangePromotionFrozenException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_change_promotion_frozen", ex.behavior()),
+                "SCHEMA_CHANGE_PROMOTION_FROZEN");
+        pd.setProperty("environmentId", ex.environmentId());
+        pd.setProperty("freezeWindowId", ex.freezeWindowId());
+        pd.setProperty("behavior", ex.behavior().name());
+        if (ex.reason() != null) {
+            pd.setProperty("reason", ex.reason());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionReviewUnenforceableException.class)
+    ProblemDetail handleReviewUnenforceable(SchemaChangePromotionReviewUnenforceableException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.schema_change_promotion_review_unenforceable"),
+                "SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE");
+        pd.setProperty("environmentId", ex.environmentId());
+        pd.setProperty("datasourceId", ex.datasourceId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionDdlForbiddenException.class)
+    ProblemDetail handleDdlForbidden(SchemaChangePromotionDdlForbiddenException ex) {
+        var pd = problem(HttpStatus.FORBIDDEN, msg("error.schema_change_promotion_ddl_forbidden"),
+                "SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN");
+        pd.setProperty("datasourceId", ex.datasourceId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionConflictException.class)
+    ProblemDetail handlePromotionConflict(SchemaChangePromotionConflictException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_change_promotion_conflict"),
+                "SCHEMA_CHANGE_PROMOTION_CONFLICT");
+        pd.setProperty("changeSetId", ex.changeSetId());
+        pd.setProperty("environmentId", ex.environmentId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaChangePromotionNotCancellableException.class)
+    ProblemDetail handleNotCancellable(SchemaChangePromotionNotCancellableException ex) {
+        var pd = problem(HttpStatus.CONFLICT,
+                msg("error.schema_change_promotion_not_cancellable", ex.currentStatus()),
+                "SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE");
+        pd.setProperty("currentStatus", ex.currentStatus().name());
         return pd;
     }
 
