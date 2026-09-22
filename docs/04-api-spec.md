@@ -8334,6 +8334,100 @@ behaviour. A broken freeze must still hold deployments; a broken routing policy 
 auto-approve or auto-reject, and skipping it drops the deployment through to the environment's
 `requireReview` (which defaults to `true`).
 
+## Schema Change Governance (#879, epic #870)
+
+Governed DDL **change sets**: an ordered list of schema statements authored once under a
+`deploygov` pipeline, validated at save time, and later promoted along that pipeline's
+environment ladder (#880) with a scheduled drift job (#881). This section covers the
+**authoring** surface only — create, edit, reorder and freeze. Everything under
+`/schema-change-sets` requires the **`SCHEMA_CHANGE_MANAGE`** permission and is org-scoped: a
+change set or pipeline in another organization reads as `404`, never as `403`.
+
+The feature narrative is [20-schema-change-governance.md](20-schema-change-governance.md).
+
+### Change sets
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/schema-change-sets` | List the org's change sets, newest first. Filters `pipeline_id` and `status` (`DRAFT`/`ACTIVE`/`ARCHIVED`), both optional. Paginated (`page`, `size`). Statements are included; `review_warnings` is always empty on reads. |
+| `GET` | `/schema-change-sets/{id}` | Get one change set with its ordered statements. `404 SCHEMA_CHANGE_SET_NOT_FOUND`. |
+| `POST` | `/schema-change-sets` | Create a change set (`201`), optionally with its initial statements — every statement passes the validation gate below. `404 SCHEMA_CHANGE_PIPELINE_NOT_FOUND`, `409 SCHEMA_CHANGE_SET_NAME_CONFLICT` (same name under the same pipeline). |
+| `PUT` | `/schema-change-sets/{id}` | Update `name` / `description` / `status`. Omitted or null fields stay unchanged; renaming re-checks the name guard. `status` may only move to `ARCHIVED` (the same value is a no-op; anything else → `409 SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION` — `ACTIVE` is set by promotion, never by hand). Descriptive edits are allowed on frozen and archived sets. |
+| `PUT` | `/schema-change-sets/{id}/statements` | Replace the **whole** ordered statement list (an empty list clears it). Runs the validation gate, recomputes `statements_checksum`. `409 SCHEMA_CHANGE_SET_FROZEN` once the set has been promoted, `409 SCHEMA_CHANGE_SET_ARCHIVED` on an archived set. |
+| `DELETE` | `/schema-change-sets/{id}` | Delete a change set (`204`) and its statements. `409 SCHEMA_CHANGE_SET_FROZEN` once the set has been promoted — archive it instead. |
+
+`CreateSchemaChangeSetRequest` fields: `pipeline_id` (required — a `deploygov` pipeline of the
+caller's organization), `name` (3–255, required), `description` (≤ 2000), `statements`
+(optional list of `{ "sql_text" }`, each ≤ 100 000 chars; the list order is the statement
+order). `UpdateSchemaChangeSetRequest` fields: `name` (3–255), `description` (≤ 2000), `status`.
+`ReplaceSchemaChangeSetStatementsRequest` fields: `statements` (required, may be empty).
+
+**Validation gate.** Every statement is checked, in list order, before anything is stored:
+
+1. **Target resolution** — the pipeline's environments (`deploygov`, in `sort_order`) that bind a
+   `datasource_id` are the change set's targets. A non-empty statement list on a pipeline with
+   no bound environment is refused with `409 SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE`, and a
+   binding to a datasource that no longer exists with
+   `409 SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING`; an empty list never needs a target.
+2. **Shape** — a statement that opens a transaction (`BEGIN` / `START TRANSACTION`) is refused
+   with `422 SCHEMA_CHANGE_SET_STATEMENT_TRANSACTION_ENVELOPE`; text holding more than one
+   statement (a `;` outside string literals, quoted identifiers, comments and `$tag$ … $tag$`
+   blocks — a trailing `;` is fine) with `422 SCHEMA_CHANGE_SET_STATEMENT_MULTIPLE`. Each statement
+   of a change set runs on its own, autocommit: there is no transaction over a change set.
+3. **Parse** — the statement is parsed through the engine-aware query parser for the `db_type`
+   of every distinct target datasource; a parse failure is `422 SCHEMA_CHANGE_SET_STATEMENT_INVALID`
+   with the parser's reason in `detail`.
+4. **Classification** — a statement classified `SELECT` / `INSERT` / `UPDATE` / `DELETE` is
+   refused with `422 SCHEMA_CHANGE_SET_STATEMENT_DML` (`queryType` on the body). `DDL` **and**
+   `OTHER` (`COMMENT ON`, `GRANT`, `ALTER TYPE … ADD VALUE`, `REFRESH MATERIALIZED VIEW`, …) are
+   admitted — see the chapter for why the gate is "not DML" rather than "is DDL", and for what
+   `OTHER` lets through.
+5. **Deterministic SQL review** — the statement is evaluated against the ruleset resolved for
+   **each** target datasource (`sqlreview`, #862). A `BLOCK` finding on any target refuses the save
+   with `422 SCHEMA_CHANGE_SET_STATEMENT_BLOCKED`, whose body carries every blocking finding under
+   `findings`; `WARN` findings are returned on the write response as `review_warnings`.
+
+Every 422 body carries `statementIndex` (zero-based; `ProblemDetail` extension properties are
+camelCase, as everywhere else) — for `_BLOCKED` it is `statement_index` on each entry of
+`findings`. The statement count is capped by `ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS` (default
+`50`): `400 SCHEMA_CHANGE_SET_STATEMENT_LIMIT` with `limit` and `actual`.
+
+**Freeze and checksum.** Statements are mutable only while every promotion of the change set is
+absent, `FAILED` or `CANCELLED`; any `PENDING` / `IN_REVIEW` / `APPROVED` / `APPLIED` /
+`PARTIALLY_APPLIED` promotion freezes the list and the delete. `statements_checksum` is the
+SHA-256 hex over the ordered statements — each trimmed with one trailing `;` removed, joined by a
+newline — and is `null` for a set without statements; the stored `sql_text` is that normalised
+form. Reordering two statements changes the checksum; promotion (#880) copies it onto each
+promotion row as evidence of what was sent.
+
+Response shape (`POST` / `PUT …/statements`; reads return the same with `review_warnings: []`):
+
+```json
+{
+  "id": "6f0e…",
+  "pipeline_id": "b3c1…",
+  "name": "2026-09-orders-archive",
+  "description": "Adds the archived_at column",
+  "status": "DRAFT",
+  "statements_checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "created_by": "1a2b…",
+  "created_at": "2026-09-22T10:15:00Z",
+  "updated_at": "2026-09-22T10:15:00Z",
+  "statements": [
+    { "id": "…", "sequence_order": 0, "sql_text": "ALTER TABLE orders ADD COLUMN archived_at TIMESTAMPTZ", "query_type": "DDL", "created_at": "2026-09-22T10:15:00Z" },
+    { "id": "…", "sequence_order": 1, "sql_text": "COMMENT ON COLUMN orders.archived_at IS 'soft archive'", "query_type": "OTHER", "created_at": "2026-09-22T10:15:00Z" }
+  ],
+  "review_warnings": [
+    { "statement_index": 0, "datasource_id": "d4e5…", "rule_id": "ddl_statement", "severity": "WARN", "line_number": 1, "message": "ALTER TABLE is a schema change" }
+  ]
+}
+```
+
+`review_warnings` entries carry the same per-finding shape as
+[`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863) plus the change set's
+`statement_index` and the `datasource_id` whose ruleset produced it; `message` is rendered into
+the caller's `Accept-Language`. Nothing about the set is audited or notified yet (#882).
+
 ## Data Lifecycle Manager (AF-499)
 
 Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated** and org-scoped.
@@ -8437,6 +8531,20 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_OUTCOME_CONFLICT` | 409 | A different outcome has already been reported for this deployment request (#693). |
 | `DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND` | 404 | Unknown rollback-review id, or the record is in another organization (#693). |
 | `DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE` | 409 | The deployment's submitter can never acknowledge their own rollback review (#693). |
+| `SCHEMA_CHANGE_PIPELINE_NOT_FOUND` | 404 | The `pipeline_id` names no deployment pipeline in the caller's organization (#879). |
+| `SCHEMA_CHANGE_SET_NOT_FOUND` | 404 | Unknown change-set id, or the set is in another organization (#879). |
+| `SCHEMA_CHANGE_SET_NAME_CONFLICT` | 409 | A change set with that name already exists under the same pipeline (#879). |
+| `SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE` | 409 | Statements were supplied but no environment of the pipeline binds a datasource, so there is nothing to parse or review against (#879). |
+| `SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING` | 409 | An environment of the pipeline binds a datasource that no longer exists in the organization (`pipelineId`, `datasourceId`) — the binding is a bare id, so a deleted datasource stays bound; rebind or clear it (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_LIMIT` | 400 | More statements than `ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS` allows (`limit`, `actual`) (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_INVALID` | 422 | Statement `statementIndex` could not be parsed for a target datasource's engine; `detail` carries the parser's reason (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_DML` | 422 | Statement `statementIndex` classifies as `SELECT` / `INSERT` / `UPDATE` / `DELETE` (`queryType`) — a change set carries schema statements only (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_TRANSACTION_ENVELOPE` | 422 | Statement `statementIndex` opens a transaction; each statement of a change set runs on its own (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_MULTIPLE` | 422 | Statement `statementIndex` holds more than one statement (#879). |
+| `SCHEMA_CHANGE_SET_STATEMENT_BLOCKED` | 422 | A deterministic SQL review rule at `BLOCK` severity fired for at least one statement on at least one target datasource; `findings` lists them (#879). |
+| `SCHEMA_CHANGE_SET_FROZEN` | 409 | The change set has a promotion that is not `FAILED` / `CANCELLED`, so its statements and its existence are frozen (#879). |
+| `SCHEMA_CHANGE_SET_ARCHIVED` | 409 | Statement edits on an `ARCHIVED` change set (#879). |
+| `SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION` | 409 | `status` may only be moved to `ARCHIVED` by hand (`currentStatus`, `requestedStatus`) (#879). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|

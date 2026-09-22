@@ -2970,9 +2970,10 @@ Governed DDL change sets: a set of statements authored once, reviewed once, and 
 `deploygov` pipeline's environment ladder as an ordered `requestgroups` request group, with a
 scheduled drift job that compares each environment's live schema against a baseline. #878 lands
 the storage and type foundation only (migration `V178` + the `V179` permission seed): five
-tables, the JPA entities and repositories and the declared-but-unimplemented `schemachange.api`
-contracts. Nothing reads or writes these tables until #879 (authoring), #880 (promotion) and #881
-(drift). Five PG enums, created in `V178`:
+tables, the JPA entities and repositories and the `schemachange.api` contracts; #879 implements
+the authoring half over the first two tables (see [20-schema-change-governance.md](20-schema-change-governance.md)).
+Nothing writes `schema_change_set_promotions` until #880 or the drift tables until #881. Five PG
+enums, created in `V178`:
 
 - `schema_change_set_status` — `DRAFT` | `ACTIVE` | `ARCHIVED`.
 - `schema_change_promotion_status` — `PENDING` | `IN_REVIEW` | `APPROVED` (the three
@@ -3001,10 +3002,12 @@ parent → child links carry a real `ON DELETE CASCADE`.
 
 ### schema_change_sets
 
-One authored change set per pipeline. The statement list is mutable only while no promotion of
-the set has landed anything — every promotion row is absent, `FAILED` or `CANCELLED`; an
-`APPLIED` or `PARTIALLY_APPLIED` promotion freezes it (#879's freeze gate). `statements_checksum`
-is the SHA-256 over the ordered statement text: #879 writes it here at every statement change,
+One authored change set per pipeline. The statement list — and the row's existence — is mutable
+only while **every** promotion of the set is absent, `FAILED` or `CANCELLED`; any `PENDING` /
+`IN_REVIEW` / `APPROVED` / `APPLIED` / `PARTIALLY_APPLIED` promotion freezes it (#879's freeze
+gate, `409 SCHEMA_CHANGE_SET_FROZEN`; archive the set instead). `statements_checksum` is the
+SHA-256 hex over the ordered statements — each trimmed with one trailing `;` removed, joined by a
+newline — and NULL for a set without statements: #879 writes it here at every statement change,
 and #880 copies the value onto each promotion row at submission as evidence of what was sent.
 
 | Column | Type / Notes |
@@ -3015,7 +3018,7 @@ and #880 copies the value onto each promotion row at submission as evidence of w
 | `name` | VARCHAR(255) NOT NULL |
 | `description` | TEXT NULL |
 | `status` | `schema_change_set_status` NOT NULL DEFAULT `'DRAFT'` |
-| `statements_checksum` | CHAR(64) NULL — SHA-256 hex of the ordered statements, maintained by the authoring service (#879); NULL for a set that has never had statements |
+| `statements_checksum` | CHAR(64) NULL — SHA-256 hex of the ordered, normalised statements, maintained by the authoring service (#879); NULL for a set without statements |
 | `created_by` | UUID NULL — bare user id, no FK |
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
@@ -3036,8 +3039,8 @@ reused positions.
 | `id` | UUID PK |
 | `change_set_id` | UUID NOT NULL, FK → `schema_change_sets` ON DELETE CASCADE |
 | `sequence_order` | INTEGER NOT NULL — zero-based position |
-| `sql_text` | TEXT NOT NULL — one statement, already parsed and classified by #879 |
-| `query_type` | `query_type` NOT NULL — the existing PG enum (`V6`); the authoring gate (#879) decides which classifications a change set may carry |
+| `sql_text` | TEXT NOT NULL — one statement in its normalised form (trimmed, trailing `;` stripped), already parsed and classified by the authoring gate (#879) |
+| `query_type` | `query_type` NOT NULL — the existing PG enum (`V6`). The authoring gate admits `DDL` and `OTHER` and refuses `SELECT` / `INSERT` / `UPDATE` / `DELETE` (#879, gate rule "not DML") |
 | `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 
 > **Constraints:** `uq_schema_change_set_statements_order` UNIQUE `(change_set_id,

@@ -213,6 +213,40 @@ class SchemaChangePersistenceIntegrationTest {
     }
 
     @Test
+    void freezeProbeMatchesAnyOfTheGivenStatusesAndListingsBatchLoadStatements() {
+        var frozen = savedChangeSet();
+        var thawed = savedChangeSet();
+        var empty = savedChangeSet();
+        promotionRepository.saveAndFlush(newPromotion(frozen, UUID.randomUUID(), SchemaChangePromotionStatus.APPLIED));
+        promotionRepository.saveAndFlush(newPromotion(thawed, UUID.randomUUID(), SchemaChangePromotionStatus.FAILED));
+        promotionRepository.saveAndFlush(newPromotion(thawed, UUID.randomUUID(), SchemaChangePromotionStatus.CANCELLED));
+        statementRepository.saveAndFlush(newStatement(frozen, 1));
+        statementRepository.saveAndFlush(newStatement(frozen, 0));
+        statementRepository.saveAndFlush(newStatement(thawed, 0));
+        var freezing = java.util.EnumSet.of(SchemaChangePromotionStatus.PENDING, SchemaChangePromotionStatus.IN_REVIEW,
+                SchemaChangePromotionStatus.APPROVED, SchemaChangePromotionStatus.APPLIED,
+                SchemaChangePromotionStatus.PARTIALLY_APPLIED);
+
+        assertThat(promotionRepository.existsByChangeSet_IdAndStatusIn(frozen.getId(), freezing)).isTrue();
+        assertThat(promotionRepository.existsByChangeSet_IdAndStatusIn(thawed.getId(), freezing)).isFalse();
+        assertThat(promotionRepository.existsByChangeSet_IdAndStatusIn(empty.getId(), freezing)).isFalse();
+        assertThat(statementRepository.findAllByChangeSet_IdInOrderBySequenceOrderAsc(
+                java.util.List.of(frozen.getId(), thawed.getId(), empty.getId())))
+                .extracting(s -> s.getChangeSet().getId(), SchemaChangeSetStatementEntity::getSequenceOrder)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(frozen.getId(), 0),
+                        org.assertj.core.groups.Tuple.tuple(frozen.getId(), 1),
+                        org.assertj.core.groups.Tuple.tuple(thawed.getId(), 0));
+        // The listing specification binds the PG enum column through the criteria API — the shape
+        // that avoids "could not determine data type of parameter" on a nullable JPQL parameter.
+        var page = changeSetRepository.findAll(
+                com.bablsoft.accessflow.schemachange.internal.SchemaChangeSetSpecificationsAccess.forStatus(
+                        frozen.getOrganizationId(), SchemaChangeSetStatus.DRAFT),
+                org.springframework.data.domain.PageRequest.of(0, 10));
+        assertThat(page.getContent()).extracting(SchemaChangeSetEntity::getId).containsExactly(frozen.getId());
+    }
+
+    @Test
     void promotionRoundTripsWithEveryColumn() {
         var set = savedChangeSet();
         var promotion = newPromotion(set, UUID.randomUUID(), SchemaChangePromotionStatus.APPLIED);
