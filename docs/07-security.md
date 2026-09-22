@@ -338,7 +338,7 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 ## Authorization — Roles & the permission catalog (AF-522)
 
 Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
-permissions (`core.api.Permission`, 45 values grouped for display — see
+permissions (`core.api.Permission`, 46 values grouped for display — see
 `GET /api/v1/admin/permissions`) is composed into **roles**:
 
 - The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
@@ -460,6 +460,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
 | Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
 | Manage service accounts (`SERVICE_ACCOUNT_MANAGE`, #868) | — | — | — | ✓ | — |
+| Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, #878) | — | — | — | ✓ | — |
 | Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
@@ -621,6 +622,14 @@ admin-only acknowledgement) are unchanged. Findings are stored as `rule_id` + `a
 per reader, so no English text is ever persisted; the reviewer-facing fields (`sql_review_findings`
 on the query detail, break-glass log and request-group detail; `sql_review_blocking_count` on the
 review queue) are subject to the same read authorization as the objects they hang off.
+
+**Schema change governance (#878, epic #870):** `SCHEMA_CHANGE_MANAGE` sits in the
+`WORKFLOW_ADMIN` group beside `ROUTING_POLICY_MANAGE` and `SQL_REVIEW_MANAGE` and is held by
+`ADMIN` only (seeded by `V179`, the same `VARCHAR`-catalog convention as `V171`/`V174`). #878 ships
+only the permission and the `schemachange` storage — nothing is gated by it yet. Once #879–#881
+land it will gate change-set authoring, promotion and the drift worklist; it is deliberately a
+functional permission, not a bypass: promoting a change set will additionally require `can_ddl` on
+the target datasource for the promoting user, admins included, and freeze windows apply.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

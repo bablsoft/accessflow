@@ -3370,6 +3370,7 @@
       "REVIEW_PLAN_MANAGE": "管理审核计划",
       "ROUTING_POLICY_MANAGE": "管理路由策略",
       "SQL_REVIEW_MANAGE": "管理 SQL 审查规则",
+      "SCHEMA_CHANGE_MANAGE": "管理架构变更",
       "BREAK_GLASS_VIEW": "查看紧急访问事件",
       "BREAK_GLASS_REVIEW": "审核紧急访问事件",
       "RETENTION_POLICY_MANAGE": "管理保留策略",

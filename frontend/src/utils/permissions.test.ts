@@ -9,13 +9,14 @@ function user(permissions: string[]): Pick<AuthUser, 'permissions'> {
 }
 
 describe('permissions', () => {
-  it('exposes the full 45-entry catalog mirror', () => {
-    expect(PERMISSIONS).toHaveLength(45);
+  it('exposes the full 46-entry catalog mirror', () => {
+    expect(PERMISSIONS).toHaveLength(46);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
     expect(PERMISSIONS).toContain('EXPORT_POLICY_MANAGE');
     expect(PERMISSIONS).toContain('AUDIT_SINK_MANAGE');
     expect(PERMISSIONS).toContain('SQL_REVIEW_MANAGE');
     expect(PERMISSIONS).toContain('SERVICE_ACCOUNT_MANAGE');
+    expect(PERMISSIONS).toContain('SCHEMA_CHANGE_MANAGE');
   });
 
   describe('hasPermission', () => {

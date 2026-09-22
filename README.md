@@ -276,6 +276,7 @@ accessflow/
 │   │   ├── apigov/           # API Access Governance — governed outbound REST/SOAP/GraphQL/gRPC calls
 │   │   ├── deploygov/        # Deployment approval governance — pipelines, the fail-closed CI gate, freeze windows
 │   │   ├── sqlreview/        # Deterministic SQL review rules — per-environment rulesets, BLOCK escalates and never rejects
+│   │   ├── schemachange/     # Governed DDL change sets — dev → staging → prod promotion ladder + schema drift (persistence foundation, #878)
 │   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml

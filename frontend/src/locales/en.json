@@ -3394,6 +3394,7 @@
       "REVIEW_PLAN_MANAGE": "Manage review plans",
       "ROUTING_POLICY_MANAGE": "Manage routing policies",
       "SQL_REVIEW_MANAGE": "Manage SQL review rules",
+      "SCHEMA_CHANGE_MANAGE": "Manage schema changes",
       "BREAK_GLASS_VIEW": "View break-glass events",
       "BREAK_GLASS_REVIEW": "Review break-glass events",
       "RETENTION_POLICY_MANAGE": "Manage retention policies",
