@@ -1604,6 +1604,11 @@ transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and re
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 
+The camelCase spellings `datasourceId`, `submittedBy` and `queryType` are still accepted as
+deprecated aliases (they were the only bound names before the snake_case filters were wired up);
+when a filter is sent under both spellings, the snake_case value wins. New clients should use the
+snake_case names above. The same applies to `GET /queries/export.csv`.
+
 Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), `recurring` (boolean — `true` when the row is a recurring-series parent, #627, so the frontend can render a repeat indicator), `recurring_parent_id` (nullable UUID — set on occurrence rows), and `created_at`. The full SQL text and AI analysis are only on `GET /queries/{id}`.
 
 ### GET /queries/export.csv — CSV export
@@ -7372,7 +7377,8 @@ All endpoints require a valid JWT; no role is required — every authenticated u
 
 `page` (default 0), `size` (default 20, max 100), plus optional filters:
 
-- `datasource_id` — only return templates pinned to that datasource
+- `datasource_id` — only return templates pinned to that datasource (`datasourceId` is accepted
+  as a deprecated alias; `datasource_id` wins when both are sent)
 - `tag` — exact, case-sensitive match against the `tags` array
 - `visibility` — `PRIVATE` or `TEAM`
 - `q` — free-text substring on `name` and `description` (case-insensitive)

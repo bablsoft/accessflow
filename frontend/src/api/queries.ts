@@ -186,11 +186,11 @@ export const isPending = (s: QueryStatus): boolean =>
 function toQueryParams(filters: QueryListFilters): Record<string, string | number> {
   const params: Record<string, string | number> = {};
   if (filters.status) params.status = filters.status;
-  if (filters.datasource_id) params.datasourceId = filters.datasource_id;
-  if (filters.submitted_by) params.submittedBy = filters.submitted_by;
+  if (filters.datasource_id) params.datasource_id = filters.datasource_id;
+  if (filters.submitted_by) params.submitted_by = filters.submitted_by;
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
-  if (filters.query_type) params.queryType = filters.query_type;
+  if (filters.query_type) params.query_type = filters.query_type;
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
   return params;

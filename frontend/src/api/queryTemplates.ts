@@ -32,7 +32,7 @@ export async function listQueryTemplates(
   const params: Record<string, string | number> = {};
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
-  if (filters.datasourceId) params.datasourceId = filters.datasourceId;
+  if (filters.datasourceId) params.datasource_id = filters.datasourceId;
   if (filters.tag) params.tag = filters.tag;
   if (filters.visibility) params.visibility = filters.visibility;
   if (filters.q) params.q = filters.q;
