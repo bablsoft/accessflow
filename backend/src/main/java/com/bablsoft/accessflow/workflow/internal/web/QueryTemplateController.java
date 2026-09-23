@@ -59,17 +59,22 @@ class QueryTemplateController {
             + "(their PRIVATE templates plus every TEAM template in the org)")
     QueryTemplatePageResponse list(
             @Parameter(description = "Filter by pinned datasource id")
-            @RequestParam(required = false) UUID datasourceId,
+            @RequestParam(name = "datasource_id", required = false) UUID datasourceId,
             @Parameter(description = "Filter by a single tag (case-sensitive exact match)")
             @RequestParam(required = false) String tag,
             @Parameter(description = "Filter to only PRIVATE or TEAM templates")
             @RequestParam(required = false) QueryTemplateVisibility visibility,
             @Parameter(description = "Free-text search on name or description (case-insensitive)")
             @RequestParam(required = false) String q,
+            @Parameter(hidden = true)
+            @RequestParam(name = "datasourceId", required = false) UUID legacyDatasourceId,
             Authentication authentication,
             Pageable pageable) {
         var caller = currentClaims(authentication);
-        var filter = new QueryTemplateFilter(datasourceId, tag, visibility, q);
+        // datasourceId is the original binding, kept as a deprecated alias; the documented
+        // datasource_id wins when both are sent.
+        var filter = new QueryTemplateFilter(
+                datasourceId != null ? datasourceId : legacyDatasourceId, tag, visibility, q);
         var page = queryTemplateService.list(caller.organizationId(), caller.userId(), filter,
                         SpringPageableAdapter.toPageRequest(pageable))
                 .map(view -> QueryTemplateResponse.from(view, caller.userId()));

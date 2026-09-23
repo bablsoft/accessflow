@@ -17,10 +17,14 @@ import com.bablsoft.accessflow.workflow.internal.web.model.CreateQueryTemplateRe
 import com.bablsoft.accessflow.workflow.internal.web.model.UpdateQueryTemplateRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -34,6 +38,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class QueryTemplateControllerTest {
 
@@ -70,12 +76,61 @@ class QueryTemplateControllerTest {
                 any(QueryTemplateFilter.class), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1L, 1));
 
-        var page = controller.list(null, null, null, null, authentication, PageRequest.of(0, 20));
+        var page = controller.list(null, null, null, null, null, authentication,
+                PageRequest.of(0, 20));
 
         assertThat(page.totalElements()).isEqualTo(1L);
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).editable()).isTrue();
         assertThat(page.content().get(0).name()).isEqualTo("Top");
+    }
+
+    @Test
+    void listBindsTheDocumentedSnakeCaseDatasourceFilter() throws Exception {
+        var datasourceId = UUID.randomUUID();
+
+        var filter = listVia("/api/v1/query-templates?datasource_id=" + datasourceId
+                + "&tag=ops&visibility=TEAM&q=top");
+
+        assertThat(filter.datasourceId()).isEqualTo(datasourceId);
+        assertThat(filter.tag()).isEqualTo("ops");
+        assertThat(filter.visibility()).isEqualTo(QueryTemplateVisibility.TEAM);
+        assertThat(filter.search()).isEqualTo("top");
+    }
+
+    @Test
+    void listStillAcceptsTheLegacyCamelCaseDatasourceFilter() throws Exception {
+        var datasourceId = UUID.randomUUID();
+
+        var filter = listVia("/api/v1/query-templates?datasourceId=" + datasourceId);
+
+        assertThat(filter.datasourceId()).isEqualTo(datasourceId);
+    }
+
+    @Test
+    void listPrefersTheSnakeCaseDatasourceFilterOverTheLegacyAlias() throws Exception {
+        var documented = UUID.randomUUID();
+
+        var filter = listVia("/api/v1/query-templates?datasource_id=" + documented
+                + "&datasourceId=" + UUID.randomUUID());
+
+        assertThat(filter.datasourceId()).isEqualTo(documented);
+    }
+
+    private QueryTemplateFilter listVia(String uri) throws Exception {
+        when(queryTemplateService.list(eq(organizationId), eq(userId),
+                any(QueryTemplateFilter.class), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0L, 0));
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .build();
+
+        mockMvc.perform(get(uri).principal(authentication)).andExpect(status().isOk());
+
+        var captor = ArgumentCaptor.forClass(QueryTemplateFilter.class);
+        verify(queryTemplateService).list(eq(organizationId), eq(userId), captor.capture(),
+                any());
+        return captor.getValue();
     }
 
     @Test

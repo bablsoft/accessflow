@@ -74,9 +74,9 @@ describe('api/queries', () => {
     expect(get).toHaveBeenCalledWith('/api/v1/queries', {
       params: {
         status: 'PENDING_REVIEW',
-        datasourceId: 'ds-1',
-        submittedBy: 'user-1',
-        queryType: 'SELECT',
+        datasource_id: 'ds-1',
+        submitted_by: 'user-1',
+        query_type: 'SELECT',
         from: '2026-01-01T00:00:00Z',
         to: '2026-02-01T00:00:00Z',
         page: 2,
@@ -167,7 +167,7 @@ describe('api/queries', () => {
     });
 
     expect(get).toHaveBeenCalledWith('/api/v1/queries/export.csv', {
-      params: { status: 'PENDING_REVIEW', datasourceId: 'ds-1' },
+      params: { status: 'PENDING_REVIEW', datasource_id: 'ds-1' },
       responseType: 'blob',
     });
     expect(result.blob).toBe(blob);
