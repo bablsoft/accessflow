@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SchemaFingerprintService;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
@@ -32,7 +33,7 @@ class DefaultQuerySnapshotService implements QuerySnapshotService {
     private final QueryRequestLookupService queryRequestLookupService;
     private final QueryParser queryParser;
     private final DatasourceAdminService datasourceAdminService;
-    private final SchemaHasher schemaHasher;
+    private final SchemaFingerprintService schemaFingerprintService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -117,7 +118,7 @@ class DefaultQuerySnapshotService implements QuerySnapshotService {
         try {
             var schema = datasourceAdminService.introspectSchemaForSystem(
                     query.datasourceId(), query.organizationId());
-            return schemaHasher.hash(schema);
+            return schemaFingerprintService.fingerprint(schema);
         } catch (RuntimeException ex) {
             log.debug("Could not introspect schema for snapshot of query {}; schema hash is null",
                     query.id());

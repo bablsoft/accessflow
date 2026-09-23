@@ -6,15 +6,21 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaDriftBaseline;
 import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingKind;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingListFilter;
 import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingStatus;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftScanListFilter;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftService;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetPromotionEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetStatementEntity;
+import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaDriftConfigEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaDriftFindingEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaDriftScanEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaChangeSetPromotionRepository;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaChangeSetRepository;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaChangeSetStatementRepository;
+import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftConfigRepository;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftFindingRepository;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftScanRepository;
 import org.junit.jupiter.api.Test;
@@ -33,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Validates that V178 applies and every schemachange JPA entity maps to its table — entity ↔ DDL
+ * Validates that V178, V180 and V181 apply and every schemachange JPA entity maps to its table — entity ↔ DDL
  * parity under {@code ddl-auto=validate}, including the five new pg enum {@code columnDefinition}s
  * plus the shared {@code query_type}, the {@code char(64)} checksums and the jsonb snapshot, both
  * {@code ON DELETE CASCADE}s, the bulk statement delete, the two plain unique constraints and the partial unique index that
@@ -57,6 +63,10 @@ class SchemaChangePersistenceIntegrationTest {
     private SchemaDriftScanRepository scanRepository;
     @Autowired
     private SchemaDriftFindingRepository findingRepository;
+    @Autowired
+    private SchemaDriftConfigRepository driftConfigRepository;
+    @Autowired
+    private SchemaDriftService driftService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -345,6 +355,165 @@ class SchemaChangePersistenceIntegrationTest {
         assertThat(reloaded.getLastSeenAt()).isNotNull();
         assertThat(reloaded.getResolvedAt()).isEqualTo(finishedAt);
         assertThat(findingRepository.findAllByScan_IdOrderByObjectPathAsc(scan.getId())).hasSize(1);
+    }
+
+    private SchemaDriftConfigEntity newDriftConfig(UUID organizationId, UUID pipelineId) {
+        var config = new SchemaDriftConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(organizationId);
+        config.setPipelineId(pipelineId);
+        return config;
+    }
+
+    @Test
+    void driftConfigRoundTripsWithEveryColumnAndItsDdlDefaults() {
+        var organizationId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+        var defaults = driftConfigRepository.saveAndFlush(newDriftConfig(organizationId, pipelineId));
+
+        assertThat(defaults.isEnabled()).isFalse();
+        assertThat(defaults.getBaseline()).isEqualTo(SchemaDriftBaseline.PREVIOUS_ENVIRONMENT);
+        assertThat(defaults.getScanIntervalHours()).isEqualTo(24);
+
+        var baselineEnvironmentId = UUID.randomUUID();
+        var lastScanAt = Instant.parse("2026-09-22T11:00:00Z");
+        defaults.setEnabled(true);
+        defaults.setBaseline(SchemaDriftBaseline.BASELINE_ENVIRONMENT);
+        defaults.setBaselineEnvironmentId(baselineEnvironmentId);
+        defaults.setScanIntervalHours(6);
+        defaults.setLastScanAt(lastScanAt);
+        defaults.setLastScanError("BASELINE_SNAPSHOT_MISSING");
+        driftConfigRepository.saveAndFlush(defaults);
+
+        var reloaded = driftConfigRepository.findByPipelineIdAndOrganizationId(pipelineId, organizationId)
+                .orElseThrow();
+        assertThat(reloaded.isEnabled()).isTrue();
+        assertThat(reloaded.getBaseline()).isEqualTo(SchemaDriftBaseline.BASELINE_ENVIRONMENT);
+        assertThat(reloaded.getBaselineEnvironmentId()).isEqualTo(baselineEnvironmentId);
+        assertThat(reloaded.getScanIntervalHours()).isEqualTo(6);
+        assertThat(reloaded.getLastScanAt()).isEqualTo(lastScanAt);
+        assertThat(reloaded.getLastScanError()).isEqualTo("BASELINE_SNAPSHOT_MISSING");
+    }
+
+    @Test
+    void atMostOneDriftConfigPerPipeline() {
+        var pipelineId = UUID.randomUUID();
+        driftConfigRepository.saveAndFlush(newDriftConfig(UUID.randomUUID(), pipelineId));
+
+        assertThatThrownBy(() -> driftConfigRepository.saveAndFlush(
+                newDriftConfig(UUID.randomUUID(), pipelineId)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void theJobDrainsOnlyEnabledConfigs() {
+        var organizationId = UUID.randomUUID();
+        var enabled = newDriftConfig(organizationId, UUID.randomUUID());
+        enabled.setEnabled(true);
+        driftConfigRepository.saveAndFlush(enabled);
+        driftConfigRepository.saveAndFlush(newDriftConfig(organizationId, UUID.randomUUID()));
+
+        assertThat(driftConfigRepository.findAllByEnabledTrue())
+                .extracting(SchemaDriftConfigEntity::getId)
+                .contains(enabled.getId());
+        assertThat(driftConfigRepository.findAllByEnabledTrue())
+                .allSatisfy(config -> assertThat(config.isEnabled()).isTrue());
+        assertThat(driftConfigRepository.findAllByOrganizationIdOrderByPipelineIdAsc(organizationId))
+                .hasSize(2);
+    }
+
+    @Test
+    void theInFlightProbeIsBoundedByItsHorizon() {
+        var scan = newScan();
+        scan.setStartedAt(Instant.parse("2026-09-22T10:00:00Z"));
+        scanRepository.saveAndFlush(scan);
+
+        assertThat(scanRepository.existsByOrganizationIdAndEnvironmentIdAndFinishedAtIsNullAndStartedAtAfter(
+                scan.getOrganizationId(), scan.getEnvironmentId(),
+                Instant.parse("2026-09-22T09:30:00Z"))).isTrue();
+        // Past the horizon the row is treated as orphaned, so it stops blocking new scans forever.
+        assertThat(scanRepository.existsByOrganizationIdAndEnvironmentIdAndFinishedAtIsNullAndStartedAtAfter(
+                scan.getOrganizationId(), scan.getEnvironmentId(),
+                Instant.parse("2026-09-22T10:30:00Z"))).isFalse();
+
+        scan.setFinishedAt(Instant.parse("2026-09-22T10:05:00Z"));
+        scanRepository.saveAndFlush(scan);
+        assertThat(scanRepository.existsByOrganizationIdAndEnvironmentIdAndFinishedAtIsNullAndStartedAtAfter(
+                scan.getOrganizationId(), scan.getEnvironmentId(),
+                Instant.parse("2026-09-22T09:30:00Z"))).isFalse();
+    }
+
+    @Test
+    void findingsAreLookedUpByTheirNaturalKeyAndActiveStatus() {
+        var scan = scanRepository.saveAndFlush(newScan());
+        var finding = findingRepository.saveAndFlush(newFinding(scan, "public.orders.total"));
+
+        assertThat(findingRepository
+                .findFirstByOrganizationIdAndEnvironmentIdAndObjectPathAndFindingKindOrderByLastSeenAtDesc(
+                        scan.getOrganizationId(), scan.getEnvironmentId(), "public.orders.total",
+                        SchemaDriftFindingKind.TYPE_MISMATCH))
+                .get().extracting(SchemaDriftFindingEntity::getId).isEqualTo(finding.getId());
+
+        assertThat(findingRepository.findAllByOrganizationIdAndEnvironmentIdAndStatusIn(
+                scan.getOrganizationId(), scan.getEnvironmentId(),
+                java.util.List.of(SchemaDriftFindingStatus.OPEN, SchemaDriftFindingStatus.ACKNOWLEDGED)))
+                .hasSize(1);
+        assertThat(findingRepository.findAllByOrganizationIdAndEnvironmentIdAndStatusIn(
+                scan.getOrganizationId(), scan.getEnvironmentId(),
+                java.util.List.of(SchemaDriftFindingStatus.RESOLVED))).isEmpty();
+    }
+
+    @Test
+    void aFindingCountsAgainstTheScanThatOwnsItAndCarriesAVersion() {
+        var scan = scanRepository.saveAndFlush(newScan());
+        var finding = findingRepository.saveAndFlush(newFinding(scan, "public.orders.a"));
+        findingRepository.saveAndFlush(newFinding(scan, "public.orders.b"));
+
+        assertThat(findingRepository.countByScan_Id(scan.getId())).isEqualTo(2);
+        assertThat(finding.getVersion()).isZero();
+
+        finding.setStatus(SchemaDriftFindingStatus.ACKNOWLEDGED);
+        assertThat(findingRepository.saveAndFlush(finding).getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void aStaleCopyOfAFindingCannotOverwriteANewerOne() {
+        var scan = scanRepository.saveAndFlush(newScan());
+        var stale = findingRepository.saveAndFlush(newFinding(scan, "public.orders.a"));
+        var fresh = findingRepository.findById(stale.getId()).orElseThrow();
+        fresh.setStatus(SchemaDriftFindingStatus.ACKNOWLEDGED);
+        findingRepository.saveAndFlush(fresh);
+
+        // The scan's copy predates the acknowledgement: V181's version refuses it.
+        stale.setLastSeenAt(Instant.parse("2026-09-23T10:00:00Z"));
+        assertThatThrownBy(() -> findingRepository.saveAndFlush(stale))
+                .isInstanceOf(org.springframework.dao.OptimisticLockingFailureException.class);
+    }
+
+    @Test
+    void theListingsFilterOnTheRealDatabase() {
+        // The status predicate compares a PG enum and the pipeline filter joins the owning scan;
+        // both only fail at runtime, so they are exercised here rather than with mocks.
+        var scan = newScan();
+        scanRepository.saveAndFlush(scan);
+        var open = findingRepository.saveAndFlush(newFinding(scan, "public.orders.a"));
+        var acknowledged = newFinding(scan, "public.orders.b");
+        acknowledged.setStatus(SchemaDriftFindingStatus.ACKNOWLEDGED);
+        findingRepository.saveAndFlush(acknowledged);
+        var org = scan.getOrganizationId();
+
+        var byStatusAndPipeline = driftService.listFindings(org, new SchemaDriftFindingListFilter(
+                scan.getPipelineId(), null, SchemaDriftFindingStatus.OPEN), PageRequest.of(0, 20));
+        assertThat(byStatusAndPipeline.totalElements()).isEqualTo(1);
+        assertThat(byStatusAndPipeline.content().getFirst().id()).isEqualTo(open.getId());
+
+        assertThat(driftService.listFindings(org, new SchemaDriftFindingListFilter(
+                UUID.randomUUID(), null, null), PageRequest.of(0, 20)).totalElements()).isZero();
+        assertThat(driftService.listScans(org, new SchemaDriftScanListFilter(
+                scan.getPipelineId(), scan.getEnvironmentId()), PageRequest.of(0, 20)).totalElements()).isEqualTo(1);
+        // Another organization sees nothing: 404-never-403 at the listing level is an empty page.
+        assertThat(driftService.listScans(UUID.randomUUID(), SchemaDriftScanListFilter.unfiltered(),
+                PageRequest.of(0, 20)).totalElements()).isZero();
     }
 
     @Test

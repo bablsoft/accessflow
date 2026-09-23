@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Column;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Schema;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.SchemaFingerprintService;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -46,6 +47,7 @@ class DefaultQueryReplayServiceTest {
     @Mock QuerySnapshotService querySnapshotService;
     @Mock QuerySubmissionService querySubmissionService;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock SchemaFingerprintService schemaFingerprintService;
     @Mock MessageSource messageSource;
 
     private DefaultQueryReplayService service;
@@ -59,8 +61,12 @@ class DefaultQueryReplayServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultQueryReplayService(querySnapshotService, querySubmissionService,
-                datasourceAdminService, new SchemaHasher(), messageSource);
+                datasourceAdminService, schemaFingerprintService, messageSource);
         lenient().when(messageSource.getMessage(any(), any(), any())).thenReturn("message");
+        // The fingerprint itself is pinned in DefaultSchemaFingerprintServiceTest; a core.internal
+        // instance must not be constructed from a workflow test.
+        lenient().when(schemaFingerprintService.fingerprint(any())).thenReturn(
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 
     private ReplayCommand command(boolean isAdmin) {

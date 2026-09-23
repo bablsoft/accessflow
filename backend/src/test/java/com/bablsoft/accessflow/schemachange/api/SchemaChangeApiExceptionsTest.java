@@ -287,4 +287,59 @@ class SchemaChangeApiExceptionsTest {
         assertThat(ex.currentStatus()).isEqualTo(SchemaChangePromotionStatus.APPLIED);
         assertThat(ex.getMessage()).contains(id.toString()).contains("APPLIED");
     }
+
+    @Test
+    void driftFindingNotFoundCarriesTheFindingId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaDriftFindingNotFoundException(id);
+
+        assertThat(ex.findingId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void driftScanInProgressCarriesTheEnvironmentId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaDriftScanInProgressException(id);
+
+        assertThat(ex.environmentId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
+
+    @Test
+    void driftFindingNotAcknowledgeableCarriesTheFindingAndStatus() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaDriftFindingNotAcknowledgeableException(id, SchemaDriftFindingStatus.RESOLVED);
+
+        assertThat(ex.findingId()).isEqualTo(id);
+        assertThat(ex.currentStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
+        assertThat(ex.getMessage()).contains(id.toString()).contains("RESOLVED");
+    }
+
+    @Test
+    void driftBaselineEnvironmentInvalidCarriesBothIdsAndToleratesANullDesignation() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        var ex = new SchemaDriftBaselineEnvironmentInvalidException(pipelineId, environmentId);
+
+        assertThat(ex.pipelineId()).isEqualTo(pipelineId);
+        assertThat(ex.baselineEnvironmentId()).isEqualTo(environmentId);
+        assertThat(ex.getMessage()).contains(pipelineId.toString()).contains(environmentId.toString());
+        assertThat(new SchemaDriftBaselineEnvironmentInvalidException(pipelineId, null)
+                .baselineEnvironmentId()).isNull();
+    }
+
+    @Test
+    void driftConcurrentUpdateCarriesTheResourceId() {
+        var id = UUID.randomUUID();
+
+        var ex = new SchemaDriftConcurrentUpdateException(id);
+
+        assertThat(ex.resourceId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
 }

@@ -92,7 +92,7 @@ class DefaultSchemaChangeSetServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultSchemaChangeSetService(changeSetRepository, statementRepository, promotionRepository,
-                pipelineLookupService, gate, new SchemaChangeProperties(3));
+                pipelineLookupService, gate, new SchemaChangeProperties(3, null, null, null, null, null));
         lenient().when(changeSetRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(statementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(pipelineLookupService.findPipeline(pipelineId, organizationId))

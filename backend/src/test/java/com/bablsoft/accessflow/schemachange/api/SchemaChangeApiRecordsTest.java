@@ -151,4 +151,56 @@ class SchemaChangeApiRecordsTest {
         assertThat(filter.pipelineId()).isNull();
         assertThat(filter.status()).isNull();
     }
+
+    @Test
+    void theDriftListFiltersCarryTheirFieldsAndHaveAnUnfilteredForm() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        var scans = new SchemaDriftScanListFilter(pipelineId, environmentId);
+        assertThat(scans.pipelineId()).isEqualTo(pipelineId);
+        assertThat(scans.environmentId()).isEqualTo(environmentId);
+        assertThat(SchemaDriftScanListFilter.unfiltered())
+                .extracting("pipelineId", "environmentId").containsOnlyNulls();
+
+        var findings = new SchemaDriftFindingListFilter(pipelineId, environmentId,
+                SchemaDriftFindingStatus.ACKNOWLEDGED);
+        assertThat(findings.status()).isEqualTo(SchemaDriftFindingStatus.ACKNOWLEDGED);
+        assertThat(SchemaDriftFindingListFilter.unfiltered())
+                .extracting("pipelineId", "environmentId", "status").containsOnlyNulls();
+    }
+
+    @Test
+    void theDriftConfigRecordsCarryTheirFields() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+        var now = Instant.parse("2026-09-22T10:00:00Z");
+
+        var view = new SchemaDriftConfigView(UUID.randomUUID(), UUID.randomUUID(), pipelineId, true,
+                SchemaDriftBaseline.BASELINE_ENVIRONMENT, environmentId, 6, now, "REASON");
+        assertThat(view.baseline()).isEqualTo(SchemaDriftBaseline.BASELINE_ENVIRONMENT);
+        assertThat(view.baselineEnvironmentId()).isEqualTo(environmentId);
+        assertThat(view.scanIntervalHours()).isEqualTo(6);
+        assertThat(view.lastScanAt()).isEqualTo(now);
+        assertThat(view.lastScanError()).isEqualTo("REASON");
+
+        var command = new UpsertSchemaDriftConfigCommand(false, SchemaDriftBaseline.PROMOTION_SNAPSHOT,
+                null, 24);
+        assertThat(command.enabled()).isFalse();
+        assertThat(command.baseline()).isEqualTo(SchemaDriftBaseline.PROMOTION_SNAPSHOT);
+        assertThat(command.baselineEnvironmentId()).isNull();
+        assertThat(command.scanIntervalHours()).isEqualTo(24);
+    }
+
+    @Test
+    void theDriftEnumsCoverEveryPgEnumValue() {
+        assertThat(SchemaDriftBaseline.values()).containsExactly(SchemaDriftBaseline.PREVIOUS_ENVIRONMENT,
+                SchemaDriftBaseline.BASELINE_ENVIRONMENT, SchemaDriftBaseline.PROMOTION_SNAPSHOT);
+        assertThat(SchemaDriftFindingStatus.values()).containsExactly(SchemaDriftFindingStatus.OPEN,
+                SchemaDriftFindingStatus.ACKNOWLEDGED, SchemaDriftFindingStatus.RESOLVED);
+        assertThat(SchemaDriftFindingKind.values()).containsExactly(
+                SchemaDriftFindingKind.MISSING_IN_TARGET, SchemaDriftFindingKind.UNEXPECTED_IN_TARGET,
+                SchemaDriftFindingKind.TYPE_MISMATCH, SchemaDriftFindingKind.NULLABILITY_MISMATCH,
+                SchemaDriftFindingKind.PRIMARY_KEY_MISMATCH, SchemaDriftFindingKind.FOREIGN_KEY_MISMATCH);
+    }
 }

@@ -8334,15 +8334,15 @@ behaviour. A broken freeze must still hold deployments; a broken routing policy 
 auto-approve or auto-reject, and skipping it drops the deployment through to the environment's
 `requireReview` (which defaults to `true`).
 
-## Schema Change Governance (#879, #880, epic #870)
+## Schema Change Governance (#879, #880, #881, epic #870)
 
 Governed DDL **change sets**: an ordered list of schema statements authored once under a
-`deploygov` pipeline, validated at save time, and promoted along that pipeline's environment
-ladder (#880), with a scheduled drift job to follow (#881). This section covers **authoring**
-(create, edit, reorder, freeze) and **promotion**. Everything under `/schema-change-sets` and
-`/schema-change-promotions` requires the **`SCHEMA_CHANGE_MANAGE`** permission and is org-scoped:
-a change set, pipeline, environment or promotion in another organization reads as `404`, never as
-`403`.
+`deploygov` pipeline, validated at save time, promoted along that pipeline's environment
+ladder (#880), and watched afterwards by a scheduled **drift** job (#881). This section covers
+**authoring** (create, edit, reorder, freeze), **promotion** and **drift**. Everything under
+`/schema-change-sets`, `/schema-change-promotions` and `/schema-drift` requires the
+**`SCHEMA_CHANGE_MANAGE`** permission and is org-scoped: a change set, pipeline, environment,
+promotion or finding in another organization reads as `404`, never as `403`.
 
 The feature narrative is [20-schema-change-governance.md](20-schema-change-governance.md).
 
@@ -8508,6 +8508,159 @@ status, and `metadata.group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) is 
 apart. Do not filter `_CANCELLED` on a non-null actor expecting to see every cancellation.
 Notifications follow in #882.
 
+### Schema drift (#881)
+
+Base path `/api/v1/schema-drift`. A scheduled job introspects each schema-bound environment,
+compares it against a baseline and records findings. **Drift never writes** to the database it
+scans: findings are recorded, acknowledged or resolved, never corrected, and there is no
+remediation endpoint by design.
+
+Scheduled scanning is **opt-in per pipeline** and **off by default** — it opens connections to
+customer databases on a timer, so an upgrade never starts scanning an estate nobody asked it to
+scan. The job drains the configuration table rather than enumerating pipelines, because `deploygov`
+exposes no cross-organization pipeline listing. The opt-in governs the **scheduler only**: *Scan now*
+works on any schema-bound environment, including one whose pipeline is disabled or has never been
+configured (it then uses `PREVIOUS_ENVIRONMENT`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/schema-drift/scans` | List scans, newest `started_at` first. Filters `pipeline_id`, `environment_id`, both optional. Paginated (`page`, `size`). |
+| `GET` | `/schema-drift/findings` | List findings, most recently seen first. Filters `pipeline_id`, `environment_id`, `status` (`OPEN`/`ACKNOWLEDGED`/`RESOLVED`), all optional. Paginated. `pipeline_id` is resolved through the owning scan, so findings stay visible after the environment they name is deleted. An id that matches nothing yields an empty page, not a `404`. |
+| `POST` | `/schema-drift/scans` | Scan one environment now (`202`). Body `{ "environment_id" }`. Returns the scan receipt immediately — introspection cannot sit on a request thread. There is no single-scan read: to follow it, list `GET /schema-drift/scans?environment_id=…` and wait for that `id`'s `finished_at`. `404 SCHEMA_CHANGE_ENVIRONMENT_NOT_FOUND`, `404 DATASOURCE_NOT_FOUND` (the bound datasource has been deleted), `409 SCHEMA_DRIFT_SCAN_IN_PROGRESS`, `422 SCHEMA_CHANGE_ENVIRONMENT_NO_DATASOURCE`. |
+| `POST` | `/schema-drift/findings/{id}/acknowledge` | Accept a finding (`200`). Idempotent on one already acknowledged. `404 SCHEMA_DRIFT_FINDING_NOT_FOUND`, `409 SCHEMA_DRIFT_FINDING_NOT_ACKNOWLEDGEABLE` once resolved, `409 SCHEMA_DRIFT_CONCURRENT_UPDATE` when a running scan re-observed it at the same moment (retry). |
+| `GET` | `/schema-drift/configs` | List the organization's configured pipelines. Pipelines never configured are not listed. Not paginated — at most one row per pipeline. |
+| `GET` | `/schema-drift/configs/{pipelineId}` | Get one pipeline's configuration. A pipeline never configured returns the disabled defaults **without an `id`**. `404 SCHEMA_CHANGE_PIPELINE_NOT_FOUND`. |
+| `PUT` | `/schema-drift/configs/{pipelineId}` | Create or replace it (`200`). A **replacement, not a patch**: an omitted `baseline_environment_id` clears the designation. `400` on validation, `404 SCHEMA_CHANGE_PIPELINE_NOT_FOUND`, `409 SCHEMA_DRIFT_CONCURRENT_UPDATE` (two first-time writes raced — retry), `422 SCHEMA_DRIFT_BASELINE_ENVIRONMENT_INVALID`. |
+
+The `PUT` body:
+
+```json
+{
+  "enabled": true,
+  "baseline": "BASELINE_ENVIRONMENT",
+  "baseline_environment_id": "…",
+  "scan_interval_hours": 24
+}
+```
+
+`enabled`, `baseline` and `scan_interval_hours` are required; `scan_interval_hours` is 1–720.
+`baseline_environment_id` is read only for `BASELINE_ENVIRONMENT`, and must then be an environment of
+the same pipeline that binds a datasource. It may be any such rung — including one the job will also
+scan; that rung simply records `BASELINE_ENVIRONMENT_IS_TARGET` instead of comparing against itself.
+An interval shorter than `ACCESSFLOW_SCHEMACHANGE_DRIFT_POLL_INTERVAL` (default six hours) behaves
+like that interval, since the job only looks for due pipelines once per poll.
+
+The `409` on *Scan now* means "running **somewhere** in the cluster", not on the node you reached:
+each environment is scanned under a cluster-wide lock. The check is bounded by that lock's own
+ceiling, so a scan row orphaned by a replica that died mid-run stops blocking new scans once its
+lock could no longer be held. The `404` is always resolved before the `409`, so an environment you
+cannot see is indistinguishable from a busy one.
+
+A scan (null fields are omitted from the wire, as everywhere in this API):
+
+```json
+{
+  "id": "…", "pipeline_id": "…", "environment_id": "…", "datasource_id": "…",
+  "baseline": "PREVIOUS_ENVIRONMENT",
+  "started_at": "2026-09-22T10:00:00Z", "finished_at": "2026-09-22T10:00:31Z",
+  "applicable": true, "findings_count": 4, "partial": false
+}
+```
+
+- **`applicable: false`** means the datasource's engine *samples* rather than reading a catalog, so
+  it was never contacted at all. Deliberately distinct from an applicable scan that found nothing.
+- **`partial: true`** means the table cap, the findings cap or the time budget cut the scan short.
+  A partial scan never resolves a finding under a table it did not reach.
+- **`findings_count`** is every finding the scan **observed** — newly opened, reopened and still
+  present, acknowledged ones included — not just new ones, counted when the scan finished. A finding
+  belongs to the scan that last observed it, so once a later scan runs, listing an older scan's
+  findings returns only those nobody has seen since; the older scan's `findings_count` keeps the
+  number it recorded.
+- **`error_message`** is a stable reason code, not prose. It is written once by a background job
+  and read afterwards in every locale, so the UI localizes it. Absent when the scan compared a
+  baseline and nothing needs explaining.
+
+| Reason code | Meaning |
+|---|---|
+| `ENGINE_NOT_APPLICABLE` | The engine samples rather than reading a catalog. |
+| `BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND` | No lower rung of the ladder binds a datasource. |
+| `BASELINE_ENVIRONMENT_NOT_CONFIGURED` | The mode is `BASELINE_ENVIRONMENT` but none is designated. |
+| `BASELINE_ENVIRONMENT_NOT_FOUND` | The designated environment is gone, or is not on this pipeline. |
+| `BASELINE_ENVIRONMENT_IS_TARGET` | The designated environment *is* the one being scanned. The designation is pipeline-wide, so the job reaches it on every run; comparing it against itself would be vacuously clean. |
+| `BASELINE_ENVIRONMENT_NO_DATASOURCE` | The designated environment binds no datasource. |
+| `BASELINE_ENGINE_MISMATCH` | Baseline and target run different engines, whose type vocabularies differ. |
+| `BASELINE_SNAPSHOT_MISSING` | Nothing applied here yet, or the **newest** applied promotion carries no snapshot (it is taken just after the apply, and never if the target was unreachable then). An older promotion's snapshot is never used instead — it would report the newest change set's own DDL as drift. |
+| `BASELINE_SNAPSHOT_UNREADABLE` | The stored snapshot could not be deserialized. |
+| `BASELINE_DATASOURCE_REBOUND` | The environment has been rebound since the snapshot was taken. |
+| `BASELINE_INTROSPECTION_FAILED` | The **reference** database could not be introspected. The scanned one was not contacted. |
+| `TARGET_INTROSPECTION_FAILED: <cause>` | The **scanned** database could not be introspected. |
+| `SCAN_FAILED: <cause>` | Both databases were read, but the scan failed inside AccessFlow while diffing or recording findings. Not a customer-database problem. |
+| `FK_COMPARISON_SUPPRESSED` | One side reported no foreign keys at all, so they were not compared (see below). |
+| `SCAN_SUPERSEDED` | A manual scan lost the cluster race and never ran. |
+
+A finding:
+
+```json
+{
+  "id": "…", "scan_id": "…", "environment_id": "…",
+  "object_path": "public.orders.email",
+  "finding_kind": "NULLABILITY_MISMATCH",
+  "expected_value": "NOT NULL", "actual_value": "NULL",
+  "status": "OPEN",
+  "first_detected_at": "2026-09-01T10:00:00Z",
+  "last_seen_at": "2026-09-22T10:00:00Z"
+}
+```
+
+`object_path` is `schema`, `schema.table` or `schema.table.column`; `expected_value` is the
+baseline's side and `actual_value` the scanned environment's (either is absent when that side lacks
+the object). Names may themselves contain dots — Elasticsearch and BigQuery flatten nested fields
+into dotted column names, and index names often carry dates — so the path is a display string, not
+something to split. One finding exists per `(object_path, finding_kind)`, so a column both retyped
+and made nullable produces **two** findings on the same path — each has its own fix and its own
+resolve lifecycle. A missing schema or table is reported once, at the level of the absence, and is
+never descended into.
+
+`FOREIGN_KEY_MISMATCH` is reported on the **owning column**, carrying that column's whole set of
+references on each side (`customers.id` vs `(none)`). If one side reports no foreign keys *across
+the entire schema* while the other reports some, they are not compared at all and the scan records
+`FK_COMPARISON_SUPPRESSED` — a whole side reporting none is far more often a failed metadata read
+than a real schema. Such a scan leaves existing foreign-key findings exactly as they were: not
+comparing is not the same as finding them fixed.
+
+An **acknowledgement accepts the difference as it stands.** A later scan that sees the same object
+path with *different* values reopens it: accepting `text` where the baseline says `varchar` is not
+accepting `int4`. A finding a later scan no longer observes becomes `RESOLVED`; one that reappears
+is reopened in place, keeping its original `first_detected_at` so a flapping object stays visible.
+
+A configuration:
+
+```json
+{
+  "id": "…", "pipeline_id": "…", "enabled": true,
+  "baseline": "PREVIOUS_ENVIRONMENT", "scan_interval_hours": 24,
+  "last_scan_at": "2026-09-22T10:00:00Z"
+}
+```
+
+`last_scan_at` and `last_scan_error` are written **once per pipeline run** by the scheduler, after
+every environment has been visited — never by *Scan now*, and never by a single environment. A run
+in which another replica was holding one of the environments is not stamped, so the pipeline stays
+due. `last_scan_error` lists every environment whose scan **failed** in that run
+(`staging: TARGET_INTROSPECTION_FAILED: …; prod: SCAN_FAILED: …`); configuration states such as an
+inapplicable engine or a missing baseline are not failures and appear only on the scan rows.
+
+`SCHEMA_DRIFT_SCAN_COMPLETED` is audited once per scan against the `schema_drift_scan` resource —
+a null actor with `trigger=schedule` for the job, the requesting user with `trigger=manual` for
+*Scan now* — carrying `environment_id`, `pipeline_id`, `datasource_id`, `baseline`, `applicable`,
+`partial`, `findings_count`, `duration_ms` and the `reason` when one was recorded.
+`SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` (`environment_id`, `object_path`, `finding_kind`,
+`previous_status`) and `SCHEMA_DRIFT_CONFIG_UPDATED` (`pipeline_id`, `enabled`, `baseline`,
+`scan_interval_hours`, `baseline_environment_id`) always carry the acting user.
+
+**What drift cannot see** is as important as what it can — the full fidelity limits are in
+[20-schema-change-governance.md](20-schema-change-governance.md#7-schema-drift-881).
+
 ## Data Lifecycle Manager (AF-499)
 
 Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated** and org-scoped.
@@ -8625,6 +8778,11 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `SCHEMA_CHANGE_SET_FROZEN` | 409 | The change set has a promotion that is not `FAILED` / `CANCELLED`, so its statements and its existence are frozen (#879). |
 | `SCHEMA_CHANGE_SET_ARCHIVED` | 409 | Statement edits on an `ARCHIVED` change set (#879). |
 | `SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION` | 409 | `status` may only be moved to `ARCHIVED` by hand (`currentStatus`, `requestedStatus`) (#879). |
+| `SCHEMA_DRIFT_FINDING_NOT_FOUND` | 404 | The drift finding does not exist in the caller's organization (`findingId`) (#881). |
+| `SCHEMA_DRIFT_SCAN_IN_PROGRESS` | 409 | A drift scan of this environment is already running somewhere in the cluster (`environmentId`) (#881). |
+| `SCHEMA_DRIFT_FINDING_NOT_ACKNOWLEDGEABLE` | 409 | The finding has already been resolved by a later scan (`findingId`, `currentStatus`) (#881). |
+| `SCHEMA_DRIFT_BASELINE_ENVIRONMENT_INVALID` | 422 | The designated drift baseline is missing, is not on this pipeline, or binds no datasource (`pipelineId`, `baselineEnvironmentId`) (#881). |
+| `SCHEMA_DRIFT_CONCURRENT_UPDATE` | 409 | A drift finding was re-observed by a running scan while being acknowledged, or two first-time configuration writes for one pipeline raced (`resourceId`). Safe to retry (#881). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|

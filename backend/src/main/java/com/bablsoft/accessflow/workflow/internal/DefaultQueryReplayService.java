@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceView;
+import com.bablsoft.accessflow.core.api.SchemaFingerprintService;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.workflow.api.QueryReplayService;
@@ -26,7 +27,7 @@ class DefaultQueryReplayService implements QueryReplayService {
     private final QuerySnapshotService querySnapshotService;
     private final QuerySubmissionService querySubmissionService;
     private final DatasourceAdminService datasourceAdminService;
-    private final SchemaHasher schemaHasher;
+    private final SchemaFingerprintService schemaFingerprintService;
     private final MessageSource messageSource;
 
     @Override
@@ -49,7 +50,7 @@ class DefaultQueryReplayService implements QueryReplayService {
         if (!missing.isEmpty()) {
             throw ReplaySchemaIncompatibleException.missingTables(target.id(), missing);
         }
-        var targetSchemaHash = schemaHasher.hash(targetSchema);
+        var targetSchemaHash = schemaFingerprintService.fingerprint(targetSchema);
 
         var result = querySubmissionService.submit(new SubmissionInput(
                 target.id(),

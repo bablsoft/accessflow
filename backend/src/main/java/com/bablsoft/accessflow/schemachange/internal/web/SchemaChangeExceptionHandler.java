@@ -22,6 +22,11 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementInvalidE
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatementLimitException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatusTransitionException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftBaselineEnvironmentInvalidException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftConcurrentUpdateException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingNotAcknowledgeableException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftScanInProgressException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -245,6 +250,52 @@ class SchemaChangeExceptionHandler {
                 msg("error.schema_change_promotion_not_cancellable", ex.currentStatus()),
                 "SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE");
         pd.setProperty("currentStatus", ex.currentStatus().name());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaDriftFindingNotFoundException.class)
+    ProblemDetail handleDriftFindingNotFound(SchemaDriftFindingNotFoundException ex) {
+        var pd = problem(HttpStatus.NOT_FOUND, msg("error.schema_drift_finding_not_found"),
+                "SCHEMA_DRIFT_FINDING_NOT_FOUND");
+        pd.setProperty("findingId", ex.findingId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaDriftScanInProgressException.class)
+    ProblemDetail handleDriftScanInProgress(SchemaDriftScanInProgressException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_drift_scan_in_progress"),
+                "SCHEMA_DRIFT_SCAN_IN_PROGRESS");
+        pd.setProperty("environmentId", ex.environmentId());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaDriftFindingNotAcknowledgeableException.class)
+    ProblemDetail handleDriftFindingNotAcknowledgeable(SchemaDriftFindingNotAcknowledgeableException ex) {
+        var pd = problem(HttpStatus.CONFLICT,
+                msg("error.schema_drift_finding_not_acknowledgeable", ex.currentStatus()),
+                "SCHEMA_DRIFT_FINDING_NOT_ACKNOWLEDGEABLE");
+        pd.setProperty("findingId", ex.findingId());
+        pd.setProperty("currentStatus", ex.currentStatus().name());
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaDriftBaselineEnvironmentInvalidException.class)
+    ProblemDetail handleDriftBaselineInvalid(SchemaDriftBaselineEnvironmentInvalidException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT,
+                msg("error.schema_drift_baseline_environment_invalid"),
+                "SCHEMA_DRIFT_BASELINE_ENVIRONMENT_INVALID");
+        pd.setProperty("pipelineId", ex.pipelineId());
+        if (ex.baselineEnvironmentId() != null) {
+            pd.setProperty("baselineEnvironmentId", ex.baselineEnvironmentId());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(SchemaDriftConcurrentUpdateException.class)
+    ProblemDetail handleDriftConcurrentUpdate(SchemaDriftConcurrentUpdateException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.schema_drift_concurrent_update"),
+                "SCHEMA_DRIFT_CONCURRENT_UPDATE");
+        pd.setProperty("resourceId", ex.resourceId());
         return pd;
     }
 
