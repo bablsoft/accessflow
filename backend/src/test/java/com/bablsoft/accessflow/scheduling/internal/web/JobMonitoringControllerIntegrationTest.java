@@ -63,8 +63,8 @@ class JobMonitoringControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         // The suite runs with accessflow.scheduling.enabled=false.
         assertThat(result).bodyJson().extractingPath("$.scheduling_enabled").asBoolean().isFalse();
-        // No job list assertion: the shared context may have instantiated (and so scheduled) lazy
-        // job beans for other test classes, which the registry correctly reports.
+        // With the switch off nothing registers a scheduled-annotation processor, so nothing is listed.
+        assertThat(result).bodyJson().extractingPath("$.jobs").asArray().isEmpty();
         assertThat(result).bodyJson().extractingPath("$.recording_enabled").asBoolean().isTrue();
         assertThat(result).bodyJson().extractingPath("$.summary_window").asString().isEqualTo("PT24H");
     }

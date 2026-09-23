@@ -83,15 +83,21 @@ class QueryReadController {
             @Parameter(description = "Filter by status enum value")
             @RequestParam(required = false) QueryStatus status,
             @Parameter(description = "Filter by datasource id")
-            @RequestParam(required = false) UUID datasourceId,
+            @RequestParam(name = "datasource_id", required = false) UUID datasourceId,
             @Parameter(description = "Filter by submitter user id (admin-only override)")
-            @RequestParam(required = false) UUID submittedBy,
+            @RequestParam(name = "submitted_by", required = false) UUID submittedBy,
             @Parameter(description = "Inclusive lower bound on createdAt")
             @RequestParam(required = false) Instant from,
             @Parameter(description = "Exclusive upper bound on createdAt")
             @RequestParam(required = false) Instant to,
-            @Parameter(description = "Filter by query_type")
-            @RequestParam(required = false) QueryType queryType,
+            @Parameter(description = "Filter by query type")
+            @RequestParam(name = "query_type", required = false) QueryType queryType,
+            @Parameter(hidden = true)
+            @RequestParam(name = "datasourceId", required = false) UUID legacyDatasourceId,
+            @Parameter(hidden = true)
+            @RequestParam(name = "submittedBy", required = false) UUID legacySubmittedBy,
+            @Parameter(hidden = true)
+            @RequestParam(name = "queryType", required = false) QueryType legacyQueryType,
             Authentication authentication,
             Pageable pageable) {
         if (pageable.getPageSize() > MAX_PAGE_SIZE) {
@@ -99,7 +105,10 @@ class QueryReadController {
                     "Page size cannot exceed " + MAX_PAGE_SIZE);
         }
         var caller = (JwtClaims) authentication.getPrincipal();
-        var filter = buildFilter(caller, status, datasourceId, submittedBy, queryType, from, to);
+        var filter = buildFilter(caller, status,
+                firstNonNull(datasourceId, legacyDatasourceId),
+                firstNonNull(submittedBy, legacySubmittedBy),
+                firstNonNull(queryType, legacyQueryType), from, to);
         var page = queryRequestLookupService.findForOrganization(filter,
                         SpringPageableAdapter.toPageRequest(pageable))
                 .map(QueryListItem::from);
@@ -113,18 +122,27 @@ class QueryReadController {
             @Parameter(description = "Filter by status enum value")
             @RequestParam(required = false) QueryStatus status,
             @Parameter(description = "Filter by datasource id")
-            @RequestParam(required = false) UUID datasourceId,
+            @RequestParam(name = "datasource_id", required = false) UUID datasourceId,
             @Parameter(description = "Filter by submitter user id (admin-only override)")
-            @RequestParam(required = false) UUID submittedBy,
+            @RequestParam(name = "submitted_by", required = false) UUID submittedBy,
             @Parameter(description = "Inclusive lower bound on createdAt")
             @RequestParam(required = false) Instant from,
             @Parameter(description = "Exclusive upper bound on createdAt")
             @RequestParam(required = false) Instant to,
-            @Parameter(description = "Filter by query_type")
-            @RequestParam(required = false) QueryType queryType,
+            @Parameter(description = "Filter by query type")
+            @RequestParam(name = "query_type", required = false) QueryType queryType,
+            @Parameter(hidden = true)
+            @RequestParam(name = "datasourceId", required = false) UUID legacyDatasourceId,
+            @Parameter(hidden = true)
+            @RequestParam(name = "submittedBy", required = false) UUID legacySubmittedBy,
+            @Parameter(hidden = true)
+            @RequestParam(name = "queryType", required = false) QueryType legacyQueryType,
             Authentication authentication) {
         var caller = (JwtClaims) authentication.getPrincipal();
-        var filter = buildFilter(caller, status, datasourceId, submittedBy, queryType, from, to);
+        var filter = buildFilter(caller, status,
+                firstNonNull(datasourceId, legacyDatasourceId),
+                firstNonNull(submittedBy, legacySubmittedBy),
+                firstNonNull(queryType, legacyQueryType), from, to);
         var export = queryCsvExportService.exportQueries(filter);
 
         var headers = new HttpHeaders();
@@ -143,6 +161,12 @@ class QueryReadController {
         var effectiveSubmitter = caller.has(Permission.QUERY_ADMIN) ? submittedBy : caller.userId();
         return new QueryListFilter(caller.organizationId(), effectiveSubmitter, datasourceId,
                 status, queryType, from, to);
+    }
+
+    // The camelCase names are the original bindings, kept as deprecated aliases so existing
+    // clients keep filtering; the documented snake_case name wins when both are sent.
+    private static <T> T firstNonNull(T documented, T legacy) {
+        return documented != null ? documented : legacy;
     }
 
     @GetMapping("/{id}")

@@ -56,10 +56,10 @@ import java.util.Optional;
  * ({@code <declaring class>.<method>}). A task that does not resolve to a class (a programmatic
  * {@code SchedulingConfigurer} task) is skipped.
  *
- * <p>{@code schedulingEnabled} reports the {@code accessflow.scheduling.enabled} switch, not the
- * presence of a {@link ScheduledTaskHolder}: Spring Modulith's moments auto-configuration carries
- * its own {@code @EnableScheduling}, so the holder exists either way. The job list always reflects
- * what the holder actually scheduled.
+ * <p>{@code schedulingEnabled} reports the {@code accessflow.scheduling.enabled} switch rather than
+ * the presence of a {@link ScheduledTaskHolder}, so a stray {@code @EnableScheduling} (the
+ * Spring Modulith moments one had to be switched off) could never make the page claim the switch
+ * is on. The job list always reflects what the holder actually scheduled.
  */
 @Service
 @Slf4j

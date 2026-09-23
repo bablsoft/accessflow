@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * The recorder against the real advice chain — ShedLock's Redis-backed method proxy, Spring's
  * transaction advice and the recording advisor on one bean — rather than a hand-built proxy.
  * The job methods are called directly, exactly as the scheduler would. The one-hour initial delay
- * keeps the scheduler from firing them itself (Spring Modulith's moments auto-configuration
- * registers a scheduled-annotation processor even with accessflow.scheduling.enabled=false).
+ * is a guard: should a scheduled-annotation processor ever be registered in the suite, it still
+ * cannot fire these jobs underneath the assertions.
  */
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)

@@ -30,13 +30,13 @@ class SchedulingDisabledInSuiteIntegrationTest {
     @Test
     @DisplayName("no @Scheduled job is scheduled in the test suite")
     void schedulingIsDisabledForTheSuite() {
-        // Assert on the scheduled tasks, NOT on the presence of a
-        // ScheduledAnnotationBeanPostProcessor bean: Spring's own
-        // org.springframework.scheduling.annotation.SchedulingConfiguration registers that
-        // processor via another @EnableScheduling on the classpath, so it is present either way.
-        assertThat(context.getBean(ScheduledAnnotationBeanPostProcessor.class).getScheduledTasks())
+        // No @EnableScheduling may survive the switch: Spring Modulith Moments' auto-configuration
+        // carries its own, which re-armed every job until spring.modulith.moments.enabled=false.
+        // EagerContextStartupIntegrationTest asserts the same with every job bean constructed.
+        assertThat(context.getBeanNamesForType(ScheduledAnnotationBeanPostProcessor.class))
                 .describedAs("accessflow.scheduling.enabled must stay false in "
-                        + "backend/src/test/resources/application.properties")
+                        + "backend/src/test/resources/application.properties, and no other "
+                        + "@EnableScheduling may be active")
                 .isEmpty();
 
         assertThat(context.getBeanNamesForType(SchedulingConfiguration.class))

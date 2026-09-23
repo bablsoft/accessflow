@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * The one place a job's name and module are derived, so the recorder and the registry agree.
  *
  * <p>A job is named after its class — every AccessFlow job is one {@code @Scheduled} method per
- * class. A class declaring more than one (Spring Modulith's {@code Moments} does) is qualified as
+ * class. A class declaring more than one (a third-party scheduler bean, say) is qualified as
  * {@code Class#method}, so its methods do not collapse into one row and one history.
  */
 final class JobNames {

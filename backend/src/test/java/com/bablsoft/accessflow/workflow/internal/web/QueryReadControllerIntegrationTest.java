@@ -159,6 +159,75 @@ class QueryReadControllerIntegrationTest {
                 .asString().isEqualTo("Prod PG");
     }
 
+    @Test
+    void listBindsTheDocumentedSnakeCaseFilters() {
+        var datasourceId = UUID.randomUUID();
+        var submitter = UUID.randomUUID();
+
+        var filter = listFilterVia("/api/v1/queries?status=EXECUTED&datasource_id=" + datasourceId
+                + "&submitted_by=" + submitter + "&query_type=UPDATE"
+                + "&from=2026-05-01T00:00:00Z&to=2026-06-01T00:00:00Z", adminToken);
+
+        assertThat(filter.organizationId()).isEqualTo(org.getId());
+        assertThat(filter.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(filter.datasourceId()).isEqualTo(datasourceId);
+        assertThat(filter.submittedByUserId()).isEqualTo(submitter);
+        assertThat(filter.queryType()).isEqualTo(QueryType.UPDATE);
+        assertThat(filter.from()).isEqualTo(Instant.parse("2026-05-01T00:00:00Z"));
+        assertThat(filter.to()).isEqualTo(Instant.parse("2026-06-01T00:00:00Z"));
+    }
+
+    @Test
+    void listStillAcceptsTheLegacyCamelCaseFilters() {
+        var datasourceId = UUID.randomUUID();
+        var submitter = UUID.randomUUID();
+
+        var filter = listFilterVia("/api/v1/queries?datasourceId=" + datasourceId
+                + "&submittedBy=" + submitter + "&queryType=DELETE", adminToken);
+
+        assertThat(filter.datasourceId()).isEqualTo(datasourceId);
+        assertThat(filter.submittedByUserId()).isEqualTo(submitter);
+        assertThat(filter.queryType()).isEqualTo(QueryType.DELETE);
+    }
+
+    @Test
+    void listPrefersTheSnakeCaseFiltersOverTheLegacyAliases() {
+        var datasourceId = UUID.randomUUID();
+        var submitter = UUID.randomUUID();
+
+        var filter = listFilterVia("/api/v1/queries?datasource_id=" + datasourceId
+                + "&datasourceId=" + UUID.randomUUID()
+                + "&submitted_by=" + submitter + "&submittedBy=" + UUID.randomUUID()
+                + "&query_type=SELECT&queryType=DDL", adminToken);
+
+        assertThat(filter.datasourceId()).isEqualTo(datasourceId);
+        assertThat(filter.submittedByUserId()).isEqualTo(submitter);
+        assertThat(filter.queryType()).isEqualTo(QueryType.SELECT);
+    }
+
+    @Test
+    void listIgnoresSnakeCaseSubmitterForNonAdmin() {
+        var filter = listFilterVia("/api/v1/queries?submitted_by=" + UUID.randomUUID(),
+                analystToken);
+
+        assertThat(filter.submittedByUserId()).isEqualTo(analyst.getId());
+    }
+
+    private QueryListFilter listFilterVia(String uri, String token) {
+        when(queryRequestLookupService.findForOrganization(any(), any()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.PageResponse<>(
+                        List.of(), 0, 20, 0L, 0));
+
+        var response = mvc.get().uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryRequestLookupService).findForOrganization(captor.capture(), any());
+        return captor.getValue();
+    }
+
     // ── GET /api/v1/queries/export.csv ──────────────────────────────────────────
 
     @Test
@@ -205,11 +274,11 @@ class QueryReadControllerIntegrationTest {
                 .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
                         "queries-20260511-100000.csv", false));
 
-        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + UUID.randomUUID())
+        mvc.get().uri("/api/v1/queries/export.csv?submitted_by=" + UUID.randomUUID())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
                 .exchange();
 
-        // Non-admin caller: the submittedBy query param is ignored and overridden with caller id.
+        // Non-admin caller: the submitted_by query param is ignored and overridden with caller id.
         var captor = ArgumentCaptor.forClass(QueryListFilter.class);
         verify(queryCsvExportService).exportQueries(captor.capture());
         assertThat(captor.getValue().submittedByUserId()).isEqualTo(analyst.getId());
@@ -223,13 +292,51 @@ class QueryReadControllerIntegrationTest {
                         "queries-20260511-100000.csv", false));
         var target = UUID.randomUUID();
 
-        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + target)
+        mvc.get().uri("/api/v1/queries/export.csv?submitted_by=" + target)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .exchange();
 
         var captor = ArgumentCaptor.forClass(QueryListFilter.class);
         verify(queryCsvExportService).exportQueries(captor.capture());
         assertThat(captor.getValue().submittedByUserId()).isEqualTo(target);
+    }
+
+    @Test
+    void exportCsvBindsTheDocumentedSnakeCaseFilters() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+        var datasourceId = UUID.randomUUID();
+
+        mvc.get().uri("/api/v1/queries/export.csv?datasource_id=" + datasourceId
+                        + "&query_type=INSERT")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().datasourceId()).isEqualTo(datasourceId);
+        assertThat(captor.getValue().queryType()).isEqualTo(QueryType.INSERT);
+    }
+
+    @Test
+    void exportCsvStillAcceptsTheLegacyCamelCaseFilters() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+        var datasourceId = UUID.randomUUID();
+        var target = UUID.randomUUID();
+
+        mvc.get().uri("/api/v1/queries/export.csv?datasourceId=" + datasourceId
+                        + "&submittedBy=" + target + "&queryType=DDL")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().datasourceId()).isEqualTo(datasourceId);
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(target);
+        assertThat(captor.getValue().queryType()).isEqualTo(QueryType.DDL);
     }
 
     @Test
