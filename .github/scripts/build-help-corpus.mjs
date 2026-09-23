@@ -542,6 +542,7 @@ const ROUTES = [
   ['/admin/service-accounts/:id', 'One service account: overview, API keys (issue, rotate, revoke), MCP tool allow-list, rate limits, on-behalf-of principals and activity.', 'open an account from Service accounts'],
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
   ['/admin/organizations/:id', 'One organization and its settings.', 'open a row in Organizations'],
+  ['/admin/jobs', 'Scheduled background jobs: their health and execution history (platform admins, read-only).'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],
   ['/admin/governance-domains', 'Whether this organization governs outbound API calls and CI/CD deployments — which navigation, review tabs and dashboard widgets are shown.'],
   ['/admin/access-requests', 'Approve or reject incoming access requests.'],

@@ -648,7 +648,10 @@ the extra Spring Security authority `PLATFORM_ADMIN`. The JWT carries a `platfor
 login / `GET /me` user object exposes a `platform_admin` boolean.
 
 - **What it unlocks.** Only the cross-org tenant-management plane at `/api/v1/platform/organizations`
-  (`@PreAuthorize("hasAuthority('PLATFORM_ADMIN')")` — see [04-api-spec.md → Platform Organizations](04-api-spec.md#platform-organizations)).
+  (`@PreAuthorize("hasAuthority('PLATFORM_ADMIN')")` — see [04-api-spec.md → Platform Organizations](04-api-spec.md#platform-organizations))
+  and the read-only scheduled-job monitor at `/api/v1/platform/jobs` (#923 — see
+  [04-api-spec.md → Platform Jobs](04-api-spec.md#platform-jobs-923)), which is process-wide rather
+  than per-tenant and so has no `Permission` catalog value.
   It grants **no** extra capability inside any single org — the role matrix above still governs every
   tenant-scoped action.
 - **How it's granted.** The bootstrap admin and the first-run setup-wizard admin are provisioned as

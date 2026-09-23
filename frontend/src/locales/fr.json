@@ -113,7 +113,8 @@
     "sub_schema_changes": "Changements de schéma",
     "schemaChangeSets": "Ensembles de modifications",
     "schemaDrift": "Dérive de schéma",
-    "access_simulation": "Simulation d'accès"
+    "access_simulation": "Simulation d'accès",
+    "jobs": "Tâches planifiées"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2720,6 +2721,46 @@
         "col_resource": "Ressource",
         "col_on_behalf_of": "Pour le compte de"
       }
+    },
+    "jobs": {
+      "title": "Tâches planifiées",
+      "subtitle": "Tâches de fond enregistrées sur ce backend, leur état et leur historique d’exécution. Lecture seule.",
+      "load_error": "Impossible de charger les tâches planifiées",
+      "empty": "Aucune tâche planifiée enregistrée",
+      "scheduler_disabled_title": "Planificateur désactivé",
+      "scheduler_disabled_body": "La planification est désactivée sur ce backend (ACCESSFLOW_SCHEDULING_ENABLED=false) : aucune tâche n’est enregistrée.",
+      "scheduler_switch_off": "Le commutateur de planification est désactivé sur ce backend, mais les tâches ci-dessous restent enregistrées.",
+      "recording_disabled": "L’enregistrement des exécutions est désactivé (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false). Aucun nouvel historique n’est écrit.",
+      "col_job": "Tâche",
+      "col_module": "Module",
+      "col_cadence": "Cadence",
+      "col_last_status": "Dernier statut",
+      "col_last_run": "Dernière exécution",
+      "col_duration": "Durée",
+      "col_consecutive_failures": "Échecs consécutifs",
+      "col_window": "Dernières {{window}}",
+      "col_status": "Statut",
+      "col_started": "Début",
+      "col_instance": "Instance",
+      "window_counts": "{{success}} ok / {{failed}} en échec",
+      "window_mean": "moyenne {{duration}}",
+      "consecutive_failures": "{{count}} en échec",
+      "never_run": "Pas encore exécutée",
+      "abandoned": "Abandonnée",
+      "not_registered": "Non enregistrée",
+      "not_registered_help": "Cette tâche a un historique mais n’est pas enregistrée sur ce backend (renommée ou supprimée).",
+      "history": "Historique d’exécution",
+      "history_title": "{{name}} — historique d’exécution",
+      "history_empty": "Aucune exécution enregistrée",
+      "history_load_error": "Impossible de charger l’historique d’exécution",
+      "filter_status": "Filtrer par statut",
+      "duration_ms": "{{value}} ms",
+      "duration_s": "{{value}} s",
+      "duration_m": "{{minutes}} min {{seconds}} s",
+      "unit_d": "{{value}} j",
+      "unit_h": "{{value}} h",
+      "unit_m": "{{value}} min",
+      "unit_s": "{{value}} s"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "Toutes les tables",
       "ALLOW_LISTED": "Tables autorisées"
+    },
+    "job_execution_status": {
+      "RUNNING": "En cours",
+      "SUCCESS": "Réussie",
+      "FAILED": "Échouée"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Délai fixe",
+      "FIXED_RATE": "Fréquence fixe",
+      "CRON": "Cron",
+      "ONE_TIME": "Unique"
     }
   },
   "access": {

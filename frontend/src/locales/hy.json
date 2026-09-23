@@ -113,7 +113,8 @@
     "sub_schema_changes": "Սխեմայի փոփոխություններ",
     "schemaChangeSets": "Փոփոխությունների հավաքածուներ",
     "schemaDrift": "Սխեմայի շեղում",
-    "access_simulation": "Մուտքի սիմուլյացիա"
+    "access_simulation": "Մուտքի սիմուլյացիա",
+    "jobs": "Պլանավորված առաջադրանքներ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -2720,6 +2721,46 @@
         "col_resource": "Ռեսուրս",
         "col_on_behalf_of": "Անունից"
       }
+    },
+    "jobs": {
+      "title": "Պլանավորված առաջադրանքներ",
+      "subtitle": "Այս բեքենդում գրանցված ֆոնային առաջադրանքները, դրանց վիճակը և կատարման պատմությունը։ Միայն ընթերցման համար։",
+      "load_error": "Չհաջողվեց բեռնել պլանավորված առաջադրանքները",
+      "empty": "Պլանավորված առաջադրանքներ գրանցված չեն",
+      "scheduler_disabled_title": "Պլանավորիչն անջատված է",
+      "scheduler_disabled_body": "Պլանավորումն անջատված է այս բեքենդում (ACCESSFLOW_SCHEDULING_ENABLED=false), ուստի առաջադրանքներ գրանցված չեն։",
+      "scheduler_switch_off": "Պլանավորման անջատիչն անջատված է այս բեքենդում, բայց ստորև նշված առաջադրանքները դեռ գրանցված են։",
+      "recording_disabled": "Կատարումների գրանցումն անջատված է (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false)։ Նոր պատմություն չի գրվում։",
+      "col_job": "Առաջադրանք",
+      "col_module": "Մոդուլ",
+      "col_cadence": "Պարբերականություն",
+      "col_last_status": "Վերջին կարգավիճակ",
+      "col_last_run": "Վերջին կատարում",
+      "col_duration": "Տևողություն",
+      "col_consecutive_failures": "Անընդմեջ ձախողումներ",
+      "col_window": "Վերջին {{window}}",
+      "col_status": "Կարգավիճակ",
+      "col_started": "Սկսվել է",
+      "col_instance": "Օրինակ",
+      "window_counts": "{{success}} հաջող / {{failed}} ձախողված",
+      "window_mean": "միջինը՝ {{duration}}",
+      "consecutive_failures": "{{count}} ձախողված",
+      "never_run": "Դեռ չի կատարվել",
+      "abandoned": "Լքված",
+      "not_registered": "Գրանցված չէ",
+      "not_registered_help": "Այս առաջադրանքն ունի պատմություն, բայց գրանցված չէ այս բեքենդում (վերանվանված կամ հեռացված)։",
+      "history": "Կատարման պատմություն",
+      "history_title": "{{name}} — կատարման պատմություն",
+      "history_empty": "Գրանցված կատարումներ չկան",
+      "history_load_error": "Չհաջողվեց բեռնել կատարման պատմությունը",
+      "filter_status": "Զտել ըստ կարգավիճակի",
+      "duration_ms": "{{value}} մվ",
+      "duration_s": "{{value}} վ",
+      "duration_m": "{{minutes}} ր {{seconds}} վ",
+      "unit_d": "{{value}} օր",
+      "unit_h": "{{value}} ժ",
+      "unit_m": "{{value}} ր",
+      "unit_s": "{{value}} վ"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "Բոլոր աղյուսակները",
       "ALLOW_LISTED": "Թույլատրված աղյուսակներ"
+    },
+    "job_execution_status": {
+      "RUNNING": "Ընթացքում",
+      "SUCCESS": "Հաջող",
+      "FAILED": "Ձախողված"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Ֆիքսված ուշացում",
+      "FIXED_RATE": "Ֆիքսված հաճախականություն",
+      "CRON": "Cron",
+      "ONE_TIME": "Միանվագ"
     }
   },
   "access": {

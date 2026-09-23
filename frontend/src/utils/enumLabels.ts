@@ -39,6 +39,8 @@ import type {
   BreakGlassEventStatus,
   GrantResourceKind,
   GrantUsageRecommendation,
+  JobCadenceType,
+  JobExecutionStatus,
   ChannelType,
   ComparisonOperator,
   DataClassification,
@@ -108,6 +110,18 @@ export const ANOMALY_STATUSES: readonly BehaviorAnomalyStatus[] = [
 
 export const anomalyStatusLabel = (t: TFunction, v: BehaviorAnomalyStatus): string =>
   t(`enums.behavior_anomaly_status.${v}` as const);
+
+export const JOB_EXECUTION_STATUSES: readonly JobExecutionStatus[] = [
+  'RUNNING',
+  'SUCCESS',
+  'FAILED',
+] as const;
+
+export const jobExecutionStatusLabel = (t: TFunction, v: JobExecutionStatus): string =>
+  t(`enums.job_execution_status.${v}` as const);
+
+export const jobCadenceTypeLabel = (t: TFunction, v: JobCadenceType): string =>
+  t(`enums.job_cadence_type.${v}` as const);
 
 export const BREAK_GLASS_STATUSES: readonly BreakGlassEventStatus[] = [
   'PENDING_REVIEW',

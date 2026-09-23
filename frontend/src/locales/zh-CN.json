@@ -113,7 +113,8 @@
     "sub_schema_changes": "架构变更",
     "schemaChangeSets": "变更集",
     "schemaDrift": "架构漂移",
-    "access_simulation": "访问模拟"
+    "access_simulation": "访问模拟",
+    "jobs": "计划任务"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2720,6 +2721,46 @@
         "col_resource": "资源",
         "col_on_behalf_of": "代表"
       }
+    },
+    "jobs": {
+      "title": "计划任务",
+      "subtitle": "在此后端注册的后台任务、其运行状况和执行历史。只读。",
+      "load_error": "无法加载计划任务",
+      "empty": "未注册任何计划任务",
+      "scheduler_disabled_title": "调度器已禁用",
+      "scheduler_disabled_body": "此后端已关闭调度（ACCESSFLOW_SCHEDULING_ENABLED=false），因此没有注册任何任务。",
+      "scheduler_switch_off": "此后端的调度开关已关闭，但下列任务仍处于注册状态。",
+      "recording_disabled": "执行记录已关闭（ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false）。不会写入新的历史记录。",
+      "col_job": "任务",
+      "col_module": "模块",
+      "col_cadence": "周期",
+      "col_last_status": "最近状态",
+      "col_last_run": "最近运行",
+      "col_duration": "耗时",
+      "col_consecutive_failures": "连续失败",
+      "col_window": "最近 {{window}}",
+      "col_status": "状态",
+      "col_started": "开始时间",
+      "col_instance": "实例",
+      "window_counts": "{{success}} 成功 / {{failed}} 失败",
+      "window_mean": "平均 {{duration}}",
+      "consecutive_failures": "{{count}} 次失败",
+      "never_run": "尚未运行",
+      "abandoned": "已中断",
+      "not_registered": "未注册",
+      "not_registered_help": "此任务有历史记录，但未在此后端注册（已重命名或删除）。",
+      "history": "执行历史",
+      "history_title": "{{name}} — 执行历史",
+      "history_empty": "没有已记录的执行",
+      "history_load_error": "无法加载执行历史",
+      "filter_status": "按状态筛选",
+      "duration_ms": "{{value}} 毫秒",
+      "duration_s": "{{value}} 秒",
+      "duration_m": "{{minutes}} 分 {{seconds}} 秒",
+      "unit_d": "{{value}} 天",
+      "unit_h": "{{value}} 小时",
+      "unit_m": "{{value}} 分钟",
+      "unit_s": "{{value}} 秒"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "所有表",
       "ALLOW_LISTED": "允许列表中的表"
+    },
+    "job_execution_status": {
+      "RUNNING": "运行中",
+      "SUCCESS": "成功",
+      "FAILED": "失败"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "固定延迟",
+      "FIXED_RATE": "固定频率",
+      "CRON": "Cron",
+      "ONE_TIME": "一次性"
     }
   },
   "access": {

@@ -1997,7 +1997,7 @@ Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec
 
 ### Scheduled jobs and clustering
 
-`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 27 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
+`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have its jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
 
 Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). It offers two shapes: `runLocked` runs the critical section on the calling thread, and `runLockedAsync` acquires on the calling thread but runs the section on a caller-supplied `Executor`, releasing when it finishes — what lets a request-scoped caller answer "already running" synchronously without occupying its thread for the whole job (AF-660). ShedLock types stay confined to `scheduling.internal/`, and the provider is built with `safeUpdate(true)` so a holder that overruns its `lockAtMostFor` cannot delete a lock a second node has since taken.
 
@@ -2033,12 +2033,66 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `HelpChatRetentionJob` | ai | `helpChatRetentionJob` | `accessflow.help-agent.retention-poll-interval` | `PT6H` |
 | `QuerySuggestionAggregationJob` | workflow | `querySuggestionAggregationJob` | `accessflow.workflow.query-suggestions.aggregation-poll-interval` | `PT6H` |
 | `SchemaDriftJob` | schemachange | `schemaDriftJob` | `accessflow.schemachange.drift-poll-interval` | `PT6H` |
+| `JobExecutionRetentionJob` | scheduling | `jobExecutionRetentionJob` | `accessflow.scheduling.executions.retention-poll-interval` | `PT6H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
 `AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
 
 `AttestationCampaignOpenJob` / `AttestationCampaignCloseJob` drive recertification campaigns (AF-384) — see [§ Access recertification campaigns](#access-recertification-campaigns-af-384). The open job scans `SCHEDULED` campaigns past `scheduled_open_at`; the close job scans `OPEN` campaigns past `due_at`. Both delegate to the idempotent `AttestationLifecycleService` and swallow per-campaign `RuntimeException`s. System-driven `ATTESTATION_CAMPAIGN_OPENED` / `_CLOSED` and the auto-default item audits are written inline by the lifecycle service (no reverse `audit → attestation` dependency).
+
+### Job execution monitoring (#923)
+
+The table above is hand-maintained; since #923 the same information is also **queryable at
+runtime**. `GET /api/v1/platform/jobs` (platform admins only — see
+[04-api-spec.md → Platform Jobs](04-api-spec.md#platform-jobs-923)) lists every registered
+`@Scheduled` method with its cadence, `@SchedulerLock` name and `lockAtMostFor`, merged with a
+health rollup from the recorded history, and the `/admin/jobs` page renders it. Everything lives in
+the `scheduling` module; no job class is touched, and the only new module edge is
+`scheduling → core` (for `PageRequest`/`PageResponse`).
+
+- **Registry derived, not curated.** `DefaultJobRegistryService` reads Spring's
+  `ScheduledTaskHolder`, so a job added later appears without any registration step. It covers
+  `@Scheduled` methods only: `ReplicaHealthProber`, `HelpCorpusIndexDispatcher` and the update
+  check are deliberately not `@Scheduled` and are not listed. It reports the configured interval
+  and the last run, never a predicted next run — with a fixed delay the next fire time depends on
+  when the last run finished and is not knowable cluster-wide. `scheduling_enabled` reports the
+  `accessflow.scheduling.enabled` switch, so a disabled scheduler reads as "scheduler disabled"
+  rather than "no jobs".
+- **Recording is transparent.** `ScheduledJobExecutionAdvisor` — a plain Spring AOP advisor on
+  `@annotation(Scheduled)`, ordered `LOWEST_PRECEDENCE - 100` — wraps every job *outside* both
+  ShedLock's method-proxy advice (`LOWEST_PRECEDENCE`) and any `@Transactional` on the job. From
+  out there a lock-skipped tick looks like a run, so the row is opened by
+  `JobExecutionLockListener`, a ShedLock `LockingTaskExecutorListener` whose `onTaskStarted` fires
+  on the executing thread only once the lock is held; the two share a `ThreadLocal`. A listener is
+  used rather than a decorated `LockProvider` because jobs also take programmatic
+  `DistributedLockService` locks inside their body, which a decorator would mistake for the job's
+  own lock. The same-thread assumption is pinned against real Redis by
+  `ScheduledJobExecutionIntegrationTest`. ShedLock resolves exactly **one**
+  `LockingTaskExecutorListener` bean: a second one (ShedLock's Micrometer integration, say) would
+  make every `@SchedulerLock` job fail with `NoUniqueBeanDefinitionException` — compose it into
+  `JobExecutionLockListener` instead.
+- **Lock-skipped ticks are not persisted.** With N replicas × 29 jobs × a `PT30S` cadence, a row
+  per skipped tick would out-write the audit log. Only runs that held the lock are recorded.
+- **Fail-soft, and its own transaction.** `JobExecutionRecorder` writes each row in
+  `REQUIRES_NEW`, so a job that fails and rolls back keeps the record of its failure. Every recorder
+  exception is logged at WARN and swallowed; the job's own result or exception passes through
+  unchanged. `ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false` turns recording off entirely.
+- **What `FAILED` means.** Only that the job method threw. Jobs follow the per-row
+  `catch (RuntimeException)` rule above, so a run whose items failed individually still records
+  `SUCCESS`; `AuditSinkDrainJob`, for instance, keeps per-sink failures on the sink row. The
+  monitor answers "did the job run, and did it crash", not "did every item succeed".
+- **Abandoned runs.** A row opens as `RUNNING` and closes as `SUCCESS`/`FAILED`. A `RUNNING` row
+  older than the job's `lockAtMostFor` is reported as abandoned — the replica died mid-run — which
+  is how a stuck or crashed job becomes visible.
+- **Retention.** `JobExecutionRetentionJob` prunes by age (`…_RETENTION`, `P14D`) and trims each
+  job to its newest `…_MAX_PER_JOB` rows (500), so one `PT30S` job cannot crowd out a daily job's
+  history. Both are bulk deletes; a non-positive setting skips its axis. The job records its own
+  runs like any other.
+- **Job names.** A job is named after its class (every AccessFlow job is one `@Scheduled` method
+  per class); a class declaring several — Spring Modulith's `Moments` — is listed per method as
+  `Class#method`, so the methods keep separate histories.
+- **Monitoring, not control.** There is no run-now, pause or cadence editing.
 
 ### Review escalation and nudges (#622)
 

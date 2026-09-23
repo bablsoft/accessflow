@@ -3213,6 +3213,43 @@ drift".
 
 ---
 
+## Scheduled job executions (`scheduling`, #923)
+
+Execution history of every `@Scheduled` job, written transparently by the `scheduling` module (an
+AOP advisor plus a ShedLock listener — no job class records itself). **Platform-scoped**: there is
+deliberately no `organization_id`, because jobs run per process and several sweep every
+organization in one pass. No FKs — the table references nothing. Pruned by
+`JobExecutionRetentionJob` on two axes: age (`ACCESSFLOW_SCHEDULING_EXECUTIONS_RETENTION`, default
+`P14D`) and a per-job cap (`ACCESSFLOW_SCHEDULING_EXECUTIONS_MAX_PER_JOB`, default 500).
+
+**Enum `job_execution_status`** (`V183`): `RUNNING`, `SUCCESS`, `FAILED`.
+
+### job_executions
+
+A row opens as `RUNNING` once the job's ShedLock lock is acquired and is closed when the method
+returns. **Lock-skipped ticks are never written.** A `RUNNING` row older than the job's
+`lockAtMostFor` is reported as *abandoned* by the API; that flag is derived, never stored.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `job_name` | TEXT NOT NULL — the job's class simple name (e.g. `QueryTimeoutJob`) |
+| `lock_name` | TEXT NULL — the `@SchedulerLock` name |
+| `instance_id` | TEXT NULL — the replica that ran it (`HOSTNAME`, falling back to the host name) |
+| `started_at` | TIMESTAMPTZ NOT NULL |
+| `finished_at` | TIMESTAMPTZ NULL — null while `RUNNING` |
+| `duration_ms` | BIGINT NULL |
+| `status` | `job_execution_status` NOT NULL |
+| `error_class` | TEXT NULL — exception class of a `FAILED` run |
+| `error_message` | TEXT NULL — truncated to 2,000 characters on write |
+
+> Indexes: `idx_job_executions_job_started` on `(job_name, started_at DESC)` (per-job history),
+> `idx_job_executions_started` on `(started_at)` (age pruning), and the partial
+> `idx_job_executions_failed` on `(job_name, started_at DESC) WHERE status = 'FAILED'` (failure
+> rollup).
+
+---
+
 ## Data Lifecycle Manager (AF-499)
 
 The `lifecycle` module (migration **V103**) adds retention + right-to-erasure governance. New enums

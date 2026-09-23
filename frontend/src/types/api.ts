@@ -182,6 +182,66 @@ export interface OrganizationPage {
   total_pages: number;
 }
 
+// Scheduled job monitoring (#923) — platform admin only. The backend omits null fields.
+export type JobExecutionStatus = 'RUNNING' | 'SUCCESS' | 'FAILED';
+
+export type JobCadenceType = 'FIXED_DELAY' | 'FIXED_RATE' | 'CRON' | 'ONE_TIME';
+
+export interface JobHealth {
+  last_status?: JobExecutionStatus | null;
+  last_abandoned: boolean;
+  last_started_at?: string | null;
+  last_finished_at?: string | null;
+  last_duration_ms?: number | null;
+  last_error_message?: string | null;
+  consecutive_failures: number;
+  window_success_count: number;
+  window_failure_count: number;
+  window_mean_duration_ms?: number | null;
+}
+
+export interface ScheduledJob {
+  job_name: string;
+  declaring_class?: string | null;
+  method_name?: string | null;
+  module?: string | null;
+  cadence_type?: JobCadenceType | null;
+  cadence?: string | null;
+  lock_name?: string | null;
+  lock_at_most_for?: string | null;
+  registered: boolean;
+  health: JobHealth;
+}
+
+export interface JobRegistry {
+  scheduling_enabled: boolean;
+  recording_enabled: boolean;
+  summary_window: string;
+  jobs: ScheduledJob[];
+}
+
+export interface JobExecution {
+  id: string;
+  job_name: string;
+  lock_name?: string | null;
+  instance_id?: string | null;
+  started_at: string;
+  finished_at?: string | null;
+  duration_ms?: number | null;
+  status: JobExecutionStatus;
+  error_class?: string | null;
+  error_message?: string | null;
+  abandoned: boolean;
+}
+
+export interface JobExecutionPage {
+  content: JobExecution[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
 export interface CreateOrganizationInput {
   name: string;
   slug?: string | null;

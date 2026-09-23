@@ -8,6 +8,7 @@ import type {
   DeploymentOutcome,
   DeploymentRollbackReviewStatus,
   GrantUsageRecommendation,
+  JobExecutionStatus,
   QueryStatus,
   RequestGroupItemStatus,
   RequestGroupStatus,
@@ -19,6 +20,24 @@ import type {
   StandingBypassKind,
 } from '@/types/api';
 import type { ColorTriple } from './riskColors';
+
+/** Job execution status (#923). An abandoned RUNNING row (its replica died) reads as a warning. */
+export const jobExecutionStatusColor = (
+  status: JobExecutionStatus,
+  abandoned = false,
+): ColorTriple => {
+  if (abandoned) {
+    return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+  }
+  switch (status) {
+    case 'SUCCESS':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'FAILED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'RUNNING':
+      return { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' };
+  }
+};
 
 export const breakGlassStatusColor = (status: BreakGlassEventStatus): ColorTriple => {
   switch (status) {

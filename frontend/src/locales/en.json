@@ -113,7 +113,8 @@
     "sub_schema_changes": "Schema changes",
     "schemaChangeSets": "Change sets",
     "schemaDrift": "Schema drift",
-    "access_simulation": "Access simulation"
+    "access_simulation": "Access simulation",
+    "jobs": "Scheduled jobs"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -2720,6 +2721,46 @@
         "col_resource": "Resource",
         "col_on_behalf_of": "On behalf of"
       }
+    },
+    "jobs": {
+      "title": "Scheduled jobs",
+      "subtitle": "Background jobs registered on this backend, their health and execution history. Read-only.",
+      "load_error": "Could not load the scheduled jobs",
+      "empty": "No scheduled jobs are registered",
+      "scheduler_disabled_title": "Scheduler disabled",
+      "scheduler_disabled_body": "Scheduling is switched off on this backend (ACCESSFLOW_SCHEDULING_ENABLED=false), so no jobs are registered.",
+      "scheduler_switch_off": "The scheduling switch is off on this backend, but the jobs below are still registered.",
+      "recording_disabled": "Execution recording is off (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false). No new history is being written.",
+      "col_job": "Job",
+      "col_module": "Module",
+      "col_cadence": "Cadence",
+      "col_last_status": "Last status",
+      "col_last_run": "Last run",
+      "col_duration": "Duration",
+      "col_consecutive_failures": "Consecutive failures",
+      "col_window": "Last {{window}}",
+      "col_status": "Status",
+      "col_started": "Started",
+      "col_instance": "Instance",
+      "window_counts": "{{success}} ok / {{failed}} failed",
+      "window_mean": "mean {{duration}}",
+      "consecutive_failures": "{{count}} failed",
+      "never_run": "Not run yet",
+      "abandoned": "Abandoned",
+      "not_registered": "Not registered",
+      "not_registered_help": "This job has recorded history but is not registered on this backend (renamed or removed).",
+      "history": "Execution history",
+      "history_title": "{{name}} — execution history",
+      "history_empty": "No recorded executions",
+      "history_load_error": "Could not load the execution history",
+      "filter_status": "Filter by status",
+      "duration_ms": "{{value}} ms",
+      "duration_s": "{{value}} s",
+      "duration_m": "{{minutes}}m {{seconds}}s",
+      "unit_d": "{{value}} d",
+      "unit_h": "{{value}} h",
+      "unit_m": "{{value}} min",
+      "unit_s": "{{value}} s"
     }
   },
   "notifications": {
@@ -3644,6 +3685,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "All tables",
       "ALLOW_LISTED": "Allow-listed tables"
+    },
+    "job_execution_status": {
+      "RUNNING": "Running",
+      "SUCCESS": "Success",
+      "FAILED": "Failed"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Fixed delay",
+      "FIXED_RATE": "Fixed rate",
+      "CRON": "Cron",
+      "ONE_TIME": "One time"
     }
   },
   "access": {

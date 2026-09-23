@@ -29,6 +29,7 @@ export const DOCS_ANCHOR_PAGES = {
   'guide-deployment-approval': 'guides/deployment-approval/',
   'guide-help-assistant': 'guides/help-assistant/',
   'cfg-organizations': 'configuration/users-roles/',
+  'cfg-job-monitoring': 'configuration/users-roles/',
   'cfg-languages': 'configuration/users-roles/',
   'cfg-users': 'configuration/users-roles/',
   'cfg-roles': 'configuration/users-roles/',

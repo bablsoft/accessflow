@@ -10,6 +10,7 @@ import {
   driftColor,
   deploymentRollbackReviewStatusColor,
   grantUsageRecommendationColor,
+  jobExecutionStatusColor,
   standingBypassKindColor,
   statusColor,
 } from './statusColors';
@@ -185,5 +186,20 @@ describe('standingBypassKindColor', () => {
   it('ranks QUERY_ADMIN above break-glass', () => {
     expect(standingBypassKindColor('QUERY_ADMIN').fg).toBe('var(--risk-crit)');
     expect(standingBypassKindColor('BREAK_GLASS').fg).toBe('var(--risk-high)');
+  });
+});
+
+describe('jobExecutionStatusColor', () => {
+  it('uses tokens and distinguishes every status and the abandoned state', () => {
+    const success = jobExecutionStatusColor('SUCCESS');
+    const failed = jobExecutionStatusColor('FAILED');
+    const running = jobExecutionStatusColor('RUNNING');
+    const abandoned = jobExecutionStatusColor('RUNNING', true);
+    for (const c of [success, failed, running, abandoned]) {
+      expect(c.fg).toMatch(/^var\(--/);
+      expect(c.bg).toMatch(/^var\(--/);
+      expect(c.border).toMatch(/^var\(--/);
+    }
+    expect(new Set([success.fg, failed.fg, running.fg, abandoned.fg]).size).toBe(4);
   });
 });

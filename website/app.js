@@ -376,6 +376,7 @@
       'cfg-groups': '/docs/configuration/users-roles/',
       'cfg-languages': '/docs/configuration/users-roles/',
       'cfg-organizations': '/docs/configuration/users-roles/',
+      'cfg-job-monitoring': '/docs/configuration/users-roles/',
       'cfg-roles': '/docs/configuration/users-roles/',
       'cfg-service-accounts': '/docs/configuration/users-roles/',
       'cfg-users': '/docs/configuration/users-roles/',

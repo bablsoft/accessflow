@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "007f7fd7dafd",
-  "generatedAt": "2026-09-23T10:37:44.591Z",
-  "sourceCommit": "f0c1b5afbed987cc1077e0b2fec99ffe45bce0e2",
-  "chunkCount": 581,
-  "sha256": "007f7fd7dafd2774cc6dcbd4721b41427fcc9795e1ae8dfb22d1f313308192ed",
-  "quickReferenceSha256": "633902fc2b23b9beeb9568fe08e4ba6807e3de8dbb06e20ba5b0a4761014b5b8",
+  "corpusVersion": "0880845bdef0",
+  "generatedAt": "2026-09-23T11:59:14.795Z",
+  "sourceCommit": "b327e29ffe15fb915f86244638a44f923520938d",
+  "chunkCount": 584,
+  "sha256": "0880845bdef0ca8c144ae9725b93f587cabbe320d0ecb9469bb98a2de2d2aca9",
+  "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -228,8 +228,8 @@
       "title": "Users, roles & organizations",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
-      "chunks": 13,
-      "sha256": "62d8cc1daadc8028b8a124742ed416af3eaa35816d901134051bd0ad0414740f"
+      "chunks": 15,
+      "sha256": "fef116057d7792cd660d5bc50e51bf5987c8df3b2dfd429216bb2153ae0e992a"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -420,8 +420,8 @@
       "title": "Deploying and configuring AccessFlow",
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
-      "chunks": 89,
-      "sha256": "9e87b149b0a920195da2159df16d541720376174240e11110e1b54de853c60c0"
+      "chunks": 90,
+      "sha256": "31b01578474becd931b3f25928599d42a842ab0d548c84725f7a527458c8dc79"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "c61a3f937d57f2ee372e930203b05745ae11eb069d5b751b61c9ac156ba21f32"
+      "sha256": "0dad8a9792113ffa8551d017da7734ad8bd919b54128e6511bc94c38c9cceab6"
     }
   ]
 }

@@ -28,6 +28,9 @@ import {
   anomalyStatusLabel,
   apiMaskingMatcherTypeLabel,
   breakGlassStatusLabel,
+  JOB_EXECUTION_STATUSES,
+  jobCadenceTypeLabel,
+  jobExecutionStatusLabel,
   commentStatusLabel,
   erasureStatusLabel,
   lifecycleActionLabel,
@@ -334,5 +337,13 @@ describe('service-account enum labels (#875)', () => {
       key === 'enums.mcp_tool.validate_sql' ? 'Parse SQL' : (opts?.defaultValue ?? key)) as unknown as TFunction;
     expect(mcpToolDescription(real, 'validate_sql')).toBe('Parse SQL');
     expect(mcpToolDescription(real, 'brand_new_tool')).toBe('');
+  });
+});
+
+describe('job execution labels', () => {
+  it('exposes every status and resolves each through t()', () => {
+    expect(JOB_EXECUTION_STATUSES).toEqual(['RUNNING', 'SUCCESS', 'FAILED']);
+    expect(jobExecutionStatusLabel(t, 'FAILED')).toBe('enums.job_execution_status.FAILED');
+    expect(jobCadenceTypeLabel(t, 'CRON')).toBe('enums.job_cadence_type.CRON');
   });
 });

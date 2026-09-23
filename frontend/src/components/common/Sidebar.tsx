@@ -39,6 +39,7 @@ import {
   QuestionCircleOutlined,
   AppstoreOutlined,
   BankOutlined,
+  ScheduleOutlined,
   AuditOutlined,
   WarningOutlined,
   FileProtectOutlined,
@@ -294,6 +295,7 @@ export function Sidebar({
       label: t('nav.group_platform'),
       items: [
         { id: 'organizations', to: '/admin/organizations', label: t('nav.organizations'), icon: <BankOutlined />, permissions: [], platformAdmin: true },
+        { id: 'jobs', to: '/admin/jobs', label: t('nav.jobs'), icon: <ScheduleOutlined />, permissions: [], platformAdmin: true },
       ],
     },
   ];

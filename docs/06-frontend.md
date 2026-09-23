@@ -1324,7 +1324,18 @@ still gates each entry.
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
 | `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages`, `/admin/governance-domains` |
 | | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse`, `/admin/help-agent` |
-| `PLATFORM` | *(none)* | `/admin/organizations` |
+| `PLATFORM` | *(none)* | `/admin/organizations`, `/admin/jobs` |
+
+**Scheduled jobs (`/admin/jobs`, #923).** `JobsPage` (platform admins only — `AuthGuard
+requirePlatformAdmin`, `platformAdmin: true` nav item) reads `GET /platform/jobs` through
+`src/api/jobs.ts` (`jobKeys`) and renders one row per registered `@Scheduled` job: module, cadence,
+last status (`JobStatusPill`, colours from `jobExecutionStatusColor`, which shows an abandoned
+`RUNNING` row as a warning), last run, duration, a consecutive-failures badge and the summary-window
+counts. `scheduling_enabled=false` with no jobs renders a "Scheduler disabled" empty state rather
+than "no jobs"; `recording_enabled=false` adds a warning banner. Clicking a row opens
+`components/jobs/JobExecutionsDrawer`, whose body is keyed by job name (page and status filter reset
+without a `useEffect`) and pages `GET /platform/jobs/{jobName}/executions` server-side, with a
+failed run's error in an expandable row. Read-only: there are no mutations.
 
 `/admin/slack` is the one entry that **moved groups**: it left `SECURITY` for `SYSTEM`, next to
 `/admin/notifications` — it is a notification channel, not a security control.

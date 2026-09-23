@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Users, roles &amp; organizations — AccessFlow docs</title>
-  <meta name="description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, and grant just-in-time or break-glass access." />
+  <meta name="description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, JIT and break-glass access, and scheduled jobs." />
 
   <link rel="canonical" href="https://accessflow.io/docs/configuration/users-roles/" />
   <meta name="robots" content="index, follow" />
@@ -28,7 +28,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Users, roles &amp; organizations — AccessFlow docs" />
-  <meta property="og:description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, and grant just-in-time or break-glass access." />
+  <meta property="og:description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, JIT and break-glass access, and scheduled jobs." />
   <meta property="og:url" content="https://accessflow.io/docs/configuration/users-roles/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -38,7 +38,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Users, roles &amp; organizations — AccessFlow docs" />
-  <meta name="twitter:description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, and grant just-in-time or break-glass access." />
+  <meta name="twitter:description" content="Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, JIT and break-glass access, and scheduled jobs." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
   <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
@@ -60,11 +60,11 @@
       "breadcrumb": { "@id": "https://accessflow.io/docs/configuration/users-roles/#breadcrumb" },
       "headline": "Users, roles & organizations",
       "name": "Users, roles & organizations \u2014 AccessFlow docs",
-      "description": "Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, and grant just-in-time or break-glass access.",
+      "description": "Configure AccessFlow organizations, quotas, users, RBAC roles, groups and service accounts, JIT and break-glass access, and scheduled jobs.",
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-19",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -225,6 +225,7 @@
           <nav class="docs-toc">
             <p class="docs-toc-label">Users & roles</p>
             <a href="#cfg-organizations">Organizations & quotas</a>
+            <a href="#cfg-job-monitoring">Scheduled jobs</a>
             <a href="#cfg-languages">Languages & localization</a>
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles & RBAC</a>
@@ -273,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-19">19 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -352,6 +353,63 @@
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md">the roadmap</a>.
           </p>
 
+          <!-- Scheduled jobs -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-job-monitoring">Scheduled jobs</h2>
+          <p>
+            <strong>What it is.</strong> AccessFlow runs about thirty background jobs on a timer —
+            approval timeouts, review escalations, scheduled and recurring query runs, access-grant
+            expiry, retention and erasure, discovery scans, audit-sink delivery, schema drift. The
+            <strong>Scheduled jobs</strong> page shows every one of them, whether its last run
+            succeeded, and the history of its recent runs, so you can tell at a glance whether last
+            night's retention sweep ran, and whether a job has been crashing or has stopped running.
+            It is a
+            <em>platform-admin</em> screen, like Organizations, because the jobs belong to the
+            deployment rather than to any one tenant.
+          </p>
+          <p><strong>Use it.</strong> Open <code>/admin/jobs</code> from the <strong>Platform</strong>
+            group in the sidebar:</p>
+          <ol>
+            <li><strong>Scan the table.</strong> Each row is one job, with the module it belongs to,
+              how often it runs, the status and time of its last run, how long that took, and how
+              many runs succeeded or failed over the last day. A red <em>failed</em> badge counts the
+              failures in a row since the job last succeeded; hover it for the latest error.</li>
+            <li><strong>Open a job's history.</strong> Click a row to see its recent runs, newest
+              first — which server ran it, when, for how long, and, for a failed run, the error. Filter
+              by status to see only the failures.</li>
+            <li><strong>Read the states.</strong> <em>Running</em> means a run is in progress.
+              <em>Abandoned</em> means a run started but never finished within its time limit — the
+              server running it most likely stopped mid-run. <em>Not run yet</em> means there is no
+              recorded run: the job has not run since recording started, or its older runs have
+              been cleared out.</li>
+          </ol>
+          <p>
+            <strong>What <em>Failed</em> means.</strong> A run is marked failed when the job itself
+            stops with an error. Most jobs work through a list of items — queries, grants, audit
+            destinations — and deal with a problem on one item without stopping, so a run can show
+            <em>Success</em> even though some items failed. Those per-item problems are shown where
+            they belong: for example, a failing audit destination is flagged on the
+            <a href="/docs/configuration/audit-compliance/#cfg-audit-sinks">audit sinks</a> settings, not here.
+          </p>
+          <p>
+            <strong>Good to know.</strong> When several AccessFlow servers run side by side, only one
+            of them runs each job per cycle; the others skip it, and those skips are not recorded.
+            The page is read-only — you cannot start, pause or reschedule a job from it. If the page
+            says <em>Scheduler disabled</em>, background jobs are switched off on that server
+            (<code>ACCESSFLOW_SCHEDULING_ENABLED=false</code>).
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_SCHEDULING_EXECUTIONS_RETENTION</code> (how long
+            history is kept, default <code>P14D</code>),
+            <code>ACCESSFLOW_SCHEDULING_EXECUTIONS_MAX_PER_JOB</code> (newest runs kept per job,
+            default <code>500</code>), <code>ACCESSFLOW_SCHEDULING_EXECUTIONS_SUMMARY_WINDOW</code>
+            (the period the success and failure counts cover, default <code>PT24H</code>) and
+            <code>ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED</code> (set <code>false</code> to stop
+            recording). All of them are listed in the
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">deployment configuration reference</a>.
+          </p>
           <!-- Languages & localization -->
         </section>
 
