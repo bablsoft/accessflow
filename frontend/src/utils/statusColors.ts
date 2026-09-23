@@ -10,6 +10,11 @@ import type {
   QueryStatus,
   RequestGroupItemStatus,
   RequestGroupStatus,
+  SchemaChangeLadderRungState,
+  SchemaChangePromotionStatus,
+  SchemaChangeSetStatus,
+  SchemaDriftFindingKind,
+  SchemaDriftFindingStatus,
   StandingBypassKind,
 } from '@/types/api';
 import type { ColorTriple } from './riskColors';
@@ -198,3 +203,98 @@ export const driftColor = (drifted: boolean): ColorTriple =>
   drifted
     ? { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' }
     : { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+
+// ── Schema change governance (epic #870, UI #883) ───────────────────────────
+
+const NEUTRAL: ColorTriple = {
+  fg: 'var(--fg-muted)',
+  bg: 'var(--status-neutral-bg)',
+  border: 'var(--status-neutral-border)',
+};
+const INFO: ColorTriple = {
+  fg: 'var(--status-info)',
+  bg: 'var(--status-info-bg)',
+  border: 'var(--status-info-border)',
+};
+const WARN: ColorTriple = {
+  fg: 'var(--status-warn)',
+  bg: 'var(--status-warn-bg)',
+  border: 'var(--status-warn-border)',
+};
+const GOOD: ColorTriple = {
+  fg: 'var(--risk-low)',
+  bg: 'var(--risk-low-bg)',
+  border: 'var(--risk-low-border)',
+};
+const BAD: ColorTriple = {
+  fg: 'var(--risk-crit)',
+  bg: 'var(--risk-crit-bg)',
+  border: 'var(--risk-crit-border)',
+};
+
+export const schemaChangeSetStatusColor = (status: SchemaChangeSetStatus): ColorTriple => {
+  switch (status) {
+    case 'DRAFT':
+    case 'ARCHIVED':
+      return NEUTRAL;
+    case 'ACTIVE':
+      return INFO;
+  }
+};
+
+export const schemaChangePromotionStatusColor = (
+  status: SchemaChangePromotionStatus,
+): ColorTriple => {
+  switch (status) {
+    case 'PENDING':
+    case 'IN_REVIEW':
+    case 'APPROVED':
+      return INFO;
+    case 'APPLIED':
+      return GOOD;
+    case 'PARTIALLY_APPLIED':
+      return WARN;
+    case 'FAILED':
+      return BAD;
+    case 'CANCELLED':
+      return NEUTRAL;
+  }
+};
+
+export const schemaChangeLadderRungColor = (state: SchemaChangeLadderRungState): ColorTriple => {
+  switch (state) {
+    case 'APPLIED':
+      return GOOD;
+    case 'IN_PROGRESS':
+    case 'PROMOTABLE':
+      return INFO;
+    case 'BLOCKED':
+      return NEUTRAL;
+  }
+};
+
+/** Drift severity: an absent or unexpected object outranks a changed attribute of one both sides have. */
+export const schemaDriftFindingKindColor = (kind: SchemaDriftFindingKind): ColorTriple => {
+  switch (kind) {
+    case 'MISSING_IN_TARGET':
+    case 'UNEXPECTED_IN_TARGET':
+      return BAD;
+    case 'TYPE_MISMATCH':
+    case 'PRIMARY_KEY_MISMATCH':
+    case 'FOREIGN_KEY_MISMATCH':
+      return WARN;
+    case 'NULLABILITY_MISMATCH':
+      return INFO;
+  }
+};
+
+export const schemaDriftFindingStatusColor = (status: SchemaDriftFindingStatus): ColorTriple => {
+  switch (status) {
+    case 'OPEN':
+      return BAD;
+    case 'ACKNOWLEDGED':
+      return WARN;
+    case 'RESOLVED':
+      return GOOD;
+  }
+};

@@ -630,7 +630,8 @@ class NotificationContextBuilder {
      * Builds the context for {@code SCHEMA_DRIFT_DETECTED} (#882): the pipeline in
      * {@code datasourceId}/{@code datasourceName}, the environment in {@code environmentName}, and
      * the number of newly opened findings in {@code driftNewFindingCount}. Recipients are every
-     * active {@code SCHEMA_CHANGE_MANAGE} holder. Empty when the pipeline or environment is gone.
+     * active {@code SCHEMA_CHANGE_MANAGE} holder; {@code reviewUrl} opens the drift page (#883).
+     * Empty when the pipeline or environment is gone.
      */
     Optional<NotificationContext> buildSchemaDrift(SchemaDriftDetectedEvent event) {
         var view = schemaChangeNotificationLookupService
@@ -653,7 +654,7 @@ class NotificationContextBuilder {
                 null, null, null,
                 null,
                 null, null, null,
-                null,
+                buildAppUrl("/schema-drift"),
                 recipients,
                 Instant.now(),
                 locale,

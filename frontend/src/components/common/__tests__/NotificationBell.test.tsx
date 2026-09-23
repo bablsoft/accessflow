@@ -635,7 +635,7 @@ describe('NotificationBell', () => {
     expect(navigateMock).toHaveBeenCalledWith(expectedRoute);
   });
 
-  it('renders drift with a pluralised count and does not navigate (#882)', async () => {
+  it('renders drift with a pluralised count and opens the drift page (#882, #883)', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 2 });
     markNotificationReadMock.mockResolvedValue(undefined);
     listNotificationsMock.mockResolvedValue(
@@ -674,7 +674,7 @@ describe('NotificationBell', () => {
     fireEvent.click(row);
 
     await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('drift-many'));
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(navigateMock).toHaveBeenCalledWith('/schema-drift');
   });
 
   it('routes a plain FAILED outcome to the deployment, not the rollback worklist', async () => {

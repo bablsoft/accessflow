@@ -109,7 +109,10 @@
     "help_agent": "帮助助手",
     "governance_domains": "治理域",
     "sql_review": "SQL 审查",
-    "service_accounts": "服务账号"
+    "service_accounts": "服务账号",
+    "sub_schema_changes": "架构变更",
+    "schemaChangeSets": "变更集",
+    "schemaDrift": "架构漂移"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2991,7 +2994,8 @@
       "INSERT": "Insert",
       "UPDATE": "Update",
       "DELETE": "Delete",
-      "DDL": "DDL"
+      "DDL": "DDL",
+      "OTHER": "其他"
     },
     "query_template_change_type": {
       "CREATED": "已创建",
@@ -3519,6 +3523,38 @@
       "validate_sql": "解析并校验 SQL 而不提交",
       "get_column_samples": "从数据源采样列值",
       "get_audit_log": "读取审计日志"
+    },
+    "schema_change_set_status": {
+      "DRAFT": "草稿",
+      "ACTIVE": "启用",
+      "ARCHIVED": "已归档"
+    },
+    "schema_change_promotion_status": {
+      "PENDING": "待处理",
+      "IN_REVIEW": "审核中",
+      "APPROVED": "已批准",
+      "APPLIED": "已应用",
+      "FAILED": "失败",
+      "PARTIALLY_APPLIED": "部分应用",
+      "CANCELLED": "已取消"
+    },
+    "schema_drift_finding_kind": {
+      "MISSING_IN_TARGET": "目标中缺失",
+      "UNEXPECTED_IN_TARGET": "目标中意外存在",
+      "TYPE_MISMATCH": "类型不匹配",
+      "NULLABILITY_MISMATCH": "可空性不匹配",
+      "PRIMARY_KEY_MISMATCH": "主键不匹配",
+      "FOREIGN_KEY_MISMATCH": "外键不匹配"
+    },
+    "schema_drift_finding_status": {
+      "OPEN": "未处理",
+      "ACKNOWLEDGED": "已确认",
+      "RESOLVED": "已解决"
+    },
+    "schema_drift_baseline": {
+      "PREVIOUS_ENVIRONMENT": "上一环境",
+      "BASELINE_ENVIRONMENT": "基准环境",
+      "PROMOTION_SNAPSHOT": "晋升快照"
     }
   },
   "access": {
@@ -4745,6 +4781,183 @@
       "target": "Target",
       "memberRisk": "Risk",
       "memberStatus": "Status"
+    }
+  },
+  "schemaChange": {
+    "list": {
+      "title": "架构变更集",
+      "subtitle": "一次编写架构语句，然后沿流水线逐个环境晋升。",
+      "create": "新建变更集",
+      "createTitle": "新建架构变更集",
+      "createSubmit": "创建",
+      "created": "变更集已创建",
+      "createError": "无法创建变更集",
+      "loadError": "无法加载变更集",
+      "name": "名称",
+      "pipeline": "流水线",
+      "status": "状态",
+      "statements": "语句",
+      "ladder": "晋升阶梯",
+      "updated": "更新时间",
+      "allPipelines": "所有流水线",
+      "allStatuses": "所有状态",
+      "count": "{{total}} 个变更集",
+      "emptyTitle": "尚无架构变更集",
+      "emptyDescription": "在部署流水线下创建变更集，添加其语句，然后逐个环境晋升。",
+      "emptyFiltered": "没有符合这些筛选条件的变更集"
+    },
+    "form": {
+      "pipeline": "流水线",
+      "pipelineHint": "该流水线的各环境即为晋升阶梯。",
+      "pipelineRequired": "请选择流水线",
+      "noPipelines": "尚无部署流水线",
+      "name": "名称",
+      "nameRequired": "请输入名称",
+      "nameSize": "请使用 {{min}} 到 {{max}} 个字符",
+      "description": "描述",
+      "descriptionMax": "最多使用 {{max}} 个字符"
+    },
+    "detail": {
+      "subtitle": "流水线 {{pipeline}}",
+      "notFound": "未找到变更集",
+      "editDetails": "编辑详情",
+      "updated": "变更集已更新",
+      "updateError": "无法更新变更集",
+      "archive": "归档",
+      "archiveConfirm": "归档此变更集？归档后将无法再编辑或晋升。",
+      "archived": "变更集已归档",
+      "deleteConfirm": "删除此变更集及其语句？",
+      "deleted": "变更集已删除",
+      "deleteError": "无法删除变更集",
+      "saved": "语句已保存",
+      "savedWithWarnings": "语句已保存，存在 {{count}} 条审核警告",
+      "saveError": "无法保存语句",
+      "promoted": "已提交晋升到 {{environment}}",
+      "promoteError": "无法晋升变更集",
+      "promotionCancelled": "晋升已取消",
+      "cancelError": "无法取消晋升"
+    },
+    "statements": {
+      "title": "语句",
+      "empty": "尚无语句。请在下方添加第一条。",
+      "add": "添加语句",
+      "save": "保存语句",
+      "remove": "删除语句 {{index}}",
+      "dragHandle": "重新排序语句 {{index}}",
+      "sqlLabel": "语句 {{index}}",
+      "sqlRequired": "请输入语句，或将其删除",
+      "sqlMax": "单条语句最多 {{max}} 个字符",
+      "capRule": "一个变更集最多可容纳 {{max}} 条语句",
+      "capReached": "此变更集已达到 {{max}} 条语句的上限。",
+      "problemsLabel": "语句 {{index}} 中的问题",
+      "severity": {
+        "ERROR": "已拒绝",
+        "BLOCK": "已阻止",
+        "WARN": "警告"
+      },
+      "frozenTitle": "语句已冻结",
+      "frozenBody": "到 {{environment}} 的晋升处于「{{status}}」状态，因此语句已无法再更改——已审核的内容即为运行的内容。请归档此变更集并新建一个来修改语句。",
+      "archivedTitle": "此变更集已归档",
+      "archivedBody": "其语句已无法再编辑或晋升。",
+      "promotionsUnknown": "在推广记录加载完成前，语句为只读"
+    },
+    "ladder": {
+      "title": "晋升阶梯",
+      "ariaLabel": "晋升阶梯",
+      "hint": "每个环境必须先应用完成，才能晋升下一个环境。",
+      "loadError": "无法加载晋升阶梯",
+      "noEnvironments": "此流水线没有环境",
+      "state": {
+        "APPLIED": "已应用",
+        "IN_PROGRESS": "进行中",
+        "PROMOTABLE": "可以晋升",
+        "BLOCKED": "已阻止"
+      },
+      "blocker": {
+        "NO_DATASOURCE": "未绑定数据源——此环境仅用于部署",
+        "PARTIALLY_APPLIED": "已阻止——上次晋升只应用了变更集的一部分；请为剩余部分新建变更集",
+        "SET_ARCHIVED": "已阻止——变更集已归档",
+        "SET_EMPTY": "已阻止——变更集没有语句",
+        "LADDER_INVALID": "已阻止——此流水线中有两个环境的排序值相同",
+        "LOWER_ENVIRONMENT_NOT_APPLIED": "已阻止——{{environment}} 尚未应用",
+        "FREEZE_ACTIVE": "已阻止——冻结窗口生效中（{{behavior}}）",
+        "FREEZE_ACTIVE_reason": "已阻止——冻结窗口生效中（{{behavior}}）：{{reason}}",
+        "DATASOURCE_MISSING": "已阻止 — 绑定的数据源已不存在；请重新绑定或清除该环境的绑定"
+      },
+      "latestPromotion": "最近一次晋升：{{status}}",
+      "openGroup": "打开请求组",
+      "approvedQueued": "已批准——将在下次计划运行时执行，且不能再取消。",
+      "promote": "晋升",
+      "promoteTo": "晋升到 {{environment}}",
+      "promoteConfirmTitle": "晋升到 {{environment}}？",
+      "promoteConfirmBody": "每条语句都会独立运行，且不可回滚。在运行之前，此次晋升会作为一个请求组接受分析与审核。",
+      "cancelPromotion": "取消晋升",
+      "cancelConfirm": "取消此次晋升？"
+    },
+    "promotions": {
+      "title": "晋升历史",
+      "empty": "尚未晋升过",
+      "environment": "环境",
+      "deletedEnvironment": "已删除的环境",
+      "status": "状态",
+      "submitted": "提交时间",
+      "applied": "应用时间",
+      "group": "请求组",
+      "loadError": "无法加载推广记录"
+    },
+    "drift": {
+      "title": "架构漂移",
+      "subtitle": "环境的实际架构与其基准不同之处。",
+      "fidelityNote": "漂移检测仅比较架构、表、列（名称、类型、可空性、主键）以及外键。索引、约束、默认值和类型精度不参与比较，因此没有发现结果只表示这些字段没有漂移——仅此而已。",
+      "pipeline": "流水线",
+      "environment": "环境",
+      "status": "状态",
+      "allEnvironments": "所有环境",
+      "allStatuses": "所有状态",
+      "loadError": "无法加载架构漂移",
+      "noEnvironmentsTitle": "没有可扫描的环境",
+      "noEnvironmentsDescription": "漂移检测只扫描绑定了数据源的环境。请先为某个部署流水线的环境绑定数据源。",
+      "deletedEnvironment": "已删除的环境 {{id}}",
+      "neverScanned": "尚未扫描。",
+      "scanRunning": "扫描进行中…",
+      "scanNow": "立即扫描",
+      "scanRequested": "扫描已开始",
+      "scanError": "无法开始扫描",
+      "lastScan": "最近一次扫描于 {{when}}，对照 {{baseline}} · {{count}} 项发现",
+      "partial": "部分",
+      "unsupportedTitle": "此引擎不支持",
+      "noComparison": "未进行任何比较",
+      "noFindings": "在漂移检测所比较的字段中未发现漂移。",
+      "noFindingsFiltered": "没有此状态的发现结果。",
+      "objectPath": "对象",
+      "kind": "类型",
+      "expected": "预期（基准）",
+      "actual": "实际",
+      "absent": "（不存在）",
+      "firstSeen": "首次发现",
+      "lastSeen": "最近发现",
+      "actions": "操作",
+      "acknowledge": "确认",
+      "acknowledged": "发现结果已确认",
+      "acknowledgeError": "无法确认该发现结果",
+      "reason": {
+        "ENGINE_NOT_APPLICABLE": "此引擎采用数据抽样而非读取目录，因此无法可靠地比较其架构，未与其建立连接。",
+        "BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND": "阶梯中没有更低层级的环境绑定数据源可供比较。",
+        "BASELINE_ENVIRONMENT_NOT_CONFIGURED": "基准模式需要指定一个基准环境，但尚未设置。",
+        "BASELINE_ENVIRONMENT_NOT_FOUND": "指定的基准环境在此流水线中已不存在。",
+        "BASELINE_ENVIRONMENT_IS_TARGET": "这就是指定的基准环境，因此不会与自身比较。",
+        "BASELINE_ENVIRONMENT_NO_DATASOURCE": "指定的基准环境未绑定数据源。",
+        "BASELINE_ENGINE_MISMATCH": "基准环境使用不同的引擎，因此无法比较架构。",
+        "BASELINE_SNAPSHOT_MISSING": "尚不存在最近一次已应用晋升的快照。",
+        "BASELINE_SNAPSHOT_UNREADABLE": "无法读取已保存的快照。",
+        "BASELINE_DATASOURCE_REBOUND": "自快照生成后，该环境已重新绑定到另一个数据源。",
+        "BASELINE_INTROSPECTION_FAILED": "无法读取基准数据库。",
+        "TARGET_INTROSPECTION_FAILED": "无法读取此环境的数据库。",
+        "SCAN_FAILED": "比较过程中扫描在 AccessFlow 内部失败。",
+        "FK_COMPARISON_SUPPRESSED": "未比较外键：其中一方完全没有报告任何外键。",
+        "SCAN_SUPERSEDED": "此环境的另一次扫描已在进行中。"
+      },
+      "truncated": "仅显示最近的 {{shown}} 条结果 — 缩小筛选范围以查看其余结果。"
     }
   },
   "deploygov": {

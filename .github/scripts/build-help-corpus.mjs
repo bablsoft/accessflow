@@ -46,8 +46,9 @@ const MIN_QUICK_REF_TOKENS = 1500;
 // Raised from 6000 for the privileged-access menu entry (#968), whose any-of gate renders two
 // permission names on its line, and again for the product-facts block, which sits above the menu
 // for the same reason: what the product is not is the one thing no retrieved page says. The
-// ceiling is a broken-selector guard, not the prompt budget.
-const MAX_QUICK_REF_TOKENS = 7000;
+// ceiling is a broken-selector guard, not the prompt budget. Raised from 7000 for the Schema
+// changes menu section (#883).
+const MAX_QUICK_REF_TOKENS = 7500;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GITHUB_BLOB = 'https://github.com/bablsoft/accessflow/blob/main/';
@@ -507,6 +508,9 @@ const ROUTES = [
   ['/request-groups/new', 'Build a grouped request and order its members.', 'the create action on Request Groups'],
   ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.', 'the edit action on a grouped request that has not been submitted yet'],
   ['/request-groups/reviews', 'Review queue for grouped requests.'],
+  ['/schema-change-sets', 'Author schema changes and promote them along a pipeline.'],
+  ['/schema-change-sets/:id', 'One change set: statements, promotion ladder, history.', 'open a row in Change sets'],
+  ['/schema-drift', 'Schema differences per environment against its baseline.'],
   ['/datasources', 'The registered databases: engine, connection settings and health. This is the administrator\'s registry, not a list of what you personally may query.'],
   ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.', 'the add action on Datasources'],
   ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.', 'open a datasource from Datasources'],

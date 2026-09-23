@@ -101,6 +101,7 @@ const ALL_SUBGROUPS = [
   'workflow-api',
   'workflow-deployments',
   'workflow-request-groups',
+  'workflow-schema-changes',
   'workflow-access-lifecycle',
   'connections-database',
   'connections-api',
@@ -382,9 +383,9 @@ describe('Sidebar — icon rail (AF-837)', () => {
 
   it('separates each block with a divider line (one fewer than the block count)', () => {
     const { container } = renderSidebar(adminUser, true);
-    // general + 5 workflow + 3 connections + 4 security + system items + system AI = 15.
-    expect(container.querySelectorAll('.af-sidebar-group').length).toBe(15);
-    expect(container.querySelectorAll('.af-sidebar-divider-line').length).toBe(14);
+    // general + 6 workflow + 3 connections + 4 security + system items + system AI = 16.
+    expect(container.querySelectorAll('.af-sidebar-group').length).toBe(16);
+    expect(container.querySelectorAll('.af-sidebar-divider-line').length).toBe(15);
   });
 
   it('ignores the collapsed sub-section preference — the rail never hides items', () => {
@@ -423,6 +424,22 @@ describe('Sidebar — deployment governance (#696)', () => {
     expect(screen.queryByRole('link', { name: /Deployment Pipelines/ })).not.toBeInTheDocument();
     // Deployments list rides on QUERY_SUBMIT_SELECT, which READONLY has.
     expect(link(screen, 'Deployments')).toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — schema changes (#883)', () => {
+  it('shows the change sets and drift entries to an admin', () => {
+    expandAll();
+    renderSidebar(adminUser);
+    expect(link(screen, 'Change sets')).toHaveAttribute('href', '/schema-change-sets');
+    expect(link(screen, 'Schema drift')).toHaveAttribute('href', '/schema-drift');
+  });
+
+  it('hides both entries from a user without SCHEMA_CHANGE_MANAGE', () => {
+    expandAll();
+    renderSidebar({ ...readonlyUser, role: 'REVIEWER', permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER });
+    expect(screen.queryByRole('link', { name: /Change sets/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Schema drift/ })).not.toBeInTheDocument();
   });
 });
 

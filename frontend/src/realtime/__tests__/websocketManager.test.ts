@@ -249,6 +249,26 @@ describe('websocketManager', () => {
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
   });
 
+  it('a schema change promotion transition refreshes that set and the list (#883)', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'schema_change_promotion.status_changed',
+      timestamp: 'now',
+      data: {
+        promotion_id: 'pr-1',
+        change_set_id: 's-1',
+        environment_id: 'e-1',
+        old_status: 'IN_REVIEW',
+        new_status: 'APPLIED',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['schema-change', 'sets', 'detail', 's-1'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['schema-change', 'sets', 'list'] });
+  });
+
   it('an API_REQUEST_SUBMITTED notification refreshes the API review queue (#772)', () => {
     const { client, spy } = makeQueryClient();
     websocketManager.bindQueryClient(client);

@@ -109,7 +109,10 @@
     "help_agent": "Help assistant",
     "governance_domains": "Governance domains",
     "sql_review": "SQL review",
-    "service_accounts": "Service accounts"
+    "service_accounts": "Service accounts",
+    "sub_schema_changes": "Schema changes",
+    "schemaChangeSets": "Change sets",
+    "schemaDrift": "Schema drift"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -3015,7 +3018,8 @@
       "INSERT": "Insert",
       "UPDATE": "Update",
       "DELETE": "Delete",
-      "DDL": "DDL"
+      "DDL": "DDL",
+      "OTHER": "Other"
     },
     "query_template_change_type": {
       "CREATED": "Created",
@@ -3543,6 +3547,38 @@
       "validate_sql": "Parse and validate SQL without submitting it",
       "get_column_samples": "Sample column values from a datasource",
       "get_audit_log": "Read the audit log"
+    },
+    "schema_change_set_status": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Active",
+      "ARCHIVED": "Archived"
+    },
+    "schema_change_promotion_status": {
+      "PENDING": "Pending",
+      "IN_REVIEW": "In review",
+      "APPROVED": "Approved",
+      "APPLIED": "Applied",
+      "FAILED": "Failed",
+      "PARTIALLY_APPLIED": "Partially applied",
+      "CANCELLED": "Cancelled"
+    },
+    "schema_drift_finding_kind": {
+      "MISSING_IN_TARGET": "Missing in target",
+      "UNEXPECTED_IN_TARGET": "Unexpected in target",
+      "TYPE_MISMATCH": "Type mismatch",
+      "NULLABILITY_MISMATCH": "Nullability mismatch",
+      "PRIMARY_KEY_MISMATCH": "Primary key mismatch",
+      "FOREIGN_KEY_MISMATCH": "Foreign key mismatch"
+    },
+    "schema_drift_finding_status": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "RESOLVED": "Resolved"
+    },
+    "schema_drift_baseline": {
+      "PREVIOUS_ENVIRONMENT": "Previous environment",
+      "BASELINE_ENVIRONMENT": "Baseline environment",
+      "PROMOTION_SNAPSHOT": "Promotion snapshot"
     }
   },
   "access": {
@@ -4745,6 +4781,183 @@
       "target": "Target",
       "memberRisk": "Risk",
       "memberStatus": "Status"
+    }
+  },
+  "schemaChange": {
+    "list": {
+      "title": "Schema change sets",
+      "subtitle": "Author schema statements once and promote them environment by environment along a pipeline.",
+      "create": "New change set",
+      "createTitle": "New schema change set",
+      "createSubmit": "Create",
+      "created": "Change set created",
+      "createError": "Could not create the change set",
+      "loadError": "Could not load change sets",
+      "name": "Name",
+      "pipeline": "Pipeline",
+      "status": "Status",
+      "statements": "Statements",
+      "ladder": "Promotion ladder",
+      "updated": "Updated",
+      "allPipelines": "All pipelines",
+      "allStatuses": "All statuses",
+      "count": "{{total}} change sets",
+      "emptyTitle": "No schema change sets yet",
+      "emptyDescription": "Create a change set under a deployment pipeline, add its statements, then promote it environment by environment.",
+      "emptyFiltered": "No change sets match these filters"
+    },
+    "form": {
+      "pipeline": "Pipeline",
+      "pipelineHint": "The environments of this pipeline are the promotion ladder.",
+      "pipelineRequired": "Choose a pipeline",
+      "noPipelines": "No deployment pipelines yet",
+      "name": "Name",
+      "nameRequired": "Enter a name",
+      "nameSize": "Use between {{min}} and {{max}} characters",
+      "description": "Description",
+      "descriptionMax": "Use at most {{max}} characters"
+    },
+    "detail": {
+      "subtitle": "Pipeline {{pipeline}}",
+      "notFound": "Change set not found",
+      "editDetails": "Edit details",
+      "updated": "Change set updated",
+      "updateError": "Could not update the change set",
+      "archive": "Archive",
+      "archiveConfirm": "Archive this change set? It can no longer be edited or promoted.",
+      "archived": "Change set archived",
+      "deleteConfirm": "Delete this change set and its statements?",
+      "deleted": "Change set deleted",
+      "deleteError": "Could not delete the change set",
+      "saved": "Statements saved",
+      "savedWithWarnings": "Statements saved — review warnings: {{count}}",
+      "saveError": "Could not save the statements",
+      "promoted": "Promotion to {{environment}} submitted",
+      "promoteError": "Could not promote the change set",
+      "promotionCancelled": "Promotion cancelled",
+      "cancelError": "Could not cancel the promotion"
+    },
+    "statements": {
+      "title": "Statements",
+      "empty": "No statements yet. Add the first one below.",
+      "add": "Add statement",
+      "save": "Save statements",
+      "remove": "Remove statement {{index}}",
+      "dragHandle": "Reorder statement {{index}}",
+      "sqlLabel": "Statement {{index}}",
+      "sqlRequired": "Enter a statement or remove it",
+      "sqlMax": "A statement can be at most {{max}} characters",
+      "capRule": "A change set can hold at most {{max}} statements",
+      "capReached": "This change set has reached the limit of {{max}} statements.",
+      "problemsLabel": "Problems in statement {{index}}",
+      "severity": {
+        "ERROR": "Refused",
+        "BLOCK": "Blocked",
+        "WARN": "Warning"
+      },
+      "frozenTitle": "Statements are frozen",
+      "frozenBody": "A promotion to {{environment}} is {{status}}, so the statements can no longer change — what was reviewed is what runs. Archive this set and author a new one to change them.",
+      "archivedTitle": "This change set is archived",
+      "archivedBody": "Its statements can no longer be edited or promoted.",
+      "promotionsUnknown": "Statements are read-only until the promotions load"
+    },
+    "ladder": {
+      "title": "Promotion ladder",
+      "ariaLabel": "Promotion ladder",
+      "hint": "Each environment must be applied before the next one can be promoted.",
+      "loadError": "Could not load the promotion ladder",
+      "noEnvironments": "This pipeline has no environments",
+      "state": {
+        "APPLIED": "Applied",
+        "IN_PROGRESS": "In progress",
+        "PROMOTABLE": "Ready to promote",
+        "BLOCKED": "Blocked"
+      },
+      "blocker": {
+        "NO_DATASOURCE": "No datasource bound — this environment is deploy-only",
+        "PARTIALLY_APPLIED": "Blocked — the last promotion applied only part of the set; author a new change set for the remainder",
+        "SET_ARCHIVED": "Blocked — the change set is archived",
+        "SET_EMPTY": "Blocked — the change set has no statements",
+        "LADDER_INVALID": "Blocked — two environments of this pipeline share a sort order",
+        "LOWER_ENVIRONMENT_NOT_APPLIED": "Blocked — {{environment}} not yet applied",
+        "FREEZE_ACTIVE": "Blocked — freeze window active ({{behavior}})",
+        "FREEZE_ACTIVE_reason": "Blocked — freeze window active ({{behavior}}): {{reason}}",
+        "DATASOURCE_MISSING": "Blocked — the bound datasource no longer exists; rebind or clear the environment"
+      },
+      "latestPromotion": "Last promotion: {{status}}",
+      "openGroup": "Open request group",
+      "approvedQueued": "Approved — it runs on the next scheduled pass and can no longer be cancelled.",
+      "promote": "Promote",
+      "promoteTo": "Promote to {{environment}}",
+      "promoteConfirmTitle": "Promote to {{environment}}?",
+      "promoteConfirmBody": "Every statement runs on its own, with no rollback. The promotion is analysed and reviewed as a request group before it runs.",
+      "cancelPromotion": "Cancel promotion",
+      "cancelConfirm": "Cancel this promotion?"
+    },
+    "promotions": {
+      "title": "Promotion history",
+      "empty": "Not promoted yet",
+      "environment": "Environment",
+      "deletedEnvironment": "Deleted environment",
+      "status": "Status",
+      "submitted": "Submitted",
+      "applied": "Applied",
+      "group": "Request group",
+      "loadError": "Could not load the promotions"
+    },
+    "drift": {
+      "title": "Schema drift",
+      "subtitle": "Where an environment's live schema differs from its baseline.",
+      "fidelityNote": "Drift compares schemas, tables, columns (name, type, nullability, primary key) and foreign keys only. Indexes, constraints, defaults and type precision are not compared, so no findings means nothing drifted in those fields — nothing stronger.",
+      "pipeline": "Pipeline",
+      "environment": "Environment",
+      "status": "Status",
+      "allEnvironments": "All environments",
+      "allStatuses": "All statuses",
+      "loadError": "Could not load schema drift",
+      "noEnvironmentsTitle": "No environment to scan",
+      "noEnvironmentsDescription": "Drift scans environments that bind a datasource. Bind one to an environment of a deployment pipeline first.",
+      "deletedEnvironment": "Deleted environment {{id}}",
+      "neverScanned": "Not scanned yet.",
+      "scanRunning": "Scan in progress…",
+      "scanNow": "Scan now",
+      "scanRequested": "Scan started",
+      "scanError": "Could not start the scan",
+      "lastScan": "Last scan {{when}} against {{baseline}} · findings: {{count}}",
+      "partial": "Partial",
+      "unsupportedTitle": "Not supported for this engine",
+      "noComparison": "Nothing was compared",
+      "noFindings": "No drift detected in the fields drift compares.",
+      "noFindingsFiltered": "No findings with this status.",
+      "objectPath": "Object",
+      "kind": "Kind",
+      "expected": "Expected (baseline)",
+      "actual": "Actual",
+      "absent": "(absent)",
+      "firstSeen": "First seen",
+      "lastSeen": "Last seen",
+      "actions": "Actions",
+      "acknowledge": "Acknowledge",
+      "acknowledged": "Finding acknowledged",
+      "acknowledgeError": "Could not acknowledge the finding",
+      "reason": {
+        "ENGINE_NOT_APPLICABLE": "This engine samples data rather than reading a catalog, so its schema cannot be compared reliably. It was not contacted.",
+        "BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND": "No lower environment of the ladder binds a datasource to compare against.",
+        "BASELINE_ENVIRONMENT_NOT_CONFIGURED": "The baseline mode needs a designated baseline environment, and none is set.",
+        "BASELINE_ENVIRONMENT_NOT_FOUND": "The designated baseline environment no longer exists on this pipeline.",
+        "BASELINE_ENVIRONMENT_IS_TARGET": "This is the designated baseline environment, so it is not compared against itself.",
+        "BASELINE_ENVIRONMENT_NO_DATASOURCE": "The designated baseline environment binds no datasource.",
+        "BASELINE_ENGINE_MISMATCH": "The baseline runs a different engine, so the schemas cannot be compared.",
+        "BASELINE_SNAPSHOT_MISSING": "No snapshot of the newest applied promotion exists yet.",
+        "BASELINE_SNAPSHOT_UNREADABLE": "The stored snapshot could not be read.",
+        "BASELINE_DATASOURCE_REBOUND": "The environment was rebound to another datasource since the snapshot was taken.",
+        "BASELINE_INTROSPECTION_FAILED": "The baseline database could not be read.",
+        "TARGET_INTROSPECTION_FAILED": "This environment's database could not be read.",
+        "SCAN_FAILED": "The scan failed inside AccessFlow while comparing.",
+        "FK_COMPARISON_SUPPRESSED": "Foreign keys were not compared: one side reported none at all.",
+        "SCAN_SUPERSEDED": "Another scan of this environment was already running."
+      },
+      "truncated": "Showing the {{shown}} most recent results only — narrow the filters to see the rest."
     }
   },
   "deploygov": {

@@ -373,7 +373,7 @@ export function routeForNotification(item: UserNotification): string | null {
     return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
   }
   // Schema-change promotions (#882) are reviewed and run as request groups, so the reviewer lands
-  // on the group review queue and the promoter on their own groups. Drift has no page yet.
+  // on the group review queue and the promoter on their own groups. Drift lands on its page (#883).
   if (item.event_type === 'SCHEMA_CHANGE_PROMOTION_SUBMITTED') {
     return '/request-groups/reviews';
   }
@@ -384,7 +384,7 @@ export function routeForNotification(item: UserNotification): string | null {
     return '/request-groups';
   }
   if (item.event_type === 'SCHEMA_DRIFT_DETECTED') {
-    return null;
+    return '/schema-drift';
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

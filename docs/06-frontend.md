@@ -157,6 +157,11 @@ accessflow-ui/
 │   │   │   ├── RequestGroupListPage.tsx    # Grouped-request history
 │   │   │   └── RequestGroupDetailPage.tsx  # Ordered step progress (live)
 │   │   │
+│   │   ├── schemaChange/             # Schema change governance (#883, epic #870)
+│   │   │   ├── SchemaChangeSetListPage.tsx   # Change sets + ladder strip + create modal
+│   │   │   ├── SchemaChangeSetDetailPage.tsx # Statement editor, promotion ladder, history
+│   │   │   └── SchemaDriftPage.tsx           # Drift findings grouped by environment
+│   │   │
 │   │   ├── datasources/
 │   │   │   ├── DatasourceListPage.tsx
 │   │   │   ├── DatasourceCreateWizardPage.tsx  # Multi-step create flow with type selection
@@ -795,6 +800,31 @@ queue). `useWebSocket` maps `request_group.status_changed` / `request_group.item
 `queryClient.invalidateQueries`. Navigation entries are added to `components/common/Sidebar.tsx`
 (Workflow → **Request groups**), role-gated like the rest of the nav.
 
+## Schema change governance pages (#883, epic #870)
+
+The UI for [20-schema-change-governance.md](20-schema-change-governance.md) lives under
+`src/pages/schemaChange/` with its shared pieces in `src/components/schemaChange/`
+(`PromotionLadder`, `LadderStrip`, `StatementListEditor`). One API module, `src/api/schemaChange.ts`,
+owns the `schemaChangeKeys` factory; the ladder and promotions keys nest under a set's detail key,
+so invalidating `detail(id)` refreshes all three after a promote or cancel. Pure helpers — the
+freeze predicate, the 422 → per-statement problem mapping, drift reason-code parsing and grouping,
+and the blocked-rung sentence — are in `src/utils/schemaChange.ts`; enum labels and colour triples
+in `enumLabels.ts` / `statusColors.ts`. Strings are keyed under `schemaChange.*` (enum values under
+`enums.schema_*`) in every locale.
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/schema-change-sets` | `SchemaChangeSetListPage` | Filter by pipeline and status; each row shows the statement count and a `LadderStrip` (one chip per environment, coloured by rung state, reason on hover — one ladder read per row, cached under the set's key). *New change set* modal: pipeline + name (3–255) + description (≤ 2000), mirroring `CreateSchemaChangeSetRequest`. Skeleton, error, empty and filtered-empty states. |
+| `/schema-change-sets/:id` | `SchemaChangeSetDetailPage` | `StatementListEditor` — an AntD `Form.List` of SQL editors with `@dnd-kit` drag-to-reorder; rules mirror `SchemaChangeSetStatementRequest` (required, ≤ 100 000 chars) plus the statement cap (the default of `ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS`, 50 — the server enforces the configured value). A refused save maps `statementIndex` / blocking `findings` onto the statements they name; the `WARN` findings of a successful save stay on their statements until the list changes. A frozen (any non-`FAILED`/`CANCELLED` promotion) or archived set renders read-only with an `Alert` naming the reason — and so does a set whose promotions failed to load, since the freeze cannot be known. The ladder polls every 10 s while a rung is `IN_PROGRESS`, and a refused promote/cancel/save re-reads the set. `PromotionLadder` renders `GET /schema-change-sets/{id}/ladder`: the `PROMOTABLE` rung gets a confirmed *Promote*, an open `PENDING`/`IN_REVIEW` promotion a *Cancel*, an `APPROVED` one a note that it can no longer be cancelled, and every `BLOCKED` rung its reason. Edit details / archive / delete (delete hidden once frozen). |
+| `/schema-drift` | `SchemaDriftPage` | Filters pipeline / environment / status (default `OPEN`). One card per bound environment: the newest scan's summary, *Scan now* (the scan list polls every 5 s while a scan is unfinished), the findings table (object path, kind, expected vs actual, status, first/last seen, *Acknowledge*). A `applicable = false` scan renders "Not supported for this engine" with its localized reason — never the "no drift" text — and a scan that recorded a baseline reason renders "Nothing was compared". Findings of an environment no longer on any ladder stay visible. One page (100) of findings and of scans is read; a larger result says so. When polling sees a scan finish, the findings are re-read. |
+
+Pipelines and environment names come from `GET /schema-change-pipelines`, not
+`/deployment-pipelines` — the latter needs `DEPLOYMENT_PIPELINE_MANAGE`. Navigation: Workflow →
+**Schema changes** → `Change sets` and `Schema drift`, both on `SCHEMA_CHANGE_MANAGE`; the routes
+carry the same `AuthGuard`. A `SCHEMA_DRIFT_DETECTED` notification opens `/schema-drift`, and
+`websocketManager` maps `schema_change_promotion.status_changed` (pushed to the promoter) onto the
+set's detail key and the list.
+
 ## Deployment governance pages (#696, epic AF-682)
 
 The deploygov UI lives under `src/pages/deployments/` (user surface) and
@@ -833,7 +863,7 @@ Rollbacks tab, the rest → the deployment detail). Schema-change promotions (#8
 run as request groups, so their notifications route into those pages instead — a
 `SCHEMA_CHANGE_PROMOTION_SUBMITTED` notification to `/request-groups/reviews` (and it invalidates
 `['request-groups', 'reviews']`), `_APPLIED` / `_FAILED` to the promoter's `/request-groups`, and
-`SCHEMA_DRIFT_DETECTED` nowhere until the schema-change UI (#883) exists. The version caches are **not** WebSocket-invalidated — there is no
+`SCHEMA_DRIFT_DETECTED` to `/schema-drift` (#883). The version caches are **not** WebSocket-invalidated — there is no
 `deployment.version_changed` event — so they refresh on mount and whenever an environment mutation
 drops `deploymentVersionKeys.matrix(pipelineId)` and `.lists()` (name, tags and sort order all
 appear in matrix rows). Navigation: Workflow → **Deployments** `Deployments` (on `QUERY_SUBMIT_SELECT`, like
@@ -1127,6 +1157,9 @@ for deployment recipes (Docker Compose, Helm).
 /request-groups/new                 → GroupBuilderPage (lazy; build + reorder + submit a grouped request — AF-501)
 /request-groups/:id/edit            → GroupBuilderPage (lazy; re-open an own DRAFT for editing — #559)
 /request-groups/:id                 → RequestGroupDetailPage (lazy; ordered step-by-step progress, live via WebSocket — AF-501)
+/schema-change-sets                 → SchemaChangeSetListPage (lazy; SCHEMA_CHANGE_MANAGE — change sets with a ladder strip — #883)
+/schema-change-sets/:id             → SchemaChangeSetDetailPage (lazy; SCHEMA_CHANGE_MANAGE — statement editor, promotion ladder, history — #883)
+/schema-drift                       → SchemaDriftPage (lazy; SCHEMA_CHANGE_MANAGE — drift findings grouped by environment — #883)
 /deployments                        → DeploymentListPage (lazy; deployment requests, own-scoped for non-reviewers — #696)
 /deployments/:id                    → DeploymentDetailPage (lazy; metadata + AI risk + approvals + releasability banner + outcome timeline, plus the reviewer's approve/reject (#770) — #696)
 /deployment-reviews                 → redirect → /reviews?tab=deployments, or ?tab=rollbacks when the legacy URL carried it (#772)
