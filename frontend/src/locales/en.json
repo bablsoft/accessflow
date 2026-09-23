@@ -3751,7 +3751,8 @@
       "risk_pair_hint": "The risk level and score travel together: a level without a score would silently skip every risk-based routing policy.",
       "trace": "Trace",
       "error": "The trace could not be computed",
-      "evaluated_context": "Evaluated routing context"
+      "evaluated_context": "Evaluated routing context",
+      "datasource_scoped_hint": "Only datasources you can access are listed — paste a datasource ID to look up any other."
     },
     "effective": {
       "table": "Table",
@@ -4667,7 +4668,8 @@
       "verb_too_long": "Verb must be at most {{max}} characters",
       "user_required": "Select the user to simulate",
       "simulate": "Simulate",
-      "error": "The simulation could not be computed"
+      "error": "The simulation could not be computed",
+      "verb_placeholder": "GET"
     }
   },
   "lifecycle": {
@@ -5442,7 +5444,8 @@
       "releasable": "Releasable — the gate would let this deployment through",
       "not_releasable": "Not releasable — the gate would hold this deployment",
       "evaluated_at": "Evaluated at {{date}}",
-      "gate_note": "Computed by the same function the CI deployment gate blocks on."
+      "gate_note": "Computed by the same function the CI deployment gate blocks on.",
+      "version_placeholder": "e.g. 1.4.0"
     }
   },
   "help_chat": {
@@ -5603,7 +5606,23 @@
       "transactional": "Transactional",
       "verb": "Verb",
       "visible_to_user": "Visible to user",
-      "write": "Write operation"
-    }
+      "write": "Write operation",
+      "anomaly_active": "Open anomaly",
+      "approver_email": "Approver",
+      "ci_cd_origin": "CI/CD origin",
+      "estimated_rows": "Estimated rows",
+      "minutes_since_last_approval": "Minutes since last approval",
+      "policies": "Policies",
+      "requester_group_ids": "Requester groups",
+      "requester_ip_address": "Requester IP",
+      "requester_role_name": "Requester role",
+      "requester_user_agent": "Requester user agent",
+      "risk_level": "Risk level",
+      "risk_score": "Risk score",
+      "scan_type": "Scan type"
+    },
+    "use_id": "Use ID {{id}}",
+    "user_id_placeholder": "Paste a user ID",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

@@ -122,13 +122,14 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             rules={[
               { required: true, whitespace: true, message: t('deploygov.simulate.version_required') },
               {
+                transform: (value?: string) => value?.trim(),
                 max: VERSION_MAX_LENGTH,
                 message: t('deploygov.simulate.version_too_long', { max: VERSION_MAX_LENGTH }),
               },
             ]}
             style={{ width: 200 }}
           >
-            <Input className="mono" placeholder="1.4.0" />
+            <Input className="mono" placeholder={t('deploygov.simulate.version_placeholder')} />
           </Form.Item>
         </Space>
         <Space wrap size="middle" align="start">

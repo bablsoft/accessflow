@@ -101,6 +101,26 @@ describe('DecisionTraceView', () => {
     expect(screen.getByText('headline here')).toBeInTheDocument();
   });
 
+  it('lists the MASKING step policies instead of dropping them', () => {
+    render(
+      <DecisionTraceView
+        steps={[
+          {
+            step: 'MASKING',
+            outcome: 'MATCH',
+            reason: 'Masking policies resolve',
+            details: { policies: [{ policy_id: 'm-1', column_ref: 'customers.email', strategy: 'FULL' }] },
+          },
+        ]}
+        stepLabel={label}
+        caveats={[]}
+      />,
+    );
+    expect(screen.getByText('Policies')).toBeInTheDocument();
+    expect(screen.getByText(/^customers\.email → /)).toBeInTheDocument();
+    expect(screen.queryByTestId('routing-policies-trace')).not.toBeInTheDocument();
+  });
+
   it('renders list-valued details one line each', () => {
     render(
       <DecisionTraceView

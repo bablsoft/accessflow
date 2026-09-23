@@ -490,6 +490,17 @@ and **Who has access** (either permission, so an auditor lands on the reverse in
   CI gate blocks on.
 - **Simulated-user picker.** `SimulationUserSelect` offers active users *and* service accounts: an
   agent's request is traced exactly like a person's.
+- **Pasted ids.** Both pickers accept a pasted id, and the pure `typedIdOption.ts` turns a whole
+  UUID typed into the search box into an option. The lists they read are scoped to the caller:
+  `GET /admin/users` needs `USER_MANAGE`, so the user list is skipped without it, and
+  `GET /datasources` returns only the caller's own datasources unless they hold `QUERY_ADMIN` or
+  `DATASOURCE_MANAGE`. The seeded `AUDITOR` holds neither. When the datasource list is scoped, the
+  field says so (`access.simulation.datasource_scoped_hint`), so an auditor on the reverse index
+  is never stuck with an empty dropdown.
+- **Enum values in details.** Enum-valued detail keys (`query_type`, `action`, `status`,
+  `risk_level`) go through `enumLabels`. Masking entries (the MASKING step's `policies`, the API
+  step's `masks`) render as *field → strategy*. Only the routing step omits its `policies` key from
+  the generic rows.
 
 Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePath.ts`) sends an auditor-shaped user (holds `COMPLIANCE_REPORT_VIEW`, lacks `QUERY_SUBMIT_SELECT`) to `/admin/auditor`; everyone else lands on `/dashboard` (AF-498), and `AuthGuard` bounces a permission-mismatch to that same home.
 

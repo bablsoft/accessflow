@@ -1,13 +1,9 @@
 import { useMemo, useState } from 'react';
 import { AutoComplete, Button, Form, Select, Skeleton, Space, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { skipToken, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import {
-  datasourceKeys,
-  getDatasourceSchema,
-  listDatasources,
-} from '@/api/datasources';
+import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
 import {
   effectiveAccessKeys,
   getEffectiveAccess,
@@ -15,9 +11,11 @@ import {
 } from '@/api/accessSimulations';
 import { hasQueryAdminBypass } from './effectiveAccess';
 import { Avatar } from '@/components/common/Avatar';
+import { SimulationDatasourceSelect } from '@/components/policies/SimulationDatasourceSelect';
+import { useCanListAllDatasources } from '@/components/policies/useSimulationDatasources';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
-import { adminErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { fmtDate } from '@/utils/dateFormat';
 import {
   STATEMENT_CAPABILITIES,
@@ -34,7 +32,6 @@ import type {
 } from '@/types/api';
 
 const PAGE_SIZE = 20;
-const DATASOURCE_FILTERS = { page: 0, size: 100 };
 
 interface LookupValues {
   datasource_id?: string;
@@ -92,10 +89,7 @@ export function EffectiveAccessPanel() {
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const [page, setPage] = useState(0);
 
-  const datasources = useQuery({
-    queryKey: datasourceKeys.list(DATASOURCE_FILTERS),
-    queryFn: () => listDatasources(DATASOURCE_FILTERS),
-  });
+  const canListAll = useCanListAllDatasources();
   // Table suggestions only — a datasource that cannot be introspected still takes free text.
   const schema = useQuery({
     queryKey: datasourceKeys.schema(datasourceId ?? ''),
@@ -119,8 +113,7 @@ export function EffectiveAccessPanel() {
     : null;
   const index = useQuery({
     queryKey: effectiveAccessKeys.list(filters ?? { datasource_id: '', table: '', capability: 'READ' }),
-    queryFn: () => getEffectiveAccess(filters as EffectiveAccessFilters),
-    enabled: filters != null,
+    queryFn: filters ? () => getEffectiveAccess(filters) : skipToken,
   });
 
   const columns: TableColumnsType<EffectiveAccessRow> = useMemo(
@@ -217,49 +210,42 @@ export function EffectiveAccessPanel() {
       <Form<LookupValues>
         form={form}
         name="effective-access"
-        layout="inline"
+        layout="vertical"
         initialValues={{ capability: 'WRITE' }}
         onFinish={onFinish}
       >
         <Form.Item
           name="datasource_id"
+          label={t('access.simulation.datasource')}
           rules={[{ required: true, message: t('access.simulation.datasource_required') }]}
+          extra={canListAll ? undefined : t('access.simulation.datasource_scoped_hint')}
+          style={{ width: 280 }}
         >
-          <Select
-            style={{ width: 260 }}
-            showSearch={{ optionFilterProp: 'label' }}
-            loading={datasources.isLoading}
-            placeholder={t('access.simulation.datasource_placeholder')}
-            aria-label={t('access.simulation.datasource')}
-            options={(datasources.data?.content ?? []).map((d) => ({ value: d.id, label: d.name }))}
-            onChange={() => form.setFieldValue('table', undefined)}
-          />
+          <SimulationDatasourceSelect onChange={() => form.setFieldValue('table', undefined)} />
         </Form.Item>
         <Form.Item
           name="table"
+          label={t('access.effective.table')}
           rules={[{ required: true, whitespace: true, message: t('access.effective.table_required') }]}
+          style={{ width: 280 }}
         >
           <AutoComplete
-            style={{ width: 260 }}
             options={tableOptions}
             placeholder={t('access.effective.table_placeholder')}
-            aria-label={t('access.effective.table')}
             showSearch={{
               filterOption: (input, option) =>
                 String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
             }}
           />
         </Form.Item>
-        <Form.Item name="capability">
-          <Select
-            style={{ width: 160 }}
-            aria-label={t('access.effective.capability')}
-            options={enumOptions(STATEMENT_CAPABILITIES, statementCapabilityLabel, t)}
-          />
+        <Form.Item name="capability" label={t('access.effective.capability')} style={{ width: 160 }}>
+          <Select options={enumOptions(STATEMENT_CAPABILITIES, statementCapabilityLabel, t)} />
         </Form.Item>
-        <Button type="primary" htmlType="submit">
-          {t('access.effective.lookup')}
-        </Button>
+        <Form.Item label=" " colon={false}>
+          <Button type="primary" htmlType="submit">
+            {t('access.effective.lookup')}
+          </Button>
+        </Form.Item>
       </Form>
 
       {filters == null ? (
@@ -274,7 +260,7 @@ export function EffectiveAccessPanel() {
         <EmptyState
           size="sm"
           title={t('access.effective.load_error')}
-          description={adminErrorMessage(index.error)}
+          description={apiErrorMessage(index.error, () => t('access.effective.load_error'))}
         />
       ) : rows.length === 0 ? (
         <EmptyState size="sm" title={t('access.effective.empty')} />

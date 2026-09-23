@@ -93,10 +93,6 @@ export const grantUsageRecommendationColor = (
 };
 
 /**
- * The two standing-bypass paths (#968), ranked by how much they skip: QUERY_ADMIN bypasses the
- * whole permission gate, break-glass only bypasses review and is compensated by a retro-review.
- */
-/**
  * Decision-trace step outcome (#1066). A SKIP is neutral, not hidden: "this stage never ran" is an
  * answer in its own right. MATCH is warn because a matched policy changes the outcome either way.
  */
@@ -114,6 +110,10 @@ export const decisionStepOutcomeColor = (outcome: DecisionStepOutcome): ColorTri
   }
 };
 
+/**
+ * The two standing-bypass paths (#968), ranked by how much they skip: QUERY_ADMIN bypasses the
+ * whole permission gate, break-glass only bypasses review and is compensated by a retro-review.
+ */
 export const standingBypassKindColor = (kind: StandingBypassKind): ColorTriple => {
   switch (kind) {
     case 'QUERY_ADMIN':

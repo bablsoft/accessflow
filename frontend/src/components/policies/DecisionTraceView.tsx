@@ -5,7 +5,11 @@ import { Pill } from '@/components/common/Pill';
 import { decisionStepOutcomeLabel, queryStatusLabel } from '@/utils/enumLabels';
 import { decisionStepOutcomeColor, statusColor } from '@/utils/statusColors';
 import type { DecisionTraceStep, QueryStatus, SimulationCaveat } from '@/types/api';
-import { extractRoutingPolicies, formatStepDetails } from './decisionTraceDetails';
+import {
+  ROUTING_POLICIES_KEY,
+  extractRoutingPolicies,
+  formatStepDetails,
+} from './decisionTraceDetails';
 import { RoutingPoliciesTraceTable } from './RoutingPoliciesTraceTable';
 import './decisionTrace.css';
 
@@ -55,8 +59,8 @@ export function DecisionTraceView<K extends string>({
       <ol className="af-trace-steps">
         {steps.map((step, index) => {
           const color = decisionStepOutcomeColor(step.outcome);
-          const rows = formatStepDetails(step.details, t);
           const isRouting = step.step === 'ROUTING_POLICIES';
+          const rows = formatStepDetails(step.details, t, isRouting ? [ROUTING_POLICIES_KEY] : []);
           return (
             <li
               key={`${step.step}-${index}`}

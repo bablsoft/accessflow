@@ -1,12 +1,16 @@
 import { Alert, Button, Collapse, Form, InputNumber, Select, Skeleton, Space } from 'antd';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { simulateAccess } from '@/api/accessSimulations';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SqlEditor } from '@/components/editor/SqlEditor';
 import { DecisionTraceView } from '@/components/policies/DecisionTraceView';
 import { SimulationUserSelect } from '@/components/policies/SimulationUserSelect';
+import { SimulationDatasourceSelect } from '@/components/policies/SimulationDatasourceSelect';
+import {
+  useCanListAllDatasources,
+  useVisibleDatasources,
+} from '@/components/policies/useSimulationDatasources';
 import { formatStepDetails } from '@/components/policies/decisionTraceDetails';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import {
@@ -19,7 +23,6 @@ import {
 } from '@/utils/enumLabels';
 import type { AccessSimulationRequest, RiskLevel, SimulatedAiOutcome } from '@/types/api';
 
-const DATASOURCE_FILTERS = { page: 0, size: 100 };
 // Mirrors SimulateAccessRequest: @Size(max = 100000) on sql, @Min(-1) @Max(100) on risk_score.
 // The UI offers 0–100 only; -1 is the backend's "no score" sentinel, reached by leaving it empty.
 export const SQL_MAX_LENGTH = 100_000;
@@ -45,11 +48,8 @@ export function QueryTracePanel() {
   const [form] = Form.useForm<FormValues>();
   const datasourceId = Form.useWatch('datasource_id', form);
 
-  const datasources = useQuery({
-    queryKey: datasourceKeys.list(DATASOURCE_FILTERS),
-    queryFn: () => listDatasources(DATASOURCE_FILTERS),
-  });
-  const datasourceRows = datasources.data?.content ?? [];
+  const { rows: datasourceRows } = useVisibleDatasources();
+  const canListAll = useCanListAllDatasources();
   const selected = datasourceRows.find((d) => d.id === datasourceId);
 
   const trace = useMutation({ mutationFn: (body: AccessSimulationRequest) => simulateAccess(body) });
@@ -106,14 +106,10 @@ export function QueryTracePanel() {
             name="datasource_id"
             label={t('access.simulation.datasource')}
             rules={[{ required: true, message: t('access.simulation.datasource_required') }]}
+            extra={canListAll ? undefined : t('access.simulation.datasource_scoped_hint')}
             style={{ width: 320 }}
           >
-            <Select
-              showSearch={{ optionFilterProp: 'label' }}
-              loading={datasources.isLoading}
-              placeholder={t('access.simulation.datasource_placeholder')}
-              options={datasourceRows.map((d) => ({ value: d.id, label: d.name }))}
-            />
+            <SimulationDatasourceSelect />
           </Form.Item>
         </Space>
 

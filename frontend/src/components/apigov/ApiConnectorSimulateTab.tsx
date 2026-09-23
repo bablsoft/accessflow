@@ -86,13 +86,15 @@ export function ApiConnectorSimulateTab({ connectorId }: { connectorId: string }
             tooltip={t('apiGov.simulate.verb_hint')}
             rules={[
               {
+                // Checked on the value that is sent: the form trims before posting.
+                transform: (value?: string) => value?.trim(),
                 max: VERB_MAX_LENGTH,
                 message: t('apiGov.simulate.verb_too_long', { max: VERB_MAX_LENGTH }),
               },
             ]}
             style={{ width: 160 }}
           >
-            <Input className="mono" placeholder="GET" />
+            <Input className="mono" placeholder={t('apiGov.simulate.verb_placeholder')} />
           </Form.Item>
           <SimulationAssumptionFields />
         </Space>

@@ -3727,7 +3727,8 @@
       "risk_pair_hint": "Risikostufe und Risikowert gehören zusammen: Eine Stufe ohne Wert würde jede risikobasierte Routing-Richtlinie stillschweigend überspringen.",
       "trace": "Trace erstellen",
       "error": "Der Trace konnte nicht berechnet werden",
-      "evaluated_context": "Ausgewerteter Routing-Kontext"
+      "evaluated_context": "Ausgewerteter Routing-Kontext",
+      "datasource_scoped_hint": "Nur Datenquellen mit Ihrem Zugriff sind aufgeführt – fügen Sie eine Datenquellen-ID ein, um eine andere nachzuschlagen."
     },
     "effective": {
       "table": "Tabelle",
@@ -4667,7 +4668,8 @@
       "verb_too_long": "Das Verb darf höchstens {{max}} Zeichen lang sein",
       "user_required": "Zu simulierenden Benutzer auswählen",
       "simulate": "Simulieren",
-      "error": "Die Simulation konnte nicht berechnet werden"
+      "error": "Die Simulation konnte nicht berechnet werden",
+      "verb_placeholder": "GET"
     }
   },
   "lifecycle": {
@@ -5442,7 +5444,8 @@
       "releasable": "Freigebbar – das Gate würde dieses Deployment durchlassen",
       "not_releasable": "Nicht freigebbar – das Gate würde dieses Deployment anhalten",
       "evaluated_at": "Ausgewertet am {{date}}",
-      "gate_note": "Berechnet von derselben Funktion, auf die das CI-Deployment-Gate wartet."
+      "gate_note": "Berechnet von derselben Funktion, auf die das CI-Deployment-Gate wartet.",
+      "version_placeholder": "z. B. 1.4.0"
     }
   },
   "help_chat": {
@@ -5603,7 +5606,23 @@
       "transactional": "Transaktional",
       "verb": "Verb",
       "visible_to_user": "Für Benutzer sichtbar",
-      "write": "Schreiboperation"
-    }
+      "write": "Schreiboperation",
+      "anomaly_active": "Offene Anomalie",
+      "approver_email": "Genehmiger",
+      "ci_cd_origin": "CI/CD-Herkunft",
+      "estimated_rows": "Geschätzte Zeilen",
+      "minutes_since_last_approval": "Minuten seit letzter Genehmigung",
+      "policies": "Richtlinien",
+      "requester_group_ids": "Gruppen des Anfragenden",
+      "requester_ip_address": "IP des Anfragenden",
+      "requester_role_name": "Rolle des Anfragenden",
+      "requester_user_agent": "User-Agent des Anfragenden",
+      "risk_level": "Risikostufe",
+      "risk_score": "Risikowert",
+      "scan_type": "Scan-Typ"
+    },
+    "use_id": "ID {{id}} verwenden",
+    "user_id_placeholder": "Benutzer-ID einfügen",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

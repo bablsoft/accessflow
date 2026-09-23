@@ -33,7 +33,7 @@ describe('formatStepDetails', () => {
       t,
     );
     expect(rows.map((r) => r.key)).toEqual(['query_type', 'has_where_clause', 'limit', 'extra_thing']);
-    expect(rows[0]?.value).toBe('UPDATE');
+    expect(rows[0]?.value).toBe('Update');
     expect(rows[1]?.value).toBe('No');
     expect(rows[2]?.value).toBe('5');
     expect(rows[3]?.label).toBe('Extra thing');
@@ -97,10 +97,6 @@ describe('formatStepDetails', () => {
     expect(rows[2]?.value).toBe('A: null');
   });
 
-  it('never renders the routing policies list as a generic row', () => {
-    const rows = formatStepDetails({ policies: [], matched_policy_name: 'p' }, t);
-    expect(rows.map((r) => r.key)).toEqual(['matched_policy_name']);
-  });
 });
 
 describe('extractRoutingPolicies', () => {
@@ -124,5 +120,60 @@ describe('extractRoutingPolicies', () => {
       { policy_id: 'p-2', name: 'Two approvals', priority: 1, action: 'REQUIRE_APPROVALS', required_approvals: 2, matched: false, decisive: false },
       { policy_id: '', name: 'bare', priority: 0, action: undefined, required_approvals: undefined, matched: false, decisive: false },
     ]);
+  });
+});
+
+describe('formatStepDetails — masking, omission and enum values (#1066 review)', () => {
+  it('keeps a MASKING step policies list and renders each as field → strategy', () => {
+    const rows = formatStepDetails(
+      {
+        policies: [
+          { policy_id: 'm-1', column_ref: 'customers.email', strategy: 'EMAIL', bare_column_name: false },
+          { policy_id: 'm-2', column_ref: 'ssn', strategy: 'CUSTOM_THING' },
+          { policy_id: 'm-3' },
+        ],
+      },
+      t,
+    );
+    expect(rows[0]?.label).toBe('Policies');
+    const lines = rows[0]?.value as string[];
+    expect(lines[0]).toMatch(/^customers\.email → /);
+    expect(lines[0]).not.toContain('EMAIL');
+    expect(lines[1]).toBe('ssn → CUSTOM_THING');
+    expect(lines[2]).toBe('Policy id: m-3');
+  });
+
+  it('renders API masks through the same line', () => {
+    const rows = formatStepDetails({ masks: [{ field_ref: '$.card', strategy: 'FULL' }] }, t);
+    expect((rows[0]?.value as string[])[0]).toMatch(/^\$\.card → /);
+  });
+
+  it('omits only the keys the caller names', () => {
+    const details = { policies: [], matched_policy_name: 'p' };
+    expect(formatStepDetails(details, t, ['policies']).map((r) => r.key)).toEqual([
+      'matched_policy_name',
+    ]);
+    expect(formatStepDetails(details, t).map((r) => r.key)).toEqual(['policies', 'matched_policy_name']);
+  });
+
+  it('localises enum-valued keys and leaves unknown values raw', () => {
+    const rows = formatStepDetails(
+      {
+        query_type: 'UPDATE',
+        action: 'AUTO_REJECT',
+        status: 'PENDING_REVIEW',
+        risk_level: 'HIGH',
+        scope: 'PIPELINE',
+        approver_email: 'rev@x.io',
+      },
+      t,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    expect(byKey.query_type).not.toBe('UPDATE');
+    expect(byKey.action).toBe('Auto-reject');
+    expect(byKey.status).toBe('Pending review');
+    expect(byKey.risk_level).toBe('High');
+    expect(byKey.scope).toBe('PIPELINE');
+    expect(rows.find((r) => r.key === 'approver_email')?.label).toBe('Approver');
   });
 });

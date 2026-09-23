@@ -3727,7 +3727,8 @@
       "risk_pair_hint": "El nivel y la puntuación de riesgo van juntos: un nivel sin puntuación omitiría en silencio todas las políticas de enrutamiento basadas en riesgo.",
       "trace": "Rastrear",
       "error": "No se pudo calcular la traza",
-      "evaluated_context": "Contexto de enrutamiento evaluado"
+      "evaluated_context": "Contexto de enrutamiento evaluado",
+      "datasource_scoped_hint": "Solo se listan las fuentes de datos a las que tiene acceso; pegue un ID para consultar cualquier otra."
     },
     "effective": {
       "table": "Tabla",
@@ -4667,7 +4668,8 @@
       "verb_too_long": "El verbo no puede superar {{max}} caracteres",
       "user_required": "Seleccione el usuario a simular",
       "simulate": "Simular",
-      "error": "No se pudo calcular la simulación"
+      "error": "No se pudo calcular la simulación",
+      "verb_placeholder": "GET"
     }
   },
   "lifecycle": {
@@ -5442,7 +5444,8 @@
       "releasable": "Publicable: la compuerta dejaría pasar este despliegue",
       "not_releasable": "No publicable: la compuerta retendría este despliegue",
       "evaluated_at": "Evaluado el {{date}}",
-      "gate_note": "Calculado por la misma función en la que se bloquea la compuerta de despliegue de CI."
+      "gate_note": "Calculado por la misma función en la que se bloquea la compuerta de despliegue de CI.",
+      "version_placeholder": "p. ej. 1.4.0"
     }
   },
   "help_chat": {
@@ -5603,7 +5606,23 @@
       "transactional": "Transaccional",
       "verb": "Verbo",
       "visible_to_user": "Visible para el usuario",
-      "write": "Operación de escritura"
-    }
+      "write": "Operación de escritura",
+      "anomaly_active": "Anomalía abierta",
+      "approver_email": "Aprobador",
+      "ci_cd_origin": "Origen CI/CD",
+      "estimated_rows": "Filas estimadas",
+      "minutes_since_last_approval": "Minutos desde la última aprobación",
+      "policies": "Políticas",
+      "requester_group_ids": "Grupos del solicitante",
+      "requester_ip_address": "IP del solicitante",
+      "requester_role_name": "Rol del solicitante",
+      "requester_user_agent": "Agente de usuario del solicitante",
+      "risk_level": "Nivel de riesgo",
+      "risk_score": "Puntuación de riesgo",
+      "scan_type": "Tipo de escaneo"
+    },
+    "use_id": "Usar el ID {{id}}",
+    "user_id_placeholder": "Pegue un ID de usuario",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

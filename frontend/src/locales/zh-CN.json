@@ -3727,7 +3727,8 @@
       "risk_pair_hint": "风险等级与分数必须成对出现：只有等级没有分数时，所有基于风险的路由策略都会被静默跳过。",
       "trace": "追踪",
       "error": "无法计算追踪结果",
-      "evaluated_context": "已评估的路由上下文"
+      "evaluated_context": "已评估的路由上下文",
+      "datasource_scoped_hint": "仅列出您有权访问的数据源 — 粘贴数据源 ID 可查询其他数据源。"
     },
     "effective": {
       "table": "表",
@@ -4667,7 +4668,8 @@
       "verb_too_long": "动词最多 {{max}} 个字符",
       "user_required": "请选择要模拟的用户",
       "simulate": "模拟",
-      "error": "无法计算模拟结果"
+      "error": "无法计算模拟结果",
+      "verb_placeholder": "GET"
     }
   },
   "lifecycle": {
@@ -5442,7 +5444,8 @@
       "releasable": "可发布 — 关卡会放行此部署",
       "not_releasable": "不可发布 — 关卡会挂起此部署",
       "evaluated_at": "评估时间 {{date}}",
-      "gate_note": "与 CI 部署关卡所依据的函数相同。"
+      "gate_note": "与 CI 部署关卡所依据的函数相同。",
+      "version_placeholder": "例如 1.4.0"
     }
   },
   "help_chat": {
@@ -5603,7 +5606,23 @@
       "transactional": "事务性",
       "verb": "动词",
       "visible_to_user": "对用户可见",
-      "write": "写操作"
-    }
+      "write": "写操作",
+      "anomaly_active": "存在未处理异常",
+      "approver_email": "审批人",
+      "ci_cd_origin": "CI/CD 来源",
+      "estimated_rows": "预估行数",
+      "minutes_since_last_approval": "距上次审批的分钟数",
+      "policies": "策略",
+      "requester_group_ids": "请求者所在组",
+      "requester_ip_address": "请求者 IP",
+      "requester_role_name": "请求者角色",
+      "requester_user_agent": "请求者 User-Agent",
+      "risk_level": "风险等级",
+      "risk_score": "风险分数",
+      "scan_type": "扫描类型"
+    },
+    "use_id": "使用 ID {{id}}",
+    "user_id_placeholder": "粘贴用户 ID",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

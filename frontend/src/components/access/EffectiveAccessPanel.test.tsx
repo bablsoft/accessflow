@@ -137,9 +137,12 @@ describe('EffectiveAccessPanel', () => {
 
     effectiveMock.mockRejectedValueOnce({
       isAxiosError: true,
-      response: { status: 400, data: { detail: 'Table name is not valid' } },
+      response: { status: 400, data: { title: 'Bad Request', detail: 'Table name is not valid' } },
     });
     await lookUp('   x   ');
     expect(await screen.findByText('Could not load effective access')).toBeInTheDocument();
+    // The server detail, never the generic ProblemDetail title.
+    expect(screen.getByText('Table name is not valid')).toBeInTheDocument();
+    expect(screen.queryByText('Bad Request')).not.toBeInTheDocument();
   });
 });

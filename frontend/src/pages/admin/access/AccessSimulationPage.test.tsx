@@ -138,7 +138,7 @@ describe('AccessSimulationPage', () => {
     );
     listDatasourcesMock.mockResolvedValue(page([{ id: 'd-1', name: 'Orders DB', db_type: 'POSTGRESQL' }]));
     schemaMock.mockResolvedValue({ schemas: [] });
-    setPermissions(['DATASOURCE_PERMISSION_MANAGE']);
+    setPermissions(['DATASOURCE_PERMISSION_MANAGE', 'USER_MANAGE', 'QUERY_ADMIN']);
   });
 
   afterEach(() => {
@@ -197,6 +197,44 @@ describe('AccessSimulationPage', () => {
       (await screen.findAllByText('Set both the risk level and the risk score, or neither')).length,
     ).toBeGreaterThan(0);
     expect(simulateMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a risk score without a level client-side', async () => {
+    render(wrap(<AccessSimulationPage />));
+    await fillRequired();
+    fireEvent.change(screen.getByLabelText(/^Risk score/), { target: { value: '40' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Trace' }));
+
+    expect(
+      (await screen.findAllByText('Set both the risk level and the risk score, or neither')).length,
+    ).toBeGreaterThan(0);
+    expect(simulateMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts pasted ids when the caller cannot list users or every datasource', async () => {
+    setPermissions(['DATASOURCE_PERMISSION_MANAGE']);
+    listDatasourcesMock.mockResolvedValue(page([]));
+    simulateMock.mockResolvedValue(RESULT);
+    render(wrap(<AccessSimulationPage />));
+
+    expect(
+      await screen.findByText(/Only datasources you can access are listed/),
+    ).toBeInTheDocument();
+    expect(listUsersMock).not.toHaveBeenCalled();
+
+    const userId = '3f2b8c1e-9a4d-4e6f-8b1a-2c3d4e5f6a7b';
+    const dsId = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+    fireEvent.mouseDown(screen.getByLabelText('Simulated user'));
+    fireEvent.change(screen.getByLabelText('Simulated user'), { target: { value: userId } });
+    selectOption(`Use ID ${userId}`);
+    fireEvent.mouseDown(screen.getByLabelText('Datasource'));
+    fireEvent.change(screen.getByLabelText('Datasource'), { target: { value: dsId } });
+    selectOption(`Use ID ${dsId}`);
+    fireEvent.change(screen.getByTestId('sql-editor'), { target: { value: 'SELECT 1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Trace' }));
+
+    await waitFor(() => expect(simulateMock).toHaveBeenCalledTimes(1));
+    expect(simulateMock.mock.calls[0]![0]).toMatchObject({ user_id: userId, datasource_id: dsId });
   });
 
   it('sends the risk level and score together', async () => {

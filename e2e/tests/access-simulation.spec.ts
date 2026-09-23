@@ -32,7 +32,7 @@ import {
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
 import { expandNavSection } from '../helpers/nav';
-import { activeTabPanel, clickTab } from '../helpers/ui';
+import { activeTabPanel, clickTab, findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -44,7 +44,8 @@ async function pickOption(page: Page, scope: Locator, label: string, search: str
   const select = scope.getByLabel(label);
   await select.click();
   await select.fill(search);
-  await page.locator('.ant-select-item-option').filter({ hasText: search }).first().click();
+  // An earlier dropdown's popup stays in the DOM (hidden) with the same option text.
+  await page.locator('.ant-select-item-option:visible').filter({ hasText: search }).first().click();
 }
 
 test.describe.configure({ timeout: 90_000 });
@@ -142,8 +143,10 @@ test.describe.serial('access simulation (#1066)', () => {
     );
     await index.getByRole('button', { name: 'Show access' }).click();
     expect((await looked).status()).toBe(200);
+    // Every QUERY_ADMIN holder in the org is listed too (sorted by email, 20 a page), so page
+    // through rather than assume the analyst is on page 1. The trace tab has no pager of its own.
     const analystRow = index.getByRole('row').filter({ hasText: analystEmail });
-    await expect(analystRow).toBeVisible();
+    await findRowAcrossPages(page, analystRow);
     await expect(analystRow.getByText('Direct permission')).toBeVisible();
 
     await context.close();

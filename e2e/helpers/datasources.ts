@@ -1426,14 +1426,17 @@ export async function deleteRoutingPolicyViaApi(
   });
 }
 
-/** Total query requests on a datasource, from GET /queries?datasource_id=… (admin sees all). */
+/**
+ * Total query requests on a datasource (admin sees all). The list endpoint binds the filter as
+ * camelCase `datasourceId` — a snake_case `datasource_id` is silently ignored and counts everything.
+ */
 export async function countQueriesViaApi(
   request: APIRequestContext,
   accessToken: string,
   datasourceId: string,
 ): Promise<number> {
   const res = await request.get(
-    `${apiBase()}/api/v1/queries?${new URLSearchParams({ datasource_id: datasourceId, size: '1' })}`,
+    `${apiBase()}/api/v1/queries?${new URLSearchParams({ datasourceId, size: '1' })}`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
   if (!res.ok()) {

@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
+import { useAuthStore } from '@/store/authStore';
+import type { Permission } from '@/utils/permissions';
 import type { DeploymentSimulationResult } from '@/types/api';
 
 const { simulateMock, listUsersMock, listEnvironmentsMock } = vi.hoisted(() => ({
@@ -24,6 +26,26 @@ vi.mock('@/api/deploymentPipelines', async () => {
 });
 
 const { PipelineSimulateTab } = await import('./PipelineSimulateTab');
+
+function signIn(permissions: Permission[]) {
+  useAuthStore.setState({
+    user: {
+      id: 'admin-1',
+      email: 'admin@x.io',
+      display_name: 'Admin',
+      role: 'ADMIN',
+      role_id: null,
+      permissions,
+      auth_provider: 'LOCAL',
+      totp_enabled: false,
+      platform_admin: false,
+      preferred_language: null,
+      governs_apis: true,
+      governs_deployments: true,
+    },
+    accessToken: 't',
+  });
+}
 
 function wrap(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -70,6 +92,7 @@ function result(releasable: boolean): DeploymentSimulationResult {
 
 describe('PipelineSimulateTab', () => {
   beforeEach(() => {
+    signIn(['DEPLOYMENT_PIPELINE_MANAGE', 'USER_MANAGE']);
     simulateMock.mockReset();
     listUsersMock.mockReset();
     listEnvironmentsMock.mockReset();
