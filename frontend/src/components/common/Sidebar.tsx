@@ -1,6 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   EditOutlined,
+  BranchesOutlined,
+  DiffOutlined,
   ThunderboltOutlined,
   UnorderedListOutlined,
   InboxOutlined,
@@ -158,6 +160,14 @@ export function Sidebar({
           items: [
             { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
             { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'] },
+          ],
+        },
+        {
+          id: 'workflow-schema-changes',
+          label: t('nav.sub_schema_changes'),
+          items: [
+            { id: 'schema-change-sets', to: '/schema-change-sets', label: t('nav.schemaChangeSets'), icon: <BranchesOutlined />, permissions: ['SCHEMA_CHANGE_MANAGE'] },
+            { id: 'schema-drift', to: '/schema-drift', label: t('nav.schemaDrift'), icon: <DiffOutlined />, permissions: ['SCHEMA_CHANGE_MANAGE'] },
           ],
         },
         {

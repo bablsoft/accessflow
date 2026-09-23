@@ -109,7 +109,10 @@
     "help_agent": "Assistant d’aide",
     "governance_domains": "Domaines de gouvernance",
     "sql_review": "Revue SQL",
-    "service_accounts": "Comptes de service"
+    "service_accounts": "Comptes de service",
+    "sub_schema_changes": "Changements de schéma",
+    "schemaChangeSets": "Ensembles de modifications",
+    "schemaDrift": "Dérive de schéma"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2991,7 +2994,8 @@
       "INSERT": "Insert",
       "UPDATE": "Update",
       "DELETE": "Delete",
-      "DDL": "DDL"
+      "DDL": "DDL",
+      "OTHER": "Autre"
     },
     "query_template_change_type": {
       "CREATED": "Créée",
@@ -3519,6 +3523,38 @@
       "validate_sql": "Analyser et valider du SQL sans le soumettre",
       "get_column_samples": "Échantillonner des valeurs de colonnes d'une source de données",
       "get_audit_log": "Lire le journal d'audit"
+    },
+    "schema_change_set_status": {
+      "DRAFT": "Brouillon",
+      "ACTIVE": "Actif",
+      "ARCHIVED": "Archivé"
+    },
+    "schema_change_promotion_status": {
+      "PENDING": "En attente",
+      "IN_REVIEW": "En révision",
+      "APPROVED": "Approuvé",
+      "APPLIED": "Appliqué",
+      "FAILED": "Échoué",
+      "PARTIALLY_APPLIED": "Partiellement appliqué",
+      "CANCELLED": "Annulé"
+    },
+    "schema_drift_finding_kind": {
+      "MISSING_IN_TARGET": "Absent de la cible",
+      "UNEXPECTED_IN_TARGET": "Inattendu dans la cible",
+      "TYPE_MISMATCH": "Écart de type",
+      "NULLABILITY_MISMATCH": "Écart de nullabilité",
+      "PRIMARY_KEY_MISMATCH": "Écart de clé primaire",
+      "FOREIGN_KEY_MISMATCH": "Écart de clé étrangère"
+    },
+    "schema_drift_finding_status": {
+      "OPEN": "Ouvert",
+      "ACKNOWLEDGED": "Accusé de réception",
+      "RESOLVED": "Résolu"
+    },
+    "schema_drift_baseline": {
+      "PREVIOUS_ENVIRONMENT": "Environnement précédent",
+      "BASELINE_ENVIRONMENT": "Environnement de référence",
+      "PROMOTION_SNAPSHOT": "Instantané de promotion"
     }
   },
   "access": {
@@ -4745,6 +4781,183 @@
       "target": "Target",
       "memberRisk": "Risk",
       "memberStatus": "Status"
+    }
+  },
+  "schemaChange": {
+    "list": {
+      "title": "Ensembles de modifications de schéma",
+      "subtitle": "Rédigez les instructions de schéma une fois et faites-les progresser environnement par environnement le long d'un pipeline.",
+      "create": "Nouvel ensemble de modifications",
+      "createTitle": "Nouvel ensemble de modifications de schéma",
+      "createSubmit": "Créer",
+      "created": "Ensemble de modifications créé",
+      "createError": "Impossible de créer l'ensemble de modifications",
+      "loadError": "Impossible de charger les ensembles de modifications",
+      "name": "Nom",
+      "pipeline": "Pipeline",
+      "status": "Statut",
+      "statements": "Instructions",
+      "ladder": "Chaîne de promotion",
+      "updated": "Mis à jour",
+      "allPipelines": "Tous les pipelines",
+      "allStatuses": "Tous les statuts",
+      "count": "{{total}} ensembles de modifications",
+      "emptyTitle": "Aucun ensemble de modifications de schéma pour le moment",
+      "emptyDescription": "Créez un ensemble de modifications sous un pipeline de déploiement, ajoutez ses instructions, puis faites-le progresser environnement par environnement.",
+      "emptyFiltered": "Aucun ensemble de modifications ne correspond à ces filtres"
+    },
+    "form": {
+      "pipeline": "Pipeline",
+      "pipelineHint": "Les environnements de ce pipeline forment la chaîne de promotion.",
+      "pipelineRequired": "Choisissez un pipeline",
+      "noPipelines": "Aucun pipeline de déploiement pour le moment",
+      "name": "Nom",
+      "nameRequired": "Saisissez un nom",
+      "nameSize": "Utilisez entre {{min}} et {{max}} caractères",
+      "description": "Description",
+      "descriptionMax": "Utilisez au plus {{max}} caractères"
+    },
+    "detail": {
+      "subtitle": "Pipeline {{pipeline}}",
+      "notFound": "Ensemble de modifications introuvable",
+      "editDetails": "Modifier les détails",
+      "updated": "Ensemble de modifications mis à jour",
+      "updateError": "Impossible de mettre à jour l'ensemble de modifications",
+      "archive": "Archiver",
+      "archiveConfirm": "Archiver cet ensemble de modifications ? Il ne pourra plus être modifié ni promu.",
+      "archived": "Ensemble de modifications archivé",
+      "deleteConfirm": "Supprimer cet ensemble de modifications et ses instructions ?",
+      "deleted": "Ensemble de modifications supprimé",
+      "deleteError": "Impossible de supprimer l'ensemble de modifications",
+      "saved": "Instructions enregistrées",
+      "savedWithWarnings": "Instructions enregistrées avec {{count}} avertissements de revue",
+      "saveError": "Impossible d'enregistrer les instructions",
+      "promoted": "Promotion vers {{environment}} soumise",
+      "promoteError": "Impossible de promouvoir l'ensemble de modifications",
+      "promotionCancelled": "Promotion annulée",
+      "cancelError": "Impossible d'annuler la promotion"
+    },
+    "statements": {
+      "title": "Instructions",
+      "empty": "Aucune instruction pour le moment. Ajoutez la première ci-dessous.",
+      "add": "Ajouter une instruction",
+      "save": "Enregistrer les instructions",
+      "remove": "Supprimer l'instruction {{index}}",
+      "dragHandle": "Réordonner l'instruction {{index}}",
+      "sqlLabel": "Instruction {{index}}",
+      "sqlRequired": "Saisissez une instruction ou supprimez-la",
+      "sqlMax": "Une instruction peut compter au plus {{max}} caractères",
+      "capRule": "Un ensemble de modifications peut contenir au plus {{max}} instructions",
+      "capReached": "Cet ensemble de modifications a atteint la limite de {{max}} instructions.",
+      "problemsLabel": "Problèmes dans l'instruction {{index}}",
+      "severity": {
+        "ERROR": "Refusée",
+        "BLOCK": "Bloquée",
+        "WARN": "Avertissement"
+      },
+      "frozenTitle": "Les instructions sont gelées",
+      "frozenBody": "Une promotion vers {{environment}} est {{status}}, les instructions ne peuvent donc plus changer — ce qui a été revu est ce qui s'exécute. Archivez cet ensemble et rédigez-en un nouveau pour les modifier.",
+      "archivedTitle": "Cet ensemble de modifications est archivé",
+      "archivedBody": "Ses instructions ne peuvent plus être modifiées ni promues.",
+      "promotionsUnknown": "Les instructions restent en lecture seule tant que les promotions ne sont pas chargées"
+    },
+    "ladder": {
+      "title": "Chaîne de promotion",
+      "ariaLabel": "Chaîne de promotion",
+      "hint": "Chaque environnement doit être appliqué avant que le suivant puisse être promu.",
+      "loadError": "Impossible de charger la chaîne de promotion",
+      "noEnvironments": "Ce pipeline n'a aucun environnement",
+      "state": {
+        "APPLIED": "Appliqué",
+        "IN_PROGRESS": "En cours",
+        "PROMOTABLE": "Prêt à promouvoir",
+        "BLOCKED": "Bloqué"
+      },
+      "blocker": {
+        "NO_DATASOURCE": "Aucune source de données liée — cet environnement est réservé au déploiement",
+        "PARTIALLY_APPLIED": "Bloqué — la dernière promotion n'a appliqué qu'une partie de l'ensemble ; rédigez un nouvel ensemble de modifications pour le reste",
+        "SET_ARCHIVED": "Bloqué — l'ensemble de modifications est archivé",
+        "SET_EMPTY": "Bloqué — l'ensemble de modifications n'a aucune instruction",
+        "LADDER_INVALID": "Bloqué — deux environnements de ce pipeline partagent le même ordre de tri",
+        "LOWER_ENVIRONMENT_NOT_APPLIED": "Bloqué — {{environment}} pas encore appliqué",
+        "FREEZE_ACTIVE": "Bloqué — fenêtre de gel active ({{behavior}})",
+        "FREEZE_ACTIVE_reason": "Bloqué — fenêtre de gel active ({{behavior}}) : {{reason}}",
+        "DATASOURCE_MISSING": "Bloqué — la source de données liée n’existe plus ; reliez ou dissociez l’environnement"
+      },
+      "latestPromotion": "Dernière promotion : {{status}}",
+      "openGroup": "Ouvrir le groupe de demandes",
+      "approvedQueued": "Approuvé — elle s'exécutera au prochain passage planifié et ne peut plus être annulée.",
+      "promote": "Promouvoir",
+      "promoteTo": "Promouvoir vers {{environment}}",
+      "promoteConfirmTitle": "Promouvoir vers {{environment}} ?",
+      "promoteConfirmBody": "Chaque instruction s'exécute indépendamment, sans retour en arrière. La promotion est analysée et revue comme un groupe de demandes avant de s'exécuter.",
+      "cancelPromotion": "Annuler la promotion",
+      "cancelConfirm": "Annuler cette promotion ?"
+    },
+    "promotions": {
+      "title": "Historique des promotions",
+      "empty": "Pas encore promu",
+      "environment": "Environnement",
+      "deletedEnvironment": "Environnement supprimé",
+      "status": "Statut",
+      "submitted": "Soumis",
+      "applied": "Appliqué",
+      "group": "Groupe de demandes",
+      "loadError": "Impossible de charger les promotions"
+    },
+    "drift": {
+      "title": "Dérive de schéma",
+      "subtitle": "Là où le schéma en direct d'un environnement diffère de sa référence.",
+      "fidelityNote": "La dérive compare uniquement les schémas, les tables, les colonnes (nom, type, nullabilité, clé primaire) et les clés étrangères. Les index, contraintes, valeurs par défaut et précisions de type ne sont pas comparés, donc l'absence de constat signifie que rien n'a dérivé sur ces champs — pas plus.",
+      "pipeline": "Pipeline",
+      "environment": "Environnement",
+      "status": "Statut",
+      "allEnvironments": "Tous les environnements",
+      "allStatuses": "Tous les statuts",
+      "loadError": "Impossible de charger la dérive de schéma",
+      "noEnvironmentsTitle": "Aucun environnement à analyser",
+      "noEnvironmentsDescription": "La dérive analyse les environnements qui lient une source de données. Liez-en une à un environnement d'un pipeline de déploiement d'abord.",
+      "deletedEnvironment": "Environnement supprimé {{id}}",
+      "neverScanned": "Pas encore analysé.",
+      "scanRunning": "Analyse en cours…",
+      "scanNow": "Analyser maintenant",
+      "scanRequested": "Analyse démarrée",
+      "scanError": "Impossible de démarrer l'analyse",
+      "lastScan": "Dernière analyse {{when}} par rapport à {{baseline}} · {{count}} constats",
+      "partial": "Partiel",
+      "unsupportedTitle": "Non pris en charge pour ce moteur",
+      "noComparison": "Rien n'a été comparé",
+      "noFindings": "Aucune dérive détectée dans les champs comparés par la dérive.",
+      "noFindingsFiltered": "Aucun constat avec ce statut.",
+      "objectPath": "Objet",
+      "kind": "Type",
+      "expected": "Attendu (référence)",
+      "actual": "Réel",
+      "absent": "(absent)",
+      "firstSeen": "Première observation",
+      "lastSeen": "Dernière observation",
+      "actions": "Actions",
+      "acknowledge": "Accuser réception",
+      "acknowledged": "Constat accusé de réception",
+      "acknowledgeError": "Impossible d'accuser réception du constat",
+      "reason": {
+        "ENGINE_NOT_APPLICABLE": "Ce moteur échantillonne les données plutôt que de lire un catalogue, son schéma ne peut donc pas être comparé de façon fiable. Il n'a pas été contacté.",
+        "BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND": "Aucun environnement inférieur de la chaîne ne lie de source de données pour comparaison.",
+        "BASELINE_ENVIRONMENT_NOT_CONFIGURED": "Le mode de référence nécessite un environnement de référence désigné, et aucun n'est défini.",
+        "BASELINE_ENVIRONMENT_NOT_FOUND": "L'environnement de référence désigné n'existe plus sur ce pipeline.",
+        "BASELINE_ENVIRONMENT_IS_TARGET": "C'est l'environnement de référence désigné, il n'est donc pas comparé à lui-même.",
+        "BASELINE_ENVIRONMENT_NO_DATASOURCE": "L'environnement de référence désigné ne lie aucune source de données.",
+        "BASELINE_ENGINE_MISMATCH": "La référence utilise un moteur différent, les schémas ne peuvent donc pas être comparés.",
+        "BASELINE_SNAPSHOT_MISSING": "Aucun instantané de la dernière promotion appliquée n'existe encore.",
+        "BASELINE_SNAPSHOT_UNREADABLE": "L'instantané enregistré n'a pas pu être lu.",
+        "BASELINE_DATASOURCE_REBOUND": "L'environnement a été relié à une autre source de données depuis la prise de l'instantané.",
+        "BASELINE_INTROSPECTION_FAILED": "La base de données de référence n'a pas pu être lue.",
+        "TARGET_INTROSPECTION_FAILED": "La base de données de cet environnement n'a pas pu être lue.",
+        "SCAN_FAILED": "L'analyse a échoué au sein d'AccessFlow pendant la comparaison.",
+        "FK_COMPARISON_SUPPRESSED": "Les clés étrangères n'ont pas été comparées : un côté n'en a signalé aucune.",
+        "SCAN_SUPERSEDED": "Une autre analyse de cet environnement était déjà en cours."
+      },
+      "truncated": "Seuls les {{shown}} résultats les plus récents sont affichés — affinez les filtres pour voir le reste."
     }
   },
   "deploygov": {

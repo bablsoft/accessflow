@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "9abcec4db313",
-  "generatedAt": "2026-09-23T08:12:55.855Z",
-  "sourceCommit": "285ecfa531435163176113947ac0614b86bfa5f1",
+  "corpusVersion": "4c180df9f14d",
+  "generatedAt": "2026-09-23T09:26:22.045Z",
+  "sourceCommit": "11aef8ede779347d500d5d10d499aead005200f7",
   "chunkCount": 580,
-  "sha256": "9abcec4db31383c0385314b0e3c9b10fd4d2977962c06961e8724f0559ae952a",
-  "quickReferenceSha256": "6cc72c243dad41d5cf241be9d8b3aeee400f8689ede9fce285d351910bae1795",
+  "sha256": "4c180df9f14d86a43a9be79cf39c506b92d4a4c0f4637d312789a7a11dca7d05",
+  "quickReferenceSha256": "006fab3cb91268f837a437b28dc574d207978094c5d3d3280753e18ebe8ab0ec",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -421,7 +421,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 89,
-      "sha256": "3cf728aeda3b82e053065c4d684c422b80b96f81f2a2a666fa89937360936a1d"
+      "sha256": "9e87b149b0a920195da2159df16d541720376174240e11110e1b54de853c60c0"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "3d8276706094e0d45d8a0a992a23e26d5b6cb0abdd0bd8b08d786ab39477a5ad"
+      "sha256": "e8962aef376b9c85755b1d94a16656947fe7755dcd52f0383533b0b005103079"
     }
   ]
 }

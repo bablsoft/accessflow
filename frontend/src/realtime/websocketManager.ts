@@ -256,6 +256,17 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'reviews'] });
         break;
       }
+      case 'schema_change_promotion.status_changed': {
+        // The promoter's ladder, history and the list's ladder strips all hang off the set (#883).
+        const changeSetId = (envelope.data as { change_set_id?: string }).change_set_id;
+        if (changeSetId) {
+          this.queryClient.invalidateQueries({
+            queryKey: ['schema-change', 'sets', 'detail', changeSetId],
+          });
+        }
+        this.queryClient.invalidateQueries({ queryKey: ['schema-change', 'sets', 'list'] });
+        break;
+      }
       case 'deployment.status_changed': {
         const deploymentId = (envelope.data as { deployment_request_id?: string })
           .deployment_request_id;

@@ -109,7 +109,10 @@
     "help_agent": "Hilfe-Assistent",
     "governance_domains": "Governance-Bereiche",
     "sql_review": "SQL-Prüfung",
-    "service_accounts": "Service-Accounts"
+    "service_accounts": "Service-Accounts",
+    "sub_schema_changes": "Schemaänderungen",
+    "schemaChangeSets": "Änderungssätze",
+    "schemaDrift": "Schema-Drift"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2991,7 +2994,8 @@
       "INSERT": "Insert",
       "UPDATE": "Update",
       "DELETE": "Delete",
-      "DDL": "DDL"
+      "DDL": "DDL",
+      "OTHER": "Sonstige"
     },
     "query_template_change_type": {
       "CREATED": "Erstellt",
@@ -3519,6 +3523,38 @@
       "validate_sql": "SQL parsen und validieren, ohne es einzureichen",
       "get_column_samples": "Spaltenwerte aus einer Datenquelle stichprobenartig lesen",
       "get_audit_log": "Audit-Log lesen"
+    },
+    "schema_change_set_status": {
+      "DRAFT": "Entwurf",
+      "ACTIVE": "Aktiv",
+      "ARCHIVED": "Archiviert"
+    },
+    "schema_change_promotion_status": {
+      "PENDING": "Ausstehend",
+      "IN_REVIEW": "In Prüfung",
+      "APPROVED": "Genehmigt",
+      "APPLIED": "Angewendet",
+      "FAILED": "Fehlgeschlagen",
+      "PARTIALLY_APPLIED": "Teilweise angewendet",
+      "CANCELLED": "Abgebrochen"
+    },
+    "schema_drift_finding_kind": {
+      "MISSING_IN_TARGET": "Fehlt im Ziel",
+      "UNEXPECTED_IN_TARGET": "Unerwartet im Ziel",
+      "TYPE_MISMATCH": "Typabweichung",
+      "NULLABILITY_MISMATCH": "Nullability-Abweichung",
+      "PRIMARY_KEY_MISMATCH": "Abweichung des Primärschlüssels",
+      "FOREIGN_KEY_MISMATCH": "Abweichung des Fremdschlüssels"
+    },
+    "schema_drift_finding_status": {
+      "OPEN": "Offen",
+      "ACKNOWLEDGED": "Bestätigt",
+      "RESOLVED": "Behoben"
+    },
+    "schema_drift_baseline": {
+      "PREVIOUS_ENVIRONMENT": "Vorherige Umgebung",
+      "BASELINE_ENVIRONMENT": "Referenzumgebung",
+      "PROMOTION_SNAPSHOT": "Promotion-Snapshot"
     }
   },
   "access": {
@@ -4745,6 +4781,183 @@
       "target": "Target",
       "memberRisk": "Risk",
       "memberStatus": "Status"
+    }
+  },
+  "schemaChange": {
+    "list": {
+      "title": "Schema-Änderungssätze",
+      "subtitle": "Schema-Anweisungen einmal verfassen und Umgebung für Umgebung entlang einer Pipeline befördern.",
+      "create": "Neuer Änderungssatz",
+      "createTitle": "Neuer Schema-Änderungssatz",
+      "createSubmit": "Erstellen",
+      "created": "Änderungssatz erstellt",
+      "createError": "Der Änderungssatz konnte nicht erstellt werden",
+      "loadError": "Änderungssätze konnten nicht geladen werden",
+      "name": "Name",
+      "pipeline": "Pipeline",
+      "status": "Status",
+      "statements": "Anweisungen",
+      "ladder": "Promotionskette",
+      "updated": "Aktualisiert",
+      "allPipelines": "Alle Pipelines",
+      "allStatuses": "Alle Status",
+      "count": "{{total}} Änderungssätze",
+      "emptyTitle": "Noch keine Schema-Änderungssätze",
+      "emptyDescription": "Erstellen Sie einen Änderungssatz unter einer Deployment-Pipeline, fügen Sie seine Anweisungen hinzu und befördern Sie ihn dann Umgebung für Umgebung.",
+      "emptyFiltered": "Keine Änderungssätze entsprechen diesen Filtern"
+    },
+    "form": {
+      "pipeline": "Pipeline",
+      "pipelineHint": "Die Umgebungen dieser Pipeline bilden die Promotionskette.",
+      "pipelineRequired": "Wählen Sie eine Pipeline",
+      "noPipelines": "Noch keine Deployment-Pipelines",
+      "name": "Name",
+      "nameRequired": "Geben Sie einen Namen ein",
+      "nameSize": "Verwenden Sie zwischen {{min}} und {{max}} Zeichen",
+      "description": "Beschreibung",
+      "descriptionMax": "Verwenden Sie höchstens {{max}} Zeichen"
+    },
+    "detail": {
+      "subtitle": "Pipeline {{pipeline}}",
+      "notFound": "Änderungssatz nicht gefunden",
+      "editDetails": "Details bearbeiten",
+      "updated": "Änderungssatz aktualisiert",
+      "updateError": "Der Änderungssatz konnte nicht aktualisiert werden",
+      "archive": "Archivieren",
+      "archiveConfirm": "Diesen Änderungssatz archivieren? Er kann danach nicht mehr bearbeitet oder befördert werden.",
+      "archived": "Änderungssatz archiviert",
+      "deleteConfirm": "Diesen Änderungssatz und seine Anweisungen löschen?",
+      "deleted": "Änderungssatz gelöscht",
+      "deleteError": "Der Änderungssatz konnte nicht gelöscht werden",
+      "saved": "Anweisungen gespeichert",
+      "savedWithWarnings": "Anweisungen mit {{count}} Prüfwarnungen gespeichert",
+      "saveError": "Die Anweisungen konnten nicht gespeichert werden",
+      "promoted": "Beförderung nach {{environment}} eingereicht",
+      "promoteError": "Der Änderungssatz konnte nicht befördert werden",
+      "promotionCancelled": "Beförderung abgebrochen",
+      "cancelError": "Die Beförderung konnte nicht abgebrochen werden"
+    },
+    "statements": {
+      "title": "Anweisungen",
+      "empty": "Noch keine Anweisungen. Fügen Sie unten die erste hinzu.",
+      "add": "Anweisung hinzufügen",
+      "save": "Anweisungen speichern",
+      "remove": "Anweisung {{index}} entfernen",
+      "dragHandle": "Anweisung {{index}} neu anordnen",
+      "sqlLabel": "Anweisung {{index}}",
+      "sqlRequired": "Geben Sie eine Anweisung ein oder entfernen Sie sie",
+      "sqlMax": "Eine Anweisung darf höchstens {{max}} Zeichen umfassen",
+      "capRule": "Ein Änderungssatz kann höchstens {{max}} Anweisungen enthalten",
+      "capReached": "Dieser Änderungssatz hat das Limit von {{max}} Anweisungen erreicht.",
+      "problemsLabel": "Probleme in Anweisung {{index}}",
+      "severity": {
+        "ERROR": "Abgelehnt",
+        "BLOCK": "Blockiert",
+        "WARN": "Warnung"
+      },
+      "frozenTitle": "Anweisungen sind eingefroren",
+      "frozenBody": "Eine Beförderung nach {{environment}} ist {{status}}, daher können sich die Anweisungen nicht mehr ändern — was geprüft wurde, ist das, was läuft. Archivieren Sie diesen Satz und verfassen Sie einen neuen, um Änderungen vorzunehmen.",
+      "archivedTitle": "Dieser Änderungssatz ist archiviert",
+      "archivedBody": "Seine Anweisungen können nicht mehr bearbeitet oder befördert werden.",
+      "promotionsUnknown": "Anweisungen sind schreibgeschützt, bis die Promotions geladen sind"
+    },
+    "ladder": {
+      "title": "Promotionskette",
+      "ariaLabel": "Promotionskette",
+      "hint": "Jede Umgebung muss angewendet sein, bevor die nächste befördert werden kann.",
+      "loadError": "Die Promotionskette konnte nicht geladen werden",
+      "noEnvironments": "Diese Pipeline hat keine Umgebungen",
+      "state": {
+        "APPLIED": "Angewendet",
+        "IN_PROGRESS": "In Bearbeitung",
+        "PROMOTABLE": "Bereit zur Beförderung",
+        "BLOCKED": "Blockiert"
+      },
+      "blocker": {
+        "NO_DATASOURCE": "Keine Datenquelle gebunden — diese Umgebung ist nur für Deployments",
+        "PARTIALLY_APPLIED": "Blockiert — die letzte Beförderung hat nur einen Teil des Satzes angewendet; verfassen Sie einen neuen Änderungssatz für den Rest",
+        "SET_ARCHIVED": "Blockiert — der Änderungssatz ist archiviert",
+        "SET_EMPTY": "Blockiert — der Änderungssatz hat keine Anweisungen",
+        "LADDER_INVALID": "Blockiert — zwei Umgebungen dieser Pipeline teilen sich eine Sortierreihenfolge",
+        "LOWER_ENVIRONMENT_NOT_APPLIED": "Blockiert — {{environment}} noch nicht angewendet",
+        "FREEZE_ACTIVE": "Blockiert — Freeze-Fenster aktiv ({{behavior}})",
+        "FREEZE_ACTIVE_reason": "Blockiert — Freeze-Fenster aktiv ({{behavior}}): {{reason}}",
+        "DATASOURCE_MISSING": "Blockiert — die gebundene Datenquelle existiert nicht mehr; Umgebung neu binden oder Bindung entfernen"
+      },
+      "latestPromotion": "Letzte Beförderung: {{status}}",
+      "openGroup": "Anfragegruppe öffnen",
+      "approvedQueued": "Genehmigt — sie läuft beim nächsten geplanten Durchlauf und kann nicht mehr abgebrochen werden.",
+      "promote": "Befördern",
+      "promoteTo": "Nach {{environment}} befördern",
+      "promoteConfirmTitle": "Nach {{environment}} befördern?",
+      "promoteConfirmBody": "Jede Anweisung läuft für sich, ohne Rollback. Die Beförderung wird als Anfragegruppe analysiert und geprüft, bevor sie läuft.",
+      "cancelPromotion": "Beförderung abbrechen",
+      "cancelConfirm": "Diese Beförderung abbrechen?"
+    },
+    "promotions": {
+      "title": "Beförderungsverlauf",
+      "empty": "Noch nicht befördert",
+      "environment": "Umgebung",
+      "deletedEnvironment": "Gelöschte Umgebung",
+      "status": "Status",
+      "submitted": "Eingereicht",
+      "applied": "Angewendet",
+      "group": "Anfragegruppe",
+      "loadError": "Promotions konnten nicht geladen werden"
+    },
+    "drift": {
+      "title": "Schema-Drift",
+      "subtitle": "Wo sich das aktuelle Schema einer Umgebung von seiner Referenz unterscheidet.",
+      "fidelityNote": "Drift vergleicht nur Schemas, Tabellen, Spalten (Name, Typ, Nullability, Primärschlüssel) und Fremdschlüssel. Indizes, Constraints, Standardwerte und Typpräzision werden nicht verglichen — keine Befunde bedeutet also, dass in diesen Feldern nichts abgewichen ist, nicht mehr.",
+      "pipeline": "Pipeline",
+      "environment": "Umgebung",
+      "status": "Status",
+      "allEnvironments": "Alle Umgebungen",
+      "allStatuses": "Alle Status",
+      "loadError": "Schema-Drift konnte nicht geladen werden",
+      "noEnvironmentsTitle": "Keine Umgebung zum Scannen",
+      "noEnvironmentsDescription": "Drift scannt Umgebungen, die eine Datenquelle binden. Binden Sie zuerst eine an eine Umgebung einer Deployment-Pipeline.",
+      "deletedEnvironment": "Gelöschte Umgebung {{id}}",
+      "neverScanned": "Noch nicht gescannt.",
+      "scanRunning": "Scan läuft…",
+      "scanNow": "Jetzt scannen",
+      "scanRequested": "Scan gestartet",
+      "scanError": "Der Scan konnte nicht gestartet werden",
+      "lastScan": "Letzter Scan {{when}} gegen {{baseline}} · {{count}} Befunde",
+      "partial": "Teilweise",
+      "unsupportedTitle": "Für diese Engine nicht unterstützt",
+      "noComparison": "Es wurde nichts verglichen",
+      "noFindings": "Keine Drift in den von Drift verglichenen Feldern festgestellt.",
+      "noFindingsFiltered": "Keine Befunde mit diesem Status.",
+      "objectPath": "Objekt",
+      "kind": "Art",
+      "expected": "Erwartet (Referenz)",
+      "actual": "Tatsächlich",
+      "absent": "(nicht vorhanden)",
+      "firstSeen": "Zuerst gesehen",
+      "lastSeen": "Zuletzt gesehen",
+      "actions": "Aktionen",
+      "acknowledge": "Bestätigen",
+      "acknowledged": "Befund bestätigt",
+      "acknowledgeError": "Der Befund konnte nicht bestätigt werden",
+      "reason": {
+        "ENGINE_NOT_APPLICABLE": "Diese Engine stichprobenartig Daten ab, statt einen Katalog zu lesen, daher kann ihr Schema nicht zuverlässig verglichen werden. Sie wurde nicht kontaktiert.",
+        "BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND": "Keine niedrigere Umgebung der Kette bindet eine Datenquelle zum Vergleich.",
+        "BASELINE_ENVIRONMENT_NOT_CONFIGURED": "Der Referenzmodus benötigt eine festgelegte Referenzumgebung, und keine ist eingestellt.",
+        "BASELINE_ENVIRONMENT_NOT_FOUND": "Die festgelegte Referenzumgebung existiert auf dieser Pipeline nicht mehr.",
+        "BASELINE_ENVIRONMENT_IS_TARGET": "Dies ist die festgelegte Referenzumgebung, sie wird also nicht mit sich selbst verglichen.",
+        "BASELINE_ENVIRONMENT_NO_DATASOURCE": "Die festgelegte Referenzumgebung bindet keine Datenquelle.",
+        "BASELINE_ENGINE_MISMATCH": "Die Referenz läuft auf einer anderen Engine, daher können die Schemas nicht verglichen werden.",
+        "BASELINE_SNAPSHOT_MISSING": "Es existiert noch kein Snapshot der neuesten angewendeten Beförderung.",
+        "BASELINE_SNAPSHOT_UNREADABLE": "Der gespeicherte Snapshot konnte nicht gelesen werden.",
+        "BASELINE_DATASOURCE_REBOUND": "Die Umgebung wurde seit der Aufnahme des Snapshots an eine andere Datenquelle gebunden.",
+        "BASELINE_INTROSPECTION_FAILED": "Die Referenzdatenbank konnte nicht gelesen werden.",
+        "TARGET_INTROSPECTION_FAILED": "Die Datenbank dieser Umgebung konnte nicht gelesen werden.",
+        "SCAN_FAILED": "Der Scan ist innerhalb von AccessFlow beim Vergleich fehlgeschlagen.",
+        "FK_COMPARISON_SUPPRESSED": "Fremdschlüssel wurden nicht verglichen: eine Seite meldete überhaupt keine.",
+        "SCAN_SUPERSEDED": "Ein anderer Scan dieser Umgebung lief bereits."
+      },
+      "truncated": "Es werden nur die {{shown}} neuesten Ergebnisse angezeigt — Filter eingrenzen, um den Rest zu sehen."
     }
   },
   "deploygov": {

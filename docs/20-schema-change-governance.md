@@ -25,8 +25,8 @@ review and an ordered executor — the shape a promotion takes, #880).
 > `/schema-change-sets` REST surface (#879) — **promotion** with the ladder gate, freeze-window
 > check, request-group wiring and the post-apply snapshot (#880), and the **drift half** — the
 > opt-in scan configuration, the scheduled job, the diff and the read API (#881) — and the
-> **notification and audit fan-out** (#882, §Notifications) are on `main`. The web UI (#883) and the
-> website sweep (#884) follow.
+> **notification and audit fan-out** (#882, §Notifications) and the **web UI** (#883, §8) are on
+> `main`. The website sweep (#884) follows.
 
 > **The one sentence to remember.** A change set is a *set of schema statements*, not a
 > transaction: each statement runs on its own, autocommit, so there is **no rollback at all** —
@@ -45,6 +45,7 @@ com.bablsoft.accessflow.schemachange/
 │   ├── SchemaDriftService                # drift read API + acknowledge + scan-now (#881)
 │   ├── SchemaDriftConfigService          # per-pipeline opt-in configuration (#881)
 │   ├── SchemaChangeNotificationLookupService       # names + reviewer set for notifications (#882)
+│   ├── SchemaChangeLadderService         # pipelines + the per-rung ladder preview for the UI (#883)
 │   ├── SchemaChangeSetView, SchemaChangeSetStatementView, SchemaChangeStatementFinding
 │   ├── Create/UpdateSchemaChangeSetCommand, SchemaChangeSetStatementInput, SchemaChangeSetListFilter
 │   ├── SchemaChangeSetStatus, SchemaChangePromotionStatus, SchemaDrift* enums
@@ -59,6 +60,7 @@ com.bablsoft.accessflow.schemachange/
     ├── SchemaChangePromotionStatusMapper           # the status table + the monotonic guard
     ├── SchemaChangeAuditWriter           # swallowing audit wrapper, the DeploygovAuditWriter shape
     ├── DefaultSchemaChangeNotificationLookupService # the recipient facts notifications reads (#882)
+    ├── DefaultSchemaChangeLadderService  # previews the ladder + freeze checks per rung (§8)
     ├── SchemaChangeStatementGate         # the validation gate (§2)
     ├── SchemaChangeStatementScanner      # JDK-only envelope / multi-statement pre-checks
     ├── SchemaChangeChecksum              # SHA-256 over the ordered, normalised statements
@@ -75,7 +77,7 @@ com.bablsoft.accessflow.schemachange/
     ├── SchemaDriftPageAdapter            # PageRequest <-> Pageable (core's adapter is module-private)
     ├── scheduled/SchemaDriftJob          # @Scheduled + @SchedulerLock, drains schema_drift_configs
     ├── persistence/{entity,repo}         # V178 tables (#878), V180 schema_drift_configs + V181 finding version (#881)
-    └── web/                              # SchemaChangeSetController, SchemaDriftController + records
+    └── web/                              # SchemaChangeSet/Promotion/Ladder/Drift controllers + records
 ```
 
 The tables — `schema_change_sets`, `schema_change_set_statements`, `schema_change_set_promotions`,
@@ -226,7 +228,7 @@ check rather than a Bean Validation `@Size` because a `@Size` cannot read a runt
 
 ## 5. REST surface
 
-Documented in [04-api-spec.md → Schema Change Governance](04-api-spec.md#schema-change-governance-879-880-881-epic-870):
+Documented in [04-api-spec.md → Schema Change Governance](04-api-spec.md#schema-change-governance-879-880-881-883-epic-870):
 `POST /schema-change-sets` (201), `GET /schema-change-sets` (page; `pipeline_id`, `status`),
 `GET /{id}`, `PUT /{id}`, `PUT /{id}/statements`, `DELETE /{id}` (204). Wire names are snake_case;
 `ProblemDetail` extension properties (`statementIndex`, `queryType`, `currentStatus`, …) are
@@ -641,6 +643,58 @@ the only path with a per-datasource check (`can_ddl`, §6).
   second replica's tick start while the first is still working. The per-environment lock still
   prevents two scans of one environment, so the overlap costs duplicate work, not wrong findings.
 
+## 8. Web UI (#883)
+
+Three pages, all behind `SCHEMA_CHANGE_MANAGE` (route guard and sidebar alike, under
+Workflow → **Schema changes**):
+
+- **`/schema-change-sets`** — the change sets, filterable by pipeline and status, each row showing
+  its statement count and a compact **ladder strip**: one chip per environment coloured by its
+  state, the reason on hover. *New change set* picks the pipeline and a name; statements are
+  authored on the detail page.
+- **`/schema-change-sets/:id`** — the ordered statement editor (one SQL editor per statement,
+  drag-to-reorder, add/remove, *Save statements* replaces the whole list), the **promotion ladder**
+  and the promotion history. A refused save pins its problem to the statement it names: a gate
+  refusal's `statementIndex`, or every `findings` entry of `SCHEMA_CHANGE_SET_STATEMENT_BLOCKED`;
+  the `WARN` findings of a successful save stay under their statements until the list changes (they
+  are never persisted, §2). Once a promotion freezes the set (§3), or the set is archived, the
+  editor turns read-only **with the reason shown** — which promotion, in which status — rather than
+  a disabled control with no explanation.
+- **`/schema-drift`** — findings grouped by environment (filter by pipeline, environment and
+  status, default `OPEN`), each with its object path, kind, expected vs actual and first/last seen,
+  an *Acknowledge* action on open findings, and *Scan now* per environment (the page polls the scan
+  list while a scan is unfinished). An environment whose newest scan is `applicable = false` reads
+  **"Not supported for this engine"** with the localized reason — deliberately distinct from an
+  applicable scan that found nothing, and from one that recorded a baseline reason and compared
+  nothing (§7). The scan's `error_message` is a reason code; the UI localizes the known ones.
+
+### The ladder preview
+
+The ladder is the feature's whole story, so a blocked rung must always say *why*. The existing
+reads could not: pipeline and environment listings (`/deployment-pipelines`) require
+`DEPLOYMENT_PIPELINE_MANAGE`, which a custom role holding only `SCHEMA_CHANGE_MANAGE` lacks, and a
+freeze window is a stored definition only `deploygov`'s evaluator can answer "is it in effect now?"
+for. Two read-only endpoints therefore back the UI
+([04-api-spec.md](04-api-spec.md#pipelines-and-the-ladder-preview-883)):
+`GET /schema-change-pipelines` (pipelines with their environments) and
+`GET /schema-change-sets/{id}/ladder`, served by `DefaultSchemaChangeLadderService`.
+
+The ladder computes each rung's state from the set's promotions — an open one is `IN_PROGRESS`
+(even over an earlier `APPLIED` one), an `APPLIED` one is `APPLIED` — and otherwise runs the gate's
+checks in the gate's order (archived, empty, no datasource, datasource deleted, duplicate sort
+orders, an unapplied lower bound rung, an active freeze window), reporting the first that fails as
+the rung's `blocker`. It is a **preview**: it leaves out the promoter-specific `can_ddl` check,
+review enforceability and the open-promotion conflict (the rung already reads `IN_PROGRESS`), and
+the promotion call still runs the full twelve-check gate.
+
+One blocker is the UI's own policy rather than the gate's: a rung whose **newest** promotion is
+`PARTIALLY_APPLIED` reads `BLOCKED` / `PARTIALLY_APPLIED`, steering the author to a new change set
+for the remainder. The gate does not refuse that promotion — an API client can re-promote a
+half-migrated environment and re-run every statement — and a newer `FAILED` or `CANCELLED`
+attempt there clears the advisory. A promote that the preview allowed but the
+gate refuses surfaces the server's `detail` to the user. A freeze window is shown with its
+behaviour and reason but no end time — the evaluator answers "in effect now", not "until when".
+
 ## Audit & permissions
 
 `SCHEMA_CHANGE_MANAGE` is the only permission this feature introduces. Promotion writes one audit
@@ -699,7 +753,7 @@ drift finding carries no severity that could separate a critical divergence from
 The in-app row records the promotion in `user_notifications.schema_change_promotion_id` (V182); a
 drift row names no target. The bell sends a reviewer to `/request-groups/reviews` (where the
 promotion's group is decided) and the promoter to `/request-groups`, and the emails link to the same
-places; drift has no page until the web UI (#883) lands. The V182 foreign key cascades, so deleting a
+places; drift notifications open the drift page (§8). The V182 foreign key cascades, so deleting a
 change set (possible once every promotion is `FAILED` or `CANCELLED`) also clears those promotions'
 notifications from the bell — the V155 precedent for deployments.
 

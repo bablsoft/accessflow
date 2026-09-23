@@ -4843,3 +4843,177 @@ export interface HelpAgentTestResult {
   detail: string;
   embedding_dimensions?: number | null;
 }
+
+// ── Schema change governance (epic #870, UI #883) ───────────────────────────
+
+export type SchemaChangeSetStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+
+export type SchemaChangePromotionStatus =
+  | 'PENDING'
+  | 'IN_REVIEW'
+  | 'APPROVED'
+  | 'APPLIED'
+  | 'FAILED'
+  | 'PARTIALLY_APPLIED'
+  | 'CANCELLED';
+
+export interface SchemaChangeSetStatement {
+  id: string;
+  sequence_order: number;
+  sql_text: string;
+  /** `OTHER` covers what the gate admits beyond DDL — `COMMENT ON`, `GRANT`, `ALTER TYPE … ADD VALUE`. */
+  query_type: QueryType | 'OTHER';
+  created_at: string;
+}
+
+/** A deterministic-SQL-review finding on one statement of a change set, against one target. */
+export interface SchemaChangeStatementFinding {
+  statement_index: number;
+  datasource_id: string;
+  rule_id: string;
+  severity: SqlReviewFindingSeverity;
+  line_number?: number;
+  message: string;
+}
+
+export interface SchemaChangeSet {
+  id: string;
+  pipeline_id: string;
+  name: string;
+  description?: string | null;
+  status: SchemaChangeSetStatus;
+  statements_checksum?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  statements: SchemaChangeSetStatement[];
+  /** WARN findings of the write that produced this response; always empty on reads. */
+  review_warnings?: SchemaChangeStatementFinding[];
+}
+
+export type SchemaChangeSetPage = PageEnvelope<SchemaChangeSet>;
+
+export interface CreateSchemaChangeSetInput {
+  pipeline_id: string;
+  name: string;
+  description?: string | null;
+  statements?: { sql_text: string }[];
+}
+
+export interface UpdateSchemaChangeSetInput {
+  name?: string;
+  description?: string;
+  status?: SchemaChangeSetStatus;
+}
+
+export interface SchemaChangePromotion {
+  id: string;
+  change_set_id: string;
+  environment_id: string;
+  environment_name?: string | null;
+  datasource_id: string;
+  request_group_id?: string | null;
+  status: SchemaChangePromotionStatus;
+  statements_checksum: string;
+  promoted_by: string;
+  submitted_at: string;
+  applied_at?: string | null;
+  error_message?: string | null;
+  schema_snapshot?: string | null;
+  snapshot_taken_at?: string | null;
+}
+
+export interface SchemaChangePipelineEnvironment {
+  id: string;
+  name: string;
+  sort_order: number;
+  datasource_id?: string | null;
+}
+
+export interface SchemaChangePipeline {
+  id: string;
+  name: string;
+  active: boolean;
+  environments: SchemaChangePipelineEnvironment[];
+}
+
+export type SchemaChangeLadderRungState = 'APPLIED' | 'IN_PROGRESS' | 'PROMOTABLE' | 'BLOCKED';
+
+export type SchemaChangeLadderBlocker =
+  | 'SET_ARCHIVED'
+  | 'SET_EMPTY'
+  | 'NO_DATASOURCE'
+  | 'DATASOURCE_MISSING'
+  | 'PARTIALLY_APPLIED'
+  | 'LADDER_INVALID'
+  | 'LOWER_ENVIRONMENT_NOT_APPLIED'
+  | 'FREEZE_ACTIVE';
+
+export interface SchemaChangeLadderRung {
+  environment_id: string;
+  environment_name: string;
+  sort_order: number;
+  datasource_id?: string | null;
+  latest_promotion?: SchemaChangePromotion | null;
+  state: SchemaChangeLadderRungState;
+  blocker?: SchemaChangeLadderBlocker | null;
+  blocking_environment_id?: string | null;
+  blocking_environment_name?: string | null;
+  freeze_window_id?: string | null;
+  freeze_behavior?: FreezeBehavior | null;
+  freeze_reason?: string | null;
+}
+
+export interface SchemaChangeLadder {
+  change_set_id: string;
+  pipeline_id: string;
+  rungs: SchemaChangeLadderRung[];
+}
+
+export type SchemaDriftBaseline =
+  | 'PREVIOUS_ENVIRONMENT'
+  | 'BASELINE_ENVIRONMENT'
+  | 'PROMOTION_SNAPSHOT';
+
+export type SchemaDriftFindingKind =
+  | 'MISSING_IN_TARGET'
+  | 'UNEXPECTED_IN_TARGET'
+  | 'TYPE_MISMATCH'
+  | 'NULLABILITY_MISMATCH'
+  | 'PRIMARY_KEY_MISMATCH'
+  | 'FOREIGN_KEY_MISMATCH';
+
+export type SchemaDriftFindingStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+export interface SchemaDriftScan {
+  id: string;
+  pipeline_id: string;
+  environment_id: string;
+  datasource_id?: string | null;
+  baseline: SchemaDriftBaseline;
+  started_at: string;
+  finished_at?: string | null;
+  applicable: boolean;
+  findings_count: number;
+  partial: boolean;
+  /** A stable reason code, optionally followed by `: <cause>` — localized by the UI. */
+  error_message?: string | null;
+}
+
+export type SchemaDriftScanPage = PageEnvelope<SchemaDriftScan>;
+
+export interface SchemaDriftFinding {
+  id: string;
+  scan_id: string;
+  environment_id: string;
+  object_path: string;
+  finding_kind: SchemaDriftFindingKind;
+  expected_value?: string | null;
+  actual_value?: string | null;
+  status: SchemaDriftFindingStatus;
+  first_detected_at: string;
+  last_seen_at: string;
+  resolved_at?: string | null;
+}
+
+export type SchemaDriftFindingPage = PageEnvelope<SchemaDriftFinding>;

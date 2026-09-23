@@ -95,7 +95,7 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/schema-change-promotion-submitted.html` — `SCHEMA_CHANGE_PROMOTION_SUBMITTED` (#882; change set, pipeline, environment, promoter; the CTA opens the request-group review queue, and the applied/failed emails open the promoter's request groups)
 - `email/schema-change-promotion-applied.html` — `SCHEMA_CHANGE_PROMOTION_APPLIED` (#882; green accent)
 - `email/schema-change-promotion-failed.html` — `SCHEMA_CHANGE_PROMOTION_FAILED` (#882; copy branches on `FAILED` vs `PARTIALLY_APPLIED`, red banner)
-- `email/schema-drift-detected.html` — `SCHEMA_DRIFT_DETECTED` (#882; pipeline, environment, and the number of newly opened findings)
+- `email/schema-drift-detected.html` — `SCHEMA_DRIFT_DETECTED` (#882; pipeline, environment, and the number of newly opened findings; its *Open in AccessFlow* button links to `/schema-drift`, #883)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)

@@ -8341,7 +8341,7 @@ behaviour. A broken freeze must still hold deployments; a broken routing policy 
 auto-approve or auto-reject, and skipping it drops the deployment through to the environment's
 `requireReview` (which defaults to `true`).
 
-## Schema Change Governance (#879, #880, #881, epic #870)
+## Schema Change Governance (#879, #880, #881, #883, epic #870)
 
 Governed DDL **change sets**: an ordered list of schema statements authored once under a
 `deploygov` pipeline, validated at save time, promoted along that pipeline's environment
@@ -8434,7 +8434,7 @@ Response shape (`POST` / `PUT …/statements`; reads return the same with `revie
 `review_warnings` entries carry the same per-finding shape as
 [`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863) plus the change set's
 `statement_index` and the `datasource_id` whose ruleset produced it; `message` is rendered into
-the caller's `Accept-Language`. Authoring CRUD is not audited or notified yet (#882).
+the caller's `Accept-Language`.
 
 ### Promotions (#880)
 
@@ -8513,7 +8513,76 @@ review trail. `SCHEMA_CHANGE_PROMOTION_SUBMITTED` carries the acting user; `_APP
 when the group was **rejected or timed out** — those project onto the same `CANCELLED` promotion
 status, and `metadata.group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) is what tells them
 apart. Do not filter `_CANCELLED` on a non-null actor expecting to see every cancellation.
-Notifications follow in #882.
+
+### Pipelines and the ladder preview (#883)
+
+Two read-only endpoints the web UI needs to name pipelines and explain the promotion ladder to a
+`SCHEMA_CHANGE_MANAGE` holder who does not also hold `DEPLOYMENT_PIPELINE_MANAGE` (the
+`/deployment-pipelines` reads are gated on that permission). Neither writes anything.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/schema-change-pipelines` | The organization's deployment pipelines, each with its environments in ladder order. Not paginated. |
+| `GET` | `/schema-change-sets/{id}/ladder` | The change set's ladder: one rung per environment of its pipeline, in `sort_order`, with the newest promotion to it and — when it cannot be promoted — why. `404 SCHEMA_CHANGE_SET_NOT_FOUND`. |
+
+A pipeline:
+
+```json
+{
+  "id": "b3c1…", "name": "orders", "active": true,
+  "environments": [
+    { "id": "c2d3…", "name": "staging", "sort_order": 0, "datasource_id": "d4e5…" },
+    { "id": "e6f7…", "name": "deploy-only", "sort_order": 1 },
+    { "id": "f8a9…", "name": "prod", "sort_order": 2, "datasource_id": "d4e5…" }
+  ]
+}
+```
+
+A ladder (null fields are omitted from the wire):
+
+```json
+{
+  "change_set_id": "6f0e…",
+  "pipeline_id": "b3c1…",
+  "rungs": [
+    { "environment_id": "c2d3…", "environment_name": "staging", "sort_order": 0, "datasource_id": "d4e5…",
+      "latest_promotion": { "id": "aa11…", "status": "APPLIED", "…": "…" },
+      "state": "APPLIED" },
+    { "environment_id": "e6f7…", "environment_name": "deploy-only", "sort_order": 1,
+      "state": "BLOCKED", "blocker": "NO_DATASOURCE" },
+    { "environment_id": "f8a9…", "environment_name": "prod", "sort_order": 2, "datasource_id": "d4e5…",
+      "state": "BLOCKED", "blocker": "FREEZE_ACTIVE",
+      "freeze_window_id": "0b1c…", "freeze_behavior": "HOLD", "freeze_reason": "Quarter close" }
+  ]
+}
+```
+
+Every environment of the pipeline is a rung, deploy-only ones included (they read `BLOCKED` /
+`NO_DATASOURCE`). `latest_promotion` has the promotion response shape without `schema_snapshot`.
+`state` is, in this precedence: `IN_PROGRESS` (a `PENDING` / `IN_REVIEW` / `APPROVED` promotion is
+open — it wins even over an earlier `APPLIED` one), `APPLIED` (an `APPLIED` promotion exists — what
+the ladder gate counts), then `BLOCKED` or `PROMOTABLE`. `blocker` is set exactly when `state` is
+`BLOCKED`; the checks run in the promotion gate's order, with one addition the gate does not have:
+
+| Blocker | Gate check | Meaning | Extra fields |
+|---|---|---|---|
+| `SET_ARCHIVED` | 2 | The change set is archived. | — |
+| `SET_EMPTY` | 3 | The change set has no statements. | — |
+| `NO_DATASOURCE` | 5 | The environment binds no datasource — a deploy-only rung. | — |
+| `DATASOURCE_MISSING` | 6 | The bound datasource no longer exists. | — |
+| `PARTIALLY_APPLIED` | *none — UI advisory* | The newest promotion here ran part-way; nothing rolls it back, so the UI steers the author to a new change set. **The gate does not refuse it**: a `POST …/promotions` to that environment is accepted and re-runs every statement. A newer `FAILED` / `CANCELLED` attempt there clears the advisory. | — |
+| `LADDER_INVALID` | 8 | Two environments of the pipeline share a `sort_order`. | — |
+| `LOWER_ENVIRONMENT_NOT_APPLIED` | 9 | A lower rung that binds a datasource has no `APPLIED` promotion of the set. | `blocking_environment_id`, `blocking_environment_name` |
+| `FREEZE_ACTIVE` | 10 | A freeze window is in effect now (`HOLD` or `REJECT`). | `freeze_window_id`, `freeze_behavior`, `freeze_reason` |
+
+The ladder is a **preview** of the promotion gate, not a substitute for it. It leaves out gate
+check 7, `can_ddl` (`403 SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN`), which depends on who is
+promoting; check 11, review enforceability (`422 SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE`),
+which depends on the target's review plan; and check 12, the open-promotion conflict, which the
+rung already shows as `IN_PROGRESS`. A `PROMOTABLE` rung can still be refused by checks 7 and 11,
+or by a state change between the read and the `POST`. The freeze window reports its
+behaviour and reason but not an end time: `deploygov`'s evaluator answers "is one in effect now",
+not "until when".
 
 ### Schema drift (#881)
 

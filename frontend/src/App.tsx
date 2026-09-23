@@ -100,6 +100,11 @@ const ApiRequestDetailPage = lazy(() => import('@/pages/apigov/ApiRequestDetailP
 const RequestGroupListPage = lazy(() => import('@/pages/requestGroups/RequestGroupListPage'));
 const GroupBuilderPage = lazy(() => import('@/pages/requestGroups/GroupBuilderPage'));
 const RequestGroupDetailPage = lazy(() => import('@/pages/requestGroups/RequestGroupDetailPage'));
+const SchemaChangeSetListPage = lazy(() => import('@/pages/schemaChange/SchemaChangeSetListPage'));
+const SchemaChangeSetDetailPage = lazy(
+  () => import('@/pages/schemaChange/SchemaChangeSetDetailPage'),
+);
+const SchemaDriftPage = lazy(() => import('@/pages/schemaChange/SchemaDriftPage'));
 const RequestGroupReviewQueuePage = lazy(
   () => import('@/pages/requestGroups/RequestGroupReviewQueuePage'),
 );
@@ -360,6 +365,36 @@ export function App() {
               <Suspense fallback={null}>
                 <RequestGroupDetailPage />
               </Suspense>
+            }
+          />
+          <Route
+            path="/schema-change-sets"
+            element={
+              <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <SchemaChangeSetListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/schema-change-sets/:id"
+            element={
+              <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <SchemaChangeSetDetailPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/schema-drift"
+            element={
+              <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <SchemaDriftPage />
+                </Suspense>
+              </AuthGuard>
             }
           />
           <Route path="/access-requests" element={<RequestAccessPage />} />

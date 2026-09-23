@@ -60,6 +60,10 @@ Where things are in the app
     Request Groups · /request-groups · needs QUERY_SUBMIT_SELECT — Grouped requests that bundle ordered query and API-call members.
     Group Reviews · /request-groups/reviews · needs QUERY_REVIEW — Review queue for grouped requests.
 
+  Workflow → Schema changes
+    Change sets · /schema-change-sets · needs SCHEMA_CHANGE_MANAGE — Author schema changes and promote them along a pipeline.
+    Schema drift · /schema-drift · needs SCHEMA_CHANGE_MANAGE — Schema differences per environment against its baseline.
+
   Workflow → Access & lifecycle
     Request access · /access-requests · needs QUERY_SUBMIT_SELECT — Ask for access to a datasource, or track a request already made.
     Request erasure · /lifecycle/erasure · needs QUERY_SUBMIT_SELECT — Right-to-erasure requests over personal data.
@@ -186,6 +190,7 @@ Screens with no menu entry
   /request-groups/:id — One grouped request: its members, their order, and the aggregated approval. How you get there: open a row in Request Groups.
   /request-groups/new — Build a grouped request and order its members. How you get there: the create action on Request Groups.
   /request-groups/:id/edit — Change a grouped request before it is submitted. How you get there: the edit action on a grouped request that has not been submitted yet.
+  /schema-change-sets/:id — One change set: statements, promotion ladder, history. How you get there: open a row in Change sets.
   /datasources/new — Register a database: engine, host, credentials, SSL mode. How you get there: the add action on Datasources.
   /datasources/:id/settings — Per-datasource schema, masking, row security and ER diagram. How you get there: open a datasource from Datasources.
   /api-connectors/:id/settings — Per-connector schema, permissions, response masking and classification tags. How you get there: open a connector from API Connectors.

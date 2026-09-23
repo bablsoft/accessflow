@@ -1,6 +1,11 @@
 import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
+  SchemaChangePromotionStatus,
+  SchemaChangeSetStatus,
+  SchemaDriftBaseline,
+  SchemaDriftFindingKind,
+  SchemaDriftFindingStatus,
   ApiAuthMethod,
   ApiBodyType,
   ApiMaskingMatcherType,
@@ -786,3 +791,65 @@ export const serviceAccountDelegationStatusLabel = (
  */
 export const mcpToolDescription = (t: TFunction, toolName: string): string =>
   t(`enums.mcp_tool.${toolName}`, { defaultValue: '' });
+
+// ── Schema change governance (epic #870, UI #883) ───────────────────────────
+
+export const SCHEMA_CHANGE_SET_STATUSES: readonly SchemaChangeSetStatus[] = [
+  'DRAFT',
+  'ACTIVE',
+  'ARCHIVED',
+] as const;
+
+/** A change-set statement's classification — `OTHER` is what the gate admits beyond DDL. */
+export const statementQueryTypeLabel = (t: TFunction, v: QueryType | 'OTHER'): string =>
+  t(`enums.query_type.${v}` as const);
+
+export const schemaChangeSetStatusLabel = (t: TFunction, v: SchemaChangeSetStatus): string =>
+  t(`enums.schema_change_set_status.${v}` as const);
+
+export const SCHEMA_CHANGE_PROMOTION_STATUSES: readonly SchemaChangePromotionStatus[] = [
+  'PENDING',
+  'IN_REVIEW',
+  'APPROVED',
+  'APPLIED',
+  'FAILED',
+  'PARTIALLY_APPLIED',
+  'CANCELLED',
+] as const;
+
+export const schemaChangePromotionStatusLabel = (
+  t: TFunction,
+  v: SchemaChangePromotionStatus,
+): string => t(`enums.schema_change_promotion_status.${v}` as const);
+
+export const SCHEMA_DRIFT_FINDING_KINDS: readonly SchemaDriftFindingKind[] = [
+  'MISSING_IN_TARGET',
+  'UNEXPECTED_IN_TARGET',
+  'TYPE_MISMATCH',
+  'NULLABILITY_MISMATCH',
+  'PRIMARY_KEY_MISMATCH',
+  'FOREIGN_KEY_MISMATCH',
+] as const;
+
+export const schemaDriftFindingKindLabel = (t: TFunction, v: SchemaDriftFindingKind): string =>
+  t(`enums.schema_drift_finding_kind.${v}` as const);
+
+export const SCHEMA_DRIFT_FINDING_STATUSES: readonly SchemaDriftFindingStatus[] = [
+  'OPEN',
+  'ACKNOWLEDGED',
+  'RESOLVED',
+] as const;
+
+export const schemaDriftFindingStatusLabel = (
+  t: TFunction,
+  v: SchemaDriftFindingStatus,
+): string => t(`enums.schema_drift_finding_status.${v}` as const);
+
+export const SCHEMA_DRIFT_BASELINES: readonly SchemaDriftBaseline[] = [
+  'PREVIOUS_ENVIRONMENT',
+  'BASELINE_ENVIRONMENT',
+  'PROMOTION_SNAPSHOT',
+] as const;
+
+export const schemaDriftBaselineLabel = (t: TFunction, v: SchemaDriftBaseline): string =>
+  t(`enums.schema_drift_baseline.${v}` as const);

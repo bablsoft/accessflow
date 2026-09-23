@@ -789,6 +789,7 @@ class NotificationContextBuilderTest {
         assertThat(ctx.datasourceName()).isEqualTo("billing");
         assertThat(ctx.environmentName()).isEqualTo("staging");
         assertThat(ctx.schemaChangePromotionId()).isNull();
+        assertThat(ctx.reviewUrl().toString()).isEqualTo("https://app.example.test/schema-drift");
         assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(manager.id());
     }
 

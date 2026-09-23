@@ -121,6 +121,7 @@ export default defineConfig({
         'src/api/push.ts',
         'src/api/queries.ts',
         'src/api/requestGroups.ts',
+        'src/api/schemaChange.ts',
         'src/api/reviewPlans.ts',
         'src/api/roles.ts',
         'src/api/serviceAccounts.ts',

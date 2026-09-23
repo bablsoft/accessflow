@@ -161,7 +161,7 @@ export interface WsEventPayloadMap {
     new_status: QueryStatus;
   };
   // Fired on every schema change promotion transition (#882) — pushed to the promoter.
-  // old_status is null on submission. No schema-change page consumes it yet.
+  // old_status is null on submission. Invalidates the change set's ladder and history (#883).
   'schema_change_promotion.status_changed': {
     promotion_id: string;
     change_set_id: string;

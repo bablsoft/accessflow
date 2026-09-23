@@ -109,7 +109,10 @@
     "help_agent": "Asistente de ayuda",
     "governance_domains": "Dominios de gobernanza",
     "sql_review": "Revisión SQL",
-    "service_accounts": "Cuentas de servicio"
+    "service_accounts": "Cuentas de servicio",
+    "sub_schema_changes": "Cambios de esquema",
+    "schemaChangeSets": "Conjuntos de cambios",
+    "schemaDrift": "Desfase de esquema"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -2991,7 +2994,8 @@
       "INSERT": "Insert",
       "UPDATE": "Update",
       "DELETE": "Delete",
-      "DDL": "DDL"
+      "DDL": "DDL",
+      "OTHER": "Otro"
     },
     "query_template_change_type": {
       "CREATED": "Creada",
@@ -3519,6 +3523,38 @@
       "validate_sql": "Analizar y validar SQL sin enviarlo",
       "get_column_samples": "Muestrear valores de columnas de una fuente de datos",
       "get_audit_log": "Leer el registro de auditoría"
+    },
+    "schema_change_set_status": {
+      "DRAFT": "Borrador",
+      "ACTIVE": "Activo",
+      "ARCHIVED": "Archivado"
+    },
+    "schema_change_promotion_status": {
+      "PENDING": "Pendiente",
+      "IN_REVIEW": "En revisión",
+      "APPROVED": "Aprobado",
+      "APPLIED": "Aplicado",
+      "FAILED": "Fallido",
+      "PARTIALLY_APPLIED": "Aplicado parcialmente",
+      "CANCELLED": "Cancelado"
+    },
+    "schema_drift_finding_kind": {
+      "MISSING_IN_TARGET": "Falta en el destino",
+      "UNEXPECTED_IN_TARGET": "Inesperado en el destino",
+      "TYPE_MISMATCH": "Discrepancia de tipo",
+      "NULLABILITY_MISMATCH": "Discrepancia de nulabilidad",
+      "PRIMARY_KEY_MISMATCH": "Discrepancia de clave primaria",
+      "FOREIGN_KEY_MISMATCH": "Discrepancia de clave foránea"
+    },
+    "schema_drift_finding_status": {
+      "OPEN": "Abierto",
+      "ACKNOWLEDGED": "Confirmado",
+      "RESOLVED": "Resuelto"
+    },
+    "schema_drift_baseline": {
+      "PREVIOUS_ENVIRONMENT": "Entorno anterior",
+      "BASELINE_ENVIRONMENT": "Entorno de referencia",
+      "PROMOTION_SNAPSHOT": "Instantánea de promoción"
     }
   },
   "access": {
@@ -4745,6 +4781,183 @@
       "target": "Target",
       "memberRisk": "Risk",
       "memberStatus": "Status"
+    }
+  },
+  "schemaChange": {
+    "list": {
+      "title": "Conjuntos de cambios de esquema",
+      "subtitle": "Redacte las sentencias de esquema una vez y promuévalas entorno por entorno a lo largo de un pipeline.",
+      "create": "Nuevo conjunto de cambios",
+      "createTitle": "Nuevo conjunto de cambios de esquema",
+      "createSubmit": "Crear",
+      "created": "Conjunto de cambios creado",
+      "createError": "No se pudo crear el conjunto de cambios",
+      "loadError": "No se pudieron cargar los conjuntos de cambios",
+      "name": "Nombre",
+      "pipeline": "Pipeline",
+      "status": "Estado",
+      "statements": "Sentencias",
+      "ladder": "Cadena de promoción",
+      "updated": "Actualizado",
+      "allPipelines": "Todos los pipelines",
+      "allStatuses": "Todos los estados",
+      "count": "{{total}} conjuntos de cambios",
+      "emptyTitle": "Aún no hay conjuntos de cambios de esquema",
+      "emptyDescription": "Cree un conjunto de cambios bajo un pipeline de despliegue, añada sus sentencias y luego promuévalo entorno por entorno.",
+      "emptyFiltered": "Ningún conjunto de cambios coincide con estos filtros"
+    },
+    "form": {
+      "pipeline": "Pipeline",
+      "pipelineHint": "Los entornos de este pipeline forman la cadena de promoción.",
+      "pipelineRequired": "Elija un pipeline",
+      "noPipelines": "Aún no hay pipelines de despliegue",
+      "name": "Nombre",
+      "nameRequired": "Introduzca un nombre",
+      "nameSize": "Use entre {{min}} y {{max}} caracteres",
+      "description": "Descripción",
+      "descriptionMax": "Use como máximo {{max}} caracteres"
+    },
+    "detail": {
+      "subtitle": "Pipeline {{pipeline}}",
+      "notFound": "Conjunto de cambios no encontrado",
+      "editDetails": "Editar detalles",
+      "updated": "Conjunto de cambios actualizado",
+      "updateError": "No se pudo actualizar el conjunto de cambios",
+      "archive": "Archivar",
+      "archiveConfirm": "¿Archivar este conjunto de cambios? Ya no podrá editarse ni promoverse.",
+      "archived": "Conjunto de cambios archivado",
+      "deleteConfirm": "¿Eliminar este conjunto de cambios y sus sentencias?",
+      "deleted": "Conjunto de cambios eliminado",
+      "deleteError": "No se pudo eliminar el conjunto de cambios",
+      "saved": "Sentencias guardadas",
+      "savedWithWarnings": "Sentencias guardadas con {{count}} advertencias de revisión",
+      "saveError": "No se pudieron guardar las sentencias",
+      "promoted": "Promoción a {{environment}} enviada",
+      "promoteError": "No se pudo promover el conjunto de cambios",
+      "promotionCancelled": "Promoción cancelada",
+      "cancelError": "No se pudo cancelar la promoción"
+    },
+    "statements": {
+      "title": "Sentencias",
+      "empty": "Aún no hay sentencias. Añada la primera a continuación.",
+      "add": "Añadir sentencia",
+      "save": "Guardar sentencias",
+      "remove": "Eliminar sentencia {{index}}",
+      "dragHandle": "Reordenar sentencia {{index}}",
+      "sqlLabel": "Sentencia {{index}}",
+      "sqlRequired": "Introduzca una sentencia o elimínela",
+      "sqlMax": "Una sentencia puede tener como máximo {{max}} caracteres",
+      "capRule": "Un conjunto de cambios puede contener como máximo {{max}} sentencias",
+      "capReached": "Este conjunto de cambios ha alcanzado el límite de {{max}} sentencias.",
+      "problemsLabel": "Problemas en la sentencia {{index}}",
+      "severity": {
+        "ERROR": "Rechazada",
+        "BLOCK": "Bloqueada",
+        "WARN": "Advertencia"
+      },
+      "frozenTitle": "Las sentencias están congeladas",
+      "frozenBody": "Una promoción a {{environment}} está {{status}}, por lo que las sentencias ya no pueden cambiar — lo que se revisó es lo que se ejecuta. Archive este conjunto y redacte uno nuevo para modificarlas.",
+      "archivedTitle": "Este conjunto de cambios está archivado",
+      "archivedBody": "Sus sentencias ya no pueden editarse ni promoverse.",
+      "promotionsUnknown": "Las sentencias son de solo lectura hasta que se carguen las promociones"
+    },
+    "ladder": {
+      "title": "Cadena de promoción",
+      "ariaLabel": "Cadena de promoción",
+      "hint": "Cada entorno debe estar aplicado antes de que el siguiente pueda promoverse.",
+      "loadError": "No se pudo cargar la cadena de promoción",
+      "noEnvironments": "Este pipeline no tiene entornos",
+      "state": {
+        "APPLIED": "Aplicado",
+        "IN_PROGRESS": "En curso",
+        "PROMOTABLE": "Listo para promover",
+        "BLOCKED": "Bloqueado"
+      },
+      "blocker": {
+        "NO_DATASOURCE": "No hay fuente de datos vinculada — este entorno es solo para despliegue",
+        "PARTIALLY_APPLIED": "Bloqueado — la última promoción solo aplicó parte del conjunto; redacte un nuevo conjunto de cambios para el resto",
+        "SET_ARCHIVED": "Bloqueado — el conjunto de cambios está archivado",
+        "SET_EMPTY": "Bloqueado — el conjunto de cambios no tiene sentencias",
+        "LADDER_INVALID": "Bloqueado — dos entornos de este pipeline comparten el mismo orden de clasificación",
+        "LOWER_ENVIRONMENT_NOT_APPLIED": "Bloqueado — {{environment}} aún no aplicado",
+        "FREEZE_ACTIVE": "Bloqueado — ventana de congelación activa ({{behavior}})",
+        "FREEZE_ACTIVE_reason": "Bloqueado — ventana de congelación activa ({{behavior}}): {{reason}}",
+        "DATASOURCE_MISSING": "Bloqueado — la fuente de datos vinculada ya no existe; vuelve a vincular o desvincula el entorno"
+      },
+      "latestPromotion": "Última promoción: {{status}}",
+      "openGroup": "Abrir grupo de solicitudes",
+      "approvedQueued": "Aprobado — se ejecutará en el próximo pase programado y ya no puede cancelarse.",
+      "promote": "Promover",
+      "promoteTo": "Promover a {{environment}}",
+      "promoteConfirmTitle": "¿Promover a {{environment}}?",
+      "promoteConfirmBody": "Cada sentencia se ejecuta por su cuenta, sin reversión. La promoción se analiza y revisa como un grupo de solicitudes antes de ejecutarse.",
+      "cancelPromotion": "Cancelar promoción",
+      "cancelConfirm": "¿Cancelar esta promoción?"
+    },
+    "promotions": {
+      "title": "Historial de promociones",
+      "empty": "Aún no promovido",
+      "environment": "Entorno",
+      "deletedEnvironment": "Entorno eliminado",
+      "status": "Estado",
+      "submitted": "Enviado",
+      "applied": "Aplicado",
+      "group": "Grupo de solicitudes",
+      "loadError": "No se pudieron cargar las promociones"
+    },
+    "drift": {
+      "title": "Desfase de esquema",
+      "subtitle": "Dónde el esquema en vivo de un entorno difiere de su referencia.",
+      "fidelityNote": "El desfase compara únicamente esquemas, tablas, columnas (nombre, tipo, nulabilidad, clave primaria) y claves foráneas. Los índices, restricciones, valores por defecto y precisión de tipo no se comparan, así que ningún hallazgo significa que nada difirió en esos campos — nada más.",
+      "pipeline": "Pipeline",
+      "environment": "Entorno",
+      "status": "Estado",
+      "allEnvironments": "Todos los entornos",
+      "allStatuses": "Todos los estados",
+      "loadError": "No se pudo cargar el desfase de esquema",
+      "noEnvironmentsTitle": "No hay ningún entorno que analizar",
+      "noEnvironmentsDescription": "El desfase analiza entornos que vinculan una fuente de datos. Vincule primero una a un entorno de un pipeline de despliegue.",
+      "deletedEnvironment": "Entorno eliminado {{id}}",
+      "neverScanned": "Aún no analizado.",
+      "scanRunning": "Análisis en curso…",
+      "scanNow": "Analizar ahora",
+      "scanRequested": "Análisis iniciado",
+      "scanError": "No se pudo iniciar el análisis",
+      "lastScan": "Último análisis {{when}} contra {{baseline}} · {{count}} hallazgos",
+      "partial": "Parcial",
+      "unsupportedTitle": "No compatible con este motor",
+      "noComparison": "No se comparó nada",
+      "noFindings": "No se detectó desfase en los campos que compara el desfase.",
+      "noFindingsFiltered": "No hay hallazgos con este estado.",
+      "objectPath": "Objeto",
+      "kind": "Tipo",
+      "expected": "Esperado (referencia)",
+      "actual": "Real",
+      "absent": "(ausente)",
+      "firstSeen": "Visto por primera vez",
+      "lastSeen": "Visto por última vez",
+      "actions": "Acciones",
+      "acknowledge": "Confirmar",
+      "acknowledged": "Hallazgo confirmado",
+      "acknowledgeError": "No se pudo confirmar el hallazgo",
+      "reason": {
+        "ENGINE_NOT_APPLICABLE": "Este motor toma muestras de datos en lugar de leer un catálogo, por lo que su esquema no puede compararse de forma fiable. No se contactó.",
+        "BASELINE_PREVIOUS_ENVIRONMENT_NOT_FOUND": "Ningún entorno inferior de la cadena vincula una fuente de datos con la que comparar.",
+        "BASELINE_ENVIRONMENT_NOT_CONFIGURED": "El modo de referencia necesita un entorno de referencia designado, y no hay ninguno establecido.",
+        "BASELINE_ENVIRONMENT_NOT_FOUND": "El entorno de referencia designado ya no existe en este pipeline.",
+        "BASELINE_ENVIRONMENT_IS_TARGET": "Este es el entorno de referencia designado, por lo que no se compara consigo mismo.",
+        "BASELINE_ENVIRONMENT_NO_DATASOURCE": "El entorno de referencia designado no vincula ninguna fuente de datos.",
+        "BASELINE_ENGINE_MISMATCH": "La referencia usa un motor diferente, por lo que los esquemas no pueden compararse.",
+        "BASELINE_SNAPSHOT_MISSING": "Aún no existe una instantánea de la última promoción aplicada.",
+        "BASELINE_SNAPSHOT_UNREADABLE": "No se pudo leer la instantánea almacenada.",
+        "BASELINE_DATASOURCE_REBOUND": "El entorno se vinculó a otra fuente de datos desde que se tomó la instantánea.",
+        "BASELINE_INTROSPECTION_FAILED": "No se pudo leer la base de datos de referencia.",
+        "TARGET_INTROSPECTION_FAILED": "No se pudo leer la base de datos de este entorno.",
+        "SCAN_FAILED": "El análisis falló dentro de AccessFlow durante la comparación.",
+        "FK_COMPARISON_SUPPRESSED": "Las claves foráneas no se compararon: un lado no informó ninguna.",
+        "SCAN_SUPERSEDED": "Ya se estaba ejecutando otro análisis de este entorno."
+      },
+      "truncated": "Solo se muestran los {{shown}} resultados más recientes — acota los filtros para ver el resto."
     }
   },
   "deploygov": {

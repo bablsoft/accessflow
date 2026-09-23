@@ -4970,7 +4970,7 @@ the DDL gate decision and its exclusions, the freeze predicate, the checksum con
 gate and its trade-offs, and the drift half with its fidelity limits — is
 [20-schema-change-governance.md](20-schema-change-governance.md); the tables are in
 [03-data-model.md](03-data-model.md#schema-change-governance-schemachange-878--epic-870); the
-endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-881-epic-870). This
+endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-881-883-epic-870). This
 section records the engineering rules of the **authoring half (#879)** and the **promotion half
 (#880)**.
 
@@ -4994,12 +4994,15 @@ fan out org-wide, never page and never ticket — see
 (`accessflow.schemachange.max-statements`, default 50), `DefaultSchemaChangeSetService`,
 `SchemaChangeStatementGate`, the JDK-only `SchemaChangeStatementScanner` and
 `SchemaChangeChecksum`, `SchemaChangeSetSpecifications`,
-`DefaultSchemaChangePromotionService`, `SchemaChangePromotionStatusListener`, the pure
+`DefaultSchemaChangePromotionService`, `DefaultSchemaChangeLadderService` (the read-only ladder
+preview behind `GET /schema-change-sets/{id}/ladder` and `GET /schema-change-pipelines`, #883 —
+it mirrors the gate's ladder and freeze checks and never replaces them),
+`SchemaChangePromotionStatusListener`, the pure
 `SchemaChangePromotionStatusMapper`, `SchemaChangeAuditWriter`, `persistence/{entity,repo}` and
 `web/`. It depends on `core.api`, `deploygov.api`
 (`DeploymentPipelineLookupService.findPipeline`/`.findEnvironment` for the 404-never-403 checks,
 `DeploymentEnvironmentLookupService.listByPipeline` for the ladder, `DeploymentFreezeLookupService`
-for the freeze), `proxy.api.QueryParser`, `sqlreview.api`, `requestgroups.api` + `requestgroups.events`,
+for the freeze, `DeploymentPipelineAdminService.list` for the UI's pipeline listing), `proxy.api.QueryParser`, `sqlreview.api`, `requestgroups.api` + `requestgroups.events`,
 `audit.api` and `security.api.JwtClaims`; nothing depends on it.
 
 **The gate (`SchemaChangeStatementGate.validate`).** Runs on `create` and `replaceStatements`,
