@@ -145,10 +145,12 @@ public class GroupExecutionService {
     }
 
     private void runQuery(RequestGroupEntity group, RequestGroupItemEntity item) {
-        var restrictedColumns = permissionLookupService
-                .findFor(group.getSubmittedBy(), item.getDatasourceId())
+        var permission = permissionLookupService
+                .findFor(group.getSubmittedBy(), item.getDatasourceId());
+        var restrictedColumns = permission
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
+        var rowLimitOverride = permission.map(p -> p.rowLimitOverride()).orElse(null);
         var columnMasks = maskingPolicyResolutionService
                 .resolveApplicable(group.getOrganizationId(), item.getDatasourceId(), group.getSubmittedBy())
                 .stream()
@@ -164,8 +166,8 @@ public class GroupExecutionService {
                 .map(d -> d.dbType()).orElse(DbType.POSTGRESQL);
         var parsed = queryParser.parse(item.getSqlText(), dbType);
         var result = queryExecutor.execute(new QueryExecutionRequest(
-                item.getDatasourceId(), item.getSqlText(), item.getQueryType(), null, null,
-                restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),
+                item.getDatasourceId(), item.getSqlText(), item.getQueryType(), rowLimitOverride,
+                null, restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),
                 parsed.statements(), List.of(), parsed.referencedTables()));
         long rows = switch (result) {
             case SelectExecutionResult select -> select.rowCount();

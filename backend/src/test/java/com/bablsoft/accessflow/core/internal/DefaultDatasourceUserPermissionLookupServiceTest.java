@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
+import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
@@ -234,6 +235,105 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         var view = service.findDirectFor(userId, datasourceId).orElseThrow();
 
         assertThat(view.canRead()).isTrue();
+    }
+
+    // ── Row-limit override (#933) ─────────────────────────────────────────────
+
+    @Test
+    void findForCarriesTheDirectRowLimitOverride() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setRowLimitOverride(100);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of());
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().rowLimitOverride())
+                .isEqualTo(100);
+    }
+
+    @Test
+    void findForTakesAGroupRowLimitWhenTheDirectGrantSetsNone() {
+        var view = mergeRowLimits(null, 100);
+
+        assertThat(view.rowLimitOverride()).isEqualTo(100);
+    }
+
+    @Test
+    void findForTakesTheSmallestRowLimitSoAGroupCannotRaiseATightDirectCap() {
+        assertThat(mergeRowLimits(100, 500).rowLimitOverride()).isEqualTo(100);
+        assertThat(mergeRowLimits(500, 100).rowLimitOverride()).isEqualTo(100);
+    }
+
+    @Test
+    void findForRowLimitIsNullWhenNoGrantSetsOne() {
+        assertThat(mergeRowLimits(null, null).rowLimitOverride()).isNull();
+    }
+
+    @Test
+    void findForIgnoresTheRowLimitOfAnExpiredGrant() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setRowLimitOverride(500);
+        var expired = newGroupPermission(groupId, datasourceId);
+        expired.setCanRead(true);
+        expired.setRowLimitOverride(10);
+        expired.setExpiresAt(Instant.now().minusSeconds(60));
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(expired));
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().rowLimitOverride())
+                .isEqualTo(500);
+    }
+
+    @Test
+    void findDirectForAndContributionsCarryTheRowLimitOverride() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setRowLimitOverride(250);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setRowLimitOverride(75);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findDirectFor(userId, datasourceId).orElseThrow().rowLimitOverride())
+                .isEqualTo(250);
+        var contributions = service.findContributions(userId, datasourceId);
+        assertThat(contributions).extracting(c -> c.rowLimitOverride()).containsExactly(250, 75);
+        assertThat(service.mergeContributions(contributions).orElseThrow().rowLimitOverride())
+                .isEqualTo(75);
+    }
+
+    private DatasourceUserPermissionView mergeRowLimits(
+            Integer directLimit, Integer groupLimit) {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setRowLimitOverride(directLimit);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setRowLimitOverride(groupLimit);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+        return service.findFor(userId, datasourceId).orElseThrow();
     }
 
     // ── Provenance (AF-859) ───────────────────────────────────────────────────

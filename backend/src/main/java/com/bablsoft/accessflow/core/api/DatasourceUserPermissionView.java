@@ -15,5 +15,6 @@ public record DatasourceUserPermissionView(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
+        Integer rowLimitOverride,
         Instant expiresAt) {
 }

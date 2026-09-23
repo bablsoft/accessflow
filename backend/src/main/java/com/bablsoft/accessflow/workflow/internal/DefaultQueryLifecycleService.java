@@ -275,10 +275,16 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                                        AuditAction successAction) {
         var startedAt = Instant.now();
         try {
-            var restrictedColumns = permissionLookupService
-                    .findFor(query.submittedByUserId(), query.datasourceId())
+            var permission = permissionLookupService
+                    .findFor(query.submittedByUserId(), query.datasourceId());
+            var restrictedColumns = permission
                     .map(p -> p.restrictedColumns())
                     .orElse(List.of());
+            // #933: the merged per-user/per-group row cap; the executor clamps it to the
+            // datasource cap and the global ceiling, so it can only ever lower the limit.
+            var rowLimitOverride = permission
+                    .map(p -> p.rowLimitOverride())
+                    .orElse(null);
             var maskingDirectives = maskingPolicyResolutionService
                     .resolveApplicable(query.organizationId(), query.datasourceId(),
                             query.submittedByUserId())
@@ -312,8 +318,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .orElse(DbType.POSTGRESQL);
             var parsed = queryParser.parse(query.sqlText(), dbType);
             var result = queryExecutor.execute(new QueryExecutionRequest(
-                    query.datasourceId(), query.sqlText(), query.queryType(), null, null,
-                    restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
+                    query.datasourceId(), query.sqlText(), query.queryType(), rowLimitOverride,
+                    null, restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
                     parsed.statements(), softDeletes, parsed.referencedTables()));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();

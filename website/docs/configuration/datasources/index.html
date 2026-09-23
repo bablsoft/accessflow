@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -490,7 +490,7 @@
             masking exactly like a manual tag); dismissing suppresses the proposal permanently. Raw
             sampled values never persist (findings store a redacted sample only), and the AI pass
             only ever sees column names, types, and redacted samples. Configure the per-datasource
-            sample size (10–1000 rows) and cadence (1–720 hours), or hit <em>Scan now</em> for an
+            sample size (10–1000 rows, never more than the datasource's row cap) and cadence (1–720 hours), or hit <em>Scan now</em> for an
             immediate run; scans and decisions land in the audit log
             (<code>DISCOVERY_SCAN_COMPLETED</code>, <code>DISCOVERY_FINDING_CONFIRMED</code> /
             <code>_DISMISSED</code>). Operator knobs:

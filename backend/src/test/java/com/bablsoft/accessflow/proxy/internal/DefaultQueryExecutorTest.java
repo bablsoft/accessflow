@@ -282,6 +282,33 @@ class DefaultQueryExecutorTest {
     }
 
     @Test
+    void overrideAboveDatasourceCapIsClampedToTheDatasourceCap() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, 5_000, null);
+
+        executor.execute(request);
+
+        verify(statement).setMaxRows(2_001);
+    }
+
+    @Test
+    void overrideAboveGlobalCeilingIsClampedToTheGlobalCeiling() throws SQLException {
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(999_999)));
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, 50_000, null);
+
+        executor.execute(request);
+
+        verify(statement).setMaxRows(10_001);
+    }
+
+    @Test
     void globalCapClampsLargeDatasourceCap() throws SQLException {
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(999_999)));
         var rs = emptyResultSet();
@@ -584,6 +611,18 @@ class DefaultQueryExecutorTest {
         verify(connection).setReadOnly(true);
         verify(statement).setMaxRows(51);
         verify(statement).setQueryTimeout(30);
+    }
+
+    @Test
+    void sampleTableLimitAboveDatasourceCapIsClampedToTheDatasourceCap() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(engineCatalog.isEngineManaged(DbType.POSTGRESQL)).thenReturn(false);
+
+        executor.sampleTable(new com.bablsoft.accessflow.core.api.SampleTableRequest(
+                datasourceId, "public", "users", 5_000, null));
+
+        verify(statement).setMaxRows(2_001);
     }
 
     @Test

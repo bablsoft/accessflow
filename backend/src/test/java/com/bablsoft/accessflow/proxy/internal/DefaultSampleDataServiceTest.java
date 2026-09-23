@@ -207,10 +207,38 @@ class DefaultSampleDataServiceTest {
         assertThat(out).isSameAs(result);
     }
 
+    @Test
+    void rowLimitOverrideBelowTheRequestedLimitCapsThePreview() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        5, null)));
+
+        service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
+
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(5);
+    }
+
+    @Test
+    void rowLimitOverrideAboveTheRequestedLimitLeavesTheLimit() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        500, null)));
+
+        service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
+
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(50);
+    }
+
     private DatasourceUserPermissionView permission(boolean canRead, List<String> restrictedColumns,
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null);
+                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, null);
     }
 }

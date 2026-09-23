@@ -69,7 +69,14 @@ class DefaultSampleDataService implements SampleDataService {
 
         // 3. Execute via the proxy executor — RLS rewrite + post-fetch masking + row cap + timeout.
         return queryExecutor.sampleTable(new SampleTableRequest(datasourceId, target.schema(),
-                target.table(), restrictedColumns, columnMasks, rowSecurityPredicates, limit, null));
+                target.table(), restrictedColumns, columnMasks, rowSecurityPredicates,
+                effectiveLimit(limit, permission.map(DatasourceUserPermissionView::rowLimitOverride)
+                        .orElse(null)), null));
+    }
+
+    /** The caller's row-limit override (#933) caps the preview too, so it can't be used to get around the cap. */
+    private static int effectiveLimit(int limit, Integer rowLimitOverride) {
+        return rowLimitOverride == null ? limit : Math.min(limit, rowLimitOverride);
     }
 
     /** Canonical schema/table names taken from the introspected view (DB casing preserved). */

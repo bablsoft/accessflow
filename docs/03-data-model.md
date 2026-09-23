@@ -305,7 +305,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `can_write` | BOOLEAN DEFAULT false |
 | `can_ddl` | BOOLEAN DEFAULT false — CREATE/ALTER/DROP |
 | `can_break_glass` | BOOLEAN NOT NULL DEFAULT false (AF-385, Flyway V94) — grants the emergency break-glass submission mode on this datasource. Required for everyone (including admins); time-boxed via `expires_at`. |
-| `row_limit_override` | INTEGER nullable — overrides datasource default |
+| `row_limit_override` | INTEGER nullable (API-validated ≥ 1) — lowers the datasource's `max_rows_per_query` for this grantee, never raises it; the global `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` ceiling still applies. Across a user's direct and group grants the **smallest** non-null value wins (#933). Enforced on direct, scheduled, recurring, break-glass and grouped executions and on the table-preview endpoint |
 | `allowed_schemas` | TEXT[] — null means all schemas permitted |
 | `allowed_tables` | TEXT[] — null means all tables permitted |
 | `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
@@ -324,7 +324,9 @@ constraint and restriction columns clean), keyed on `group_id` instead of `user_
 **effective** permission is the most-permissive union of their direct grant and every unexpired group
 grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupService` (flags OR-ed;
 allow-lists unioned; `restricted_columns` intersected so a column is masked only when every contributing
-grant masks it; each grant's `expires_at` honoured independently). Mirrors how groups already drive
+grant masks it; each grant's `expires_at` honoured independently). The one deliberate inversion is
+`row_limit_override`, which merges to the **smallest** non-null value so a wide group grant can never
+raise a tight per-user cap (#933). Mirrors how groups already drive
 masking-reveal and row-security.
 
 | Column | Type / Notes |
@@ -334,7 +336,7 @@ masking-reveal and row-security.
 | `datasource_id` | FK → `datasources` ON DELETE CASCADE |
 | `group_id` | FK → `user_groups` ON DELETE CASCADE |
 | `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false — same semantics as the per-user table |
-| `row_limit_override` | INTEGER nullable |
+| `row_limit_override` | INTEGER nullable — same semantics as the per-user table; merged most-restrictive (smallest non-null wins) |
 | `allowed_schemas` / `allowed_tables` / `restricted_columns` | TEXT[] nullable — same semantics as the per-user table |
 | `expires_at` | TIMESTAMPTZ nullable — honoured per grant (an expired grant contributes nothing) |
 | `created_by` | FK → `users` |
@@ -513,7 +515,7 @@ absence means discovery is disabled with defaults. The `DiscoveryScanJob` drains
 | `organization_id` | FK → `organizations` (`ON DELETE CASCADE`) |
 | `datasource_id` | FK → `datasources` (`ON DELETE CASCADE`), UNIQUE |
 | `enabled` | BOOLEAN NOT NULL DEFAULT FALSE — opt-in for scheduled scans |
-| `sample_size` | INT NOT NULL DEFAULT 100 — rows sampled per table (10–1000) |
+| `sample_size` | INT NOT NULL DEFAULT 100 — rows sampled per table (10–1000); the proxy clamps it to the datasource's `max_rows_per_query` and the global row ceiling (#933) |
 | `scan_interval_hours` | INT NOT NULL DEFAULT 24 — per-datasource cadence (1–720) |
 | `ai_classification_enabled` | BOOLEAN NOT NULL DEFAULT FALSE — opt-in AI pass (redacted samples only) |
 | `last_scan_at` | TIMESTAMPTZ nullable — stamped after every scan (scheduled or on-demand) |

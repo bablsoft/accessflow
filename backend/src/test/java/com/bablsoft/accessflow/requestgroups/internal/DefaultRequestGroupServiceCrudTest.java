@@ -104,7 +104,7 @@ class DefaultRequestGroupServiceCrudTest {
 
     private DatasourceUserPermissionView dsPerm(boolean read, boolean write, boolean bg) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read, write,
-                false, bg, List.of(), List.of(), List.of(), null);
+                false, bg, List.of(), List.of(), List.of(), null, null);
     }
 
     private ApiConnectorPermissionLookupView apiPerm(boolean read, boolean write, boolean bg) {

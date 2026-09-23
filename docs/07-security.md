@@ -709,7 +709,9 @@ Beyond platform roles, every action against a customer database is validated aga
 and every unexpired `datasource_group_permissions` grant for a group they belong to (AF-530). Boolean
 capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned, and `restricted_columns`
 intersected (a column is masked only when **every** contributing grant masks it), each grant's `expires_at`
-honoured independently. The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
+honoured independently. `row_limit_override` is the one deliberate inversion: the **smallest** non-null value
+wins, so a wide group grant can never raise a tight per-user cap, and the proxy clamps it to the datasource
+cap and the global ceiling (#933). The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
 the single choke-point every enforcement path (proxy, JIT/break-glass gates, masking/row-security scoping,
 `requestgroups` checks) reads through, so groups behave here exactly as they already do for
 masking-reveal and row-security. Granting a group access lets an admin onboard a whole team without a

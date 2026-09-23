@@ -198,7 +198,7 @@ class DefaultAiAnalyzerServiceTest {
                                         List.of()))))));
         var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                 UUID.randomUUID(), userId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of("public.users.ssn"), null);
+                List.of(), List.of(), List.of("public.users.ssn"), null, null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
         when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(),

@@ -299,7 +299,7 @@ class DefaultQueryLifecycleServiceTest {
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         var permissionView = new DatasourceUserPermissionView(
                 UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null);
+                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null, null);
         when(permissionLookupService.findFor(submitterId, datasourceId))
                 .thenReturn(Optional.of(permissionView));
         when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
@@ -374,6 +374,33 @@ class DefaultQueryLifecycleServiceTest {
         var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
         verify(queryExecutor).execute(requestCaptor.capture());
         assertThat(requestCaptor.getValue().restrictedColumns()).isEmpty();
+        assertThat(requestCaptor.getValue().maxRowsOverride()).isNull();
+    }
+
+    @Test
+    void executePassesRowLimitOverrideFromTheSamePermissionLookup() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.of(permissionWithRowLimit(100)));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, true, Duration.ofMillis(20)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().maxRowsOverride()).isEqualTo(100);
+        verify(permissionLookupService, org.mockito.Mockito.times(1))
+                .findFor(submitterId, datasourceId);
+    }
+
+    private DatasourceUserPermissionView permissionWithRowLimit(Integer rowLimitOverride) {
+        return new DatasourceUserPermissionView(
+                UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
+                List.of(), List.of(), List.of(), rowLimitOverride, null);
     }
 
     @Test
@@ -969,6 +996,35 @@ class DefaultQueryLifecycleServiceTest {
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().queryRequestId()).isEqualTo(childId);
         assertThat(eventCaptor.getValue().recurringParentId()).isEqualTo(queryId);
+    }
+
+    @Test
+    void executeRecurringOccurrenceHonoursTheRowLimitOverride() {
+        stubActiveAnalystSubmitter();
+        var childId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any(), any()))
+                .thenReturn(Optional.of(childId));
+        when(queryRequestLookupService.findById(childId)).thenReturn(Optional.of(
+                new QueryRequestSnapshot(childId, datasourceId, organizationId, submitterId,
+                        "SELECT 1", QueryType.SELECT, false, QueryStatus.APPROVED, null,
+                        null, null, false, null, null, null, queryId)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.of(permissionWithRowLimit(25)));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, false, Duration.ofMillis(9)));
+
+        service.executeRecurringOccurrence(queryId);
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().maxRowsOverride()).isEqualTo(25);
     }
 
     @Test

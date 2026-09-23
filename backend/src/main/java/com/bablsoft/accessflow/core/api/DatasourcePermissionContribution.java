@@ -16,6 +16,7 @@ import java.util.UUID;
  * @param sourceId  the {@code datasource_user_permissions} or {@code datasource_group_permissions}
  *                  row id
  * @param groupId   the granting group, or {@code null} for a direct grant
+ * @param rowLimitOverride this grant's row cap, or {@code null} when it sets none (#933)
  * @param expiresAt {@code null} means this contribution never expires
  * @param accessGrantRequestId the JIT {@code access_grant_request} a direct row materialises
  *                             (#969); {@code null} on an admin-created row and always on a
@@ -35,6 +36,7 @@ public record DatasourcePermissionContribution(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
+        Integer rowLimitOverride,
         Instant expiresAt,
         UUID accessGrantRequestId) {
 

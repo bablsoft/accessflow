@@ -303,7 +303,7 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl, canBreakGlass,
-                        allowedSchemas, allowedTables, List.of(), expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), null, expiresAt)));
     }
 
     private DatasourceView datasourceView(boolean active) {

@@ -103,7 +103,7 @@ class AccessGrantMaterializerTest {
     void materialiseThrowsWhenStandingPermissionExists() {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(approved()));
         var standing = new DatasourceUserPermissionView(UUID.randomUUID(), requesterId, datasourceId,
-                true, false, false, false, null, null, null, null /* no expiry = standing */);
+                true, false, false, false, null, null, null, null, null /* no expiry = standing */);
         when(permissionLookupService.findDirectFor(requesterId, datasourceId))
                 .thenReturn(Optional.of(standing));
 
@@ -117,7 +117,7 @@ class AccessGrantMaterializerTest {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(approved()));
         var existingPermId = UUID.randomUUID();
         var jit = new DatasourceUserPermissionView(existingPermId, requesterId, datasourceId,
-                true, false, false, false, null, null, null, Instant.now().plusSeconds(60));
+                true, false, false, false, null, null, null, null, Instant.now().plusSeconds(60));
         when(permissionLookupService.findDirectFor(requesterId, datasourceId)).thenReturn(Optional.of(jit));
         when(datasourceAdminService.grantPermission(any(), any(), any(), any()))
                 .thenReturn(granted());

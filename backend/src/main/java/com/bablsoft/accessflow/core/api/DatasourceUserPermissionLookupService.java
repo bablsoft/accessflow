@@ -11,8 +11,11 @@ public interface DatasourceUserPermissionLookupService {
      * direct grant (if any) and every unexpired group grant for a group they belong to (AF-530).
      * Boolean flags are OR-ed; allow-lists (allowed schemas/tables) merge to their union (any
      * contributor with no restriction ⇒ all allowed); the restricted-columns mask merges to the
-     * intersection (a column is masked only when every contributor masks it). Expired grants
-     * contribute nothing; returns empty when no unexpired grant applies.
+     * intersection (a column is masked only when every contributor masks it). The row-limit
+     * override is the one deliberate inversion: it merges to the <b>smallest</b> non-null value
+     * (most restrictive), so a wide group grant can never raise a tight per-user cap; it is
+     * {@code null} only when no contributor sets one (#933). Expired grants contribute nothing;
+     * returns empty when no unexpired grant applies.
      */
     Optional<DatasourceUserPermissionView> findFor(UUID userId, UUID datasourceId);
 

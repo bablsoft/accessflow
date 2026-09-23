@@ -80,7 +80,7 @@ class DefaultRequestGroupServiceTest {
 
     private DatasourceUserPermissionView perm(boolean read, boolean breakGlass) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read, false,
-                false, breakGlass, List.of(), List.of(), List.of(), null);
+                false, breakGlass, List.of(), List.of(), List.of(), null, null);
     }
 
     @Test

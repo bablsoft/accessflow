@@ -171,7 +171,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     /**
      * Merge one datasource's contributing grants into a single effective view. Boolean flags OR;
      * allow-lists union (null wins = all allowed); restricted-columns intersect (empty wins =
-     * nothing masked); expiry is the latest among contributors (null wins = never expires).
+     * nothing masked); expiry is the latest among contributors (null wins = never expires). The row
+     * limit is the inversion: the smallest non-null override wins (#933).
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
                                                       List<DatasourcePermissionContribution> parts) {
@@ -203,7 +204,20 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionAllowList(parts, DatasourcePermissionContribution::allowedSchemas),
                 unionAllowList(parts, DatasourcePermissionContribution::allowedTables),
                 intersectRestriction(parts),
+                minRowLimit(parts),
                 anyNeverExpires ? null : expiresAt);
+    }
+
+    /** Most restrictive non-null override; {@code null} when no contribution sets one. */
+    private static Integer minRowLimit(List<DatasourcePermissionContribution> parts) {
+        Integer min = null;
+        for (var p : parts) {
+            var limit = p.rowLimitOverride();
+            if (limit != null && (min == null || limit < min)) {
+                min = limit;
+            }
+        }
+        return min;
     }
 
     /** Allow-list union: a null/empty contribution means "all allowed", so it wins → empty list. */
@@ -255,6 +269,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
+                entity.getRowLimitOverride(),
                 entity.getExpiresAt());
     }
 
@@ -264,7 +279,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.getId(), e.getUser().getId(), e.getDatasource().getId(), null, null,
                 e.isCanRead(), e.isCanWrite(), e.isCanDdl(), e.isCanBreakGlass(),
                 toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
-                toList(e.getRestrictedColumns()), e.getExpiresAt(), e.getAccessGrantRequestId());
+                toList(e.getRestrictedColumns()), e.getRowLimitOverride(), e.getExpiresAt(),
+                e.getAccessGrantRequestId());
     }
 
     private static DatasourcePermissionContribution toContribution(
@@ -273,7 +289,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.getId(), userId, e.getDatasource().getId(), e.getGroup().getId(),
                 e.getGroup().getName(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
                 e.isCanBreakGlass(), toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
-                toList(e.getRestrictedColumns()), e.getExpiresAt(), null);
+                toList(e.getRestrictedColumns()), e.getRowLimitOverride(), e.getExpiresAt(), null);
     }
 
     private static List<String> toList(String[] array) {
