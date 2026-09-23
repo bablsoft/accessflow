@@ -8393,7 +8393,7 @@ order). `UpdateSchemaChangeSetRequest` fields: `name` (3–255), `description` (
    with the parser's reason in `detail`.
 4. **Classification** — a statement classified `SELECT` / `INSERT` / `UPDATE` / `DELETE` is
    refused with `422 SCHEMA_CHANGE_SET_STATEMENT_DML` (`queryType` on the body). `DDL` **and**
-   `OTHER` (`COMMENT ON`, `GRANT`, `ALTER TYPE … ADD VALUE`, `REFRESH MATERIALIZED VIEW`, …) are
+   `OTHER` (`COMMENT ON`, `GRANT`, `REFRESH MATERIALIZED VIEW`, …) are
    admitted — see the chapter for why the gate is "not DML" rather than "is DDL", and for what
    `OTHER` lets through.
 5. **Deterministic SQL review** — the statement is evaluated against the ruleset resolved for
