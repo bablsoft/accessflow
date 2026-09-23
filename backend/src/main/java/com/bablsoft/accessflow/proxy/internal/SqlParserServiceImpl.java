@@ -17,7 +17,6 @@ import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
@@ -66,8 +65,9 @@ class SqlParserServiceImpl implements SqlParserService {
             throw new InvalidSqlException(msg("error.sql_multiple_statements"));
         }
         var statement = statements.get(0);
-        return new SqlParseResult(classify(statement), false, List.of(sql),
-                extractReferencedTables(statement), hasWhere(statement), hasLimit(statement));
+        var type = classify(statement);
+        return new SqlParseResult(type, false, List.of(sql),
+                extractReferencedTables(statement, type), hasWhere(statement), hasLimit(statement));
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -113,7 +113,7 @@ class SqlParserServiceImpl implements SqlParserService {
         boolean anyWhere = false;
         boolean anyLimit = false;
         for (Statement statement : statements) {
-            referencedTables.addAll(extractReferencedTables(statement));
+            referencedTables.addAll(extractReferencedTables(statement, classify(statement)));
             anyWhere = anyWhere || hasWhere(statement);
             anyLimit = anyLimit || hasLimit(statement);
         }
@@ -146,18 +146,31 @@ class SqlParserServiceImpl implements SqlParserService {
         return out;
     }
 
-    private static Set<String> extractReferencedTables(Statement statement) {
-        Set<String> raw;
+    /**
+     * Collects the referenced tables and refuses a statement that writes data from inside a query
+     * shape (a data-modifying {@code WITH} item, {@code SELECT … INTO}). Such a statement would
+     * otherwise be classified by its outer shape — a {@code SELECT} needing only {@code can_read} —
+     * so it is rejected outright rather than reclassified. For {@code SELECT} / {@code INSERT} /
+     * {@code UPDATE} / {@code DELETE} a traversal failure is fatal too: an empty or partial table set
+     * would let the allow-list check pass without having seen every table.
+     */
+    private Set<String> extractReferencedTables(Statement statement, QueryType type) {
+        SqlStatementInspector.Inspection inspection;
         try {
-            raw = new TablesNamesFinder<>().getTables(statement);
+            inspection = SqlStatementInspector.inspect(statement);
         } catch (RuntimeException ex) {
-            // JSqlParser raises UnsupportedOperationException on a handful of exotic statement
-            // shapes. Leaving the set empty here means the allow-list check at the workflow
-            // layer cannot enforce — DDL is already gated by canDdl, and any unknown statement
-            // class has already been rejected by classify() = QueryType.OTHER upstream.
-            return Set.of();
+            if (type == QueryType.DDL || type == QueryType.OTHER) {
+                // JSqlParser raises UnsupportedOperationException on a handful of non-DML shapes.
+                // DDL is gated by canDdl and OTHER needs write access, neither via the allow-list.
+                return Set.of();
+            }
+            throw new InvalidSqlException(msg("error.sql_analysis_failed"), ex);
         }
-        if (raw == null || raw.isEmpty()) {
+        if (inspection.writesData()) {
+            throw new InvalidSqlException(msg("error.sql_embedded_write_not_allowed"));
+        }
+        var raw = inspection.tables();
+        if (raw.isEmpty()) {
             return Set.of();
         }
         var out = new HashSet<String>(raw.size());

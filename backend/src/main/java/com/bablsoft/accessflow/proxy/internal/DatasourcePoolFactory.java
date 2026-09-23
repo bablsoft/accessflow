@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class DatasourcePoolFactory {
 
+    static final String PG_READ_ONLY_MODE = "readOnlyMode";
+
     private final SecretResolutionService secretResolutionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final ProxyPoolProperties properties;
@@ -90,6 +92,11 @@ class DatasourcePoolFactory {
         var leak = properties.leakDetectionThreshold().toMillis();
         if (leak > 0) {
             config.setLeakDetectionThreshold(leak);
+        }
+        if (descriptor.dbType() == DbType.POSTGRESQL) {
+            // pgjdbc's default readOnlyMode=transaction ignores setReadOnly(true) under autocommit,
+            // so a SELECT connection would still accept writes. "always" makes it session-wide.
+            config.addDataSourceProperty(PG_READ_ONLY_MODE, "always");
         }
 
         var previousLoader = Thread.currentThread().getContextClassLoader();

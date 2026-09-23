@@ -20,6 +20,8 @@ import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
@@ -56,6 +58,7 @@ class DefaultQueryExecutorPostgresIntegrationTest {
             .withPassword("customer-pw");
 
     @Autowired QueryExecutor executor;
+    @Autowired SqlParserService sqlParserService;
     @Autowired DatasourceConnectionPoolManager poolManager;
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired DatasourceUserPermissionRepository permissionRepository;
@@ -307,6 +310,50 @@ class DefaultQueryExecutorPostgresIntegrationTest {
                 null,
                 Duration.ofSeconds(1))))
                 .isInstanceOf(QueryExecutionTimeoutException.class);
+    }
+
+    @Test
+    void parserRefusesDataModifyingCteAndSelectInto() {
+        assertThatThrownBy(() -> sqlParserService.parse(
+                "WITH d AS (DELETE FROM items RETURNING *) SELECT count(*) FROM d"))
+                .isInstanceOf(InvalidSqlException.class);
+        assertThatThrownBy(() -> sqlParserService.parse("SELECT * INTO items_copy FROM items"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void selectPathConnectionIsReadOnlyUnderAutocommit() {
+        // Defence in depth behind the parser: even if a data-modifying CTE reached the SELECT
+        // path, pgjdbc readOnlyMode=always makes the session refuse the write.
+        assertThatThrownBy(() -> executor.execute(new QueryExecutionRequest(
+                datasource.getId(),
+                "WITH d AS (DELETE FROM items RETURNING *) SELECT count(*) FROM d",
+                QueryType.SELECT, null, null)))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(ex -> assertThat(((QueryExecutionFailedException) ex).sqlState())
+                        .isEqualTo("25006"));
+        assertThatThrownBy(() -> executor.execute(new QueryExecutionRequest(
+                datasource.getId(),
+                "SELECT * INTO items_copy FROM items",
+                QueryType.SELECT, null, null)))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(ex -> assertThat(((QueryExecutionFailedException) ex).sqlState())
+                        .isEqualTo("25006"));
+
+        var count = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasource.getId(), "SELECT count(*) FROM items", QueryType.SELECT, null, null));
+        assertThat(((Number) count.rows().get(0).get(0)).longValue()).isEqualTo(5L);
+    }
+
+    @Test
+    void writePathStillWritesAfterReadOnlySelectOnSamePool() {
+        executor.execute(new QueryExecutionRequest(datasource.getId(),
+                "SELECT 1", QueryType.SELECT, null, null));
+
+        var result = (UpdateExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasource.getId(), "DELETE FROM items WHERE qty = 3", QueryType.DELETE, null, null));
+
+        assertThat(result.rowsAffected()).isEqualTo(1L);
     }
 
     @Test

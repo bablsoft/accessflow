@@ -100,6 +100,41 @@ class DatasourcePoolFactoryTest {
     }
 
     @Test
+    void createPoolForcesPgjdbcReadOnlyModeAlwaysOnPostgres() {
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+            factory.createPool(descriptor);
+
+            assertThat(captured.get().getDataSourceProperties())
+                    .containsEntry(DatasourcePoolFactory.PG_READ_ONLY_MODE, "always");
+        }
+    }
+
+    @Test
+    void createPoolLeavesReadOnlyModeUnsetOnOtherEngines() {
+        var mysql = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.MYSQL, "h", 3306, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, null, null, null,
+                null, null, null, true);
+        when(driverCatalog.resolve(DbType.MYSQL))
+                .thenReturn(new ResolvedDriver(mock(Driver.class), perTypeClassLoader,
+                        "org.postgresql.Driver"));
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+            factory.createPool(mysql);
+
+            assertThat(captured.get().getDataSourceProperties())
+                    .doesNotContainKey(DatasourcePoolFactory.PG_READ_ONLY_MODE);
+        }
+    }
+
+    @Test
     void createPoolResolvesPasswordExactlyOnceWithDatasourceContext() {
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
                 HikariDataSource.class)) {
@@ -194,6 +229,8 @@ class DatasourcePoolFactoryTest {
             assertThat(captured.get().getDriverClassName()).isEqualTo("org.postgresql.Driver");
             // Bundled driver catalog must NOT have been consulted on the custom path.
             verify(driverCatalog, times(0)).resolve(any());
+            assertThat(captured.get().getDataSourceProperties())
+                    .containsEntry(DatasourcePoolFactory.PG_READ_ONLY_MODE, "always");
         }
     }
 
@@ -261,6 +298,8 @@ class DatasourcePoolFactoryTest {
             assertThat(config.getPassword()).isEqualTo("replica-pw-plain");
             assertThat(config.getPoolName())
                     .isEqualTo("accessflow-ds-" + datasourceId + "-replica-0");
+            assertThat(config.getDataSourceProperties())
+                    .containsEntry(DatasourcePoolFactory.PG_READ_ONLY_MODE, "always");
             // Primary password must not have been resolved on the replica path.
             verify(secretResolutionService, times(0))
                     .resolve("ENC(primary)", datasourceId, organizationId);
