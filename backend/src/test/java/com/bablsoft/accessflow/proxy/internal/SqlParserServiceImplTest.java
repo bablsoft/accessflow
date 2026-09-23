@@ -534,4 +534,33 @@ class SqlParserServiceImplTest {
     void referencedTablesIncludeSubqueriesInTrailingClauses(String sql) {
         assertThat(service.parse(sql).referencedTables()).contains("t", "secret");
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "SELECT * FROM secret WHERE EXISTS (SELECT 1 FROM (SELECT 1) AS secret)",
+            "SELECT (SELECT count(*) FROM secret) FROM (SELECT 1) secret",
+            "WITH secret AS (SELECT * FROM secret) SELECT * FROM secret",
+            "SELECT * FROM t, LATERAL (SELECT * FROM secret) secret",
+            "SELECT * FROM XMLTABLE('/r/v' PASSING (SELECT xmlagg(xmlelement(name v, s)) FROM secret) "
+                    + "COLUMNS v text PATH '.') x",
+            "SELECT (ARRAY['x'])[(SELECT count(*) FROM secret)]",
+            "SELECT TOP ((SELECT count(*) FROM secret)) * FROM t"
+    })
+    void aliasesAndTableFunctionsNeverHideARealTable(String sql) {
+        assertThat(service.parse(sql).referencedTables()).contains("secret");
+    }
+
+    @Test
+    void cteNamesAreExcludedOnlyWhereTheyAreInScope() {
+        assertThat(service.parse("WITH a AS (SELECT * FROM secret), b AS (SELECT * FROM a) "
+                + "SELECT * FROM b").referencedTables()).containsExactly("secret");
+        assertThat(service.parse("SELECT * FROM (WITH s AS (SELECT 1) SELECT * FROM s) x, s")
+                .referencedTables()).containsExactly("s");
+        assertThat(service.parse("WITH s AS (SELECT 1) SELECT * FROM public.s")
+                .referencedTables()).containsExactly("public.s");
+        assertThat(service.parse("WITH b AS (SELECT * FROM a), a AS (SELECT 1) SELECT * FROM b")
+                .referencedTables()).containsExactly("a");
+        assertThat(service.parse("WITH a AS (SELECT 1) UPDATE t SET x = (SELECT 1 FROM a)")
+                .referencedTables()).containsExactly("t");
+    }
 }

@@ -347,4 +347,28 @@ class RowSecurityRewriterTest {
         var result = rewriter.rewrite(sql, List.of(), List.of());
         assertThat(result.sql()).isEqualTo(sql);
     }
+
+    // ---- tables the upstream finder used to miss must never pass through unfiltered ---------
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "SELECT * FROM secret WHERE EXISTS (SELECT 1 FROM (SELECT 1) AS secret)",
+            "SELECT (SELECT count(*) FROM secret) FROM (SELECT 1) secret",
+            "WITH secret AS (SELECT * FROM secret) SELECT * FROM secret",
+            "SELECT * FROM XMLTABLE('/r/v' PASSING (SELECT xmlagg(xmlelement(name v, s)) FROM secret) "
+                    + "COLUMNS v text PATH '.') x",
+            "SELECT row_number() OVER (PARTITION BY (SELECT s FROM secret LIMIT 1)) FROM t",
+            "SELECT string_agg(a, ',' ORDER BY (SELECT s FROM secret LIMIT 1)) FROM t"
+    })
+    void policiedTableInFormerlyMissedPositionIsFilteredOrRefused(String sql) {
+        var directive = dir("secret", "region", RowSecurityOperator.EQUALS, "EU");
+        RowSecurityRewriter.RewriteResult result;
+        try {
+            result = rewriter.rewrite(sql, List.of(directive));
+        } catch (UnrewritableRowSecurityException refused) {
+            return;
+        }
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+        assertThat(result.binds()).containsExactly("EU");
+    }
 }

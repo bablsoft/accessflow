@@ -35,7 +35,6 @@ import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
@@ -421,7 +420,7 @@ class RowSecurityRewriter {
                                            List<RowSecurityDirective> directives) {
         Set<String> raw;
         try {
-            raw = new TablesNamesFinder<>().getTables(statement);
+            raw = SqlStatementInspector.inspect(statement).tables();
         } catch (RuntimeException ex) {
             throw reject("error.row_security_subselect_unsupported");
         }
@@ -442,7 +441,7 @@ class RowSecurityRewriter {
         }
         Set<String> names;
         try {
-            names = new TablesNamesFinder<>().getTables(expression);
+            names = SqlStatementInspector.tablesIn(expression);
         } catch (RuntimeException ex) {
             return true; // cannot verify the expression — treat conservatively as policied
         }
