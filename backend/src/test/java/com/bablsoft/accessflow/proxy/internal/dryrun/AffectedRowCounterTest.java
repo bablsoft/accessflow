@@ -24,7 +24,9 @@ class AffectedRowCounterTest {
     void deleteWithWhereBecomesCount() {
         var count = AffectedRowCounter.toCountSql(
             "DELETE FROM payroll.salaries WHERE year < 2019");
-        assertThat(count).hasValue("SELECT COUNT(*) FROM payroll.salaries WHERE year < 2019");
+        // JSqlParser 5.4 parses a bare `year` as a date unit and renders it upper-case; unquoted
+        // identifiers are case-insensitive, so the count still targets the same column.
+        assertThat(count).hasValue("SELECT COUNT(*) FROM payroll.salaries WHERE YEAR < 2019");
     }
 
     @Test

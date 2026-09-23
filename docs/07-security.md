@@ -1293,7 +1293,7 @@ its own rather than inheriting them from the request group it delegates to. The 
   `403 SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN` before anything is written.
 - **The group is then created as an admin, deliberately.** `requestgroups`' own per-member check
   returns early for `QUERY_ADMIN` holders — precisely the bypass this module must not inherit —
-  and, for a statement classified `OTHER` (`GRANT`, `COMMENT ON`, `ALTER TYPE … ADD VALUE`), it
+  and, for a statement classified `OTHER` (`GRANT`, `COMMENT ON`, `REFRESH MATERIALIZED VIEW`), it
   would demand `can_write`, a DML permission that says nothing about schema authority. So
   `schemachange` makes the authorization decision itself and applies it to every statement, which
   is strictly stronger than delegating would have been. The flag is not persisted and never
