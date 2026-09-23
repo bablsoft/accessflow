@@ -260,5 +260,17 @@ public enum AuditAction {
     SCHEMA_CHANGE_PROMOTION_APPLIED,
     SCHEMA_CHANGE_PROMOTION_PARTIALLY_APPLIED,
     SCHEMA_CHANGE_PROMOTION_FAILED,
-    SCHEMA_CHANGE_PROMOTION_CANCELLED
+    SCHEMA_CHANGE_PROMOTION_CANCELLED,
+
+    /**
+     * #881 (epic #870): schema drift. SCAN_COMPLETED is written once per scan of one environment —
+     * a null actor with {@code trigger=schedule} for the job, the requesting user with
+     * {@code trigger=manual} for "Scan now" — and carries {@code applicable}, {@code partial},
+     * {@code findings_count} and, when the scan compared nothing, the {@code reason} code that
+     * says why. FINDING_ACKNOWLEDGED and CONFIG_UPDATED always carry the acting user. Drift never
+     * writes to a customer database, so there is no remediation action here and never will be.
+     */
+    SCHEMA_DRIFT_SCAN_COMPLETED,
+    SCHEMA_DRIFT_FINDING_ACKNOWLEDGED,
+    SCHEMA_DRIFT_CONFIG_UPDATED
 }

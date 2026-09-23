@@ -27,6 +27,12 @@ import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatusTransitionException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetTargetDatasourceMissingException;
 import com.bablsoft.accessflow.schemachange.api.SchemaChangeStatementFinding;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftBaselineEnvironmentInvalidException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftConcurrentUpdateException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingNotAcknowledgeableException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingNotFoundException;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftFindingStatus;
+import com.bablsoft.accessflow.schemachange.api.SchemaDriftScanInProgressException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
@@ -345,6 +351,75 @@ class SchemaChangeExceptionHandlerTest {
         assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE",
                 "error.schema_change_promotion_not_cancellable[APPLIED]");
         assertThat(pd.getProperties()).containsEntry("currentStatus", "APPLIED");
+    }
+
+    @Test
+    void driftFindingNotFoundIs404() {
+        var findingId = UUID.randomUUID();
+
+        var pd = handler.handleDriftFindingNotFound(new SchemaDriftFindingNotFoundException(findingId));
+
+        assertProblem(pd, HttpStatus.NOT_FOUND, "SCHEMA_DRIFT_FINDING_NOT_FOUND",
+                "error.schema_drift_finding_not_found");
+        assertThat(pd.getProperties()).containsEntry("findingId", findingId);
+    }
+
+    @Test
+    void driftScanInProgressIs409() {
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handleDriftScanInProgress(new SchemaDriftScanInProgressException(environmentId));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_DRIFT_SCAN_IN_PROGRESS",
+                "error.schema_drift_scan_in_progress");
+        assertThat(pd.getProperties()).containsEntry("environmentId", environmentId);
+    }
+
+    @Test
+    void driftFindingNotAcknowledgeableIs409WithTheStatus() {
+        var findingId = UUID.randomUUID();
+
+        var pd = handler.handleDriftFindingNotAcknowledgeable(
+                new SchemaDriftFindingNotAcknowledgeableException(findingId,
+                        SchemaDriftFindingStatus.RESOLVED));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_DRIFT_FINDING_NOT_ACKNOWLEDGEABLE",
+                "error.schema_drift_finding_not_acknowledgeable[RESOLVED]");
+        assertThat(pd.getProperties()).containsEntry("findingId", findingId)
+                .containsEntry("currentStatus", "RESOLVED");
+    }
+
+    @Test
+    void driftBaselineEnvironmentInvalidIs422() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        var pd = handler.handleDriftBaselineInvalid(
+                new SchemaDriftBaselineEnvironmentInvalidException(pipelineId, environmentId));
+
+        assertProblem(pd, HttpStatus.UNPROCESSABLE_CONTENT, "SCHEMA_DRIFT_BASELINE_ENVIRONMENT_INVALID",
+                "error.schema_drift_baseline_environment_invalid");
+        assertThat(pd.getProperties()).containsEntry("pipelineId", pipelineId)
+                .containsEntry("baselineEnvironmentId", environmentId);
+    }
+
+    @Test
+    void driftBaselineEnvironmentInvalidOmitsAnAbsentDesignation() {
+        var pd = handler.handleDriftBaselineInvalid(
+                new SchemaDriftBaselineEnvironmentInvalidException(UUID.randomUUID(), null));
+
+        assertThat(pd.getProperties()).doesNotContainKey("baselineEnvironmentId");
+    }
+
+    @Test
+    void driftConcurrentUpdateIs409() {
+        var resourceId = UUID.randomUUID();
+
+        var pd = handler.handleDriftConcurrentUpdate(new SchemaDriftConcurrentUpdateException(resourceId));
+
+        assertProblem(pd, HttpStatus.CONFLICT, "SCHEMA_DRIFT_CONCURRENT_UPDATE",
+                "error.schema_drift_concurrent_update");
+        assertThat(pd.getProperties()).containsEntry("resourceId", resourceId);
     }
 
     private static void assertProblem(ProblemDetail pd, HttpStatus status, String error, String detail) {

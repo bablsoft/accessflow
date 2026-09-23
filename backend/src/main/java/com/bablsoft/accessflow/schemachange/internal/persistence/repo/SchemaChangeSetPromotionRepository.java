@@ -47,4 +47,13 @@ public interface SchemaChangeSetPromotionRepository extends JpaRepository<Schema
     /** The open-promotion pre-check (#880) — the partial unique index catches what this misses. */
     boolean existsByChangeSet_IdAndEnvironmentIdAndStatusIn(UUID changeSetId, UUID environmentId,
                                                            Collection<SchemaChangePromotionStatus> statuses);
+
+    /**
+     * The {@code PROMOTION_SNAPSHOT} drift baseline (#881): the most recently applied promotion to this
+     * environment, whether or not it carries a snapshot. Deliberately not filtered on a non-null
+     * snapshot — falling back to an older promotion's snapshot would report the newest change set's
+     * own DDL as drift. A newest promotion without a snapshot is a missing baseline, and says so.
+     */
+    Optional<SchemaChangeSetPromotionEntity> findFirstByOrganizationIdAndEnvironmentIdAndStatusOrderByAppliedAtDesc(
+            UUID organizationId, UUID environmentId, SchemaChangePromotionStatus status);
 }

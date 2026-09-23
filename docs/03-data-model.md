@@ -946,7 +946,7 @@ Immutable, sanitized snapshot of an **executed** query (AF-449). Exactly one row
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE |
 | `db_type` | ENUM `db_type` — the source engine; the replay gate requires the target datasource to match |
 | `referenced_tables` | TEXT[] NOT NULL DEFAULT `ARRAY[]::TEXT[]` — tables the query touched (normalized `schema.table`/`table`), used by the replay schema-compatibility gate |
-| `schema_hash` | VARCHAR(64) nullable — SHA-256 fingerprint of the source schema at execution time (forensic only; null when introspection was unavailable). Both source and target hashes are recorded in the replay audit row so drift is visible |
+| `schema_hash` | VARCHAR(64) nullable — SHA-256 fingerprint of the source schema at execution time (forensic only; null when introspection was unavailable). Both source and target hashes are recorded in the replay audit row so drift is visible. **Rows written before #881** came from the narrower `SchemaHasher`, which covered only column name and type; `core.api.SchemaFingerprintService` replaced it and also covers nullability, primary keys and foreign keys. Nothing compares the two hashes programmatically — they are shown side by side for a human — so an old source hash simply will not match a freshly computed target hash even on an identical schema. There is no backfill |
 | `ai_analysis` | JSONB nullable — snapshot of the AI verdict at execution time (null when AI was skipped/absent) |
 | `review_decisions` | JSONB NOT NULL DEFAULT `'[]'` — snapshot of the approval decisions at execution time |
 | `rows_affected` | BIGINT nullable |
@@ -1723,6 +1723,9 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | A schema change set was promoted to an environment (#880). Resource: `schema_change_promotion`. Actor = the promoter, with the request's IP + user-agent. Metadata: `change_set_id`, `environment_id`, `environment_name`, `datasource_id`, `request_group_id`, `statement_count`, `statements_checksum`. Written only after every gate check passed and the row was persisted. |
 | `SCHEMA_CHANGE_PROMOTION_APPLIED` / `_PARTIALLY_APPLIED` / `_FAILED` | The promotion's request group finished (#880). The intermediate `IN_REVIEW` and `APPROVED` projections write no row — the group carries its own review trail. Resource: `schema_change_promotion`. **Null actor** — projected from the group by an event listener. Metadata: `trigger: "request_group"`, `request_group_id`, `group_status`, `change_set_id`, `environment_id`, plus `error_message` on the two failure outcomes. `_PARTIALLY_APPLIED` means earlier statements landed and a later one failed: there is no rollback. |
 | `SCHEMA_CHANGE_PROMOTION_CANCELLED` | A promotion ended without applying (#880). Resource: `schema_change_promotion`. Written on **two** paths. (a) The cancel endpoint: actor = the caller, metadata `request_group_id` and `cancelled_on_behalf_of_submitter: true`, because the group's own cancel is submitter-only and is therefore invoked as the promoter. (b) The status projection, when the request group was **rejected or timed out** — those map onto the same `CANCELLED` promotion status: null actor, `trigger: "request_group"`, and `group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) naming which. A consumer that filters this action on a non-null actor silently drops every rejection and timeout. |
+| `SCHEMA_DRIFT_SCAN_COMPLETED` | One drift scan of one environment finished, whatever its outcome (#881). Resource: `schema_drift_scan`. **Null actor** + `trigger: "schedule"` for `SchemaDriftJob`; the requesting user + `trigger: "manual"` for *Scan now*. Metadata: `environment_id`, `pipeline_id`, `datasource_id`, `baseline`, `applicable`, `partial`, `findings_count`, `duration_ms`, and `reason` when the scan recorded one (the same code as its `error_message`). |
+| `SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` | An admin accepted a drift finding (#881). Resource: `schema_drift_finding`. Actor = the caller. Metadata: `environment_id`, `object_path`, `finding_kind`, `previous_status` (`ACKNOWLEDGED` when the call was an idempotent repeat). A later scan that sees different values reopens the finding without writing a row of its own. |
+| `SCHEMA_DRIFT_CONFIG_UPDATED` | A pipeline's drift configuration was created or replaced (#881). Resource: `schema_drift_config`. Actor = the caller. Metadata: `pipeline_id`, `enabled`, `baseline`, `scan_interval_hours`, plus `baseline_environment_id` when one is designated. |
 | `DEPLOYMENT_BREAK_GLASS_REVIEWED` | An admin acknowledged a **deployment** break-glass retro-review on the shared AF-385 worklist (#695 — previously these landed as the generic `BREAK_GLASS_REVIEWED`). Resource: `break_glass_event`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. The same change routes API-target acknowledgments to `API_BREAK_GLASS_REVIEWED` (their audit row was previously lost to a swallowed NPE). |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
@@ -1731,7 +1734,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -2971,11 +2974,12 @@ engine or a clean evaluation leaves no rows behind.
 
 Governed DDL change sets: a set of statements authored once, reviewed once, and promoted along a
 `deploygov` pipeline's environment ladder as an ordered `requestgroups` request group, with a
-scheduled drift job that compares each environment's live schema against a baseline. #878 lands
-the storage and type foundation only (migration `V178` + the `V179` permission seed): five
-tables, the JPA entities and repositories and the `schemachange.api` contracts; #879 implements
-the authoring half over the first two tables (see [20-schema-change-governance.md](20-schema-change-governance.md)).
-Nothing writes `schema_change_set_promotions` until #880 or the drift tables until #881. Five PG
+scheduled drift job that compares each environment's live schema against a baseline. #878 landed
+the storage and type foundation (migration `V178` + the `V179` permission seed): five
+tables, the JPA entities and repositories and the `schemachange.api` contracts; #879 the authoring
+half, #880 promotion, and #881 the drift half plus its own `schema_drift_configs` table (`V180`) and an
+optimistic-lock `version` on findings (`V181`) —
+see [20-schema-change-governance.md](20-schema-change-governance.md). Five PG
 enums, created in `V178`:
 
 - `schema_change_set_status` — `DRAFT` | `ACTIVE` | `ARCHIVED`.
@@ -3089,8 +3093,31 @@ failed or still-running introspection leaves it null and never delays the transi
 ### schema_drift_scans
 
 One row per drift scan of one environment (#881 writes them). `applicable = false` records that
-the engine samples rather than reads a catalog (Redis, MongoDB) and was therefore not diffed;
-`partial = true` that the table cap or time budget cut the scan short.
+the engine **samples** rather than reads a catalog and was therefore never contacted at all;
+`partial = true` that the table cap, the findings cap or the time budget cut the scan short.
+`V181` adds a `version` column to `schema_drift_findings` (below).
+
+> **Which engines sample — this table is the authority.** `V178`'s own inline comment and earlier
+> drafts of this section named only Redis and MongoDB. That is wrong: reading every plugin
+> introspector, **five** engines sample and therefore cannot be diffed —
+>
+> | Sampling (not applicable) | Why |
+> |---|---|
+> | `MONGODB` | 50 documents per collection; the first document's BSON type wins; every column is reported nullable |
+> | `REDIS` | at most 1000 keys scanned, **one** sample key per prefix, at most 50 hash fields |
+> | `COUCHBASE` | `LIMIT 50` per collection, and a collection with no index degrades to its key column alone |
+> | `DYNAMODB` | the key schema is deterministic but non-key attributes come from a 50-row `Scan` |
+> | `NEO4J` | `db.schema.nodeTypeProperties()` samples a live graph server-side |
+>
+> Two consecutive introspections of an unchanged database can legitimately differ on any of these,
+> so diffing them would flap forever. `V178` is immutable and its comment cannot be corrected in
+> place. The code does not read either: `SchemaDriftScanService.DETERMINISTIC_ENGINES` is an
+> **allow-list of catalog-backed engines** (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server,
+> `CUSTOM`, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Snowflake, BigQuery, Databricks), so a
+> `DbType` added later is not applicable until somebody verifies its introspector — the safe
+> direction to be wrong in, and the `DefaultSqlReviewService.RELATIONAL_DIALECTS` precedent. Note
+> that engine-managed does **not** mean sampling: Cassandra, Elasticsearch, Snowflake, BigQuery and
+> Databricks are plugins that read real catalogs.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -3103,9 +3130,9 @@ the engine samples rather than reads a catalog (Redis, MongoDB) and was therefor
 | `started_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 | `finished_at` | TIMESTAMPTZ NULL |
 | `applicable` | BOOLEAN NOT NULL DEFAULT true |
-| `findings_count` | INTEGER NOT NULL DEFAULT 0 |
+| `findings_count` | INTEGER NOT NULL DEFAULT 0 — every finding the scan observed (new, reopened, still present), counted from the rows when it finished. Fixed from then on: once a later scan re-observes a finding it moves to that scan, so an older scan's drill-down shrinks while its count does not |
 | `partial` | BOOLEAN NOT NULL DEFAULT false |
-| `error_message` | TEXT NULL — why the scan could not complete, or why no baseline resolved |
+| `error_message` | TEXT NULL — a stable reason code, not prose: why nothing was compared (`ENGINE_NOT_APPLICABLE`, a `BASELINE_*` code), what was left out (`FK_COMPARISON_SUPPRESSED`), why it failed (`TARGET_INTROSPECTION_FAILED` / `SCAN_FAILED`, with the cause after a colon) or that it never ran (`SCAN_SUPERSEDED`). The full list is in [04-api-spec.md](04-api-spec.md#schema-drift-881) |
 
 > Index `idx_schema_drift_scans_org_env_started` on `(organization_id, environment_id,
 > started_at DESC)`.
@@ -3121,7 +3148,7 @@ to the customer database — findings are recorded, acknowledged or resolved, ne
 | `organization_id` | UUID NOT NULL — bare id, no FK |
 | `scan_id` | UUID NOT NULL, FK → `schema_drift_scans` ON DELETE CASCADE |
 | `environment_id` | UUID NOT NULL — bare id, no FK (denormalised for the worklist filter) |
-| `object_path` | VARCHAR(1024) NOT NULL — `schema.table.column` (or `schema.table`) |
+| `object_path` | VARCHAR(1024) NOT NULL — `schema`, `schema.table` or `schema.table.column`. A display string, never split: names may contain dots (nested Elasticsearch and BigQuery fields, dated index names) |
 | `finding_kind` | `schema_drift_finding_kind` NOT NULL |
 | `expected_value` | TEXT NULL — the baseline's value |
 | `actual_value` | TEXT NULL — the target's value |
@@ -3129,10 +3156,55 @@ to the customer database — findings are recorded, acknowledged or resolved, ne
 | `first_detected_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 | `last_seen_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 | `resolved_at` | TIMESTAMPTZ NULL |
+| `version` | BIGINT NOT NULL DEFAULT 0 — `@Version` (`V181`). A scan reconciles row by row while an admin can acknowledge at any moment; without it the scan's stale copy would be written back over the acknowledgement. The loser is refused: the scan skips the row, the acknowledge call answers `409 SCHEMA_DRIFT_CONCURRENT_UPDATE` |
 
 > Indexes `idx_schema_drift_findings_org_status_seen` on `(organization_id, status, last_seen_at
 > DESC)` — the open-findings worklist — and `idx_schema_drift_findings_scan` on `(scan_id)`, which
 > the cascade and the per-scan read both walk (Postgres does not index FK columns).
+
+The natural key is `(organization_id, environment_id, object_path, finding_kind)` and there is
+deliberately **no unique constraint on it**: the per-environment cluster lock is what guarantees a
+single writer, and a constraint would forbid the reopen-in-place lifecycle. A finding a later scan
+no longer observes becomes `RESOLVED` — but only if that scan could have re-observed it: under a
+table it actually compared (found by the longest known table key prefixing the path, never by
+splitting it), and of a kind it compared, so a scan that suppressed foreign keys leaves
+`FOREIGN_KEY_MISMATCH` findings alone. A run cut short by the table cap or the time budget resolves
+nothing it never reached. A
+`RESOLVED` finding that reappears is reopened in the same row, keeping its original
+`first_detected_at`, so an object that flaps stays visible rather than presenting as new each time.
+On a resolve, `scan_id` and `last_seen_at` are deliberately **not** moved: both describe
+observation, not bookkeeping.
+
+### schema_drift_configs
+
+One opt-in row per `deploygov` pipeline (`V180`, #881), keyed `UNIQUE (pipeline_id)`. **Absence of
+a row means the same thing as `enabled = false`**: drift is off. The scheduled job drains this
+table rather than enumerating pipelines, because `deploygov` exposes no cross-organization pipeline
+or environment listing — the `discovery_scan_config` precedent (`V129`). `enabled` defaults to
+`FALSE` because drift opens connections to customer databases on a timer, which an upgrade must
+never start doing on its own.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL — bare id, no FK |
+| `pipeline_id` | UUID NOT NULL UNIQUE — bare id, no FK |
+| `enabled` | BOOLEAN NOT NULL DEFAULT `false` |
+| `baseline` | `schema_drift_baseline` NOT NULL DEFAULT `'PREVIOUS_ENVIRONMENT'` — reuses the `V178` enum, so `V180` creates no type and needs no `.sql.conf` sidecar |
+| `baseline_environment_id` | UUID NULL — read only when `baseline = 'BASELINE_ENVIRONMENT'`. Validated on write and re-checked at scan time, since an environment can be rebound afterwards |
+| `scan_interval_hours` | INTEGER NOT NULL DEFAULT `24` — per-pipeline cadence, 1–720. The job only looks for due pipelines once per poll (`ACCESSFLOW_SCHEMACHANGE_DRIFT_POLL_INTERVAL`, six hours by default), so a shorter interval behaves like the poll |
+| `last_scan_at` | TIMESTAMPTZ NULL — stamped **once per scheduled pipeline run**, after every environment has been visited; never by *Scan now* and never by one environment alone. A run in which another replica held one of the environments is not stamped, so the pipeline stays due |
+| `last_scan_error` | TEXT NULL — that run's failures, one `environment: reason` per failed environment (see [04-api-spec.md](04-api-spec.md#schema-drift-881)). Configuration states such as an inapplicable engine or a missing baseline are not failures and appear only on the scan rows |
+| `version` | BIGINT NOT NULL DEFAULT 0 — `@Version` |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> Partial index `idx_schema_drift_configs_enabled` on `(enabled) WHERE enabled` — the job's drain
+> query reads only the enabled minority.
+
+Because the designation is **pipeline-wide**, `BASELINE_ENVIRONMENT` necessarily means the job
+eventually scans the designated environment itself. That self-comparison would be vacuously clean,
+so it is refused with the `BASELINE_ENVIRONMENT_IS_TARGET` reason rather than recorded as "no
+drift".
 
 ---
 

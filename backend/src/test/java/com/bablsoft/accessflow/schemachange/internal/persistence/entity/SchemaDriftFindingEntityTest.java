@@ -34,6 +34,7 @@ class SchemaDriftFindingEntityTest {
         entity.setFirstDetectedAt(firstDetectedAt);
         entity.setLastSeenAt(lastSeenAt);
         entity.setResolvedAt(resolvedAt);
+        entity.setVersion(4L);
 
         assertThat(entity.getId()).isEqualTo(id);
         assertThat(entity.getOrganizationId()).isEqualTo(orgId);
@@ -47,6 +48,7 @@ class SchemaDriftFindingEntityTest {
         assertThat(entity.getFirstDetectedAt()).isEqualTo(firstDetectedAt);
         assertThat(entity.getLastSeenAt()).isEqualTo(lastSeenAt);
         assertThat(entity.getResolvedAt()).isEqualTo(resolvedAt);
+        assertThat(entity.getVersion()).isEqualTo(4L);
     }
 
     @Test
@@ -60,5 +62,11 @@ class SchemaDriftFindingEntityTest {
         assertThat(entity.getFirstDetectedAt()).isNotNull();
         assertThat(entity.getLastSeenAt()).isNotNull();
         assertThat(entity.getResolvedAt()).isNull();
+    }
+
+    @Test
+    void aNewFindingStartsAtVersionZero() {
+        // V181: the scan's stale write must lose to an acknowledgement made while it ran.
+        assertThat(new SchemaDriftFindingEntity().getVersion()).isZero();
     }
 }

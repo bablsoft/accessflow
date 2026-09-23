@@ -506,6 +506,14 @@ accessflow:
     # as a request-group member, each re-introspecting the datasource, so the cap bounds LLM calls
     # and customer-database round-trips per change set and per environment.
     max-statements: ${ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS:50}
+    # Schema drift (#881). The job drains schema_drift_configs — an opt-in row per pipeline, since
+    # deploygov exposes no cross-organization pipeline listing. Each environment is scanned under its
+    # own cluster lock, so a "Scan now" on one replica cannot race the tick on another.
+    drift-poll-interval: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_POLL_INTERVAL:PT6H}
+    drift-scan-time-budget: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_SCAN_TIME_BUDGET:PT5M}
+    drift-max-tables-per-scan: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_MAX_TABLES_PER_SCAN:500}
+    drift-max-findings-per-scan: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_MAX_FINDINGS_PER_SCAN:500}
+    drift-scan-lock-at-most-for: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_SCAN_LOCK_AT_MOST_FOR:PT30M}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

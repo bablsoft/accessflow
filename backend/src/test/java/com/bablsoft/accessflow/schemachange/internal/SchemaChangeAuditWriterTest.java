@@ -58,12 +58,30 @@ class SchemaChangeAuditWriterTest {
         assertThat(entry.getValue().metadata()).containsEntry("trigger", "request_group");
     }
 
-    /** A failed audit write must never break the promotion it describes. */
+    @Test
+    void writesAnEntryAgainstAnyResourceTypeTheModuleOwns() {
+        var scanId = UUID.randomUUID();
+        var orgId = UUID.randomUUID();
+
+        writer.record(AuditAction.SCHEMA_DRIFT_SCAN_COMPLETED, AuditResourceType.SCHEMA_DRIFT_SCAN,
+                scanId, orgId, null, Map.of("trigger", "schedule"), null, null);
+
+        var entry = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(entry.capture());
+        assertThat(entry.getValue()).extracting("action", "resourceType", "resourceId", "organizationId")
+                .containsExactly(AuditAction.SCHEMA_DRIFT_SCAN_COMPLETED,
+                        AuditResourceType.SCHEMA_DRIFT_SCAN, scanId, orgId);
+    }
+
+    /** A failed audit write must never break the operation it describes. */
     @Test
     void swallowsAFailedWrite() {
         doThrow(new IllegalStateException("audit down")).when(auditLogService).record(any());
 
         assertThatCode(() -> writer.record(AuditAction.SCHEMA_CHANGE_PROMOTION_FAILED, UUID.randomUUID(),
                 UUID.randomUUID(), null, Map.of(), null, null)).doesNotThrowAnyException();
+        assertThatCode(() -> writer.record(AuditAction.SCHEMA_DRIFT_FINDING_ACKNOWLEDGED,
+                AuditResourceType.SCHEMA_DRIFT_FINDING, UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), Map.of(), null, null)).doesNotThrowAnyException();
     }
 }

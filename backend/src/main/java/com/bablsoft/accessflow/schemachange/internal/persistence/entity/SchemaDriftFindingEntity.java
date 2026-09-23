@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -74,4 +75,9 @@ public class SchemaDriftFindingEntity {
 
     @Column(name = "resolved_at")
     private Instant resolvedAt;
+
+    /** V181: a scan's stale write must never land over an acknowledgement made while it ran. */
+    @Version
+    @Column(nullable = false)
+    private long version;
 }

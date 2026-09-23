@@ -460,7 +460,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
 | Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
 | Manage service accounts (`SERVICE_ACCOUNT_MANAGE`, #868) | — | — | — | ✓ | — |
-| Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, seeded by #878; gates nothing until #879–#881 add the endpoints) | — | — | — | ✓ | — |
+| Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, seeded by #878; gates `/schema-change-sets`, `/schema-change-promotions` and `/schema-drift` — #879–#881) | — | — | — | ✓ | — |
 | Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
@@ -626,9 +626,19 @@ review queue) are subject to the same read authorization as the objects they han
 **Schema change governance (#878, epic #870):** `SCHEMA_CHANGE_MANAGE` sits in the
 `WORKFLOW_ADMIN` group beside `ROUTING_POLICY_MANAGE` and `SQL_REVIEW_MANAGE` and is held by
 `ADMIN` only (seeded by `V179`, the same `VARCHAR`-catalog convention as `V171`/`V174`). It gates
-change-set authoring (#879) and promotion (#880); the drift worklist follows in #881. It is
-deliberately a functional permission, not a bypass — see
+change-set authoring (#879), promotion (#880) and the drift worklist, scan-now and configuration
+(#881). It is deliberately a functional permission, not a bypass — see
 [Schema change promotion security](#schema-change-promotion-security-880) below.
+
+**Schema drift exposes schema across the ladder (#881).** Drift introspects through
+`DatasourceAdminService.introspectSchemaForSystem`, which is organization-scoped but **not**
+per-datasource permission-gated, and records schema, table and column names in its findings. A
+holder of `SCHEMA_CHANGE_MANAGE` can therefore trigger a scan of — and read the structure of — any
+datasource bound to an environment of their organization's pipelines, including one they hold no
+query grant on. Promotion is the only schemachange path with a per-datasource check (`can_ddl`, no
+admin exemption). This is intended — the permission governs schema across the whole ladder — but it
+makes `SCHEMA_CHANGE_MANAGE` a schema-disclosure grant as well as a workflow one, which matters when
+adding it to a custom role. Drift never writes to the databases it reads.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

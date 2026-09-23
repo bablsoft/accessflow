@@ -1168,6 +1168,109 @@ depends only on `core.api`, `proxy.api`, `ai.api`, `audit.api`, and `scheduling.
   introspected schema is deliberately not done: an introspection that returned a partial schema
   (a permission change, an engine-plugin quirk) would retire the datasource's entire worklist.
 
+### Schema drift scanning (#881, epic #870)
+
+Once a schema change lands (`schemachange`, [20-schema-change-governance.md](20-schema-change-governance.md)),
+nothing otherwise tells you when an environment's live schema has wandered away from where it is
+supposed to be. `SchemaDriftJob` closes that loop. It is deliberately a **scheduled job that stores
+findings**, not a read-time computation like `deploygov`'s version drift (#742): introspection opens
+connections to customer databases and cannot sit on a request path. **Drift never writes** — it
+introspects and records, and there is no corrective path, by design.
+
+- **Opt-in, per pipeline, off by default.** The job drains `schema_drift_configs` (enabled rows past
+  their own `scan_interval_hours`), exactly as `DiscoveryScanJob` drains `discovery_scan_config`.
+  That shape is not a stylistic echo: `deploygov` exposes no cross-organization pipeline or
+  environment listing — `DeploymentPipelineLookupService` and `DeploymentEnvironmentLookupService`
+  are both scoped to a pipeline the caller already knows — so an opt-in row is the only thing that
+  makes a scheduled scan discoverable at all. `enabled` defaults to false because an upgrade must
+  never start opening connections to an estate on a timer. The opt-in governs the scheduler only:
+  *Scan now* works on any schema-bound environment.
+- **One stamp per pipeline run.** The configuration is per pipeline but scans are per environment,
+  so `SchemaDriftScanCoordinator` stamps `last_scan_at` / `last_scan_error` once, after visiting the
+  whole ladder — never per scan and never from *Scan now*. A per-scan stamp would let one
+  environment restart every sibling's interval and overwrite a sibling's failure with its own
+  success. A run that found an environment locked by another replica is not stamped, so the pipeline
+  stays due. `last_scan_error` names every failed environment; configuration states (an inapplicable
+  engine, a missing baseline) are not failures.
+- **Applicability comes first.** `SchemaDriftScanService.DETERMINISTIC_ENGINES` is an **allow-list**
+  of catalog-backed engines; anything else records `applicable = false` with zero findings and
+  **opens no connection at all**. MongoDB, Redis, Couchbase, DynamoDB and Neo4j all sample (50
+  documents, ≤1000 keys with one sample key per prefix, `LIMIT 50` per collection, a 50-row `Scan`,
+  a server-side graph sample), so two reads of an unchanged database can differ and a naive diff
+  would flap forever. An allow-list means a `DbType` added later is not applicable until somebody
+  verifies its introspector — the `DefaultSqlReviewService.RELATIONAL_DIALECTS` invariant. Note that
+  engine-managed is not the same as sampling: Cassandra, Elasticsearch, Snowflake, BigQuery and
+  Databricks are plugins that read real catalogs.
+- **Three baseline modes**, resolved by `SchemaDriftBaselineResolver`: `PREVIOUS_ENVIRONMENT` (the
+  adjacent lower rung *that binds a datasource* — deploy-only rungs are skipped, not treated as a
+  wall, exactly as the promotion ladder gate skips them), `BASELINE_ENVIRONMENT` (an admin-designated
+  reference) and `PROMOTION_SNAPSHOT` (the schema introspected right after the **newest** `APPLIED`
+  promotion here — the mode that catches out-of-band changes, and the only one that opens no second
+  connection; a newest promotion without a snapshot is `BASELINE_SNAPSHOT_MISSING`, never a
+  fallback to an older snapshot, which would report the newest change set's own DDL as drift). The
+  baseline is resolved **before** the scanned database is contacted, so a rung with nothing to
+  compare against opens no connection. The first two require the baseline and the scanned datasource to run the **same
+  engine**: comparing across engines would report a type mismatch on essentially every column,
+  forever. A mode with no resolvable baseline records a scan with zero findings **and a reason code**
+  — never a silent pass — and, critically, resolves nothing: nothing was compared.
+- **Two locks.** The job's own `@SchedulerLock` keeps one replica per tick; each environment is then
+  scanned under a cluster-wide `schemaDriftScan:<environmentId>` lock held for
+  `accessflow.schemachange.drift-scan-lock-at-most-for`. That second lock is what stops an on-demand
+  *Scan now* on one replica racing the tick on another. The manual path takes it on the request
+  thread (`runLockedAsync`) so it can answer `409 SCHEMA_DRIFT_SCAN_IN_PROGRESS` synchronously, and
+  its scan row is **committed** before the handoff (`SchemaDriftScanStore.open`, `REQUIRES_NEW`) —
+  the executor's own transaction would not see a row still uncommitted in the caller's.
+- **The diff is pure.** `SchemaDriftDiffer` takes two `DatabaseSchemaView`s and a `BooleanSupplier`
+  for the budget, and emits findings in a deterministic order. Three rules keep it honest: it
+  **never descends past an absence** (a dropped 400-column table is one finding, not 401, and its
+  columns do not consume the table cap); one finding exists per `(path, kind)`, so a column both
+  retyped and made nullable yields two, each with its own fix and its own resolve lifecycle; and the
+  table cap applies to the **union** of both sides, because capping the scanned side alone would
+  report every baseline table outside the window as missing.
+- **Foreign keys are suppressed scan-wide when one side reports none at all.** The JDBC introspector
+  swallows a failed `getImportedKeys` and returns an empty list, and several catalog engines never
+  report foreign keys, so "no keys" and "the read failed" are indistinguishable. Without the gate a
+  single failed metadata read reports every foreign key in the estate as drift on every scan. A
+  *per-table* difference is still compared — one table losing its keys is real drift, and a one-table
+  failure self-resolves next scan.
+- **Reconciliation carries findings across scans** (`SchemaDriftFindingReconciler`), keyed
+  `(organization, environment, object_path, finding_kind)`. New → `OPEN`; still present → the scan
+  pointer and `last_seen_at` move; gone → `RESOLVED`. An **acknowledgement accepts the difference as
+  it stands**, so a later scan that sees the same path with different values reopens it — the
+  opposite of discovery's permanent `CONFIRMED`/`DISMISSED`, and deliberately so: there the decided
+  subject is a classification and the payload a sample, here the payload *is* the subject. A
+  reappearing finding is reopened in place, keeping its original `first_detected_at` so a flapping
+  object stays visible.
+- **The resolve sweep is gated on what the scan could have re-observed** — the load-bearing detail,
+  and the `DiscoveryStaleSweepService` coupling one-for-one. Only findings under a table the diff
+  compared, of a kind it compared, are eligible; a table the cap or the budget skipped keeps its
+  findings, and a scan that suppressed foreign keys leaves every `FOREIGN_KEY_MISMATCH` alone,
+  because "we did not look" and "it is fixed" are different facts. A finding's table is the
+  **longest known table key prefixing its path** — never a split on the last dot, since
+  Elasticsearch and BigQuery flatten nested fields into dotted column names and index names carry
+  dates. Nothing resolves when the engine is inapplicable, no baseline resolved, the scan threw, or
+  the findings cap cut the schema comparison itself short — otherwise the first scan of a Redis rung
+  would mass-resolve an estate's entire drift history.
+- **Findings are optimistically locked** (`V181`). A scan saves row by row for its whole run while an
+  admin can acknowledge at any moment; the scan's stale copy is refused rather than written over the
+  acknowledgement, and it skips that row until the next run. The acknowledge endpoint answers `409
+  SCHEMA_DRIFT_CONCURRENT_UPDATE` when it loses instead.
+- **`runScan` never throws.** Any failure becomes a reason on the scan row — `TARGET_INTROSPECTION_FAILED`
+  when the customer database could not be read, `SCAN_FAILED` when AccessFlow failed after reading
+  both, so nobody debugs a healthy database — and the finish/audit tail runs on every path inside
+  its own try/catch. `findings_count` is counted from the rows at finish rather than tallied, so a
+  reconciliation that failed halfway still records what its drill-down shows. No path leaves a scan
+  row in flight: a lost race and a failed handoff both finish it immediately, and the manual path's
+  in-flight pre-check (`finished_at IS NULL`) is bounded by the lock's ceiling, so a dead replica's
+  orphan row stops blocking new scans.
+
+`SCHEMA_DRIFT_SCAN_COMPLETED` is audited once per scan (null actor + `trigger=schedule` for the job,
+the caller + `trigger=manual` for *Scan now*), with snake_case metadata keys like the rest of the
+module (`findings_count`, `duration_ms`, …); `SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` and
+`SCHEMA_DRIFT_CONFIG_UPDATED` carry the acting user. No migration was needed — `audit_log.action` and
+`resource_type` are `VARCHAR(100)`. Notifications are **not** part of this: #882 adds the fan-out, so
+a drift finding is currently silent until somebody opens the worklist.
+
 ### Compliance reporting (AF-459)
 
 The `compliance` module produces pre-built compliance reports and signed exports. It is a thin,
@@ -1929,6 +2032,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ScheduledDeploymentReleaseJob` | deploygov | `scheduledDeploymentReleaseJob` | `accessflow.deploygov.release-check` | `PT1M` |
 | `HelpChatRetentionJob` | ai | `helpChatRetentionJob` | `accessflow.help-agent.retention-poll-interval` | `PT6H` |
 | `QuerySuggestionAggregationJob` | workflow | `querySuggestionAggregationJob` | `accessflow.workflow.query-suggestions.aggregation-poll-interval` | `PT6H` |
+| `SchemaDriftJob` | schemachange | `schemaDriftJob` | `accessflow.schemachange.drift-poll-interval` | `PT6H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -2309,7 +2413,7 @@ On a match, `core.api.QueryRequestStateService.approveByAccessGrant` stamps `que
 
 Executed queries are otherwise immutable, but there was no first-class way to take an approved/executed query and **replay its exact SQL against a test datasource** for debugging an approval or satisfying a compliance audit. The `workflow` module adds an immutable snapshot written on execution plus a replay endpoint that re-enters the full review workflow.
 
-**Snapshot on execution.** `QuerySnapshotListener` (`workflow/internal/`) is a plain synchronous `@EventListener` on `QueryExecutedEvent`. It fires only when `finalStatus = EXECUTED` (FAILED executions get no snapshot) and delegates to `DefaultQuerySnapshotService.recordOnExecution(queryRequestId)`, which writes one `query_snapshots` row (see [docs/03-data-model.md → query_snapshots](03-data-model.md)) capturing the exact `sql_text`, the source datasource's schema fingerprint (`SchemaHasher` → SHA-256, best-effort/null on introspection failure), the referenced tables (from `proxy.api.QueryParser`), the AI verdict, and the approval decisions (both read from `core.api.QueryRequestLookupService.findDetailById`). The write is **idempotent** (`existsByQueryRequestId` guard + the `UNIQUE(query_request_id)` backstop) and the service swallows its own failures so snapshot capture can never disrupt execution.
+**Snapshot on execution.** `QuerySnapshotListener` (`workflow/internal/`) is a plain synchronous `@EventListener` on `QueryExecutedEvent`. It fires only when `finalStatus = EXECUTED` (FAILED executions get no snapshot) and delegates to `DefaultQuerySnapshotService.recordOnExecution(queryRequestId)`, which writes one `query_snapshots` row (see [docs/03-data-model.md → query_snapshots](03-data-model.md)) capturing the exact `sql_text`, the source datasource's schema fingerprint (`core.api.SchemaFingerprintService` → SHA-256, best-effort/null on introspection failure), the referenced tables (from `proxy.api.QueryParser`), the AI verdict, and the approval decisions (both read from `core.api.QueryRequestLookupService.findDetailById`). The write is **idempotent** (`existsByQueryRequestId` guard + the `UNIQUE(query_request_id)` backstop) and the service swallows its own failures so snapshot capture can never disrupt execution.
 
 > Why a plain `@EventListener` and not `@ApplicationModuleListener`: `QueryExecutedEvent` is published *outside* a surrounding transaction (the EXECUTED outcome is already committed by `QueryRequestStateService` before the event fires), so an `AFTER_COMMIT` transactional listener would be silently skipped when no transaction is active — the snapshot would never be written. A synchronous listener fires unconditionally, reads the now-committed query / AI / decision rows via fresh transactions, and guarantees the snapshot exists the moment `execute()` returns, so an immediate replay never races a missing snapshot.
 
@@ -2319,6 +2423,8 @@ Executed queries are otherwise immutable, but there was no first-class way to ta
 - **Referenced tables present** — a fresh introspection of the target must contain every table the query references (`ReplaySchemaMatcher`, normalising `schema.table`/bare `table`); missing tables → 422. The full schemas need not match (a test DB legitimately diverges) — only the referenced tables. If the target cannot be introspected the replay is **rejected fail-closed** (422) rather than skipping the check.
 
 It then re-submits through the existing `QuerySubmissionService.submit(...)` with the **caller** as submitter, the target datasource, the snapshot's SQL, `scheduledFor=null` (a stale schedule never re-arms), and `SubmissionReason.USER_SUBMITTED`. The new query enters the normal `PENDING_AI → review` pipeline — **approval is never bypassed**, and because the submitter is the replaying caller, `DefaultReviewService`'s self-approval guard still prevents them from approving their own replay. The controller records a `QUERY_SUBMITTED` audit row on the **new** query id with metadata `{ trigger: "replay", original_query_id, source_datasource_id, target_datasource_id, source_schema_hash, target_schema_hash }` — mirroring the `trigger=scheduled` convention so an auditor can both distinguish a replay and see whether the schema drifted. No new `AuditAction` or `SubmissionReason` enum value is introduced.
+
+> **The fingerprint changed in #881.** Both hashes used to come from `workflow/internal/SchemaHasher`, which canonicalized only column name and type — so a nullability flip, a primary-key change or any foreign-key edit hashed identically. It was replaced by `core.api.SchemaFingerprintService`, which covers all four column fields plus foreign keys and escapes its delimiters (without escaping, a column named `a:b` of type `c` collided with a column `a` of type `b:c`). Nothing compares the two hashes programmatically — they are written side by side into the replay audit row for a human to read — so the only consequence is that a `query_snapshots.schema_hash` written before #881 will not match a freshly computed target hash even on an identical schema. There is no backfill, and none is needed.
 
 ---
 
@@ -4858,12 +4964,13 @@ endpoint contract, row shape, and the full drift rules are in
 ## Schema change governance (schemachange module, epic #870)
 
 The **`schemachange/` module** authors governed DDL **change sets** once and promotes them along a
-`deploygov` pipeline's environment ladder as ordered `requestgroups` groups, with a scheduled
-drift job to follow (#881). The feature narrative — the DDL gate decision and its exclusions, the
-freeze predicate, the checksum contract, the promotion gate and its trade-offs — is
+`deploygov` pipeline's environment ladder as ordered `requestgroups` groups, and watches them afterwards
+with a scheduled drift job (#881, narrated above under "Schema drift scanning"). The feature narrative —
+the DDL gate decision and its exclusions, the freeze predicate, the checksum contract, the promotion
+gate and its trade-offs, and the drift half with its fidelity limits — is
 [20-schema-change-governance.md](20-schema-change-governance.md); the tables are in
 [03-data-model.md](03-data-model.md#schema-change-governance-schemachange-878--epic-870); the
-endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-epic-870). This
+endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-881-epic-870). This
 section records the engineering rules of the **authoring half (#879)** and the **promotion half
 (#880)**.
 

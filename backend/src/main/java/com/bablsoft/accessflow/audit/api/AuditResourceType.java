@@ -61,7 +61,13 @@ public enum AuditResourceType {
     DEPLOYMENT_REQUEST("deployment_request"),
     DEPLOYMENT_ROLLBACK_REVIEW("deployment_rollback_review"),
     /** #880: one promotion of a schema change set to a deployment environment (epic #870). */
-    SCHEMA_CHANGE_PROMOTION("schema_change_promotion");
+    SCHEMA_CHANGE_PROMOTION("schema_change_promotion"),
+    /** #881: one drift scan of one deployment environment (epic #870). */
+    SCHEMA_DRIFT_SCAN("schema_drift_scan"),
+    /** #881: one drifted object path, acknowledged by an admin. */
+    SCHEMA_DRIFT_FINDING("schema_drift_finding"),
+    /** #881: a pipeline's drift scan configuration. */
+    SCHEMA_DRIFT_CONFIG("schema_drift_config");
 
     private final String dbValue;
 

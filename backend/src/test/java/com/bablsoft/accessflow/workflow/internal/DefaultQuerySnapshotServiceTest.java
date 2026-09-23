@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Column;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Schema;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.SchemaFingerprintService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryDetailView.AiAnalysisDetail;
@@ -38,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +51,7 @@ class DefaultQuerySnapshotServiceTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock QueryParser queryParser;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock SchemaFingerprintService schemaFingerprintService;
 
     private DefaultQuerySnapshotService service;
 
@@ -61,7 +64,11 @@ class DefaultQuerySnapshotServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultQuerySnapshotService(repository, queryRequestLookupService, queryParser,
-                datasourceAdminService, new SchemaHasher(), new ObjectMapper());
+                datasourceAdminService, schemaFingerprintService, new ObjectMapper());
+        // The fingerprint itself is pinned in DefaultSchemaFingerprintServiceTest; a core.internal
+        // instance must not be constructed from a workflow test.
+        lenient().when(schemaFingerprintService.fingerprint(any())).thenReturn(
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 
     private QueryRequestSnapshot snapshot() {
