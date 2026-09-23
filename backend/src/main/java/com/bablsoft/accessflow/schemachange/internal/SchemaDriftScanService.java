@@ -154,7 +154,7 @@ public class SchemaDriftScanService {
             outcome.reason = SchemaDriftScanReason.FK_COMPARISON_SUPPRESSED;
         }
         var scan = scanRepository.findById(scanId).orElseThrow();
-        outcome.openedCount = reconciler.reconcile(scan, ctx, result, clock.instant());
+        reconciler.reconcile(scan, ctx, result, clock.instant(), () -> outcome.openedCount++);
     }
 
     private DatabaseSchemaView introspectTarget(SchemaDriftScanContext ctx, ScanOutcome outcome) {

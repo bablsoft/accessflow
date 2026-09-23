@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -219,7 +220,7 @@ class SchemaDriftScanServiceTest {
 
         service().scan(ctx(DbType.POSTGRESQL, baseline));
 
-        verify(reconciler).reconcile(eq(scan), any(), any(), eq(NOW));
+        verify(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
         verify(scanStore).finish(scan.getId(), true, false, null);
     }
 
@@ -241,16 +242,40 @@ class SchemaDriftScanServiceTest {
         service().scan(ctx(DbType.POSTGRESQL));
 
         var captor = ArgumentCaptor.forClass(SchemaDriftDiffer.DiffResult.class);
-        verify(reconciler).reconcile(eq(scan), any(), captor.capture(), eq(NOW));
+        verify(reconciler).reconcile(eq(scan), any(), captor.capture(), eq(NOW), any());
         assertThat(captor.getValue().findings()).singleElement()
                 .satisfies(f -> assertThat(f.objectPath()).isEqualTo("public.orders.id"));
         assertThat(captor.getValue().reachedTableKeys()).isEqualTo(Set.of("public.orders"));
     }
 
+    private void stubOpened(int count) {
+        doAnswer(inv -> {
+            for (var i = 0; i < count; i++) {
+                inv.getArgument(4, Runnable.class).run();
+            }
+            return null;
+        }).when(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
+    }
+
+    /** #882: rows the reconciler committed before it failed are still new drift and still notify. */
+    @Test
+    void aReconcileThatFailsPartWayStillPublishesWhatItOpened() {
+        stubBaseline(BASELINE, TARGET);
+        doAnswer(inv -> {
+            inv.getArgument(4, Runnable.class).run();
+            throw new IllegalStateException("db down");
+        }).when(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verify(eventPublisher).publishEvent(new SchemaDriftDetectedEvent(scan.getId(), orgId, pipelineId,
+                environmentId, 1));
+    }
+
     @Test
     void aScanThatOpensFindingsPublishesOneDetectedEventWithTheCount() {
         stubBaseline(BASELINE, TARGET);
-        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(2);
+        stubOpened(2);
 
         service().scan(ctx(DbType.POSTGRESQL));
 
@@ -266,7 +291,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void aScanThatOpensNothingPublishesNothing() {
         stubBaseline(BASELINE, TARGET);
-        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(0);
+        stubOpened(0);
 
         service().scan(ctx(DbType.POSTGRESQL));
 
@@ -276,7 +301,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void aFailedPublicationNeverFailsTheScan() {
         stubBaseline(BASELINE, TARGET);
-        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(1);
+        stubOpened(1);
         doThrow(new IllegalStateException("bus down")).when(eventPublisher).publishEvent(any(Object.class));
 
         assertThatCode(() -> service().scan(ctx(DbType.POSTGRESQL))).doesNotThrowAnyException();
@@ -336,7 +361,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void aFailureInsideAccessFlowIsNotBlamedOnTheCustomerDatabase() {
         stubBaseline(BASELINE, TARGET);
-        doThrow(new IllegalStateException("db down")).when(reconciler).reconcile(any(), any(), any(), any());
+        doThrow(new IllegalStateException("db down")).when(reconciler).reconcile(any(), any(), any(), any(), any());
 
         var run = service().scan(ctx(DbType.POSTGRESQL));
 
@@ -347,7 +372,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void theAuditTailStillRunsWhenTheBodyThrew() {
         stubBaseline(BASELINE, TARGET);
-        doThrow(new IllegalStateException("boom")).when(reconciler).reconcile(any(), any(), any(), any());
+        doThrow(new IllegalStateException("boom")).when(reconciler).reconcile(any(), any(), any(), any(), any());
 
         service().scan(ctx(DbType.POSTGRESQL));
 

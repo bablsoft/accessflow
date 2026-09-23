@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
 import com.bablsoft.accessflow.core.api.ApproverRule;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -43,6 +45,7 @@ class DefaultSchemaChangeNotificationLookupServiceTest {
     @Mock private ReviewPlanLookupService reviewPlanLookupService;
     @Mock private ReviewerEligibilityService reviewerEligibilityService;
     @Mock private UserQueryService userQueryService;
+    @Mock private RolePermissionHolderLookupService permissionHolderLookupService;
 
     private DefaultSchemaChangeNotificationLookupService service;
 
@@ -56,7 +59,7 @@ class DefaultSchemaChangeNotificationLookupServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultSchemaChangeNotificationLookupService(promotionRepository, pipelineLookupService,
-                reviewPlanLookupService, reviewerEligibilityService, userQueryService);
+                reviewPlanLookupService, reviewerEligibilityService, userQueryService, permissionHolderLookupService);
         var changeSet = new SchemaChangeSetEntity();
         changeSet.setId(UUID.randomUUID());
         changeSet.setOrganizationId(orgId);
@@ -109,14 +112,15 @@ class DefaultSchemaChangeNotificationLookupServiceTest {
     }
 
     @Test
-    void reviewersAreStageOneApproversAndDatasourceReviewersWithoutThePromoter() {
+    void reviewersAreEveryStagesApproversAndDatasourceReviewersWithoutThePromoter() {
         var directId = UUID.randomUUID();
+        var laterStage = UUID.randomUUID();
         var roleHolder = UUID.randomUUID();
         var assigned = UUID.randomUUID();
         when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.of(plan(List.of(
                 new ApproverRule(directId, null, 1),
                 new ApproverRule(null, "DBA", 1),
-                new ApproverRule(UUID.randomUUID(), null, 2),
+                new ApproverRule(laterStage, null, 2),
                 new ApproverRule(promoterId, null, 1)))));
         when(userQueryService.findByOrganizationAndRoleName(orgId, "DBA"))
                 .thenReturn(List.of(user(roleHolder), user(promoterId)));
@@ -124,27 +128,26 @@ class DefaultSchemaChangeNotificationLookupServiceTest {
                 .thenReturn(Optional.of(Set.of(assigned)));
 
         assertThat(service.findEligibleReviewerUserIds(promotion.getId()))
-                .containsExactlyInAnyOrder(directId, roleHolder, assigned);
-        verify(userQueryService, never()).findByOrganizationAndRole(any(), any());
+                .containsExactlyInAnyOrder(directId, roleHolder, laterStage, assigned);
+        // A group has one approval stage: a stage-2 rule can approve it, so it must be told.
+        verify(permissionHolderLookupService, never()).findUserIdsWithPermission(any(), any());
     }
 
     @Test
-    void reviewersFallBackToReviewerAndAdminRolesWhenNothingNamesAnyone() {
-        var reviewer = UUID.randomUUID();
-        var admin = UUID.randomUUID();
+    void reviewersFallBackToReviewOverrideHoldersWhenNothingNamesAnyone() {
+        var overrider = UUID.randomUUID();
         when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
-        when(userQueryService.findByOrganizationAndRole(orgId, UserRoleType.REVIEWER))
-                .thenReturn(List.of(user(reviewer)));
-        when(userQueryService.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
-                .thenReturn(List.of(user(admin), user(promoterId)));
+        when(permissionHolderLookupService.findUserIdsWithPermission(orgId, Permission.REVIEW_OVERRIDE))
+                .thenReturn(List.of(overrider, promoterId));
 
-        assertThat(service.findEligibleReviewerUserIds(promotion.getId())).containsExactly(reviewer, admin);
+        // Only REVIEW_OVERRIDE holders can act on a group no rule names anyone for.
+        assertThat(service.findEligibleReviewerUserIds(promotion.getId())).containsExactly(overrider);
     }
 
     @Test
     void aPlanWithNullApproversAlsoFallsBack() {
         when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.of(plan(null)));
-        when(userQueryService.findByOrganizationAndRole(any(), any())).thenReturn(List.of());
+        when(permissionHolderLookupService.findUserIdsWithPermission(any(), any())).thenReturn(List.of());
 
         assertThat(service.findEligibleReviewerUserIds(promotion.getId())).isEmpty();
     }

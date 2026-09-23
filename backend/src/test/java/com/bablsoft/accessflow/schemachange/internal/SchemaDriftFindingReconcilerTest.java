@@ -31,6 +31,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SchemaDriftFindingReconcilerTest {
 
+    private final java.util.concurrent.atomic.AtomicInteger opened = new java.util.concurrent.atomic.AtomicInteger();
+
     private static final Instant NOW = Instant.parse("2026-09-22T10:00:00Z");
     private static final Instant EARLIER = Instant.parse("2026-09-01T10:00:00Z");
     private static final String PATH = "public.orders.email";
@@ -101,11 +103,11 @@ class SchemaDriftFindingReconcilerTest {
                         any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
-        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
-                Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+                Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         // #882: a created row is new drift — it is what SCHEMA_DRIFT_DETECTED counts.
-        assertThat(opened).isEqualTo(1);
+        assertThat(opened.get()).isEqualTo(1);
         var captor = org.mockito.ArgumentCaptor.forClass(SchemaDriftFindingEntity.class);
         verify(findingRepository).save(captor.capture());
         assertThat(captor.getValue()).satisfies(saved -> {
@@ -124,11 +126,11 @@ class SchemaDriftFindingReconcilerTest {
         var open = existing(SchemaDriftFindingStatus.OPEN, "text", "int4");
         stubActive(open);
 
-        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
-                Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
+                Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         // #882: a finding merely re-seen is never new drift, or a persistent one alerts every scan.
-        assertThat(opened).isZero();
+        assertThat(opened.get()).isZero();
         assertThat(open.getScan()).isSameAs(scan);
         assertThat(open.getLastSeenAt()).isEqualTo(NOW);
         assertThat(open.getFirstDetectedAt()).isEqualTo(EARLIER);
@@ -140,10 +142,11 @@ class SchemaDriftFindingReconcilerTest {
         var acknowledged = existing(SchemaDriftFindingStatus.ACKNOWLEDGED, "text", "int4");
         stubActive(acknowledged);
 
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")), Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")), Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(acknowledged.getStatus()).isEqualTo(SchemaDriftFindingStatus.ACKNOWLEDGED);
         assertThat(acknowledged.getLastSeenAt()).isEqualTo(NOW);
+        assertThat(opened.get()).isZero();
     }
 
     @Test
@@ -152,7 +155,7 @@ class SchemaDriftFindingReconcilerTest {
         stubActive(acknowledged);
 
         // A driver that starts reporting INT4 where it reported int4 is not a new difference.
-        reconciler.reconcile(scan, ctx, result(List.of(finding("TEXT", "INT4")), Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("TEXT", "INT4")), Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(acknowledged.getStatus()).isEqualTo(SchemaDriftFindingStatus.ACKNOWLEDGED);
     }
@@ -163,12 +166,12 @@ class SchemaDriftFindingReconcilerTest {
         stubActive(acknowledged);
 
         // The admin accepted varchar-vs-text, not text-vs-bigint.
-        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
-                Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
+                Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(acknowledged.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
-        // #882: a re-detection of a known finding, not new drift — it does not notify.
-        assertThat(opened).isZero();
+        // #882: an acknowledgement accepted the old difference, not this one — it is new drift.
+        assertThat(opened.get()).isEqualTo(1);
         assertThat(acknowledged.getActualValue()).isEqualTo("int8");
     }
 
@@ -182,12 +185,12 @@ class SchemaDriftFindingReconcilerTest {
                         eq(orgId), eq(environmentId), eq(PATH), eq(SchemaDriftFindingKind.TYPE_MISMATCH)))
                 .thenReturn(Optional.of(resolved));
 
-        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
-                Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+                Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(resolved.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
         // #882: a drift that had gone away and came back is a new episode — it counts.
-        assertThat(opened).isEqualTo(1);
+        assertThat(opened.get()).isEqualTo(1);
         assertThat(resolved.getResolvedAt()).isNull();
         // "First ever observed" is what makes a flapping object visible; resetting it would hide it.
         assertThat(resolved.getFirstDetectedAt()).isEqualTo(EARLIER);
@@ -202,7 +205,7 @@ class SchemaDriftFindingReconcilerTest {
         var previousScan = open.getScan();
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
         assertThat(open.getResolvedAt()).isEqualTo(NOW);
@@ -216,7 +219,7 @@ class SchemaDriftFindingReconcilerTest {
         var acknowledged = existing(SchemaDriftFindingStatus.ACKNOWLEDGED, "text", "int4");
         stubActive(acknowledged);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         assertThat(acknowledged.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -229,7 +232,7 @@ class SchemaDriftFindingReconcilerTest {
         // The table cap or the time budget skipped public.orders: "we did not look" is not "it is
         // fixed".
         reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.invoices"),
-                Set.of("public.orders", "public.invoices")), NOW);
+                Set.of("public.orders", "public.invoices")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
         assertThat(open.getResolvedAt()).isNull();
@@ -244,7 +247,7 @@ class SchemaDriftFindingReconcilerTest {
         stubActive(open);
 
         // The schema-set comparison is O(1) and always completes, so it needs no reached table.
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of()), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of()), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -256,7 +259,7 @@ class SchemaDriftFindingReconcilerTest {
         open.setFindingKind(SchemaDriftFindingKind.MISSING_IN_TARGET);
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.archive")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("public.archive")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -268,7 +271,7 @@ class SchemaDriftFindingReconcilerTest {
 
         var incomplete = new SchemaDriftDiffer.DiffResult(List.of(), Set.of("public.orders"),
                 Set.of("public.orders"), false, false, true);
-        reconciler.reconcile(scan, ctx, incomplete, NOW);
+        reconciler.reconcile(scan, ctx, incomplete, NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
     }
@@ -283,7 +286,7 @@ class SchemaDriftFindingReconcilerTest {
         open.setObjectPath("default.orders.customer.id");
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("default.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("default.orders")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -295,7 +298,7 @@ class SchemaDriftFindingReconcilerTest {
         open.setFindingKind(SchemaDriftFindingKind.MISSING_IN_TARGET);
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("default.logs-2026.09.23")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of("default.logs-2026.09.23")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -309,7 +312,7 @@ class SchemaDriftFindingReconcilerTest {
         stubActive(open);
 
         reconciler.reconcile(scan, ctx, result(List.of(), Set.of("default.orders"),
-                Set.of("default.orders", "default.orders.archive")), NOW);
+                Set.of("default.orders", "default.orders.archive")), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
     }
@@ -321,7 +324,7 @@ class SchemaDriftFindingReconcilerTest {
         var open = existing(SchemaDriftFindingStatus.OPEN, "text", "int4");
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(), Set.of(), Set.of()), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(), Set.of(), Set.of()), NOW, opened::incrementAndGet);
 
         assertThat(open.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
     }
@@ -339,7 +342,7 @@ class SchemaDriftFindingReconcilerTest {
         // "We did not look" must not become "it is fixed" — and must not lose the acknowledgement.
         var suppressed = new SchemaDriftDiffer.DiffResult(List.of(), Set.of("public.orders"),
                 Set.of("public.orders"), true, true, false);
-        reconciler.reconcile(scan, ctx, suppressed, NOW);
+        reconciler.reconcile(scan, ctx, suppressed, NOW, opened::incrementAndGet);
 
         assertThat(fk.getStatus()).isEqualTo(SchemaDriftFindingStatus.ACKNOWLEDGED);
         assertThat(type.getStatus()).isEqualTo(SchemaDriftFindingStatus.RESOLVED);
@@ -356,7 +359,7 @@ class SchemaDriftFindingReconcilerTest {
                         SchemaDriftFindingEntity.class, open.getId()));
 
         org.assertj.core.api.Assertions.assertThatCode(() -> reconciler.reconcile(scan, ctx,
-                        result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW))
+                        result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW, opened::incrementAndGet))
                 .doesNotThrowAnyException();
     }
 
@@ -368,7 +371,7 @@ class SchemaDriftFindingReconcilerTest {
                 .thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException(
                         SchemaDriftFindingEntity.class, open.getId()));
 
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW);
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW, opened::incrementAndGet);
 
         // Saved once (the refresh, which lost); never a second save marking it resolved.
         verify(findingRepository).save(open);
@@ -387,7 +390,8 @@ class SchemaDriftFindingReconcilerTest {
                 .thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException(
                         SchemaDriftFindingEntity.class, resolved.getId()));
 
-        assertThat(reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
-                Set.of("public.orders")), NOW)).isZero();
+        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+                Set.of("public.orders")), NOW, opened::incrementAndGet);
+        assertThat(opened.get()).isZero();
     }
 }

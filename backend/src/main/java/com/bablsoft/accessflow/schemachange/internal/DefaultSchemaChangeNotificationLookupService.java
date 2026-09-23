@@ -1,10 +1,11 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
 import com.bablsoft.accessflow.core.api.ApproverRule;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineLookupService;
@@ -25,20 +26,20 @@ import java.util.UUID;
 /**
  * Sibling of deploygov's {@code DefaultDeploymentNotificationLookupService} (#882). The reviewer set
  * mirrors requestgroups' {@code GroupReviewPlanResolver} for a single-datasource group — the target
- * datasource's plan approvers plus its reviewer assignments — restricted to stage 1, the stage a
- * promotion entering review is blocked on.
+ * datasource's plan approvers (a group has one approval stage, so every stage's rules count) plus
+ * its reviewer assignments. When nobody is named, only {@code REVIEW_OVERRIDE} holders can act on
+ * the group, so they — not the REVIEWER role — are the fallback.
  */
 @Service
 @RequiredArgsConstructor
 class DefaultSchemaChangeNotificationLookupService implements SchemaChangeNotificationLookupService {
-
-    private static final int STAGE = 1;
 
     private final SchemaChangeSetPromotionRepository promotionRepository;
     private final DeploymentPipelineLookupService pipelineLookupService;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final ReviewerEligibilityService reviewerEligibilityService;
     private final UserQueryService userQueryService;
+    private final RolePermissionHolderLookupService permissionHolderLookupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -69,8 +70,6 @@ class DefaultSchemaChangeNotificationLookupService implements SchemaChangeNotifi
         reviewPlanLookupService.findForDatasource(promotion.getDatasourceId())
                 .map(plan -> plan.approvers() == null ? List.<ApproverRule>of() : plan.approvers())
                 .orElse(List.of())
-                .stream()
-                .filter(rule -> rule.stage() == STAGE)
                 .forEach(rule -> {
                     if (rule.userId() != null) {
                         eligible.add(rule.userId());
@@ -82,10 +81,8 @@ class DefaultSchemaChangeNotificationLookupService implements SchemaChangeNotifi
         reviewerEligibilityService.findEligibleReviewerIds(promotion.getDatasourceId())
                 .ifPresent(eligible::addAll);
         if (eligible.isEmpty()) {
-            for (var role : List.of(UserRoleType.REVIEWER, UserRoleType.ADMIN)) {
-                userQueryService.findByOrganizationAndRole(organizationId, role)
-                        .stream().map(UserView::id).forEach(eligible::add);
-            }
+            eligible.addAll(permissionHolderLookupService.findUserIdsWithPermission(organizationId,
+                    Permission.REVIEW_OVERRIDE));
         }
         eligible.remove(promotion.getPromotedBy());
         return List.copyOf(eligible);

@@ -115,8 +115,7 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
         entity.setStatementsChecksum(checksumOf(validated));
         var saved = saveChangeSet(entity);
         var rows = insertStatements(saved, validated);
-        var metadata = baseMetadata(saved);
-        metadata.put("statement_count", rows.size());
+        var metadata = statementMetadata(saved, rows.size());
         audit(AuditAction.SCHEMA_CHANGE_SET_CREATED, saved, actorId, metadata);
         return toView(saved, rows, validated.warnings());
     }
@@ -172,11 +171,7 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
         var rows = insertStatements(entity, validated);
         entity.setStatementsChecksum(checksumOf(validated));
         var saved = changeSetRepository.saveAndFlush(entity);
-        var metadata = baseMetadata(saved);
-        metadata.put("statement_count", rows.size());
-        if (saved.getStatementsChecksum() != null) {
-            metadata.put("statements_checksum", saved.getStatementsChecksum());
-        }
+        var metadata = statementMetadata(saved, rows.size());
         audit(AuditAction.SCHEMA_CHANGE_SET_STATEMENTS_REPLACED, saved, actorId, metadata);
         return toView(saved, rows, validated.warnings());
     }
@@ -197,6 +192,15 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
         var metadata = new HashMap<String, Object>();
         metadata.put("pipeline_id", entity.getPipelineId().toString());
         metadata.put("name", entity.getName());
+        return metadata;
+    }
+
+    private static Map<String, Object> statementMetadata(SchemaChangeSetEntity entity, int statementCount) {
+        var metadata = baseMetadata(entity);
+        metadata.put("statement_count", statementCount);
+        if (entity.getStatementsChecksum() != null) {
+            metadata.put("statements_checksum", entity.getStatementsChecksum());
+        }
         return metadata;
     }
 

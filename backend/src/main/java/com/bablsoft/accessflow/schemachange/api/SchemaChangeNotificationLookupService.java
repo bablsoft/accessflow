@@ -17,10 +17,11 @@ public interface SchemaChangeNotificationLookupService {
 
     /**
      * The users to alert that the promotion awaits review. The promotion's request group is
-     * reviewed under the target datasource's plan, so this mirrors the group's own approver set:
-     * the plan's stage-1 approver rules (user ids, plus holders of a named role) unioned with the
-     * datasource's reviewer assignments, falling back to the REVIEWER and ADMIN system-role holders
-     * when neither names anyone. The promoter is always excluded.
+     * reviewed under the target datasource's plan with a single approval stage, so this mirrors
+     * the group's own approver set: every approver rule of the plan (user ids, plus holders of a
+     * named role) unioned with the datasource's reviewer assignments, falling back to the
+     * {@code REVIEW_OVERRIDE} holders — the only users who can act on a group nobody is named for.
+     * The promoter is always excluded.
      */
     List<UUID> findEligibleReviewerUserIds(UUID promotionId);
 

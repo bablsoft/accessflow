@@ -29,7 +29,8 @@ import java.util.UUID;
  *
  * <p>Every successful write records an audit row carrying {@code actorId} (#882) —
  * {@code SCHEMA_CHANGE_SET_CREATED}, {@code _UPDATED}, {@code _STATEMENTS_REPLACED},
- * {@code _DELETED} — in the same transaction as the change.
+ * {@code _DELETED} — after the change is flushed. The row is written on the audit datasource and
+ * is best-effort: it commits on its own, and a failed write never fails the change.
  */
 public interface SchemaChangeSetService {
 

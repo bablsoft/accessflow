@@ -136,7 +136,8 @@ class DefaultSchemaChangeSetServiceTest {
         });
         var metadata = auditMetadata(AuditAction.SCHEMA_CHANGE_SET_CREATED, view.id());
         assertThat(metadata).containsEntry("name", "cs").containsEntry("statement_count", 2)
-                .containsEntry("pipeline_id", pipelineId.toString());
+                .containsEntry("pipeline_id", pipelineId.toString())
+                .containsEntry("statements_checksum", SchemaChangeChecksum.of(List.of(CREATE, ALTER)));
     }
 
     @Test

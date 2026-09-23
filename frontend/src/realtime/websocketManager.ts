@@ -217,6 +217,10 @@ class WebSocketManager {
           // Same shape for API requests (#772): there is no reviewer-side WS event, so the
           // unified queue's API tab and its badge count refresh off the notification.
           this.queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
+        } else if (eventType === 'SCHEMA_CHANGE_PROMOTION_SUBMITTED') {
+          // A promotion is reviewed as a request group (#882); its group WS event reaches only the
+          // promoter, so the reviewer's group queue refreshes off the notification.
+          this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'reviews'] });
         }
         break;
       }

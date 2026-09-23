@@ -677,16 +677,19 @@ through `schemachange.api.SchemaChangeNotificationLookupService`; the dependency
 
 | Event | Fires on | Recipients |
 |---|---|---|
-| `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | `PENDING → IN_REVIEW` — the group reached `PENDING_REVIEW`. **Not** on submission: a promotion whose environment needs no review pings nobody. | The target datasource's stage-1 plan approvers ∪ its reviewer assignments (the set the group is actually reviewed under), else REVIEWER ∪ ADMIN; never the promoter |
+| `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | `PENDING → IN_REVIEW` — the group reached `PENDING_REVIEW`. **Not** on submission: a promotion whose environment needs no review pings nobody. | Every approver rule of the target datasource's plan ∪ its reviewer assignments (the set the group is actually reviewed under — a group has one approval stage), else `REVIEW_OVERRIDE` holders; never the promoter |
 | `SCHEMA_CHANGE_PROMOTION_APPLIED` | `APPLIED` | The promoter |
 | `SCHEMA_CHANGE_PROMOTION_FAILED` | `FAILED` **or** `PARTIALLY_APPLIED` — the run stops on the first failure, so a partial run means a statement failed. The payload's `promotion_status` says which, and the copy differs: a partial run changed the environment and nothing rolls it back. | The promoter |
 | `SCHEMA_DRIFT_DETECTED` | A scan **opened** at least one finding — a created row, or a `RESOLVED` finding that came back. One notification per environment scan, with the count. | Every active `SCHEMA_CHANGE_MANAGE` holder (system and custom roles) |
 
-**Newly opened only.** A finding merely re-seen on a later scan never notifies, and neither does an
-acknowledged finding reopened because its values changed — a re-detection of something already
-known. Otherwise a persistent drift would alert on every scan. The reconciler returns the count it
-opened (a reopen that loses the `@Version` race to an acknowledgement is not counted), and the scan
-publishes nothing when it is zero. The count is also on the scan's audit row as
+**Newly opened only.** A finding merely re-seen on a later scan while already open never notifies —
+otherwise a persistent drift would alert on every scan. What does count is every transition *into*
+`OPEN`: a created finding, a `RESOLVED` one that came back, and an `ACKNOWLEDGED` one whose values
+changed (the acknowledgement accepted the old difference, not the new one). Each happens once, so
+none repeats. The reconciler reports each opening through a callback as the row is committed — a
+reopen that loses the `@Version` race to an acknowledgement is not counted, and a reconcile that
+fails part-way still reports the rows it had already written — and the scan publishes nothing when
+the count is zero. The count is also on the scan's audit row as
 `new_findings_count`.
 
 All four fan out to **every** active org channel, like the deployment events: the context carries
@@ -695,8 +698,10 @@ nothing. **None pages and none opens a ticket** — a promotion's lifecycle is n
 drift finding carries no severity that could separate a critical divergence from a cosmetic one.
 The in-app row records the promotion in `user_notifications.schema_change_promotion_id` (V182); a
 drift row names no target. The bell sends a reviewer to `/request-groups/reviews` (where the
-promotion's group is decided) and the promoter to `/request-groups`; drift has no page until the web
-UI (#883) lands.
+promotion's group is decided) and the promoter to `/request-groups`, and the emails link to the same
+places; drift has no page until the web UI (#883) lands. The V182 foreign key cascades, so deleting a
+change set (possible once every promotion is `FAILED` or `CANCELLED`) also clears those promotions'
+notifications from the bell — the V155 precedent for deployments.
 
 The promoter also receives `schema_change_promotion.status_changed` over the WebSocket on every
 transition, including submission (`old_status: null`).

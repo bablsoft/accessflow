@@ -577,7 +577,8 @@ class NotificationContextBuilder {
      * Builds the context for a schema-change promotion notification (#882). Not query-backed: the
      * pipeline rides in {@code datasourceId}/{@code datasourceName}, the environment in
      * {@code environmentName} and the promoter in {@code submittedByUserId}. {@code reviewUrl}
-     * stays null: there is no schema-change UI yet.
+     * points where the promotion is acted on — the request-group review queue for SUBMITTED, the
+     * promoter's request groups otherwise — the same targets as the in-app bell.
      */
     Optional<NotificationContext> buildSchemaChangePromotion(NotificationEventType eventType,
                                                              UUID promotionId) {
@@ -602,7 +603,8 @@ class NotificationContextBuilder {
                 promoter != null ? promoter.displayName() : null,
                 null,
                 null, null, null,
-                null,
+                buildAppUrl(eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED
+                        ? "/request-groups/reviews" : "/request-groups"),
                 recipients,
                 Instant.now(),
                 locale,
@@ -691,6 +693,12 @@ class NotificationContextBuilder {
                 .filter(UserView::active)
                 .map(NotificationContextBuilder::toRecipient)
                 .toList();
+    }
+
+    private URI buildAppUrl(String path) {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + path);
     }
 
     private URI buildApiRequestUrl(UUID apiRequestId) {

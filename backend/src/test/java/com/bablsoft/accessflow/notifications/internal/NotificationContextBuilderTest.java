@@ -725,7 +725,8 @@ class NotificationContextBuilderTest {
         assertThat(ctx.schemaChangeStatus()).isEqualTo("PARTIALLY_APPLIED");
         assertThat(ctx.schemaChangeErrorMessage()).isEqualTo("boom");
         assertThat(ctx.submitterEmail()).isEqualTo("dba@example.com");
-        assertThat(ctx.reviewUrl()).isNull();
+        // The email links where the bell does: the group review queue the promotion is decided on.
+        assertThat(ctx.reviewUrl()).hasToString("https://app.example.test/request-groups/reviews");
         assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(reviewer.id());
     }
 
@@ -740,8 +741,9 @@ class NotificationContextBuilderTest {
 
         for (var type : List.of(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
                 NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED)) {
-            assertThat(builder.buildSchemaChangePromotion(type, promotionId).orElseThrow().recipients())
-                    .extracting(RecipientView::userId).containsExactly(promoterId);
+            var ctx = builder.buildSchemaChangePromotion(type, promotionId).orElseThrow();
+            assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(promoterId);
+            assertThat(ctx.reviewUrl()).hasToString("https://app.example.test/request-groups");
         }
     }
 

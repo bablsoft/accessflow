@@ -4979,8 +4979,10 @@ section records the engineering rules of the **authoring half (#879)** and the *
 transaction) and `SchemaDriftDetectedEvent` as `@Async @TransactionalEventListener(AFTER_COMMIT,
 fallbackExecution = true)` — the drift scan publishes with no transaction, where a plain after-commit
 listener would never run. `SchemaDriftScanService` publishes that event only when
-`SchemaDriftFindingReconciler.reconcile` reports it **opened** findings (created, or reopened from
-`RESOLVED`); a re-seen finding is never counted, so a persistent drift does not alert every scan.
+`SchemaDriftFindingReconciler.reconcile` reports it **opened** findings through a callback — any
+transition into `OPEN` (created, reopened from `RESOLVED`, or an `ACKNOWLEDGED` finding whose values
+changed), counted as each row commits so a part-way failure still reports them; a finding re-seen
+while already open is never counted, so a persistent drift does not alert every scan.
 Recipients come from `schemachange.api.SchemaChangeNotificationLookupService` and
 `core.api.RolePermissionHolderLookupService` (`SCHEMA_CHANGE_MANAGE` for drift). The four event types
 fan out org-wide, never page and never ticket — see
