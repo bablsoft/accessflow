@@ -586,7 +586,9 @@
             someone to the group gives them access without a new grant. When a user has both a direct
             grant and one or more group grants, their <strong>effective access is the most-permissive
             union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
-            only where every grant restricts, and each grant's expiry is honoured independently.
+            only where every grant restricts, and each grant's expiry is honoured independently. The
+            one exception is the row limit override: the smallest one wins, and it can only lower the
+            datasource's cap, never raise it.
           </p>
           <h3 id="cfg-access-requests">Just-in-time (JIT) access requests</h3>
           <p>

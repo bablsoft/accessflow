@@ -424,7 +424,7 @@
             <li><strong>Row limit override</strong> — a tighter cap than the datasource's default
               for this person. It can only lower the limit, never raise it. If someone holds
               several grants on the same datasource (their own and their groups'), the smallest
-              override wins, so a group grant can't loosen a tighter personal cap.</li>
+              override wins, so no grant can loosen a tighter cap set by another.</li>
             <li><strong>Allowed schemas</strong> and <strong>Allowed tables</strong> — leave empty
               for everything, or narrow it. Submitting a query that touches anything outside the
               list is refused.</li>
@@ -434,7 +434,8 @@
           </ul>
           <p>
             Where someone has both a direct grant and one through a group, the effective result is
-            the most permissive combination of the two.
+            the most permissive combination of the two, with one exception: the row limit, where
+            the smallest override wins.
           </p>
           <div class="docs-callout warn">
             <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>

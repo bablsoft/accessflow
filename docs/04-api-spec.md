@@ -582,7 +582,7 @@ Returns a bounded sample of rows for a single table/collection (AF-443), execute
 |-------|----------|-------------|
 | `table` | yes | Table / collection / index / node-label / key-prefix name, validated against introspection (an allow-list). |
 | `schema` | no | Schema / namespace qualifier. Omit for engines without a schema concept. |
-| `limit` | no | Requested row count, `1`–`200` (default `50`); further clamped by the configured proxy row cap. |
+| `limit` | no | Requested row count, `1`–`200` (default `50`); further clamped by the caller's effective `row_limit_override` (#933), the datasource cap, and the configured proxy row cap. |
 
 ```
 GET /api/v1/datasources/{id}/sample-rows?schema=public&table=users&limit=50
