@@ -25,7 +25,7 @@
         <shedlock.version>7.10.1</shedlock.version>
         <slack.sdk.version>1.51.0</slack.sdk.version>
         <springdoc.version>3.1.1</springdoc.version>
-        <jsqlparser.version>5.3</jsqlparser.version>
+        <jsqlparser.version>5.4</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <archiunit.version>1.5.0</archiunit.version>
