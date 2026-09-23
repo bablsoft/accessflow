@@ -5,6 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.scheduling.config.ScheduledTask;
+import org.springframework.scheduling.config.ScheduledTaskHolder;
+
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -47,4 +51,24 @@ class EagerContextStartupIntegrationTest {
                 .isGreaterThanOrEqualTo(applicationContext.getBeanDefinitionCount());
     }
 
+    /**
+     * {@code accessflow.scheduling.enabled=false} (set suite-wide) must leave nothing scheduled.
+     *
+     * <p>Only an eager context can prove it: under lazy initialization the job beans are never
+     * constructed, so no {@code ScheduledAnnotationBeanPostProcessor} ever sees them. Any other
+     * {@code @EnableScheduling} on the classpath re-arms every job regardless of our switch —
+     * Spring Modulith Moments' auto-configuration did exactly that until
+     * {@code spring.modulith.moments.enabled=false} was set in {@code application.yml}.
+     */
+    @Test
+    void nothingIsScheduledWhenSchedulingIsDisabled() {
+        var scheduled = applicationContext.getBeansOfType(ScheduledTaskHolder.class).values().stream()
+                .flatMap(holder -> holder.getScheduledTasks().stream())
+                .map(ScheduledTask::toString)
+                .collect(Collectors.toList());
+
+        assertThat(scheduled)
+                .as("a second @EnableScheduling bypasses accessflow.scheduling.enabled=false")
+                .isEmpty();
+    }
 }

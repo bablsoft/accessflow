@@ -13,6 +13,12 @@ spring:
       - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
       - org.springframework.ai.vectorstore.qdrant.autoconfigure.QdrantVectorStoreAutoConfiguration
 
+  modulith:
+    moments:
+      # Moments is unused, and its auto-configuration carries its own @EnableScheduling, which
+      # would schedule every @Scheduled job even with accessflow.scheduling.enabled=false.
+      enabled: false
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/accessflow}
     username: ${DB_USER:accessflow}
