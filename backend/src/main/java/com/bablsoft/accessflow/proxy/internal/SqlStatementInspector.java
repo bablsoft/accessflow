@@ -4,8 +4,12 @@ import net.sf.jsqlparser.expression.AnalyticExpression;
 import net.sf.jsqlparser.expression.ArrayExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.JsonExpression;
 import net.sf.jsqlparser.expression.JsonTableFunction;
+import net.sf.jsqlparser.expression.KeepExpression;
+import net.sf.jsqlparser.expression.MySQLGroupConcat;
 import net.sf.jsqlparser.expression.XmlTableFunction;
+import net.sf.jsqlparser.expression.operators.relational.IsUnknownExpression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
@@ -45,8 +49,8 @@ import java.util.function.Supplier;
  * declaring statement is not recognised hides nothing: counting a name as a table fails closed.
  * The walk also descends into expressions the finder skips — window {@code PARTITION BY}, a
  * function call's aggregate {@code ORDER BY} / {@code LIMIT} / {@code HAVING} / keyword and named
- * arguments, array subscripts, {@code TOP}, and {@code XMLTABLE} / {@code JSON_TABLE} used as a
- * FROM item.
+ * arguments, JSON path segments ({@code a:(SELECT …)}), Oracle {@code KEEP}, MySQL {@code GROUP_CONCAT}, {@code IS UNKNOWN}, array subscripts
+ * and slices, {@code TOP}, and {@code XMLTABLE} / {@code JSON_TABLE} used as a FROM item.
  */
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
@@ -223,10 +227,39 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(ArrayExpression array, S context) {
-        super.visit(array, context);
-        if (array.getStartIndexExpression() == null) {
-            accept(array.getIndexExpression(), context);
+        // Not delegated: the finder visits the index only for a slice, where it is null.
+        accept(array.getObjExpression(), context);
+        accept(array.getIndexExpression(), context);
+        accept(array.getStartIndexExpression(), context);
+        accept(array.getStopIndexExpression(), context);
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(JsonExpression json, S context) {
+        super.visit(json, context);
+        if (json.getIdents() != null) {
+            json.getIdents().forEach(ident -> accept(ident, context));
         }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(KeepExpression keep, S context) {
+        acceptOrderBy(keep.getOrderByElements(), context);
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(MySQLGroupConcat groupConcat, S context) {
+        accept(groupConcat.getExpressionList(), context);
+        acceptOrderBy(groupConcat.getOrderByElements(), context);
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(IsUnknownExpression isUnknown, S context) {
+        accept(isUnknown.getLeftExpression(), context);
         return null;
     }
 
@@ -248,11 +281,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                 accept(argument.getExpression(), context);
             }
         }
-        if (function.getOrderByElements() != null) {
-            for (OrderByElement element : function.getOrderByElements()) {
-                accept(element.getExpression(), context);
-            }
-        }
+        acceptOrderBy(function.getOrderByElements(), context);
         if (function.getLimit() != null) {
             accept(function.getLimit().getRowCount(), context);
             accept(function.getLimit().getOffset(), context);
@@ -261,6 +290,14 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
             accept(function.getHavingClause().getExpression(), context);
         }
         return null;
+    }
+
+    private <S> void acceptOrderBy(List<OrderByElement> elements, S context) {
+        if (elements != null) {
+            for (OrderByElement element : elements) {
+                accept(element.getExpression(), context);
+            }
+        }
     }
 
     private <S> void accept(Expression expression, S context) {

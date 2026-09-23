@@ -151,4 +151,28 @@ class SqlStatementInspectorTest {
                 new net.sf.jsqlparser.schema.Column(new net.sf.jsqlparser.schema.Table("orders"), "id")))
                 .containsExactly("orders");
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "SELECT ARRAY_AGG(a LIMIT (SELECT count(*) FROM secret)) FROM t",
+            "SELECT ANY_VALUE(a HAVING MAX (SELECT s FROM secret LIMIT 1)) FROM t",
+            "SELECT max(a) KEEP (DENSE_RANK FIRST ORDER BY (SELECT 1 FROM secret)) FROM t",
+            "SELECT GROUP_CONCAT(DISTINCT a ORDER BY (SELECT s FROM secret LIMIT 1) SEPARATOR ',') FROM t",
+            "SELECT * FROM t WHERE ((SELECT s FROM secret LIMIT 1) = 1) IS UNKNOWN",
+            "SELECT (ARRAY[1,2])[1:(SELECT count(*) FROM secret)] FROM t",
+            "SELECT (ARRAY[1,2])[(SELECT 1 FROM secret):2] FROM t",
+            "SELECT substring(a FROM (SELECT 1 FROM secret) FOR 2) FROM t"
+    })
+    void descendsIntoPositionsTheUpstreamFinderSkips(String sql) {
+        assertThat(SqlStatementInspector.inspect(parse(sql)).tables())
+                .containsExactlyInAnyOrder("t", "secret");
+    }
+
+    @Test
+    void mergeWithCteHidesTheCteName() {
+        assertThat(SqlStatementInspector.inspect(parse(
+                "WITH a AS (SELECT 1) MERGE INTO t USING a ON (t.id = a.id) "
+                        + "WHEN MATCHED THEN UPDATE SET t.x = 1")).tables())
+                .containsExactly("t");
+    }
 }
