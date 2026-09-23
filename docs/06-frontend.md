@@ -829,7 +829,11 @@ child key), list, and review queue. Reviewer queues refresh off `notification.cr
 `DEPLOYMENT_SUBMITTED` notification additionally invalidates the review queue and a
 `DEPLOYMENT_OUTCOME_FAILED` one the rollback-review list. `NotificationBell` routes deployment
 notifications into the pages (submission → the hub's Deployments tab, outcome-failed → its
-Rollbacks tab, the rest → the deployment detail). The version caches are **not** WebSocket-invalidated — there is no
+Rollbacks tab, the rest → the deployment detail). Schema-change promotions (#882) are reviewed and
+run as request groups, so their notifications route into those pages instead — a
+`SCHEMA_CHANGE_PROMOTION_SUBMITTED` notification to `/request-groups/reviews` (and it invalidates
+`['request-groups', 'reviews']`), `_APPLIED` / `_FAILED` to the promoter's `/request-groups`, and
+`SCHEMA_DRIFT_DETECTED` nowhere until the schema-change UI (#883) exists. The version caches are **not** WebSocket-invalidated — there is no
 `deployment.version_changed` event — so they refresh on mount and whenever an environment mutation
 drops `deploymentVersionKeys.matrix(pipelineId)` and `.lists()` (name, tags and sort order all
 appear in matrix rows). Navigation: Workflow → **Deployments** `Deployments` (on `QUERY_SUBMIT_SELECT`, like

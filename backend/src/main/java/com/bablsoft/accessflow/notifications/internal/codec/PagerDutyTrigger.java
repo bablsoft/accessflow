@@ -24,7 +24,10 @@ import java.util.Set;
  * policy raises the approval bar). {@code REVIEW_NUDGE} deliberately has no trigger: a reminder
  * is not an incident and must never page. The other deployment events
  * ({@code DEPLOYMENT_SUBMITTED}/{@code _APPROVED}/{@code _REJECTED}/{@code _OUTCOME_FAILED})
- * deliberately have no trigger either — routine lifecycle progress is not an incident.
+ * deliberately have no trigger either — routine lifecycle progress is not an incident. Nor do the
+ * schema-change events ({@code SCHEMA_CHANGE_PROMOTION_*}, {@code SCHEMA_DRIFT_DETECTED}, #882):
+ * a promotion's lifecycle is not an incident, and a drift finding carries no severity that could
+ * tell a critical divergence apart from a cosmetic one.
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),

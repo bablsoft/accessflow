@@ -2759,7 +2759,13 @@
       "DEPLOYMENT_REJECTED": "Ваше развертывание {{version}} в {{environment}} было отклонено",
       "DEPLOYMENT_OUTCOME_FAILED": "Одобренное вами развертывание на {{pipeline}} сообщило результат {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} выпустил аварийное развертывание (break-glass) на {{pipeline}}",
-      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Аварийное развертывание (break-glass) было выпущено на {{pipeline}}"
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Аварийное развертывание (break-glass) было выпущено на {{pipeline}}",
+      "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Изменение схемы {{changeSet}} → {{environment}} ожидает вашей проверки",
+      "SCHEMA_CHANGE_PROMOTION_APPLIED": "Ваше изменение схемы {{changeSet}} применено в {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED": "Ваше изменение схемы {{changeSet}} не выполнено в {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Ваше изменение схемы {{changeSet}} применено в {{environment}} лишь частично",
+      "SCHEMA_DRIFT_DETECTED_one": "{{count}} новая находка дрейфа схемы в {{pipeline}} / {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_other": "Новых находок дрейфа схемы в {{pipeline}} / {{environment}}: {{count}}"
     }
   },
   "profile": {

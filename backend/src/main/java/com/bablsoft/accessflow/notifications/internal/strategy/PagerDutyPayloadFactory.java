@@ -114,6 +114,23 @@ class PagerDutyPayloadFactory {
                 details.put("outcome", ctx.deploymentOutcome().name());
             }
         }
+        if (ctx.isSchemaChangeEvent()) {
+            if (ctx.schemaChangePromotionId() != null) {
+                details.put("schema_change_promotion_id", ctx.schemaChangePromotionId().toString());
+            }
+            if (ctx.schemaChangeSetName() != null) {
+                details.put("change_set", ctx.schemaChangeSetName());
+            }
+            if (ctx.environmentName() != null) {
+                details.put("environment", ctx.environmentName());
+            }
+            if (ctx.schemaChangeStatus() != null) {
+                details.put("status", ctx.schemaChangeStatus());
+            }
+            if (ctx.driftNewFindingCount() != null) {
+                details.put("new_finding_count", ctx.driftNewFindingCount());
+            }
+        }
         if (ctx.anomalyId() != null) {
             details.put("anomaly_id", ctx.anomalyId().toString());
             if (ctx.anomalyFeature() != null) {
@@ -138,6 +155,7 @@ class PagerDutyPayloadFactory {
         var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
                 : ctx.anomalyId() != null ? ctx.anomalyId()
                 : ctx.deploymentRequestId() != null ? ctx.deploymentRequestId()
+                : ctx.schemaChangePromotionId() != null ? ctx.schemaChangePromotionId()
                 : ctx.datasourceId() != null ? ctx.datasourceId() : "none";
         // The event type is part of the key (#622) because one subject can raise genuinely
         // different incidents: a CRITICAL-risk query that then stalls in review would otherwise
@@ -172,6 +190,15 @@ class PagerDutyPayloadFactory {
             // Spelled out because the default below says "for a query".
             case DEPLOYMENT_BREAK_GLASS_EXECUTED ->
                     "AccessFlow: break-glass deployment executed on pipeline " + datasource;
+            // #882: no PagerDutyTrigger maps any schema-change event, so none of these page today —
+            // spelled out anyway so a trigger added later never falls into "for a query" below.
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED ->
+                    "AccessFlow: schema change awaiting review on pipeline " + datasource;
+            case SCHEMA_CHANGE_PROMOTION_APPLIED ->
+                    "AccessFlow: schema change applied on pipeline " + datasource;
+            case SCHEMA_CHANGE_PROMOTION_FAILED ->
+                    "AccessFlow: schema change failed on pipeline " + datasource;
+            case SCHEMA_DRIFT_DETECTED -> "AccessFlow: schema drift detected on pipeline " + datasource;
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "AccessFlow: OAuth2 token fetch repeatedly failing for connector " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;

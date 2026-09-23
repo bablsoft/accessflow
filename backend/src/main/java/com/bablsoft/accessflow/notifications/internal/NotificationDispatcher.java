@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
+import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
 import com.bablsoft.accessflow.notifications.internal.strategy.EmailNotificationStrategy;
@@ -192,6 +193,29 @@ class NotificationDispatcher {
         deliver(eventType, contextOpt.get());
     }
 
+    /** Dispatch a schema-change promotion notification (#882) — non-query-backed; recipients
+     *  resolved by the context builder (eligible reviewers for SUBMITTED, the promoter for
+     *  APPLIED/FAILED). Fans out to all active org channels, like deployments. */
+    void dispatchSchemaChangePromotion(NotificationEventType eventType, UUID promotionId) {
+        var contextOpt = contextBuilder.buildSchemaChangePromotion(eventType, promotionId);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping {} for unknown schema change promotion {}", eventType, promotionId);
+            return;
+        }
+        deliver(eventType, contextOpt.get());
+    }
+
+    /** Dispatch a {@code SCHEMA_DRIFT_DETECTED} notification (#882) to every
+     *  {@code SCHEMA_CHANGE_MANAGE} holder, over all active org channels. */
+    void dispatchSchemaDrift(SchemaDriftDetectedEvent event) {
+        var contextOpt = contextBuilder.buildSchemaDrift(event);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping SCHEMA_DRIFT_DETECTED for unknown environment {}", event.environmentId());
+            return;
+        }
+        deliver(NotificationEventType.SCHEMA_DRIFT_DETECTED, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -259,6 +283,7 @@ class NotificationDispatcher {
                     ctx.queryRequestId(),
                     ctx.apiRequestId(),
                     ctx.deploymentRequestId(),
+                    ctx.schemaChangePromotionId(),
                     buildPayload(ctx));
         } catch (RuntimeException ex) {
             log.error("Failed to persist in-app notifications for event {} on query {}",
@@ -285,6 +310,18 @@ class NotificationDispatcher {
         }
         if (ctx.deploymentOutcome() != null) {
             payload.put("outcome", ctx.deploymentOutcome().name());
+        }
+        if (ctx.schemaChangePromotionId() != null) {
+            payload.put("schema_change_promotion_id", ctx.schemaChangePromotionId().toString());
+        }
+        if (ctx.schemaChangeSetName() != null) {
+            payload.put("change_set", ctx.schemaChangeSetName());
+        }
+        if (ctx.schemaChangeStatus() != null) {
+            payload.put("promotion_status", ctx.schemaChangeStatus());
+        }
+        if (ctx.driftNewFindingCount() != null) {
+            payload.put("new_finding_count", ctx.driftNewFindingCount());
         }
         if (ctx.datasourceName() != null) {
             payload.put("datasource", ctx.datasourceName());
@@ -336,7 +373,13 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.DEPLOYMENT_APPROVED
                 || eventType == NotificationEventType.DEPLOYMENT_REJECTED
                 || eventType == NotificationEventType.DEPLOYMENT_OUTCOME_FAILED
-                || eventType == NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED) {
+                || eventType == NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED
+                // #882: schema-change events carry the pipeline, not a datasource, in datasourceId
+                // — a plan-channel lookup would find nothing, so they fan out org-wide too.
+                || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED
+                || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED
+                || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED
+                || eventType == NotificationEventType.SCHEMA_DRIFT_DETECTED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

@@ -14,10 +14,12 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewStages;
+import com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -27,6 +29,9 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeNotificationLookupService;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotificationView;
+import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -61,6 +66,8 @@ class NotificationContextBuilder {
     private final ApiRequestNotificationLookupService apiRequestNotificationLookupService;
     private final ApiConnectorNotificationLookupService apiConnectorNotificationLookupService;
     private final DeploymentNotificationLookupService deploymentNotificationLookupService;
+    private final SchemaChangeNotificationLookupService schemaChangeNotificationLookupService;
+    private final RolePermissionHolderLookupService rolePermissionHolderLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -182,7 +189,9 @@ class NotificationContextBuilder {
                  API_REQUEST_FAILED, API_CONNECTOR_OAUTH2_TOKEN_FAILED,
                  ERASURE_APPROVED,
                  DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
-                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED -> List.of();
+                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                 SCHEMA_CHANGE_PROMOTION_SUBMITTED, SCHEMA_CHANGE_PROMOTION_APPLIED,
+                 SCHEMA_CHANGE_PROMOTION_FAILED, SCHEMA_DRIFT_DETECTED -> List.of();
         };
     }
 
@@ -564,6 +573,118 @@ class NotificationContextBuilder {
         };
     }
 
+    /**
+     * Builds the context for a schema-change promotion notification (#882). Not query-backed: the
+     * pipeline rides in {@code datasourceId}/{@code datasourceName}, the environment in
+     * {@code environmentName} and the promoter in {@code submittedByUserId}. {@code reviewUrl}
+     * points where the promotion is acted on — the request-group review queue for SUBMITTED, the
+     * promoter's request groups otherwise — the same targets as the in-app bell.
+     */
+    Optional<NotificationContext> buildSchemaChangePromotion(NotificationEventType eventType,
+                                                             UUID promotionId) {
+        var view = schemaChangeNotificationLookupService.findPromotion(promotionId).orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var promoter = view.promotedBy() != null
+                ? userQueryService.findById(view.promotedBy()).orElse(null) : null;
+        var recipients = schemaChangeRecipients(eventType, view);
+        var locale = localizationConfigService.getOrDefault(view.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                eventType,
+                view.organizationId(),
+                null,
+                null, null, null, null,
+                null, null, null,
+                view.pipelineId(),
+                view.pipelineName(),
+                view.promotedBy(),
+                promoter != null ? promoter.email() : null,
+                promoter != null ? promoter.displayName() : null,
+                null,
+                null, null, null,
+                buildAppUrl(eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED
+                        ? "/request-groups/reviews" : "/request-groups"),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                null,
+                view.environmentName(),
+                null, null, null,
+                view.id(),
+                view.changeSetName(),
+                view.status() != null ? view.status().name() : null,
+                view.errorMessage(),
+                null));
+    }
+
+    /**
+     * Builds the context for {@code SCHEMA_DRIFT_DETECTED} (#882): the pipeline in
+     * {@code datasourceId}/{@code datasourceName}, the environment in {@code environmentName}, and
+     * the number of newly opened findings in {@code driftNewFindingCount}. Recipients are every
+     * active {@code SCHEMA_CHANGE_MANAGE} holder. Empty when the pipeline or environment is gone.
+     */
+    Optional<NotificationContext> buildSchemaDrift(SchemaDriftDetectedEvent event) {
+        var view = schemaChangeNotificationLookupService
+                .findDriftTarget(event.organizationId(), event.pipelineId(), event.environmentId())
+                .orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var recipients = toActiveRecipients(rolePermissionHolderLookupService
+                .findUserIdsWithPermission(view.organizationId(), Permission.SCHEMA_CHANGE_MANAGE));
+        var locale = localizationConfigService.getOrDefault(view.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.SCHEMA_DRIFT_DETECTED,
+                view.organizationId(),
+                null,
+                null, null, null, null,
+                null, null, null,
+                view.pipelineId(),
+                view.pipelineName(),
+                null, null, null,
+                null,
+                null, null, null,
+                null,
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                null,
+                view.environmentName(),
+                null, null, null,
+                null, null, null, null,
+                event.newFindingCount()));
+    }
+
+    private List<RecipientView> schemaChangeRecipients(NotificationEventType eventType,
+                                                       SchemaChangePromotionNotificationView view) {
+        if (eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED) {
+            return toActiveRecipients(
+                    schemaChangeNotificationLookupService.findEligibleReviewerUserIds(view.id()));
+        }
+        // APPLIED / FAILED: the promoter learns how their promotion ended.
+        return view.promotedBy() == null ? List.of() : userQueryService.findById(view.promotedBy())
+                .filter(UserView::active)
+                .map(u -> List.of(toRecipient(u)))
+                .orElse(List.of());
+    }
+
     private List<RecipientView> toActiveRecipients(List<UUID> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return List.of();
@@ -572,6 +693,12 @@ class NotificationContextBuilder {
                 .filter(UserView::active)
                 .map(NotificationContextBuilder::toRecipient)
                 .toList();
+    }
+
+    private URI buildAppUrl(String path) {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + path);
     }
 
     private URI buildApiRequestUrl(UUID apiRequestId) {

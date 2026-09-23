@@ -283,6 +283,31 @@ function renderMessage(
         : t('notifications.events.DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter', {
             pipeline: datasource,
           });
+    // #882 — the pipeline rides in `datasource`, the change set in `change_set`.
+    case 'SCHEMA_CHANGE_PROMOTION_SUBMITTED':
+      return t('notifications.events.SCHEMA_CHANGE_PROMOTION_SUBMITTED', {
+        changeSet: payload.change_set ?? '—',
+        environment: payload.environment ?? '—',
+      });
+    case 'SCHEMA_CHANGE_PROMOTION_APPLIED':
+      return t('notifications.events.SCHEMA_CHANGE_PROMOTION_APPLIED', {
+        changeSet: payload.change_set ?? '—',
+        environment: payload.environment ?? '—',
+      });
+    // A partial run is its own message: some statements ran and nothing rolls them back.
+    case 'SCHEMA_CHANGE_PROMOTION_FAILED':
+      return t(
+        payload.promotion_status === 'PARTIALLY_APPLIED'
+          ? 'notifications.events.SCHEMA_CHANGE_PROMOTION_FAILED_partial'
+          : 'notifications.events.SCHEMA_CHANGE_PROMOTION_FAILED',
+        { changeSet: payload.change_set ?? '—', environment: payload.environment ?? '—' },
+      );
+    case 'SCHEMA_DRIFT_DETECTED':
+      return t('notifications.events.SCHEMA_DRIFT_DETECTED', {
+        count: payload.new_finding_count ?? 0,
+        pipeline: datasource,
+        environment: payload.environment ?? '—',
+      });
     default:
       return t('notifications.events.fallback');
   }
@@ -346,6 +371,20 @@ export function routeForNotification(item: UserNotification): string | null {
     item.event_type === 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
   ) {
     return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
+  }
+  // Schema-change promotions (#882) are reviewed and run as request groups, so the reviewer lands
+  // on the group review queue and the promoter on their own groups. Drift has no page yet.
+  if (item.event_type === 'SCHEMA_CHANGE_PROMOTION_SUBMITTED') {
+    return '/request-groups/reviews';
+  }
+  if (
+    item.event_type === 'SCHEMA_CHANGE_PROMOTION_APPLIED' ||
+    item.event_type === 'SCHEMA_CHANGE_PROMOTION_FAILED'
+  ) {
+    return '/request-groups';
+  }
+  if (item.event_type === 'SCHEMA_DRIFT_DETECTED') {
+    return null;
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

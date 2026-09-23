@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.schemachange.api.SchemaDriftBaseline;
+import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.schemachange.internal.config.SchemaChangeProperties;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaDriftScanEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftScanRepository;
@@ -20,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -40,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -60,6 +63,7 @@ class SchemaDriftScanServiceTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DistributedLockService distributedLockService;
     @Mock SchemaChangeAuditWriter auditWriter;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private ExecutorService executor;
     private SchemaDriftScanEntity scan;
@@ -102,7 +106,8 @@ class SchemaDriftScanServiceTest {
     /** Properties are a real record, never a mock — the coercion rules are part of the behaviour. */
     private SchemaDriftScanService service(SchemaChangeProperties properties, Clock clock) {
         return new SchemaDriftScanService(scanStore, scanRepository, baselineResolver, reconciler,
-                datasourceAdminService, distributedLockService, auditWriter, properties, executor, clock);
+                datasourceAdminService, distributedLockService, auditWriter, properties, executor, eventPublisher,
+                clock);
     }
 
     private SchemaDriftScanService service() {
@@ -215,7 +220,7 @@ class SchemaDriftScanServiceTest {
 
         service().scan(ctx(DbType.POSTGRESQL, baseline));
 
-        verify(reconciler).reconcile(eq(scan), any(), any(), eq(NOW));
+        verify(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
         verify(scanStore).finish(scan.getId(), true, false, null);
     }
 
@@ -237,10 +242,70 @@ class SchemaDriftScanServiceTest {
         service().scan(ctx(DbType.POSTGRESQL));
 
         var captor = ArgumentCaptor.forClass(SchemaDriftDiffer.DiffResult.class);
-        verify(reconciler).reconcile(eq(scan), any(), captor.capture(), eq(NOW));
+        verify(reconciler).reconcile(eq(scan), any(), captor.capture(), eq(NOW), any());
         assertThat(captor.getValue().findings()).singleElement()
                 .satisfies(f -> assertThat(f.objectPath()).isEqualTo("public.orders.id"));
         assertThat(captor.getValue().reachedTableKeys()).isEqualTo(Set.of("public.orders"));
+    }
+
+    private void stubOpened(int count) {
+        doAnswer(inv -> {
+            for (var i = 0; i < count; i++) {
+                inv.getArgument(4, Runnable.class).run();
+            }
+            return null;
+        }).when(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
+    }
+
+    /** #882: rows the reconciler committed before it failed are still new drift and still notify. */
+    @Test
+    void aReconcileThatFailsPartWayStillPublishesWhatItOpened() {
+        stubBaseline(BASELINE, TARGET);
+        doAnswer(inv -> {
+            inv.getArgument(4, Runnable.class).run();
+            throw new IllegalStateException("db down");
+        }).when(reconciler).reconcile(eq(scan), any(), any(), eq(NOW), any());
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verify(eventPublisher).publishEvent(new SchemaDriftDetectedEvent(scan.getId(), orgId, pipelineId,
+                environmentId, 1));
+    }
+
+    @Test
+    void aScanThatOpensFindingsPublishesOneDetectedEventWithTheCount() {
+        stubBaseline(BASELINE, TARGET);
+        stubOpened(2);
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verify(eventPublisher).publishEvent(new SchemaDriftDetectedEvent(scan.getId(), orgId, pipelineId,
+                environmentId, 2));
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.SCHEMA_DRIFT_SCAN_COMPLETED), any(), eq(scan.getId()), eq(orgId),
+                any(), metadata.capture(), any(), any());
+        assertThat(metadata.getValue()).containsEntry("new_findings_count", 2);
+    }
+
+    /** #882: a scan that only re-saw known findings must not notify — or a persistent drift pages every scan. */
+    @Test
+    void aScanThatOpensNothingPublishesNothing() {
+        stubBaseline(BASELINE, TARGET);
+        stubOpened(0);
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void aFailedPublicationNeverFailsTheScan() {
+        stubBaseline(BASELINE, TARGET);
+        stubOpened(1);
+        doThrow(new IllegalStateException("bus down")).when(eventPublisher).publishEvent(any(Object.class));
+
+        assertThatCode(() -> service().scan(ctx(DbType.POSTGRESQL))).doesNotThrowAnyException();
+        verify(scanStore).finish(scan.getId(), true, false, null);
     }
 
     @Test
@@ -296,7 +361,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void aFailureInsideAccessFlowIsNotBlamedOnTheCustomerDatabase() {
         stubBaseline(BASELINE, TARGET);
-        doThrow(new IllegalStateException("db down")).when(reconciler).reconcile(any(), any(), any(), any());
+        doThrow(new IllegalStateException("db down")).when(reconciler).reconcile(any(), any(), any(), any(), any());
 
         var run = service().scan(ctx(DbType.POSTGRESQL));
 
@@ -307,7 +372,7 @@ class SchemaDriftScanServiceTest {
     @Test
     void theAuditTailStillRunsWhenTheBodyThrew() {
         stubBaseline(BASELINE, TARGET);
-        doThrow(new IllegalStateException("boom")).when(reconciler).reconcile(any(), any(), any(), any());
+        doThrow(new IllegalStateException("boom")).when(reconciler).reconcile(any(), any(), any(), any(), any());
 
         service().scan(ctx(DbType.POSTGRESQL));
 

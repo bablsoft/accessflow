@@ -210,12 +210,27 @@ class SchemaChangePromotionStatusListenerTest {
     }
 
     @Test
-    void auditsNothingForTheNonTerminalProjections() {
+    void auditsNothingWhenThePromotionEntersReview() {
         givenPromotion(SchemaChangePromotionStatus.PENDING);
 
         listener.onRequestGroupStatusChanged(event(RequestGroupStatus.PENDING_REVIEW));
 
         verifyNoInteractions(auditLogService);
+    }
+
+    /** #882: approval is a system row — the group's own review decisions carry the reviewers. */
+    @Test
+    void approvalIsAuditedAsASystemRow() {
+        givenPromotion(SchemaChangePromotionStatus.IN_REVIEW);
+
+        listener.onRequestGroupStatusChanged(event(RequestGroupStatus.APPROVED));
+
+        var entry = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(entry.capture());
+        assertThat(entry.getValue().action()).isEqualTo(AuditAction.SCHEMA_CHANGE_PROMOTION_APPROVED);
+        assertThat(entry.getValue().actorId()).isNull();
+        assertThat(entry.getValue().metadata()).containsEntry("trigger", "request_group")
+                .containsEntry("group_status", "APPROVED");
     }
 
     /** A projection failure must never surface to the approver or stall the group executor. */

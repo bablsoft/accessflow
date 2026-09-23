@@ -87,6 +87,29 @@ class DiscordPayloadFactory {
             embed.put("fields", fields);
             return embed;
         }
+        // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
+        if (ctx.isSchemaChangeEvent()) {
+            if (ctx.schemaChangeSetName() != null) {
+                addField(fields, "Change set", ctx.schemaChangeSetName());
+            }
+            addField(fields, "Pipeline", nullToDash(ctx.datasourceName()));
+            addField(fields, "Environment", nullToDash(ctx.environmentName()));
+            if (ctx.submitterEmail() != null) {
+                addField(fields, "Promoted by", ctx.submitterEmail());
+            }
+            if (ctx.eventType() == NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED
+                    && ctx.schemaChangeStatus() != null) {
+                addField(fields, "Status", ctx.schemaChangeStatus());
+            }
+            if (ctx.schemaChangeErrorMessage() != null) {
+                addField(fields, "Error", SchemaChangeText.truncate(ctx.schemaChangeErrorMessage()));
+            }
+            if (ctx.driftNewFindingCount() != null) {
+                addField(fields, "New findings", String.valueOf(ctx.driftNewFindingCount()));
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         // #695: deployment governance — the pipeline name rides in datasourceName.
         if (ctx.deploymentRequestId() != null) {
             addField(fields, "Pipeline", nullToDash(ctx.datasourceName()));
@@ -186,6 +209,10 @@ class DiscordPayloadFactory {
             case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "🧱 Schema Change Awaiting Review";
+            case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
+            case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";
+            case SCHEMA_DRIFT_DETECTED -> "⚠️ Schema Drift Detected";
         };
     }
 

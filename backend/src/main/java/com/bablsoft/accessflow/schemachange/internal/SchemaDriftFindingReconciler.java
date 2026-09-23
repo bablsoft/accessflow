@@ -47,8 +47,16 @@ class SchemaDriftFindingReconciler {
 
     private final SchemaDriftFindingRepository findingRepository;
 
+    /**
+     * Reconciles one scan's findings, calling {@code onOpened} once per finding it <em>opened</em>
+     * (#882): a finding created now, a resolved one reopened as a new episode, or an acknowledged one
+     * reopened because its values changed — a difference nobody accepted. A finding merely re-seen
+     * while already open is never counted, so {@code SCHEMA_DRIFT_DETECTED} fires on new drift only.
+     * A callback rather than a return value, so a reconcile that fails part-way still reports the
+     * rows it had already committed.
+     */
     void reconcile(SchemaDriftScanEntity scan, SchemaDriftScanContext ctx, SchemaDriftDiffer.DiffResult result,
-                   Instant now) {
+                   Instant now, Runnable onOpened) {
         var active = findingRepository.findAllByOrganizationIdAndEnvironmentIdAndStatusIn(
                 ctx.organizationId(), ctx.environmentId(), ACTIVE);
         Map<String, SchemaDriftFindingEntity> byKey = new HashMap<>();
@@ -68,11 +76,17 @@ class SchemaDriftFindingReconciler {
             }
             if (existing == null) {
                 findingRepository.save(create(scan, ctx, finding, now));
+                onOpened.run();
             } else {
                 // Marked observed even if the save loses a race: the finding is still present, so it
                 // must not be resolved below.
                 observed.add(existing.getId());
-                saveUnlessChanged(refresh(existing, scan, finding, now));
+                var wasOpen = existing.getStatus() == SchemaDriftFindingStatus.OPEN;
+                var refreshed = refresh(existing, scan, finding, now);
+                var reopened = !wasOpen && refreshed.getStatus() == SchemaDriftFindingStatus.OPEN;
+                if (saveUnlessChanged(refreshed) && reopened) {
+                    onOpened.run();
+                }
             }
         }
 
@@ -156,11 +170,13 @@ class SchemaDriftFindingReconciler {
         return table == null || result.reachedTableKeys().contains(table);
     }
 
-    private void saveUnlessChanged(SchemaDriftFindingEntity finding) {
+    private boolean saveUnlessChanged(SchemaDriftFindingEntity finding) {
         try {
             findingRepository.save(finding);
+            return true;
         } catch (OptimisticLockingFailureException ex) {
             log.debug("Drift finding {} changed during the scan; leaving it for the next one", finding.getId());
+            return false;
         }
     }
 

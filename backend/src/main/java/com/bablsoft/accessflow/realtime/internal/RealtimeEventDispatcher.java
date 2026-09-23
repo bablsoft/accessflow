@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.notifications.events.UserNotificationCreatedEvent
 import com.bablsoft.accessflow.realtime.internal.ws.SessionRegistry;
 import com.bablsoft.accessflow.requestgroups.events.RequestGroupItemExecutedEvent;
 import com.bablsoft.accessflow.requestgroups.events.RequestGroupStatusChangedEvent;
+import com.bablsoft.accessflow.schemachange.events.SchemaChangePromotionStatusChangedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryCommentChangedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
@@ -138,6 +139,27 @@ class RealtimeEventDispatcher {
             data.put("old_status", event.oldStatus().name());
             data.put("new_status", event.newStatus().name());
             sendTo(event.submitterId(), "request_group.status_changed", data);
+        });
+    }
+
+    /** #882: the promoter sees their promotion move; {@code old_status} is null on submission. */
+    @ApplicationModuleListener
+    void onSchemaChangePromotionStatusChanged(SchemaChangePromotionStatusChangedEvent event) {
+        if (event.promotedBy() == null) {
+            return;
+        }
+        safe("schema_change_promotion.status_changed", event.promotionId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("promotion_id", event.promotionId().toString());
+            data.put("change_set_id", event.changeSetId().toString());
+            data.put("environment_id", event.environmentId().toString());
+            if (event.oldStatus() == null) {
+                data.putNull("old_status");
+            } else {
+                data.put("old_status", event.oldStatus().name());
+            }
+            data.put("new_status", event.newStatus().name());
+            sendTo(event.promotedBy(), "schema_change_promotion.status_changed", data);
         });
     }
 

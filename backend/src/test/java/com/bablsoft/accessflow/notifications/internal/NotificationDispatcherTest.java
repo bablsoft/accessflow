@@ -219,6 +219,7 @@ class NotificationDispatcherTest {
                 eq(queryRequestId),
                 isNull(),
                 isNull(),
+                isNull(),
                 any());
     }
 
@@ -240,6 +241,7 @@ class NotificationDispatcherTest {
                 eq(orgId),
                 isNull(),
                 eq(apiRequestId),
+                isNull(),
                 isNull(),
                 any());
     }
@@ -269,6 +271,7 @@ class NotificationDispatcherTest {
                 isNull(),
                 isNull(),
                 eq(deploymentRequestId),
+                isNull(),
                 payloadCaptor.capture());
         assertThat(payloadCaptor.getValue())
                 .contains("\"deployment_id\":\"" + deploymentRequestId + "\"")
@@ -306,6 +309,104 @@ class NotificationDispatcherTest {
     }
 
     @Test
+    void persistsSchemaChangeNotificationAgainstItsPromotionWithPayload() {
+        var promoter = UUID.randomUUID();
+        var promotionId = UUID.randomUUID();
+        when(contextBuilder.buildSchemaChangePromotion(
+                NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED, promotionId))
+                .thenReturn(Optional.of(sampleSchemaChangeContext(
+                        NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED, promotionId, null,
+                        List.of(new RecipientView(promoter, "p@x", "P")))));
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of());
+
+        dispatcher.dispatchSchemaChangePromotion(NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED,
+                promotionId);
+
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED),
+                eq(Set.of(promoter)),
+                eq(orgId),
+                isNull(),
+                isNull(),
+                isNull(),
+                eq(promotionId),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"schema_change_promotion_id\":\"" + promotionId + "\"")
+                .contains("\"change_set\":\"add-invoice-index\"")
+                .contains("\"environment\":\"staging\"")
+                .contains("\"promotion_status\":\"PARTIALLY_APPLIED\"")
+                .contains("\"datasource\":\"billing-pipeline\"");
+    }
+
+    @Test
+    void persistsDriftNotificationWithNoTargetAndTheNewFindingCount() {
+        var manager = UUID.randomUUID();
+        var event = new com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent(UUID.randomUUID(),
+                orgId, UUID.randomUUID(), UUID.randomUUID(), 4);
+        when(contextBuilder.buildSchemaDrift(event)).thenReturn(Optional.of(sampleSchemaChangeContext(
+                NotificationEventType.SCHEMA_DRIFT_DETECTED, null, 4,
+                List.of(new RecipientView(manager, "m@x", "M")))));
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of());
+
+        dispatcher.dispatchSchemaDrift(event);
+
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.SCHEMA_DRIFT_DETECTED),
+                eq(Set.of(manager)),
+                eq(orgId),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("\"new_finding_count\":4")
+                .doesNotContain("schema_change_promotion_id");
+    }
+
+    /** #882: schema-change events carry the pipeline in datasourceId — a plan lookup would find nothing. */
+    @Test
+    void schemaChangeEventsUseAllActiveChannelsForOrg() {
+        var promotionId = UUID.randomUUID();
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of(emailCh));
+        for (var eventType : List.of(NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED,
+                NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED)) {
+            when(contextBuilder.buildSchemaChangePromotion(eventType, promotionId))
+                    .thenReturn(Optional.of(sampleSchemaChangeContext(eventType, promotionId, null,
+                            List.of(new RecipientView(UUID.randomUUID(), "a@x", "A")))));
+            dispatcher.dispatchSchemaChangePromotion(eventType, promotionId);
+        }
+        var event = new com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent(UUID.randomUUID(),
+                orgId, UUID.randomUUID(), UUID.randomUUID(), 1);
+        when(contextBuilder.buildSchemaDrift(event)).thenReturn(Optional.of(sampleSchemaChangeContext(
+                NotificationEventType.SCHEMA_DRIFT_DETECTED, null, 1,
+                List.of(new RecipientView(UUID.randomUUID(), "a@x", "A")))));
+        dispatcher.dispatchSchemaDrift(event);
+
+        verify(emailStrategy, org.mockito.Mockito.times(4)).deliver(any(), eq(emailCh));
+        verify(contextBuilder, never()).lookupPlanChannelIds(any());
+    }
+
+    @Test
+    void unknownSchemaChangeTargetsShortCircuit() {
+        when(contextBuilder.buildSchemaChangePromotion(any(), any())).thenReturn(Optional.empty());
+        when(contextBuilder.buildSchemaDrift(any())).thenReturn(Optional.empty());
+
+        dispatcher.dispatchSchemaChangePromotion(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                UUID.randomUUID());
+        dispatcher.dispatchSchemaDrift(new com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent(
+                UUID.randomUUID(), orgId, UUID.randomUUID(), UUID.randomUUID(), 1));
+
+        verify(channelRepository, never()).findAllByOrganizationIdAndActiveTrue(any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(),
+                any(), any(), any());
+    }
+
+    @Test
     void unknownDeploymentRequestShortCircuits() {
         when(contextBuilder.buildDeployment(any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
@@ -315,7 +416,7 @@ class NotificationDispatcherTest {
 
         verify(channelRepository, never()).findAllByOrganizationIdAndActiveTrue(any());
         verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(),
-                any(), any());
+                any(), any(), any());
     }
 
     @Test
@@ -328,7 +429,7 @@ class NotificationDispatcherTest {
 
         dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null, null);
 
-        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -339,7 +440,7 @@ class NotificationDispatcherTest {
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@x", "A")))));
         doThrow(new RuntimeException("db down"))
-                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any(), any());
+                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any(), any(), any());
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of(emailCh.getId()));
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
@@ -381,6 +482,7 @@ class NotificationDispatcherTest {
                 eq(queryRequestId),
                 isNull(),
                 isNull(),
+                isNull(),
                 payloadCaptor.capture());
         assertThat(payloadCaptor.getValue())
                 .contains("\"final_status\":\"EXECUTED\"")
@@ -395,7 +497,7 @@ class NotificationDispatcherTest {
         dispatcher.dispatchQueryExecuted(queryRequestId, QueryStatus.EXECUTED, 5L, 120L);
 
         verify(emailStrategy, never()).deliver(any(), any());
-        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -466,6 +568,34 @@ class NotificationDispatcherTest {
                 null, null, null,
                 null, null, null,
                 deploymentRequestId, "production", "2.4.1", outcome, null);
+    }
+
+    private NotificationContext sampleSchemaChangeContext(NotificationEventType type, UUID promotionId,
+                                                          Integer newFindingCount,
+                                                          List<RecipientView> recipients) {
+        return new NotificationContext(
+                type, orgId, null,
+                null, null, null, null,
+                null, null, null,
+                UUID.randomUUID(), "billing-pipeline",
+                null, null, null,
+                null,
+                null, null, null,
+                null,
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                null, "staging", null, null, null,
+                promotionId,
+                promotionId == null ? null : "add-invoice-index",
+                promotionId == null ? null : "PARTIALLY_APPLIED",
+                null,
+                newFindingCount);
     }
 
     private NotificationContext sampleExecutedContext(List<RecipientView> recipients) {

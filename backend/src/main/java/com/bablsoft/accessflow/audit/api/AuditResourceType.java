@@ -60,6 +60,8 @@ public enum AuditResourceType {
     DEPLOYMENT_PIPELINE("deployment_pipeline"),
     DEPLOYMENT_REQUEST("deployment_request"),
     DEPLOYMENT_ROLLBACK_REVIEW("deployment_rollback_review"),
+    /** #882: a schema change set — authored once, promoted along a pipeline (epic #870). */
+    SCHEMA_CHANGE_SET("schema_change_set"),
     /** #880: one promotion of a schema change set to a deployment environment (epic #870). */
     SCHEMA_CHANGE_PROMOTION("schema_change_promotion"),
     /** #881: one drift scan of one deployment environment (epic #870). */

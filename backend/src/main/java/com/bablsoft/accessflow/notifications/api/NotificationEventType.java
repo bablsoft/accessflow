@@ -63,5 +63,24 @@ public enum NotificationEventType {
      */
     DEPLOYMENT_BREAK_GLASS_EXECUTED,
 
+    /**
+     * A schema change set promotion entered review (#882) — its request group reached
+     * {@code PENDING_REVIEW}. Fans out to the target datasource's eligible reviewers, never the
+     * promoter. Not fired on submission, so a promotion that needs no review pings nobody.
+     */
+    SCHEMA_CHANGE_PROMOTION_SUBMITTED,
+    /** Every statement of a promotion ran on its target environment (#882) — notifies the promoter. */
+    SCHEMA_CHANGE_PROMOTION_APPLIED,
+    /**
+     * A promotion's run failed — {@code FAILED} or {@code PARTIALLY_APPLIED} (#882). Notifies the
+     * promoter; the context's {@code schemaChangeStatus} says which.
+     */
+    SCHEMA_CHANGE_PROMOTION_FAILED,
+    /**
+     * A drift scan opened at least one finding on an environment (#882) — never a finding merely
+     * re-seen. Notifies every {@code SCHEMA_CHANGE_MANAGE} holder; never pages.
+     */
+    SCHEMA_DRIFT_DETECTED,
+
     TEST
 }

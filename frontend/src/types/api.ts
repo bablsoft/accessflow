@@ -2375,7 +2375,11 @@ export type UserNotificationEventType =
   | 'DEPLOYMENT_APPROVED'
   | 'DEPLOYMENT_REJECTED'
   | 'DEPLOYMENT_OUTCOME_FAILED'
-  | 'DEPLOYMENT_BREAK_GLASS_EXECUTED';
+  | 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
+  | 'SCHEMA_CHANGE_PROMOTION_SUBMITTED'
+  | 'SCHEMA_CHANGE_PROMOTION_APPLIED'
+  | 'SCHEMA_CHANGE_PROMOTION_FAILED'
+  | 'SCHEMA_DRIFT_DETECTED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2399,6 +2403,10 @@ export interface UserNotificationPayload {
   environment?: string;
   version?: string;
   outcome?: 'FAILED' | 'ROLLED_BACK';
+  schema_change_promotion_id?: string;
+  change_set?: string;
+  promotion_status?: 'APPLIED' | 'FAILED' | 'PARTIALLY_APPLIED' | 'IN_REVIEW';
+  new_finding_count?: number;
 }
 
 export interface UserNotification {
@@ -2407,6 +2415,8 @@ export interface UserNotification {
   query_request_id: string | null;
   api_request_id: string | null;
   deployment_request_id: string | null;
+  /** #882 — the backend omits the key when null, like every other absent target. */
+  schema_change_promotion_id?: string | null;
   payload: UserNotificationPayload;
   read: boolean;
   created_at: string;

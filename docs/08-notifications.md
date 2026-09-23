@@ -32,6 +32,10 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `DEPLOYMENT_REJECTED` | A deployment is rejected — reviewer verdict, routing-policy `AUTO_REJECT`, an active `REJECT` freeze window at submission, or the review timeout (`TIMED_OUT` folds into this event with its `review_timeout` reason) (#695) | The submitter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
 | `DEPLOYMENT_OUTCOME_FAILED` | The pipeline reports a `FAILED` or `ROLLED_BACK` outcome for an executed deployment (#695) | The reviewers who **approved** the deployment — the people who granted it learn it went wrong. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
 | `DEPLOYMENT_BREAK_GLASS_EXECUTED` | A break-glass deployment force-approves and releases past review (#695, AF-385 mirror) | All active ADMIN users in the org. Fanned out to **all** active org channels including PagerDuty via the existing `BREAK_GLASS` trigger (one operator knob covers break-glass queries and deployments). | implemented |
+| `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | A schema change set promotion reaches `IN_REVIEW` — its request group entered `PENDING_REVIEW` (#882, epic #870). Deliberately **not** on submission (`PENDING`): a promotion whose environment needs no review never pings anyone | The target datasource's eligible reviewers — the set the promotion's request group is actually decided by: every approver rule of the datasource's review plan (a group has one approval stage) unioned with the per-datasource reviewer assignments, else the `REVIEW_OVERRIDE` holders, the only users who can act on a group nobody is named for — excluding the promoter. Fanned out to **all** active org channels. Never pages, never opens a ticket. | implemented |
+| `SCHEMA_CHANGE_PROMOTION_APPLIED` | Every statement of a promotion executed on its target environment (`APPLIED`, #882) | The promoter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
+| `SCHEMA_CHANGE_PROMOTION_FAILED` | A promotion's run failed — `FAILED`, or `PARTIALLY_APPLIED` (the run stops on the first error, so a partial run means a statement failed; the in-app payload's `promotion_status` (the webhook block's `status`) says which) (#882) | The promoter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
+| `SCHEMA_DRIFT_DETECTED` | A schema-drift scan of one environment **opened** at least one finding (#882) — a newly created finding, or a `RESOLVED` one that came back. An acknowledged finding whose values changed counts too — nobody accepted the new difference. A finding merely re-seen on a later scan while already open never notifies, so a persistent finding does not alert every scan. One notification per environment scan, carrying the count | Every active holder of `SCHEMA_CHANGE_MANAGE` (system and custom roles). Org-wide channel fanout; never pages and never opens a ticket — findings carry no severity, so there is nothing to key a paging trigger on. | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | A **recurring occurrence** completes (#627) — fired for both `EXECUTED` and `FAILED` occurrence outcomes; one-off executions do not notify | Query submitter, via the review plan's channels. Email carries the occurrence results as a `results.csv` attachment (successful SELECT occurrences only; post-mask values; capped at 10,000 rows with a truncation note row); chat channels get a summary with a link to the occurrence. PagerDuty and ticketing not-applicable (no trigger mapping). | implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -88,6 +92,10 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/deployment-rejected.html` — `DEPLOYMENT_REJECTED` (#695; adds an explicit timed-out note when the decision reason is `review_timeout`)
 - `email/deployment-outcome-failed.html` — `DEPLOYMENT_OUTCOME_FAILED` (#695; copy branches on `FAILED` vs `ROLLED_BACK`, red banner)
 - `email/deployment-break-glass-executed.html` — `DEPLOYMENT_BREAK_GLASS_EXECUTED` (#695; the AF-385-style red emergency banner, executed-by, and the break-glass justification)
+- `email/schema-change-promotion-submitted.html` — `SCHEMA_CHANGE_PROMOTION_SUBMITTED` (#882; change set, pipeline, environment, promoter; the CTA opens the request-group review queue, and the applied/failed emails open the promoter's request groups)
+- `email/schema-change-promotion-applied.html` — `SCHEMA_CHANGE_PROMOTION_APPLIED` (#882; green accent)
+- `email/schema-change-promotion-failed.html` — `SCHEMA_CHANGE_PROMOTION_FAILED` (#882; copy branches on `FAILED` vs `PARTIALLY_APPLIED`, red banner)
+- `email/schema-drift-detected.html` — `SCHEMA_DRIFT_DETECTED` (#882; pipeline, environment, and the number of newly opened findings)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)
@@ -225,7 +233,10 @@ Generic **HTTP POST** to any URL. Designed for integration with custom systems, 
 Anomaly events (`ANOMALY_DETECTED`) add a sibling `anomaly` object, and deployment events
 (`DEPLOYMENT_*`, #695) add a sibling `deployment` object — `{ id, pipeline_id, pipeline_name,
 environment, version, outcome, decision_reason }` — since the `query_request` block carries only
-the pipeline name for them. Both blocks are **additive**: existing event shapes are unchanged, so
+the pipeline name for them. Schema-change events (`SCHEMA_CHANGE_PROMOTION_*`,
+`SCHEMA_DRIFT_DETECTED`, #882) add a sibling `schema_change` object — `{ promotion_id,
+change_set_name, pipeline_id, pipeline_name, environment, status, new_finding_count }`, with the
+promotion fields null for drift and `new_finding_count` null for promotions. All three blocks are **additive**: existing event shapes are unchanged, so
 subscribers' HMAC-verified payloads are unaffected.
 
 **Request headers:**
@@ -325,7 +336,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
-  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident.
+  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident. Neither do the schema-change events (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882): a promotion's lifecycle is not an incident, and a drift finding carries no severity to separate a critical divergence from a cosmetic one.
   - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
   - `REVIEW_STALLED` → the `REVIEW_ESCALATED` event (nobody decided within the plan's `escalation_after_hours`, #622). There is deliberately **no** trigger for `REVIEW_NUDGE` — a reminder is not an incident and must never page.
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
@@ -526,6 +537,9 @@ in `NotificationContextBuilder`:
 | `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | The submitter |
 | `DEPLOYMENT_OUTCOME_FAILED` | The reviewers who approved the deployment |
 | `DEPLOYMENT_BREAK_GLASS_EXECUTED` | All active org admins |
+| `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | The target datasource's eligible reviewers (every plan approver rule ∪ datasource reviewer assignments, else `REVIEW_OVERRIDE` holders), excluding the promoter |
+| `SCHEMA_CHANGE_PROMOTION_APPLIED` / `SCHEMA_CHANGE_PROMOTION_FAILED` | The promoter |
+| `SCHEMA_DRIFT_DETECTED` | Every active `SCHEMA_CHANGE_MANAGE` holder |
 | `TEST` | Skipped — never persisted to the inbox |
 
 **Persistence flow.** `NotificationDispatcher` first calls `userNotificationService.recordForUsers(...)`

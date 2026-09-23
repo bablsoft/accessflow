@@ -53,6 +53,20 @@ public class UserNotificationService {
                                UUID apiRequestId,
                                UUID deploymentRequestId,
                                String payloadJson) {
+        recordForUsers(eventType, recipientUserIds, organizationId, queryRequestId, apiRequestId,
+                deploymentRequestId, null, payloadJson);
+    }
+
+    /** At most one target id is non-null — {@code chk_user_notifications_target} enforces it. */
+    @Transactional
+    public void recordForUsers(NotificationEventType eventType,
+                               Set<UUID> recipientUserIds,
+                               UUID organizationId,
+                               UUID queryRequestId,
+                               UUID apiRequestId,
+                               UUID deploymentRequestId,
+                               UUID schemaChangePromotionId,
+                               String payloadJson) {
         if (recipientUserIds == null || recipientUserIds.isEmpty()) {
             return;
         }
@@ -65,6 +79,7 @@ public class UserNotificationService {
             entity.setQueryRequestId(queryRequestId);
             entity.setApiRequestId(apiRequestId);
             entity.setDeploymentRequestId(deploymentRequestId);
+            entity.setSchemaChangePromotionId(schemaChangePromotionId);
             entity.setPayloadJson(payloadJson == null || payloadJson.isBlank() ? "{}" : payloadJson);
             entity.setRead(false);
             entity.setCreatedAt(Instant.now(clock));
@@ -121,6 +136,7 @@ public class UserNotificationService {
                 entity.getQueryRequestId(),
                 entity.getApiRequestId(),
                 entity.getDeploymentRequestId(),
+                entity.getSchemaChangePromotionId(),
                 entity.getPayloadJson(),
                 entity.isRead(),
                 entity.getCreatedAt(),

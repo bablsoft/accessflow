@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.schema_change_promotion_submitted.title}">Schema change awaiting review</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.schema_change_promotion_submitted.heading}">A schema change is awaiting your review</h2>
+    <p th:text="#{notification.email.schema_change_promotion_submitted.body}">A schema change set has been promoted to this environment and needs approval before its statements run.</p>
+    <p class="meta">
+        <strong th:text="#{notification.email.schema_change.change_set_label}">Change set:</strong>
+        <span th:text="${schemaChangeSetName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.schema_change.pipeline_label}">Pipeline:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.schema_change.environment_label}">Environment:</strong>
+        <span th:text="${environmentName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.schema_change.promoter_label}">Promoted by:</strong>
+        <span th:text="${submitterDisplayName ?: (submitterEmail ?: '—')}">—</span>
+    </p>
+    <p th:if="${reviewUrl}">
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.common.open_cta}">Open in AccessFlow</a>
+    </p>
+</body>
+</html>

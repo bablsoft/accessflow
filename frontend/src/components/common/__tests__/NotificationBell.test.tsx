@@ -564,6 +564,119 @@ describe('NotificationBell', () => {
     expect(navigateMock).toHaveBeenCalledWith(expectedRoute);
   });
 
+  it.each([
+    [
+      'SCHEMA_CHANGE_PROMOTION_SUBMITTED' as const,
+      { datasource: 'billing', change_set: 'add-invoice-index', environment: 'staging' },
+      /schema change add-invoice-index → staging is awaiting your review/,
+      '/request-groups/reviews',
+    ],
+    [
+      'SCHEMA_CHANGE_PROMOTION_APPLIED' as const,
+      { datasource: 'billing', change_set: 'add-invoice-index', environment: 'staging' },
+      /add-invoice-index was applied to staging/,
+      '/request-groups',
+    ],
+    [
+      'SCHEMA_CHANGE_PROMOTION_FAILED' as const,
+      {
+        datasource: 'billing',
+        change_set: 'add-invoice-index',
+        environment: 'staging',
+        promotion_status: 'FAILED' as const,
+      },
+      /add-invoice-index failed on staging/,
+      '/request-groups',
+    ],
+    [
+      'SCHEMA_CHANGE_PROMOTION_FAILED' as const,
+      {
+        datasource: 'billing',
+        change_set: 'add-invoice-index',
+        environment: 'staging',
+        promotion_status: 'PARTIALLY_APPLIED' as const,
+      },
+      /add-invoice-index was only partly applied to staging/,
+      '/request-groups',
+    ],
+  ])('renders %s and routes into the request-group UI (#882)', async (
+    eventType,
+    payload,
+    expected,
+    expectedRoute,
+  ) => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'sc1',
+          event_type: eventType,
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: null,
+          schema_change_promotion_id: 'scp-1',
+          payload,
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(expected);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('sc1'));
+    expect(navigateMock).toHaveBeenCalledWith(expectedRoute);
+  });
+
+  it('renders drift with a pluralised count and does not navigate (#882)', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 2 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'drift-many',
+          event_type: 'SCHEMA_DRIFT_DETECTED',
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: null,
+          payload: { datasource: 'billing', environment: 'prod', new_finding_count: 3 },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+        {
+          id: 'drift-one',
+          event_type: 'SCHEMA_DRIFT_DETECTED',
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: null,
+          payload: { datasource: 'billing', environment: 'staging', new_finding_count: 1 },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    await screen.findByText('1 new schema drift finding on billing / staging');
+    const text = await screen.findByText('3 new schema drift findings on billing / prod');
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('drift-many'));
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
   it('routes a plain FAILED outcome to the deployment, not the rollback worklist', async () => {
     // A rollback review only exists for ROLLED_BACK; a FAILED deploy would never appear there.
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });

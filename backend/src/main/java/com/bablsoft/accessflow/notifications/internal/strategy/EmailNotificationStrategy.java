@@ -254,6 +254,10 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                 ctx.deploymentOutcome() != null ? ctx.deploymentOutcome().name() : null);
         context.setVariable("deploymentDecisionReason", ctx.deploymentDecisionReason());
         context.setVariable("justification", ctx.justification());
+        context.setVariable("schemaChangeSetName", ctx.schemaChangeSetName());
+        context.setVariable("schemaChangeStatus", ctx.schemaChangeStatus());
+        context.setVariable("schemaChangeErrorMessage", ctx.schemaChangeErrorMessage());
+        context.setVariable("driftNewFindingCount", ctx.driftNewFindingCount());
         return templateEngine.process(template, context);
     }
 
@@ -285,6 +289,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case DEPLOYMENT_REJECTED -> "email/deployment-rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "email/deployment-outcome-failed";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "email/deployment-break-glass-executed";
+            // #882: schema-change promotions and drift.
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "email/schema-change-promotion-submitted";
+            case SCHEMA_CHANGE_PROMOTION_APPLIED -> "email/schema-change-promotion-applied";
+            case SCHEMA_CHANGE_PROMOTION_FAILED -> "email/schema-change-promotion-failed";
+            case SCHEMA_DRIFT_DETECTED -> "email/schema-drift-detected";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             // API-request events (AF-500) deliver as in-app + chat notifications, not email.
@@ -315,6 +324,14 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
                  DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED ->
                     new Object[]{ctx.datasourceName(), ctx.deploymentVersion()};
+            // #882: "{0} → {1}" is the change set and the environment it was promoted to. Spelled
+            // out — the silent default would pass the pipeline where the change set belongs.
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED, SCHEMA_CHANGE_PROMOTION_APPLIED,
+                 SCHEMA_CHANGE_PROMOTION_FAILED ->
+                    new Object[]{ctx.schemaChangeSetName(), ctx.environmentName()};
+            // #882: pipeline, environment, and how many findings the scan opened.
+            case SCHEMA_DRIFT_DETECTED -> new Object[]{ctx.datasourceName(), ctx.environmentName(),
+                    ctx.driftNewFindingCount()};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -348,6 +365,13 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.deployment_outcome_failed";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED ->
                     "notification.email.subject.deployment_break_glass_executed";
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED ->
+                    "notification.email.subject.schema_change_promotion_submitted";
+            case SCHEMA_CHANGE_PROMOTION_APPLIED ->
+                    "notification.email.subject.schema_change_promotion_applied";
+            case SCHEMA_CHANGE_PROMOTION_FAILED ->
+                    "notification.email.subject.schema_change_promotion_failed";
+            case SCHEMA_DRIFT_DETECTED -> "notification.email.subject.schema_drift_detected";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,

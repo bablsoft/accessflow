@@ -116,7 +116,10 @@ class SchemaChangePromotionStatusListener {
             case FAILED -> AuditAction.SCHEMA_CHANGE_PROMOTION_FAILED;
             // A rejected or timed-out group lands here too; group_status below says which.
             case CANCELLED -> AuditAction.SCHEMA_CHANGE_PROMOTION_CANCELLED;
-            case PENDING, IN_REVIEW, APPROVED -> null;
+            // #882: the group's reviewer decisions are audited by requestgroups; this row is the
+            // promotion-level fact that the environment's review was satisfied.
+            case APPROVED -> AuditAction.SCHEMA_CHANGE_PROMOTION_APPROVED;
+            case PENDING, IN_REVIEW -> null;
         };
         if (action == null) {
             return;

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.schema_drift_detected.title}">Schema drift detected</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #b7791f; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.schema_drift_detected.heading}">Schema drift was detected</h2>
+    <p th:text="#{notification.email.schema_drift_detected.body}">A drift scan found differences between this environment and its baseline that were not there before.</p>
+    <p class="meta">
+        <strong th:text="#{notification.email.schema_change.pipeline_label}">Pipeline:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.schema_change.environment_label}">Environment:</strong>
+        <span th:text="${environmentName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.schema_change.new_findings_label}">New findings:</strong>
+        <span th:text="${driftNewFindingCount} ?: '—'">—</span>
+    </p>
+    <p th:if="${reviewUrl}">
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.common.open_cta}">Open in AccessFlow</a>
+    </p>
+</body>
+</html>
