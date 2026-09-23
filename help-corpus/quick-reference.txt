@@ -97,6 +97,7 @@ Where things are in the app
     SQL review · /admin/sql-review · needs SQL_REVIEW_MANAGE — Deterministic SQL review rulesets: the severity (off, warn, block) every built-in rule runs at, per environment or as the organization default.
     Over-provisioned access · /admin/over-provisioned-access · needs ACCESS_USAGE_REPORT_VIEW — Grants nobody has used, suggested for revocation.
     Privileged access · /admin/privileged-access · needs DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — Who can bypass the permission gate — query admins and break-glass holders — and how often they have.
+    Access simulation · /admin/access-simulations · needs DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — Trace why a query would be approved, held or refused, and look up who can read, write or run DDL on a table.
     Break-glass log · /admin/break-glass · needs BREAK_GLASS_VIEW — Break-glass grants and the mandatory retro-review of each use.
 
   Security & Access → Data governance

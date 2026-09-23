@@ -1,8 +1,11 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   createPostgresDatasource,
+  createRoutingPolicyViaApi,
   deleteDatasource,
+  deleteRoutingPolicyViaApi,
   loginViaApi,
+  type CreatedRoutingPolicy,
   submitQueryViaApi,
   waitForQueryStatus,
 } from '../helpers/datasources';
@@ -31,36 +34,6 @@ async function waitForRoutingPoliciesListReady(page: Page): Promise<void> {
       r.ok(),
     { timeout: 15_000 },
   );
-}
-
-interface CreatedRoutingPolicy {
-  id: string;
-  name: string;
-}
-
-async function createRoutingPolicyViaApi(
-  request: APIRequestContext,
-  accessToken: string,
-  body: Record<string, unknown>,
-): Promise<CreatedRoutingPolicy> {
-  const res = await request.post(`${apiBase()}/api/v1/admin/routing-policies`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    data: body,
-  });
-  if (!res.ok()) {
-    throw new Error(`Create routing policy failed: ${res.status()} ${await res.text()}`);
-  }
-  return (await res.json()) as CreatedRoutingPolicy;
-}
-
-async function deleteRoutingPolicyViaApi(
-  request: APIRequestContext,
-  accessToken: string,
-  id: string,
-): Promise<void> {
-  await request.delete(`${apiBase()}/api/v1/admin/routing-policies/${id}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
 }
 
 test.describe.configure({ timeout: 90_000 });

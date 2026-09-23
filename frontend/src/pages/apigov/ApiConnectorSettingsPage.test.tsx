@@ -52,6 +52,11 @@ vi.mock('@/components/apigov/ApiConnectorClassificationTab', () => ({
 vi.mock('@/components/apigov/ApiConnectorPermissionsTab', () => ({
   ApiConnectorPermissionsTab: () => null,
 }));
+vi.mock('@/components/apigov/ApiConnectorSimulateTab', () => ({
+  ApiConnectorSimulateTab: ({ connectorId }: { connectorId: string }) => (
+    <div>simulate tab for {connectorId}</div>
+  ),
+}));
 
 const ApiConnectorSettingsPage = (await import('./ApiConnectorSettingsPage')).default;
 
@@ -433,5 +438,32 @@ describe('ApiConnectorSettingsPage — Postman collection import (AF-612)', () =
     fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
 
     expect(await screen.findByText('None declared')).toBeInTheDocument();
+  });
+});
+
+describe('ApiConnectorSettingsPage — Simulate tab (#1066)', () => {
+  beforeEach(() => {
+    getApiConnector.mockReset();
+    getApiConnector.mockResolvedValue(baseConnector);
+    listReviewPlans.mockReset();
+    listReviewPlans.mockResolvedValue([]);
+    listApiSchemas.mockReset();
+    listApiSchemas.mockResolvedValue([]);
+  });
+
+  it('adds a Simulate tab after Classification that renders the trace for this connector', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+
+    const tabs = await screen.findAllByRole('tab');
+    const names = tabs.map((tab) => tab.textContent);
+    expect(names.indexOf('Simulate')).toBe(names.indexOf('Classification') + 1);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Simulate' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Simulate' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    // Inactive panels stay mounted but hidden; the one visible tabpanel is the active one.
+    const panel = screen.getByRole('tabpanel');
+    expect(within(panel).getByText('simulate tab for conn-1')).toBeInTheDocument();
   });
 });

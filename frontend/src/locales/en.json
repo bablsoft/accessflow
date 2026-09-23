@@ -112,7 +112,8 @@
     "service_accounts": "Service accounts",
     "sub_schema_changes": "Schema changes",
     "schemaChangeSets": "Change sets",
-    "schemaDrift": "Schema drift"
+    "schemaDrift": "Schema drift",
+    "access_simulation": "Access simulation"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -3579,6 +3580,70 @@
       "PREVIOUS_ENVIRONMENT": "Previous environment",
       "BASELINE_ENVIRONMENT": "Baseline environment",
       "PROMOTION_SNAPSHOT": "Promotion snapshot"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "Allow",
+      "DENY": "Deny",
+      "MATCH": "Match",
+      "NO_MATCH": "No match",
+      "SKIP": "Skipped"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "Datasource gates",
+      "QUOTA": "Quota",
+      "SQL_PARSE": "SQL parse",
+      "EFFECTIVE_PERMISSION": "Effective permission",
+      "SQL_REVIEW": "SQL review rules",
+      "ROUTING_POLICIES": "Routing policies",
+      "GRANT_FAST_PATH": "Grant fast path",
+      "REVIEW_PLAN": "Review plan",
+      "ELIGIBLE_REVIEWERS": "Eligible reviewers",
+      "ROW_SECURITY": "Row security",
+      "MASKING": "Masking",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "Connector gates",
+      "CALL_CLASSIFICATION": "Call classification",
+      "SCHEMA_VALIDATION": "Schema validation",
+      "OPERATION_PERMISSION": "Operation permission",
+      "ROUTING_POLICIES": "Routing policies",
+      "REVIEW_REQUIREMENT": "Review requirement",
+      "ELIGIBLE_REVIEWERS": "Eligible reviewers",
+      "RESPONSE_MASKING": "Response masking",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "Pipeline gates",
+      "TRIGGER_PERMISSION": "Trigger permission",
+      "FREEZE_WINDOW": "Freeze window",
+      "ROUTING_POLICIES": "Routing policies",
+      "ENVIRONMENT_POLICY": "Environment policy",
+      "ELIGIBLE_REVIEWERS": "Eligible reviewers",
+      "SCHEDULED_RELEASE": "Scheduled release",
+      "GATE_RELEASABILITY": "Gate releasability",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "Skipped (no AI analysis)",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    },
+    "statement_capability": {
+      "READ": "Read",
+      "WRITE": "Write",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "Direct permission",
+      "GROUP_PERMISSION": "Group permission",
+      "JIT_GRANT": "Just-in-time grant",
+      "QUERY_ADMIN_BYPASS": "QUERY_ADMIN bypass",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "All tables",
+      "ALLOW_LISTED": "Allow-listed tables"
     }
   },
   "access": {
@@ -3666,6 +3731,48 @@
     "kind": {
       "datasource": "Datasource",
       "api_connector": "API Connection"
+    },
+    "simulation": {
+      "title": "Access simulation",
+      "subtitle": "Trace why a query would be approved, held or refused — and see who can reach a table. Nothing here is written.",
+      "tab_trace": "Query trace",
+      "tab_effective": "Who has access",
+      "read_only_notice": "A trace replays one hypothetical query through the stages the live pipeline runs. It creates no request, sends no notification and writes no audit row.",
+      "datasource": "Datasource",
+      "datasource_placeholder": "Select a datasource",
+      "datasource_required": "Select a datasource",
+      "user_required": "Select the user to simulate",
+      "sql": "SQL",
+      "sql_required": "Enter the SQL to trace",
+      "sql_too_long": "SQL must be at most {{max}} characters",
+      "risk_score": "Risk score",
+      "risk_score_range": "Risk score must be between {{min}} and {{max}}",
+      "risk_pair_required": "Set both the risk level and the risk score, or neither",
+      "risk_pair_hint": "The risk level and score travel together: a level without a score would silently skip every risk-based routing policy.",
+      "trace": "Trace",
+      "error": "The trace could not be computed",
+      "evaluated_context": "Evaluated routing context",
+      "datasource_scoped_hint": "Only datasources you can access are listed — paste a datasource ID to look up any other."
+    },
+    "effective": {
+      "table": "Table",
+      "table_placeholder": "schema.table",
+      "table_required": "Enter a table",
+      "capability": "Capability",
+      "lookup": "Show access",
+      "prompt_title": "Pick a datasource, a table and a capability",
+      "prompt_description": "Lists every identity that can perform it, and through which grants — including the QUERY_ADMIN bypass and break-glass.",
+      "load_error": "Could not load effective access",
+      "empty": "No identity can perform this on the table",
+      "col_identity": "Identity",
+      "col_granted": "Granted",
+      "col_scope": "Table scope",
+      "col_sources": "Sources",
+      "col_query_admin": "QUERY_ADMIN bypass",
+      "col_break_glass": "Can break glass",
+      "col_expires": "Access expires",
+      "allow_list_entry": "allow-list: {{entry}}",
+      "not_this_capability": "does not grant this capability"
     }
   },
   "connectors": {
@@ -4426,7 +4533,8 @@
         "reorder_error": "Could not reorder the variables"
       },
       "canOverrideVariables": "Override variables",
-      "canOverrideVariablesHint": "May supply per-request values for this connector's overridable dynamic variables."
+      "canOverrideVariablesHint": "May supply per-request values for this connector's overridable dynamic variables.",
+      "tabSimulate": "Simulate"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4658,19 @@
       "overrides": "Overrides",
       "overridesHint": "This request overrides connector variables"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "Replays one hypothetical call through this connector's governance pipeline. The governed API is never contacted and nothing is written.",
+      "operation": "Operation",
+      "operation_placeholder": "Any operation",
+      "verb": "Verb",
+      "verb_hint": "HTTP method or protocol verb, used when no operation is picked.",
+      "verb_too_long": "Verb must be at most {{max}} characters",
+      "user_required": "Select the user to simulate",
+      "simulate": "Simulate",
+      "error": "The simulation could not be computed",
+      "verb_placeholder": "GET"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5342,8 @@
       "groupPlaceholder": "Search groups",
       "editUserPermission": "Edit permission — {{user}}",
       "editGroupPermission": "Edit permission — {{group}}",
-      "revoke": "Revoke"
+      "revoke": "Revoke",
+      "tabSimulate": "Simulate"
     },
     "freezeWindows": {
       "title": "Freeze windows",
@@ -5303,6 +5424,28 @@
       "summary_min_risk": "risk ≥ {{risk}}",
       "summary_match_all": "Matches every deployment",
       "labelTimeRange": "Time range"
+    },
+    "simulate": {
+      "read_only_notice": "Walks one hypothetical deployment through the trigger grant, freeze windows, routing, environment policy and the release gate. No deployment request is created.",
+      "environment": "Environment",
+      "environment_placeholder": "Select an environment",
+      "environment_required": "Select an environment",
+      "user_required": "Select the user to simulate",
+      "version": "Version",
+      "version_required": "Enter a version",
+      "version_too_long": "Version must be at most {{max}} characters",
+      "at": "Evaluate at",
+      "at_hint": "Evaluate freeze windows and the schedule as if it were this moment — e.g. \"would a release this Friday evening be held?\". Empty means now.",
+      "at_placeholder": "Now",
+      "scheduled_for": "Scheduled release",
+      "scheduled_for_hint": "Optional: the not-before time the CI job would request.",
+      "simulate": "Simulate",
+      "error": "The simulation could not be computed",
+      "releasable": "Releasable — the gate would let this deployment through",
+      "not_releasable": "Not releasable — the gate would hold this deployment",
+      "evaluated_at": "Evaluated at {{date}}",
+      "gate_note": "Computed by the same function the CI deployment gate blocks on.",
+      "version_placeholder": "e.g. 1.4.0"
     }
   },
   "help_chat": {
@@ -5369,5 +5512,117 @@
       "CLIENT_CONTEXT_ABSENT": "A hypothetical request carries no source IP, user agent or CI/CD origin, so conditions on those do not match here.",
       "RESPONSE_SHAPE_ABSENT": "An API-call simulation has no response body, so response masking is reported per rule rather than per field."
     }
+  },
+  "decisionTrace": {
+    "user": "Simulated user",
+    "user_placeholder": "Select a user",
+    "ai_outcome": "Assumed AI outcome",
+    "risk_level": "Risk level",
+    "resulting_status": "Resulting status",
+    "refused": "Refused — no request would be created",
+    "policies_not_evaluated": "Policy list not evaluated on this path",
+    "policies_not_evaluated_hint": "An earlier stage refused the request, or the assumed AI outcome failed, so routing policies never ran.",
+    "policies_none": "No enabled routing policies",
+    "col_priority": "Priority",
+    "col_policy": "Policy",
+    "col_action": "Action",
+    "col_required_approvals": "Required approvals",
+    "col_matched": "Matched",
+    "col_decisive": "Decisive",
+    "none": "None",
+    "never_expires": "never expires",
+    "expires_at": "expires {{date}}",
+    "via_group": "via group {{group}}",
+    "source_direct": "Direct grant",
+    "source_group": "Group grant",
+    "approver_role": "Role {{role}}",
+    "approver_user": "User {{id}}",
+    "stage": "stage {{stage}}",
+    "detail": {
+      "action": "Action",
+      "active": "Active",
+      "admin_bypass": "Admin bypass",
+      "ai_analysis_enabled": "AI analysis enabled",
+      "allowed_operations": "Allowed operations",
+      "applied_policy_ids": "Applied policies",
+      "auto_approve_reads": "Auto-approve reads",
+      "behavior": "Behaviour",
+      "blocking_count": "Blocking findings",
+      "blocking_rule_ids": "Blocking rules",
+      "can_break_glass": "Can break glass",
+      "can_read": "Can read",
+      "can_trigger": "Can trigger",
+      "can_write": "Can write",
+      "classified_from": "Classified from",
+      "connector_name": "Connector",
+      "considered_grant_ids": "Grants considered",
+      "contributing_grants": "Contributing grants",
+      "current": "Current usage",
+      "db_type": "Database type",
+      "effective_min_approvals": "Effective minimum approvals",
+      "engine_id": "Engine",
+      "environment_allows_break_glass": "Environment allows break-glass",
+      "environment_name": "Environment",
+      "environment_required_approvals": "Environment required approvals",
+      "evaluated_at": "Evaluated at",
+      "expires_at": "Expires",
+      "freeze_window_id": "Freeze window",
+      "frozen": "Frozen",
+      "grant_id": "Grant",
+      "has_limit_clause": "Has LIMIT",
+      "has_where_clause": "Has WHERE",
+      "limit": "Limit",
+      "masks": "Masks",
+      "matched_policy_id": "Matched policy ID",
+      "matched_policy_name": "Matched policy",
+      "min_approvals_required": "Minimum approvals",
+      "operation_count": "Operations",
+      "operation_id": "Operation",
+      "pipeline_name": "Pipeline",
+      "plan_approvers": "Plan approvers",
+      "predicates": "Predicates",
+      "protocol": "Protocol",
+      "provider": "Provider",
+      "query_admin_short_circuit": "QUERY_ADMIN short-circuit",
+      "query_type": "Query type",
+      "quota_type": "Quota",
+      "reason_text": "Reason",
+      "referenced_tables": "Referenced tables",
+      "rejected_tables": "Rejected tables",
+      "releasable": "Releasable",
+      "require_review": "Requires review",
+      "require_review_reads": "Review reads",
+      "require_review_writes": "Review writes",
+      "requires_human_approval": "Requires human approval",
+      "restricted_response_field_count": "Restricted response fields",
+      "review_plan_id": "Review plan",
+      "reviewers": "Reviewers",
+      "row_security_outcome": "Row-security outcome",
+      "scheduled_for": "Scheduled for",
+      "scope": "Scope",
+      "sql_review_suppressed": "Suppressed by SQL review",
+      "status": "Status",
+      "submitter_excluded": "Submitter excluded",
+      "transactional": "Transactional",
+      "verb": "Verb",
+      "visible_to_user": "Visible to user",
+      "write": "Write operation",
+      "anomaly_active": "Open anomaly",
+      "approver_email": "Approver",
+      "ci_cd_origin": "CI/CD origin",
+      "estimated_rows": "Estimated rows",
+      "minutes_since_last_approval": "Minutes since last approval",
+      "policies": "Policies",
+      "requester_group_ids": "Requester groups",
+      "requester_ip_address": "Requester IP",
+      "requester_role_name": "Requester role",
+      "requester_user_agent": "Requester user agent",
+      "risk_level": "Risk level",
+      "risk_score": "Risk score",
+      "scan_type": "Scan type"
+    },
+    "use_id": "Use ID {{id}}",
+    "user_id_placeholder": "Paste a user ID",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

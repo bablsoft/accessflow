@@ -112,7 +112,8 @@
     "service_accounts": "Сервисные аккаунты",
     "sub_schema_changes": "Изменения схемы",
     "schemaChangeSets": "Наборы изменений",
-    "schemaDrift": "Дрейф схемы"
+    "schemaDrift": "Дрейф схемы",
+    "access_simulation": "Симуляция доступа"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -3555,6 +3556,70 @@
       "PREVIOUS_ENVIRONMENT": "Предыдущее окружение",
       "BASELINE_ENVIRONMENT": "Базовое окружение",
       "PROMOTION_SNAPSHOT": "Снимок продвижения"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "Разрешено",
+      "DENY": "Запрещено",
+      "MATCH": "Совпадение",
+      "NO_MATCH": "Нет совпадения",
+      "SKIP": "Пропущено"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "Проверки источника данных",
+      "QUOTA": "Квота",
+      "SQL_PARSE": "Разбор SQL",
+      "EFFECTIVE_PERMISSION": "Фактическое право",
+      "SQL_REVIEW": "Правила проверки SQL",
+      "ROUTING_POLICIES": "Политики маршрутизации",
+      "GRANT_FAST_PATH": "Быстрый путь по выдаче",
+      "REVIEW_PLAN": "План проверки",
+      "ELIGIBLE_REVIEWERS": "Допустимые проверяющие",
+      "ROW_SECURITY": "Построчная безопасность",
+      "MASKING": "Маскирование",
+      "BREAK_GLASS": "Экстренный доступ"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "Проверки коннектора",
+      "CALL_CLASSIFICATION": "Классификация вызова",
+      "SCHEMA_VALIDATION": "Проверка схемы",
+      "OPERATION_PERMISSION": "Право на операцию",
+      "ROUTING_POLICIES": "Политики маршрутизации",
+      "REVIEW_REQUIREMENT": "Требование проверки",
+      "ELIGIBLE_REVIEWERS": "Допустимые проверяющие",
+      "RESPONSE_MASKING": "Маскирование ответа",
+      "BREAK_GLASS": "Экстренный доступ"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "Проверки конвейера",
+      "TRIGGER_PERMISSION": "Право запуска",
+      "FREEZE_WINDOW": "Окно заморозки",
+      "ROUTING_POLICIES": "Политики маршрутизации",
+      "ENVIRONMENT_POLICY": "Политика окружения",
+      "ELIGIBLE_REVIEWERS": "Допустимые проверяющие",
+      "SCHEDULED_RELEASE": "Запланированный выпуск",
+      "GATE_RELEASABILITY": "Готовность к выпуску на шлюзе",
+      "BREAK_GLASS": "Экстренный доступ"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "Пропущено (без анализа ИИ)",
+      "COMPLETED": "Завершено",
+      "FAILED": "Сбой"
+    },
+    "statement_capability": {
+      "READ": "Чтение",
+      "WRITE": "Запись",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "Прямое право",
+      "GROUP_PERMISSION": "Групповое право",
+      "JIT_GRANT": "Временная выдача",
+      "QUERY_ADMIN_BYPASS": "Обход QUERY_ADMIN",
+      "BREAK_GLASS": "Экстренный доступ"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "Все таблицы",
+      "ALLOW_LISTED": "Разрешённые таблицы"
     }
   },
   "access": {
@@ -3642,6 +3707,48 @@
     "kind": {
       "datasource": "Источник данных",
       "api_connector": "API-подключение"
+    },
+    "simulation": {
+      "title": "Симуляция доступа",
+      "subtitle": "Проследите, почему запрос был бы одобрен, задержан или отклонён, и узнайте, у кого есть доступ к таблице. Здесь ничего не записывается.",
+      "tab_trace": "Трассировка запроса",
+      "tab_effective": "У кого есть доступ",
+      "read_only_notice": "Трассировка прогоняет один гипотетический запрос через этапы реального конвейера. Она не создаёт запрос, не отправляет уведомлений и не пишет строк аудита.",
+      "datasource": "Источник данных",
+      "datasource_placeholder": "Выберите источник данных",
+      "datasource_required": "Выберите источник данных",
+      "user_required": "Выберите пользователя для симуляции",
+      "sql": "SQL",
+      "sql_required": "Введите SQL для трассировки",
+      "sql_too_long": "SQL не должен превышать {{max}} символов",
+      "risk_score": "Оценка риска",
+      "risk_score_range": "Оценка риска должна быть от {{min}} до {{max}}",
+      "risk_pair_required": "Укажите и уровень, и оценку риска — или ни то, ни другое",
+      "risk_pair_hint": "Уровень и оценка риска передаются вместе: уровень без оценки молча пропустит все политики маршрутизации по риску.",
+      "trace": "Трассировать",
+      "error": "Не удалось вычислить трассировку",
+      "evaluated_context": "Оценённый контекст маршрутизации",
+      "datasource_scoped_hint": "Показаны только доступные вам источники данных — вставьте ID, чтобы проверить любой другой."
+    },
+    "effective": {
+      "table": "Таблица",
+      "table_placeholder": "схема.таблица",
+      "table_required": "Укажите таблицу",
+      "capability": "Возможность",
+      "lookup": "Показать доступ",
+      "prompt_title": "Выберите источник данных, таблицу и возможность",
+      "prompt_description": "Показывает все учётные записи, которые могут это сделать, и через какие права — включая обход QUERY_ADMIN и экстренный доступ.",
+      "load_error": "Не удалось загрузить фактический доступ",
+      "empty": "Ни у одной учётной записи нет такого доступа к таблице",
+      "col_identity": "Учётная запись",
+      "col_granted": "Предоставлено",
+      "col_scope": "Область таблиц",
+      "col_sources": "Источники",
+      "col_query_admin": "Обход QUERY_ADMIN",
+      "col_break_glass": "Экстренный доступ",
+      "col_expires": "Срок доступа",
+      "allow_list_entry": "список разрешённых: {{entry}}",
+      "not_this_capability": "не даёт эту возможность"
     }
   },
   "connectors": {
@@ -4426,7 +4533,8 @@
         "reorder_error": "Не удалось изменить порядок переменных"
       },
       "canOverrideVariables": "Переопределять переменные",
-      "canOverrideVariablesHint": "Может указывать значения в запросе для переопределяемых динамических переменных этого коннектора."
+      "canOverrideVariablesHint": "Может указывать значения в запросе для переопределяемых динамических переменных этого коннектора.",
+      "tabSimulate": "Симуляция"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4658,19 @@
       "overrides": "Переопределения",
       "overridesHint": "Этот запрос переопределяет переменные коннектора"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "Прогоняет один гипотетический вызов через конвейер управления этого коннектора. К API никогда не обращаются, ничего не записывается.",
+      "operation": "Операция",
+      "operation_placeholder": "Любая операция",
+      "verb": "Метод",
+      "verb_hint": "HTTP-метод или глагол протокола, если операция не выбрана.",
+      "verb_too_long": "Метод не должен превышать {{max}} символов",
+      "user_required": "Выберите пользователя для симуляции",
+      "simulate": "Смоделировать",
+      "error": "Не удалось вычислить симуляцию",
+      "verb_placeholder": "GET"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5342,8 @@
       "groupPlaceholder": "Поиск групп",
       "editUserPermission": "Редактировать доступ — {{user}}",
       "editGroupPermission": "Редактировать доступ — {{group}}",
-      "revoke": "Отозвать"
+      "revoke": "Отозвать",
+      "tabSimulate": "Симуляция"
     },
     "freezeWindows": {
       "title": "Окна заморозки",
@@ -5303,6 +5424,28 @@
       "summary_min_risk": "риск ≥ {{risk}}",
       "summary_match_all": "Совпадает с любым развертыванием",
       "labelTimeRange": "Временной диапазон"
+    },
+    "simulate": {
+      "read_only_notice": "Проводит одно гипотетическое развёртывание через право запуска, окна заморозки, маршрутизацию, политику окружения и шлюз выпуска. Запрос на развёртывание не создаётся.",
+      "environment": "Окружение",
+      "environment_placeholder": "Выберите окружение",
+      "environment_required": "Выберите окружение",
+      "user_required": "Выберите пользователя для симуляции",
+      "version": "Версия",
+      "version_required": "Укажите версию",
+      "version_too_long": "Версия не должна превышать {{max}} символов",
+      "at": "Оценить на момент",
+      "at_hint": "Оценивает окна заморозки и расписание так, будто сейчас этот момент, — например, «будет ли задержан выпуск в пятницу вечером?». Пусто — сейчас.",
+      "at_placeholder": "Сейчас",
+      "scheduled_for": "Запланированный выпуск",
+      "scheduled_for_hint": "Необязательно: время «не раньше», которое запросил бы CI-задание.",
+      "simulate": "Смоделировать",
+      "error": "Не удалось вычислить симуляцию",
+      "releasable": "Можно выпускать — шлюз пропустит это развёртывание",
+      "not_releasable": "Нельзя выпускать — шлюз задержит это развёртывание",
+      "evaluated_at": "Оценено {{date}}",
+      "gate_note": "Вычислено той же функцией, на которой блокируется CI-шлюз развёртывания.",
+      "version_placeholder": "напр. 1.4.0"
     }
   },
   "help_chat": {
@@ -5369,5 +5512,117 @@
       "CLIENT_CONTEXT_ABSENT": "Гипотетический запрос не несёт исходного IP, user-agent и признака CI/CD, поэтому условия по ним здесь не срабатывают.",
       "RESPONSE_SHAPE_ABSENT": "У симуляции API-вызова нет тела ответа, поэтому маскирование сообщается по правилам, а не по полям."
     }
+  },
+  "decisionTrace": {
+    "user": "Моделируемый пользователь",
+    "user_placeholder": "Выберите пользователя",
+    "ai_outcome": "Предполагаемый итог ИИ",
+    "risk_level": "Уровень риска",
+    "resulting_status": "Итоговый статус",
+    "refused": "Отклонено — запрос не был бы создан",
+    "policies_not_evaluated": "Список политик на этом пути не оценивался",
+    "policies_not_evaluated_hint": "Предыдущий этап отклонил запрос или предполагаемый итог ИИ — сбой, поэтому политики маршрутизации не выполнялись.",
+    "policies_none": "Нет активных политик маршрутизации",
+    "col_priority": "Приоритет",
+    "col_policy": "Политика",
+    "col_action": "Действие",
+    "col_required_approvals": "Требуемые одобрения",
+    "col_matched": "Совпало",
+    "col_decisive": "Решающая",
+    "none": "Нет",
+    "never_expires": "бессрочно",
+    "expires_at": "истекает {{date}}",
+    "via_group": "через группу {{group}}",
+    "source_direct": "Прямое право",
+    "source_group": "Групповое право",
+    "approver_role": "Роль {{role}}",
+    "approver_user": "Пользователь {{id}}",
+    "stage": "этап {{stage}}",
+    "detail": {
+      "action": "Действие",
+      "active": "Активен",
+      "admin_bypass": "Обход администратора",
+      "ai_analysis_enabled": "Анализ ИИ включён",
+      "allowed_operations": "Разрешённые операции",
+      "applied_policy_ids": "Применённые политики",
+      "auto_approve_reads": "Автоодобрение чтения",
+      "behavior": "Поведение",
+      "blocking_count": "Блокирующие замечания",
+      "blocking_rule_ids": "Блокирующие правила",
+      "can_break_glass": "Экстренный доступ",
+      "can_read": "Может читать",
+      "can_trigger": "Может запускать",
+      "can_write": "Может писать",
+      "classified_from": "Классифицировано по",
+      "connector_name": "Коннектор",
+      "considered_grant_ids": "Рассмотренные выдачи",
+      "contributing_grants": "Действующие права",
+      "current": "Текущее использование",
+      "db_type": "Тип базы данных",
+      "effective_min_approvals": "Фактический минимум одобрений",
+      "engine_id": "Движок",
+      "environment_allows_break_glass": "Окружение допускает экстренный доступ",
+      "environment_name": "Окружение",
+      "environment_required_approvals": "Одобрения, требуемые окружением",
+      "evaluated_at": "Время оценки",
+      "expires_at": "Истекает",
+      "freeze_window_id": "Окно заморозки",
+      "frozen": "Заморожено",
+      "grant_id": "Выдача",
+      "has_limit_clause": "Есть LIMIT",
+      "has_where_clause": "Есть WHERE",
+      "limit": "Лимит",
+      "masks": "Маски",
+      "matched_policy_id": "ID совпавшей политики",
+      "matched_policy_name": "Совпавшая политика",
+      "min_approvals_required": "Минимум одобрений",
+      "operation_count": "Операции",
+      "operation_id": "Операция",
+      "pipeline_name": "Конвейер",
+      "plan_approvers": "Утверждающие по плану",
+      "predicates": "Предикаты",
+      "protocol": "Протокол",
+      "provider": "Провайдер",
+      "query_admin_short_circuit": "Обход через QUERY_ADMIN",
+      "query_type": "Тип запроса",
+      "quota_type": "Квота",
+      "reason_text": "Причина",
+      "referenced_tables": "Затронутые таблицы",
+      "rejected_tables": "Отклонённые таблицы",
+      "releasable": "Можно выпускать",
+      "require_review": "Требует проверки",
+      "require_review_reads": "Проверять чтение",
+      "require_review_writes": "Проверять запись",
+      "requires_human_approval": "Требует одобрения человеком",
+      "restricted_response_field_count": "Ограниченные поля ответа",
+      "review_plan_id": "План проверки",
+      "reviewers": "Проверяющие",
+      "row_security_outcome": "Итог построчной безопасности",
+      "scheduled_for": "Запланировано на",
+      "scope": "Область",
+      "sql_review_suppressed": "Подавлено проверкой SQL",
+      "status": "Статус",
+      "submitter_excluded": "Автор исключён",
+      "transactional": "Транзакционный",
+      "verb": "Метод",
+      "visible_to_user": "Видно пользователю",
+      "write": "Операция записи",
+      "anomaly_active": "Открытая аномалия",
+      "approver_email": "Утверждающий",
+      "ci_cd_origin": "Источник CI/CD",
+      "estimated_rows": "Оценка строк",
+      "minutes_since_last_approval": "Минут с последнего одобрения",
+      "policies": "Политики",
+      "requester_group_ids": "Группы автора",
+      "requester_ip_address": "IP автора",
+      "requester_role_name": "Роль автора",
+      "requester_user_agent": "User agent автора",
+      "risk_level": "Уровень риска",
+      "risk_score": "Оценка риска",
+      "scan_type": "Тип сканирования"
+    },
+    "use_id": "Использовать ID {{id}}",
+    "user_id_placeholder": "Вставьте ID пользователя",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

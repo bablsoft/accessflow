@@ -112,7 +112,8 @@
     "service_accounts": "Ծառայողական հաշիվներ",
     "sub_schema_changes": "Սխեմայի փոփոխություններ",
     "schemaChangeSets": "Փոփոխությունների հավաքածուներ",
-    "schemaDrift": "Սխեմայի շեղում"
+    "schemaDrift": "Սխեմայի շեղում",
+    "access_simulation": "Մուտքի սիմուլյացիա"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -3555,6 +3556,70 @@
       "PREVIOUS_ENVIRONMENT": "Նախորդ միջավայր",
       "BASELINE_ENVIRONMENT": "Հենակետային միջավայր",
       "PROMOTION_SNAPSHOT": "Պրոմոուշնի սնափշոթ"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "Թույլատրված",
+      "DENY": "Մերժված",
+      "MATCH": "Համընկում",
+      "NO_MATCH": "Համընկում չկա",
+      "SKIP": "Բաց թողնված"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "Տվյալների աղբյուրի ստուգումներ",
+      "QUOTA": "Քվոտա",
+      "SQL_PARSE": "SQL վերլուծություն",
+      "EFFECTIVE_PERMISSION": "Փաստացի թույլտվություն",
+      "SQL_REVIEW": "SQL ստուգման կանոններ",
+      "ROUTING_POLICIES": "Երթուղման քաղաքականություններ",
+      "GRANT_FAST_PATH": "Թույլտվության արագ ուղի",
+      "REVIEW_PLAN": "Վերանայման պլան",
+      "ELIGIBLE_REVIEWERS": "Իրավասու վերանայողներ",
+      "ROW_SECURITY": "Տողային անվտանգություն",
+      "MASKING": "Քողարկում",
+      "BREAK_GLASS": "Արտակարգ մուտք"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "Միակցիչի ստուգումներ",
+      "CALL_CLASSIFICATION": "Կանչի դասակարգում",
+      "SCHEMA_VALIDATION": "Սխեմայի վավերացում",
+      "OPERATION_PERMISSION": "Գործողության թույլտվություն",
+      "ROUTING_POLICIES": "Երթուղման քաղաքականություններ",
+      "REVIEW_REQUIREMENT": "Վերանայման պահանջ",
+      "ELIGIBLE_REVIEWERS": "Իրավասու վերանայողներ",
+      "RESPONSE_MASKING": "Պատասխանի քողարկում",
+      "BREAK_GLASS": "Արտակարգ մուտք"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "Խողովակաշարի ստուգումներ",
+      "TRIGGER_PERMISSION": "Գործարկման թույլտվություն",
+      "FREEZE_WINDOW": "Սառեցման պատուհան",
+      "ROUTING_POLICIES": "Երթուղման քաղաքականություններ",
+      "ENVIRONMENT_POLICY": "Միջավայրի քաղաքականություն",
+      "ELIGIBLE_REVIEWERS": "Իրավասու վերանայողներ",
+      "SCHEDULED_RELEASE": "Պլանավորված թողարկում",
+      "GATE_RELEASABILITY": "Դարպասի թողարկելիություն",
+      "BREAK_GLASS": "Արտակարգ մուտք"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "Բաց թողնված (առանց AI վերլուծության)",
+      "COMPLETED": "Ավարտված",
+      "FAILED": "Ձախողված"
+    },
+    "statement_capability": {
+      "READ": "Կարդալ",
+      "WRITE": "Գրել",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "Ուղղակի թույլտվություն",
+      "GROUP_PERMISSION": "Խմբային թույլտվություն",
+      "JIT_GRANT": "Ժամանակավոր թույլտվություն",
+      "QUERY_ADMIN_BYPASS": "QUERY_ADMIN շրջանցում",
+      "BREAK_GLASS": "Արտակարգ մուտք"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "Բոլոր աղյուսակները",
+      "ALLOW_LISTED": "Թույլատրված աղյուսակներ"
     }
   },
   "access": {
@@ -3642,6 +3707,48 @@
     "kind": {
       "datasource": "Տվյալների աղբյուր",
       "api_connector": "API կապակցում"
+    },
+    "simulation": {
+      "title": "Մուտքի սիմուլյացիա",
+      "subtitle": "Հետևեք, թե ինչու հարցումը կհաստատվի, կպահվի կամ կմերժվի, և տեսեք, թե ով կարող է հասնել աղյուսակին։ Այստեղ ոչինչ չի գրանցվում։",
+      "tab_trace": "Հարցման հետք",
+      "tab_effective": "Ով ունի մուտք",
+      "read_only_notice": "Հետքը մեկ ենթադրական հարցում անցկացնում է իրական խողովակաշարի փուլերով։ Այն հարցում չի ստեղծում, ծանուցում չի ուղարկում և աուդիտի գրառում չի կատարում։",
+      "datasource": "Տվյալների աղբյուր",
+      "datasource_placeholder": "Ընտրեք տվյալների աղբյուր",
+      "datasource_required": "Ընտրեք տվյալների աղբյուր",
+      "user_required": "Ընտրեք սիմուլյացիայի օգտատիրոջը",
+      "sql": "SQL",
+      "sql_required": "Մուտքագրեք հետևելու SQL-ը",
+      "sql_too_long": "SQL-ը պետք է լինի առավելագույնը {{max}} նիշ",
+      "risk_score": "Ռիսկի միավոր",
+      "risk_score_range": "Ռիսկի միավորը պետք է լինի {{min}}-ից {{max}}",
+      "risk_pair_required": "Նշեք և՛ ռիսկի մակարդակը, և՛ միավորը, կամ ոչ մեկը",
+      "risk_pair_hint": "Ռիսկի մակարդակը և միավորը միասին են․ առանց միավորի մակարդակը լուռ կշրջանցի ռիսկի վրա հիմնված երթուղման բոլոր քաղաքականությունները։",
+      "trace": "Հետևել",
+      "error": "Հետքը հնարավոր չեղավ հաշվարկել",
+      "evaluated_context": "Գնահատված երթուղման համատեքստ",
+      "datasource_scoped_hint": "Ցուցադրված են միայն ձեզ հասանելի տվյալների աղբյուրները․ այլ աղբյուրի համար տեղադրեք դրա ID-ն։"
+    },
+    "effective": {
+      "table": "Աղյուսակ",
+      "table_placeholder": "schema.table",
+      "table_required": "Մուտքագրեք աղյուսակ",
+      "capability": "Հնարավորություն",
+      "lookup": "Ցույց տալ մուտքը",
+      "prompt_title": "Ընտրեք տվյալների աղբյուր, աղյուսակ և հնարավորություն",
+      "prompt_description": "Թվարկում է յուրաքանչյուր ինքնություն, որ կարող է դա անել, և ինչ թույլտվություններով՝ ներառյալ QUERY_ADMIN շրջանցումը և արտակարգ մուտքը։",
+      "load_error": "Հնարավոր չեղավ բեռնել փաստացի մուտքը",
+      "empty": "Ոչ մի ինքնություն չի կարող դա անել աղյուսակում",
+      "col_identity": "Ինքնություն",
+      "col_granted": "Տրված",
+      "col_scope": "Աղյուսակների շրջանակ",
+      "col_sources": "Աղբյուրներ",
+      "col_query_admin": "QUERY_ADMIN շրջանցում",
+      "col_break_glass": "Արտակարգ մուտք",
+      "col_expires": "Մուտքի ժամկետ",
+      "allow_list_entry": "թույլատրված ցուցակ՝ {{entry}}",
+      "not_this_capability": "այս հնարավորությունը չի տալիս"
     }
   },
   "connectors": {
@@ -4426,7 +4533,8 @@
         "reorder_error": "Չհաջողվեց փոխել փոփոխականների հերթականությունը"
       },
       "canOverrideVariables": "Վերասահմանել փոփոխականները",
-      "canOverrideVariablesHint": "Կարող է տրամադրել արժեքներ ըստ հարցման այս միակցիչի վերասահմանելի դինամիկ փոփոխականների համար։"
+      "canOverrideVariablesHint": "Կարող է տրամադրել արժեքներ ըստ հարցման այս միակցիչի վերասահմանելի դինամիկ փոփոխականների համար։",
+      "tabSimulate": "Սիմուլյացիա"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4658,19 @@
       "overrides": "Վերասահմանումներ",
       "overridesHint": "Այս հարցումը վերասահմանում է միակցիչի փոփոխականներ"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "Մեկ ենթադրական կանչ է անցկացնում այս միակցիչի կառավարման խողովակաշարով։ Կառավարվող API-ին երբեք չի դիմվում, և ոչինչ չի գրանցվում։",
+      "operation": "Գործողություն",
+      "operation_placeholder": "Ցանկացած գործողություն",
+      "verb": "Բայ",
+      "verb_hint": "HTTP մեթոդ կամ արձանագրության բայ, երբ գործողություն ընտրված չէ։",
+      "verb_too_long": "Բայը պետք է լինի առավելագույնը {{max}} նիշ",
+      "user_required": "Ընտրեք սիմուլյացիայի օգտատիրոջը",
+      "simulate": "Սիմուլյացնել",
+      "error": "Սիմուլյացիան հնարավոր չեղավ հաշվարկել",
+      "verb_placeholder": "GET"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5342,8 @@
       "groupPlaceholder": "Որոնել խմբեր",
       "editUserPermission": "Խմբագրել թույլտվությունը — {{user}}",
       "editGroupPermission": "Խմբագրել թույլտվությունը — {{group}}",
-      "revoke": "Հետ կանչել"
+      "revoke": "Հետ կանչել",
+      "tabSimulate": "Սիմուլյացիա"
     },
     "freezeWindows": {
       "title": "Սառեցման պատուհաններ",
@@ -5303,6 +5424,28 @@
       "summary_min_risk": "ռիսկ ≥ {{risk}}",
       "summary_match_all": "Համընկնում է ցանկացած տեղակայման հետ",
       "labelTimeRange": "Ժամային միջակայք"
+    },
+    "simulate": {
+      "read_only_notice": "Մեկ ենթադրական տեղակայում անցկացնում է գործարկման թույլտվության, սառեցման պատուհանների, երթուղման, միջավայրի քաղաքականության և թողարկման դարպասի միջով։ Տեղակայման հարցում չի ստեղծվում։",
+      "environment": "Միջավայր",
+      "environment_placeholder": "Ընտրեք միջավայր",
+      "environment_required": "Ընտրեք միջավայր",
+      "user_required": "Ընտրեք սիմուլյացիայի օգտատիրոջը",
+      "version": "Տարբերակ",
+      "version_required": "Մուտքագրեք տարբերակ",
+      "version_too_long": "Տարբերակը պետք է լինի առավելագույնը {{max}} նիշ",
+      "at": "Գնահատել պահին",
+      "at_hint": "Գնահատում է սառեցման պատուհանները և ժամանակացույցը, կարծես այս պահն է, օրինակ՝ «կպահվի՞ արդյոք ուրբաթ երեկոյան թողարկումը»։ Դատարկը նշանակում է հիմա։",
+      "at_placeholder": "Հիմա",
+      "scheduled_for": "Պլանավորված թողարկում",
+      "scheduled_for_hint": "Ըստ ցանկության՝ CI աշխատանքի պահանջվող «ոչ շուտ քան» ժամը։",
+      "simulate": "Սիմուլյացնել",
+      "error": "Սիմուլյացիան հնարավոր չեղավ հաշվարկել",
+      "releasable": "Թողարկելի է՝ դարպասը կթողնի այս տեղակայումը",
+      "not_releasable": "Թողարկելի չէ՝ դարպասը կպահի այս տեղակայումը",
+      "evaluated_at": "Գնահատված է {{date}}",
+      "gate_note": "Հաշվարկված է նույն ֆունկցիայով, որով արգելափակում է CI տեղակայման դարպասը։",
+      "version_placeholder": "օր.՝ 1.4.0"
     }
   },
   "help_chat": {
@@ -5369,5 +5512,117 @@
       "CLIENT_CONTEXT_ABSENT": "Ենթադրյալ հարցումը չի կրում աղբյուրի IP, օգտատիրոջ գործակալ կամ CI/CD ծագում, ուստի դրանց վերաբերող պայմանները այստեղ չեն համընկնում։",
       "RESPONSE_SHAPE_ABSENT": "API կանչի սիմուլյացիան պատասխանի մարմին չունի, ուստի դիմակավորումը հաղորդվում է ըստ կանոնի, ոչ թե ըստ դաշտի։"
     }
+  },
+  "decisionTrace": {
+    "user": "Սիմուլյացված օգտատեր",
+    "user_placeholder": "Ընտրեք օգտատեր",
+    "ai_outcome": "Ենթադրվող AI արդյունք",
+    "risk_level": "Ռիսկի մակարդակ",
+    "resulting_status": "Արդյունքային կարգավիճակ",
+    "refused": "Մերժված է՝ հարցում չէր ստեղծվի",
+    "policies_not_evaluated": "Քաղաքականությունների ցուցակը այս ճանապարհին չի գնահատվել",
+    "policies_not_evaluated_hint": "Նախորդ փուլը մերժել է հարցումը, կամ ենթադրվող AI արդյունքը ձախողվել է, ուստի երթուղման քաղաքականությունները չեն գործարկվել։",
+    "policies_none": "Միացված երթուղման քաղաքականություններ չկան",
+    "col_priority": "Առաջնահերթություն",
+    "col_policy": "Քաղաքականություն",
+    "col_action": "Գործողություն",
+    "col_required_approvals": "Պահանջվող հաստատումներ",
+    "col_matched": "Համընկավ",
+    "col_decisive": "Վճռորոշ",
+    "none": "Չկա",
+    "never_expires": "երբեք չի լրանում",
+    "expires_at": "լրանում է {{date}}",
+    "via_group": "{{group}} խմբի միջոցով",
+    "source_direct": "Ուղղակի թույլտվություն",
+    "source_group": "Խմբային թույլտվություն",
+    "approver_role": "Դեր {{role}}",
+    "approver_user": "Օգտատեր {{id}}",
+    "stage": "փուլ {{stage}}",
+    "detail": {
+      "action": "Գործողություն",
+      "active": "Ակտիվ",
+      "admin_bypass": "Ադմինի շրջանցում",
+      "ai_analysis_enabled": "AI վերլուծությունը միացված է",
+      "allowed_operations": "Թույլատրված գործողություններ",
+      "applied_policy_ids": "Կիրառված քաղաքականություններ",
+      "auto_approve_reads": "Ընթերցումների ավտոհաստատում",
+      "behavior": "Վարքագիծ",
+      "blocking_count": "Արգելափակող արդյունքներ",
+      "blocking_rule_ids": "Արգելափակող կանոններ",
+      "can_break_glass": "Արտակարգ մուտք",
+      "can_read": "Կարող է կարդալ",
+      "can_trigger": "Կարող է գործարկել",
+      "can_write": "Կարող է գրել",
+      "classified_from": "Դասակարգված է ըստ",
+      "connector_name": "Միակցիչ",
+      "considered_grant_ids": "Դիտարկված թույլտվություններ",
+      "contributing_grants": "Ներդրում ունեցող թույլտվություններ",
+      "current": "Ընթացիկ օգտագործում",
+      "db_type": "Տվյալների բազայի տեսակ",
+      "effective_min_approvals": "Փաստացի նվազագույն հաստատումներ",
+      "engine_id": "Շարժիչ",
+      "environment_allows_break_glass": "Միջավայրը թույլ է տալիս արտակարգ մուտք",
+      "environment_name": "Միջավայր",
+      "environment_required_approvals": "Միջավայրի պահանջվող հաստատումներ",
+      "evaluated_at": "Գնահատման պահ",
+      "expires_at": "Լրանում է",
+      "freeze_window_id": "Սառեցման պատուհան",
+      "frozen": "Սառեցված",
+      "grant_id": "Թույլտվություն",
+      "has_limit_clause": "Ունի LIMIT",
+      "has_where_clause": "Ունի WHERE",
+      "limit": "Սահմանաչափ",
+      "masks": "Քողարկումներ",
+      "matched_policy_id": "Համընկած քաղաքականության ID",
+      "matched_policy_name": "Համընկած քաղաքականություն",
+      "min_approvals_required": "Նվազագույն հաստատումներ",
+      "operation_count": "Գործողություններ",
+      "operation_id": "Գործողություն",
+      "pipeline_name": "Խողովակաշար",
+      "plan_approvers": "Պլանի հաստատողներ",
+      "predicates": "Պրեդիկատներ",
+      "protocol": "Արձանագրություն",
+      "provider": "Մատակարար",
+      "query_admin_short_circuit": "QUERY_ADMIN կարճ ճանապարհ",
+      "query_type": "Հարցման տեսակ",
+      "quota_type": "Քվոտա",
+      "reason_text": "Պատճառ",
+      "referenced_tables": "Հղված աղյուսակներ",
+      "rejected_tables": "Մերժված աղյուսակներ",
+      "releasable": "Թողարկելի",
+      "require_review": "Պահանջում է վերանայում",
+      "require_review_reads": "Վերանայել ընթերցումները",
+      "require_review_writes": "Վերանայել գրառումները",
+      "requires_human_approval": "Պահանջում է մարդու հաստատում",
+      "restricted_response_field_count": "Սահմանափակված պատասխանի դաշտեր",
+      "review_plan_id": "Վերանայման պլան",
+      "reviewers": "Վերանայողներ",
+      "row_security_outcome": "Տողային անվտանգության արդյունք",
+      "scheduled_for": "Պլանավորված է",
+      "scope": "Շրջանակ",
+      "sql_review_suppressed": "Կասեցված է SQL ստուգմամբ",
+      "status": "Կարգավիճակ",
+      "submitter_excluded": "Ներկայացնողը բացառված է",
+      "transactional": "Տրանզակցիոն",
+      "verb": "Բայ",
+      "visible_to_user": "Տեսանելի է օգտատիրոջը",
+      "write": "Գրման գործողություն",
+      "anomaly_active": "Բաց անոմալիա",
+      "approver_email": "Հաստատող",
+      "ci_cd_origin": "CI/CD աղբյուր",
+      "estimated_rows": "Գնահատված տողեր",
+      "minutes_since_last_approval": "Րոպե վերջին հաստատումից",
+      "policies": "Քաղաքականություններ",
+      "requester_group_ids": "Հայցողի խմբեր",
+      "requester_ip_address": "Հայցողի IP",
+      "requester_role_name": "Հայցողի դեր",
+      "requester_user_agent": "Հայցողի user agent",
+      "risk_level": "Ռիսկի մակարդակ",
+      "risk_score": "Ռիսկի միավոր",
+      "scan_type": "Սկանավորման տեսակ"
+    },
+    "use_id": "Օգտագործել ID {{id}}",
+    "user_id_placeholder": "Տեղադրեք օգտատիրոջ ID",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

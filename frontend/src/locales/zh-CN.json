@@ -112,7 +112,8 @@
     "service_accounts": "服务账号",
     "sub_schema_changes": "架构变更",
     "schemaChangeSets": "变更集",
-    "schemaDrift": "架构漂移"
+    "schemaDrift": "架构漂移",
+    "access_simulation": "访问模拟"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -3555,6 +3556,70 @@
       "PREVIOUS_ENVIRONMENT": "上一环境",
       "BASELINE_ENVIRONMENT": "基准环境",
       "PROMOTION_SNAPSHOT": "晋升快照"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "允许",
+      "DENY": "拒绝",
+      "MATCH": "匹配",
+      "NO_MATCH": "不匹配",
+      "SKIP": "已跳过"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "数据源检查",
+      "QUOTA": "配额",
+      "SQL_PARSE": "SQL 解析",
+      "EFFECTIVE_PERMISSION": "有效权限",
+      "SQL_REVIEW": "SQL 审查规则",
+      "ROUTING_POLICIES": "路由策略",
+      "GRANT_FAST_PATH": "授权快速通道",
+      "REVIEW_PLAN": "审查计划",
+      "ELIGIBLE_REVIEWERS": "合格审查人",
+      "ROW_SECURITY": "行级安全",
+      "MASKING": "脱敏",
+      "BREAK_GLASS": "紧急访问"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "连接器检查",
+      "CALL_CLASSIFICATION": "调用分类",
+      "SCHEMA_VALIDATION": "模式校验",
+      "OPERATION_PERMISSION": "操作权限",
+      "ROUTING_POLICIES": "路由策略",
+      "REVIEW_REQUIREMENT": "审查要求",
+      "ELIGIBLE_REVIEWERS": "合格审查人",
+      "RESPONSE_MASKING": "响应脱敏",
+      "BREAK_GLASS": "紧急访问"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "流水线检查",
+      "TRIGGER_PERMISSION": "触发权限",
+      "FREEZE_WINDOW": "冻结窗口",
+      "ROUTING_POLICIES": "路由策略",
+      "ENVIRONMENT_POLICY": "环境策略",
+      "ELIGIBLE_REVIEWERS": "合格审查人",
+      "SCHEDULED_RELEASE": "计划发布",
+      "GATE_RELEASABILITY": "关卡可发布性",
+      "BREAK_GLASS": "紧急访问"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "跳过（无 AI 分析）",
+      "COMPLETED": "已完成",
+      "FAILED": "失败"
+    },
+    "statement_capability": {
+      "READ": "读取",
+      "WRITE": "写入",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "直接权限",
+      "GROUP_PERMISSION": "组权限",
+      "JIT_GRANT": "即时授权",
+      "QUERY_ADMIN_BYPASS": "QUERY_ADMIN 绕过",
+      "BREAK_GLASS": "紧急访问"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "所有表",
+      "ALLOW_LISTED": "允许列表中的表"
     }
   },
   "access": {
@@ -3642,6 +3707,48 @@
     "kind": {
       "datasource": "数据源",
       "api_connector": "API 连接"
+    },
+    "simulation": {
+      "title": "访问模拟",
+      "subtitle": "追踪查询为何会被批准、挂起或拒绝，并查看谁可以访问某张表。此处不会写入任何内容。",
+      "tab_trace": "查询追踪",
+      "tab_effective": "谁有访问权限",
+      "read_only_notice": "追踪会让一条假设的查询依次经过实际流程的各个阶段。它不会创建请求、不会发送通知，也不会写入审计记录。",
+      "datasource": "数据源",
+      "datasource_placeholder": "选择数据源",
+      "datasource_required": "请选择数据源",
+      "user_required": "请选择要模拟的用户",
+      "sql": "SQL",
+      "sql_required": "请输入要追踪的 SQL",
+      "sql_too_long": "SQL 最多 {{max}} 个字符",
+      "risk_score": "风险分数",
+      "risk_score_range": "风险分数必须介于 {{min}} 和 {{max}} 之间",
+      "risk_pair_required": "风险等级和风险分数需同时填写或同时留空",
+      "risk_pair_hint": "风险等级与分数必须成对出现：只有等级没有分数时，所有基于风险的路由策略都会被静默跳过。",
+      "trace": "追踪",
+      "error": "无法计算追踪结果",
+      "evaluated_context": "已评估的路由上下文",
+      "datasource_scoped_hint": "仅列出您有权访问的数据源 — 粘贴数据源 ID 可查询其他数据源。"
+    },
+    "effective": {
+      "table": "表",
+      "table_placeholder": "schema.table",
+      "table_required": "请输入表名",
+      "capability": "能力",
+      "lookup": "查看访问权限",
+      "prompt_title": "请选择数据源、表和能力",
+      "prompt_description": "列出所有可以执行该操作的身份及其授权来源，包括 QUERY_ADMIN 绕过和紧急访问。",
+      "load_error": "无法加载有效访问权限",
+      "empty": "没有任何身份可以对该表执行此操作",
+      "col_identity": "身份",
+      "col_granted": "已授予",
+      "col_scope": "表范围",
+      "col_sources": "来源",
+      "col_query_admin": "QUERY_ADMIN 绕过",
+      "col_break_glass": "可紧急访问",
+      "col_expires": "访问到期",
+      "allow_list_entry": "允许列表：{{entry}}",
+      "not_this_capability": "不授予此能力"
     }
   },
   "connectors": {
@@ -4426,7 +4533,8 @@
         "reorder_error": "无法调整变量顺序"
       },
       "canOverrideVariables": "覆盖变量",
-      "canOverrideVariablesHint": "可为该连接器的可覆盖动态变量提供按请求的值。"
+      "canOverrideVariablesHint": "可为该连接器的可覆盖动态变量提供按请求的值。",
+      "tabSimulate": "模拟"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4658,19 @@
       "overrides": "覆盖",
       "overridesHint": "该请求覆盖了连接器变量"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "让一次假设的调用经过此连接器的治理流程。不会联系被治理的 API，也不会写入任何内容。",
+      "operation": "操作",
+      "operation_placeholder": "任意操作",
+      "verb": "动词",
+      "verb_hint": "未选择操作时使用的 HTTP 方法或协议动词。",
+      "verb_too_long": "动词最多 {{max}} 个字符",
+      "user_required": "请选择要模拟的用户",
+      "simulate": "模拟",
+      "error": "无法计算模拟结果",
+      "verb_placeholder": "GET"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5342,8 @@
       "groupPlaceholder": "搜索组",
       "editUserPermission": "编辑权限——{{user}}",
       "editGroupPermission": "编辑权限——{{group}}",
-      "revoke": "撤销"
+      "revoke": "撤销",
+      "tabSimulate": "模拟"
     },
     "freezeWindows": {
       "title": "冻结窗口",
@@ -5303,6 +5424,28 @@
       "summary_min_risk": "风险 ≥ {{risk}}",
       "summary_match_all": "匹配所有部署",
       "labelTimeRange": "时间范围"
+    },
+    "simulate": {
+      "read_only_notice": "让一次假设的部署依次经过触发授权、冻结窗口、路由、环境策略和发布关卡。不会创建任何部署请求。",
+      "environment": "环境",
+      "environment_placeholder": "选择环境",
+      "environment_required": "请选择环境",
+      "user_required": "请选择要模拟的用户",
+      "version": "版本",
+      "version_required": "请输入版本",
+      "version_too_long": "版本最多 {{max}} 个字符",
+      "at": "评估时间",
+      "at_hint": "按该时刻评估冻结窗口和计划——例如“周五晚上的发布会被挂起吗？”。留空表示当前时间。",
+      "at_placeholder": "现在",
+      "scheduled_for": "计划发布时间",
+      "scheduled_for_hint": "可选：CI 任务会请求的最早发布时间。",
+      "simulate": "模拟",
+      "error": "无法计算模拟结果",
+      "releasable": "可发布 — 关卡会放行此部署",
+      "not_releasable": "不可发布 — 关卡会挂起此部署",
+      "evaluated_at": "评估时间 {{date}}",
+      "gate_note": "与 CI 部署关卡所依据的函数相同。",
+      "version_placeholder": "例如 1.4.0"
     }
   },
   "help_chat": {
@@ -5369,5 +5512,117 @@
       "CLIENT_CONTEXT_ABSENT": "假设请求不携带来源 IP、User-Agent 或 CI/CD 来源，因此针对它们的条件在这里不会匹配。",
       "RESPONSE_SHAPE_ABSENT": "API 调用模拟没有响应体，因此脱敏按规则而非按字段报告。"
     }
+  },
+  "decisionTrace": {
+    "user": "模拟用户",
+    "user_placeholder": "选择用户",
+    "ai_outcome": "假设的 AI 结果",
+    "risk_level": "风险等级",
+    "resulting_status": "结果状态",
+    "refused": "已拒绝 — 不会创建任何请求",
+    "policies_not_evaluated": "此路径未评估策略列表",
+    "policies_not_evaluated_hint": "更早的阶段已拒绝该请求，或假设的 AI 结果为失败，因此路由策略从未执行。",
+    "policies_none": "没有启用的路由策略",
+    "col_priority": "优先级",
+    "col_policy": "策略",
+    "col_action": "动作",
+    "col_required_approvals": "所需审批数",
+    "col_matched": "已匹配",
+    "col_decisive": "决定性",
+    "none": "无",
+    "never_expires": "永不过期",
+    "expires_at": "{{date}} 到期",
+    "via_group": "通过组 {{group}}",
+    "source_direct": "直接授权",
+    "source_group": "组授权",
+    "approver_role": "角色 {{role}}",
+    "approver_user": "用户 {{id}}",
+    "stage": "第 {{stage}} 阶段",
+    "detail": {
+      "action": "动作",
+      "active": "启用",
+      "admin_bypass": "管理员绕过",
+      "ai_analysis_enabled": "已启用 AI 分析",
+      "allowed_operations": "允许的操作",
+      "applied_policy_ids": "已应用策略",
+      "auto_approve_reads": "自动批准读取",
+      "behavior": "行为",
+      "blocking_count": "阻断性问题",
+      "blocking_rule_ids": "阻断规则",
+      "can_break_glass": "可紧急访问",
+      "can_read": "可读取",
+      "can_trigger": "可触发",
+      "can_write": "可写入",
+      "classified_from": "分类依据",
+      "connector_name": "连接器",
+      "considered_grant_ids": "已考虑的授权",
+      "contributing_grants": "生效的授权",
+      "current": "当前用量",
+      "db_type": "数据库类型",
+      "effective_min_approvals": "实际最少审批数",
+      "engine_id": "引擎",
+      "environment_allows_break_glass": "环境允许紧急访问",
+      "environment_name": "环境",
+      "environment_required_approvals": "环境要求的审批数",
+      "evaluated_at": "评估时间",
+      "expires_at": "到期",
+      "freeze_window_id": "冻结窗口",
+      "frozen": "已冻结",
+      "grant_id": "授权",
+      "has_limit_clause": "包含 LIMIT",
+      "has_where_clause": "包含 WHERE",
+      "limit": "上限",
+      "masks": "脱敏规则",
+      "matched_policy_id": "匹配策略 ID",
+      "matched_policy_name": "匹配策略",
+      "min_approvals_required": "最少审批数",
+      "operation_count": "操作数",
+      "operation_id": "操作",
+      "pipeline_name": "流水线",
+      "plan_approvers": "计划审批人",
+      "predicates": "谓词",
+      "protocol": "协议",
+      "provider": "提供方",
+      "query_admin_short_circuit": "QUERY_ADMIN 短路",
+      "query_type": "查询类型",
+      "quota_type": "配额",
+      "reason_text": "原因",
+      "referenced_tables": "引用的表",
+      "rejected_tables": "被拒绝的表",
+      "releasable": "可发布",
+      "require_review": "需要审查",
+      "require_review_reads": "审查读取",
+      "require_review_writes": "审查写入",
+      "requires_human_approval": "需要人工审批",
+      "restricted_response_field_count": "受限响应字段",
+      "review_plan_id": "审查计划",
+      "reviewers": "审查人",
+      "row_security_outcome": "行级安全结果",
+      "scheduled_for": "计划时间",
+      "scope": "范围",
+      "sql_review_suppressed": "被 SQL 审查抑制",
+      "status": "状态",
+      "submitter_excluded": "已排除提交人",
+      "transactional": "事务性",
+      "verb": "动词",
+      "visible_to_user": "对用户可见",
+      "write": "写操作",
+      "anomaly_active": "存在未处理异常",
+      "approver_email": "审批人",
+      "ci_cd_origin": "CI/CD 来源",
+      "estimated_rows": "预估行数",
+      "minutes_since_last_approval": "距上次审批的分钟数",
+      "policies": "策略",
+      "requester_group_ids": "请求者所在组",
+      "requester_ip_address": "请求者 IP",
+      "requester_role_name": "请求者角色",
+      "requester_user_agent": "请求者 User-Agent",
+      "risk_level": "风险等级",
+      "risk_score": "风险分数",
+      "scan_type": "扫描类型"
+    },
+    "use_id": "使用 ID {{id}}",
+    "user_id_placeholder": "粘贴用户 ID",
+    "masked_as": "{{field}} → {{strategy}}"
   }
 }

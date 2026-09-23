@@ -82,6 +82,7 @@ const OverProvisionedAccessPage = lazy(
   () => import('@/pages/admin/access/OverProvisionedAccessPage'),
 );
 const PrivilegedAccessPage = lazy(() => import('@/pages/admin/access/PrivilegedAccessPage'));
+const AccessSimulationPage = lazy(() => import('@/pages/admin/access/AccessSimulationPage'));
 const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
 const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
 const LifecyclePoliciesListPage = lazy(
@@ -630,6 +631,18 @@ export function App() {
               >
                 <Suspense fallback={null}>
                   <PrivilegedAccessPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/access-simulations"
+            element={
+              <AuthGuard
+                requirePermission={['DATASOURCE_PERMISSION_MANAGE', 'ACCESS_USAGE_REPORT_VIEW']}
+              >
+                <Suspense fallback={null}>
+                  <AccessSimulationPage />
                 </Suspense>
               </AuthGuard>
             }

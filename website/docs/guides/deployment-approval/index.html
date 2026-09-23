@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-21",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-21">21 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -676,13 +676,15 @@
           <h3 id="guide-deployment-simulation">Asking "would this release be held?" without a release</h3>
           <p>
             A deployment is blocked by the <em>gate</em>, not only by the decision — so knowing a
-            request would be approved does not tell you it would ship. <code>POST
-            /api/v1/admin/deployment-simulations</code> replays one hypothetical deployment through
+            request would be approved does not tell you it would ship. The pipeline's
+            <em>Simulate</em> tab (or <code>POST /api/v1/admin/deployment-simulations</code>)
+            replays one hypothetical deployment through
             the very evaluator and the very releasable function the CI job blocks on, and answers
             stage by stage: the trigger grant, the freeze window, routing policies, the environment's
             own policy, who could approve, the deferred-release moment and the gate's verdict. It
             accepts an optional <code>at</code>, so "would a release this Friday evening be held?" is
-            answerable now rather than on Friday evening. Nothing is created, nothing is notified,
+            answerable now rather than on Friday evening, and the tab puts the gate's releasable
+            verdict above the step-by-step trace. Nothing is created, nothing is notified,
             nothing reaches the pipeline; it needs the same permission that manages pipelines and
             every run is recorded in the audit log.
           </p>

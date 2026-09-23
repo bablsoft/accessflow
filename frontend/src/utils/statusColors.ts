@@ -4,6 +4,7 @@ import type {
   AttestationItemDecision,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
+  DecisionStepOutcome,
   DeploymentOutcome,
   DeploymentRollbackReviewStatus,
   GrantUsageRecommendation,
@@ -87,6 +88,24 @@ export const grantUsageRecommendationColor = (
     case 'ACTIVE':
       return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
     case 'INSUFFICIENT_DATA':
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+/**
+ * Decision-trace step outcome (#1066). A SKIP is neutral, not hidden: "this stage never ran" is an
+ * answer in its own right. MATCH is warn because a matched policy changes the outcome either way.
+ */
+export const decisionStepOutcomeColor = (outcome: DecisionStepOutcome): ColorTriple => {
+  switch (outcome) {
+    case 'ALLOW':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'DENY':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'MATCH':
+      return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+    case 'NO_MATCH':
+    case 'SKIP':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };
