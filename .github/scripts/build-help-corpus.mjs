@@ -574,6 +574,7 @@ const ROUTES = [
   ['/admin/auditor', 'Compliance reports and signed PDF / CSV exports.'],
   ['/admin/over-provisioned-access', 'Grants nobody has used, suggested for revocation.'],
   ['/admin/privileged-access', 'Who can bypass the permission gate — query admins and break-glass holders — and how often they have.'],
+  ['/admin/access-simulations', 'Trace why a query would be approved, held or refused, and look up who can read, write or run DDL on a table.'],
   ['/admin/lifecycle/policies', 'Data retention and erasure policies.'],
 ];
 

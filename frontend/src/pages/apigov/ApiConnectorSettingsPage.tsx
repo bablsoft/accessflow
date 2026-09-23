@@ -23,6 +23,7 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -97,6 +98,7 @@ export default function ApiConnectorSettingsPage() {
             { key: 'variables', label: t('apiGov.settings.tabVariables'), children: <ApiConnectorVariablesTab connectorId={id} /> },
             { key: 'masking', label: t('apiGov.settings.tabMasking'), children: <ApiConnectorMaskingTab connectorId={id} /> },
             { key: 'classification', label: t('apiGov.settings.tabClassification'), children: <ApiConnectorClassificationTab connectorId={id} /> },
+            { key: 'simulate', label: t('apiGov.settings.tabSimulate'), children: <ApiConnectorSimulateTab connectorId={id} /> },
           ]}
         />
       </div>

@@ -4241,6 +4241,161 @@ export interface PrivilegedAccessRow {
 
 export type PrivilegedAccessPage = PageEnvelope<PrivilegedAccessRow>;
 
+// --- Decision traces (#859, #967) and the effective-access reverse index (#859) ---
+
+/** How one stage of a decision trace resolved. A SKIP is a stage that did not apply — never hidden. */
+export type DecisionStepOutcome = 'ALLOW' | 'DENY' | 'MATCH' | 'NO_MATCH' | 'SKIP';
+
+// The three step enums are deliberately separate — the backend keeps one per decision kind (#967).
+export type QueryDecisionStepKind =
+  | 'DATASOURCE_GATES'
+  | 'QUOTA'
+  | 'SQL_PARSE'
+  | 'EFFECTIVE_PERMISSION'
+  | 'SQL_REVIEW'
+  | 'ROUTING_POLICIES'
+  | 'GRANT_FAST_PATH'
+  | 'REVIEW_PLAN'
+  | 'ELIGIBLE_REVIEWERS'
+  | 'ROW_SECURITY'
+  | 'MASKING'
+  | 'BREAK_GLASS';
+
+export type ApiDecisionStepKind =
+  | 'CONNECTOR_GATES'
+  | 'CALL_CLASSIFICATION'
+  | 'SCHEMA_VALIDATION'
+  | 'OPERATION_PERMISSION'
+  | 'ROUTING_POLICIES'
+  | 'REVIEW_REQUIREMENT'
+  | 'ELIGIBLE_REVIEWERS'
+  | 'RESPONSE_MASKING'
+  | 'BREAK_GLASS';
+
+export type DeploymentDecisionStepKind =
+  | 'PIPELINE_GATES'
+  | 'TRIGGER_PERMISSION'
+  | 'FREEZE_WINDOW'
+  | 'ROUTING_POLICIES'
+  | 'ENVIRONMENT_POLICY'
+  | 'ELIGIBLE_REVIEWERS'
+  | 'SCHEDULED_RELEASE'
+  | 'GATE_RELEASABILITY'
+  | 'BREAK_GLASS';
+
+/** The AI outcome a trace assumes; the server treats an omitted value as SKIPPED. */
+export type SimulatedAiOutcome = 'COMPLETED' | 'SKIPPED' | 'FAILED';
+
+/** One stage of a decision trace. `details` omits null values (the backend serializes non_null). */
+export interface DecisionTraceStep<K extends string> {
+  step: K;
+  outcome: DecisionStepOutcome;
+  reason: string;
+  details: Record<string, unknown>;
+}
+
+/** One enabled routing policy as evaluated by the ROUTING_POLICIES step, in priority order. */
+export interface RoutingPolicyTraceEntry {
+  policy_id: string;
+  name: string;
+  priority: number;
+  action: RoutingAction;
+  required_approvals?: number;
+  matched: boolean;
+  decisive: boolean;
+}
+
+/** `resulting_status` is omitted when a stage refused the request outright. */
+export interface DecisionTraceEnvelope<K extends string> {
+  steps: DecisionTraceStep<K>[];
+  resulting_status?: QueryStatus;
+  caveats: SimulationCaveat[];
+}
+
+export interface AccessSimulationRequest {
+  user_id: string;
+  datasource_id: string;
+  sql: string;
+  ai_outcome?: SimulatedAiOutcome;
+  risk_level?: RiskLevel;
+  risk_score?: number;
+}
+
+export interface AccessSimulationResult extends DecisionTraceEnvelope<QueryDecisionStepKind> {
+  /** The routing context the policies were evaluated against; omitted when routing never ran. */
+  evaluated_context?: Record<string, unknown>;
+}
+
+export interface ApiCallSimulationRequest {
+  user_id: string;
+  connector_id: string;
+  operation_id?: string;
+  verb?: string;
+  ai_outcome?: SimulatedAiOutcome;
+  risk_level?: RiskLevel;
+}
+
+export type ApiCallSimulationResult = DecisionTraceEnvelope<ApiDecisionStepKind>;
+
+export interface DeploymentSimulationRequest {
+  user_id: string;
+  pipeline_id: string;
+  environment_id: string;
+  version: string;
+  ai_outcome?: SimulatedAiOutcome;
+  risk_level?: RiskLevel;
+  scheduled_for?: string;
+  at?: string;
+}
+
+export interface DeploymentSimulationResult
+  extends DecisionTraceEnvelope<DeploymentDecisionStepKind> {
+  /** The verdict of the same function the CI gate blocks on. Always present. */
+  releasable: boolean;
+  evaluated_at?: string;
+}
+
+export type StatementCapability = 'READ' | 'WRITE' | 'DDL';
+
+export type AccessSourceKind =
+  | 'DIRECT_PERMISSION'
+  | 'GROUP_PERMISSION'
+  | 'JIT_GRANT'
+  | 'QUERY_ADMIN_BYPASS'
+  | 'BREAK_GLASS';
+
+export type EffectiveAccessTableScope = 'ALL_TABLES' | 'ALLOW_LISTED';
+
+export interface EffectiveAccessSource {
+  kind: AccessSourceKind;
+  source_id?: string;
+  group_id?: string;
+  group_name?: string;
+  grants_capability: boolean;
+  table_scope?: EffectiveAccessTableScope;
+  covering_allow_list_entry?: string;
+  expires_at?: string;
+  pre_approve_queries: boolean;
+}
+
+/**
+ * One identity in the reverse index. `granted` is "can do this", `can_break_glass` is "can do it
+ * anyway" — the two are never folded together.
+ */
+export interface EffectiveAccessRow {
+  user_id: string;
+  email: string;
+  display_name?: string;
+  role_name?: string;
+  granted: boolean;
+  table_scope?: EffectiveAccessTableScope;
+  effective_expires_at?: string;
+  can_break_glass: boolean;
+  sources: EffectiveAccessSource[];
+}
+
+export type EffectiveAccessPage = PageEnvelope<EffectiveAccessRow>;
+
 // --- Reviewer delegation (#622) ---
 
 /** Resource kinds a delegation can be narrowed to. Null scope = every review queue. */

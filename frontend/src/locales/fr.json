@@ -112,7 +112,8 @@
     "service_accounts": "Comptes de service",
     "sub_schema_changes": "Changements de schéma",
     "schemaChangeSets": "Ensembles de modifications",
-    "schemaDrift": "Dérive de schéma"
+    "schemaDrift": "Dérive de schéma",
+    "access_simulation": "Simulation d'accès"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -3555,6 +3556,70 @@
       "PREVIOUS_ENVIRONMENT": "Environnement précédent",
       "BASELINE_ENVIRONMENT": "Environnement de référence",
       "PROMOTION_SNAPSHOT": "Instantané de promotion"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "Autorisé",
+      "DENY": "Refusé",
+      "MATCH": "Correspondance",
+      "NO_MATCH": "Aucune correspondance",
+      "SKIP": "Ignoré"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "Contrôles de la source de données",
+      "QUOTA": "Quota",
+      "SQL_PARSE": "Analyse SQL",
+      "EFFECTIVE_PERMISSION": "Autorisation effective",
+      "SQL_REVIEW": "Règles de revue SQL",
+      "ROUTING_POLICIES": "Politiques de routage",
+      "GRANT_FAST_PATH": "Voie rapide par autorisation",
+      "REVIEW_PLAN": "Plan de revue",
+      "ELIGIBLE_REVIEWERS": "Réviseurs éligibles",
+      "ROW_SECURITY": "Sécurité par ligne",
+      "MASKING": "Masquage",
+      "BREAK_GLASS": "Accès d'urgence"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "Contrôles du connecteur",
+      "CALL_CLASSIFICATION": "Classification de l'appel",
+      "SCHEMA_VALIDATION": "Validation du schéma",
+      "OPERATION_PERMISSION": "Autorisation d'opération",
+      "ROUTING_POLICIES": "Politiques de routage",
+      "REVIEW_REQUIREMENT": "Exigence de revue",
+      "ELIGIBLE_REVIEWERS": "Réviseurs éligibles",
+      "RESPONSE_MASKING": "Masquage de la réponse",
+      "BREAK_GLASS": "Accès d'urgence"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "Contrôles du pipeline",
+      "TRIGGER_PERMISSION": "Autorisation de déclenchement",
+      "FREEZE_WINDOW": "Fenêtre de gel",
+      "ROUTING_POLICIES": "Politiques de routage",
+      "ENVIRONMENT_POLICY": "Politique d'environnement",
+      "ELIGIBLE_REVIEWERS": "Réviseurs éligibles",
+      "SCHEDULED_RELEASE": "Publication planifiée",
+      "GATE_RELEASABILITY": "Publiabilité à la barrière",
+      "BREAK_GLASS": "Accès d'urgence"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "Ignoré (pas d'analyse IA)",
+      "COMPLETED": "Terminé",
+      "FAILED": "Échoué"
+    },
+    "statement_capability": {
+      "READ": "Lecture",
+      "WRITE": "Écriture",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "Autorisation directe",
+      "GROUP_PERMISSION": "Autorisation de groupe",
+      "JIT_GRANT": "Autorisation juste-à-temps",
+      "QUERY_ADMIN_BYPASS": "Contournement QUERY_ADMIN",
+      "BREAK_GLASS": "Accès d'urgence"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "Toutes les tables",
+      "ALLOW_LISTED": "Tables autorisées"
     }
   },
   "access": {
@@ -3642,6 +3707,47 @@
     "kind": {
       "datasource": "Source de données",
       "api_connector": "Connexion d'API"
+    },
+    "simulation": {
+      "title": "Simulation d'accès",
+      "subtitle": "Retracez pourquoi une requête serait approuvée, retenue ou refusée — et voyez qui peut accéder à une table. Rien n'est écrit ici.",
+      "tab_trace": "Trace de requête",
+      "tab_effective": "Qui a accès",
+      "read_only_notice": "Une trace rejoue une requête hypothétique à travers les étapes du pipeline réel. Elle ne crée aucune demande, n'envoie aucune notification et n'écrit aucune ligne d'audit.",
+      "datasource": "Source de données",
+      "datasource_placeholder": "Sélectionnez une source de données",
+      "datasource_required": "Sélectionnez une source de données",
+      "user_required": "Sélectionnez l'utilisateur à simuler",
+      "sql": "SQL",
+      "sql_required": "Saisissez le SQL à tracer",
+      "sql_too_long": "Le SQL ne doit pas dépasser {{max}} caractères",
+      "risk_score": "Score de risque",
+      "risk_score_range": "Le score de risque doit être compris entre {{min}} et {{max}}",
+      "risk_pair_required": "Renseignez le niveau et le score de risque ensemble, ou aucun des deux",
+      "risk_pair_hint": "Le niveau et le score de risque vont de pair : un niveau sans score ignorerait silencieusement toutes les politiques de routage fondées sur le risque.",
+      "trace": "Tracer",
+      "error": "La trace n'a pas pu être calculée",
+      "evaluated_context": "Contexte de routage évalué"
+    },
+    "effective": {
+      "table": "Table",
+      "table_placeholder": "schéma.table",
+      "table_required": "Saisissez une table",
+      "capability": "Capacité",
+      "lookup": "Afficher l'accès",
+      "prompt_title": "Choisissez une source de données, une table et une capacité",
+      "prompt_description": "Liste chaque identité qui peut le faire, et par quelles autorisations — y compris le contournement QUERY_ADMIN et l'accès d'urgence.",
+      "load_error": "Impossible de charger l'accès effectif",
+      "empty": "Aucune identité ne peut faire cela sur la table",
+      "col_identity": "Identité",
+      "col_granted": "Accordé",
+      "col_scope": "Portée des tables",
+      "col_sources": "Sources",
+      "col_query_admin": "Contournement QUERY_ADMIN",
+      "col_break_glass": "Accès d'urgence possible",
+      "col_expires": "Expiration de l'accès",
+      "allow_list_entry": "liste d'autorisation : {{entry}}",
+      "not_this_capability": "n'accorde pas cette capacité"
     }
   },
   "connectors": {
@@ -4426,7 +4532,8 @@
         "reorder_error": "Impossible de réordonner les variables"
       },
       "canOverrideVariables": "Substituer les variables",
-      "canOverrideVariablesHint": "Peut fournir des valeurs par requête pour les variables dynamiques substituables de ce connecteur."
+      "canOverrideVariablesHint": "Peut fournir des valeurs par requête pour les variables dynamiques substituables de ce connecteur.",
+      "tabSimulate": "Simuler"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4657,18 @@
       "overrides": "Substitutions",
       "overridesHint": "Cette requête substitue des variables du connecteur"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "Rejoue un appel hypothétique à travers le pipeline de gouvernance de ce connecteur. L'API gouvernée n'est jamais contactée et rien n'est écrit.",
+      "operation": "Opération",
+      "operation_placeholder": "N'importe quelle opération",
+      "verb": "Verbe",
+      "verb_hint": "Méthode HTTP ou verbe du protocole, utilisé quand aucune opération n'est choisie.",
+      "verb_too_long": "Le verbe ne doit pas dépasser {{max}} caractères",
+      "user_required": "Sélectionnez l'utilisateur à simuler",
+      "simulate": "Simuler",
+      "error": "La simulation n'a pas pu être calculée"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5340,8 @@
       "groupPlaceholder": "Rechercher des groupes",
       "editUserPermission": "Modifier l'autorisation — {{user}}",
       "editGroupPermission": "Modifier l'autorisation — {{group}}",
-      "revoke": "Révoquer"
+      "revoke": "Révoquer",
+      "tabSimulate": "Simuler"
     },
     "freezeWindows": {
       "title": "Fenêtres de gel",
@@ -5303,6 +5422,27 @@
       "summary_min_risk": "risque ≥ {{risk}}",
       "summary_match_all": "Correspond à tous les déploiements",
       "labelTimeRange": "Plage horaire"
+    },
+    "simulate": {
+      "read_only_notice": "Fait passer un déploiement hypothétique par l'autorisation de déclenchement, les fenêtres de gel, le routage, la politique d'environnement et la barrière de publication. Aucune demande de déploiement n'est créée.",
+      "environment": "Environnement",
+      "environment_placeholder": "Sélectionnez un environnement",
+      "environment_required": "Sélectionnez un environnement",
+      "user_required": "Sélectionnez l'utilisateur à simuler",
+      "version": "Version",
+      "version_required": "Saisissez une version",
+      "version_too_long": "La version ne doit pas dépasser {{max}} caractères",
+      "at": "Évaluer à",
+      "at_hint": "Évalue les fenêtres de gel et la planification comme si c'était ce moment — par ex. « une publication vendredi soir serait-elle retenue ? ». Vide signifie maintenant.",
+      "at_placeholder": "Maintenant",
+      "scheduled_for": "Publication planifiée",
+      "scheduled_for_hint": "Facultatif : l'heure « pas avant » que demanderait le job CI.",
+      "simulate": "Simuler",
+      "error": "La simulation n'a pas pu être calculée",
+      "releasable": "Publiable — la barrière laisserait passer ce déploiement",
+      "not_releasable": "Non publiable — la barrière retiendrait ce déploiement",
+      "evaluated_at": "Évalué le {{date}}",
+      "gate_note": "Calculé par la même fonction que celle sur laquelle bloque la barrière de déploiement CI."
     }
   },
   "help_chat": {
@@ -5368,6 +5508,102 @@
       "COST_ESTIMATE_ABSENT": "L’estimation de coût préalable est calculée par requête soumise ; les conditions sur les lignes estimées ou le type de balayage ne correspondent donc pas ici.",
       "CLIENT_CONTEXT_ABSENT": "Une demande hypothétique ne porte ni IP source, ni agent utilisateur, ni origine CI/CD ; les conditions portant dessus ne correspondent donc pas ici.",
       "RESPONSE_SHAPE_ABSENT": "Une simulation d'appel API n'a pas de corps de réponse : le masquage est donc rapporté par règle et non par champ."
+    }
+  },
+  "decisionTrace": {
+    "user": "Utilisateur simulé",
+    "user_placeholder": "Sélectionnez un utilisateur",
+    "ai_outcome": "Résultat IA supposé",
+    "risk_level": "Niveau de risque",
+    "resulting_status": "Statut résultant",
+    "refused": "Refusé — aucune demande ne serait créée",
+    "policies_not_evaluated": "Liste des politiques non évaluée sur ce chemin",
+    "policies_not_evaluated_hint": "Une étape antérieure a refusé la demande, ou le résultat IA supposé a échoué : les politiques de routage n'ont pas été exécutées.",
+    "policies_none": "Aucune politique de routage active",
+    "col_priority": "Priorité",
+    "col_policy": "Politique",
+    "col_action": "Action",
+    "col_required_approvals": "Approbations requises",
+    "col_matched": "Correspond",
+    "col_decisive": "Décisive",
+    "none": "Aucun",
+    "never_expires": "n'expire jamais",
+    "expires_at": "expire le {{date}}",
+    "via_group": "via le groupe {{group}}",
+    "source_direct": "Autorisation directe",
+    "source_group": "Autorisation de groupe",
+    "approver_role": "Rôle {{role}}",
+    "approver_user": "Utilisateur {{id}}",
+    "stage": "étape {{stage}}",
+    "detail": {
+      "action": "Action",
+      "active": "Actif",
+      "admin_bypass": "Contournement admin",
+      "ai_analysis_enabled": "Analyse IA activée",
+      "allowed_operations": "Opérations autorisées",
+      "applied_policy_ids": "Politiques appliquées",
+      "auto_approve_reads": "Approbation auto des lectures",
+      "behavior": "Comportement",
+      "blocking_count": "Constats bloquants",
+      "blocking_rule_ids": "Règles bloquantes",
+      "can_break_glass": "Accès d'urgence possible",
+      "can_read": "Peut lire",
+      "can_trigger": "Peut déclencher",
+      "can_write": "Peut écrire",
+      "classified_from": "Classé à partir de",
+      "connector_name": "Connecteur",
+      "considered_grant_ids": "Autorisations examinées",
+      "contributing_grants": "Autorisations contributives",
+      "current": "Utilisation actuelle",
+      "db_type": "Type de base de données",
+      "effective_min_approvals": "Approbations minimales effectives",
+      "engine_id": "Moteur",
+      "environment_allows_break_glass": "L'environnement autorise l'accès d'urgence",
+      "environment_name": "Environnement",
+      "environment_required_approvals": "Approbations exigées par l'environnement",
+      "evaluated_at": "Évalué le",
+      "expires_at": "Expire",
+      "freeze_window_id": "Fenêtre de gel",
+      "frozen": "Gelé",
+      "grant_id": "Autorisation",
+      "has_limit_clause": "Contient LIMIT",
+      "has_where_clause": "Contient WHERE",
+      "limit": "Limite",
+      "masks": "Masques",
+      "matched_policy_id": "ID de la politique correspondante",
+      "matched_policy_name": "Politique correspondante",
+      "min_approvals_required": "Approbations minimales",
+      "operation_count": "Opérations",
+      "operation_id": "Opération",
+      "pipeline_name": "Pipeline",
+      "plan_approvers": "Approbateurs du plan",
+      "predicates": "Prédicats",
+      "protocol": "Protocole",
+      "provider": "Fournisseur",
+      "query_admin_short_circuit": "Court-circuit QUERY_ADMIN",
+      "query_type": "Type de requête",
+      "quota_type": "Quota",
+      "reason_text": "Motif",
+      "referenced_tables": "Tables référencées",
+      "rejected_tables": "Tables refusées",
+      "releasable": "Publiable",
+      "require_review": "Revue requise",
+      "require_review_reads": "Revue des lectures",
+      "require_review_writes": "Revue des écritures",
+      "requires_human_approval": "Approbation humaine requise",
+      "restricted_response_field_count": "Champs de réponse restreints",
+      "review_plan_id": "Plan de revue",
+      "reviewers": "Réviseurs",
+      "row_security_outcome": "Résultat de sécurité par ligne",
+      "scheduled_for": "Planifié pour",
+      "scope": "Portée",
+      "sql_review_suppressed": "Neutralisé par la revue SQL",
+      "status": "Statut",
+      "submitter_excluded": "Demandeur exclu",
+      "transactional": "Transactionnel",
+      "verb": "Verbe",
+      "visible_to_user": "Visible par l'utilisateur",
+      "write": "Opération d'écriture"
     }
   }
 }

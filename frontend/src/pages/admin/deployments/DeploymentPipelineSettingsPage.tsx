@@ -19,6 +19,7 @@ import { PipelineVersionsTab } from '@/components/deployments/PipelineVersionsTa
 import { PipelinePermissionsTab } from '@/components/deployments/PipelinePermissionsTab';
 import { PipelineFreezeWindowsTab } from '@/components/deployments/PipelineFreezeWindowsTab';
 import { PipelineRoutingPoliciesTab } from '@/components/deployments/PipelineRoutingPoliciesTab';
+import { PipelineSimulateTab } from '@/components/deployments/PipelineSimulateTab';
 import { CiSnippetPanel } from '@/components/deployments/CiSnippetPanel';
 import { PipelineIdCopy } from '@/components/deployments/PipelineIdCopy';
 import type { DeploymentPipeline, PipelineProvider } from '@/types/api';
@@ -170,6 +171,7 @@ const TAB_KEYS = [
   'permissions',
   'freeze-windows',
   'routing-policies',
+  'simulate',
   'ci',
 ] as const;
 
@@ -179,7 +181,7 @@ export function DeploymentPipelineSettingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // The active tab is kept in the URL so a tab is linkable from the docs and deep links survive
-  // a reload — worth more with seven tabs than it was with six.
+  // a reload — worth more with eight tabs than it was with six.
   const requestedTab = searchParams.get('tab');
   const activeTab = TAB_KEYS.find((key) => key === requestedTab) ?? 'general';
 
@@ -260,6 +262,11 @@ export function DeploymentPipelineSettingsPage() {
                 key: 'routing-policies',
                 label: t('deploygov.settings.tabRoutingPolicies'),
                 children: <PipelineRoutingPoliciesTab pipelineId={pipeline.id} />,
+              },
+              {
+                key: 'simulate',
+                label: t('deploygov.settings.tabSimulate'),
+                children: <PipelineSimulateTab pipelineId={pipeline.id} />,
               },
               {
                 key: 'ci',

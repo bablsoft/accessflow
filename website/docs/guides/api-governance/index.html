@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/api-governance/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Govern an outbound API call.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -488,7 +488,8 @@
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>
             <li id="guide-api-simulation"><strong>Explaining a decision without making the call</strong> —
-              <code>POST /api/v1/admin/api-call-simulations</code> replays one hypothetical call
+              the connector's <em>Simulate</em> tab (or
+              <code>POST /api/v1/admin/api-call-simulations</code>) replays one hypothetical call
               through the very evaluator that decides real ones and returns a per-stage trace: the
               connector gate, whether the operation counts as a read or a write and where that
               classification came from, the schema catalog, the caller's effective connector

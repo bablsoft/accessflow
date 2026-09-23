@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -49,6 +49,11 @@ vi.mock('@/components/deployments/PipelineFreezeWindowsTab', () => ({
 vi.mock('@/components/deployments/PipelineRoutingPoliciesTab', () => ({
   PipelineRoutingPoliciesTab: () => null,
 }));
+vi.mock('@/components/deployments/PipelineSimulateTab', () => ({
+  PipelineSimulateTab: ({ pipelineId }: { pipelineId: string }) => (
+    <div>simulate tab for {pipelineId}</div>
+  ),
+}));
 
 const { DeploymentPipelineSettingsPage } = await import('./DeploymentPipelineSettingsPage');
 
@@ -92,7 +97,7 @@ describe('DeploymentPipelineSettingsPage', () => {
     listAiConfigs.mockResolvedValue([]);
   });
 
-  it('shows the pipeline name in the header and all seven tabs', async () => {
+  it('shows the pipeline name in the header and all eight tabs', async () => {
     render(wrap(<DeploymentPipelineSettingsPage />));
 
     expect(await screen.findByText('Prod Deploy')).toBeInTheDocument();
@@ -104,6 +109,7 @@ describe('DeploymentPipelineSettingsPage', () => {
       'Permissions',
       'Freeze windows',
       'Routing policies',
+      'Simulate',
       'CI setup',
     ]) {
       expect(screen.getByRole('tab', { name: tab })).toBeInTheDocument();
@@ -179,6 +185,14 @@ describe('DeploymentPipelineSettingsPage', () => {
         'true',
       ),
     );
+  });
+
+  it('opens the Simulate tab from the URL, scoped to its own panel', async () => {
+    render(wrap(<DeploymentPipelineSettingsPage />, '/admin/deployment-pipelines/pipe-1?tab=simulate'));
+
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('simulate tab for pipe-1')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Simulate' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('falls back to General for an unknown tab in the URL', async () => {

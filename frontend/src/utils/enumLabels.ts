@@ -75,6 +75,14 @@ import type {
   Weekday,
   StandingBypassKind,
   DatasourcePermissionSourceKind,
+  AccessSourceKind,
+  ApiDecisionStepKind,
+  DecisionStepOutcome,
+  DeploymentDecisionStepKind,
+  EffectiveAccessTableScope,
+  QueryDecisionStepKind,
+  SimulatedAiOutcome,
+  StatementCapability,
 } from '@/types/api';
 
 export const ACCESS_GRANT_STATUSES: readonly AccessGrantStatus[] = [
@@ -464,6 +472,108 @@ export const permissionSourceKindLabel = (
   t: TFunction,
   v: DatasourcePermissionSourceKind,
 ): string => t(`enums.permission_source_kind.${v}` as const);
+
+// --- Decision traces and the effective-access reverse index (#859, #967, #1066) ---
+
+export const DECISION_STEP_OUTCOMES: readonly DecisionStepOutcome[] = [
+  'ALLOW',
+  'DENY',
+  'MATCH',
+  'NO_MATCH',
+  'SKIP',
+] as const;
+
+export const decisionStepOutcomeLabel = (t: TFunction, v: DecisionStepOutcome): string =>
+  t(`enums.decision_step_outcome.${v}` as const);
+
+export const QUERY_DECISION_STEP_KINDS: readonly QueryDecisionStepKind[] = [
+  'DATASOURCE_GATES',
+  'QUOTA',
+  'SQL_PARSE',
+  'EFFECTIVE_PERMISSION',
+  'SQL_REVIEW',
+  'ROUTING_POLICIES',
+  'GRANT_FAST_PATH',
+  'REVIEW_PLAN',
+  'ELIGIBLE_REVIEWERS',
+  'ROW_SECURITY',
+  'MASKING',
+  'BREAK_GLASS',
+] as const;
+
+export const queryDecisionStepLabel = (t: TFunction, v: QueryDecisionStepKind): string =>
+  t(`enums.query_decision_step.${v}` as const);
+
+export const API_DECISION_STEP_KINDS: readonly ApiDecisionStepKind[] = [
+  'CONNECTOR_GATES',
+  'CALL_CLASSIFICATION',
+  'SCHEMA_VALIDATION',
+  'OPERATION_PERMISSION',
+  'ROUTING_POLICIES',
+  'REVIEW_REQUIREMENT',
+  'ELIGIBLE_REVIEWERS',
+  'RESPONSE_MASKING',
+  'BREAK_GLASS',
+] as const;
+
+export const apiDecisionStepLabel = (t: TFunction, v: ApiDecisionStepKind): string =>
+  t(`enums.api_decision_step.${v}` as const);
+
+export const DEPLOYMENT_DECISION_STEP_KINDS: readonly DeploymentDecisionStepKind[] = [
+  'PIPELINE_GATES',
+  'TRIGGER_PERMISSION',
+  'FREEZE_WINDOW',
+  'ROUTING_POLICIES',
+  'ENVIRONMENT_POLICY',
+  'ELIGIBLE_REVIEWERS',
+  'SCHEDULED_RELEASE',
+  'GATE_RELEASABILITY',
+  'BREAK_GLASS',
+] as const;
+
+export const deploymentDecisionStepLabel = (
+  t: TFunction,
+  v: DeploymentDecisionStepKind,
+): string => t(`enums.deployment_decision_step.${v}` as const);
+
+export const SIMULATED_AI_OUTCOMES: readonly SimulatedAiOutcome[] = [
+  'SKIPPED',
+  'COMPLETED',
+  'FAILED',
+] as const;
+
+export const simulatedAiOutcomeLabel = (t: TFunction, v: SimulatedAiOutcome): string =>
+  t(`enums.simulated_ai_outcome.${v}` as const);
+
+export const STATEMENT_CAPABILITIES: readonly StatementCapability[] = [
+  'READ',
+  'WRITE',
+  'DDL',
+] as const;
+
+export const statementCapabilityLabel = (t: TFunction, v: StatementCapability): string =>
+  t(`enums.statement_capability.${v}` as const);
+
+export const ACCESS_SOURCE_KINDS: readonly AccessSourceKind[] = [
+  'DIRECT_PERMISSION',
+  'GROUP_PERMISSION',
+  'JIT_GRANT',
+  'QUERY_ADMIN_BYPASS',
+  'BREAK_GLASS',
+] as const;
+
+export const accessSourceKindLabel = (t: TFunction, v: AccessSourceKind): string =>
+  t(`enums.access_source_kind.${v}` as const);
+
+export const EFFECTIVE_ACCESS_TABLE_SCOPES: readonly EffectiveAccessTableScope[] = [
+  'ALL_TABLES',
+  'ALLOW_LISTED',
+] as const;
+
+export const effectiveAccessTableScopeLabel = (
+  t: TFunction,
+  v: EffectiveAccessTableScope,
+): string => t(`enums.effective_access_table_scope.${v}` as const);
 
 export const ATTESTATION_PENDING_DEFAULTS: readonly AttestationPendingDefault[] = [
   'KEEP',

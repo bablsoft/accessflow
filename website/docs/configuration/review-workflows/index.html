@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-21",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -273,7 +273,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-21">21 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -791,11 +791,16 @@ APPROVED → FAILED (execution error)</pre>
             so the report cannot drift from what actually happens at submission.
           </p>
           <p>
-            <strong>Where.</strong> Both are API endpoints for now — <code>POST
-            /api/v1/admin/access-simulations</code> and <code>GET /api/v1/admin/effective-access</code>
-            — gated by the permission that already governs datasource grants; the who-can-write
-            lookup is also open to the <code>AUDITOR</code> role, which reads exactly this from the
-            attestation and usage reports already. The same trace exists for
+            <strong>Where.</strong> In the app, under <em>Access control → Access simulation</em>
+            (<code>/admin/access-simulations</code>): a <em>Query trace</em> tab that lays the trace
+            out stage by stage — skipped stages included, and every routing policy in a table with
+            the one that decided it highlighted — and a <em>Who has access</em> tab for the reverse
+            lookup, with break-glass shown in a column of its own. Over the API they are
+            <code>POST /api/v1/admin/access-simulations</code> and
+            <code>GET /api/v1/admin/effective-access</code>. Both are gated by the permission that
+            already governs datasource grants; the who-can-write lookup is also open to the
+            <code>AUDITOR</code> role, which reads exactly this from the attestation and usage
+            reports already, so an auditor sees that tab alone. The same trace exists for
             <a href="/docs/guides/api-governance/#guide-api-simulation">governed API calls</a> and for
             <a href="/docs/guides/deployment-approval/#guide-deployment-simulation">deployments</a>,
             where it can also answer "would a release at this moment be held by a freeze window?".

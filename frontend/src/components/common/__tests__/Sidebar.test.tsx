@@ -463,6 +463,30 @@ describe('Sidebar — service accounts (#875)', () => {
   });
 });
 
+describe('Sidebar — access simulation (#1066)', () => {
+  it('shows the Access simulation entry in Access control, after Privileged access', () => {
+    expandAll();
+    const { container } = renderSidebar(adminUser);
+    expect(link(screen, 'Access simulation')).toHaveAttribute('href', '/admin/access-simulations');
+    const hrefs = [...container.querySelectorAll('a[href^="/admin/"]')].map((a) => a.getAttribute('href'));
+    expect(hrefs.indexOf('/admin/access-simulations')).toBe(
+      hrefs.indexOf('/admin/privileged-access') + 1,
+    );
+  });
+
+  it('shows the entry to an auditor holding ACCESS_USAGE_REPORT_VIEW', () => {
+    expandAll();
+    renderSidebar({ ...readonlyUser, role: 'AUDITOR', permissions: ['ACCESS_USAGE_REPORT_VIEW'] });
+    expect(link(screen, 'Access simulation')).toHaveAttribute('href', '/admin/access-simulations');
+  });
+
+  it('hides the entry from an analyst', () => {
+    expandAll();
+    renderSidebar({ ...readonlyUser, role: 'ANALYST', permissions: SYSTEM_ROLE_PERMISSIONS.ANALYST });
+    expect(screen.queryByRole('link', { name: /Access simulation/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Sidebar — unified review queue (#772)', () => {
   it('renders exactly one review entry, in the top group, for a user holding every review permission', () => {
     const { container } = renderSidebar({

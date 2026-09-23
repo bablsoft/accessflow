@@ -112,7 +112,8 @@
     "service_accounts": "Service-Accounts",
     "sub_schema_changes": "Schemaänderungen",
     "schemaChangeSets": "Änderungssätze",
-    "schemaDrift": "Schema-Drift"
+    "schemaDrift": "Schema-Drift",
+    "access_simulation": "Zugriffssimulation"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -3555,6 +3556,70 @@
       "PREVIOUS_ENVIRONMENT": "Vorherige Umgebung",
       "BASELINE_ENVIRONMENT": "Referenzumgebung",
       "PROMOTION_SNAPSHOT": "Promotion-Snapshot"
+    },
+    "decision_step_outcome": {
+      "ALLOW": "Erlaubt",
+      "DENY": "Verweigert",
+      "MATCH": "Treffer",
+      "NO_MATCH": "Kein Treffer",
+      "SKIP": "Übersprungen"
+    },
+    "query_decision_step": {
+      "DATASOURCE_GATES": "Datenquellen-Prüfungen",
+      "QUOTA": "Kontingent",
+      "SQL_PARSE": "SQL-Analyse",
+      "EFFECTIVE_PERMISSION": "Effektive Berechtigung",
+      "SQL_REVIEW": "SQL-Prüfregeln",
+      "ROUTING_POLICIES": "Routing-Richtlinien",
+      "GRANT_FAST_PATH": "Schnellpfad über Zugriffsfreigabe",
+      "REVIEW_PLAN": "Prüfplan",
+      "ELIGIBLE_REVIEWERS": "Berechtigte Prüfer",
+      "ROW_SECURITY": "Zeilensicherheit",
+      "MASKING": "Maskierung",
+      "BREAK_GLASS": "Break-Glass"
+    },
+    "api_decision_step": {
+      "CONNECTOR_GATES": "Konnektor-Prüfungen",
+      "CALL_CLASSIFICATION": "Aufrufklassifizierung",
+      "SCHEMA_VALIDATION": "Schemavalidierung",
+      "OPERATION_PERMISSION": "Operationsberechtigung",
+      "ROUTING_POLICIES": "Routing-Richtlinien",
+      "REVIEW_REQUIREMENT": "Prüfpflicht",
+      "ELIGIBLE_REVIEWERS": "Berechtigte Prüfer",
+      "RESPONSE_MASKING": "Antwortmaskierung",
+      "BREAK_GLASS": "Break-Glass"
+    },
+    "deployment_decision_step": {
+      "PIPELINE_GATES": "Pipeline-Prüfungen",
+      "TRIGGER_PERMISSION": "Auslöseberechtigung",
+      "FREEZE_WINDOW": "Freeze-Fenster",
+      "ROUTING_POLICIES": "Routing-Richtlinien",
+      "ENVIRONMENT_POLICY": "Umgebungsrichtlinie",
+      "ELIGIBLE_REVIEWERS": "Berechtigte Prüfer",
+      "SCHEDULED_RELEASE": "Geplante Freigabe",
+      "GATE_RELEASABILITY": "Gate-Freigabefähigkeit",
+      "BREAK_GLASS": "Break-Glass"
+    },
+    "simulated_ai_outcome": {
+      "SKIPPED": "Übersprungen (keine KI-Analyse)",
+      "COMPLETED": "Abgeschlossen",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "statement_capability": {
+      "READ": "Lesen",
+      "WRITE": "Schreiben",
+      "DDL": "DDL"
+    },
+    "access_source_kind": {
+      "DIRECT_PERMISSION": "Direkte Berechtigung",
+      "GROUP_PERMISSION": "Gruppenberechtigung",
+      "JIT_GRANT": "Just-in-time-Freigabe",
+      "QUERY_ADMIN_BYPASS": "QUERY_ADMIN-Umgehung",
+      "BREAK_GLASS": "Break-Glass"
+    },
+    "effective_access_table_scope": {
+      "ALL_TABLES": "Alle Tabellen",
+      "ALLOW_LISTED": "Freigegebene Tabellen"
     }
   },
   "access": {
@@ -3642,6 +3707,47 @@
     "kind": {
       "datasource": "Datenquelle",
       "api_connector": "API-Verbindung"
+    },
+    "simulation": {
+      "title": "Zugriffssimulation",
+      "subtitle": "Nachvollziehen, warum eine Abfrage genehmigt, angehalten oder abgelehnt würde – und sehen, wer eine Tabelle erreicht. Hier wird nichts geschrieben.",
+      "tab_trace": "Abfrage-Trace",
+      "tab_effective": "Wer hat Zugriff",
+      "read_only_notice": "Ein Trace spielt eine hypothetische Abfrage durch die Stufen der Live-Pipeline. Er erzeugt keine Anfrage, sendet keine Benachrichtigung und schreibt keine Audit-Zeile.",
+      "datasource": "Datenquelle",
+      "datasource_placeholder": "Datenquelle auswählen",
+      "datasource_required": "Bitte eine Datenquelle auswählen",
+      "user_required": "Zu simulierenden Benutzer auswählen",
+      "sql": "SQL",
+      "sql_required": "SQL für den Trace eingeben",
+      "sql_too_long": "SQL darf höchstens {{max}} Zeichen lang sein",
+      "risk_score": "Risikowert",
+      "risk_score_range": "Der Risikowert muss zwischen {{min}} und {{max}} liegen",
+      "risk_pair_required": "Risikostufe und Risikowert gemeinsam setzen oder beide leer lassen",
+      "risk_pair_hint": "Risikostufe und Risikowert gehören zusammen: Eine Stufe ohne Wert würde jede risikobasierte Routing-Richtlinie stillschweigend überspringen.",
+      "trace": "Trace erstellen",
+      "error": "Der Trace konnte nicht berechnet werden",
+      "evaluated_context": "Ausgewerteter Routing-Kontext"
+    },
+    "effective": {
+      "table": "Tabelle",
+      "table_placeholder": "schema.tabelle",
+      "table_required": "Tabelle eingeben",
+      "capability": "Fähigkeit",
+      "lookup": "Zugriff anzeigen",
+      "prompt_title": "Datenquelle, Tabelle und Fähigkeit wählen",
+      "prompt_description": "Listet jede Identität, die es darf, und über welche Berechtigungen – einschließlich QUERY_ADMIN-Umgehung und Break-Glass.",
+      "load_error": "Effektiver Zugriff konnte nicht geladen werden",
+      "empty": "Keine Identität darf dies auf der Tabelle",
+      "col_identity": "Identität",
+      "col_granted": "Gewährt",
+      "col_scope": "Tabellenbereich",
+      "col_sources": "Quellen",
+      "col_query_admin": "QUERY_ADMIN-Umgehung",
+      "col_break_glass": "Break-Glass möglich",
+      "col_expires": "Zugriff läuft ab",
+      "allow_list_entry": "Allow-List: {{entry}}",
+      "not_this_capability": "gewährt diese Fähigkeit nicht"
     }
   },
   "connectors": {
@@ -4426,7 +4532,8 @@
         "reorder_error": "Reihenfolge konnte nicht geändert werden"
       },
       "canOverrideVariables": "Variablen überschreiben",
-      "canOverrideVariablesHint": "Darf pro Anfrage Werte für die überschreibbaren dynamischen Variablen dieses Connectors angeben."
+      "canOverrideVariablesHint": "Darf pro Anfrage Werte für die überschreibbaren dynamischen Variablen dieses Connectors angeben.",
+      "tabSimulate": "Simulieren"
     },
     "editor": {
       "title": "API Editor",
@@ -4550,7 +4657,18 @@
       "overrides": "Überschreibungen",
       "overridesHint": "Diese Anfrage überschreibt Connector-Variablen"
     },
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "simulate": {
+      "read_only_notice": "Spielt einen hypothetischen Aufruf durch die Governance-Pipeline dieses Konnektors. Die API wird nie kontaktiert und nichts wird geschrieben.",
+      "operation": "Operation",
+      "operation_placeholder": "Beliebige Operation",
+      "verb": "Verb",
+      "verb_hint": "HTTP-Methode oder Protokollverb, falls keine Operation gewählt ist.",
+      "verb_too_long": "Das Verb darf höchstens {{max}} Zeichen lang sein",
+      "user_required": "Zu simulierenden Benutzer auswählen",
+      "simulate": "Simulieren",
+      "error": "Die Simulation konnte nicht berechnet werden"
+    }
   },
   "lifecycle": {
     "policies": {
@@ -5222,7 +5340,8 @@
       "groupPlaceholder": "Gruppen suchen",
       "editUserPermission": "Berechtigung bearbeiten — {{user}}",
       "editGroupPermission": "Berechtigung bearbeiten — {{group}}",
-      "revoke": "Widerrufen"
+      "revoke": "Widerrufen",
+      "tabSimulate": "Simulieren"
     },
     "freezeWindows": {
       "title": "Freeze-Fenster",
@@ -5303,6 +5422,27 @@
       "summary_min_risk": "Risiko ≥ {{risk}}",
       "summary_match_all": "Trifft auf jedes Deployment zu",
       "labelTimeRange": "Zeitraum"
+    },
+    "simulate": {
+      "read_only_notice": "Führt ein hypothetisches Deployment durch Auslöseberechtigung, Freeze-Fenster, Routing, Umgebungsrichtlinie und Release-Gate. Es wird keine Deployment-Anfrage erstellt.",
+      "environment": "Umgebung",
+      "environment_placeholder": "Umgebung auswählen",
+      "environment_required": "Bitte eine Umgebung auswählen",
+      "user_required": "Zu simulierenden Benutzer auswählen",
+      "version": "Version",
+      "version_required": "Version eingeben",
+      "version_too_long": "Die Version darf höchstens {{max}} Zeichen lang sein",
+      "at": "Auswerten zum Zeitpunkt",
+      "at_hint": "Freeze-Fenster und Zeitplan so auswerten, als wäre es dieser Moment – z. B. „Würde ein Release am Freitagabend angehalten?“. Leer bedeutet jetzt.",
+      "at_placeholder": "Jetzt",
+      "scheduled_for": "Geplante Freigabe",
+      "scheduled_for_hint": "Optional: der Frühestens-Zeitpunkt, den der CI-Job anfordern würde.",
+      "simulate": "Simulieren",
+      "error": "Die Simulation konnte nicht berechnet werden",
+      "releasable": "Freigebbar – das Gate würde dieses Deployment durchlassen",
+      "not_releasable": "Nicht freigebbar – das Gate würde dieses Deployment anhalten",
+      "evaluated_at": "Ausgewertet am {{date}}",
+      "gate_note": "Berechnet von derselben Funktion, auf die das CI-Deployment-Gate wartet."
     }
   },
   "help_chat": {
@@ -5368,6 +5508,102 @@
       "COST_ESTIMATE_ABSENT": "Die Vorab-Kostenschätzung wird je eingereichter Abfrage berechnet, daher greifen Bedingungen zu geschätzten Zeilen oder Scan-Typ hier nicht.",
       "CLIENT_CONTEXT_ABSENT": "Eine hypothetische Anfrage hat weder Quell-IP noch User-Agent oder CI/CD-Herkunft, daher greifen Bedingungen dazu hier nicht.",
       "RESPONSE_SHAPE_ABSENT": "Eine API-Aufruf-Simulation hat keinen Antworttext, daher wird die Antwortmaskierung pro Regel statt pro Feld gemeldet."
+    }
+  },
+  "decisionTrace": {
+    "user": "Simulierter Benutzer",
+    "user_placeholder": "Benutzer auswählen",
+    "ai_outcome": "Angenommenes KI-Ergebnis",
+    "risk_level": "Risikostufe",
+    "resulting_status": "Resultierender Status",
+    "refused": "Abgelehnt – es würde keine Anfrage erstellt",
+    "policies_not_evaluated": "Richtlinienliste auf diesem Pfad nicht ausgewertet",
+    "policies_not_evaluated_hint": "Eine frühere Stufe hat die Anfrage abgelehnt oder das angenommene KI-Ergebnis ist fehlgeschlagen, daher liefen keine Routing-Richtlinien.",
+    "policies_none": "Keine aktiven Routing-Richtlinien",
+    "col_priority": "Priorität",
+    "col_policy": "Richtlinie",
+    "col_action": "Aktion",
+    "col_required_approvals": "Erforderliche Genehmigungen",
+    "col_matched": "Zutreffend",
+    "col_decisive": "Ausschlaggebend",
+    "none": "Keine",
+    "never_expires": "läuft nie ab",
+    "expires_at": "läuft ab {{date}}",
+    "via_group": "über Gruppe {{group}}",
+    "source_direct": "Direkte Berechtigung",
+    "source_group": "Gruppenberechtigung",
+    "approver_role": "Rolle {{role}}",
+    "approver_user": "Benutzer {{id}}",
+    "stage": "Stufe {{stage}}",
+    "detail": {
+      "action": "Aktion",
+      "active": "Aktiv",
+      "admin_bypass": "Admin-Umgehung",
+      "ai_analysis_enabled": "KI-Analyse aktiv",
+      "allowed_operations": "Erlaubte Operationen",
+      "applied_policy_ids": "Angewandte Richtlinien",
+      "auto_approve_reads": "Lesezugriffe automatisch genehmigen",
+      "behavior": "Verhalten",
+      "blocking_count": "Blockierende Befunde",
+      "blocking_rule_ids": "Blockierende Regeln",
+      "can_break_glass": "Break-Glass möglich",
+      "can_read": "Darf lesen",
+      "can_trigger": "Darf auslösen",
+      "can_write": "Darf schreiben",
+      "classified_from": "Klassifiziert aus",
+      "connector_name": "Konnektor",
+      "considered_grant_ids": "Geprüfte Freigaben",
+      "contributing_grants": "Beitragende Berechtigungen",
+      "current": "Aktuelle Nutzung",
+      "db_type": "Datenbanktyp",
+      "effective_min_approvals": "Effektive Mindestgenehmigungen",
+      "engine_id": "Engine",
+      "environment_allows_break_glass": "Umgebung erlaubt Break-Glass",
+      "environment_name": "Umgebung",
+      "environment_required_approvals": "Von der Umgebung geforderte Genehmigungen",
+      "evaluated_at": "Ausgewertet am",
+      "expires_at": "Läuft ab",
+      "freeze_window_id": "Freeze-Fenster",
+      "frozen": "Eingefroren",
+      "grant_id": "Freigabe",
+      "has_limit_clause": "Mit LIMIT",
+      "has_where_clause": "Mit WHERE",
+      "limit": "Grenze",
+      "masks": "Maskierungen",
+      "matched_policy_id": "ID der zutreffenden Richtlinie",
+      "matched_policy_name": "Zutreffende Richtlinie",
+      "min_approvals_required": "Mindestgenehmigungen",
+      "operation_count": "Operationen",
+      "operation_id": "Operation",
+      "pipeline_name": "Pipeline",
+      "plan_approvers": "Genehmiger laut Plan",
+      "predicates": "Prädikate",
+      "protocol": "Protokoll",
+      "provider": "Anbieter",
+      "query_admin_short_circuit": "QUERY_ADMIN-Kurzschluss",
+      "query_type": "Abfragetyp",
+      "quota_type": "Kontingent",
+      "reason_text": "Grund",
+      "referenced_tables": "Referenzierte Tabellen",
+      "rejected_tables": "Abgelehnte Tabellen",
+      "releasable": "Freigebbar",
+      "require_review": "Prüfung erforderlich",
+      "require_review_reads": "Lesezugriffe prüfen",
+      "require_review_writes": "Schreibzugriffe prüfen",
+      "requires_human_approval": "Menschliche Genehmigung erforderlich",
+      "restricted_response_field_count": "Eingeschränkte Antwortfelder",
+      "review_plan_id": "Prüfplan",
+      "reviewers": "Prüfer",
+      "row_security_outcome": "Ergebnis der Zeilensicherheit",
+      "scheduled_for": "Geplant für",
+      "scope": "Bereich",
+      "sql_review_suppressed": "Durch SQL-Prüfung unterdrückt",
+      "status": "Status",
+      "submitter_excluded": "Einreicher ausgeschlossen",
+      "transactional": "Transaktional",
+      "verb": "Verb",
+      "visible_to_user": "Für Benutzer sichtbar",
+      "write": "Schreiboperation"
     }
   }
 }

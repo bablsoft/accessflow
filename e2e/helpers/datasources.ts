@@ -1393,3 +1393,51 @@ export async function revokeApiKeyViaApi(
     console.warn(`API key cleanup skipped: ${res.status()} ${await res.text()}`);
   }
 }
+
+export interface CreatedRoutingPolicy {
+  id: string;
+  name: string;
+}
+
+/** POST /admin/routing-policies. `body` is the raw snake_case request body. */
+export async function createRoutingPolicyViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<CreatedRoutingPolicy> {
+  const res = await request.post(`${apiBase()}/api/v1/admin/routing-policies`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: body,
+  });
+  if (!res.ok()) {
+    throw new Error(`Create routing policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedRoutingPolicy;
+}
+
+/** Best-effort cleanup — never fails the spec. */
+export async function deleteRoutingPolicyViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  await request.delete(`${apiBase()}/api/v1/admin/routing-policies/${id}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
+/** Total query requests on a datasource, from GET /queries?datasource_id=… (admin sees all). */
+export async function countQueriesViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  datasourceId: string,
+): Promise<number> {
+  const res = await request.get(
+    `${apiBase()}/api/v1/queries?${new URLSearchParams({ datasource_id: datasourceId, size: '1' })}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`List queries failed: ${res.status()} ${await res.text()}`);
+  }
+  return ((await res.json()) as { total_elements: number }).total_elements;
+}
