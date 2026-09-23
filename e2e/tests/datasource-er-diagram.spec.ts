@@ -56,6 +56,10 @@ test.describe('datasource ER diagram tab', () => {
     if (!datasource) throw new Error('beforeAll did not create the datasource');
     const dsId = datasource.id;
 
+    // The settings page has more tabs than fit at the default 1280px viewport, so AntD folds
+    // the trailing ones (ER diagram, Activity) into an overflow menu. Widen the viewport so
+    // the tab is clickable in place.
+    await page.setViewportSize({ width: 1920, height: 900 });
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);

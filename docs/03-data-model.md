@@ -427,6 +427,50 @@ unfiltered. Applied policy ids ride on the `QUERY_EXECUTED` audit metadata
 
 ---
 
+## row_limit_policy
+
+Per-table **SELECT row caps** (#934). Each row caps how many rows a SELECT may return when it
+references one table, optionally only for the submitters named in `applies_to_*`. It layers on top
+of the existing caps and only ever lowers them: the effective limit is the minimum of the global
+`ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`, the datasource's `max_rows_per_query`, the grantee's merged
+`row_limit_override` and every matching policy. Created by `V184__create_row_limit_policy.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `datasource_id` | FK → `datasources` `ON DELETE CASCADE` |
+| `schema_name` | VARCHAR(255) nullable — NULL matches the table in any schema |
+| `table_name` | VARCHAR(255) — stored lowercased with quotes stripped, the same normalization as the parser's referenced tables |
+| `max_rows` | INTEGER NOT NULL, `CHECK (max_rows > 0)`; the API caps it at 1,000,000 |
+| `applies_to_roles` | TEXT[] nullable — role names the policy applies to |
+| `applies_to_group_ids` | UUID[] nullable — user-group ids the policy applies to |
+| `applies_to_user_ids` | UUID[] nullable — individual user ids the policy applies to |
+| `enabled` | BOOLEAN DEFAULT true — disabled policies are ignored during resolution |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id, datasource_id, enabled)` to back the per-execution resolution scan.
+
+**Scope.** `applies_to_*` has the `row_security_policy` polarity: all three empty ⇒ the policy caps
+**every** submitter, admins included; otherwise it applies to submitters whose role / group / user
+id matches.
+
+**Table matching is deliberately lenient**, because a match can only lower the cap. A policy matches
+a referenced table when the table names are equal and either both name the same schema, the query
+names no schema, or the policy names no schema. So `crm.customer` also matches an unqualified
+`customer` in the SQL: leaving the schema off never loosens the cap. Dotted names (Elasticsearch
+indices, BigQuery datasets) compare whole and are never split on dots.
+
+**Multi-table queries and empty references.** A query touching several limited tables takes the
+**lowest** matching `max_rows`. A query whose referenced tables the parser could not determine
+matches no policy and falls back to the datasource cap. Only SELECT result sets are capped; the ids
+of the policies that set the winning cap ride on `QUERY_EXECUTED` metadata
+(`applied_row_limit_policy_ids`). The table preview (`GET /datasources/{id}/sample-data`) is capped
+the same way.
+
+---
+
 ## export_policy
 
 Per-datasource **result-export governance / DLP** policies (#626). Each row governs how a query's
@@ -1652,7 +1696,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_REVIEW_REQUESTED` | Query enters pending review |
 | `QUERY_APPROVED` | Reviewer approves |
 | `QUERY_REJECTED` | Reviewer rejects |
-| `QUERY_EXECUTED` | Proxy executes approved query. Metadata is enriched (AF-383) with `datasource_id`, `query_type`, `referenced_tables`, `distinct_table_count`, and `rows_returned` so the UBA behavioural baselines (`behavior_baseline`) are derivable from `audit_log` alone — no query result data. Also carries `applied_masking_policy_ids` / `applied_row_security_policy_ids` when policies fired. |
+| `QUERY_EXECUTED` | Proxy executes approved query. Metadata is enriched (AF-383) with `datasource_id`, `query_type`, `referenced_tables`, `distinct_table_count`, and `rows_returned` so the UBA behavioural baselines (`behavior_baseline`) are derivable from `audit_log` alone — no query result data. Also carries `applied_masking_policy_ids` / `applied_row_security_policy_ids` when policies fired, and `applied_row_limit_policy_ids` (#934) when a per-table row-limit policy set the cap of a SELECT. |
 | `QUERY_BREAK_GLASS_EXECUTED` | Proxy executes a break-glass / emergency-access query (AF-385), bypassing pre-approval. Prominently distinct from `QUERY_EXECUTED`; metadata carries `break_glass=true` plus the same UBA enrichment. Resource: `query_request`. |
 | `BREAK_GLASS_REVIEWED` | An admin acknowledges (reconciles) a break-glass retro-review (AF-385). Resource: `break_glass_event`. Metadata: `query_request_id`, `datasource_id`, `submitted_by`. |
 | `QUERY_FAILED` | Execution error. Metadata is enriched (AF-383) with `datasource_id` and `query_type` for UBA error-rate tracking. |
@@ -1703,6 +1747,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `SQL_REVIEW_BLOCKED` | A `BLOCK` SQL review finding suppressed an auto-approve path and forced the request to human review (#864). System-attributed: `actor_id` is NULL. Resource: `query_request` (written by `QueryReviewStateMachine` after the transition) or `request_group` (written by `GroupAiAnalysisListener`). Metadata: `trigger: "sql_review"`, `blocking_rule_ids` (distinct, sorted), `suppressed_paths` — one or more of `ROUTING_AUTO_APPROVE`, `GRANT_FAST_PATH`, `REVIEW_PLAN` for a query, `GROUP_REVIEW_PLAN` for a group — plus `matched_policy_id` when routing was the suppressed path and `blocking_item_ids` for a group. Written **only when the guard changed the outcome**: never for `WARN`, never on a routing `AUTO_REJECT` (the rejection stands), never on the AI-failed path or a plan that already required review (the findings are still on the detail), and never for break-glass, which records findings but is not gated. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
+| `ROW_LIMIT_POLICY_CREATED` / `ROW_LIMIT_POLICY_UPDATED` / `ROW_LIMIT_POLICY_DELETED` | Admin creates / updates / deletes a per-table row-limit policy via the `/datasources/{id}/row-limit-policies` CRUD endpoints (#934). Resource: `row_limit_policy`. Metadata carries `datasource_id`, `schema_name`, `table_name`, `max_rows`, `enabled`. The policies that capped a SELECT ride on `QUERY_EXECUTED` metadata (`applied_row_limit_policy_ids`). |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
 | `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed/revived/aged/expired, `expiredAuditTruncated`, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
 | `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED` | Admin confirms (tag applied via the AF-447 service, masking derived) or dismisses (permanently suppressed) a discovery finding via `/datasources/{id}/discovery/findings/bulk-decision`. Resource: `discovery_finding`. Metadata: table, column, classification, detector, confidence, and `tagConflict` when the tag already existed. |

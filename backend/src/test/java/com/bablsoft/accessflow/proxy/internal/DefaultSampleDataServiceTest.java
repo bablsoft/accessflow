@@ -50,6 +50,8 @@ class DefaultSampleDataServiceTest {
     @Mock
     private RowSecurityResolutionService rowSecurityResolutionService;
     @Mock
+    private com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
+    @Mock
     private QueryExecutor queryExecutor;
 
     @InjectMocks
@@ -233,6 +235,24 @@ class DefaultSampleDataServiceTest {
         var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
         verify(queryExecutor).sampleTable(captor.capture());
         assertThat(captor.getValue().maxRowsOverride()).isEqualTo(50);
+    }
+
+    @Test
+    void rowLimitPolicyOnTheSampledTableCapsThePreview() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        20, null)));
+        when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
+                java.util.Set.of("public.users")))
+                .thenReturn(Optional.of(new com.bablsoft.accessflow.core.api.AppliedRowLimit(
+                        7, java.util.Set.of(UUID.randomUUID()))));
+
+        service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
+
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(7);
     }
 
     private DatasourceUserPermissionView permission(boolean canRead, List<String> restrictedColumns,

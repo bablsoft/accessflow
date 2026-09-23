@@ -888,6 +888,88 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 
 ---
 
+### Row-limit policies (#934)
+
+Admin-only, organization-scoped **per-table SELECT row caps**. Requires the
+`ROW_LIMIT_POLICY_MANAGE` permission (ADMIN by default). A policy caps how many rows a SELECT may
+return when it references the policy's table, optionally only for the listed roles / groups / users.
+Policies only ever **lower** the limit: the effective cap is the minimum of the global
+`ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`, the datasource's `max_rows_per_query`, the grantee's
+`row_limit_override` and every matching policy. A query touching several limited tables takes the
+lowest matching cap. The ids of the policies that set the cap are recorded on the `QUERY_EXECUTED`
+audit metadata (`applied_row_limit_policy_ids`). `GET /datasources/{id}/sample-rows` is capped the
+same way.
+
+Table matching is lenient because a match can only tighten the cap: a policy matches when the table
+names are equal and either both name the same schema, the query names no schema, or the policy names
+no schema. A query whose referenced tables cannot be determined matches no policy.
+
+#### POST /datasources/{id}/row-limit-policies — Request Body
+
+```json
+{
+  "schema_name": "crm",
+  "table_name": "customer",
+  "max_rows": 200,
+  "applies_to_roles": ["ANALYST"],
+  "applies_to_group_ids": ["uuid"],
+  "applies_to_user_ids": ["uuid"],
+  "enabled": true
+}
+```
+
+`table_name` is required (non-blank, ≤ 255 chars). `schema_name` is optional (≤ 255 chars); omit it
+or send `null` to match the table in any schema. Both are stored lowercased with quotes stripped.
+`max_rows` is required, between 1 and 1,000,000. The `applies_to_*` lists are optional: **all empty
+means the policy applies to every submitter**, admins included. Targets must belong to the caller's
+organization.
+
+**Response 201:** Row-limit policy object. `Location` header points to
+`/api/v1/datasources/{id}/row-limit-policies/{policyId}`.
+**Response 400:** Bean Validation failure (blank table, missing or out-of-range `max_rows`).
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** An unknown applies-to role, or an applies-to user/group outside the organization.
+`error: ILLEGAL_ROW_LIMIT_POLICY`.
+
+#### GET /datasources/{id}/row-limit-policies — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "schema_name": "crm",
+      "table_name": "customer",
+      "max_rows": 200,
+      "applies_to_roles": ["ANALYST"],
+      "applies_to_group_ids": [],
+      "applies_to_user_ids": [],
+      "enabled": true,
+      "created_at": "2026-09-23T10:00:00Z",
+      "updated_at": "2026-09-23T10:00:00Z"
+    }
+  ]
+}
+```
+
+`schema_name` is omitted when the policy matches the table in any schema.
+
+#### PUT /datasources/{id}/row-limit-policies/{policyId}
+
+Same body and validation as `POST`. The update is a full replacement: an omitted `schema_name` or
+applies-to list is cleared. **Response 200:** the updated policy object. **Response 404:**
+`DATASOURCE_NOT_FOUND` or `ROW_LIMIT_POLICY_NOT_FOUND`. **Response 422:** `ILLEGAL_ROW_LIMIT_POLICY`.
+
+#### DELETE /datasources/{id}/row-limit-policies/{policyId}
+
+**Response 204:** No content. **Response 404:** `ROW_LIMIT_POLICY_NOT_FOUND`.
+
+Create, update and delete write `ROW_LIMIT_POLICY_CREATED` / `_UPDATED` / `_DELETED` audit rows
+(resource `row_limit_policy`).
+
+---
+
 ### Result-export policies (#626)
 
 Admin-only, organization-scoped result-export governance (DLP) per datasource. A policy governs how a

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "ef7fce3d6abe",
-  "generatedAt": "2026-09-23T14:28:22.386Z",
-  "sourceCommit": "d7091694c1f8e302a4c1e731da402ab59f5082b0",
-  "chunkCount": 584,
-  "sha256": "ef7fce3d6abe8c209408a9e943fbb27eb4eb879bc0db91752a5996abb6bfa575",
+  "corpusVersion": "82a66af70c2f",
+  "generatedAt": "2026-09-23T16:02:41.204Z",
+  "sourceCommit": "fb874cb056fc5e900da35233e7b24366dece20cd",
+  "chunkCount": 585,
+  "sha256": "82a66af70c2f84ea573d22c851b622c8ae106ada13b87f33d42c20a34f855f09",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 13,
-      "sha256": "59b26b1ce7313527f9e55593571507b769ea5a9e9561d3dd6ed47b2f1f9c5c06"
+      "chunks": 14,
+      "sha256": "560e2bd9f35de73cc2969e2805a6fee8e38bb223710bbc8b7928fa8c2ba1fc9f"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -253,7 +253,7 @@
       "url": "https://accessflow.io/docs/guides/datasource/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "f7304bb6ae935369aa98626d981e6ba5f77be2300ebea2ea5ce751d2cf394f9e"
+      "sha256": "83550e50498cd3990d74f94205d77a227f7dc2b10bd8514e90f0c61b504db0eb"
     },
     {
       "path": "website/docs/guides/deployment-approval/index.html",
@@ -373,7 +373,7 @@
       "url": "https://accessflow.io/features/database-access-governance/",
       "section": "Features",
       "chunks": 17,
-      "sha256": "eda42909d280ca972bd49a1f47cf23241077f7bdd8c9df9c48840bfe4f2e5025"
+      "sha256": "cab32464bf8e87323db829777741bc85e5aebee12d32c8a3905a193440639d1d"
     },
     {
       "path": "website/features/deployment-governance/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "0dad8a9792113ffa8551d017da7734ad8bd919b54128e6511bc94c38c9cceab6"
+      "sha256": "2dc0b881df4ecf1ef49ecd54feb64f6f14aa51c3ccfa9004626b1ea162b640b9"
     }
   ]
 }

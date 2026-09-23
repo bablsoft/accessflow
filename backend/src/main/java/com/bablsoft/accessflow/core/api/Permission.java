@@ -63,6 +63,8 @@ public enum Permission {
     DATA_CLASSIFICATION_MANAGE(PermissionGroup.DATA_POLICIES),
     /** Manage result-export governance policies (#626). */
     EXPORT_POLICY_MANAGE(PermissionGroup.DATA_POLICIES),
+    /** Manage per-table row-limit policies (#934). */
+    ROW_LIMIT_POLICY_MANAGE(PermissionGroup.DATA_POLICIES),
 
     /** Manage review plans. */
     REVIEW_PLAN_MANAGE(PermissionGroup.WORKFLOW_ADMIN),

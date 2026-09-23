@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
+import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -30,6 +32,7 @@ class DefaultSampleDataService implements SampleDataService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final RowSecurityResolutionService rowSecurityResolutionService;
+    private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final QueryExecutor queryExecutor;
 
     @Override
@@ -67,14 +70,25 @@ class DefaultSampleDataService implements SampleDataService {
                         p.operator(), p.values()))
                 .toList();
 
+        // #934: a row-limit policy on the sampled table caps the preview like it caps a query.
+        Integer rowLimitOverride = permission.map(DatasourceUserPermissionView::rowLimitOverride)
+                .orElse(null);
+        var qualified = target.schema() == null || target.schema().isBlank()
+                ? normalize(target.table())
+                : normalize(target.schema()) + "." + normalize(target.table());
+        var appliedRowLimit = rowLimitPolicyResolutionService.resolve(organizationId, datasourceId,
+                userId, Set.of(qualified));
+        if (appliedRowLimit.isPresent()) {
+            rowLimitOverride = appliedRowLimit.get().tighten(rowLimitOverride);
+        }
+
         // 3. Execute via the proxy executor — RLS rewrite + post-fetch masking + row cap + timeout.
         return queryExecutor.sampleTable(new SampleTableRequest(datasourceId, target.schema(),
                 target.table(), restrictedColumns, columnMasks, rowSecurityPredicates,
-                effectiveLimit(limit, permission.map(DatasourceUserPermissionView::rowLimitOverride)
-                        .orElse(null)), null));
+                effectiveLimit(limit, rowLimitOverride), null));
     }
 
-    /** The caller's row-limit override (#933) caps the preview too, so it can't be used to get around the cap. */
+    /** The caller's row-limit override (#933) and row-limit policies (#934) cap the preview too, so it can't be used to get around the cap. */
     private static int effectiveLimit(int limit, Integer rowLimitOverride) {
         return rowLimitOverride == null ? limit : Math.min(limit, rowLimitOverride);
     }
