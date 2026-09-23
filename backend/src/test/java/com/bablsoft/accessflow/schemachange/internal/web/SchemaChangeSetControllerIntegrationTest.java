@@ -142,8 +142,8 @@ class SchemaChangeSetControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.statements[1].query_type").asString().isEqualTo("DDL");
         assertThat(result).bodyJson().extractingPath("$.statements[2].sequence_order").asNumber().isEqualTo(2);
         assertThat(result).bodyJson().extractingPath("$.statements[2].query_type").asString().isEqualTo("OTHER");
-        // The V91__add_auditor_role.sql shape the epic calls out — admitted as OTHER under gate rule (a).
-        assertThat(result).bodyJson().extractingPath("$.statements[3].query_type").asString().isEqualTo("OTHER");
+        // The V91__add_auditor_role.sql shape the epic calls out — JSqlParser 5.4 parses it as ALTER TYPE.
+        assertThat(result).bodyJson().extractingPath("$.statements[3].query_type").asString().isEqualTo("DDL");
         // No ruleset is bound in this organisation yet, so the review is clean.
         assertThat(result).bodyJson().extractingPath("$.review_warnings.length()").asNumber().isEqualTo(0);
 

@@ -153,15 +153,17 @@ second argument of the message ("Statement 3 of the change set could not be pars
 **Classification — the decision this part had to make.** The proxy's DDL classifier is narrower
 than real-world migrations: only the JSqlParser `create` / `alter` / `drop` / `truncate` statement
 packages are `QueryType.DDL`, and everything else the parser accepts — `COMMENT ON`, `GRANT`,
-`ALTER TYPE … ADD VALUE`, `REFRESH MATERIALIZED VIEW`, `MERGE`, `CALL`, and any statement JSqlParser
-only recognises as *unsupported* — lands in `OTHER`. A strict `== DDL` gate would have refused
-AccessFlow's own `V91__add_auditor_role.sql` (`ALTER TYPE … ADD VALUE`). The gate therefore
+`REFRESH MATERIALIZED VIEW`, `MERGE`, `CALL`, and any statement JSqlParser only recognises as
+*unsupported* — lands in `OTHER`. A strict `== DDL` gate would refuse routine migration statements
+such as `GRANT` and `COMMENT ON`. (`ALTER TYPE … ADD VALUE`, the shape of AccessFlow's own
+`V91__add_auditor_role.sql`, was `OTHER` until JSqlParser 5.4 learned to parse it; it is now
+`DDL`.) The gate therefore
 implements option **(a)**: a statement is admitted when it is **not** classified `SELECT` /
 `INSERT` / `UPDATE` / `DELETE`; those four are `422 SCHEMA_CHANGE_SET_STATEMENT_DML` with the
 classification on `queryType`. `DDL` *and* `OTHER` are admitted, and the stored `query_type`
 records which. What this buys and what it costs, stated plainly:
 
-- **Admitted that a strict gate would refuse:** `COMMENT ON`, `GRANT`, `ALTER TYPE … ADD VALUE`,
+- **Admitted that a strict gate would refuse:** `COMMENT ON`, `GRANT`,
   `REFRESH MATERIALIZED VIEW`. (`CREATE FUNCTION` is classified `DDL` by JSqlParser and would have
   passed either way.)
 - **Admitted that is not schema-only:** `MERGE`, `UPSERT`, `CALL`, session settings in the
@@ -287,7 +289,7 @@ admin concept.
 The group is then created and submitted with `admin = true`, deliberately.
 `requestgroups`' own per-member check exempts `QUERY_ADMIN` holders — the bypass this module must
 not inherit — and, for a statement classified `OTHER` (`GRANT`, `COMMENT ON`,
-`ALTER TYPE … ADD VALUE`), it would demand `can_write`, a DML permission that says nothing about
+`REFRESH MATERIALIZED VIEW`), it would demand `can_write`, a DML permission that says nothing about
 schema authority. So `schemachange` owns the authorization decision and applies it uniformly to
 every statement, which is strictly stronger than what delegating would have produced. The `admin`
 flag has no other effect: it is not persisted, and routing, review and execution never read it.
