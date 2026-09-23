@@ -113,7 +113,8 @@
     "sub_schema_changes": "Cambios de esquema",
     "schemaChangeSets": "Conjuntos de cambios",
     "schemaDrift": "Desfase de esquema",
-    "access_simulation": "Simulación de acceso"
+    "access_simulation": "Simulación de acceso",
+    "jobs": "Tareas programadas"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -2720,6 +2721,46 @@
         "col_resource": "Recurso",
         "col_on_behalf_of": "En nombre de"
       }
+    },
+    "jobs": {
+      "title": "Tareas programadas",
+      "subtitle": "Tareas en segundo plano registradas en este backend, su estado y su historial de ejecución. Solo lectura.",
+      "load_error": "No se pudieron cargar las tareas programadas",
+      "empty": "No hay tareas programadas registradas",
+      "scheduler_disabled_title": "Planificador desactivado",
+      "scheduler_disabled_body": "La planificación está desactivada en este backend (ACCESSFLOW_SCHEDULING_ENABLED=false), así que no hay tareas registradas.",
+      "scheduler_switch_off": "El interruptor de planificación está desactivado en este backend, pero las tareas siguientes siguen registradas.",
+      "recording_disabled": "El registro de ejecuciones está desactivado (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false). No se guarda historial nuevo.",
+      "col_job": "Tarea",
+      "col_module": "Módulo",
+      "col_cadence": "Cadencia",
+      "col_last_status": "Último estado",
+      "col_last_run": "Última ejecución",
+      "col_duration": "Duración",
+      "col_consecutive_failures": "Fallos consecutivos",
+      "col_window": "Últimas {{window}}",
+      "col_status": "Estado",
+      "col_started": "Inicio",
+      "col_instance": "Instancia",
+      "window_counts": "{{success}} ok / {{failed}} fallidas",
+      "window_mean": "media {{duration}}",
+      "consecutive_failures": "{{count}} fallidas",
+      "never_run": "Aún no ejecutada",
+      "abandoned": "Abandonada",
+      "not_registered": "No registrada",
+      "not_registered_help": "Esta tarea tiene historial, pero no está registrada en este backend (renombrada o eliminada).",
+      "history": "Historial de ejecución",
+      "history_title": "{{name}} — historial de ejecución",
+      "history_empty": "No hay ejecuciones registradas",
+      "history_load_error": "No se pudo cargar el historial de ejecución",
+      "filter_status": "Filtrar por estado",
+      "duration_ms": "{{value}} ms",
+      "duration_s": "{{value}} s",
+      "duration_m": "{{minutes}} min {{seconds}} s",
+      "unit_d": "{{value}} d",
+      "unit_h": "{{value}} h",
+      "unit_m": "{{value}} min",
+      "unit_s": "{{value}} s"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "Todas las tablas",
       "ALLOW_LISTED": "Tablas en lista permitida"
+    },
+    "job_execution_status": {
+      "RUNNING": "En ejecución",
+      "SUCCESS": "Correcta",
+      "FAILED": "Fallida"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Retardo fijo",
+      "FIXED_RATE": "Frecuencia fija",
+      "CRON": "Cron",
+      "ONE_TIME": "Única"
     }
   },
   "access": {

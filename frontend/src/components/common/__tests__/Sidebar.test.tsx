@@ -122,6 +122,15 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
+  it('shows the platform group with Scheduled jobs only to a platform admin', () => {
+    const { unmount } = renderSidebar(adminUser);
+    expect(screen.queryByText('Scheduled jobs')).not.toBeInTheDocument();
+    unmount();
+
+    renderSidebar({ ...adminUser, platform_admin: true });
+    expect(link(within(group('Platform')), 'Scheduled jobs')).toHaveAttribute('href', '/admin/jobs');
+  });
+
   it('shows every group heading for an admin', () => {
     renderSidebar(adminUser);
     expect(screen.getByText('Workflow')).toBeInTheDocument();

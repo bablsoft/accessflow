@@ -28,6 +28,7 @@ const ROUTE_LABEL_KEYS: ReadonlyArray<readonly [string, string]> = [
   ['/admin/datasource-health', 'nav.datasource_health'],
   ['/admin/routing-policies', 'nav.routing_policies'],
   ['/admin/organizations', 'nav.organizations'],
+  ['/admin/jobs', 'nav.jobs'],
   ['/admin/notifications', 'nav.notifications'],
   ['/admin/review-plans', 'nav.review_plans'],
   ['/admin/ai-analyses', 'nav.ai_analyses'],

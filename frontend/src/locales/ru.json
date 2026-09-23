@@ -113,7 +113,8 @@
     "sub_schema_changes": "Изменения схемы",
     "schemaChangeSets": "Наборы изменений",
     "schemaDrift": "Дрейф схемы",
-    "access_simulation": "Симуляция доступа"
+    "access_simulation": "Симуляция доступа",
+    "jobs": "Запланированные задания"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -2720,6 +2721,46 @@
         "col_resource": "Ресурс",
         "col_on_behalf_of": "От имени"
       }
+    },
+    "jobs": {
+      "title": "Запланированные задания",
+      "subtitle": "Фоновые задания, зарегистрированные на этом бэкенде, их состояние и история выполнения. Только чтение.",
+      "load_error": "Не удалось загрузить запланированные задания",
+      "empty": "Запланированные задания не зарегистрированы",
+      "scheduler_disabled_title": "Планировщик отключён",
+      "scheduler_disabled_body": "Планирование отключено на этом бэкенде (ACCESSFLOW_SCHEDULING_ENABLED=false), поэтому задания не зарегистрированы.",
+      "scheduler_switch_off": "Переключатель планирования на этом бэкенде выключен, но задания ниже всё равно зарегистрированы.",
+      "recording_disabled": "Запись выполнений отключена (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false). Новая история не записывается.",
+      "col_job": "Задание",
+      "col_module": "Модуль",
+      "col_cadence": "Периодичность",
+      "col_last_status": "Последний статус",
+      "col_last_run": "Последний запуск",
+      "col_duration": "Длительность",
+      "col_consecutive_failures": "Сбоев подряд",
+      "col_window": "За {{window}}",
+      "col_status": "Статус",
+      "col_started": "Начало",
+      "col_instance": "Экземпляр",
+      "window_counts": "{{success}} успешно / {{failed}} со сбоем",
+      "window_mean": "в среднем {{duration}}",
+      "consecutive_failures": "{{count}} со сбоем",
+      "never_run": "Ещё не запускалось",
+      "abandoned": "Прервано",
+      "not_registered": "Не зарегистрировано",
+      "not_registered_help": "У этого задания есть история, но на этом бэкенде оно не зарегистрировано (переименовано или удалено).",
+      "history": "История выполнения",
+      "history_title": "{{name}} — история выполнения",
+      "history_empty": "Нет записанных выполнений",
+      "history_load_error": "Не удалось загрузить историю выполнения",
+      "filter_status": "Фильтр по статусу",
+      "duration_ms": "{{value}} мс",
+      "duration_s": "{{value}} с",
+      "duration_m": "{{minutes}} мин {{seconds}} с",
+      "unit_d": "{{value}} д",
+      "unit_h": "{{value}} ч",
+      "unit_m": "{{value}} мин",
+      "unit_s": "{{value}} с"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "Все таблицы",
       "ALLOW_LISTED": "Разрешённые таблицы"
+    },
+    "job_execution_status": {
+      "RUNNING": "Выполняется",
+      "SUCCESS": "Успешно",
+      "FAILED": "Сбой"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Фиксированная задержка",
+      "FIXED_RATE": "Фиксированная частота",
+      "CRON": "Cron",
+      "ONE_TIME": "Однократно"
     }
   },
   "access": {

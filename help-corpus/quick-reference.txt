@@ -126,6 +126,7 @@ Where things are in the app
 
   Platform
     Organizations · /admin/organizations · platform administrators only — Organizations (tenants) and their settings.
+    Scheduled jobs · /admin/jobs · platform administrators only — Scheduled background jobs: their health and execution history (platform admins, read-only).
 
 Buttons and fields on the main screens (quote these labels verbatim)
   Query editor (Workflow → Database → Query editor)

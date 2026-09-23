@@ -520,6 +520,19 @@ accessflow:
     drift-max-tables-per-scan: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_MAX_TABLES_PER_SCAN:500}
     drift-max-findings-per-scan: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_MAX_FINDINGS_PER_SCAN:500}
     drift-scan-lock-at-most-for: ${ACCESSFLOW_SCHEMACHANGE_DRIFT_SCAN_LOCK_AT_MOST_FOR:PT30M}
+  scheduling:
+    executions:
+      # Scheduled-job execution history (#923). Every @Scheduled run that actually held its ShedLock
+      # lock is recorded in job_executions (lock-skipped ticks are not); recording is fail-soft and
+      # never changes a job's outcome. false turns recording off; the job registry still works.
+      enabled: ${ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED:true}
+      # JobExecutionRetentionJob prunes rows older than this and trims each job to its newest
+      # max-per-job rows. A non-positive value skips that axis.
+      retention: ${ACCESSFLOW_SCHEDULING_EXECUTIONS_RETENTION:P14D}
+      max-per-job: ${ACCESSFLOW_SCHEDULING_EXECUTIONS_MAX_PER_JOB:500}
+      retention-poll-interval: ${ACCESSFLOW_SCHEDULING_EXECUTIONS_RETENTION_POLL_INTERVAL:PT6H}
+      # Window the per-job success/failure counts and mean duration on the monitoring page cover.
+      summary-window: ${ACCESSFLOW_SCHEDULING_EXECUTIONS_SUMMARY_WINDOW:PT24H}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

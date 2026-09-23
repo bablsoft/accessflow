@@ -7228,6 +7228,121 @@ count). A breach is rejected with `409 Conflict` and a localized `detail` naming
 
 ---
 
+## Platform Jobs (#923)
+
+Read-only monitoring of the `@Scheduled` jobs of the backend process: the job registry, each job's
+health rollup, and a paginated execution history. **Platform-scoped, not org-scoped** — jobs run per
+process and several sweep every organization in one pass — so, like
+[Platform Organizations](#platform-organizations), both endpoints require the `PLATFORM_ADMIN`
+authority (`403` otherwise; no `Permission` catalog value is involved). Monitoring only: nothing
+here triggers, pauses or reschedules a job.
+
+| Method | Path | Auth Required | Description |
+|--------|------|---------------|-------------|
+| `GET` | `/platform/jobs` | PLATFORM_ADMIN | Job registry with a health rollup per job |
+| `GET` | `/platform/jobs/{jobName}/executions` | PLATFORM_ADMIN | Paginated execution history of one job, newest first |
+
+### GET /platform/jobs — Response 200
+
+The registry is derived at runtime from the scheduler (Spring's `ScheduledTaskHolder`), not from a
+hand-maintained list. Each job reports its **configured cadence and last run**, never a predicted
+next run: every job uses a fixed delay, so the next fire time depends on when the last run
+finished and is not knowable cluster-wide. Durations are ISO-8601 strings.
+
+```json
+{
+  "scheduling_enabled": true,
+  "recording_enabled": true,
+  "summary_window": "PT24H",
+  "jobs": [
+    {
+      "job_name": "QueryTimeoutJob",
+      "declaring_class": "com.bablsoft.accessflow.workflow.internal.scheduled.QueryTimeoutJob",
+      "method_name": "run",
+      "module": "workflow",
+      "cadence_type": "FIXED_DELAY",
+      "cadence": "PT5M",
+      "lock_name": "queryTimeoutJob",
+      "lock_at_most_for": "PT10M",
+      "registered": true,
+      "health": {
+        "last_status": "FAILED",
+        "last_abandoned": false,
+        "last_started_at": "2026-09-23T10:00:00Z",
+        "last_finished_at": "2026-09-23T10:00:01.250Z",
+        "last_duration_ms": 1250,
+        "last_error_message": "Connection refused",
+        "consecutive_failures": 2,
+        "window_success_count": 280,
+        "window_failure_count": 2,
+        "window_mean_duration_ms": 90
+      }
+    }
+  ]
+}
+```
+
+- `scheduling_enabled` reports the `accessflow.scheduling.enabled` switch. When it is `false` and
+  nothing is scheduled, `jobs` is empty — the UI says "scheduler disabled" rather than "no jobs".
+- `recording_enabled` is `false` when `ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false`; the
+  registry still lists jobs, but no new history is written.
+- `cadence_type` is `FIXED_DELAY`, `FIXED_RATE`, `CRON` or `ONE_TIME`; `cadence` is an ISO-8601
+  duration, or the cron text for `CRON`.
+- `registered: false` marks a job that has recorded history but is not registered in this process
+  (renamed or removed since); its class, cadence and lock ceiling are omitted (like every null
+  field in this API, they are left out of the JSON rather than sent as `null`).
+- For a job with no recorded run the `health.last_*` fields are omitted and the counters are zero. `last_status` is `RUNNING`,
+  `SUCCESS` or `FAILED`. `last_abandoned` is `true` when the newest row is still `RUNNING` but
+  older than the job's `lock_at_most_for` — the replica that ran it died before closing the row.
+  `consecutive_failures` counts `FAILED` runs since the job's last `SUCCESS`. The `window_*` fields
+  cover `summary_window` only.
+- `FAILED` means the job **method** threw. Most jobs isolate per-row failures (one bad row must not
+  abort the batch), so a run whose individual items failed still records `SUCCESS` — per-item
+  health lives with the item (e.g. an audit sink's own `consecutive_failures`).
+
+### GET /platform/jobs/{jobName}/executions — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | `RUNNING` \| `SUCCESS` \| `FAILED` | Optional status filter |
+| `from` | ISO-8601 instant | Optional; runs started at or after |
+| `to` | ISO-8601 instant | Optional; runs started before |
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20) |
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "job_name": "QueryTimeoutJob",
+      "lock_name": "queryTimeoutJob",
+      "instance_id": "accessflow-backend-7c9f-2xk4",
+      "started_at": "2026-09-23T10:00:00Z",
+      "finished_at": "2026-09-23T10:00:01.250Z",
+      "duration_ms": 1250,
+      "status": "FAILED",
+      "error_class": "org.springframework.dao.DataAccessResourceFailureException",
+      "error_message": "Connection refused",
+      "abandoned": false
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`instance_id` is the replica that ran the job (the `HOSTNAME` env var — the pod name on
+Kubernetes — falling back to the host name). `error_message` is truncated to 2,000 characters.
+
+**Response 404:** `JOB_NOT_FOUND` — the job is neither registered in this process nor has any
+recorded run.
+
+---
+
 ## SCIM 2.0 Provisioning Endpoints (#621)
 
 The SCIM 2.0 service-provider surface identity providers (Okta, Microsoft Entra ID, Keycloak,

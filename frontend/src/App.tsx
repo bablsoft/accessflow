@@ -77,6 +77,9 @@ const OrganizationsListPage = lazy(() =>
 const OrganizationDetailPage = lazy(() =>
   import('@/pages/admin/OrganizationDetailPage').then((m) => ({ default: m.OrganizationDetailPage })),
 );
+const JobsPage = lazy(() =>
+  import('@/pages/admin/JobsPage').then((m) => ({ default: m.JobsPage })),
+);
 const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPage'));
 const OverProvisionedAccessPage = lazy(
   () => import('@/pages/admin/access/OverProvisionedAccessPage'),
@@ -855,6 +858,16 @@ export function App() {
               <AuthGuard requirePlatformAdmin>
                 <Suspense fallback={null}>
                   <OrganizationDetailPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/jobs"
+            element={
+              <AuthGuard requirePlatformAdmin>
+                <Suspense fallback={null}>
+                  <JobsPage />
                 </Suspense>
               </AuthGuard>
             }

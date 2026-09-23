@@ -113,7 +113,8 @@
     "sub_schema_changes": "Schemaänderungen",
     "schemaChangeSets": "Änderungssätze",
     "schemaDrift": "Schema-Drift",
-    "access_simulation": "Zugriffssimulation"
+    "access_simulation": "Zugriffssimulation",
+    "jobs": "Geplante Jobs"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2720,6 +2721,46 @@
         "col_resource": "Ressource",
         "col_on_behalf_of": "Im Auftrag von"
       }
+    },
+    "jobs": {
+      "title": "Geplante Jobs",
+      "subtitle": "Auf diesem Backend registrierte Hintergrundjobs, ihr Zustand und ihr Ausführungsverlauf. Nur lesend.",
+      "load_error": "Die geplanten Jobs konnten nicht geladen werden",
+      "empty": "Es sind keine geplanten Jobs registriert",
+      "scheduler_disabled_title": "Scheduler deaktiviert",
+      "scheduler_disabled_body": "Die Zeitplanung ist auf diesem Backend ausgeschaltet (ACCESSFLOW_SCHEDULING_ENABLED=false), daher sind keine Jobs registriert.",
+      "scheduler_switch_off": "Der Zeitplanungsschalter ist auf diesem Backend aus, die folgenden Jobs sind aber dennoch registriert.",
+      "recording_disabled": "Die Ausführungsaufzeichnung ist aus (ACCESSFLOW_SCHEDULING_EXECUTIONS_ENABLED=false). Es wird kein neuer Verlauf geschrieben.",
+      "col_job": "Job",
+      "col_module": "Modul",
+      "col_cadence": "Intervall",
+      "col_last_status": "Letzter Status",
+      "col_last_run": "Letzte Ausführung",
+      "col_duration": "Dauer",
+      "col_consecutive_failures": "Fehler in Folge",
+      "col_window": "Letzte {{window}}",
+      "col_status": "Status",
+      "col_started": "Gestartet",
+      "col_instance": "Instanz",
+      "window_counts": "{{success}} ok / {{failed}} fehlgeschlagen",
+      "window_mean": "Ø {{duration}}",
+      "consecutive_failures": "{{count}} fehlgeschlagen",
+      "never_run": "Noch nicht ausgeführt",
+      "abandoned": "Abgebrochen",
+      "not_registered": "Nicht registriert",
+      "not_registered_help": "Für diesen Job gibt es Verlauf, er ist auf diesem Backend aber nicht registriert (umbenannt oder entfernt).",
+      "history": "Ausführungsverlauf",
+      "history_title": "{{name}} — Ausführungsverlauf",
+      "history_empty": "Keine aufgezeichneten Ausführungen",
+      "history_load_error": "Der Ausführungsverlauf konnte nicht geladen werden",
+      "filter_status": "Nach Status filtern",
+      "duration_ms": "{{value}} ms",
+      "duration_s": "{{value}} s",
+      "duration_m": "{{minutes}} min {{seconds}} s",
+      "unit_d": "{{value}} T",
+      "unit_h": "{{value}} Std.",
+      "unit_m": "{{value}} Min.",
+      "unit_s": "{{value}} s"
     }
   },
   "notifications": {
@@ -3620,6 +3661,17 @@
     "effective_access_table_scope": {
       "ALL_TABLES": "Alle Tabellen",
       "ALLOW_LISTED": "Freigegebene Tabellen"
+    },
+    "job_execution_status": {
+      "RUNNING": "Läuft",
+      "SUCCESS": "Erfolgreich",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "job_cadence_type": {
+      "FIXED_DELAY": "Feste Verzögerung",
+      "FIXED_RATE": "Feste Rate",
+      "CRON": "Cron",
+      "ONE_TIME": "Einmalig"
     }
   },
   "access": {
