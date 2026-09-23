@@ -684,13 +684,13 @@ class DefaultAccessSimulationServiceTest {
     private DatasourcePermissionContribution contribution() {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), "payments-oncall",
-                true, false, false, false, List.of("public"), List.of(), List.of(), null, null);
+                true, false, false, false, List.of("public"), List.of(), List.of(), null, null, null);
     }
 
     private DatasourceUserPermissionView permission(boolean canRead, boolean canWrite,
                                                     boolean canDdl, List<String> allowedSchemas) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null);
+                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null, null);
     }
 
     private ReviewPlanSnapshot plan() {

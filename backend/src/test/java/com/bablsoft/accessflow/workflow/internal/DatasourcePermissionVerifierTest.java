@@ -50,7 +50,7 @@ class DatasourcePermissionVerifierTest {
                                                     List<String> allowedTables,
                                                     Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                canRead, canWrite, false, false, null, allowedTables, null, expiresAt);
+                canRead, canWrite, false, false, null, allowedTables, null, null, expiresAt);
     }
 
     @Test

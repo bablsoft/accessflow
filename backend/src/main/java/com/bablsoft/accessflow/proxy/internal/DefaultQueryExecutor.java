@@ -423,8 +423,9 @@ class DefaultQueryExecutor implements QueryExecutor {
         return Duration.between(start, clock.instant());
     }
 
+    /** An override only ever lowers the cap — never above the datasource cap or global ceiling. */
     private static int clampMaxRows(Integer override, int datasourceCap, int globalCap) {
-        int candidate = override != null ? override : datasourceCap;
+        int candidate = override != null ? Math.min(override, datasourceCap) : datasourceCap;
         return Math.min(candidate, globalCap);
     }
 

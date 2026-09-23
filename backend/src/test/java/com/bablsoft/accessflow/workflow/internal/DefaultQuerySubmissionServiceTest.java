@@ -628,7 +628,7 @@ class DefaultQuerySubmissionServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl, false,
-                        allowedSchemas, allowedTables, List.of(), expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), null, expiresAt)));
     }
 
     private void stubAllowListMessageSource() {
