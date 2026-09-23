@@ -458,9 +458,9 @@
             <em>Max rows per query</em> and any per-user limit on the access grant still apply, and
             the smallest number wins. A query that joins several limited tables gets the lowest of
             their limits. A policy with a schema also catches queries that name the table without
-            one, so leaving the schema out of the SQL never gets anyone more rows. Results that hit
-            the limit are marked as truncated, the table preview obeys the same limit, and the
-            policies that applied are recorded in the execution's audit entry.
+            one or with a database name in front, so neither gets anyone more rows. Results that hit
+            the limit are marked as truncated, the table preview obeys the same limit, and when a
+            policy's limit is the one that applied it is recorded in the query's audit entry.
           </p>
           <p>
             <strong>Export policies.</strong> Masking and row security govern what a user

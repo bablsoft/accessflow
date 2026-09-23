@@ -454,6 +454,53 @@ class DefaultQueryLifecycleServiceTest {
     }
 
     @Test
+    void executeDoesNotAuditARowLimitPolicyThatTheGrantOverrideUndercuts() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.of(permissionWithRowLimit(10)));
+        when(rowLimitPolicyResolutionService.resolve(any(), any(), any(), any()))
+                .thenReturn(Optional.of(new com.bablsoft.accessflow.core.api.AppliedRowLimit(
+                        20, java.util.Set.of(UUID.randomUUID()))));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, true, Duration.ofMillis(20)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().maxRowsOverride()).isEqualTo(10);
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .doesNotContainKey("applied_row_limit_policy_ids");
+    }
+
+    @Test
+    void executeDoesNotAuditARowLimitPolicyAboveTheDatasourceCap() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(rowLimitPolicyResolutionService.resolve(any(), any(), any(), any()))
+                .thenReturn(Optional.of(new com.bablsoft.accessflow.core.api.AppliedRowLimit(
+                        5000, java.util.Set.of(UUID.randomUUID()))));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, true, Duration.ofMillis(20)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .doesNotContainKey("applied_row_limit_policy_ids");
+    }
+
+    @Test
     void executeUsesTheRowLimitPolicyWhenThereIsNoGrantOverride() {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));

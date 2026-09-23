@@ -896,13 +896,15 @@ return when it references the policy's table, optionally only for the listed rol
 Policies only ever **lower** the limit: the effective cap is the minimum of the global
 `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`, the datasource's `max_rows_per_query`, the grantee's
 `row_limit_override` and every matching policy. A query touching several limited tables takes the
-lowest matching cap. The ids of the policies that set the cap are recorded on the `QUERY_EXECUTED`
-audit metadata (`applied_row_limit_policy_ids`). `GET /datasources/{id}/sample-rows` is capped the
-same way.
+lowest matching cap. The ids of the lowest-cap matching policies are recorded on the
+`QUERY_EXECUTED` audit metadata (`applied_row_limit_policy_ids`) when that cap is at or below both
+the grant override and the datasource cap. `GET /datasources/{id}/sample-rows` is capped the same
+way.
 
 Table matching is lenient because a match can only tighten the cap: a policy matches when the table
 names are equal and either both name the same schema, the query names no schema, or the policy names
-no schema. A query whose referenced tables cannot be determined matches no policy.
+no schema. A database or project prefix (`mydb.crm.customer`) still matches, and names compare
+case-insensitively. A query whose referenced tables cannot be determined matches no policy.
 
 #### POST /datasources/{id}/row-limit-policies — Request Body
 
@@ -963,7 +965,7 @@ applies-to list is cleared. **Response 200:** the updated policy object. **Respo
 
 #### DELETE /datasources/{id}/row-limit-policies/{policyId}
 
-**Response 204:** No content. **Response 404:** `ROW_LIMIT_POLICY_NOT_FOUND`.
+**Response 204:** No content. **Response 404:** `DATASOURCE_NOT_FOUND` or `ROW_LIMIT_POLICY_NOT_FOUND`.
 
 Create, update and delete write `ROW_LIMIT_POLICY_CREATED` / `_UPDATED` / `_DELETED` audit rows
 (resource `row_limit_policy`).

@@ -8,6 +8,7 @@ import {
   createRowLimitPolicyViaApi,
   deleteDatasource,
   executeQueryViaApi,
+  findUserByEmailViaApi,
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
@@ -50,13 +51,7 @@ async function provisionAnalyst(
   const inviteToken = await waitForInviteToken(request, email);
   await acceptInvitationViaApi(request, inviteToken, ANALYST_PASSWORD, `RowLimit ${label}`);
   const token = await loginViaApi(request, email, ANALYST_PASSWORD);
-  const res = await request.get(`${apiBase()}/api/v1/admin/users?size=200`, {
-    headers: { Authorization: `Bearer ${adminToken}` },
-  });
-  if (!res.ok()) throw new Error(`List users failed: ${res.status()}`);
-  const body = (await res.json()) as { content: InvitedUser[] };
-  const user = body.content.find((u) => u.email === email);
-  if (!user) throw new Error(`User ${email} not found after invitation`);
+  const user = await findUserByEmailViaApi(request, adminToken, email);
   return { user, token };
 }
 

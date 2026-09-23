@@ -922,18 +922,21 @@ layered on the existing caps.
   `row_limit_override` (#933) and every matching policy. No policy can raise a limit, so a
   misconfigured policy can only make results smaller.
 - **Most restrictive wins.** A query that joins several limited tables takes the lowest cap among the
-  policies that match, and among the policies that apply to the submitter.
+  policies that both name one of its tables and apply to the submitter.
 - **Lenient matching fails safe.** A policy on `crm.customer` also matches an unqualified `customer` in
-  the SQL, and a schema-less policy matches the table in any schema. Over-matching can only tighten the
-  cap, so leaving the schema off a table name never gets a user more rows. This is the opposite choice
+  the SQL, a database-qualified `mydb.crm.customer` still matches it, names compare case-insensitively,
+  and a schema-less policy matches the table in any schema. Over-matching can only tighten the cap, so
+  neither leaving the schema off nor adding a database name gets a user more rows. This is the opposite choice
   from the table allow-list, where an exact match is the safe reading.
 - **Unattributed queries fall back, not open.** When the parser cannot determine a query's tables, no
   policy matches and the datasource cap and grant override still apply — never "unlimited".
 - **Same scope rules as row security.** `applies_to_*` empty ⇒ the policy applies to every submitter,
   admins included, keyed on the query submitter. Enforcement covers direct, scheduled, recurring,
   break-glass and grouped executions and the table preview (`/sample-rows`).
-- **Audit.** The ids of the policies that set the cap of a SELECT ride on the `QUERY_EXECUTED`
-  metadata (`applied_row_limit_policy_ids`); create/update/delete emit
+- **Audit.** The ids of the lowest-cap matching policies ride on the `QUERY_EXECUTED` metadata
+  (`applied_row_limit_policy_ids`) when that cap is the binding one — at or below both the grant
+  override and the datasource cap; grouped executions write only their group-level audit row.
+  Create/update/delete emit
   `ROW_LIMIT_POLICY_CREATED/UPDATED/DELETED`.
 
 ### Policy simulator (AF-630)

@@ -511,10 +511,10 @@
             To limit <em>how many</em> rows come back rather than <em>which</em>, use the
             <strong>Row limits</strong> tab. A row limit caps the rows a query may return from one
             table, for everyone or for chosen roles, groups or people, so the <code>orders</code>
-            table can stop at 200 rows while <code>customer</code> allows 1,000. Limits only ever
+            table can stop at 200 rows while <code>customer</code> stops at 1,000. Limits only ever
             tighten: the datasource's own maximum still applies, a query across several limited
-            tables gets the lowest limit, and a query that leaves the schema off the table name is
-            still caught.
+            tables gets the lowest limit, and a query that leaves the schema off the table name, or
+            adds the database name, is still caught.
           </p>
         </section>
 

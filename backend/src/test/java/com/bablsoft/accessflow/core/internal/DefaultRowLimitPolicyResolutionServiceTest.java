@@ -129,11 +129,29 @@ class DefaultRowLimitPolicyResolutionServiceTest {
     }
 
     @Test
+    void databaseQualifiedReferenceStillMatchesASchemaQualifiedPolicy() {
+        stubPolicies(policy("crm", "customer", 10));
+
+        assertThat(resolve(user1, "mydb.crm.customer")).isPresent();
+        assertThat(resolve(user1, "project.crm.customer")).isPresent();
+        assertThat(resolve(user1, "mydb.billing.customer")).isEmpty();
+        assertThat(resolve(user1, "mydb.xcrm.customer")).isEmpty();
+    }
+
+    @Test
+    void referencesAreMatchedCaseInsensitively() {
+        stubPolicies(policy("crm", "customer", 10));
+
+        assertThat(resolve(user1, "CRM.Customer")).isPresent();
+    }
+
+    @Test
     void schemaLessPolicyMatchesTheTableInAnySchema() {
         stubPolicies(policy(null, "customer", 10));
 
         assertThat(resolve(user1, "crm.customer")).isPresent();
         assertThat(resolve(user1, "customer")).isPresent();
+        assertThat(resolve(user1, "mydb.crm.customer")).isPresent();
     }
 
     @Test

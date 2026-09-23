@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -57,20 +58,21 @@ class DefaultRowLimitPolicyResolutionService implements RowLimitPolicyResolution
 
     /**
      * Lenient on purpose — a match can only lower the cap. The reference equals the policy table
-     * (an unqualified reference, or a table name that itself contains dots), equals
-     * {@code schema.table}, or — for a schema-less policy — ends in {@code .table}. Never splits the
-     * reference on dots, so dotted index or dataset names still compare whole.
+     * (an unqualified reference, or a table name that itself contains dots), or ends in
+     * {@code schema.table} / {@code .schema.table} — so a database-qualified
+     * {@code db.schema.table} is still caught — or, for a schema-less policy, ends in
+     * {@code .table}. The reference is never split on dots.
      */
-    static boolean matches(RowLimitPolicyEntity policy, String reference) {
+    static boolean matches(RowLimitPolicyEntity policy, String rawReference) {
+        // Engine plugins build their own references; fold case so none can dodge a policy.
+        var reference = rawReference.toLowerCase(Locale.ROOT);
         var table = policy.getTableName();
         if (reference.equals(table)) {
             return true;
         }
         var schema = policy.getSchemaName();
-        if (schema != null) {
-            return reference.equals(schema + "." + table);
-        }
-        return reference.endsWith("." + table);
+        var suffix = schema == null ? table : schema + "." + table;
+        return reference.equals(suffix) || reference.endsWith("." + suffix);
     }
 
     private static boolean appliesTo(RowLimitPolicyEntity policy, UUID userId, String roleName,
