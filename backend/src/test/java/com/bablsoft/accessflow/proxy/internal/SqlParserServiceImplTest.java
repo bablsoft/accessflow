@@ -16,6 +16,9 @@ import org.springframework.context.MessageSource;
 
 import java.util.Locale;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
 class SqlParserServiceImplTest {
 
     private final MessageSource messageSource = mock(MessageSource.class);
@@ -40,6 +43,7 @@ class SqlParserServiceImplTest {
                 case "error.transaction_unmatched_begin" -> "Missing closing COMMIT";
                 case "error.transaction_unmatched_commit" -> "COMMIT without matching BEGIN";
                 case "error.transaction_empty_body" -> "Empty transaction body";
+                case "error.sql_embedded_write_not_allowed" -> "Data-modifying WITH / SELECT INTO not allowed";
                 default -> key;
             };
         });
@@ -460,5 +464,103 @@ class SqlParserServiceImplTest {
 
         assertThat(result.referencedTables()).containsExactlyInAnyOrder("a", "b");
         assertThat(result.transactional()).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "WITH d AS (DELETE FROM secret RETURNING *) SELECT count(*) FROM d",
+            "WITH d AS (UPDATE secret SET a = 1 RETURNING *) SELECT * FROM d",
+            "WITH d AS (INSERT INTO secret (a) VALUES (1) RETURNING *) SELECT * FROM d",
+            "SELECT * FROM (WITH d AS (DELETE FROM secret RETURNING *) SELECT * FROM d) x",
+            "SELECT * FROM t WHERE a = (WITH d AS (DELETE FROM secret RETURNING *) SELECT 1 FROM d)",
+            "SELECT 1 UNION ALL (WITH d AS (DELETE FROM secret RETURNING *) SELECT 1 FROM d)",
+            "WITH d AS (DELETE FROM secret RETURNING *) UPDATE t SET a = 1",
+            "WITH d AS (DELETE FROM secret RETURNING *) INSERT INTO t SELECT * FROM d",
+            "WITH d AS (UPDATE secret SET a = 1 RETURNING *) DELETE FROM t",
+            "SELECT * INTO new_t FROM t",
+            "SELECT * INTO #tmp FROM t",
+            "SELECT a INTO OUTFILE '/tmp/x' FROM t",
+            "SELECT a INTO DUMPFILE '/tmp/x' FROM t",
+            "SELECT a FROM t INTO OUTFILE '/tmp/x'"
+    })
+    void rejectsStatementsThatWriteFromInsideAQueryShape(String sql) {
+        assertThatThrownBy(() -> service.parse(sql))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessage("Data-modifying WITH / SELECT INTO not allowed");
+    }
+
+    @Test
+    void rejectsDataModifyingCteInsideTransactionEnvelope() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; WITH d AS (DELETE FROM secret RETURNING id) INSERT INTO t SELECT id FROM d; COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessage("Data-modifying WITH / SELECT INTO not allowed");
+    }
+
+    @Test
+    void stillAcceptsReadOnlyCteAndRecursiveCte() {
+        assertThat(service.parse("WITH s AS (SELECT * FROM secret) SELECT * FROM s").type())
+                .isEqualTo(QueryType.SELECT);
+        assertThat(service.parse("WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL "
+                + "SELECT n + 1 FROM r WHERE n < 3) SELECT * FROM r").type())
+                .isEqualTo(QueryType.SELECT);
+    }
+
+    @Test
+    void referencedTablesIncludeSubqueryInWindowPartitionBy() {
+        SqlParseResult result = service.parse(
+                "SELECT row_number() OVER (PARTITION BY (SELECT s FROM secret LIMIT 1)) FROM t");
+
+        assertThat(result.referencedTables()).containsExactlyInAnyOrder("t", "secret");
+    }
+
+    @Test
+    void referencedTablesIncludeSubqueryInAggregateOrderBy() {
+        SqlParseResult result = service.parse(
+                "SELECT string_agg(a, ',' ORDER BY (SELECT s FROM secret LIMIT 1)) FROM t");
+
+        assertThat(result.referencedTables()).containsExactlyInAnyOrder("t", "secret");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "SELECT * FROM t ORDER BY (SELECT s FROM secret LIMIT 1)",
+            "SELECT * FROM t LIMIT (SELECT count(*) FROM secret)",
+            "SELECT * FROM t OFFSET (SELECT count(*) FROM secret)",
+            "SELECT * FROM t FETCH FIRST (SELECT count(*) FROM secret) ROWS ONLY",
+            "UPDATE t SET a = 1 RETURNING (SELECT s FROM secret LIMIT 1)",
+            "INSERT INTO t (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = (SELECT s FROM secret LIMIT 1)"
+    })
+    void referencedTablesIncludeSubqueriesInTrailingClauses(String sql) {
+        assertThat(service.parse(sql).referencedTables()).contains("t", "secret");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "SELECT * FROM secret WHERE EXISTS (SELECT 1 FROM (SELECT 1) AS secret)",
+            "SELECT (SELECT count(*) FROM secret) FROM (SELECT 1) secret",
+            "WITH secret AS (SELECT * FROM secret) SELECT * FROM secret",
+            "SELECT * FROM t, LATERAL (SELECT * FROM secret) secret",
+            "SELECT * FROM XMLTABLE('/r/v' PASSING (SELECT xmlagg(xmlelement(name v, s)) FROM secret) "
+                    + "COLUMNS v text PATH '.') x",
+            "SELECT (ARRAY['x'])[(SELECT count(*) FROM secret)]",
+            "SELECT TOP ((SELECT count(*) FROM secret)) * FROM t"
+    })
+    void aliasesAndTableFunctionsNeverHideARealTable(String sql) {
+        assertThat(service.parse(sql).referencedTables()).contains("secret");
+    }
+
+    @Test
+    void cteNamesAreExcludedOnlyWhereTheyAreInScope() {
+        assertThat(service.parse("WITH a AS (SELECT * FROM secret), b AS (SELECT * FROM a) "
+                + "SELECT * FROM b").referencedTables()).containsExactly("secret");
+        assertThat(service.parse("SELECT * FROM (WITH s AS (SELECT 1) SELECT * FROM s) x, s")
+                .referencedTables()).containsExactly("s");
+        assertThat(service.parse("WITH s AS (SELECT 1) SELECT * FROM public.s")
+                .referencedTables()).containsExactly("public.s");
+        assertThat(service.parse("WITH b AS (SELECT * FROM a), a AS (SELECT 1) SELECT * FROM b")
+                .referencedTables()).containsExactly("a");
+        assertThat(service.parse("WITH a AS (SELECT 1) UPDATE t SET x = (SELECT 1 FROM a)")
+                .referencedTables()).containsExactly("t");
     }
 }
