@@ -108,7 +108,7 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 - Backend: `cd backend && mvn verify -Pcoverage` and `mvn -q test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest'`.
 - Frontend: `cd frontend && npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **E2E (when frontend or auth/setup/proxy backend code changed):** `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test && npm run stack:down`. The CI `e2e` job runs the same steps — fail-locally-first to keep PR turnaround tight.
-- For UI changes that render in a browser, use the `preview_*` tools (per the harness instructions) — don't ask the user to check manually.
+- For UI changes that render in a browser, use the `preview_*` tools (per the harness instructions) — don't ask the user to check manually. The screenshots that go into the PR are captured separately in step 5c.
 
 ### 5b. Independent review (report, don't block)
 
@@ -148,10 +148,48 @@ and do not silently ignore them either:
 
 If no reviewer returns a Blocker, say that plainly — an empty review is a real result.
 
+### 5c. Capture UI screenshots (frontend changes only)
+
+A human reviewer should be able to see the UI change without booting the stack. When the diff
+touches anything under `frontend/src/` that renders — pages, components, layouts, locales, theme —
+capture screenshots of every new or visibly changed screen for the PR body. Skip this step for
+test-only, types-only, or tooling-only frontend changes, and write "No UI change — no screenshots"
+in the PR body instead.
+
+- **Stack:** reuse the e2e stack from step 5 (`cd e2e && npm run stack:up`) — frontend on `:5173`,
+  seeded admin `e2e@accessflow.test` / `E2ePassword!123`. Watch for the known 5173 / 8080 port
+  collisions (see the `dev-stack` skill).
+- **Script:** write a throwaway Playwright script in the session scratchpad — never commit it —
+  and run it with `npx -y tsx <script>` from `e2e/`, so it can import `e2e/helpers/*` for login and
+  data seeding. Model it on `e2e/screenshots/capture.ts`: headless Chromium, 1440×900 viewport,
+  light theme set through the `af-preferences` localStorage key. Do **not** add the captures to
+  `capture.ts` or `website/images/docs/` — that belongs to release prep.
+- **What to capture:** each new or visibly changed route with realistic seeded data (no empty
+  tables unless the empty state is the change), plus any new modal, drawer, or tab, and new empty
+  or error states. Add a dark-theme shot only when the change touches theming.
+- **Output:** save the PNGs to `<scratchpad>/pr-screenshots/<issue>/NN-<slug>.png`. `Read` each
+  image before using it, and re-capture any that shows a login page, a spinner, or an error toast
+  instead of the intended screen.
+
 ### 6. Commit and PR
 - Imperative subject ≤ 72 chars, prefixed by issue: `feat(AF-58): auto-reject queries past approval_timeout_hours` (match recent history with `git log --oneline -n 5`).
 - PR title mirrors the subject; PR body links the issue (`Closes #<n>`) and lists doc files updated.
 - Open with `gh pr create` per the harness's PR template.
+- **Screenshots (when step 5c produced any):**
+  1. Pre-flight: `gh pr create --help | grep -q -- '--attach'`. If the flag is missing, the
+     installed `gh` is too old. Stop and ask the user to upgrade it (e.g. `brew upgrade gh`).
+     Do not open the PR without the screenshots.
+  2. Write the body to a scratchpad file with a `## Screenshots` section that references each PNG
+     by its absolute local path, with a caption: `![Pipeline list](/abs/path/01-pipeline-list.png)`.
+  3. Create the PR with one `--attach` per image:
+     `gh pr create --title "…" --body-file <body.md> --attach '<png>#<alt text>' --attach …`.
+     `gh` uploads each file and replaces the matching local path in the body with the hosted URL,
+     so pass `--attach` exactly the path the body references (unreferenced attachments are
+     appended to the end of the body). Up to 50 files per command.
+  4. Check the result with `gh pr view --json body`. No local path may remain; every image should
+     be a `github.com/user-attachments/…` URL.
+  - To add or refresh screenshots on an existing PR, use `gh pr edit <n> --body-file … --attach …`
+    (without `--body-file`, `gh pr edit` keeps the current body and appends the images).
 
 ## Definition of done
 
@@ -166,4 +204,5 @@ If no reviewer returns a Blocker, say that plainly — an empty review is a real
 - [ ] `e2e/tests/` updated to match: existing specs still pass against the change, and new user-facing flows (route, auth path, user-driven mutation) have a new spec — or the PR description states explicitly why one wasn't added. Specs ran locally via `npm run stack:up && npm test` when the change touched frontend or auth/setup/proxy backend code.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).
 - [ ] `af-verifier`, `af-reviewer`, and the path-matched specialists (`af-java-reviewer` for backend/engines, `af-frontend-reviewer` for frontend/e2e, `af-content-reviewer` for docs/website/README) ran concurrently; every Blocker from any report was fixed or explicitly rebutted with reasoning, and surviving Concerns are in the PR description under **Review notes**.
+- [ ] Frontend UI change → the PR body has a `## Screenshots` section with an uploaded image of each new or changed screen (or says why there are none).
 - [ ] PR opened, links the issue, and lists touched docs **and website files** in the description.
