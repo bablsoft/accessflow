@@ -47,8 +47,14 @@ class SchemaDriftFindingReconciler {
 
     private final SchemaDriftFindingRepository findingRepository;
 
-    void reconcile(SchemaDriftScanEntity scan, SchemaDriftScanContext ctx, SchemaDriftDiffer.DiffResult result,
-                   Instant now) {
+    /**
+     * Reconciles one scan's findings and returns how many it <em>opened</em> (#882): a finding
+     * created now, or a resolved one reopened as a new episode. A finding merely re-seen, or an
+     * acknowledged one reopened because its values changed, is not counted — the
+     * {@code SCHEMA_DRIFT_DETECTED} notification fires on new drift only, never on a re-detection.
+     */
+    int reconcile(SchemaDriftScanEntity scan, SchemaDriftScanContext ctx, SchemaDriftDiffer.DiffResult result,
+                  Instant now) {
         var active = findingRepository.findAllByOrganizationIdAndEnvironmentIdAndStatusIn(
                 ctx.organizationId(), ctx.environmentId(), ACTIVE);
         Map<String, SchemaDriftFindingEntity> byKey = new HashMap<>();
@@ -57,6 +63,7 @@ class SchemaDriftFindingReconciler {
         }
 
         Set<UUID> observed = new HashSet<>();
+        var opened = 0;
         for (var finding : result.findings()) {
             var existing = byKey.get(naturalKey(finding.objectPath(), finding.kind()));
             if (existing == null) {
@@ -68,15 +75,20 @@ class SchemaDriftFindingReconciler {
             }
             if (existing == null) {
                 findingRepository.save(create(scan, ctx, finding, now));
+                opened++;
             } else {
                 // Marked observed even if the save loses a race: the finding is still present, so it
                 // must not be resolved below.
                 observed.add(existing.getId());
-                saveUnlessChanged(refresh(existing, scan, finding, now));
+                var reopening = existing.getStatus() == SchemaDriftFindingStatus.RESOLVED;
+                if (saveUnlessChanged(refresh(existing, scan, finding, now)) && reopening) {
+                    opened++;
+                }
             }
         }
 
         resolveDisappeared(active, observed, result, now);
+        return opened;
     }
 
     private static SchemaDriftFindingEntity create(SchemaDriftScanEntity scan, SchemaDriftScanContext ctx,
@@ -156,11 +168,13 @@ class SchemaDriftFindingReconciler {
         return table == null || result.reachedTableKeys().contains(table);
     }
 
-    private void saveUnlessChanged(SchemaDriftFindingEntity finding) {
+    private boolean saveUnlessChanged(SchemaDriftFindingEntity finding) {
         try {
             findingRepository.save(finding);
+            return true;
         } catch (OptimisticLockingFailureException ex) {
             log.debug("Drift finding {} changed during the scan; leaving it for the next one", finding.getId());
+            return false;
         }
     }
 

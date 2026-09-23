@@ -14,17 +14,26 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentR
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.UserNotificationRepository;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangeSetStatus;
+import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetEntity;
+import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaChangeSetPromotionEntity;
+import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaChangeSetPromotionRepository;
+import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaChangeSetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Reproduces AF-529: recording an in-app notification for an API request (AF-500) against a real
@@ -43,6 +52,9 @@ class UserNotificationServiceApiRequestIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired ApiRequestRepository apiRequestRepository;
     @Autowired DeploymentRequestRepository deploymentRequestRepository;
+    @Autowired SchemaChangeSetRepository changeSetRepository;
+    @Autowired SchemaChangeSetPromotionRepository promotionRepository;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     private OrganizationEntity organization;
     private UserEntity recipient;
@@ -144,5 +156,71 @@ class UserNotificationServiceApiRequestIntegrationTest {
             assertThat(n.getApiRequestId()).isNull();
             assertThat(n.getDeploymentRequestId()).isEqualTo(deploymentRequest.getId());
         });
+    }
+
+    @Test
+    void recordsSchemaChangePromotionNotificationAgainstItsOwnFkColumn() {
+        // #882: the promotion id lands in user_notifications.schema_change_promotion_id (V182).
+        var promotion = savedPromotion();
+
+        service.recordForUsers(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                Set.of(recipient.getId()), organization.getId(),
+                /* queryRequestId */ null, /* apiRequestId */ null, /* deploymentRequestId */ null,
+                promotion.getId(), "{\"change_set\":\"x\"}");
+
+        var stored = notificationRepository
+                .findByUserIdOrderByCreatedAtDesc(recipient.getId(), PageRequest.of(0, 10))
+                .getContent();
+        assertThat(stored).singleElement().satisfies(n -> {
+            assertThat(n.getEventType()).isEqualTo(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED);
+            assertThat(n.getQueryRequestId()).isNull();
+            assertThat(n.getApiRequestId()).isNull();
+            assertThat(n.getDeploymentRequestId()).isNull();
+            assertThat(n.getSchemaChangePromotionId()).isEqualTo(promotion.getId());
+        });
+    }
+
+    @Test
+    void theWidenedCheckStillRejectsTwoTargetsAtOnce() {
+        var promotion = savedPromotion();
+        var deploymentRequest = new DeploymentRequestEntity();
+        deploymentRequest.setId(UUID.randomUUID());
+        deploymentRequest.setPipelineId(UUID.randomUUID());
+        deploymentRequest.setEnvironmentId(UUID.randomUUID());
+        deploymentRequest.setOrganizationId(organization.getId());
+        deploymentRequest.setSubmittedBy(recipient.getId());
+        deploymentRequest.setVersion("2.4.1");
+        deploymentRequestRepository.save(deploymentRequest);
+        service.recordForUsers(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                Set.of(recipient.getId()), organization.getId(), null, null, null, promotion.getId(), "{}");
+        var notificationId = notificationRepository
+                .findByUserIdOrderByCreatedAtDesc(recipient.getId(), PageRequest.of(0, 10))
+                .getContent().getFirst().getId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "UPDATE user_notifications SET deployment_request_id = ? WHERE id = ?",
+                deploymentRequest.getId(), notificationId))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("chk_user_notifications_target");
+    }
+
+    private SchemaChangeSetPromotionEntity savedPromotion() {
+        var changeSet = new SchemaChangeSetEntity();
+        changeSet.setId(UUID.randomUUID());
+        changeSet.setOrganizationId(organization.getId());
+        changeSet.setPipelineId(UUID.randomUUID());
+        changeSet.setName("cs-" + UUID.randomUUID());
+        changeSet.setStatus(SchemaChangeSetStatus.ACTIVE);
+        changeSetRepository.saveAndFlush(changeSet);
+        var promotion = new SchemaChangeSetPromotionEntity();
+        promotion.setId(UUID.randomUUID());
+        promotion.setOrganizationId(organization.getId());
+        promotion.setChangeSet(changeSet);
+        promotion.setEnvironmentId(UUID.randomUUID());
+        promotion.setDatasourceId(UUID.randomUUID());
+        promotion.setStatus(SchemaChangePromotionStatus.APPLIED);
+        promotion.setStatementsChecksum("a".repeat(64));
+        promotion.setPromotedBy(recipient.getId());
+        return promotionRepository.saveAndFlush(promotion);
     }
 }

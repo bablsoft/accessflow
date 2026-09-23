@@ -63,6 +63,8 @@ class NotificationContextBuilderTest {
     private com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService apiRequestLookup;
     private com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService apiConnectorLookup;
     private com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService deploymentLookup;
+    private com.bablsoft.accessflow.schemachange.api.SchemaChangeNotificationLookupService schemaChangeLookup;
+    private com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService permissionHolderLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -86,6 +88,8 @@ class NotificationContextBuilderTest {
         apiRequestLookup = mock(com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService.class);
         apiConnectorLookup = mock(com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService.class);
         deploymentLookup = mock(com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService.class);
+        schemaChangeLookup = mock(com.bablsoft.accessflow.schemachange.api.SchemaChangeNotificationLookupService.class);
+        permissionHolderLookup = mock(com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
@@ -94,7 +98,8 @@ class NotificationContextBuilderTest {
         builder = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
                 reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, schemaChangeLookup,
+                permissionHolderLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -381,7 +386,8 @@ class NotificationContextBuilderTest {
         var b = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
                 reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, schemaChangeLookup,
+                permissionHolderLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())
@@ -693,6 +699,111 @@ class NotificationContextBuilderTest {
         when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.empty());
         assertThat(builder.buildDeployment(NotificationEventType.DEPLOYMENT_APPROVED,
                 deploymentRequestId, null, null)).isEmpty();
+    }
+
+    @Test
+    void buildSchemaChangePromotionCarriesThePromotionAndThePipeline() {
+        var promotionId = UUID.randomUUID();
+        var promoterId = UUID.randomUUID();
+        var reviewer = user(UUID.randomUUID(), "rev@example.com", UserRoleType.REVIEWER);
+        when(schemaChangeLookup.findPromotion(promotionId)).thenReturn(Optional.of(promotionView(promotionId,
+                promoterId)));
+        when(userQuery.findById(promoterId)).thenReturn(Optional.of(user(promoterId, "dba@example.com",
+                UserRoleType.ANALYST)));
+        when(schemaChangeLookup.findEligibleReviewerUserIds(promotionId)).thenReturn(List.of(reviewer.id()));
+        when(userQuery.findByIds(List.of(reviewer.id()))).thenReturn(List.of(reviewer));
+
+        var ctx = builder.buildSchemaChangePromotion(NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED,
+                promotionId).orElseThrow();
+
+        assertThat(ctx.schemaChangePromotionId()).isEqualTo(promotionId);
+        assertThat(ctx.queryRequestId()).isNull();
+        assertThat(ctx.deploymentRequestId()).isNull();
+        assertThat(ctx.datasourceName()).isEqualTo("billing");
+        assertThat(ctx.environmentName()).isEqualTo("staging");
+        assertThat(ctx.schemaChangeSetName()).isEqualTo("add-invoice-index");
+        assertThat(ctx.schemaChangeStatus()).isEqualTo("PARTIALLY_APPLIED");
+        assertThat(ctx.schemaChangeErrorMessage()).isEqualTo("boom");
+        assertThat(ctx.submitterEmail()).isEqualTo("dba@example.com");
+        assertThat(ctx.reviewUrl()).isNull();
+        assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(reviewer.id());
+    }
+
+    @Test
+    void schemaChangeOutcomesNotifyTheActivePromoterOnly() {
+        var promotionId = UUID.randomUUID();
+        var promoterId = UUID.randomUUID();
+        when(schemaChangeLookup.findPromotion(promotionId)).thenReturn(Optional.of(promotionView(promotionId,
+                promoterId)));
+        when(userQuery.findById(promoterId)).thenReturn(Optional.of(user(promoterId, "dba@example.com",
+                UserRoleType.ANALYST)));
+
+        for (var type : List.of(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED)) {
+            assertThat(builder.buildSchemaChangePromotion(type, promotionId).orElseThrow().recipients())
+                    .extracting(RecipientView::userId).containsExactly(promoterId);
+        }
+    }
+
+    @Test
+    void aPromotionWithoutAPromoterHasNoOutcomeRecipient() {
+        var promotionId = UUID.randomUUID();
+        when(schemaChangeLookup.findPromotion(promotionId)).thenReturn(Optional.of(promotionView(promotionId,
+                null)));
+
+        var ctx = builder.buildSchemaChangePromotion(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                promotionId).orElseThrow();
+
+        assertThat(ctx.recipients()).isEmpty();
+        assertThat(ctx.submitterEmail()).isNull();
+    }
+
+    @Test
+    void buildSchemaChangePromotionEmptyWhenMissing() {
+        var promotionId = UUID.randomUUID();
+        when(schemaChangeLookup.findPromotion(promotionId)).thenReturn(Optional.empty());
+        assertThat(builder.buildSchemaChangePromotion(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                promotionId)).isEmpty();
+    }
+
+    @Test
+    void driftGoesToActiveSchemaChangeManageHolders() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+        var manager = user(UUID.randomUUID(), "mgr@example.com", UserRoleType.ADMIN);
+        when(schemaChangeLookup.findDriftTarget(orgId, pipelineId, environmentId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.schemachange.api.SchemaDriftNotificationView(orgId, pipelineId,
+                        "billing", environmentId, "staging")));
+        when(permissionHolderLookup.findUserIdsWithPermission(orgId,
+                com.bablsoft.accessflow.core.api.Permission.SCHEMA_CHANGE_MANAGE)).thenReturn(List.of(manager.id()));
+        when(userQuery.findByIds(List.of(manager.id()))).thenReturn(List.of(manager));
+
+        var ctx = builder.buildSchemaDrift(new com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent(
+                UUID.randomUUID(), orgId, pipelineId, environmentId, 5)).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.SCHEMA_DRIFT_DETECTED);
+        assertThat(ctx.driftNewFindingCount()).isEqualTo(5);
+        assertThat(ctx.datasourceId()).isEqualTo(pipelineId);
+        assertThat(ctx.datasourceName()).isEqualTo("billing");
+        assertThat(ctx.environmentName()).isEqualTo("staging");
+        assertThat(ctx.schemaChangePromotionId()).isNull();
+        assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(manager.id());
+    }
+
+    @Test
+    void buildSchemaDriftEmptyWhenTheTargetIsGone() {
+        when(schemaChangeLookup.findDriftTarget(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Optional.empty());
+        assertThat(builder.buildSchemaDrift(new com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent(
+                UUID.randomUUID(), orgId, UUID.randomUUID(), UUID.randomUUID(), 1))).isEmpty();
+    }
+
+    private com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotificationView promotionView(
+            UUID promotionId, UUID promoterId) {
+        return new com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotificationView(promotionId,
+                orgId, UUID.randomUUID(), "add-invoice-index", UUID.randomUUID(), "billing", UUID.randomUUID(),
+                "staging", UUID.randomUUID(), promoterId,
+                com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus.PARTIALLY_APPLIED, "boom");
     }
 
     private com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView deploymentView(

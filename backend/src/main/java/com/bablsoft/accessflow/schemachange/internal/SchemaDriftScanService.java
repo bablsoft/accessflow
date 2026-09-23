@@ -5,11 +5,13 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.schemachange.internal.config.SchemaChangeProperties;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftScanRepository;
 import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -61,6 +63,7 @@ public class SchemaDriftScanService {
     private final SchemaChangeAuditWriter auditWriter;
     private final SchemaChangeProperties properties;
     private final ExecutorService schemaDriftScanExecutor;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     /** The cluster-wide lock one scan of one environment holds for its whole run. */
@@ -123,6 +126,7 @@ public class SchemaDriftScanService {
         }
         finishScan(scanId, outcome);
         recordScanAudit(scanId, ctx, actorId, startedAt, outcome);
+        publishDetected(scanId, ctx, outcome);
         return outcome;
     }
 
@@ -150,7 +154,7 @@ public class SchemaDriftScanService {
             outcome.reason = SchemaDriftScanReason.FK_COMPARISON_SUPPRESSED;
         }
         var scan = scanRepository.findById(scanId).orElseThrow();
-        reconciler.reconcile(scan, ctx, result, clock.instant());
+        outcome.openedCount = reconciler.reconcile(scan, ctx, result, clock.instant());
     }
 
     private DatabaseSchemaView introspectTarget(SchemaDriftScanContext ctx, ScanOutcome outcome) {
@@ -183,6 +187,7 @@ public class SchemaDriftScanService {
         metadata.put("applicable", outcome.applicable);
         metadata.put("partial", outcome.partial);
         metadata.put("findings_count", outcome.findingsCount);
+        metadata.put("new_findings_count", outcome.openedCount);
         metadata.put("duration_ms", clock.instant().toEpochMilli() - startedAt.toEpochMilli());
         metadata.put("trigger", actorId == null ? "schedule" : "manual");
         if (outcome.reason != null) {
@@ -190,6 +195,22 @@ public class SchemaDriftScanService {
         }
         auditWriter.record(AuditAction.SCHEMA_DRIFT_SCAN_COMPLETED, AuditResourceType.SCHEMA_DRIFT_SCAN,
                 scanId, ctx.organizationId(), actorId, metadata, null, null);
+    }
+
+    /**
+     * #882: only drift this scan <em>opened</em> notifies — never a finding merely re-seen. Swallowed
+     * like the other tail calls, so a publication failure cannot be mistaken for a failed scan.
+     */
+    private void publishDetected(UUID scanId, SchemaDriftScanContext ctx, ScanOutcome outcome) {
+        if (outcome.openedCount <= 0) {
+            return;
+        }
+        try {
+            eventPublisher.publishEvent(new SchemaDriftDetectedEvent(scanId, ctx.organizationId(),
+                    ctx.pipelineId(), ctx.environmentId(), outcome.openedCount));
+        } catch (RuntimeException ex) {
+            log.warn("Could not publish the drift-detected event for scan {}: {}", scanId, ex.getMessage());
+        }
     }
 
     private static String describe(RuntimeException ex) {
@@ -208,6 +229,7 @@ public class SchemaDriftScanService {
         private boolean applicable = true;
         private boolean partial;
         private int findingsCount;
+        private int openedCount;
         private String reason;
     }
 }

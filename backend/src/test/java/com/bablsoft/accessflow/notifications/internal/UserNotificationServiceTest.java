@@ -115,6 +115,21 @@ class UserNotificationServiceTest {
     }
 
     @Test
+    void recordForUsersPersistsSchemaChangePromotionIdWhenOtherTargetsNull() {
+        when(repository.save(any(UserNotificationEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        var promotionId = UUID.randomUUID();
+
+        service.recordForUsers(NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED,
+                Set.of(userId), orgId, null, null, null, promotionId, "{}");
+
+        var captor = ArgumentCaptor.forClass(UserNotificationEntity.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getDeploymentRequestId()).isNull();
+        assertThat(captor.getValue().getSchemaChangePromotionId()).isEqualTo(promotionId);
+    }
+
+    @Test
     void recordForUsersIsNoOpForEmptyRecipients() {
         service.recordForUsers(NotificationEventType.QUERY_SUBMITTED,
                 Set.of(), orgId, queryId, null, null, "{}");

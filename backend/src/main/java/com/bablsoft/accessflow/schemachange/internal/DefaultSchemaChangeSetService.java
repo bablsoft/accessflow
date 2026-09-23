@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineLookupService;
@@ -35,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,6 +69,7 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
     private final DeploymentPipelineLookupService pipelineLookupService;
     private final SchemaChangeStatementGate gate;
     private final SchemaChangeProperties properties;
+    private final SchemaChangeAuditWriter auditWriter;
 
     @Override
     @Transactional(readOnly = true)
@@ -111,35 +115,50 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
         entity.setStatementsChecksum(checksumOf(validated));
         var saved = saveChangeSet(entity);
         var rows = insertStatements(saved, validated);
+        var metadata = baseMetadata(saved);
+        metadata.put("statement_count", rows.size());
+        audit(AuditAction.SCHEMA_CHANGE_SET_CREATED, saved, actorId, metadata);
         return toView(saved, rows, validated.warnings());
     }
 
     @Override
     @Transactional
-    public SchemaChangeSetView update(UUID organizationId, UUID changeSetId, UpdateSchemaChangeSetCommand command) {
+    public SchemaChangeSetView update(UUID organizationId, UUID actorId, UUID changeSetId,
+                                      UpdateSchemaChangeSetCommand command) {
         var entity = require(organizationId, changeSetId);
+        var changed = new ArrayList<String>();
         if (command.name() != null && !command.name().equals(entity.getName())) {
+            changed.add("name");
             if (changeSetRepository.existsByOrganizationIdAndPipelineIdAndName(
                     organizationId, entity.getPipelineId(), command.name())) {
                 throw new SchemaChangeSetNameConflictException(entity.getPipelineId(), command.name());
             }
             entity.setName(command.name());
         }
-        if (command.description() != null) {
+        if (command.description() != null && !command.description().equals(entity.getDescription())) {
+            changed.add("description");
             entity.setDescription(command.description());
         }
         if (command.status() != null && command.status() != entity.getStatus()) {
             if (command.status() != SchemaChangeSetStatus.ARCHIVED) {
                 throw new SchemaChangeSetStatusTransitionException(changeSetId, entity.getStatus(), command.status());
             }
+            changed.add("status");
             entity.setStatus(SchemaChangeSetStatus.ARCHIVED);
         }
-        return toView(saveChangeSet(entity));
+        var saved = saveChangeSet(entity);
+        if (!changed.isEmpty()) {
+            var metadata = baseMetadata(saved);
+            metadata.put("changed_fields", changed);
+            metadata.put("status", saved.getStatus().name());
+            audit(AuditAction.SCHEMA_CHANGE_SET_UPDATED, saved, actorId, metadata);
+        }
+        return toView(saved);
     }
 
     @Override
     @Transactional
-    public SchemaChangeSetView replaceStatements(UUID organizationId, UUID changeSetId,
+    public SchemaChangeSetView replaceStatements(UUID organizationId, UUID actorId, UUID changeSetId,
                                                  List<SchemaChangeSetStatementInput> statements) {
         var entity = require(organizationId, changeSetId);
         if (entity.getStatus() == SchemaChangeSetStatus.ARCHIVED) {
@@ -153,15 +172,37 @@ public class DefaultSchemaChangeSetService implements SchemaChangeSetService {
         var rows = insertStatements(entity, validated);
         entity.setStatementsChecksum(checksumOf(validated));
         var saved = changeSetRepository.saveAndFlush(entity);
+        var metadata = baseMetadata(saved);
+        metadata.put("statement_count", rows.size());
+        if (saved.getStatementsChecksum() != null) {
+            metadata.put("statements_checksum", saved.getStatementsChecksum());
+        }
+        audit(AuditAction.SCHEMA_CHANGE_SET_STATEMENTS_REPLACED, saved, actorId, metadata);
         return toView(saved, rows, validated.warnings());
     }
 
     @Override
     @Transactional
-    public void delete(UUID organizationId, UUID changeSetId) {
+    public void delete(UUID organizationId, UUID actorId, UUID changeSetId) {
         var entity = require(organizationId, changeSetId);
         requireNotFrozen(changeSetId);
+        var metadata = baseMetadata(entity);
         changeSetRepository.delete(entity);
+        // Flushed first so a delete the database refuses never leaves a DELETED row behind.
+        changeSetRepository.flush();
+        audit(AuditAction.SCHEMA_CHANGE_SET_DELETED, entity, actorId, metadata);
+    }
+
+    private static Map<String, Object> baseMetadata(SchemaChangeSetEntity entity) {
+        var metadata = new HashMap<String, Object>();
+        metadata.put("pipeline_id", entity.getPipelineId().toString());
+        metadata.put("name", entity.getName());
+        return metadata;
+    }
+
+    private void audit(AuditAction action, SchemaChangeSetEntity entity, UUID actorId, Map<String, Object> metadata) {
+        auditWriter.record(action, AuditResourceType.SCHEMA_CHANGE_SET, entity.getId(),
+                entity.getOrganizationId(), actorId, metadata, null, null);
     }
 
     private SchemaChangeSetEntity require(UUID organizationId, UUID changeSetId) {

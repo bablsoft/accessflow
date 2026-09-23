@@ -101,9 +101,11 @@ class SchemaDriftFindingReconcilerTest {
                         any(), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
                 Set.of("public.orders")), NOW);
 
+        // #882: a created row is new drift — it is what SCHEMA_DRIFT_DETECTED counts.
+        assertThat(opened).isEqualTo(1);
         var captor = org.mockito.ArgumentCaptor.forClass(SchemaDriftFindingEntity.class);
         verify(findingRepository).save(captor.capture());
         assertThat(captor.getValue()).satisfies(saved -> {
@@ -122,8 +124,11 @@ class SchemaDriftFindingReconcilerTest {
         var open = existing(SchemaDriftFindingStatus.OPEN, "text", "int4");
         stubActive(open);
 
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW);
+        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
+                Set.of("public.orders")), NOW);
 
+        // #882: a finding merely re-seen is never new drift, or a persistent one alerts every scan.
+        assertThat(opened).isZero();
         assertThat(open.getScan()).isSameAs(scan);
         assertThat(open.getLastSeenAt()).isEqualTo(NOW);
         assertThat(open.getFirstDetectedAt()).isEqualTo(EARLIER);
@@ -158,9 +163,12 @@ class SchemaDriftFindingReconcilerTest {
         stubActive(acknowledged);
 
         // The admin accepted varchar-vs-text, not text-vs-bigint.
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")), Set.of("public.orders")), NOW);
+        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int8")),
+                Set.of("public.orders")), NOW);
 
         assertThat(acknowledged.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
+        // #882: a re-detection of a known finding, not new drift — it does not notify.
+        assertThat(opened).isZero();
         assertThat(acknowledged.getActualValue()).isEqualTo("int8");
     }
 
@@ -174,9 +182,12 @@ class SchemaDriftFindingReconcilerTest {
                         eq(orgId), eq(environmentId), eq(PATH), eq(SchemaDriftFindingKind.TYPE_MISMATCH)))
                 .thenReturn(Optional.of(resolved));
 
-        reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")), Set.of("public.orders")), NOW);
+        var opened = reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+                Set.of("public.orders")), NOW);
 
         assertThat(resolved.getStatus()).isEqualTo(SchemaDriftFindingStatus.OPEN);
+        // #882: a drift that had gone away and came back is a new episode — it counts.
+        assertThat(opened).isEqualTo(1);
         assertThat(resolved.getResolvedAt()).isNull();
         // "First ever observed" is what makes a flapping object visible; resetting it would hide it.
         assertThat(resolved.getFirstDetectedAt()).isEqualTo(EARLIER);
@@ -362,5 +373,21 @@ class SchemaDriftFindingReconcilerTest {
         // Saved once (the refresh, which lost); never a second save marking it resolved.
         verify(findingRepository).save(open);
         assertThat(open.getResolvedAt()).isNull();
+    }
+
+    @Test
+    void aReopenThatLosesTheRaceIsNotCounted() {
+        var resolved = existing(SchemaDriftFindingStatus.RESOLVED, "text", "int4");
+        stubActive();
+        when(findingRepository
+                .findFirstByOrganizationIdAndEnvironmentIdAndObjectPathAndFindingKindOrderByLastSeenAtDesc(
+                        eq(orgId), eq(environmentId), eq(PATH), eq(SchemaDriftFindingKind.TYPE_MISMATCH)))
+                .thenReturn(Optional.of(resolved));
+        when(findingRepository.save(resolved))
+                .thenThrow(new org.springframework.orm.ObjectOptimisticLockingFailureException(
+                        SchemaDriftFindingEntity.class, resolved.getId()));
+
+        assertThat(reconciler.reconcile(scan, ctx, result(List.of(finding("text", "int4")),
+                Set.of("public.orders")), NOW)).isZero();
     }
 }

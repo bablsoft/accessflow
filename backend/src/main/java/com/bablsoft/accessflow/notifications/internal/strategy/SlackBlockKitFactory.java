@@ -96,6 +96,9 @@ class SlackBlockKitFactory {
         if (ctx.deploymentRequestId() != null) {
             return deploymentSection(ctx);
         }
+        if (ctx.isSchemaChangeEvent()) {
+            return schemaChangeSection(ctx);
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -144,6 +147,30 @@ class SlackBlockKitFactory {
         }
         if (ctx.deploymentOutcome() != null) {
             fields.add(mrkdwn("*Outcome:*\n" + ctx.deploymentOutcome().name()));
+        }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
+    private static SectionBlock schemaChangeSection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        if (ctx.schemaChangeSetName() != null) {
+            fields.add(mrkdwn("*Change set:*\n" + ctx.schemaChangeSetName()));
+        }
+        fields.add(mrkdwn("*Pipeline:*\n" + nullToDash(ctx.datasourceName())));
+        fields.add(mrkdwn("*Environment:*\n" + nullToDash(ctx.environmentName())));
+        if (ctx.submitterEmail() != null) {
+            fields.add(mrkdwn("*Promoted by:*\n" + ctx.submitterEmail()));
+        }
+        if (ctx.eventType() == NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED
+                && ctx.schemaChangeStatus() != null) {
+            fields.add(mrkdwn("*Status:*\n" + ctx.schemaChangeStatus()));
+        }
+        if (ctx.schemaChangeErrorMessage() != null) {
+            fields.add(mrkdwn("*Error:*\n" + SchemaChangeText.truncate(ctx.schemaChangeErrorMessage())));
+        }
+        if (ctx.driftNewFindingCount() != null) {
+            fields.add(mrkdwn("*New findings:*\n" + ctx.driftNewFindingCount()));
         }
         return SectionBlock.builder().fields(fields).build();
     }
@@ -249,6 +276,10 @@ class SlackBlockKitFactory {
             case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "🧱 Schema Change Awaiting Review";
+            case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
+            case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";
+            case SCHEMA_DRIFT_DETECTED -> "⚠️ Schema Drift Detected";
         };
     }
 

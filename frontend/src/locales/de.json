@@ -2759,7 +2759,13 @@
       "DEPLOYMENT_REJECTED": "Dein Deployment von {{version}} nach {{environment}} wurde abgelehnt",
       "DEPLOYMENT_OUTCOME_FAILED": "Ein von dir genehmigtes Deployment auf {{pipeline}} hat {{outcome}} gemeldet",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} hat ein Break-Glass-Deployment auf {{pipeline}} freigegeben",
-      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Ein Break-Glass-Deployment wurde auf {{pipeline}} freigegeben"
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Ein Break-Glass-Deployment wurde auf {{pipeline}} freigegeben",
+      "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Eine Schemaänderung {{changeSet}} → {{environment}} wartet auf Ihre Prüfung",
+      "SCHEMA_CHANGE_PROMOTION_APPLIED": "Ihre Schemaänderung {{changeSet}} wurde auf {{environment}} angewendet",
+      "SCHEMA_CHANGE_PROMOTION_FAILED": "Ihre Schemaänderung {{changeSet}} ist auf {{environment}} fehlgeschlagen",
+      "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Ihre Schemaänderung {{changeSet}} wurde auf {{environment}} nur teilweise angewendet",
+      "SCHEMA_DRIFT_DETECTED_one": "{{count}} neuer Schema-Drift-Befund in {{pipeline}} / {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} neue Schema-Drift-Befunde in {{pipeline}} / {{environment}}"
     }
   },
   "profile": {

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.schemachange.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineLookupService;
@@ -57,6 +59,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -80,6 +83,8 @@ class DefaultSchemaChangeSetServiceTest {
     private DeploymentPipelineLookupService pipelineLookupService;
     @Mock
     private SchemaChangeStatementGate gate;
+    @Mock
+    private SchemaChangeAuditWriter auditWriter;
 
     private DefaultSchemaChangeSetService service;
 
@@ -92,7 +97,7 @@ class DefaultSchemaChangeSetServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultSchemaChangeSetService(changeSetRepository, statementRepository, promotionRepository,
-                pipelineLookupService, gate, new SchemaChangeProperties(3, null, null, null, null, null));
+                pipelineLookupService, gate, new SchemaChangeProperties(3, null, null, null, null, null), auditWriter);
         lenient().when(changeSetRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(statementRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(pipelineLookupService.findPipeline(pipelineId, organizationId))
@@ -129,6 +134,9 @@ class DefaultSchemaChangeSetServiceTest {
             assertThat(row.getId()).isNotNull();
             assertThat(row.getChangeSet().getId()).isEqualTo(view.id());
         });
+        var metadata = auditMetadata(AuditAction.SCHEMA_CHANGE_SET_CREATED, view.id());
+        assertThat(metadata).containsEntry("name", "cs").containsEntry("statement_count", 2)
+                .containsEntry("pipeline_id", pipelineId.toString());
     }
 
     @Test
@@ -235,11 +243,11 @@ class DefaultSchemaChangeSetServiceTest {
 
         assertThatThrownBy(() -> service.get(otherOrganizationId, id))
                 .isInstanceOf(SchemaChangeSetNotFoundException.class);
-        assertThatThrownBy(() -> service.update(otherOrganizationId, id, new UpdateSchemaChangeSetCommand("x", null, null)))
+        assertThatThrownBy(() -> service.update(otherOrganizationId, actorId, id, new UpdateSchemaChangeSetCommand("x", null, null)))
                 .isInstanceOf(SchemaChangeSetNotFoundException.class);
-        assertThatThrownBy(() -> service.replaceStatements(otherOrganizationId, id, inputs(CREATE)))
+        assertThatThrownBy(() -> service.replaceStatements(otherOrganizationId, actorId, id, inputs(CREATE)))
                 .isInstanceOf(SchemaChangeSetNotFoundException.class);
-        assertThatThrownBy(() -> service.delete(otherOrganizationId, id))
+        assertThatThrownBy(() -> service.delete(otherOrganizationId, actorId, id))
                 .isInstanceOf(SchemaChangeSetNotFoundException.class);
         verify(changeSetRepository, never()).delete(any(SchemaChangeSetEntity.class));
         verifyNoInteractions(gate);
@@ -293,8 +301,8 @@ class DefaultSchemaChangeSetServiceTest {
         var entity = existing(SchemaChangeSetStatus.DRAFT);
         entity.setDescription("old");
 
-        var renamed = service.update(organizationId, entity.getId(), new UpdateSchemaChangeSetCommand("new-name", null, null));
-        var described = service.update(organizationId, entity.getId(), new UpdateSchemaChangeSetCommand(null, "new desc", null));
+        var renamed = service.update(organizationId, actorId, entity.getId(), new UpdateSchemaChangeSetCommand("new-name", null, null));
+        var described = service.update(organizationId, actorId, entity.getId(), new UpdateSchemaChangeSetCommand(null, "new desc", null));
 
         assertThat(renamed.name()).isEqualTo("new-name");
         assertThat(renamed.description()).isEqualTo("old");
@@ -303,15 +311,22 @@ class DefaultSchemaChangeSetServiceTest {
         assertThat(described.reviewWarnings()).isEmpty();
         verify(changeSetRepository).existsByOrganizationIdAndPipelineIdAndName(organizationId, pipelineId, "new-name");
         verifyNoInteractions(gate);
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter, org.mockito.Mockito.times(2)).record(eq(AuditAction.SCHEMA_CHANGE_SET_UPDATED),
+                eq(AuditResourceType.SCHEMA_CHANGE_SET), eq(entity.getId()), eq(organizationId), eq(actorId),
+                metadata.capture(), isNull(), isNull());
+        assertThat(metadata.getAllValues().get(0)).containsEntry("changed_fields", List.of("name"));
+        assertThat(metadata.getAllValues().get(1)).containsEntry("changed_fields", List.of("description"));
     }
 
     @Test
     void updateToTheSameNameSkipsTheConflictCheck() {
         var entity = existing(SchemaChangeSetStatus.DRAFT);
 
-        service.update(organizationId, entity.getId(), new UpdateSchemaChangeSetCommand(entity.getName(), null, null));
+        service.update(organizationId, actorId, entity.getId(), new UpdateSchemaChangeSetCommand(entity.getName(), null, null));
 
         verify(changeSetRepository, never()).existsByOrganizationIdAndPipelineIdAndName(any(), any(), any());
+        verifyNoInteractions(auditWriter);
     }
 
     @Test
@@ -320,7 +335,7 @@ class DefaultSchemaChangeSetServiceTest {
         when(changeSetRepository.existsByOrganizationIdAndPipelineIdAndName(organizationId, pipelineId, "taken"))
                 .thenReturn(true);
 
-        assertThatThrownBy(() -> service.update(organizationId, entity.getId(),
+        assertThatThrownBy(() -> service.update(organizationId, actorId, entity.getId(),
                 new UpdateSchemaChangeSetCommand("taken", null, null)))
                 .isInstanceOf(SchemaChangeSetNameConflictException.class);
         verify(changeSetRepository, never()).saveAndFlush(any());
@@ -331,16 +346,16 @@ class DefaultSchemaChangeSetServiceTest {
         var draft = existing(SchemaChangeSetStatus.DRAFT);
         var active = existing(SchemaChangeSetStatus.ACTIVE);
 
-        assertThat(service.update(organizationId, draft.getId(),
+        assertThat(service.update(organizationId, actorId, draft.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.DRAFT)).status())
                 .isEqualTo(SchemaChangeSetStatus.DRAFT);
-        assertThat(service.update(organizationId, draft.getId(),
+        assertThat(service.update(organizationId, actorId, draft.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.ARCHIVED)).status())
                 .isEqualTo(SchemaChangeSetStatus.ARCHIVED);
-        assertThat(service.update(organizationId, active.getId(),
+        assertThat(service.update(organizationId, actorId, active.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.ARCHIVED)).status())
                 .isEqualTo(SchemaChangeSetStatus.ARCHIVED);
-        assertThat(service.update(organizationId, active.getId(),
+        assertThat(service.update(organizationId, actorId, active.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.ARCHIVED)).status())
                 .isEqualTo(SchemaChangeSetStatus.ARCHIVED);
     }
@@ -350,12 +365,12 @@ class DefaultSchemaChangeSetServiceTest {
         var draft = existing(SchemaChangeSetStatus.DRAFT);
         var archived = existing(SchemaChangeSetStatus.ARCHIVED);
 
-        assertThatThrownBy(() -> service.update(organizationId, draft.getId(),
+        assertThatThrownBy(() -> service.update(organizationId, actorId, draft.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.ACTIVE)))
                 .isInstanceOf(SchemaChangeSetStatusTransitionException.class)
                 .extracting("currentStatus", "requestedStatus")
                 .containsExactly(SchemaChangeSetStatus.DRAFT, SchemaChangeSetStatus.ACTIVE);
-        assertThatThrownBy(() -> service.update(organizationId, archived.getId(),
+        assertThatThrownBy(() -> service.update(organizationId, actorId, archived.getId(),
                 new UpdateSchemaChangeSetCommand(null, null, SchemaChangeSetStatus.DRAFT)))
                 .isInstanceOf(SchemaChangeSetStatusTransitionException.class);
         verify(changeSetRepository, never()).saveAndFlush(any());
@@ -368,9 +383,9 @@ class DefaultSchemaChangeSetServiceTest {
         lenient().when(promotionRepository.existsByChangeSet_IdAndStatusIn(eq(frozen.getId()), anyCollection()))
                 .thenReturn(true);
 
-        assertThat(service.update(organizationId, archived.getId(),
+        assertThat(service.update(organizationId, actorId, archived.getId(),
                 new UpdateSchemaChangeSetCommand(null, "still editable", null)).description()).isEqualTo("still editable");
-        assertThat(service.update(organizationId, frozen.getId(),
+        assertThat(service.update(organizationId, actorId, frozen.getId(),
                 new UpdateSchemaChangeSetCommand(null, "still editable", null)).description()).isEqualTo("still editable");
         verify(promotionRepository, never()).existsByChangeSet_IdAndStatusIn(any(), anyCollection());
     }
@@ -386,7 +401,7 @@ class DefaultSchemaChangeSetServiceTest {
                 List.of(new ClassifiedStatement(ALTER, QueryType.DDL), new ClassifiedStatement(CREATE, QueryType.DDL)),
                 List.of(warning)));
 
-        var view = service.replaceStatements(organizationId, entity.getId(), inputs(ALTER, CREATE));
+        var view = service.replaceStatements(organizationId, actorId, entity.getId(), inputs(ALTER, CREATE));
 
         assertThat(view.statements()).extracting("sequenceOrder", "sqlText")
                 .containsExactly(org.assertj.core.groups.Tuple.tuple(0, ALTER), org.assertj.core.groups.Tuple.tuple(1, CREATE));
@@ -397,6 +412,9 @@ class DefaultSchemaChangeSetServiceTest {
         order.verify(statementRepository).deleteAllByChangeSetId(entity.getId());
         order.verify(statementRepository, org.mockito.Mockito.times(2)).save(any());
         order.verify(changeSetRepository).saveAndFlush(entity);
+        var metadata = auditMetadata(AuditAction.SCHEMA_CHANGE_SET_STATEMENTS_REPLACED, entity.getId());
+        assertThat(metadata).containsEntry("statement_count", 2)
+                .containsEntry("statements_checksum", SchemaChangeChecksum.of(List.of(ALTER, CREATE)));
     }
 
     @Test
@@ -405,18 +423,20 @@ class DefaultSchemaChangeSetServiceTest {
         entity.setStatementsChecksum("a".repeat(64));
         when(gate.validate(eq(organizationId), eq(pipelineId), anyList())).thenReturn(GateResult.EMPTY);
 
-        var view = service.replaceStatements(organizationId, entity.getId(), List.of());
+        var view = service.replaceStatements(organizationId, actorId, entity.getId(), List.of());
 
         assertThat(view.statements()).isEmpty();
         assertThat(view.statementsChecksum()).isNull();
         verify(statementRepository).deleteAllByChangeSetId(entity.getId());
+        assertThat(auditMetadata(AuditAction.SCHEMA_CHANGE_SET_STATEMENTS_REPLACED, entity.getId()))
+                .containsEntry("statement_count", 0).doesNotContainKey("statements_checksum");
     }
 
     @Test
     void replaceStatementsRefusesAnArchivedSet() {
         var entity = existing(SchemaChangeSetStatus.ARCHIVED);
 
-        assertThatThrownBy(() -> service.replaceStatements(organizationId, entity.getId(), inputs(CREATE)))
+        assertThatThrownBy(() -> service.replaceStatements(organizationId, actorId, entity.getId(), inputs(CREATE)))
                 .isInstanceOf(SchemaChangeSetArchivedException.class);
         verifyNoInteractions(gate, promotionRepository);
         verify(statementRepository, never()).deleteAllByChangeSetId(any());
@@ -431,7 +451,7 @@ class DefaultSchemaChangeSetServiceTest {
                 DefaultSchemaChangeSetService.FREEZING_STATUSES)).thenReturn(true);
 
         assertThat(DefaultSchemaChangeSetService.FREEZING_STATUSES).contains(freezing);
-        assertThatThrownBy(() -> service.replaceStatements(organizationId, entity.getId(), inputs(CREATE)))
+        assertThatThrownBy(() -> service.replaceStatements(organizationId, actorId, entity.getId(), inputs(CREATE)))
                 .isInstanceOf(SchemaChangeSetFrozenException.class)
                 .extracting("changeSetId").isEqualTo(entity.getId());
         verifyNoInteractions(gate);
@@ -447,7 +467,7 @@ class DefaultSchemaChangeSetServiceTest {
                 DefaultSchemaChangeSetService.FREEZING_STATUSES)).thenReturn(false);
         when(gate.validate(eq(organizationId), eq(pipelineId), anyList())).thenReturn(GateResult.EMPTY);
 
-        service.replaceStatements(organizationId, entity.getId(), List.of());
+        service.replaceStatements(organizationId, actorId, entity.getId(), List.of());
 
         verify(statementRepository).deleteAllByChangeSetId(entity.getId());
     }
@@ -456,7 +476,7 @@ class DefaultSchemaChangeSetServiceTest {
     void replaceStatementsEnforcesTheCapAfterTheFreezeCheck() {
         var entity = existing(SchemaChangeSetStatus.DRAFT);
 
-        assertThatThrownBy(() -> service.replaceStatements(organizationId, entity.getId(),
+        assertThatThrownBy(() -> service.replaceStatements(organizationId, actorId, entity.getId(),
                 inputs(CREATE, ALTER, CREATE, ALTER)))
                 .isInstanceOf(SchemaChangeSetStatementLimitException.class);
         verify(promotionRepository).existsByChangeSet_IdAndStatusIn(entity.getId(),
@@ -470,7 +490,7 @@ class DefaultSchemaChangeSetServiceTest {
         when(gate.validate(eq(organizationId), eq(pipelineId), anyList()))
                 .thenThrow(SchemaChangeSetStatementInvalidException.multipleStatements(0));
 
-        assertThatThrownBy(() -> service.replaceStatements(organizationId, entity.getId(), inputs(CREATE + "; " + ALTER)))
+        assertThatThrownBy(() -> service.replaceStatements(organizationId, actorId, entity.getId(), inputs(CREATE + "; " + ALTER)))
                 .isInstanceOf(SchemaChangeSetStatementInvalidException.class);
         verify(statementRepository, never()).deleteAllByChangeSetId(any());
         verify(changeSetRepository, never()).saveAndFlush(any());
@@ -482,9 +502,14 @@ class DefaultSchemaChangeSetServiceTest {
     void deleteRemovesAnUnfrozenSet() {
         var entity = existing(SchemaChangeSetStatus.DRAFT);
 
-        service.delete(organizationId, entity.getId());
+        service.delete(organizationId, actorId, entity.getId());
 
-        verify(changeSetRepository).delete(entity);
+        var order = inOrder(changeSetRepository, auditWriter);
+        order.verify(changeSetRepository).delete(entity);
+        order.verify(changeSetRepository).flush();
+        order.verify(auditWriter).record(eq(AuditAction.SCHEMA_CHANGE_SET_DELETED),
+                eq(AuditResourceType.SCHEMA_CHANGE_SET), eq(entity.getId()), eq(organizationId), eq(actorId),
+                any(), isNull(), isNull());
     }
 
     @Test
@@ -493,12 +518,21 @@ class DefaultSchemaChangeSetServiceTest {
         when(promotionRepository.existsByChangeSet_IdAndStatusIn(entity.getId(),
                 DefaultSchemaChangeSetService.FREEZING_STATUSES)).thenReturn(true);
 
-        assertThatThrownBy(() -> service.delete(organizationId, entity.getId()))
+        assertThatThrownBy(() -> service.delete(organizationId, actorId, entity.getId()))
                 .isInstanceOf(SchemaChangeSetFrozenException.class);
         verify(changeSetRepository, never()).delete(any(SchemaChangeSetEntity.class));
+        verifyNoInteractions(auditWriter);
     }
 
     // ---- helpers --------------------------------------------------------------------------------
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> auditMetadata(AuditAction action, UUID changeSetId) {
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(action), eq(AuditResourceType.SCHEMA_CHANGE_SET), eq(changeSetId),
+                eq(organizationId), eq(actorId), metadata.capture(), isNull(), isNull());
+        return metadata.getValue();
+    }
 
     private SchemaChangeSetEntity existing(SchemaChangeSetStatus status) {
         var entity = new SchemaChangeSetEntity();

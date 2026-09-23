@@ -32,6 +32,7 @@ class DefaultUserNotificationLookupService implements UserNotificationLookupServ
                 entity.getQueryRequestId(),
                 entity.getApiRequestId(),
                 entity.getDeploymentRequestId(),
+                entity.getSchemaChangePromotionId(),
                 entity.getPayloadJson(),
                 entity.isRead(),
                 entity.getCreatedAt(),

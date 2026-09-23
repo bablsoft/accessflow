@@ -2759,7 +2759,13 @@
       "DEPLOYMENT_REJECTED": "Tu despliegue de {{version}} a {{environment}} fue rechazado",
       "DEPLOYMENT_OUTCOME_FAILED": "Un despliegue que aprobaste en {{pipeline}} informó {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} liberó un despliegue de break-glass en {{pipeline}}",
-      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Se liberó un despliegue de break-glass en {{pipeline}}"
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Se liberó un despliegue de break-glass en {{pipeline}}",
+      "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Un cambio de esquema {{changeSet}} → {{environment}} espera su revisión",
+      "SCHEMA_CHANGE_PROMOTION_APPLIED": "Su cambio de esquema {{changeSet}} se aplicó en {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED": "Su cambio de esquema {{changeSet}} falló en {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Su cambio de esquema {{changeSet}} solo se aplicó parcialmente en {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_one": "{{count}} hallazgo nuevo de deriva de esquema en {{pipeline}} / {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} hallazgos nuevos de deriva de esquema en {{pipeline}} / {{environment}}"
     }
   },
   "profile": {

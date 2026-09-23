@@ -185,6 +185,29 @@ class EmailNotificationStrategyTest {
         assertThat(argsCaptor.getValue()).containsExactly("payments-pipeline", "2.4.1");
     }
 
+    /**
+     * #882: the subject-args switch has a silent default that would pass the pipeline where the
+     * change set belongs; each schema-change event must pass its own arguments.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = NotificationEventType.class,
+            names = {"SCHEMA_CHANGE_PROMOTION_SUBMITTED", "SCHEMA_CHANGE_PROMOTION_APPLIED",
+                    "SCHEMA_CHANGE_PROMOTION_FAILED", "SCHEMA_DRIFT_DETECTED"})
+    void schemaChangeEventsUseTheirOwnTemplateSubjectKeyAndArgs(NotificationEventType type) {
+        strategy.deliver(SchemaChangeNotificationTest.schemaChangeCtx(type), channel());
+
+        var slug = type.name().toLowerCase(Locale.ROOT);
+        verify(templateEngine).process(eq("email/" + slug.replace('_', '-')), any());
+        var argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(messageSource).getMessage(eq("notification.email.subject." + slug), argsCaptor.capture(),
+                any(Locale.class));
+        if (type == NotificationEventType.SCHEMA_DRIFT_DETECTED) {
+            assertThat(argsCaptor.getValue()).containsExactly("billing-pipeline", "staging", 3);
+        } else {
+            assertThat(argsCaptor.getValue()).containsExactly("add-invoice-index", "staging");
+        }
+    }
+
     @Test
     void deliverUsesRejectedTemplateForRejectedEvent() {
         var ctx = ctx(NotificationEventType.QUERY_REJECTED, List.of(

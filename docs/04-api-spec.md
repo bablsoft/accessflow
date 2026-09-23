@@ -7520,6 +7520,7 @@ no role is required — every authenticated user can read and manage their own i
       "query_request_id": "uuid",
       "api_request_id": null,
       "deployment_request_id": null,
+      "schema_change_promotion_id": null,
       "payload": {
         "query_id": "uuid",
         "datasource": "orders-prod",
@@ -7551,12 +7552,17 @@ events (`ACCESS_REQUEST_*`, `ACCESS_GRANT_*`, `GRANT_STALE`), `ANOMALY_DETECTED`
 events (`API_REQUEST_*`, `API_CONNECTOR_OAUTH2_TOKEN_FAILED` — AF-500), and the
 deployment events (`DEPLOYMENT_SUBMITTED` \| `DEPLOYMENT_APPROVED` \|
 `DEPLOYMENT_REJECTED` \| `DEPLOYMENT_OUTCOME_FAILED` \|
-`DEPLOYMENT_BREAK_GLASS_EXECUTED` — #695). At most one of `query_request_id` \|
-`api_request_id` \| `deployment_request_id` is set, naming the row's target. The
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` — #695), and the schema-change events
+(`SCHEMA_CHANGE_PROMOTION_SUBMITTED` \| `SCHEMA_CHANGE_PROMOTION_APPLIED` \|
+`SCHEMA_CHANGE_PROMOTION_FAILED` \| `SCHEMA_DRIFT_DETECTED` — #882). At most one of
+`query_request_id` \| `api_request_id` \| `deployment_request_id` \|
+`schema_change_promotion_id` is set, naming the row's target (a drift row names none). The
 `payload` keys are best-effort context for the client to render a human-readable message
 and link — UIs must treat individual keys as optional; deployment rows add
 `deployment_id`, `environment`, `version`, and `outcome`, with the pipeline name riding
-the `datasource` key.
+the `datasource` key; schema-change rows add `schema_change_promotion_id`, `change_set`,
+`environment` and `promotion_status` (`FAILED` or `PARTIALLY_APPLIED` on a failure), and a
+drift row adds `new_finding_count` — again with the pipeline name in `datasource`.
 
 ### GET /notifications/unread-count — Response 200
 
@@ -7610,6 +7616,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `attestation.campaign_opened` | An access-recertification campaign opened (AF-384) — pushed to its eligible reviewers and org admins | `campaign_id`, `name`, `due_at` |
 | `request_group.status_changed` | A grouped request (AF-501) changed status — pushed to the submitter, and to eligible reviewers when it becomes ready for review | `group_id`, `old_status`, `new_status` |
 | `request_group.item_executed` | A member of a grouped request finished executing (AF-501) — drives the live ordered-progress view | `group_id`, `item_id`, `sequence_order`, `item_status` |
+| `schema_change_promotion.status_changed` | A schema change promotion (#882, epic #870) changed status — pushed to the promoter on every transition, including submission (`old_status` is `null` then). Reviewers learn of it through `notification.created` (`SCHEMA_CHANGE_PROMOTION_SUBMITTED`). | `promotion_id`, `change_set_id`, `environment_id`, `old_status`, `new_status` |
 | `deployment.status_changed` | A deployment request (epic AF-682) changed status — pushed to the submitter on every transition, including `EXECUTED` and the `EXECUTED → FAILED` outcome flip. Reviewer queues refresh via `notification.created` (`DEPLOYMENT_SUBMITTED`). | `deployment_request_id`, `old_status`, `new_status` |
 
 ### Collaboration protocol (bidirectional — AF-441)

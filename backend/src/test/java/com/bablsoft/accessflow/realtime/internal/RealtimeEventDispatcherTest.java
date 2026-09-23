@@ -30,6 +30,8 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.events.RequestGroupItemExecutedEvent;
 import com.bablsoft.accessflow.requestgroups.events.RequestGroupStatusChangedEvent;
+import com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionStatus;
+import com.bablsoft.accessflow.schemachange.events.SchemaChangePromotionStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
 import com.bablsoft.accessflow.notifications.api.UserNotificationView;
@@ -135,6 +137,45 @@ class RealtimeEventDispatcherTest {
         assertThat(data.get("request_group_id").asString()).isEqualTo(groupId.toString());
         assertThat(data.get("old_status").asString()).isEqualTo("PENDING_REVIEW");
         assertThat(data.get("new_status").asString()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void onSchemaChangePromotionStatusChangedSendsEnvelopeToThePromoter() throws Exception {
+        var promotionId = UUID.randomUUID();
+        var changeSetId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+        dispatcher.onSchemaChangePromotionStatusChanged(new SchemaChangePromotionStatusChangedEvent(promotionId,
+                changeSetId, environmentId, UUID.randomUUID(), submitterId,
+                SchemaChangePromotionStatus.IN_REVIEW, SchemaChangePromotionStatus.APPROVED));
+
+        var envelope = captureEnvelope(submitterId);
+        assertThat(envelope.get("event").asString()).isEqualTo("schema_change_promotion.status_changed");
+        var data = envelope.get("data");
+        assertThat(data.get("promotion_id").asString()).isEqualTo(promotionId.toString());
+        assertThat(data.get("change_set_id").asString()).isEqualTo(changeSetId.toString());
+        assertThat(data.get("environment_id").asString()).isEqualTo(environmentId.toString());
+        assertThat(data.get("old_status").asString()).isEqualTo("IN_REVIEW");
+        assertThat(data.get("new_status").asString()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void aSubmittedPromotionCarriesANullOldStatus() throws Exception {
+        dispatcher.onSchemaChangePromotionStatusChanged(new SchemaChangePromotionStatusChangedEvent(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), submitterId,
+                null, SchemaChangePromotionStatus.PENDING));
+
+        var data = captureEnvelope(submitterId).get("data");
+        assertThat(data.get("old_status").isNull()).isTrue();
+        assertThat(data.get("new_status").asString()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void aPromotionWithoutAPromoterIsNotPushed() {
+        dispatcher.onSchemaChangePromotionStatusChanged(new SchemaChangePromotionStatusChangedEvent(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
+                SchemaChangePromotionStatus.APPROVED, SchemaChangePromotionStatus.APPLIED));
+
+        org.mockito.Mockito.verifyNoInteractions(sessionRegistry);
     }
 
     @Test

@@ -4974,6 +4974,19 @@ endpoints in [04-api-spec.md](04-api-spec.md#schema-change-governance-879-880-88
 section records the engineering rules of the **authoring half (#879)** and the **promotion half
 (#880)**.
 
+**Notifications (#882).** `notifications.internal.SchemaChangeNotificationListener` consumes
+`SchemaChangePromotionStatusChangedEvent` as an `@ApplicationModuleListener` (every publisher holds a
+transaction) and `SchemaDriftDetectedEvent` as `@Async @TransactionalEventListener(AFTER_COMMIT,
+fallbackExecution = true)` — the drift scan publishes with no transaction, where a plain after-commit
+listener would never run. `SchemaDriftScanService` publishes that event only when
+`SchemaDriftFindingReconciler.reconcile` reports it **opened** findings (created, or reopened from
+`RESOLVED`); a re-seen finding is never counted, so a persistent drift does not alert every scan.
+Recipients come from `schemachange.api.SchemaChangeNotificationLookupService` and
+`core.api.RolePermissionHolderLookupService` (`SCHEMA_CHANGE_MANAGE` for drift). The four event types
+fan out org-wide, never page and never ticket — see
+[08-notifications.md](08-notifications.md) and chapter 20 §Notifications. `realtime` pushes
+`schema_change_promotion.status_changed` to the promoter; `schemachange` imports neither module.
+
 **Layout.** `api/` (contracts, views, one exception per documented error code), `events/`
 (`SchemaChangePromotionStatusChangedEvent`), `internal/` — `config/SchemaChangeProperties`
 (`accessflow.schemachange.max-statements`, default 50), `DefaultSchemaChangeSetService`,

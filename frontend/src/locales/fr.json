@@ -2759,7 +2759,13 @@
       "DEPLOYMENT_REJECTED": "Ton déploiement de {{version}} vers {{environment}} a été rejeté",
       "DEPLOYMENT_OUTCOME_FAILED": "Un déploiement que tu as approuvé sur {{pipeline}} a signalé {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} a libéré un déploiement break-glass sur {{pipeline}}",
-      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Un déploiement break-glass a été libéré sur {{pipeline}}"
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Un déploiement break-glass a été libéré sur {{pipeline}}",
+      "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Une modification de schéma {{changeSet}} → {{environment}} attend votre relecture",
+      "SCHEMA_CHANGE_PROMOTION_APPLIED": "Votre modification de schéma {{changeSet}} a été appliquée sur {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED": "Votre modification de schéma {{changeSet}} a échoué sur {{environment}}",
+      "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Votre modification de schéma {{changeSet}} n'a été que partiellement appliquée sur {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_one": "{{count}} nouvelle constatation de dérive de schéma sur {{pipeline}} / {{environment}}",
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} nouvelles constatations de dérive de schéma sur {{pipeline}} / {{environment}}"
     }
   },
   "profile": {

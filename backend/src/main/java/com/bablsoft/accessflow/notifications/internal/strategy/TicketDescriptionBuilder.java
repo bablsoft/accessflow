@@ -24,6 +24,13 @@ final class TicketDescriptionBuilder {
             case REVIEW_ESCALATED -> "Review escalated — no decision yet on " + datasource;
             case REVIEW_NUDGE -> "Reminder: query awaiting review on " + datasource;
             case REVIEW_TIMEOUT -> "Query review timed out on " + datasource;
+            // #882: no TicketingTrigger maps these, so they never open a ticket today — spelled out
+            // so one added later renders a real headline rather than the enum name.
+            case SCHEMA_CHANGE_PROMOTION_SUBMITTED ->
+                    "Schema change awaiting review on pipeline " + datasource;
+            case SCHEMA_CHANGE_PROMOTION_APPLIED -> "Schema change applied on pipeline " + datasource;
+            case SCHEMA_CHANGE_PROMOTION_FAILED -> "Schema change failed on pipeline " + datasource;
+            case SCHEMA_DRIFT_DETECTED -> "Schema drift detected on pipeline " + datasource;
             default -> ctx.eventType().name() + " on " + datasource;
         };
         var summary = "[AccessFlow] " + headline;

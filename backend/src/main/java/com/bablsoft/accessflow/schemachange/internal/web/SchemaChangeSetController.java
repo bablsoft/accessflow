@@ -90,7 +90,7 @@ class SchemaChangeSetController {
                                    Authentication authentication) {
         var caller = claims(authentication);
         return SchemaChangeSetResponse.from(
-                changeSetService.update(caller.organizationId(), id, body.toCommand()), renderer());
+                changeSetService.update(caller.organizationId(), caller.userId(), id, body.toCommand()), renderer());
     }
 
     @PutMapping("/{id}/statements")
@@ -106,7 +106,8 @@ class SchemaChangeSetController {
                                               Authentication authentication) {
         var caller = claims(authentication);
         return SchemaChangeSetResponse.from(
-                changeSetService.replaceStatements(caller.organizationId(), id, body.toInputs()), renderer());
+                changeSetService.replaceStatements(caller.organizationId(), caller.userId(), id,
+                        body.toInputs()), renderer());
     }
 
     @DeleteMapping("/{id}")
@@ -117,7 +118,7 @@ class SchemaChangeSetController {
     @ApiResponse(responseCode = "409", description = "Change set frozen by a promotion")
     void delete(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
-        changeSetService.delete(caller.organizationId(), id);
+        changeSetService.delete(caller.organizationId(), caller.userId(), id);
     }
 
     private Function<SchemaChangeStatementFinding, String> renderer() {

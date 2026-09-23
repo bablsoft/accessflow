@@ -25,7 +25,18 @@ export type WsEventName =
   | 'attestation.campaign_opened'
   | 'request_group.status_changed'
   | 'request_group.item_executed'
-  | 'deployment.status_changed';
+  | 'deployment.status_changed'
+  | 'schema_change_promotion.status_changed';
+
+/** A schema change promotion's lifecycle (#880) — mirrors the backend enum. */
+export type SchemaChangePromotionStatus =
+  | 'PENDING'
+  | 'IN_REVIEW'
+  | 'APPROVED'
+  | 'APPLIED'
+  | 'FAILED'
+  | 'PARTIALLY_APPLIED'
+  | 'CANCELLED';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
 
@@ -149,6 +160,15 @@ export interface WsEventPayloadMap {
     old_status: QueryStatus;
     new_status: QueryStatus;
   };
+  // Fired on every schema change promotion transition (#882) — pushed to the promoter.
+  // old_status is null on submission. No schema-change page consumes it yet.
+  'schema_change_promotion.status_changed': {
+    promotion_id: string;
+    change_set_id: string;
+    environment_id: string;
+    old_status: SchemaChangePromotionStatus | null;
+    new_status: SchemaChangePromotionStatus;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -184,4 +204,5 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'request_group.status_changed',
   'request_group.item_executed',
   'deployment.status_changed',
+  'schema_change_promotion.status_changed',
 ];

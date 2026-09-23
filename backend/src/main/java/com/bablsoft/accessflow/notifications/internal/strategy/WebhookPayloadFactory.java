@@ -62,6 +62,18 @@ class WebhookPayloadFactory {
             deployment.put("decision_reason", ctx.deploymentDecisionReason());
             envelope.put("deployment", deployment);
         }
+        // #882: schema-change promotions and drift — additive for the same reason.
+        if (ctx.isSchemaChangeEvent()) {
+            var schemaChange = new LinkedHashMap<String, Object>();
+            schemaChange.put("promotion_id", ctx.schemaChangePromotionId());
+            schemaChange.put("change_set_name", ctx.schemaChangeSetName());
+            schemaChange.put("pipeline_id", ctx.datasourceId());
+            schemaChange.put("pipeline_name", ctx.datasourceName());
+            schemaChange.put("environment", ctx.environmentName());
+            schemaChange.put("status", ctx.schemaChangeStatus());
+            schemaChange.put("new_finding_count", ctx.driftNewFindingCount());
+            envelope.put("schema_change", schemaChange);
+        }
         return objectMapper.writeValueAsString(envelope);
     }
 

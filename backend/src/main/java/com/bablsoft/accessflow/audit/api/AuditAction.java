@@ -255,8 +255,10 @@ public enum AuditAction {
      * or timed-out group also projects onto the {@code CANCELLED} promotion status — as a system
      * row whose {@code group_status} metadata says whether it was REJECTED, TIMED_OUT or CANCELLED.
      * Do not read a null actor on this action as "unattributed": read {@code group_status}.
+     * APPROVED (#882) is a system row too: the group's review was satisfied.
      */
     SCHEMA_CHANGE_PROMOTION_SUBMITTED,
+    SCHEMA_CHANGE_PROMOTION_APPROVED,
     SCHEMA_CHANGE_PROMOTION_APPLIED,
     SCHEMA_CHANGE_PROMOTION_PARTIALLY_APPLIED,
     SCHEMA_CHANGE_PROMOTION_FAILED,
@@ -272,5 +274,15 @@ public enum AuditAction {
      */
     SCHEMA_DRIFT_SCAN_COMPLETED,
     SCHEMA_DRIFT_FINDING_ACKNOWLEDGED,
-    SCHEMA_DRIFT_CONFIG_UPDATED
+    SCHEMA_DRIFT_CONFIG_UPDATED,
+
+    /**
+     * #882 (epic #870): change-set authoring. Every row carries the acting user; UPDATED records the
+     * fields the request changed, STATEMENTS_REPLACED the new statement count and checksum, DELETED
+     * the name the set had.
+     */
+    SCHEMA_CHANGE_SET_CREATED,
+    SCHEMA_CHANGE_SET_UPDATED,
+    SCHEMA_CHANGE_SET_STATEMENTS_REPLACED,
+    SCHEMA_CHANGE_SET_DELETED
 }

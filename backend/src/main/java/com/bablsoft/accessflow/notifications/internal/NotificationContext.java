@@ -51,6 +51,14 @@ import java.util.UUID;
  * {@code DEPLOYMENT_OUTCOME_FAILED}; {@code deploymentDecisionReason} carries the decision
  * provenance ({@code "routing:&lt;policyId&gt;"}, {@code "freeze:&lt;windowId&gt;"},
  * {@code "review_timeout"}, or null for a reviewer verdict).
+ *
+ * <p>The {@code schemaChange*} fields are only populated for the {@code SCHEMA_CHANGE_PROMOTION_*}
+ * events and {@code driftNewFindingCount} only for {@code SCHEMA_DRIFT_DETECTED} (#882). Both reuse
+ * {@code datasourceId}/{@code datasourceName} for the pipeline and {@code environmentName} for the
+ * environment; the promotion events reuse {@code submittedByUserId}/{@code submitterEmail} for the
+ * promoter. {@code schemaChangeStatus} is the promotion status name, so a
+ * {@code PARTIALLY_APPLIED} run can be told apart from a {@code FAILED} one, and
+ * {@code schemaChangeErrorMessage} is the first failed statement's error.
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -101,7 +109,88 @@ public record NotificationContext(
         String environmentName,
         String deploymentVersion,
         DeploymentOutcome deploymentOutcome,
-        String deploymentDecisionReason) {
+        String deploymentDecisionReason,
+        UUID schemaChangePromotionId,
+        String schemaChangeSetName,
+        String schemaChangeStatus,
+        String schemaChangeErrorMessage,
+        Integer driftNewFindingCount) {
+
+    /**
+     * True for the #882 schema-change events, which render their own field set — "Datasource"
+     * would mislabel the pipeline they carry in {@code datasourceName}.
+     */
+    public boolean isSchemaChangeEvent() {
+        return eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED
+                || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED
+                || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED
+                || eventType == NotificationEventType.SCHEMA_DRIFT_DETECTED;
+    }
+
+    /** Compatibility constructor without the #882 schema-change fields — every other path. */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest,
+            UUID attestationCampaignId,
+            String attestationCampaignName,
+            Instant attestationDueAt,
+            UUID apiRequestId,
+            QueryStatus executionStatus,
+            Long executionRowsAffected,
+            Long executionDurationMs,
+            GrantResourceKind grantResourceKind,
+            Long grantDaysSinceLastUse,
+            GrantUsageRecommendation grantRecommendation,
+            String exportFormat,
+            String exportClassifications,
+            String exportTrigger,
+            UUID deploymentRequestId,
+            String environmentName,
+            String deploymentVersion,
+            DeploymentOutcome deploymentOutcome,
+            String deploymentDecisionReason) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                attestationCampaignId, attestationCampaignName, attestationDueAt, apiRequestId,
+                executionStatus, executionRowsAffected, executionDurationMs, grantResourceKind,
+                grantDaysSinceLastUse, grantRecommendation, exportFormat, exportClassifications,
+                exportTrigger, deploymentRequestId, environmentName, deploymentVersion,
+                deploymentOutcome, deploymentDecisionReason,
+                null, null, null, null, null);
+    }
 
     /** Compatibility constructor without the #695 deployment fields — every non-deployment path. */
     public NotificationContext(

@@ -12,8 +12,9 @@ environment's live schema has wandered away from where it is supposed to be.
 
 It lives in the `schemachange` Spring Modulith module (`com.bablsoft.accessflow.schemachange`),
 laid out like `deploygov`. It depends on `core`, `deploygov`, `proxy`, `sqlreview`, `requestgroups`,
-`audit` and `security` (for `JwtClaims`) through their `api/` and `events/` packages; nothing
-depends on it yet, so the graph stays acyclic. It composes two
+`audit` and `security` (for `JwtClaims`) through their `api/` and `events/` packages. Two modules
+depend on it — `notifications` (the `SchemaChangeNotificationLookupService` api and both events)
+and `realtime` (the promotion event) — and it depends on neither, so the graph stays acyclic. It composes two
 primitives the codebase already has: **deployment environments** (the ordered promotion targets
 under a pipeline, each optionally bound to the datasource its schema changes land on, #877)
 and **request groups** (a bundle of ordered members with aggregated AI analysis, union-of-approvers
@@ -23,10 +24,9 @@ review and an ordered executor — the shape a promotion takes, #880).
 > **authoring half** — change-set CRUD, the DDL validation gate, freeze-on-promotion and the
 > `/schema-change-sets` REST surface (#879) — **promotion** with the ladder gate, freeze-window
 > check, request-group wiring and the post-apply snapshot (#880), and the **drift half** — the
-> opt-in scan configuration, the scheduled job, the diff and the read API (#881) — are on `main`.
-> The notification fan-out (#882), the web UI (#883) and the website sweep (#884) follow. Promotion
-> and drift audit are in place; notifications are not, so a promotion waiting for approval and a
-> drift finding nobody has opened are both currently silent.
+> opt-in scan configuration, the scheduled job, the diff and the read API (#881) — and the
+> **notification and audit fan-out** (#882, §Notifications) are on `main`. The web UI (#883) and the
+> website sweep (#884) follow.
 
 > **The one sentence to remember.** A change set is a *set of schema statements*, not a
 > transaction: each statement runs on its own, autocommit, so there is **no rollback at all** —
@@ -44,11 +44,13 @@ com.bablsoft.accessflow.schemachange/
 │   ├── SchemaChangePromotionService      # promote / get / listForChangeSet / cancel (#880)
 │   ├── SchemaDriftService                # drift read API + acknowledge + scan-now (#881)
 │   ├── SchemaDriftConfigService          # per-pipeline opt-in configuration (#881)
+│   ├── SchemaChangeNotificationLookupService       # names + reviewer set for notifications (#882)
 │   ├── SchemaChangeSetView, SchemaChangeSetStatementView, SchemaChangeStatementFinding
 │   ├── Create/UpdateSchemaChangeSetCommand, SchemaChangeSetStatementInput, SchemaChangeSetListFilter
 │   ├── SchemaChangeSetStatus, SchemaChangePromotionStatus, SchemaDrift* enums
 │   └── SchemaChangeException + one subclass per documented error code
 ├── events/SchemaChangePromotionStatusChangedEvent   # every promotion transition (#880)
+├── events/SchemaDriftDetectedEvent                  # a scan opened new findings (#882)
 └── internal/
     ├── config/SchemaChangeProperties     # accessflow.schemachange.max-statements
     ├── DefaultSchemaChangeSetService     # org-scoped CRUD, freeze + archive guards, checksum
@@ -56,6 +58,7 @@ com.bablsoft.accessflow.schemachange/
     ├── SchemaChangePromotionStatusListener         # projects the group's status back (§6)
     ├── SchemaChangePromotionStatusMapper           # the status table + the monotonic guard
     ├── SchemaChangeAuditWriter           # swallowing audit wrapper, the DeploygovAuditWriter shape
+    ├── DefaultSchemaChangeNotificationLookupService # the recipient facts notifications reads (#882)
     ├── SchemaChangeStatementGate         # the validation gate (§2)
     ├── SchemaChangeStatementScanner      # JDK-only envelope / multi-statement pre-checks
     ├── SchemaChangeChecksum              # SHA-256 over the ordered, normalised statements
@@ -631,8 +634,6 @@ the only path with a per-datasource check (`can_ddl`, §6).
 
 ### Known gaps
 
-- **No notifications.** #882 adds the fan-out; until then a drift finding is silent until somebody
-  opens the worklist.
 - **No retention on scans or findings.** Scan rows accumulate; a resolved finding is kept
   indefinitely so its history stays readable. Neither is pruned by the lifecycle module yet.
 - **A very large estate can outlive the tick lock.** The job visits pipelines and their environments
@@ -653,13 +654,52 @@ Drift (#881) writes three more, against its own resource types (`schema_drift_sc
 `schema_drift_finding`, `schema_drift_config`): `SCHEMA_DRIFT_SCAN_COMPLETED` once per scan of one
 environment — a null actor with `trigger=schedule` for the job, the requesting user with
 `trigger=manual` for *Scan now* — carrying `applicable`, `partial`, `findings_count`, `duration_ms`
-and the `reason` code when one was recorded; and
+`new_findings_count` (#882) and the `reason` code when one was recorded; and
 `SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` / `SCHEMA_DRIFT_CONFIG_UPDATED`, which always carry the acting
 user. There is no remediation action, and there never will be: drift never writes.
 
-Nothing is **notified** yet — #882 adds the notification fan-out, so a promotion waiting for
-approval and a drift finding nobody has opened are both currently silent. Authoring CRUD audit follows the same "admin CRUD audit is a
-follow-up" stance `deploygov` took.
+#882 completes the coverage. `SCHEMA_CHANGE_PROMOTION_APPROVED` is a system row like `_APPLIED`
+(the reviewers' own decisions are on the request group's trail; `IN_REVIEW` still writes nothing).
+Change-set authoring writes `SCHEMA_CHANGE_SET_CREATED`, `_UPDATED`, `_STATEMENTS_REPLACED` and
+`_DELETED` against a new `schema_change_set` resource type, always with the acting user — which is
+why `update`, `replaceStatements` and `delete` on `SchemaChangeSetService` now take an `actorId`.
+`_UPDATED` is written only when a field actually changed, and `_DELETED` only after the delete is
+flushed.
+
+## Notifications
+
+`requestgroups` has no notification path of its own, so a promotion routed through one would wait
+for approval in silence. `schemachange` therefore notifies on its **own** events —
+`SchemaChangePromotionStatusChangedEvent`, keyed on the promotion, and `SchemaDriftDetectedEvent` —
+and `notifications` consumes them (`SchemaChangeNotificationListener`). Recipients are resolved
+through `schemachange.api.SchemaChangeNotificationLookupService`; the dependency points
+`notifications → schemachange`, never the reverse.
+
+| Event | Fires on | Recipients |
+|---|---|---|
+| `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | `PENDING → IN_REVIEW` — the group reached `PENDING_REVIEW`. **Not** on submission: a promotion whose environment needs no review pings nobody. | The target datasource's stage-1 plan approvers ∪ its reviewer assignments (the set the group is actually reviewed under), else REVIEWER ∪ ADMIN; never the promoter |
+| `SCHEMA_CHANGE_PROMOTION_APPLIED` | `APPLIED` | The promoter |
+| `SCHEMA_CHANGE_PROMOTION_FAILED` | `FAILED` **or** `PARTIALLY_APPLIED` — the run stops on the first failure, so a partial run means a statement failed. The payload's `promotion_status` says which, and the copy differs: a partial run changed the environment and nothing rolls it back. | The promoter |
+| `SCHEMA_DRIFT_DETECTED` | A scan **opened** at least one finding — a created row, or a `RESOLVED` finding that came back. One notification per environment scan, with the count. | Every active `SCHEMA_CHANGE_MANAGE` holder (system and custom roles) |
+
+**Newly opened only.** A finding merely re-seen on a later scan never notifies, and neither does an
+acknowledged finding reopened because its values changed — a re-detection of something already
+known. Otherwise a persistent drift would alert on every scan. The reconciler returns the count it
+opened (a reopen that loses the `@Version` race to an acknowledgement is not counted), and the scan
+publishes nothing when it is zero. The count is also on the scan's audit row as
+`new_findings_count`.
+
+All four fan out to **every** active org channel, like the deployment events: the context carries
+the pipeline, not a datasource, in `datasourceId`, so a review-plan channel lookup would find
+nothing. **None pages and none opens a ticket** — a promotion's lifecycle is not an incident, and a
+drift finding carries no severity that could separate a critical divergence from a cosmetic one.
+The in-app row records the promotion in `user_notifications.schema_change_promotion_id` (V182); a
+drift row names no target. The bell sends a reviewer to `/request-groups/reviews` (where the
+promotion's group is decided) and the promoter to `/request-groups`; drift has no page until the web
+UI (#883) lands.
+
+The promoter also receives `schema_change_promotion.status_changed` over the WebSocket on every
+transition, including submission (`old_status: null`).
 
 ## Out of scope (by design)
 

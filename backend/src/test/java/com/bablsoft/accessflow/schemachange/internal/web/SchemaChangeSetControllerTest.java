@@ -158,21 +158,21 @@ class SchemaChangeSetControllerTest {
 
     @Test
     void updateForwardsTheNullMeansUnchangedCommand() {
-        when(service.update(eq(orgId), eq(changeSetId), any())).thenReturn(view(List.of()));
+        when(service.update(eq(orgId), eq(adminId), eq(changeSetId), any())).thenReturn(view(List.of()));
 
         controller.update(changeSetId, new UpdateSchemaChangeSetRequest(null, "d2", SchemaChangeSetStatus.ARCHIVED), auth());
 
-        verify(service).update(orgId, changeSetId, new UpdateSchemaChangeSetCommand(null, "d2", SchemaChangeSetStatus.ARCHIVED));
+        verify(service).update(orgId, adminId, changeSetId, new UpdateSchemaChangeSetCommand(null, "d2", SchemaChangeSetStatus.ARCHIVED));
     }
 
     @Test
     void replaceStatementsForwardsTheOrderedInputs() {
-        when(service.replaceStatements(eq(orgId), eq(changeSetId), any())).thenReturn(view(List.of()));
+        when(service.replaceStatements(eq(orgId), eq(adminId), eq(changeSetId), any())).thenReturn(view(List.of()));
 
         controller.replaceStatements(changeSetId, new ReplaceSchemaChangeSetStatementsRequest(List.of(
                 new SchemaChangeSetStatementRequest("B"), new SchemaChangeSetStatementRequest("A"))), auth());
 
-        verify(service).replaceStatements(orgId, changeSetId,
+        verify(service).replaceStatements(orgId, adminId, changeSetId,
                 List.of(new SchemaChangeSetStatementInput("B"), new SchemaChangeSetStatementInput("A")));
     }
 
@@ -180,7 +180,7 @@ class SchemaChangeSetControllerTest {
     void deleteScopesToTheCallerOrganization() {
         controller.delete(changeSetId, auth());
 
-        verify(service).delete(orgId, changeSetId);
+        verify(service).delete(orgId, adminId, changeSetId);
     }
 
     private Authentication auth() {

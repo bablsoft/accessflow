@@ -1721,10 +1721,12 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DEPLOYMENT_CANCELLED` | The submitter cancelled a pending or scheduled-approved deployment (#695). Resource: `deployment_request`. Written at the controller with IP + user-agent, only after the service accepted the cancel. |
 | `HELP_AGENT_CONFIG_UPDATED` | An admin saved the in-app help agent's settings (#901). Resource: `help_agent_config`. Metadata carries only what changed: `enabled`, `ai_config_bound` (plus `ai_config_id` when it is bound — audit metadata rejects null values, so an unbind reads as the flag going false), `retrieval_enabled`, `retention_days`, `send_user_context`. |
 | `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | A schema change set was promoted to an environment (#880). Resource: `schema_change_promotion`. Actor = the promoter, with the request's IP + user-agent. Metadata: `change_set_id`, `environment_id`, `environment_name`, `datasource_id`, `request_group_id`, `statement_count`, `statements_checksum`. Written only after every gate check passed and the row was persisted. |
-| `SCHEMA_CHANGE_PROMOTION_APPLIED` / `_PARTIALLY_APPLIED` / `_FAILED` | The promotion's request group finished (#880). The intermediate `IN_REVIEW` and `APPROVED` projections write no row — the group carries its own review trail. Resource: `schema_change_promotion`. **Null actor** — projected from the group by an event listener. Metadata: `trigger: "request_group"`, `request_group_id`, `group_status`, `change_set_id`, `environment_id`, plus `error_message` on the two failure outcomes. `_PARTIALLY_APPLIED` means earlier statements landed and a later one failed: there is no rollback. |
+| `SCHEMA_CHANGE_PROMOTION_APPROVED` | The promotion's request group was approved (#882). Resource: `schema_change_promotion`. **Null actor** — the reviewers' own decisions are on the group's review trail; this row records that the environment's review was satisfied. Metadata as for `_APPLIED` below (`trigger: "request_group"`, `group_status: "APPROVED"`). |
+| `SCHEMA_CHANGE_PROMOTION_APPLIED` / `_PARTIALLY_APPLIED` / `_FAILED` | The promotion's request group finished (#880). The intermediate `IN_REVIEW` projection writes no row — the group carries its own review trail. Resource: `schema_change_promotion`. **Null actor** — projected from the group by an event listener. Metadata: `trigger: "request_group"`, `request_group_id`, `group_status`, `change_set_id`, `environment_id`, plus `error_message` on the two failure outcomes. `_PARTIALLY_APPLIED` means earlier statements landed and a later one failed: there is no rollback. |
 | `SCHEMA_CHANGE_PROMOTION_CANCELLED` | A promotion ended without applying (#880). Resource: `schema_change_promotion`. Written on **two** paths. (a) The cancel endpoint: actor = the caller, metadata `request_group_id` and `cancelled_on_behalf_of_submitter: true`, because the group's own cancel is submitter-only and is therefore invoked as the promoter. (b) The status projection, when the request group was **rejected or timed out** — those map onto the same `CANCELLED` promotion status: null actor, `trigger: "request_group"`, and `group_status` (`REJECTED` / `TIMED_OUT` / `CANCELLED`) naming which. A consumer that filters this action on a non-null actor silently drops every rejection and timeout. |
-| `SCHEMA_DRIFT_SCAN_COMPLETED` | One drift scan of one environment finished, whatever its outcome (#881). Resource: `schema_drift_scan`. **Null actor** + `trigger: "schedule"` for `SchemaDriftJob`; the requesting user + `trigger: "manual"` for *Scan now*. Metadata: `environment_id`, `pipeline_id`, `datasource_id`, `baseline`, `applicable`, `partial`, `findings_count`, `duration_ms`, and `reason` when the scan recorded one (the same code as its `error_message`). |
+| `SCHEMA_DRIFT_SCAN_COMPLETED` | One drift scan of one environment finished, whatever its outcome (#881). Resource: `schema_drift_scan`. **Null actor** + `trigger: "schedule"` for `SchemaDriftJob`; the requesting user + `trigger: "manual"` for *Scan now*. Metadata: `environment_id`, `pipeline_id`, `datasource_id`, `baseline`, `applicable`, `partial`, `findings_count`, `new_findings_count` (#882 — the findings this scan opened, which is what `SCHEMA_DRIFT_DETECTED` notifies on), `duration_ms`, and `reason` when the scan recorded one (the same code as its `error_message`). |
 | `SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` | An admin accepted a drift finding (#881). Resource: `schema_drift_finding`. Actor = the caller. Metadata: `environment_id`, `object_path`, `finding_kind`, `previous_status` (`ACKNOWLEDGED` when the call was an idempotent repeat). A later scan that sees different values reopens the finding without writing a row of its own. |
+| `SCHEMA_CHANGE_SET_CREATED` / `_UPDATED` / `_STATEMENTS_REPLACED` / `_DELETED` | Change-set authoring (#882). Resource: `schema_change_set`. Actor = the caller. Metadata: `pipeline_id`, `name`; `_CREATED` and `_STATEMENTS_REPLACED` add `statement_count` (and `statements_checksum` when the set has statements); `_UPDATED` adds `changed_fields` and the resulting `status`, and is written only when a field actually changed. `_DELETED` is written after the delete is flushed, so a refused delete leaves no row. |
 | `SCHEMA_DRIFT_CONFIG_UPDATED` | A pipeline's drift configuration was created or replaced (#881). Resource: `schema_drift_config`. Actor = the caller. Metadata: `pipeline_id`, `enabled`, `baseline`, `scan_interval_hours`, plus `baseline_environment_id` when one is designated. |
 | `DEPLOYMENT_BREAK_GLASS_REVIEWED` | An admin acknowledged a **deployment** break-glass retro-review on the shared AF-385 worklist (#695 — previously these landed as the generic `BREAK_GLASS_REVIEWED`). Resource: `break_glass_event`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. The same change routes API-target acknowledgments to `API_BREAK_GLASS_REVIEWED` (their audit row was previously lost to a swallowed NPE). |
 
@@ -1961,8 +1963,9 @@ In-app notification inbox rows, persisted per recipient. Each domain event that 
 notifications module dispatches also writes one row per recipient here so the bell-icon
 inbox can show history, unread counts, and act on individual entries. The
 `event_type` mirrors the backend `NotificationEventType` enum — query, review, access,
-anomaly, API-request (`API_REQUEST_*`, AF-500), and deployment (`DEPLOYMENT_*`, #695)
-events; `TEST` events are skipped.
+anomaly, API-request (`API_REQUEST_*`, AF-500), deployment (`DEPLOYMENT_*`, #695) and
+schema-change (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882) events; `TEST`
+events are skipped.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -1973,14 +1976,16 @@ events; `TEST` events are skipped.
 | `query_request_id` | FK → `query_requests` ON DELETE CASCADE, nullable |
 | `api_request_id` | FK → `api_requests` ON DELETE CASCADE, nullable (V109, AF-529) |
 | `deployment_request_id` | FK → `deployment_requests` ON DELETE CASCADE, nullable (V155, #695) |
-| `payload` | JSONB — denormalised render context (datasource/pipeline name, submitter, risk_level, reviewer comment; deployment rows add `deployment_id`, `environment`, `version`, `outcome`) |
+| `schema_change_promotion_id` | FK → `schema_change_set_promotions` ON DELETE CASCADE, nullable (V182, #882). Set on the `SCHEMA_CHANGE_PROMOTION_*` rows; a `SCHEMA_DRIFT_DETECTED` row names no target |
+| `payload` | JSONB — denormalised render context (datasource/pipeline name, submitter, risk_level, reviewer comment; deployment rows add `deployment_id`, `environment`, `version`, `outcome`; schema-change rows add `schema_change_promotion_id`, `change_set`, `environment`, `promotion_status`, and `new_finding_count` for drift) |
 | `is_read` | BOOLEAN DEFAULT false |
 | `created_at` | TIMESTAMPTZ DEFAULT now() |
 | `read_at` | TIMESTAMPTZ, nullable |
 
-A `CHECK (num_nonnulls(query_request_id, api_request_id, deployment_request_id) <= 1)`
-constraint keeps each row referencing at most one target (most notifications — anomaly,
-digest, attestation, connector, erasure — reference none).
+A `CHECK (num_nonnulls(query_request_id, api_request_id, deployment_request_id,
+schema_change_promotion_id) <= 1)` constraint (`chk_user_notifications_target`, widened by V182)
+keeps each row referencing at most one target (most notifications — anomaly, digest,
+attestation, connector, erasure, schema drift — reference none).
 
 Indexes:
 

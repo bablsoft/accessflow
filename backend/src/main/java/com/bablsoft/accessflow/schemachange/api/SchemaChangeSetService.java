@@ -26,6 +26,10 @@ import java.util.UUID;
  * the set is not {@code ARCHIVED} ({@link SchemaChangeSetArchivedException}). {@code update} may
  * move {@code status} to {@code ARCHIVED} only ({@link SchemaChangeSetStatusTransitionException});
  * {@code ACTIVE} is set by the promotion service.
+ *
+ * <p>Every successful write records an audit row carrying {@code actorId} (#882) —
+ * {@code SCHEMA_CHANGE_SET_CREATED}, {@code _UPDATED}, {@code _STATEMENTS_REPLACED},
+ * {@code _DELETED} — in the same transaction as the change.
  */
 public interface SchemaChangeSetService {
 
@@ -37,12 +41,13 @@ public interface SchemaChangeSetService {
     /** Rejects a second change set with the same name under the same pipeline. */
     SchemaChangeSetView create(UUID organizationId, UUID actorId, CreateSchemaChangeSetCommand command);
 
-    SchemaChangeSetView update(UUID organizationId, UUID changeSetId, UpdateSchemaChangeSetCommand command);
+    SchemaChangeSetView update(UUID organizationId, UUID actorId, UUID changeSetId,
+                               UpdateSchemaChangeSetCommand command);
 
     /** Replaces the ordered statement list wholesale (an empty list clears it); refused once frozen or archived. */
-    SchemaChangeSetView replaceStatements(UUID organizationId, UUID changeSetId,
+    SchemaChangeSetView replaceStatements(UUID organizationId, UUID actorId, UUID changeSetId,
                                           List<SchemaChangeSetStatementInput> statements);
 
     /** Deletes the set and its statements; refused once frozen. */
-    void delete(UUID organizationId, UUID changeSetId);
+    void delete(UUID organizationId, UUID actorId, UUID changeSetId);
 }

@@ -15,8 +15,18 @@ public record UserNotificationView(
         UUID queryRequestId,
         UUID apiRequestId,
         UUID deploymentRequestId,
+        UUID schemaChangePromotionId,
         String payloadJson,
         boolean read,
         Instant createdAt,
         Instant readAt) {
+
+    /** Compatibility constructor without the #882 schema-change promotion target. */
+    public UserNotificationView(UUID id, UUID userId, UUID organizationId,
+                                NotificationEventType eventType, UUID queryRequestId,
+                                UUID apiRequestId, UUID deploymentRequestId, String payloadJson,
+                                boolean read, Instant createdAt, Instant readAt) {
+        this(id, userId, organizationId, eventType, queryRequestId, apiRequestId,
+                deploymentRequestId, null, payloadJson, read, createdAt, readAt);
+    }
 }

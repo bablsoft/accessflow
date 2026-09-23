@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.schemachange.api.SchemaDriftBaseline;
+import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.schemachange.internal.config.SchemaChangeProperties;
 import com.bablsoft.accessflow.schemachange.internal.persistence.entity.SchemaDriftScanEntity;
 import com.bablsoft.accessflow.schemachange.internal.persistence.repo.SchemaDriftScanRepository;
@@ -20,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -60,6 +62,7 @@ class SchemaDriftScanServiceTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DistributedLockService distributedLockService;
     @Mock SchemaChangeAuditWriter auditWriter;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private ExecutorService executor;
     private SchemaDriftScanEntity scan;
@@ -102,7 +105,8 @@ class SchemaDriftScanServiceTest {
     /** Properties are a real record, never a mock — the coercion rules are part of the behaviour. */
     private SchemaDriftScanService service(SchemaChangeProperties properties, Clock clock) {
         return new SchemaDriftScanService(scanStore, scanRepository, baselineResolver, reconciler,
-                datasourceAdminService, distributedLockService, auditWriter, properties, executor, clock);
+                datasourceAdminService, distributedLockService, auditWriter, properties, executor, eventPublisher,
+                clock);
     }
 
     private SchemaDriftScanService service() {
@@ -241,6 +245,42 @@ class SchemaDriftScanServiceTest {
         assertThat(captor.getValue().findings()).singleElement()
                 .satisfies(f -> assertThat(f.objectPath()).isEqualTo("public.orders.id"));
         assertThat(captor.getValue().reachedTableKeys()).isEqualTo(Set.of("public.orders"));
+    }
+
+    @Test
+    void aScanThatOpensFindingsPublishesOneDetectedEventWithTheCount() {
+        stubBaseline(BASELINE, TARGET);
+        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(2);
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verify(eventPublisher).publishEvent(new SchemaDriftDetectedEvent(scan.getId(), orgId, pipelineId,
+                environmentId, 2));
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.SCHEMA_DRIFT_SCAN_COMPLETED), any(), eq(scan.getId()), eq(orgId),
+                any(), metadata.capture(), any(), any());
+        assertThat(metadata.getValue()).containsEntry("new_findings_count", 2);
+    }
+
+    /** #882: a scan that only re-saw known findings must not notify — or a persistent drift pages every scan. */
+    @Test
+    void aScanThatOpensNothingPublishesNothing() {
+        stubBaseline(BASELINE, TARGET);
+        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(0);
+
+        service().scan(ctx(DbType.POSTGRESQL));
+
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void aFailedPublicationNeverFailsTheScan() {
+        stubBaseline(BASELINE, TARGET);
+        when(reconciler.reconcile(eq(scan), any(), any(), eq(NOW))).thenReturn(1);
+        doThrow(new IllegalStateException("bus down")).when(eventPublisher).publishEvent(any(Object.class));
+
+        assertThatCode(() -> service().scan(ctx(DbType.POSTGRESQL))).doesNotThrowAnyException();
+        verify(scanStore).finish(scan.getId(), true, false, null);
     }
 
     @Test
