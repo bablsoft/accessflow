@@ -779,6 +779,51 @@ export async function createRowSecurityPolicyViaApi(
   return (await res.json()) as CreatedRowSecurityPolicy;
 }
 
+export interface CreatedRowLimitPolicy {
+  id: string;
+  schema_name?: string | null;
+  table_name: string;
+  max_rows: number;
+}
+
+// POST /api/v1/datasources/{id}/row-limit-policies (#934) — caps the rows a SELECT may
+// return when it references the table. Requires an ADMIN token. Empty applies-to lists
+// apply the policy to everyone; the lowest matching cap wins.
+export async function createRowLimitPolicyViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    schemaName?: string;
+    tableName: string;
+    maxRows: number;
+    appliesToRoles?: string[];
+    appliesToGroupIds?: string[];
+    appliesToUserIds?: string[];
+    enabled?: boolean;
+  },
+): Promise<CreatedRowLimitPolicy> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/row-limit-policies`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        schema_name: opts.schemaName ?? null,
+        table_name: opts.tableName,
+        max_rows: opts.maxRows,
+        applies_to_roles: opts.appliesToRoles ?? [],
+        applies_to_group_ids: opts.appliesToGroupIds ?? [],
+        applies_to_user_ids: opts.appliesToUserIds ?? [],
+        enabled: opts.enabled ?? true,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Create row limit policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedRowLimitPolicy;
+}
+
 // PUT /api/v1/admin/users/{id} (AF-380) — sets the admin-editable attribute map
 // resolvable in row-security predicates as `:user.<key>`. Requires an ADMIN token.
 export async function setUserAttributesViaApi(

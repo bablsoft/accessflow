@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
@@ -61,6 +62,7 @@ public class GroupExecutionService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final RowSecurityResolutionService rowSecurityResolutionService;
+    private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final ApiInlineExecutionService apiInlineExecutionService;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
@@ -150,7 +152,7 @@ public class GroupExecutionService {
         var restrictedColumns = permission
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
-        var rowLimitOverride = permission.map(p -> p.rowLimitOverride()).orElse(null);
+        Integer rowLimitOverride = permission.map(p -> p.rowLimitOverride()).orElse(null);
         var columnMasks = maskingPolicyResolutionService
                 .resolveApplicable(group.getOrganizationId(), item.getDatasourceId(), group.getSubmittedBy())
                 .stream()
@@ -165,6 +167,11 @@ public class GroupExecutionService {
         var dbType = datasourceLookupService.findById(item.getDatasourceId())
                 .map(d -> d.dbType()).orElse(DbType.POSTGRESQL);
         var parsed = queryParser.parse(item.getSqlText(), dbType);
+        var appliedRowLimit = rowLimitPolicyResolutionService.resolve(group.getOrganizationId(),
+                item.getDatasourceId(), group.getSubmittedBy(), parsed.referencedTables());
+        if (appliedRowLimit.isPresent()) {
+            rowLimitOverride = appliedRowLimit.get().tighten(rowLimitOverride);
+        }
         var result = queryExecutor.execute(new QueryExecutionRequest(
                 item.getDatasourceId(), item.getSqlText(), item.getQueryType(), rowLimitOverride,
                 null, restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),

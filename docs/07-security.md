@@ -532,6 +532,11 @@ role carrying `QUERY_ADMIN` resolves identically to the system `ADMIN` role, bec
 nothing revokes on its strength; a bypass ends through a role change, an attestation campaign, or an
 explicit permission edit.
 
+**Per-table row limits (#934):** `ROW_LIMIT_POLICY_MANAGE` gates the per-datasource row-limit-policy
+CRUD (`/api/v1/datasources/{id}/row-limit-policies`,
+`@PreAuthorize("hasAuthority('PERM_ROW_LIMIT_POLICY_MANAGE')")`). It sits in the `DATA_POLICIES`
+group and is held by `ADMIN` (seeded by `V185`).
+
 **Result-export governance (#626):** `EXPORT_POLICY_MANAGE` gates the per-datasource export-policy
 CRUD (`/api/v1/datasources/{id}/export-policies`,
 `@PreAuthorize("hasAuthority('PERM_EXPORT_POLICY_MANAGE')")`); it sits in the `DATA_POLICIES` group
@@ -905,6 +910,34 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
 - **Audit.** The ids of the policies actually applied to an execution ride on the `QUERY_EXECUTED`
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
+
+### Per-table row-limit policies (#934)
+
+`row_limit_policy` rows cap how many rows a SELECT may return when it reads a given table, optionally
+only for the listed roles, groups or users. They are a data-exfiltration guardrail at the table grain,
+layered on the existing caps.
+
+- **Only ever lowers the cap.** The effective limit is the minimum of the global
+  `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`, the datasource's `max_rows_per_query`, the grantee's merged
+  `row_limit_override` (#933) and every matching policy. No policy can raise a limit, so a
+  misconfigured policy can only make results smaller.
+- **Most restrictive wins.** A query that joins several limited tables takes the lowest cap among the
+  policies that both name one of its tables and apply to the submitter.
+- **Lenient matching fails safe.** A policy on `crm.customer` also matches an unqualified `customer` in
+  the SQL, a database-qualified `mydb.crm.customer` still matches it, names compare case-insensitively,
+  and a schema-less policy matches the table in any schema. Over-matching can only tighten the cap, so
+  neither leaving the schema off nor adding a database name gets a user more rows. This is the opposite choice
+  from the table allow-list, where an exact match is the safe reading.
+- **Unattributed queries fall back, not open.** When the parser cannot determine a query's tables, no
+  policy matches and the datasource cap and grant override still apply — never "unlimited".
+- **Same scope rules as row security.** `applies_to_*` empty ⇒ the policy applies to every submitter,
+  admins included, keyed on the query submitter. Enforcement covers direct, scheduled, recurring,
+  break-glass and grouped executions and the table preview (`/sample-rows`).
+- **Audit.** The ids of the lowest-cap matching policies ride on the `QUERY_EXECUTED` metadata
+  (`applied_row_limit_policy_ids`) when that cap is the binding one — at or below both the grant
+  override and the datasource cap; grouped executions write only their group-level audit row.
+  Create/update/delete emit
+  `ROW_LIMIT_POLICY_CREATED/UPDATED/DELETED`.
 
 ### Policy simulator (AF-630)
 

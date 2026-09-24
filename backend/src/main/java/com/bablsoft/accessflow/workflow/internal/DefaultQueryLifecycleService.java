@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
+import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -78,6 +79,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final RowSecurityResolutionService rowSecurityResolutionService;
+    private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final LifecycleDirectiveResolutionService lifecycleDirectiveResolutionService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
@@ -280,11 +282,34 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var restrictedColumns = permission
                     .map(p -> p.restrictedColumns())
                     .orElse(List.of());
-            // #933: the merged per-user/per-group row cap; the executor clamps it to the
+            var descriptor = datasourceLookupService.findById(query.datasourceId());
+            var dbType = descriptor
+                    .map(DatasourceConnectionDescriptor::dbType)
+                    .orElse(DbType.POSTGRESQL);
+            var parsed = queryParser.parse(query.sqlText(), dbType);
+            // #933: the merged per-user/per-group row cap; #934 lowers it further by every
+            // row-limit policy on a referenced table. The executor clamps the result to the
             // datasource cap and the global ceiling, so it can only ever lower the limit.
-            var rowLimitOverride = permission
+            Integer grantRowLimit = permission
                     .map(p -> p.rowLimitOverride())
                     .orElse(null);
+            Integer rowLimitOverride = grantRowLimit;
+            Set<UUID> bindingRowLimitPolicyIds = Set.of();
+            var appliedRowLimit = rowLimitPolicyResolutionService.resolve(query.organizationId(),
+                    query.datasourceId(), query.submittedByUserId(), parsed.referencedTables());
+            if (appliedRowLimit.isPresent()) {
+                var policyCap = appliedRowLimit.get().maxRows();
+                rowLimitOverride = appliedRowLimit.get().tighten(grantRowLimit);
+                // Audit a policy only when it is what limits the result: at or below both the
+                // grant override and the datasource cap.
+                var datasourceCap = descriptor
+                        .map(DatasourceConnectionDescriptor::maxRowsPerQuery)
+                        .orElse(null);
+                if ((grantRowLimit == null || policyCap <= grantRowLimit)
+                        && (datasourceCap == null || policyCap <= datasourceCap)) {
+                    bindingRowLimitPolicyIds = appliedRowLimit.get().policyIds();
+                }
+            }
             var maskingDirectives = maskingPolicyResolutionService
                     .resolveApplicable(query.organizationId(), query.datasourceId(),
                             query.submittedByUserId())
@@ -313,10 +338,6 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     softDeleteFilters.stream()).toList();
             var softDeletes = lifecycleDirectiveResolutionService
                     .resolveSoftDeletes(query.organizationId(), query.datasourceId());
-            var dbType = datasourceLookupService.findById(query.datasourceId())
-                    .map(DatasourceConnectionDescriptor::dbType)
-                    .orElse(DbType.POSTGRESQL);
-            var parsed = queryParser.parse(query.sqlText(), dbType);
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), rowLimitOverride,
                     null, restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
@@ -326,9 +347,11 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             Long rowsAffected;
             Set<UUID> appliedMaskingPolicyIds = Set.of();
             Set<UUID> appliedRowSecurityPolicyIds;
+            Set<UUID> appliedRowLimitPolicyIds = Set.of();
             switch (result) {
                 case SelectExecutionResult select -> {
                     rowsAffected = select.rowCount();
+                    appliedRowLimitPolicyIds = bindingRowLimitPolicyIds;
                     appliedMaskingPolicyIds = select.appliedMaskingPolicyIds();
                     appliedRowSecurityPolicyIds = select.appliedRowSecurityPolicyIds();
                     persistSelectResult(query.id(), select, durationMs);
@@ -370,6 +393,11 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             if (!appliedRowSecurityPolicyIds.isEmpty()) {
                 successMetadata.put("applied_row_security_policy_ids",
                         appliedRowSecurityPolicyIds.stream()
+                                .map(UUID::toString).sorted().toList());
+            }
+            if (!appliedRowLimitPolicyIds.isEmpty()) {
+                successMetadata.put("applied_row_limit_policy_ids",
+                        appliedRowLimitPolicyIds.stream()
                                 .map(UUID::toString).sorted().toList());
             }
             recordAudit(successAction, query.id(), actorUserId,

@@ -2041,6 +2041,35 @@ export interface CreateRowSecurityPolicyInput {
 
 export type UpdateRowSecurityPolicyInput = CreateRowSecurityPolicyInput;
 
+// --- #934: per-table row-limit policies ---
+
+export interface RowLimitPolicy {
+  id: string;
+  datasource_id: string;
+  /** Omitted when the policy matches the table in any schema. */
+  schema_name?: string | null;
+  table_name: string;
+  max_rows: number;
+  applies_to_roles: string[];
+  applies_to_group_ids: string[];
+  applies_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRowLimitPolicyInput {
+  schema_name?: string | null;
+  table_name: string;
+  max_rows: number;
+  applies_to_roles?: string[];
+  applies_to_group_ids?: string[];
+  applies_to_user_ids?: string[];
+  enabled?: boolean;
+}
+
+export type UpdateRowLimitPolicyInput = CreateRowLimitPolicyInput;
+
 // --- AF-626: result-export governance & DLP ---
 
 export type ExportPolicyMode = 'ALLOW' | 'WATERMARK' | 'ROW_CAP' | 'DENY_CLASSIFIED';

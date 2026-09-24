@@ -24,9 +24,11 @@ import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
 import com.bablsoft.accessflow.core.api.ExportPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalExportPolicyException;
+import com.bablsoft.accessflow.core.api.IllegalRowLimitPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.InvalidSimulationPeriodException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
+import com.bablsoft.accessflow.core.api.RowLimitPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
@@ -596,6 +598,24 @@ class GlobalExceptionHandler {
         // Message is resolved at the throw site via MessageSource — see DefaultExportPolicyAdminService.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_EXPORT_POLICY");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(RowLimitPolicyNotFoundException.class)
+    ProblemDetail handleRowLimitPolicyNotFound(RowLimitPolicyNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.row_limit_policy_not_found"));
+        pd.setProperty("error", "ROW_LIMIT_POLICY_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalRowLimitPolicyException.class)
+    ProblemDetail handleIllegalRowLimitPolicy(IllegalRowLimitPolicyException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultRowLimitPolicyAdminService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_ROW_LIMIT_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

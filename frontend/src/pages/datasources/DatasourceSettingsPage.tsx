@@ -80,6 +80,8 @@ import { listMaskingPolicies, maskingPolicyKeys } from '@/api/maskingPolicies';
 import { ExportPolicyTab } from '@/components/datasources/ExportPolicyTab';
 import { exportPolicyKeys, listExportPolicies } from '@/api/exportPolicies';
 import { RowSecurityTab } from '@/components/datasources/RowSecurityTab';
+import { RowLimitTab } from '@/components/datasources/RowLimitTab';
+import { listRowLimitPolicies, rowLimitPolicyKeys } from '@/api/rowLimitPolicies';
 import {
   listRowSecurityPolicies,
   rowSecurityPolicyKeys,
@@ -140,6 +142,12 @@ export function DatasourceSettingsPage() {
   const rowSecurityPoliciesQuery = useQuery({
     queryKey: id ? rowSecurityPolicyKeys.list(id) : ['row-security-policies', 'list', 'idle'],
     queryFn: () => listRowSecurityPolicies(id!),
+    enabled: !!id,
+  });
+
+  const rowLimitPoliciesQuery = useQuery({
+    queryKey: id ? rowLimitPolicyKeys.list(id) : ['row-limit-policies', 'list', 'idle'],
+    queryFn: () => listRowLimitPolicies(id!),
     enabled: !!id,
   });
 
@@ -227,6 +235,7 @@ export function DatasourceSettingsPage() {
   const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
   const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
   const exportPolicyCount = exportPoliciesQuery.data?.length ?? 0;
+  const rowLimitCount = rowLimitPoliciesQuery.data?.length ?? 0;
   const classificationCount = classificationTagsQuery.data?.length ?? 0;
   const discoveryPendingCount = discoveryPendingQuery.data?.total_elements ?? 0;
   const testIcon =
@@ -283,6 +292,10 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
           },
           {
+            key: 'row-limits',
+            label: t('datasources.settings.tab_row_limits', { count: rowLimitCount }),
+          },
+          {
             key: 'export-policy',
             label: t('datasources.settings.tab_export_policy', { count: exportPolicyCount }),
           },
@@ -304,6 +317,7 @@ export function DatasourceSettingsPage() {
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
+        {tab === 'row-limits' && <RowLimitTab dsId={ds.id} />}
         {tab === 'export-policy' && <ExportPolicyTab dsId={ds.id} />}
         {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
         {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}

@@ -54,6 +54,8 @@ class GroupExecutionServiceTest {
     @Mock
     private RowSecurityResolutionService rowSecurityResolutionService;
     @Mock
+    private com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
+    @Mock
     private ApiInlineExecutionService apiInlineExecutionService;
     @Mock
     private AuditLogService auditLogService;
@@ -210,6 +212,46 @@ class GroupExecutionServiceTest {
                 com.bablsoft.accessflow.core.api.QueryExecutionRequest.class);
         verify(queryExecutor).execute(captor.capture());
         assertThat(captor.getValue().maxRowsOverride()).isEqualTo(100);
+        assertThat(captor.getValue().restrictedColumns()).containsExactly("public.users.ssn");
+    }
+
+    @Test
+    void queryMemberTightensTheOverrideByRowLimitPolicies() {
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setGroupId(group.getId());
+        item.setSequenceOrder(0);
+        item.setTargetKind(RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(UUID.randomUUID());
+        item.setSqlText("SELECT 1");
+        item.setQueryType(com.bablsoft.accessflow.core.api.QueryType.SELECT);
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(new ArrayList<>(List.of(item)));
+        when(permissionLookupService.findFor(group.getSubmittedBy(), item.getDatasourceId()))
+                .thenReturn(java.util.Optional.of(
+                        new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
+                                UUID.randomUUID(), group.getSubmittedBy(), item.getDatasourceId(),
+                                true, false, false, false, List.of(), List.of(),
+                                List.of("public.users.ssn"), 100, null)));
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(rowSecurityResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(datasourceLookupService.findById(any())).thenReturn(java.util.Optional.empty());
+        when(queryParser.parse(any(), any()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.SqlParseResult(
+                        com.bablsoft.accessflow.core.api.QueryType.SELECT, "SELECT 1"));
+        when(rowLimitPolicyResolutionService.resolve(any(), any(), any(), any()))
+                .thenReturn(java.util.Optional.of(new com.bablsoft.accessflow.core.api.AppliedRowLimit(
+                        30, java.util.Set.of(UUID.randomUUID()))));
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 100L, true, java.time.Duration.ofMillis(3)));
+
+        service.execute(group.getId(), null, "manual");
+
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryExecutionRequest.class);
+        verify(queryExecutor).execute(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(30);
         assertThat(captor.getValue().restrictedColumns()).containsExactly("public.users.ssn");
     }
 }

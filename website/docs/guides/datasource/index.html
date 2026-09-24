@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-23",
       "url": "https://accessflow.io/docs/guides/datasource/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/datasource/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Add your first datasource.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -506,6 +506,15 @@
             Unlike masking, row security applies to <em>everyone</em> by default: leaving
             <strong>Applies to</strong> empty means the policy is in force for all users. Narrow it
             to specific roles or groups if that is not what you want.
+          </p>
+          <p>
+            To limit <em>how many</em> rows come back rather than <em>which</em>, use the
+            <strong>Row limits</strong> tab. A row limit caps the rows a query may return from one
+            table, for everyone or for chosen roles, groups or people, so the <code>orders</code>
+            table can stop at 200 rows while <code>customer</code> stops at 1,000. Limits only ever
+            tighten: the datasource's own maximum still applies, a query across several limited
+            tables gets the lowest limit, and a query that leaves the schema off the table name, or
+            adds the database name, is still caught.
           </p>
         </section>
 
