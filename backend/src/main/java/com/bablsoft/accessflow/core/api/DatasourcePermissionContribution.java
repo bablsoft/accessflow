@@ -37,6 +37,8 @@ public record DatasourcePermissionContribution(
         List<String> allowedTables,
         List<String> restrictedColumns,
         List<String> deniedColumns,
+        List<String> deniedSchemas,
+        List<String> deniedTables,
         Integer rowLimitOverride,
         Instant expiresAt,
         UUID accessGrantRequestId) {
@@ -46,5 +48,7 @@ public record DatasourcePermissionContribution(
         allowedTables = allowedTables == null ? List.of() : List.copyOf(allowedTables);
         restrictedColumns = restrictedColumns == null ? List.of() : List.copyOf(restrictedColumns);
         deniedColumns = deniedColumns == null ? List.of() : List.copyOf(deniedColumns);
+        deniedSchemas = deniedSchemas == null ? List.of() : List.copyOf(deniedSchemas);
+        deniedTables = deniedTables == null ? List.of() : List.copyOf(deniedTables);
     }
 }

@@ -226,10 +226,48 @@ class DefaultBreakGlassServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId, true, false, false, true,
-                        List.of(), List.of(), List.of(), List.of("customer.ssn"), null, null)));
+                        List.of(), List.of(), List.of(), List.of("customer.ssn"), List.of(), List.of(), null, null)));
 
         assertThatThrownBy(() -> service.breakGlassExecute(
                 input("SELECT ssn FROM customer", false)))
+                .isInstanceOf(BreakGlassNotPermittedException.class);
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void deniesWhenDeniedTableReferencedEvenInsideAnAllowedSchema() {
+        stubDatasourceForUser(true);
+        when(queryParser.parse(eq("SELECT * FROM crm.salary"), any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                        List.of("SELECT * FROM crm.salary"), Set.of("crm.salary"), false, false,
+                        Set.of(ColumnReference.wildcard(Set.of("crm.salary"))), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, true,
+                        List.of("crm"), List.of(), List.of(), List.of(), List.of(),
+                        List.of("crm.salary"), null, null)));
+
+        assertThatThrownBy(() -> service.breakGlassExecute(
+                input("SELECT * FROM crm.salary", false)))
+                .isInstanceOf(BreakGlassNotPermittedException.class);
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void deniesWhenTableInADeniedSchemaReferenced() {
+        stubDatasourceForUser(true);
+        when(queryParser.parse(eq("SELECT * FROM hr.payroll"), any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                        List.of("SELECT * FROM hr.payroll"), Set.of("hr.payroll"), false, false,
+                        Set.of(ColumnReference.wildcard(Set.of("hr.payroll"))), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, true,
+                        List.of(), List.of(), List.of(), List.of(), List.of("hr"), List.of(),
+                        null, null)));
+
+        assertThatThrownBy(() -> service.breakGlassExecute(
+                input("SELECT * FROM hr.payroll", false)))
                 .isInstanceOf(BreakGlassNotPermittedException.class);
         verify(queryRequestPersistenceService, never()).submit(any());
     }
@@ -325,7 +363,7 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl, canBreakGlass,
-                        allowedSchemas, allowedTables, List.of(), null, null, expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), null, expiresAt)));
     }
 
     private DatasourceView datasourceView(boolean active) {

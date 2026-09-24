@@ -215,6 +215,8 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         putStringArray(node, "allowed_tables", view.allowedTables());
         putStringArray(node, "restricted_columns", view.restrictedColumns());
         putStringArray(node, "denied_columns", view.deniedColumns());
+        putStringArray(node, "denied_schemas", view.deniedSchemas());
+        putStringArray(node, "denied_tables", view.deniedTables());
         node.put("expires_at", view.expiresAt() != null ? view.expiresAt().toString() : null);
         node.put("created_by", view.createdBy() != null ? view.createdBy().toString() : null);
         node.put("created_at", view.createdAt() != null ? view.createdAt().toString() : null);

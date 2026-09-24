@@ -19,6 +19,8 @@ public record DatasourcePermissionView(
         List<String> allowedTables,
         List<String> restrictedColumns,
         List<String> deniedColumns,
+        List<String> deniedSchemas,
+        List<String> deniedTables,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt

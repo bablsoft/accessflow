@@ -87,7 +87,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                         false, false, false, List.of(), List.of(), List.of(),
-                        List.of("users.ssn"), null, null)));
+                        List.of("users.ssn"), List.of(), List.of(), null, null)));
         when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(), any()))
                 .thenReturn("column denied");
 
@@ -103,7 +103,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                         false, false, false, List.of(), List.of(), List.of(),
-                        List.of("public.orders.card"), null, null)));
+                        List.of("public.orders.card"), List.of(), List.of(), null, null)));
 
         assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "users",
                 10)).isSameAs(result);
@@ -239,10 +239,53 @@ class DefaultSampleDataServiceTest {
     }
 
     @Test
+    void nonAdminDeniedTableIsNotFoundWithoutAnyAllowList() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of(), List.of(), List.of("public.users"))));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "users", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        verify(queryExecutor, never()).sampleTable(any());
+    }
+
+    @Test
+    void nonAdminDeniedTableIsNotFoundEvenInsideAnAllowedSchema() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("public"), List.of(), List.of("users"))));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "users", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        verify(queryExecutor, never()).sampleTable(any());
+    }
+
+    @Test
+    void nonAdminTableInADeniedSchemaIsNotFound() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of(), List.of("public"), List.of())));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "users", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        verify(queryExecutor, never()).sampleTable(any());
+    }
+
+    @Test
+    void nonAdminPreviewIsAllowedWhenTheDeniedTableIsAnother() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("public"), List.of("hr"),
+                        List.of("public.salary"))));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "users",
+                50)).isSameAs(result);
+    }
+
+    @Test
     void rowLimitOverrideBelowTheRequestedLimitCapsThePreview() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
                         5, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -256,7 +299,7 @@ class DefaultSampleDataServiceTest {
     void rowLimitOverrideAboveTheRequestedLimitLeavesTheLimit() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
                         500, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -270,7 +313,7 @@ class DefaultSampleDataServiceTest {
     void rowLimitPolicyOnTheSampledTableCapsThePreview() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
                         20, null)));
         when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
                 java.util.Set.of("public.users")))
@@ -419,6 +462,14 @@ class DefaultSampleDataServiceTest {
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, null, null);
+                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, List.of(), List.of(), null, null);
+    }
+
+    private DatasourceUserPermissionView denying(List<String> allowedSchemas,
+                                                 List<String> deniedSchemas,
+                                                 List<String> deniedTables) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
+                false, false, false, allowedSchemas, List.of(), List.of(), null, deniedSchemas,
+                deniedTables, null, null);
     }
 }

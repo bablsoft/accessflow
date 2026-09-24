@@ -178,6 +178,10 @@ class DefaultBreakGlassService implements BreakGlassService {
                 .isEmpty()) {
             throw denied(datasourceId, userId, "tables outside allow-list");
         }
+        if (!DatasourcePermissionChecker.deniedTables(permission, parsed.referencedTables())
+                .isEmpty()) {
+            throw denied(datasourceId, userId, "denied tables referenced");
+        }
         if (!DatasourcePermissionChecker.rejectedColumns(permission, parsed).isEmpty()) {
             throw denied(datasourceId, userId, "denied columns referenced");
         }

@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
@@ -302,14 +303,26 @@ public class DefaultRequestGroupService implements RequestGroupService {
         return queryParser.parse(sql, dbType);
     }
 
-    /** A member may not reach a column its submitter is denied (#935), break-glass included. */
-    private void verifyDeniedColumns(RequestGroupItemEntity item,
-                                     DatasourceUserPermissionView permission) {
-        if (DeniedColumns.normalize(permission.deniedColumns()).isEmpty()) {
+    /**
+     * A member may not reach a table or schema (#939) or a column (#935) its submitter is denied,
+     * break-glass included.
+     */
+    private void verifyDenials(RequestGroupItemEntity item,
+                               DatasourceUserPermissionView permission) {
+        var tablesDenied = !DeniedTables.normalize(permission.deniedSchemas()).isEmpty()
+                || !DeniedTables.normalize(permission.deniedTables()).isEmpty();
+        var columnsDenied = !DeniedColumns.normalize(permission.deniedColumns()).isEmpty();
+        if (!tablesDenied && !columnsDenied) {
             return;
         }
-        var rejected = DeniedColumns.rejected(permission.deniedColumns(),
-                parseQuery(item.getDatasourceId(), item.getSqlText()));
+        var parsed = parseQuery(item.getDatasourceId(), item.getSqlText());
+        var rejectedTables = DeniedTables.rejected(permission.deniedSchemas(),
+                permission.deniedTables(), parsed.referencedTables());
+        if (!rejectedTables.isEmpty()) {
+            throw new RequestGroupPermissionException(
+                    "Denied tables referenced: " + String.join(", ", rejectedTables));
+        }
+        var rejected = DeniedColumns.rejected(permission.deniedColumns(), parsed);
         if (!rejected.isEmpty()) {
             throw new RequestGroupPermissionException(
                     "Denied columns referenced: " + String.join(", ", rejected));
@@ -325,7 +338,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
                     throw new RequestGroupPermissionException(
                             "Break-glass requires can_break_glass on every member target");
                 }
-                verifyDeniedColumns(item, perm.get());
+                verifyDenials(item, perm.get());
                 return;
             }
             if (admin) {
@@ -338,7 +351,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
                 throw new RequestGroupPermissionException(
                         "You are not permitted to run this query on the selected datasource");
             }
-            verifyDeniedColumns(item, perm.get());
+            verifyDenials(item, perm.get());
         } else {
             var perm = apiConnectorPermissionLookupService.findFor(item.getApiConnectorId(), submitterId);
             if (breakGlass) {

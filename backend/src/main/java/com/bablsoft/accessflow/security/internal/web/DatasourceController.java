@@ -344,7 +344,7 @@ class DatasourceController {
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
-                request.deniedColumns(),
+                request.deniedColumns(), request.deniedSchemas(), request.deniedTables(),
                 request.expiresAt(),
                 // Admin-created: no originating JIT request (#969).
                 null);
@@ -359,6 +359,12 @@ class DatasourceController {
         metadata.put("can_break_glass", view.canBreakGlass());
         if (view.deniedColumns() != null && !view.deniedColumns().isEmpty()) {
             metadata.put("denied_columns", view.deniedColumns());
+        }
+        if (view.deniedSchemas() != null && !view.deniedSchemas().isEmpty()) {
+            metadata.put("denied_schemas", view.deniedSchemas());
+        }
+        if (view.deniedTables() != null && !view.deniedTables().isEmpty()) {
+            metadata.put("denied_tables", view.deniedTables());
         }
         recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
@@ -424,7 +430,7 @@ class DatasourceController {
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
-                request.deniedColumns(),
+                request.deniedColumns(), request.deniedSchemas(), request.deniedTables(),
                 request.expiresAt());
         var view = datasourceAdminService.grantGroupPermission(id, caller.organizationId(),
                 caller.userId(), command);
@@ -437,6 +443,12 @@ class DatasourceController {
         metadata.put("can_break_glass", view.canBreakGlass());
         if (view.deniedColumns() != null && !view.deniedColumns().isEmpty()) {
             metadata.put("denied_columns", view.deniedColumns());
+        }
+        if (view.deniedSchemas() != null && !view.deniedSchemas().isEmpty()) {
+            metadata.put("denied_schemas", view.deniedSchemas());
+        }
+        if (view.deniedTables() != null && !view.deniedTables().isEmpty()) {
+            metadata.put("denied_tables", view.deniedTables());
         }
         recordAudit(AuditAction.PERMISSION_GROUP_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);

@@ -363,6 +363,34 @@ class DefaultEffectiveAccessServiceTest {
         assertThat(report(StatementCapability.DDL, "public.payments").content()).hasSize(1);
     }
 
+    @Test
+    void aDeniedTableIsNotListedEvenUnderAnUnrestrictedGrant() {
+        givenContributions(denying(analystId, List.of(), List.of("public.payments")));
+        givenUsers(user(analystId, "dana@example.com"));
+
+        assertThat(report(StatementCapability.READ, "public.payments").content()).isEmpty();
+        assertThat(report(StatementCapability.READ, "public.orders").content()).hasSize(1);
+    }
+
+    @Test
+    void aPermissiveGroupGrantCannotLiftADirectDenial() {
+        givenContributions(
+                denying(analystId, List.of(), List.of("public.payments")),
+                group(analystId, true, true, List.of(), List.of(), "everything"));
+        givenUsers(user(analystId, "dana@example.com"));
+
+        assertThat(report(StatementCapability.READ, "public.payments").content()).isEmpty();
+    }
+
+    @Test
+    void aDeniedSchemaHidesEveryTableInIt() {
+        givenContributions(denying(analystId, List.of("public"), List.of()));
+        givenUsers(user(analystId, "dana@example.com"));
+
+        assertThat(report(StatementCapability.READ, "public.payments").content()).isEmpty();
+        assertThat(report(StatementCapability.READ, "reporting.summary").content()).hasSize(1);
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private com.bablsoft.accessflow.core.api.PageResponse<
@@ -386,7 +414,15 @@ class DefaultEffectiveAccessServiceTest {
                                                     Instant expiresAt, boolean breakGlass) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, canRead, canWrite, false,
-                breakGlass, schemas, tables, List.of(), null, null, expiresAt, null);
+                breakGlass, schemas, tables, List.of(), null, List.of(), List.of(), null, expiresAt, null);
+    }
+
+    private DatasourcePermissionContribution denying(UUID userId, List<String> deniedSchemas,
+                                                     List<String> deniedTables) {
+        return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
+                UUID.randomUUID(), userId, datasourceId, null, null, true, false, false, false,
+                List.of(), List.of(), List.of(), null, deniedSchemas, deniedTables, null, null,
+                null);
     }
 
     /** A time-boxed direct row materialised from the given JIT request (#969). */
@@ -394,13 +430,13 @@ class DefaultEffectiveAccessServiceTest {
                                                  UUID accessGrantRequestId) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, true, false, false, false,
-                List.of("public"), List.of(), List.of(), null, null, expiresAt, accessGrantRequestId);
+                List.of("public"), List.of(), List.of(), null, List.of(), List.of(), null, expiresAt, accessGrantRequestId);
     }
 
     private DatasourcePermissionContribution ddlGrant(UUID userId) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, false, false, true, false,
-                List.of(), List.of(), List.of(), null, null, null, null);
+                List.of(), List.of(), List.of(), null, List.of(), List.of(), null, null, null);
     }
 
     private DatasourcePermissionContribution group(UUID userId, boolean canRead, boolean canWrite,
@@ -408,7 +444,7 @@ class DefaultEffectiveAccessServiceTest {
                                                    String groupName) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), groupName, canRead,
-                canWrite, false, false, schemas, tables, List.of(), null, null, null, null);
+                canWrite, false, false, schemas, tables, List.of(), null, List.of(), List.of(), null, null, null);
     }
 
     private AccessGrantView grant(UUID grantId, UUID requesterId) {
@@ -423,7 +459,10 @@ class DefaultEffectiveAccessServiceTest {
                 Instant.now(), null, Instant.now());
     }
 
-    /** Mirrors core's merge: booleans OR, allow-lists union with unrestricted winning. */
+    /**
+     * Mirrors core's merge: booleans OR, allow-lists union with unrestricted winning, deny-lists
+     * union (#939).
+     */
     private DatasourceUserPermissionView merge(List<DatasourcePermissionContribution> parts) {
         boolean canRead = false;
         boolean canWrite = false;
@@ -433,6 +472,8 @@ class DefaultEffectiveAccessServiceTest {
         boolean anyNeverExpires = false;
         var schemas = new LinkedHashSet<String>();
         var tables = new LinkedHashSet<String>();
+        var deniedSchemas = new LinkedHashSet<String>();
+        var deniedTables = new LinkedHashSet<String>();
         boolean unrestrictedSchemas = false;
         boolean unrestrictedTables = false;
         for (var part : parts) {
@@ -444,6 +485,8 @@ class DefaultEffectiveAccessServiceTest {
             unrestrictedTables |= part.allowedTables().isEmpty();
             schemas.addAll(part.allowedSchemas());
             tables.addAll(part.allowedTables());
+            deniedSchemas.addAll(part.deniedSchemas());
+            deniedTables.addAll(part.deniedTables());
             if (part.expiresAt() == null) {
                 anyNeverExpires = true;
             } else if (expiresAt != null && part.expiresAt().isAfter(expiresAt)) {
@@ -454,6 +497,7 @@ class DefaultEffectiveAccessServiceTest {
                 datasourceId, canRead, canWrite, canDdl, breakGlass,
                 unrestrictedSchemas ? List.of() : new ArrayList<>(schemas),
                 unrestrictedTables ? List.of() : new ArrayList<>(tables), List.of(), null,
+                new ArrayList<>(deniedSchemas), new ArrayList<>(deniedTables),
                 null, anyNeverExpires ? null : expiresAt);
     }
 }

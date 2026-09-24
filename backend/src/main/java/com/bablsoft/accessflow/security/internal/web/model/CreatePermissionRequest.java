@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,14 @@ public record CreatePermissionRequest(
         List<@NotBlank(message = "{validation.denied_columns.item_blank}")
              @Pattern(regexp = DENIED_COLUMN_PATTERN,
                       message = "{validation.denied_columns.item_unqualified}") String> deniedColumns,
+        @Size(max = 50, message = "{validation.denied_schemas.too_many}")
+        List<@NotBlank(message = "{validation.denied_schemas.item_blank}")
+             @Pattern(regexp = DeniedTables.SCHEMA_ENTRY_PATTERN,
+                      message = "{validation.denied_schemas.item_invalid}") String> deniedSchemas,
+        @Size(max = 200, message = "{validation.denied_tables.too_many}")
+        List<@NotBlank(message = "{validation.denied_tables.item_blank}")
+             @Pattern(regexp = DeniedTables.TABLE_ENTRY_PATTERN,
+                      message = "{validation.denied_tables.item_invalid}") String> deniedTables,
         Instant expiresAt
 ) {
 

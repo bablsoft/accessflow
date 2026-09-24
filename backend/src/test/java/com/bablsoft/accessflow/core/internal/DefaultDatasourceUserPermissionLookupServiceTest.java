@@ -224,6 +224,122 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(service.findFor(userId, datasourceId).orElseThrow().deniedColumns()).isEmpty();
     }
 
+    // ── Table / schema deny-lists (#939) ─────────────────────────────────────
+
+    @Test
+    void permissiveGroupGrantCannotLiftADirectTableDenial() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setDeniedTables(new String[] {"crm.salary"});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setCanWrite(true);
+        group.setCanDdl(true);
+        group.setCanBreakGlass(true);
+        group.setAllowedSchemas(new String[0]);
+        group.setAllowedTables(new String[0]);
+        group.setDeniedSchemas(new String[0]);
+        group.setDeniedTables(new String[0]);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.canWrite()).isTrue();
+        assertThat(view.allowedSchemas()).isEmpty();
+        assertThat(view.allowedTables()).isEmpty();
+        assertThat(view.deniedTables()).containsExactly("crm.salary");
+        assertThat(com.bablsoft.accessflow.core.api.DeniedTables.rejected(view.deniedSchemas(),
+                view.deniedTables(), java.util.Set.of("crm.salary", "crm.customer")))
+                .containsExactly("crm.salary");
+    }
+
+    @Test
+    void findForUnionsDenialsAcrossGrantsNormalisedAndDeduplicated() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setDeniedSchemas(new String[] {"\"HR\""});
+        direct.setDeniedTables(new String[] {"CRM.Salary", " crm.salary "});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setDeniedSchemas(new String[] {"hr", "audit"});
+        group.setDeniedTables(new String[] {"crm.bonus", "crm.salary"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.deniedSchemas()).containsExactly("hr", "audit");
+        assertThat(view.deniedTables()).containsExactly("crm.salary", "crm.bonus");
+    }
+
+    @Test
+    void findForDeniesNothingWhenNoGrantDeniesATable() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.deniedSchemas()).isEmpty();
+        assertThat(view.deniedTables()).isEmpty();
+    }
+
+    @Test
+    void findDirectForNormalisesTheDenyLists() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setDeniedSchemas(new String[] {"HR", "hr"});
+        direct.setDeniedTables(new String[] {"`CRM`.`Salary`"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+
+        var view = service.findDirectFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.deniedSchemas()).containsExactly("hr");
+        assertThat(view.deniedTables()).containsExactly("crm.salary");
+    }
+
+    @Test
+    void contributionsCarryEachGrantsOwnDenyLists() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setDeniedTables(new String[] {"crm.salary"});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setDeniedSchemas(new String[] {"hr"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        var contributions = service.findContributions(userId, datasourceId);
+
+        assertThat(contributions).hasSize(2);
+        assertThat(contributions.get(0).deniedTables()).containsExactly("crm.salary");
+        assertThat(contributions.get(0).deniedSchemas()).isEmpty();
+        assertThat(contributions.get(1).deniedSchemas()).containsExactly("hr");
+        assertThat(contributions.get(1).deniedTables()).isEmpty();
+    }
+
     @Test
     void findForAllowListWideOpenWhenOneGrantHasNoRestriction() {
         var userId = UUID.randomUUID();

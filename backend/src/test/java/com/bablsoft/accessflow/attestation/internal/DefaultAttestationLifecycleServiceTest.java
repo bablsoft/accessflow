@@ -79,7 +79,7 @@ class DefaultAttestationLifecycleServiceTest {
     private DatasourcePermissionView permission(UUID userId) {
         return new DatasourcePermissionView(UUID.randomUUID(), datasourceId, userId,
                 userId + "@example.com", "User", true, false, false, false, null,
-                List.of("public"), List.of(), List.of(), null, null, UUID.randomUUID(), Instant.now());
+                List.of("public"), List.of(), List.of(), null, List.of(), List.of(), null, UUID.randomUUID(), Instant.now());
     }
 
     @Test
@@ -101,6 +101,53 @@ class DefaultAttestationLifecycleServiceTest {
         verify(auditLogService).record(audit.capture());
         assertThat(audit.getValue().action())
                 .isEqualTo(AuditAction.ATTESTATION_CAMPAIGN_OPENED);
+    }
+
+    @Test
+    void openSnapshotsTheGrantsTableAndSchemaDenials() {
+        var userId = UUID.randomUUID();
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        when(datasourceAdminService.listPermissions(datasourceId, orgId))
+                .thenReturn(List.of(new DatasourcePermissionView(UUID.randomUUID(), datasourceId,
+                        userId, "u@example.com", "User", true, false, false, false, null,
+                        List.of("crm"), List.of(), List.of(), List.of(), List.of("hr"),
+                        List.of("crm.salary"), null, UUID.randomUUID(), Instant.now())));
+        when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+
+        service.openCampaign(campaignId);
+
+        var item = ArgumentCaptor.forClass(AttestationItemEntity.class);
+        verify(itemRepository).save(item.capture());
+        var snapshot = new ObjectMapper().readTree(item.getValue().getPermissionSnapshot());
+        assertThat(snapshot.get("denied_schemas").get(0).asString()).isEqualTo("hr");
+        assertThat(snapshot.get("denied_schemas")).hasSize(1);
+        assertThat(snapshot.get("denied_tables").get(0).asString()).isEqualTo("crm.salary");
+        assertThat(snapshot.get("denied_tables")).hasSize(1);
+    }
+
+    @Test
+    void openSnapshotsEmptyDenialArraysForAGrantWithoutDenials() {
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        var view = new DatasourcePermissionView(UUID.randomUUID(), datasourceId, UUID.randomUUID(),
+                "u@example.com", "User", true, false, false, false, null, null, null, null, null,
+                null, null, null, null, null);
+        when(datasourceAdminService.listPermissions(datasourceId, orgId)).thenReturn(List.of(view));
+        when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+
+        service.openCampaign(campaignId);
+
+        var item = ArgumentCaptor.forClass(AttestationItemEntity.class);
+        verify(itemRepository).save(item.capture());
+        var snapshot = new ObjectMapper().readTree(item.getValue().getPermissionSnapshot());
+        assertThat(snapshot.get("denied_schemas").isArray()).isTrue();
+        assertThat(snapshot.get("denied_schemas")).isEmpty();
+        assertThat(snapshot.get("denied_tables")).isEmpty();
     }
 
     /**

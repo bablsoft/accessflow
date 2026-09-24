@@ -57,6 +57,14 @@ import {
   isQualifiedColumnRef,
   supportsDeniedColumns,
 } from '@/utils/deniedColumns';
+import {
+  DENIED_SCHEMAS_MAX,
+  DENIED_TABLES_MAX,
+  deniedTableEntries,
+  hasBlankEntry,
+  isValidDeniedSchema,
+  isValidDeniedTable,
+} from '@/utils/deniedTables';
 import { userDisplay } from '@/utils/userDisplay';
 import {
   datasourceKeys,
@@ -1097,6 +1105,12 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
             render: (_v, p) => <DeniedColumnsCell columns={p.denied_columns} />,
           },
           {
+            title: t('datasources.settings.perm_col_denied_tables'),
+            render: (_v, p) => (
+              <DeniedTablesCell schemas={p.denied_schemas} tables={p.denied_tables} />
+            ),
+          },
+          {
             title: t('datasources.settings.perm_col_expires'),
             width: 170,
             render: (_v, p) => {
@@ -1213,6 +1227,12 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
                 render: (_v, p) => <DeniedColumnsCell columns={p.denied_columns} />,
               },
               {
+                title: t('datasources.settings.perm_col_denied_tables'),
+                render: (_v, p) => (
+                  <DeniedTablesCell schemas={p.denied_schemas} tables={p.denied_tables} />
+                ),
+              },
+              {
                 title: t('datasources.settings.perm_col_expires'),
                 width: 170,
                 render: (_v, p) =>
@@ -1264,6 +1284,27 @@ function DeniedColumnsCell({ columns }: { columns: string[] | null | undefined }
   );
 }
 
+function DeniedTablesCell({
+  schemas,
+  tables,
+}: {
+  schemas: string[] | null | undefined;
+  tables: string[] | null | undefined;
+}) {
+  const { t } = useTranslation();
+  const entries = deniedTableEntries(schemas, tables);
+  if (entries.length === 0) {
+    return <span className="muted">{t('datasources.settings.perm_no_denied')}</span>;
+  }
+  return (
+    <Tooltip title={entries.join(', ')}>
+      <Tag color="red" style={{ fontSize: 12 }}>
+        {t('datasources.settings.perm_denied_tables_count', { count: entries.length })}
+      </Tag>
+    </Tooltip>
+  );
+}
+
 type GrantTarget = 'user' | 'group';
 
 interface GrantFormValues {
@@ -1279,6 +1320,8 @@ interface GrantFormValues {
   allowed_tables?: string[];
   restricted_columns?: string[];
   denied_columns?: string[];
+  denied_schemas?: string[];
+  denied_tables?: string[];
   expires_at?: Dayjs | null;
 }
 
@@ -1373,6 +1416,38 @@ function GrantAccessModal({
     return opts;
   }, [schemaQuery.data, selectedSchemas]);
 
+  // Deny entries are schema-qualified: a bare name would deny that table in every schema.
+  const deniedTableOptions = useMemo(() => {
+    const schemas = schemaQuery.data?.schemas ?? [];
+    const filter =
+      selectedSchemas && selectedSchemas.length > 0 ? new Set(selectedSchemas) : null;
+    return schemas
+      .filter((s) => !filter || filter.has(s.name))
+      .flatMap((s) =>
+        s.tables.map((tb) => ({ value: `${s.name}.${tb.name}`, label: `${s.name}.${tb.name}` })),
+      );
+  }, [schemaQuery.data, selectedSchemas]);
+
+  const denyListRule = (
+    max: number,
+    isValid: (entry: string) => boolean,
+    messages: { tooMany: string; blank: string; invalid: string },
+  ) => ({
+    validator: (_rule: unknown, value: string[] | undefined) => {
+      const entries = value ?? [];
+      if (entries.length > max) {
+        return Promise.reject(new Error(messages.tooMany));
+      }
+      if (hasBlankEntry(entries)) {
+        return Promise.reject(new Error(messages.blank));
+      }
+      if (entries.some((entry) => !isValid(entry))) {
+        return Promise.reject(new Error(messages.invalid));
+      }
+      return Promise.resolve();
+    },
+  });
+
   const restrictedColumnOptions = useMemo(
     () => flattenSchemaToColumns(schemaQuery.data?.schemas ?? []),
     [schemaQuery.data],
@@ -1407,6 +1482,12 @@ function GrantAccessModal({
           values.denied_columns && values.denied_columns.length > 0
             ? values.denied_columns
             : null,
+        denied_schemas:
+          values.denied_schemas && values.denied_schemas.length > 0
+            ? values.denied_schemas
+            : null,
+        denied_tables:
+          values.denied_tables && values.denied_tables.length > 0 ? values.denied_tables : null,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
       };
       if (values.target === 'group') {
@@ -1595,6 +1676,50 @@ function GrantAccessModal({
             loading={schemaQuery.isLoading}
             options={tableOptions}
             showSearch={{ optionFilterProp: 'label' }}
+          />
+        </Form.Item>
+        <Form.Item
+          name="denied_schemas"
+          label={t('datasources.settings.grant_denied_schemas_label')}
+          extra={t('datasources.settings.grant_denied_schemas_help')}
+          rules={[
+            denyListRule(DENIED_SCHEMAS_MAX, isValidDeniedSchema, {
+              tooMany: t('datasources.settings.grant_denied_schemas_too_many'),
+              blank: t('datasources.settings.grant_denied_schemas_blank'),
+              invalid: t('datasources.settings.grant_denied_schemas_invalid'),
+            }),
+          ]}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('datasources.settings.grant_denied_schemas_placeholder')}
+            loading={schemaQuery.isLoading}
+            options={schemaOptions}
+            showSearch={{ optionFilterProp: 'label' }}
+            allowClear
+          />
+        </Form.Item>
+        <Form.Item
+          name="denied_tables"
+          label={t('datasources.settings.grant_denied_tables_label')}
+          extra={t('datasources.settings.grant_denied_tables_help')}
+          rules={[
+            denyListRule(DENIED_TABLES_MAX, isValidDeniedTable, {
+              tooMany: t('datasources.settings.grant_denied_tables_too_many'),
+              blank: t('datasources.settings.grant_denied_tables_blank'),
+              invalid: t('datasources.settings.grant_denied_tables_invalid'),
+            }),
+          ]}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('datasources.settings.grant_denied_tables_placeholder')}
+            loading={schemaQuery.isLoading}
+            options={deniedTableOptions}
+            showSearch={{ optionFilterProp: 'label' }}
+            allowClear
           />
         </Form.Item>
         <Form.Item
