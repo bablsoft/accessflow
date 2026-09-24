@@ -274,6 +274,113 @@ class DefaultRequestGroupServiceCrudTest {
     }
 
     @Test
+    void submitRejectsAMemberThatReferencesATableOutsideTheAllowList() {
+        var group = stubAllowListSubmit(List.of(), List.of("public.customers"), false,
+                "public.orders");
+
+        assertThatThrownBy(() -> submit(group, false))
+                .isInstanceOf(RequestGroupPermissionException.class)
+                .hasMessageContaining("public.orders");
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    @Test
+    void submitAcceptsAMemberWhoseTablesAreCoveredByTableOrSchemaEntries() {
+        var group = stubAllowListSubmit(List.of("sales"), List.of("public.customers"), false,
+                "public.customers", "sales.orders");
+
+        submit(group, false);
+
+        verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
+    }
+
+    @Test
+    void aBareAllowListEntryCoversOnlyAnUnqualifiedReference() {
+        var covered = stubAllowListSubmit(List.of(), List.of("orders"), false, "orders");
+        submit(covered, false);
+        verify(stateService).apply(covered, RequestGroupStatus.PENDING_AI);
+
+        var qualified = stubAllowListSubmit(List.of(), List.of("orders"), false, "public.orders");
+        assertThatThrownBy(() -> submit(qualified, false))
+                .isInstanceOf(RequestGroupPermissionException.class);
+    }
+
+    @Test
+    void emptyAllowListsAreUnrestrictedAndSkipTheParse() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(allowListItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(dsPerm(true, false, false)));
+
+        submit(group, false);
+
+        verify(queryParser, org.mockito.Mockito.never()).parse(any(), any());
+        verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
+    }
+
+    @Test
+    void breakGlassSubmitAlsoRejectsATableOutsideTheAllowList() {
+        var group = stubAllowListSubmit(List.of("sales"), List.of(), true, "hr.salaries");
+
+        assertThatThrownBy(() -> submit(group, true))
+                .isInstanceOf(RequestGroupPermissionException.class)
+                .hasMessageContaining("hr.salaries");
+        verify(executionService, org.mockito.Mockito.never()).execute(any(), any(), any());
+    }
+
+    @Test
+    void adminSubmitIsNotBoundByTheAllowList() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(allowListItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(allowListPerm(List.of(), List.of("public.customers"), false)));
+
+        service.submit(new SubmitRequestGroupCommand(group.getId(), orgId, userId, true, false, null,
+                "1.2.3.4", "ua"));
+
+        verify(queryParser, org.mockito.Mockito.never()).parse(any(), any());
+        verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
+    }
+
+    private RequestGroupEntity stubAllowListSubmit(List<String> schemas, List<String> tables,
+                                                   boolean breakGlass, String... referenced) {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(allowListItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(allowListPerm(schemas, tables, breakGlass)));
+        lenient().when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
+        when(queryParser.parse(any(), any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT 1"), java.util.Set.of(referenced)));
+        return group;
+    }
+
+    private void submit(RequestGroupEntity group, boolean breakGlass) {
+        service.submit(new SubmitRequestGroupCommand(group.getId(), orgId, userId, false, breakGlass,
+                null, "1.2.3.4", "ua"));
+    }
+
+    private RequestGroupItemEntity allowListItem() {
+        var item = new RequestGroupItemEntity();
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(datasourceId);
+        item.setQueryType(QueryType.SELECT);
+        item.setSqlText("SELECT 1");
+        return item;
+    }
+
+    private DatasourceUserPermissionView allowListPerm(List<String> schemas, List<String> tables,
+                                                       boolean breakGlass) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true, false,
+                false, breakGlass, schemas, tables, List.of(), List.of(), null, null);
+    }
+
+    @Test
     void submitRecordsSqlReviewFindingsForEveryQueryMemberAndSkipsApiMembers() {
         var group = draftGroup();
         var query = new RequestGroupItemEntity();
