@@ -97,16 +97,22 @@ class DeniedColumnsTest {
     }
 
     @Test
-    void intersectMeetsEntriesByTheColumnTheyName() {
-        assertThat(DeniedColumns.intersect(List.of("users.ssn", "users.email"),
-                List.of("public.users.ssn")))
-                .containsExactly("public.users.ssn");
-        assertThat(DeniedColumns.intersect(List.of("public.users.ssn"), List.of("Users.SSN")))
-                .containsExactly("public.users.ssn");
-        assertThat(DeniedColumns.intersect(List.of("a.users.ssn"), List.of("b.users.ssn"))).isEmpty();
-        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of("orders.ssn"))).isEmpty();
-        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of("users.email"))).isEmpty();
-        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of())).isEmpty();
+    void unionKeepsEveryDeniedColumnAndCollapsesOverlappingSpellings() {
+        // users.ssn denies ssn in every schema's users table, so it covers public.users.ssn.
+        assertThat(DeniedColumns.union(List.of("public.users.ssn", "users.email"),
+                List.of("Users.SSN")))
+                .containsExactly("users.email", "users.ssn");
+        assertThat(DeniedColumns.union(List.of("users.ssn"), List.of("public.users.ssn")))
+                .containsExactly("users.ssn");
+        assertThat(DeniedColumns.union(List.of("a.users.ssn"), List.of("b.users.ssn")))
+                .containsExactly("a.users.ssn", "b.users.ssn");
+        assertThat(DeniedColumns.union(List.of("users.ssn"), List.of("orders.ssn")))
+                .containsExactly("users.ssn", "orders.ssn");
+        assertThat(DeniedColumns.union(List.of("public.users.ssn"), List.of("public.orders.ssn",
+                "`PUBLIC`.`USERS`.`SSN`")))
+                .containsExactly("public.users.ssn", "public.orders.ssn");
+        assertThat(DeniedColumns.union(List.of("users.ssn"), List.of())).containsExactly("users.ssn");
+        assertThat(DeniedColumns.union(null, null)).isEmpty();
     }
 
     @Test

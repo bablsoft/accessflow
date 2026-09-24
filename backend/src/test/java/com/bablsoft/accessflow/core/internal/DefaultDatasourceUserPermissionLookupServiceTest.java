@@ -183,7 +183,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
     }
 
     @Test
-    void findForIntersectsDeniedColumnsCaseInsensitively() {
+    void findForUnionsDeniedColumnsCaseInsensitively() {
         var userId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
         var groupId = UUID.randomUUID();
@@ -201,12 +201,13 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
 
         var view = service.findFor(userId, datasourceId).orElseThrow();
 
-        // A column is denied only when every contributing grant denies it (least-restrictive).
-        assertThat(view.deniedColumns()).containsExactly("public.users.ssn");
+        // A column is denied when any contributing grant denies it (#1099); the group's
+        // schema-less users.ssn covers the direct grant's public.users.ssn.
+        assertThat(view.deniedColumns()).containsExactly("public.users.email", "users.ssn");
     }
 
     @Test
-    void findForDeniesNothingWhenOneGrantDeniesNothing() {
+    void permissiveGroupGrantCannotLiftADirectColumnDenial() {
         var userId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
         var groupId = UUID.randomUUID();
@@ -215,13 +216,40 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         direct.setDeniedColumns(new String[] {"public.users.ssn"});
         var group = newGroupPermission(groupId, datasourceId);
         group.setCanRead(true);
+        group.setCanWrite(true);
+        group.setDeniedColumns(new String[0]);
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(Optional.of(direct));
         when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
         when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
                 .thenReturn(List.of(group));
 
-        assertThat(service.findFor(userId, datasourceId).orElseThrow().deniedColumns()).isEmpty();
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.canWrite()).isTrue();
+        assertThat(view.deniedColumns()).containsExactly("public.users.ssn");
+        assertThat(com.bablsoft.accessflow.core.api.DeniedColumns.deniesColumn(
+                view.deniedColumns(), "public", "users", "ssn")).isTrue();
+    }
+
+    @Test
+    void groupColumnDenialBindsAMemberWhoseDirectGrantDeniesNothing() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setDeniedColumns(new String[] {"users.ssn"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().deniedColumns())
+                .containsExactly("users.ssn");
     }
 
     // ── Table / schema deny-lists (#939) ─────────────────────────────────────

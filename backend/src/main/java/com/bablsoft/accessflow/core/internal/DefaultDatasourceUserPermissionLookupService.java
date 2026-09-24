@@ -173,10 +173,10 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     /**
      * Merge one datasource's contributing grants into a single effective view. Boolean flags OR;
      * allow-lists union (null wins = all allowed); restricted-columns intersect (empty wins =
-     * nothing masked), and so do denied-columns (#935 — empty wins = nothing denied); expiry is
-     * the latest among contributors (null wins = never expires). The row limit is the inversion:
-     * the smallest non-null override wins (#933). Denied schemas and tables are the other
-     * inversion: they union, so no contributing grant can lift another's denial (#939).
+     * nothing masked); expiry is the latest among contributors (null wins = never expires). The
+     * row limit is the inversion: the smallest non-null override wins (#933). Deny-lists — denied
+     * schemas, tables (#939) and columns (#1099) — are the other inversion: they union, so no
+     * contributing grant can lift another's denial.
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
                                                       List<DatasourcePermissionContribution> parts) {
@@ -208,7 +208,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionAllowList(parts, DatasourcePermissionContribution::allowedSchemas),
                 unionAllowList(parts, DatasourcePermissionContribution::allowedTables),
                 intersect(parts, DatasourcePermissionContribution::restrictedColumns),
-                intersectDenied(parts),
+                unionDeniedColumns(parts),
                 unionDenied(parts, DatasourcePermissionContribution::deniedSchemas),
                 unionDenied(parts, DatasourcePermissionContribution::deniedTables),
                 minRowLimit(parts),
@@ -257,10 +257,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
         return List.copyOf(union);
     }
 
-    /**
-     * Restriction intersection: a column is masked (or denied) only when every contribution masks
-     * (or denies) it.
-     */
+    /** Restriction intersection: a column is masked only when every contribution masks it. */
     private static List<String> intersect(
             List<DatasourcePermissionContribution> parts,
             Function<DatasourcePermissionContribution, List<String>> field) {
@@ -283,17 +280,13 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
         return intersection == null ? List.of() : List.copyOf(intersection);
     }
 
-    /** Like {@link #intersect}, but entries meet by the column they name, not by spelling. */
-    private static List<String> intersectDenied(List<DatasourcePermissionContribution> parts) {
-        List<String> denied = null;
+    /** Like {@link #unionDenied}; overlapping spellings of a column keep the broader entry. */
+    private static List<String> unionDeniedColumns(List<DatasourcePermissionContribution> parts) {
+        List<String> denied = List.of();
         for (var p : parts) {
-            var values = DeniedColumns.normalize(p.deniedColumns());
-            denied = denied == null ? values : DeniedColumns.intersect(denied, values);
-            if (denied.isEmpty()) {
-                return List.of();
-            }
+            denied = DeniedColumns.union(denied, p.deniedColumns());
         }
-        return denied == null ? List.of() : denied;
+        return denied;
     }
 
     private static DatasourceUserPermissionView toDirectView(DatasourceUserPermissionEntity entity) {

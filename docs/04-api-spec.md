@@ -698,10 +698,10 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 
 Group-based access grants (AF-530). A grant to a **user group** is inherited by every member; a user's
 **effective** access is the most-permissive union of their direct grant and every unexpired group grant
-for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` and `denied_columns`
-intersected so a column is masked — or denied — only when every contributing grant masks or denies it;
-`denied_schemas` / `denied_tables` **unioned** (#939), so a group grant's denial binds every member and no
-permissive grant can lift a denial from another). Same shape as the per-user list, keyed on
+for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` intersected so a
+column is masked only when every contributing grant masks it; `denied_schemas` / `denied_tables` (#939)
+and `denied_columns` (#1099) **unioned**, so a group grant's denial binds every member and no permissive
+grant can lift a denial from another). Same shape as the per-user list, keyed on
 the group instead of a user:
 
 ```json

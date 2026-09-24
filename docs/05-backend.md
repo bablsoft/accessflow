@@ -719,10 +719,10 @@ it applies equally with no allow-list at all.
   (it contains `*` or `?` — an Elasticsearch / OpenSearch index pattern such as `sal*`) is denied by
   any deny entry at all, since it may expand to a denied object.
 - **Merge.** `DefaultDatasourceUserPermissionLookupService` unions both lists across the direct, group
-  and JIT contributions — the inverse of every other merged field (booleans OR, allow-lists union with
-  empty = all, restricted/denied columns intersect). A permissive group grant can never lift a denial
-  from a direct grant, and a group grant's denial binds every member. `denied_columns` (#935) still
-  merges by intersection; the asymmetry is intentional and documented, and may be aligned later.
+  and JIT contributions — the inverse of the other merged fields (booleans OR, allow-lists union with
+  empty = all, restricted columns intersect). A permissive group grant can never lift a denial from a
+  direct grant, and a group grant's denial binds every member. `denied_columns` merges the same way
+  (#1099).
 - **Enforcement.** Everywhere the allow-list applies: `DatasourcePermissionVerifier.verify` (submission
   and the recurring per-occurrence recheck, 403 `error.permission.table_denied`),
   `DefaultBreakGlassService` (`BreakGlassNotPermittedException`), `DefaultQueryDryRunService` (403),
@@ -769,10 +769,10 @@ it applies equally with no allow-list at all.
 permission: the most-permissive union of their direct `datasource_user_permissions` row and every
 unexpired `datasource_group_permissions` grant for a group they belong to (group ids via
 `UserGroupMembershipRepository.findGroupIdsForUser`). Booleans OR; `allowed_schemas`/`allowed_tables`
-merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` and
-`denied_columns` (#935, compared normalised) merge to the **intersection** (a column is masked — or
-denied — only when every contributing grant masks or denies it); `denied_schemas` / `denied_tables`
-(#939) merge to their **union**, so no contributor can lift another's denial; expired grants
+merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` merge to
+the **intersection** (a column is masked only when every contributing grant masks it); the deny-lists —
+`denied_schemas` / `denied_tables` (#939) and `denied_columns` (#935/#1099, compared normalised) — merge
+to their **union**, so no contributor can lift another's denial; expired grants
 contribute nothing. Because `findFor` is the single choke-point every enforcement path already reads
 through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-SQL, workflow
 submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
@@ -829,7 +829,8 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
   schema must match only when both sides carry one) and whose column matches, or which a wildcard
   reaches. It fails closed: any statement that was not column-analysed rejects every entry, and a DDL
   statement also rejects every entry on a table it touches. OTHER returns nothing. `rejectedForWholeTable` answers the
-  table preview, and `intersect` merges grants by the column an entry names rather than its spelling.
+  table preview, and `union` merges grants (#1099): a column stays denied when any grant denies it,
+  and overlapping spellings collapse to the broader entry (`users.ssn` covers `public.users.ssn`).
 - **Enforcement.** The following all call it: `DatasourcePermissionVerifier.verify` (submission and
   the recurring per-occurrence recheck, 403 `error.permission.column_not_allowed`),
   `DefaultBreakGlassService` (`BreakGlassNotPermittedException`), `DefaultQueryDryRunService` (same
