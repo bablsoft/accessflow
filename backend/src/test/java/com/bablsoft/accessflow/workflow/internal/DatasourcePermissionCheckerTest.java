@@ -138,4 +138,20 @@ class DatasourcePermissionCheckerTest {
             assertThat(covered).as(table).isEqualTo(allowed);
         }
     }
+
+    @Test
+    void rejectedColumnsReadsThePermissionDenyList() {
+        var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(), true, false, false, false, null, null, null,
+                List.of("users.ssn"), null, null);
+        var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(
+                com.bablsoft.accessflow.core.api.QueryType.SELECT, false, List.of("sql"),
+                Set.of("users"), false, false, Set.of(
+                        com.bablsoft.accessflow.core.api.ColumnReference.wildcard(Set.of("users"))),
+                true);
+
+        assertThat(DatasourcePermissionChecker.rejectedColumns(permission, parsed))
+                .containsExactly("users.ssn");
+    }
 }

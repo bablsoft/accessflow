@@ -172,8 +172,9 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     /**
      * Merge one datasource's contributing grants into a single effective view. Boolean flags OR;
      * allow-lists union (null wins = all allowed); restricted-columns intersect (empty wins =
-     * nothing masked), and so do denied-columns (#935 — empty wins = nothing denied); expiry is the latest among contributors (null wins = never expires). The row
-     * limit is the inversion: the smallest non-null override wins (#933).
+     * nothing masked), and so do denied-columns (#935 — empty wins = nothing denied); expiry is
+     * the latest among contributors (null wins = never expires). The row limit is the inversion:
+     * the smallest non-null override wins (#933).
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
                                                       List<DatasourcePermissionContribution> parts) {
@@ -205,7 +206,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionAllowList(parts, DatasourcePermissionContribution::allowedSchemas),
                 unionAllowList(parts, DatasourcePermissionContribution::allowedTables),
                 intersect(parts, DatasourcePermissionContribution::restrictedColumns),
-                intersect(parts, p -> DeniedColumns.normalize(p.deniedColumns())),
+                intersectDenied(parts),
                 minRowLimit(parts),
                 anyNeverExpires ? null : expiresAt);
     }
@@ -261,6 +262,19 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
             }
         }
         return intersection == null ? List.of() : List.copyOf(intersection);
+    }
+
+    /** Like {@link #intersect}, but entries meet by the column they name, not by spelling. */
+    private static List<String> intersectDenied(List<DatasourcePermissionContribution> parts) {
+        List<String> denied = null;
+        for (var p : parts) {
+            var values = DeniedColumns.normalize(p.deniedColumns());
+            denied = denied == null ? values : DeniedColumns.intersect(denied, values);
+            if (denied.isEmpty()) {
+                return List.of();
+            }
+        }
+        return denied == null ? List.of() : denied;
     }
 
     private static DatasourceUserPermissionView toDirectView(DatasourceUserPermissionEntity entity) {

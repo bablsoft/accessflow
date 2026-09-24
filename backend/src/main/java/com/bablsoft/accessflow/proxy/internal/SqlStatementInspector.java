@@ -12,12 +12,14 @@ import net.sf.jsqlparser.expression.KeepExpression;
 import net.sf.jsqlparser.expression.MySQLGroupConcat;
 import net.sf.jsqlparser.expression.XmlTableFunction;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.expression.operators.relational.FullTextSearch;
 import net.sf.jsqlparser.expression.operators.relational.IsUnknownExpression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.piped.FromQuery;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.AllTableColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
@@ -28,6 +30,7 @@ import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SetOperationList;
+import net.sf.jsqlparser.statement.select.TableStatement;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
@@ -68,10 +71,14 @@ import java.util.function.Supplier;
  * {@code SELECT} / {@code UPDATE} / {@code DELETE} / {@code INSERT} pushes its FROM scope (alias →
  * item). A qualified column resolves through the scopes, innermost first: to a real table, or — for
  * a derived table or {@code WITH} name — to nothing, because the inner query is walked on its own
- * and its columns are recorded at the source. An unknown qualifier is kept as a table name, and an
- * unqualified column takes every real table of every enclosing scope as a candidate: both fail
- * closed. {@code *} is a wildcard over the current scope's real tables, {@code t.*} over one table,
- * and an {@code INSERT} without a column list over its target. A {@code *} inside a function call
+ * and its columns are recorded at the source. An unknown qualifier (a pseudo-table such as SQL
+ * Server's {@code inserted} / {@code deleted} or PostgreSQL's {@code excluded}) takes itself and
+ * every real table in scope as candidates, and so does an unqualified column: both fail closed.
+ * {@code *} is a wildcard over the current scope's real tables, {@code t.*} over one table, and so
+ * are the shapes that return whole rows without naming a column — an {@code INSERT} without a column
+ * list, {@code TABLE t}, a pipe-syntax {@code FROM t |> …}, a bare alias or table name used as a
+ * value ({@code SELECT u}, {@code row_to_json(u)}, {@code (u).col}), and a table alias that renames
+ * columns by position ({@code users AS u(a, b)}). A {@code *} inside a function call
  * ({@code COUNT(*)}) is not a column reference.
  */
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
@@ -82,11 +89,18 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     private final Set<ColumnReference> columns = new LinkedHashSet<>();
     private int functionDepth;
     private boolean writesData;
+    private boolean misparsed;
 
     private SqlStatementInspector() {
     }
 
-    record Inspection(Set<String> tables, boolean writesData, Set<ColumnReference> columns) {
+    /**
+     * @param misparsed JSqlParser read a parenthesised {@code (TABLE t)} FROM item as a table named
+     *     {@code TABLE} aliased {@code t}, so the real table is hidden from every check; the caller
+     *     refuses the statement
+     */
+    record Inspection(Set<String> tables, boolean writesData, Set<ColumnReference> columns,
+                      boolean misparsed) {
     }
 
     private record Scope(Set<WithItem<?>> declared, Set<String> names) {
@@ -107,7 +121,8 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     static Inspection inspect(Statement statement) {
         var inspector = new SqlStatementInspector();
         var tables = inspector.union(inspector.getTables(statement));
-        return new Inspection(tables, inspector.writesData, Set.copyOf(inspector.columns));
+        return new Inspection(tables, inspector.writesData, Set.copyOf(inspector.columns),
+                inspector.misparsed);
     }
 
     /**
@@ -130,6 +145,9 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(Table table, S context) {
+        if ("TABLE".equalsIgnoreCase(table.getFullyQualifiedName())) {
+            misparsed = true;
+        }
         if (!table.isTableVariable() && !hiddenByWithName(table)) {
             recorded.add(extractTableName(table));
         }
@@ -285,6 +303,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         }
         if (qualifier == null || qualifier.isBlank()) {
             columns.add(new ColumnReference(unqualifiedCandidates(), name));
+            recordWholeRowReference(name);
             return null;
         }
         var candidates = resolveQualifier(column.getTable());
@@ -331,13 +350,13 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         }
     }
 
-    private static void addJoins(FromScope scope, List<Join> joins) {
+    private void addJoins(FromScope scope, List<Join> joins) {
         if (joins != null) {
             joins.forEach(join -> addFromItem(scope, join.getFromItem()));
         }
     }
 
-    private static void addFromItem(FromScope scope, FromItem item) {
+    private void addFromItem(FromScope scope, FromItem item) {
         switch (item) {
             case null -> {
                 // no FROM clause
@@ -347,6 +366,11 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                     return;
                 }
                 scope.tables().add(table);
+                if (table.getAlias() != null && table.getAlias().getAliasColumns() != null
+                        && !table.getAlias().getAliasColumns().isEmpty()) {
+                    // u(a, b) renames columns by position, so a name no longer says which column.
+                    columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+                }
                 if (table.getAlias() != null && table.getAlias().getName() != null) {
                     scope.byName().put(key(table.getAlias().getName()), table);
                 } else {
@@ -388,7 +412,66 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (fullName.indexOf('.') < 0 && hiddenByWithName(qualifier)) {
             return null;
         }
-        return Set.of(fullName);
+        var candidates = unqualifiedCandidates();
+        candidates.add(fullName);
+        return candidates;
+    }
+
+    /**
+     * PostgreSQL reads a bare alias or table name as the whole row ({@code SELECT u},
+     * {@code row_to_json(u)}, {@code (u).col}), so a name that resolves to a real table in scope is
+     * a wildcard over that table too.
+     */
+    private void recordWholeRowReference(String name) {
+        for (FromScope scope : fromScopes) {
+            var item = scope.byName().get(name);
+            if (item instanceof Table table) {
+                if (!hiddenByWithName(table)) {
+                    columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+                }
+                return;
+            }
+            if (item != null) {
+                return;
+            }
+        }
+    }
+
+    @Override
+    public <S> Void visit(TableStatement tableStatement, S context) {
+        super.visit(tableStatement, context);
+        var table = tableStatement.getTable();
+        if (table != null && !hiddenByWithName(table)) {
+            columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(FromQuery fromQuery, S context) {
+        var scope = FromScope.empty();
+        addFromItem(scope, fromQuery.getFromItem());
+        addJoins(scope, fromQuery.getJoins());
+        return scoped(fromQuery.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(fromQuery, context);
+            // Pipe operators can project, extend or pass rows through untouched; treat the source
+            // as read whole rather than follow each operator.
+            var tables = realTables(scope);
+            if (!tables.isEmpty()) {
+                columns.add(ColumnReference.wildcard(tables));
+            }
+            return null;
+        }));
+    }
+
+    @Override
+    public <S> Void visit(FullTextSearch fullTextSearch, S context) {
+        super.visit(fullTextSearch, context);
+        if (fullTextSearch.getMatchColumns() != null) {
+            fullTextSearch.getMatchColumns().forEach(column -> column.accept(this, context));
+        }
+        accept(fullTextSearch.getAgainstValue(), context);
+        return null;
     }
 
     private Set<String> unqualifiedCandidates() {

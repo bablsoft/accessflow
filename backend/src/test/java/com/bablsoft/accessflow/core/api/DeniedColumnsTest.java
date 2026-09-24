@@ -78,6 +78,38 @@ class DeniedColumnsTest {
     }
 
     @Test
+    void analyzedDdlIsCheckedThroughItsEmbeddedQuery() {
+        var ctas = new SqlParseResult(QueryType.DDL, false, List.of("sql"), Set.of(), false, false,
+                Set.of(new ColumnReference(Set.of("public.customer"), "national_id")), true);
+
+        assertThat(DeniedColumns.rejected(DENIED, ctas)).containsExactly("public.customer.national_id");
+    }
+
+    @Test
+    void wholeTableReadReachesEveryEntryOnThatTable() {
+        assertThat(DeniedColumns.rejectedForWholeTable(
+                List.of("customer.ssn", "public.customer.national_id", "orders.card"),
+                "\"Public\".Customer"))
+                .containsExactly("customer.ssn", "public.customer.national_id");
+        assertThat(DeniedColumns.rejectedForWholeTable(List.of(), "customer")).isEmpty();
+        assertThat(DeniedColumns.rejectedForWholeTable(DENIED, " ")).isEmpty();
+        assertThat(DeniedColumns.rejectedForWholeTable(DENIED, null)).isEmpty();
+    }
+
+    @Test
+    void intersectMeetsEntriesByTheColumnTheyName() {
+        assertThat(DeniedColumns.intersect(List.of("users.ssn", "users.email"),
+                List.of("public.users.ssn")))
+                .containsExactly("public.users.ssn");
+        assertThat(DeniedColumns.intersect(List.of("public.users.ssn"), List.of("Users.SSN")))
+                .containsExactly("public.users.ssn");
+        assertThat(DeniedColumns.intersect(List.of("a.users.ssn"), List.of("b.users.ssn"))).isEmpty();
+        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of("orders.ssn"))).isEmpty();
+        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of("users.email"))).isEmpty();
+        assertThat(DeniedColumns.intersect(List.of("users.ssn"), List.of())).isEmpty();
+    }
+
+    @Test
     void ddlAndOtherAreOutOfScope() {
         assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.DDL,
                 "ALTER TABLE customer DROP COLUMN national_id"))).isEmpty();

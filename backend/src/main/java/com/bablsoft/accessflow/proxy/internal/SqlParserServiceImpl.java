@@ -16,6 +16,7 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
 import org.springframework.context.MessageSource;
@@ -69,7 +70,7 @@ class SqlParserServiceImpl implements SqlParserService {
         var type = classify(statement);
         var analysis = analyze(statement, type);
         return new SqlParseResult(type, false, List.of(sql), analysis.tables(),
-                hasWhere(statement), hasLimit(statement), analysis.columns(), isDataQuery(type));
+                hasWhere(statement), hasLimit(statement), analysis.columns(), analysis.columnsAnalyzed());
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -168,26 +169,27 @@ class SqlParserServiceImpl implements SqlParserService {
             if (type == QueryType.DDL || type == QueryType.OTHER) {
                 // JSqlParser raises UnsupportedOperationException on a handful of non-DML shapes.
                 // DDL is gated by canDdl and OTHER needs write access, neither via the allow-list.
-                return new Analysis(Set.of(), Set.of());
+                return new Analysis(Set.of(), Set.of(), false);
             }
             throw new InvalidSqlException(msg("error.sql_analysis_failed"), ex);
         }
         if (inspection.writesData()) {
             throw new InvalidSqlException(msg("error.sql_embedded_write_not_allowed"));
         }
+        if (inspection.misparsed()) {
+            throw new InvalidSqlException(msg("error.sql_analysis_failed"));
+        }
         var out = new HashSet<String>(inspection.tables().size());
         for (String name : inspection.tables()) {
             out.add(normalizeIdentifier(name));
         }
-        return new Analysis(out, inspection.columns());
+        // OTHER is never column-analysed; DDL is, so CREATE TABLE … AS SELECT and CREATE VIEW … AS
+        // SELECT answer for the columns their query reads (#935).
+        return new Analysis(out, inspection.columns(), type != QueryType.OTHER);
     }
 
-    private record Analysis(Set<String> tables, Set<ColumnReference> columns) {
-    }
-
-    private static boolean isDataQuery(QueryType type) {
-        return type == QueryType.SELECT || type == QueryType.INSERT
-                || type == QueryType.UPDATE || type == QueryType.DELETE;
+    private record Analysis(Set<String> tables, Set<ColumnReference> columns,
+                            boolean columnsAnalyzed) {
     }
 
     /**
@@ -214,10 +216,8 @@ class SqlParserServiceImpl implements SqlParserService {
 
     private static boolean hasWhere(Statement statement) {
         return switch (statement) {
-            case Select select -> {
-                var plain = select.getPlainSelect();
-                yield plain != null && plain.getWhere() != null;
-            }
+            // getPlainSelect() casts blindly, and TABLE t is a Select that is not a PlainSelect.
+            case PlainSelect plain -> plain.getWhere() != null;
             case Update update -> update.getWhere() != null;
             case Delete delete -> delete.getWhere() != null;
             default -> false;

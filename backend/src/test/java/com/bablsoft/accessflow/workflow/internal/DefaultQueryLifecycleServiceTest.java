@@ -1071,6 +1071,28 @@ class DefaultQueryLifecycleServiceTest {
     }
 
     @Test
+    void executeRecurringOccurrenceRechecksTheFullParseSoANewlyDeniedColumnHalts() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(QueryType.SELECT, false,
+                java.util.List.of("SELECT ssn FROM users"), java.util.Set.of("users"), false, false,
+                java.util.Set.of(new com.bablsoft.accessflow.core.api.ColumnReference(
+                        java.util.Set.of("users"), "ssn")), true);
+        when(queryParser.parse(any(), any())).thenReturn(parsed);
+        org.mockito.Mockito.doThrow(new AccessDeniedException("column denied"))
+                .when(permissionVerifier).verify(submitterId, datasourceId, QueryType.SELECT, parsed);
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, "column denied");
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
     void executeRecurringOccurrenceHaltsWhenDatasourceInactiveOrGone() {
         stubActiveAnalystSubmitter();
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(

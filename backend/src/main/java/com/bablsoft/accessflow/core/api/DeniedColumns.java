@@ -58,17 +58,64 @@ public final class DeniedColumns {
     /**
      * @return the denied entries the parsed query reaches, sorted; empty when it reaches none. A
      *         data query whose columns were not analyzed (a non-JSqlParser engine) reaches every
-     *         entry, so a deny list can never be silently skipped.
+     *         entry, so a deny list can never be silently skipped. DDL is checked through the query
+     *         it embeds ({@code CREATE TABLE … AS SELECT}); {@code OTHER} is never checked, since
+     *         no permission grants it.
      */
     public static SortedSet<String> rejected(List<String> rawDenied, SqlParseResult parsed) {
         var denied = normalize(rawDenied);
-        if (denied.isEmpty() || parsed == null || !isDataQuery(parsed.type())) {
+        if (denied.isEmpty() || parsed == null || parsed.type() == QueryType.OTHER) {
             return new TreeSet<>();
         }
         if (!parsed.columnsAnalyzed()) {
-            return new TreeSet<>(denied);
+            // A DDL statement the walk could not traverse carries no query to read columns through.
+            return parsed.type() == QueryType.DDL ? new TreeSet<>() : new TreeSet<>(denied);
         }
         return rejected(denied, parsed.referencedColumns());
+    }
+
+    /**
+     * The columns two deny lists both deny, compared by what each entry matches rather than by its
+     * spelling: {@code users.ssn} and {@code public.users.ssn} overlap in {@code public.users.ssn}.
+     * Used to merge a user's grants, where a column stays denied only if every grant denies it.
+     */
+    public static List<String> intersect(List<String> left, List<String> right) {
+        var out = new ArrayList<String>();
+        for (String a : normalize(left)) {
+            for (String b : normalize(right)) {
+                var overlap = overlap(a, b);
+                if (overlap != null && !out.contains(overlap)) {
+                    out.add(overlap);
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static String overlap(String a, String b) {
+        var pa = a.split("\\.");
+        var pb = b.split("\\.");
+        if (!pa[pa.length - 1].equals(pb[pb.length - 1])
+                || pa.length < 2 || pb.length < 2
+                || !pa[pa.length - 2].equals(pb[pb.length - 2])) {
+            return null;
+        }
+        if (pa.length > 2 && pb.length > 2) {
+            return pa[0].equals(pb[0]) ? a : null;
+        }
+        return pa.length >= pb.length ? a : b;
+    }
+
+    /**
+     * @return the denied entries a read of every column of {@code table} ({@code schema.table} or
+     *         {@code table}) would reach — the table preview, which runs {@code SELECT *}
+     */
+    public static SortedSet<String> rejectedForWholeTable(List<String> rawDenied, String table) {
+        var denied = normalize(rawDenied);
+        if (denied.isEmpty() || table == null || table.isBlank()) {
+            return new TreeSet<>();
+        }
+        return rejected(denied, Set.of(ColumnReference.wildcard(Set.of(normalizeEntry(table)))));
     }
 
     private static SortedSet<String> rejected(List<String> denied,
@@ -105,11 +152,6 @@ public final class DeniedColumns {
             }
         }
         return false;
-    }
-
-    private static boolean isDataQuery(QueryType type) {
-        return type == QueryType.SELECT || type == QueryType.INSERT
-                || type == QueryType.UPDATE || type == QueryType.DELETE;
     }
 
     private static String normalizeEntry(String entry) {

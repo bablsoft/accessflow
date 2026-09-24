@@ -80,8 +80,27 @@ class SqlParserServiceImplTest {
     }
 
     @Test
-    void ddlIsNotColumnAnalyzed() {
-        assertThat(service.parse("CREATE TABLE t (id INT)").columnsAnalyzed()).isFalse();
+    void ddlIsColumnAnalyzedThroughItsEmbeddedQuery() {
+        var result = service.parse("CREATE TABLE copy AS SELECT ssn FROM users");
+
+        assertThat(result.columnsAnalyzed()).isTrue();
+        assertThat(result.referencedColumns())
+                .contains(new ColumnReference(java.util.Set.of("users"), "ssn"));
+    }
+
+    @Test
+    void parenthesisedTableStatementInFromIsRefused() {
+        assertThatThrownBy(() -> service.parse("SELECT t.ssn FROM (TABLE users) t"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void tableStatementIsAnalyzedAsAWholeRowRead() {
+        var result = service.parse("TABLE users");
+
+        assertThat(result.type()).isEqualTo(QueryType.SELECT);
+        assertThat(result.referencedColumns())
+                .containsExactly(ColumnReference.wildcard(java.util.Set.of("users")));
     }
 
     @Test

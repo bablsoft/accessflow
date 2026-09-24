@@ -87,6 +87,7 @@ export const KNOWN_DETAIL_KEYS = [
   'quota_type',
   'reason_text',
   'referenced_tables',
+  'rejected_columns',
   'rejected_tables',
   'releasable',
   'requester_group_ids',

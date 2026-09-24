@@ -53,6 +53,8 @@ class DefaultSampleDataServiceTest {
     private com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     @Mock
     private QueryExecutor queryExecutor;
+    @Mock
+    private org.springframework.context.MessageSource messageSource;
 
     @InjectMocks
     private DefaultSampleDataService service;
@@ -78,6 +80,33 @@ class DefaultSampleDataServiceTest {
                 .thenReturn(List.of());
         lenient().when(rowSecurityResolutionService.resolveApplicable(any(), any(), any()))
                 .thenReturn(List.of());
+    }
+
+    @Test
+    void nonAdminIsRefusedAPreviewOfATableWithADeniedColumn() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
+                new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
+                        false, false, false, List.of(), List.of(), List.of(),
+                        List.of("users.ssn"), null, null)));
+        when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(), any()))
+                .thenReturn("column denied");
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "users", 10))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessage("column denied");
+        verify(queryExecutor, never()).sampleTable(any());
+    }
+
+    @Test
+    void nonAdminPreviewIsAllowedWhenTheDeniedColumnIsOnAnotherTable() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
+                new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
+                        false, false, false, List.of(), List.of(), List.of(),
+                        List.of("public.orders.card"), null, null)));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "users",
+                10)).isSameAs(result);
     }
 
     @Test

@@ -737,24 +737,31 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
   `INSERT` and records a `core.api.ColumnReference(candidateTables, column)` for every `Column`,
   `AllColumns` (`*`, over the current scope's real tables; not inside a function call, so `COUNT(*)`
   is not a wildcard), `AllTableColumns` (`t.*`), JOIN `USING` column, `INSERT` column-list entry,
-  and column-list-less `INSERT` (a wildcard on the target). A qualifier resolves innermost-first to a
-  real table. A derived table or `WITH` name resolves to nothing, because the inner query is walked
-  on its own. An unknown qualifier is kept as a table name. An unqualified column takes every real
-  table of every enclosing scope as a candidate. `SqlParserServiceImpl` puts the set on
-  `SqlParseResult.referencedColumns` and sets `columnsAnalyzed=true` for SELECT/INSERT/UPDATE/DELETE,
-  unioned across a `BEGIN … COMMIT` envelope. Engine plugins keep the 6-argument constructor, which
+  and column-list-less `INSERT` (a wildcard on the target). Whole-row shapes are wildcards too:
+  `TableStatement`, a pipe-syntax `FromQuery`, a bare alias or table name used as a value
+  (`row_to_json(u)`, `(u).col`), and a table alias with a column list. MySQL `MATCH (…) AGAINST`
+  columns are recorded. A qualifier resolves innermost-first to a real table. A derived table or
+  `WITH` name resolves to nothing, because the inner query is walked on its own. An unknown qualifier
+  (`inserted`, `deleted`, `excluded`) and an unqualified column both take every real table of every
+  enclosing scope as candidates. A FROM item JSqlParser reads as a table named `TABLE` (its misparse
+  of `(TABLE t)`) sets `Inspection.misparsed`, and the parser refuses the statement with 422.
+  `SqlParserServiceImpl` puts the set on `SqlParseResult.referencedColumns` and sets
+  `columnsAnalyzed=true` for every type but `OTHER`, so a DDL statement is checked through the query
+  it embeds (`CREATE TABLE … AS SELECT`). It is unioned across a `BEGIN … COMMIT` envelope. Engine plugins keep the 6-argument constructor, which
   leaves both empty/`false`.
 - **Matching.** `core.api.DeniedColumns` is the single matcher: `normalize`, `isQualified`, and
   `rejected(denied, parsed)`. It returns every denied entry whose table matches a candidate (the
   schema must match only when both sides carry one) and whose column matches, or which a wildcard
-  reaches. It fails closed: a data query that was not column-analysed rejects every entry. DDL and
-  OTHER return nothing.
+  reaches. It fails closed: a data query that was not column-analysed rejects every entry. OTHER, and
+  a DDL statement the walk could not traverse, return nothing. `rejectedForWholeTable` answers the
+  table preview, and `intersect` merges grants by the column an entry names rather than its spelling.
 - **Enforcement.** The following all call it: `DatasourcePermissionVerifier.verify` (submission and
   the recurring per-occurrence recheck, 403 `error.permission.column_not_allowed`),
   `DefaultBreakGlassService` (`BreakGlassNotPermittedException`), `DefaultQueryDryRunService` (same
   403), `DefaultRequestGroupService.validatePermission` for every `QUERY` member, break-glass groups
-  included (`RequestGroupPermissionException`), and `DefaultAccessSimulationService` (a `DENY` on the
-  permission step with `rejected_columns`). `DatasourceAdminServiceImpl` normalises entries at grant
+  included (`RequestGroupPermissionException`), `DefaultSampleDataService` (the table preview, which
+  reads every column, so any denied column on the table refuses it with 403), and
+  `DefaultAccessSimulationService` (a `DENY` on the permission step with `rejected_columns`). `DatasourceAdminServiceImpl` normalises entries at grant
   time, refuses an unqualified one, and refuses the field on an engine-managed `DbType`
   (`DeniedColumnsNotSupportedException` → 422 `DENIED_COLUMNS_NOT_SUPPORTED`).
 

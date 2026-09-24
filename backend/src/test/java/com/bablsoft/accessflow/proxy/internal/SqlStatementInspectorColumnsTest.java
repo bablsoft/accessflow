@@ -97,9 +97,83 @@ class SqlStatementInspectorColumnsTest {
     }
 
     @Test
-    void unknownQualifierIsKeptAsATableName() {
+    void unknownQualifierTakesItselfAndEveryTableInScope() {
         assertThat(columns("SELECT secret.ssn FROM customer"))
-                .contains(ref("ssn", "secret"));
+                .contains(new ColumnReference(Set.of("secret", "customer"), "ssn"));
+    }
+
+    @Test
+    void sqlServerOutputPseudoTableReachesTheTarget() {
+        assertThat(columns("UPDATE users SET name = 'x' OUTPUT inserted.ssn WHERE id = 1"))
+                .contains(new ColumnReference(Set.of("inserted", "users"), "ssn"));
+    }
+
+    @Test
+    void postgresOnConflictExcludedReachesTheTarget() {
+        assertThat(columns("INSERT INTO users (id, ssn) VALUES (1, 'x') "
+                + "ON CONFLICT (id) DO UPDATE SET ssn = excluded.ssn"))
+                .contains(new ColumnReference(Set.of("excluded", "users"), "ssn"));
+    }
+
+    @Test
+    void bareAliasOrTableNameUsedAsAValueIsAWholeRowRead() {
+        for (var sql : java.util.List.of("SELECT u FROM users u",
+                "SELECT row_to_json(u) FROM users u", "SELECT to_jsonb(users) FROM users",
+                "SELECT (u).ssn FROM users u", "SELECT json_agg(u) FROM users u")) {
+            assertThat(columns(sql)).as(sql).contains(ColumnReference.wildcard(Set.of("users")));
+        }
+    }
+
+    @Test
+    void aColumnNamedLikeADerivedTableIsNotAWholeRowRead() {
+        assertThat(columns("SELECT t FROM (SELECT id FROM users) t"))
+                .noneMatch(ColumnReference::isWildcard);
+    }
+
+    @Test
+    void aliasColumnListIsAWildcardOverItsTable() {
+        assertThat(columns("SELECT a FROM users AS u(a, b)"))
+                .contains(ColumnReference.wildcard(Set.of("users")));
+    }
+
+    @Test
+    void tableStatementIsAWildcardOverItsTable() {
+        assertThat(columns("TABLE users")).containsExactly(ColumnReference.wildcard(Set.of("users")));
+        assertThat(inspect("SELECT t.ssn FROM (TABLE users) t").misparsed()).isTrue();
+        assertThat(inspect("SELECT * FROM users").misparsed()).isFalse();
+    }
+
+    @Test
+    void pipeSyntaxReadsTheSourceWhole() {
+        assertThat(columns("FROM users |> SELECT id"))
+                .contains(ColumnReference.wildcard(Set.of("users")))
+                .contains(ref("id", "users"));
+    }
+
+    @Test
+    void mysqlFullTextMatchColumnsAreRecorded() {
+        assertThat(columns("SELECT id FROM users WHERE MATCH (ssn) AGAINST ('x')"))
+                .contains(ref("ssn", "users"));
+    }
+
+    @Test
+    void createTableAsSelectRecordsTheColumnsItReads() {
+        assertThat(columns("CREATE TABLE copy AS SELECT ssn FROM users"))
+                .contains(ref("ssn", "users"));
+        assertThat(columns("CREATE VIEW v AS SELECT * FROM users"))
+                .contains(ColumnReference.wildcard(Set.of("users")));
+    }
+
+    @Test
+    void setOperationsRecordBothSides() {
+        assertThat(columns("SELECT id FROM a UNION SELECT ssn FROM b"))
+                .contains(ref("id", "a"), ref("ssn", "b"));
+    }
+
+    @Test
+    void lateralSubqueryColumnsAreRecorded() {
+        assertThat(columns("SELECT x.v FROM a, LATERAL (SELECT ssn AS v FROM b WHERE b.id = a.id) x"))
+                .anyMatch(r -> r.column().equals("ssn") && r.candidateTables().contains("b"));
     }
 
     @Test
@@ -155,8 +229,12 @@ class SqlStatementInspectorColumnsTest {
     }
 
     private static Set<ColumnReference> columns(String sql) {
+        return inspect(sql).columns();
+    }
+
+    private static SqlStatementInspector.Inspection inspect(String sql) {
         try {
-            return SqlStatementInspector.inspect(CCJSqlParserUtil.parse(sql)).columns();
+            return SqlStatementInspector.inspect(CCJSqlParserUtil.parse(sql));
         } catch (Exception ex) {
             throw new AssertionError(ex);
         }

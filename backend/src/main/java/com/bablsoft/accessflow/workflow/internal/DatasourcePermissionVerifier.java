@@ -18,9 +18,10 @@ import java.util.UUID;
 /**
  * The per-user datasource permission gate shared by query submission and the per-occurrence
  * fail-closed recheck of recurring series (#627): an active (unexpired) permission row must exist,
- * grant the capability matching the query type, and cover every referenced table with its
- * schema/table allow-list, and reference no column on its deny list (#935). Extracted verbatim from {@code DefaultQuerySubmissionService} so the
- * recurring path re-evaluates the exact same rules with current permission state.
+ * grant the capability matching the query type, cover every referenced table with its
+ * schema/table allow-list, and the query must reference no column on its deny list (#935).
+ * Extracted verbatim from {@code DefaultQuerySubmissionService} so the recurring path re-evaluates
+ * the exact same rules with current permission state.
  */
 @Component
 @RequiredArgsConstructor

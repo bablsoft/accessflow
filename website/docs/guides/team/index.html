@@ -431,7 +431,8 @@
             <li><strong>Restricted columns</strong> — masked in this person's results.</li>
             <li><strong>Denied columns</strong> — stricter than restricted: a query that touches one
               at all, including through <code>SELECT *</code>, is refused before it runs. Relational
-              datasources only.</li>
+              datasources only. Administrators are not bound by it, and it holds only while every
+              grant this person has on the datasource denies the column.</li>
             <li><strong>Expires at</strong> — optional, and the single most useful field on the
               form. Access that removes itself is access nobody has to remember to remove.</li>
           </ul>

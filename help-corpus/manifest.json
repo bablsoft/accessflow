@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "8e4e7051ee5c",
-  "generatedAt": "2026-09-24T07:30:50.340Z",
-  "sourceCommit": "466a0406065fe43a502e2487a56aa1336869fa4b",
-  "chunkCount": 585,
-  "sha256": "8e4e7051ee5cba4bca448c78a1720094c90b1d75e32b5ec6a50ca2a3e3bd410c",
+  "corpusVersion": "8754c1134523",
+  "generatedAt": "2026-09-24T07:45:40.106Z",
+  "sourceCommit": "12cdf69b6b1d287d873800163956e8ecb57b4540",
+  "chunkCount": 586,
+  "sha256": "8754c11345235a237df17da7a92d4c2a678b4ce8a27e39a7bdead9eb53d14f42",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 14,
-      "sha256": "7db0a782b9f4e56c8a9186c8e8e8f790a62903d09c674527ab5028ac533a46fd"
+      "chunks": 15,
+      "sha256": "7a9107c02bf639b783a0d3b0ac81569ca31f39a73a6ebb02cb9d85be76a62cc5"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -309,7 +309,7 @@
       "url": "https://accessflow.io/docs/guides/team/",
       "section": "Guides",
       "chunks": 8,
-      "sha256": "53f8448b2e9c6943105543dcf75ebfbf1329bd2edebf12d68309fc9b950974b5"
+      "sha256": "297c57fcf530d09dc9a17d0def19263ca9b41e0dbec94a1809b7c0b12589886a"
     },
     {
       "path": "website/docs/guides/terraform/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "8ec871933f6265f250dc1d21411d0a95f4460bf4e35d15e985098108f8079abb"
+      "sha256": "45da22212c855b134225f27af03dfd563e807166a3c41a2e1feac4faab6b8f3f"
     }
   ]
 }

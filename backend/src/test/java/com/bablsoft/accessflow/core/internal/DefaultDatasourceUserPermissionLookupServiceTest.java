@@ -192,7 +192,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         direct.setDeniedColumns(new String[] {"Public.Users.SSN", "public.users.email"});
         var group = newGroupPermission(groupId, datasourceId);
         group.setCanRead(true);
-        group.setDeniedColumns(new String[] {"public.users.ssn"});
+        group.setDeniedColumns(new String[] {"users.ssn"});
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(Optional.of(direct));
         when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));

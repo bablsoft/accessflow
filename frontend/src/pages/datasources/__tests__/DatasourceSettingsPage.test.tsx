@@ -804,7 +804,70 @@ describe('DatasourceSettingsPage — denied columns (#935)', () => {
     render(wrap(<DatasourceSettingsPage />));
     const dialog = await openGrantModal();
 
+    expect(within(dialog).getByText('Restricted columns')).toBeInTheDocument();
     expect(within(dialog).queryByText('Denied columns')).not.toBeInTheDocument();
+  });
+
+  it('sends the denied columns on a group grant', async () => {
+    listAllGroups.mockResolvedValue([
+      {
+        id: 'g-1',
+        organization_id: 'org-1',
+        name: 'Analysts',
+        description: null,
+        member_count: 3,
+        created_at: '2026-05-01T00:00:00Z',
+        updated_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    grantGroupPermission.mockReset();
+    grantGroupPermission.mockResolvedValue({});
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    fireEvent.click(within(dialog).getByText('Group'));
+    const groupSelect = await within(dialog).findByRole('combobox', { name: 'Group' });
+    fireEvent.mouseDown(groupSelect);
+    fireEvent.click(await screen.findByText('Analysts'));
+    typeDeniedColumn(dialog, 'customer.ssn');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantGroupPermission).toHaveBeenCalled());
+    const input = grantGroupPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.group_id).toBe('g-1');
+    expect(input.denied_columns).toEqual(['customer.ssn']);
+  });
+
+  it('shows the denied-column count on a group permission row', async () => {
+    listGroupPermissions.mockResolvedValue([
+      {
+        id: 'gp-1',
+        datasource_id: 'ds-1',
+        group_id: 'g-1',
+        group_name: 'Analysts',
+        member_count: 3,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: null,
+        allowed_schemas: null,
+        allowed_tables: null,
+        restricted_columns: null,
+        denied_columns: ['public.customer.ssn'],
+        expires_at: null,
+        created_by: 'admin',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const groupCell = await screen.findByText('Analysts');
+    const row = groupCell.closest('tr')!;
+    expect(within(row).getByText('1 column')).toBeInTheDocument();
   });
 
   it('shows the denied-column count on the permission row', async () => {

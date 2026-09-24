@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
@@ -15,6 +16,9 @@ import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.SampleDataService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,6 +38,7 @@ class DefaultSampleDataService implements SampleDataService {
     private final RowSecurityResolutionService rowSecurityResolutionService;
     private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final QueryExecutor queryExecutor;
+    private final MessageSource messageSource;
 
     @Override
     public SelectExecutionResult sample(UUID datasourceId, UUID organizationId, UUID userId,
@@ -52,6 +57,14 @@ class DefaultSampleDataService implements SampleDataService {
             var view = permission.orElseThrow(() -> new TableNotFoundException(datasourceId, table));
             if (!view.canRead() || !targetAllowed(view, target)) {
                 throw new TableNotFoundException(datasourceId, table);
+            }
+            // The preview reads every column, so a denied column on the table refuses it (#935).
+            var denied = DeniedColumns.rejectedForWholeTable(view.deniedColumns(),
+                    qualifiedName(target));
+            if (!denied.isEmpty()) {
+                throw new AccessDeniedException(messageSource.getMessage(
+                        "error.permission.column_not_allowed",
+                        new Object[]{String.join(", ", denied)}, LocaleContextHolder.getLocale()));
             }
         }
 
@@ -73,9 +86,7 @@ class DefaultSampleDataService implements SampleDataService {
         // #934: a row-limit policy on the sampled table caps the preview like it caps a query.
         Integer rowLimitOverride = permission.map(DatasourceUserPermissionView::rowLimitOverride)
                 .orElse(null);
-        var qualified = target.schema() == null || target.schema().isBlank()
-                ? normalize(target.table())
-                : normalize(target.schema()) + "." + normalize(target.table());
+        var qualified = qualifiedName(target);
         var appliedRowLimit = rowLimitPolicyResolutionService.resolve(organizationId, datasourceId,
                 userId, Set.of(qualified));
         if (appliedRowLimit.isPresent()) {
@@ -148,6 +159,12 @@ class DefaultSampleDataService implements SampleDataService {
             }
         }
         return List.copyOf(out);
+    }
+
+    private static String qualifiedName(Target target) {
+        return target.schema() == null || target.schema().isBlank()
+                ? normalize(target.table())
+                : normalize(target.schema()) + "." + normalize(target.table());
     }
 
     private static String normalize(String raw) {
