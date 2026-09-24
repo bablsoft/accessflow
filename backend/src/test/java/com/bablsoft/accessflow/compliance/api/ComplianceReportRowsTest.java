@@ -23,7 +23,7 @@ class ComplianceReportRowsTest {
     void regulatoryRowNullApproversBecomeEmpty() {
         var row = new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), "a@x.com", QueryType.DDL, "CREATE TABLE t (id int)", null,
-                Instant.EPOCH);
+                Instant.EPOCH, null);
 
         assertThat(row.approvers()).isEmpty();
     }

@@ -855,7 +855,16 @@
       "export_denied_classified_tooltip": "Export refusé : ce résultat contient des colonnes classifiées {{classifications}}",
       "card_sql_review": "Constats de revue SQL",
       "sql_review_blocked_note_one": "{{count}} règle bloquante s'est déclenchée à la soumission ; la requête n'a pas pu être approuvée automatiquement et a été envoyée en revue humaine.",
-      "sql_review_blocked_note_other": "{{count}} règles bloquantes se sont déclenchées à la soumission ; la requête n'a pas pu être approuvée automatiquement et a été envoyée en revue humaine."
+      "sql_review_blocked_note_other": "{{count}} règles bloquantes se sont déclenchées à la soumission ; la requête n'a pas pu être approuvée automatiquement et a été envoyée en revue humaine.",
+      "effective_sql": {
+        "view_aria": "Vue SQL",
+        "view_submitted": "Soumis",
+        "view_effective": "Effectif",
+        "view_diff": "Différences",
+        "hint": "Le SQL effectif est l’instruction telle qu’elle a réellement été exécutée, avec les filtres de sécurité des lignes et les réécritures de suppression logique appliqués. Les valeurs liées sont affichées sous forme de ? et ne sont jamais stockées.",
+        "diff_submitted_label": "SQL soumis",
+        "diff_effective_label": "SQL effectif"
+      }
     }
   },
   "reviews": {
@@ -3917,6 +3926,7 @@
     "col_classifications": "Classifications",
     "col_rows_affected": "Lignes",
     "col_sql": "SQL",
+    "col_effective_sql": "SQL effectif",
     "col_approvers": "Approbateurs"
   },
   "anomalies": {

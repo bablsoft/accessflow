@@ -349,6 +349,7 @@ class DefaultQueryExecutorTest {
         var result = (UpdateExecutionResult) executor.execute(request);
 
         assertThat(result.rowsAffected()).isEqualTo(2L);
+        assertThat(result.effectiveSql()).isNull();
         verify(batchStmt).setObject(1, 1L);
         verify(batchStmt).setObject(1, 2L);
         verify(batchStmt, times(2)).addBatch();
@@ -460,7 +461,7 @@ class DefaultQueryExecutorTest {
 
         var result = executor.execute(request);
 
-        assertThat(result).isSameAs(cached);
+        assertThat(result).isEqualTo(cached);
         verify(poolManager, never()).resolve(datasourceId);
         verify(resultCache, never()).put(any(), anyString(), any(), any(), any());
     }
@@ -568,6 +569,84 @@ class DefaultQueryExecutorTest {
 
         verify(statement).setObject(eq(1), eq("EU"));
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+        assertThat(result.effectiveSql()).isEqualTo("UPDATE t SET v = 1 WHERE t.region = ?");
+    }
+
+    @Test
+    void selectRowSecurityRewriteIsReportedAsRedactedEffectiveSql() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "t", "region",
+                RowSecurityOperator.EQUALS, List.of("EU-secret-tenant"));
+        var request = new QueryExecutionRequest(datasourceId, "SELECT v FROM t", QueryType.SELECT,
+                null, null, List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (SelectExecutionResult) executor.execute(request);
+
+        assertThat(result.effectiveSql()).contains("(SELECT * FROM t WHERE region = ?)")
+                .doesNotContain("EU-secret-tenant");
+    }
+
+    @Test
+    void unrewrittenStatementReportsNullEffectiveSql() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(statement.executeLargeUpdate()).thenReturn(1L);
+
+        var select = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasourceId, "SELECT v FROM t", QueryType.SELECT, null, null));
+        var update = (UpdateExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasourceId, "UPDATE t SET v = 1", QueryType.UPDATE, null, null));
+
+        assertThat(select.effectiveSql()).isNull();
+        assertThat(update.effectiveSql()).isNull();
+    }
+
+    @Test
+    void softDeleteRewriteIsReportedAsEffectiveSql() throws SQLException {
+        when(statement.executeLargeUpdate()).thenReturn(1L);
+        var softDelete = new com.bablsoft.accessflow.core.api.SoftDeleteDirective(
+                UUID.randomUUID(), "t", "deleted_at");
+
+        var result = (UpdateExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasourceId, "DELETE FROM t WHERE id = 1", QueryType.DELETE, null, null,
+                List.of(), List.of(), List.of(), false, null, List.of(softDelete),
+                java.util.Set.of("t")));
+
+        assertThat(result.effectiveSql()).startsWith("UPDATE t SET deleted_at = CURRENT_TIMESTAMP");
+    }
+
+    @Test
+    void selectCacheHitCarriesTheEffectiveSqlOfThisExecution() throws SQLException {
+        var cached = new SelectExecutionResult(List.of(), List.of(), 0, false, Duration.ZERO);
+        when(resultCache.enabledFor(any())).thenReturn(true);
+        when(resultCache.get(eq(datasourceId), anyString(), any(Duration.class)))
+                .thenReturn(Optional.of(cached));
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "t", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+
+        var result = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasourceId, "SELECT v FROM t", QueryType.SELECT, null, null, List.of(),
+                List.of(), List.of(directive), false, null, List.of(), java.util.Set.of("t")));
+
+        assertThat(result.effectiveSql()).contains("region = ?");
+    }
+
+    @Test
+    void transactionalBatchJoinsEveryStatementWhenAnyWasRewritten() throws SQLException {
+        when(statement.executeLargeUpdate()).thenReturn(1L);
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "t", "region",
+                RowSecurityOperator.EQUALS, List.of("EU-secret-tenant"));
+
+        var result = (UpdateExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasourceId,
+                "BEGIN; UPDATE t SET v = 1; DELETE FROM u WHERE id = 2; COMMIT;",
+                QueryType.UPDATE, null, null, List.of(), List.of(), List.of(directive), true,
+                List.of("UPDATE t SET v = 1", "DELETE FROM u WHERE id = 2")));
+
+        assertThat(result.effectiveSql())
+                .isEqualTo("UPDATE t SET v = 1 WHERE t.region = ?;\nDELETE FROM u WHERE id = 2")
+                .doesNotContain("EU-secret-tenant");
     }
 
     @Test

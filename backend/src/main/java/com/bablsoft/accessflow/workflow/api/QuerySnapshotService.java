@@ -18,9 +18,11 @@ public interface QuerySnapshotService {
     /**
      * Records the immutable snapshot for an executed query. Idempotent: a no-op when a snapshot already
      * exists for the query (safe under event redelivery). Never throws to its caller — failures are
-     * logged and swallowed so snapshot capture cannot disrupt query execution.
+     * logged and swallowed so snapshot capture cannot disrupt query execution. {@code effectiveSql} is the
+     * statement as actually executed (row-security / soft-delete rewrite, bound values redacted as
+     * {@code ?}), or {@code null} when nothing was rewritten (#937).
      */
-    void recordOnExecution(UUID queryRequestId);
+    void recordOnExecution(UUID queryRequestId, String effectiveSql);
 
     /** Loads the snapshot for a query, scoped to the organization. */
     Optional<QuerySnapshotView> find(UUID queryRequestId, UUID organizationId);

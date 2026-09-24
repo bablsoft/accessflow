@@ -24,6 +24,12 @@ public record QueryDetailResponse(
         DbType dbType,
         QueryListItem.SubmitterRef submittedBy,
         String sqlText,
+        /**
+         * The statement as actually executed (#937) — row-security / soft-delete rewrite with bound
+         * values redacted as {@code ?}, frozen on the query snapshot. Null when no rewrite occurred
+         * or the query has not executed.
+         */
+        String effectiveSql,
         QueryType queryType,
         QueryStatus status,
         String justification,
@@ -98,6 +104,16 @@ public record QueryDetailResponse(
                                            AccessGrantView grant, List<QueryTicketView> tickets,
                                            boolean includeApprovalPrediction,
                                            List<SqlReviewFindingDetail> sqlReviewFindings) {
+        return from(view, matched, grant, tickets, includeApprovalPrediction, sqlReviewFindings,
+                null);
+    }
+
+    /** @param effectiveSql the snapshot's effective executed statement (#937), or null */
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant, List<QueryTicketView> tickets,
+                                           boolean includeApprovalPrediction,
+                                           List<SqlReviewFindingDetail> sqlReviewFindings,
+                                           String effectiveSql) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -105,6 +121,7 @@ public record QueryDetailResponse(
                 new QueryListItem.SubmitterRef(view.submittedByUserId(),
                         view.submittedByEmail(), view.submittedByDisplayName()),
                 view.sqlText(),
+                effectiveSql,
                 view.queryType(),
                 view.status(),
                 view.justification(),

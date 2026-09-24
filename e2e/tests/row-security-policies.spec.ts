@@ -66,7 +66,7 @@ async function runAndFetch(
   submitterToken: string,
   adminToken: string,
   datasourceId: string,
-): Promise<string> {
+): Promise<{ id: string; body: string }> {
   const submitted = await submitQueryViaApi(
     request,
     submitterToken,
@@ -82,7 +82,19 @@ async function runAndFetch(
     headers: { Authorization: `Bearer ${submitterToken}` },
   });
   if (!res.ok()) throw new Error(`Fetch results failed: ${res.status()} ${await res.text()}`);
-  return res.text();
+  return { id: submitted.id, body: await res.text() };
+}
+
+async function fetchEffectiveSql(
+  request: APIRequestContext,
+  token: string,
+  queryId: string,
+): Promise<string | undefined> {
+  const res = await request.get(`${apiBase()}/api/v1/queries/${queryId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) throw new Error(`Fetch query failed: ${res.status()} ${await res.text()}`);
+  return ((await res.json()) as { effective_sql?: string }).effective_sql;
 }
 
 test.describe.configure({ timeout: 90_000 });
@@ -93,6 +105,9 @@ test.describe.serial('row-level security policies (AF-380)', () => {
   let datasource: CreatedDatasource | null = null;
   let scopedAnalyst: { user: InvitedUser; token: string };
   let unscopedAnalyst: { user: InvitedUser; token: string };
+  let policyId = '';
+  let scopedQueryId = '';
+  let scopedEffectiveSql = '';
 
   test.beforeAll(async ({ request }) => {
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -126,7 +141,7 @@ test.describe.serial('row-level security policies (AF-380)', () => {
 
     // Filter the users table to rows whose email equals the submitter's email_filter
     // attribute. Applies to all ANALYSTs.
-    await createRowSecurityPolicyViaApi(request, adminToken, datasource.id, {
+    const policy = await createRowSecurityPolicyViaApi(request, adminToken, datasource.id, {
       tableName: 'users',
       columnName: 'email',
       operator: 'EQUALS',
@@ -134,6 +149,7 @@ test.describe.serial('row-level security policies (AF-380)', () => {
       valueExpression: ':user.email_filter',
       appliesToRoles: ['ANALYST'],
     });
+    policyId = policy.id;
   });
 
   test.afterAll(async ({ request }) => {
@@ -145,17 +161,42 @@ test.describe.serial('row-level security policies (AF-380)', () => {
   // ── 1. Scoped analyst only sees the rows the predicate authorises ──────────
   test('scoped analyst sees only their own row', async ({ request }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
-    const body = await runAndFetch(request, scopedAnalyst.token, adminToken, datasource.id);
+    const { id, body } = await runAndFetch(request, scopedAnalyst.token, adminToken, datasource.id);
+    scopedQueryId = id;
     // Only the analyst's own email passes the predicate; the admin's does not.
     expect(body).toContain(scopedAnalyst.user.email);
     expect(body).not.toContain(ADMIN_EMAIL);
     expect(body).not.toContain(unscopedAnalyst.user.email);
   });
 
+  // ── 1b. The snapshot records the effective statement, values redacted (#937) ─
+  test('query detail shows the effective SQL with the predicate and no bound value', async ({
+    page,
+    request,
+  }) => {
+    const effective = await fetchEffectiveSql(request, adminToken, scopedQueryId);
+    expect(effective).toBeDefined();
+    scopedEffectiveSql = effective ?? '';
+    expect(scopedEffectiveSql).toMatch(/email = \?/);
+    // The analyst's attribute value is bound, never written into the audit trail.
+    expect(scopedEffectiveSql).not.toContain(scopedAnalyst.user.email);
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/queries/${scopedQueryId}`);
+    const sqlView = page.getByTestId('query-effective-sql');
+    await expect(sqlView).toBeVisible({ timeout: 15_000 });
+    // AntD Segmented hides its radio inputs — click the visible label. `exact` because the
+    // hint line below the toggle also mentions "Effective SQL".
+    await sqlView.getByText('Effective', { exact: true }).click();
+    await expect(sqlView.locator('pre')).toContainText('email = ?');
+    await sqlView.getByText('Diff', { exact: true }).click();
+    await expect(sqlView.getByTestId('sql-diff-view')).toBeVisible();
+  });
+
   // ── 2. Fail-closed: an unresolvable variable yields zero rows ──────────────
   test('analyst without the attribute sees no rows (fail-closed)', async ({ request }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
-    const body = await runAndFetch(request, unscopedAnalyst.token, adminToken, datasource.id);
+    const { body } = await runAndFetch(request, unscopedAnalyst.token, adminToken, datasource.id);
     // The :user.email_filter variable resolves to nothing → always-false predicate.
     expect(body).not.toContain('@');
   });
@@ -185,5 +226,17 @@ test.describe.serial('row-level security policies (AF-380)', () => {
 
     await expect(page.getByText('Row security policy saved')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('public.demo').first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ── 4. Deleting the policy never rewrites history (#937) ───────────────────
+  test('deleting the policy leaves the stored effective SQL unchanged', async ({ request }) => {
+    if (!datasource) throw new Error('datasource not created in beforeAll');
+    const res = await request.delete(
+      `${apiBase()}/api/v1/datasources/${datasource.id}/row-security-policies/${policyId}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(res.status()).toBe(204);
+
+    expect(await fetchEffectiveSql(request, adminToken, scopedQueryId)).toBe(scopedEffectiveSql);
   });
 });

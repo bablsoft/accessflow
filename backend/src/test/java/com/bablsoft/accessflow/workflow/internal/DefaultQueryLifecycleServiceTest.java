@@ -551,7 +551,8 @@ class DefaultQueryLifecycleServiceTest {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.UPDATE)));
         when(queryExecutor.execute(any()))
-                .thenReturn(new UpdateExecutionResult(7L, Duration.ofMillis(40)));
+                .thenReturn(new UpdateExecutionResult(7L, Duration.ofMillis(40),
+                        java.util.Set.of(), "UPDATE t SET v = 1 WHERE region = ?"));
 
         var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId,
                 organizationId, false));
@@ -559,6 +560,10 @@ class DefaultQueryLifecycleServiceTest {
         assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(outcome.rowsAffected()).isEqualTo(7L);
         verify(queryResultPersistenceService, never()).save(any());
+        var event = ArgumentCaptor.forClass(QueryExecutedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().effectiveSql())
+                .isEqualTo("UPDATE t SET v = 1 WHERE region = ?");
     }
 
     @Test
@@ -841,7 +846,8 @@ class DefaultQueryLifecycleServiceTest {
         when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
                 List.of(new ResultColumn("c", 4, "int4")),
                 List.of(List.of(1)),
-                1L, false, Duration.ofMillis(11)));
+                1L, false, Duration.ofMillis(11))
+                .withEffectiveSql("SELECT 1 FROM (SELECT * FROM t WHERE region = ?) t"));
 
         service.executeScheduled(queryId);
 
@@ -849,6 +855,8 @@ class DefaultQueryLifecycleServiceTest {
         var event = ArgumentCaptor.forClass(QueryExecutedEvent.class);
         verify(eventPublisher).publishEvent(event.capture());
         assertThat(event.getValue().finalStatus()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(event.getValue().effectiveSql())
+                .isEqualTo("SELECT 1 FROM (SELECT * FROM t WHERE region = ?) t");
 
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());

@@ -80,7 +80,8 @@ class DefaultComplianceReportServiceTest {
 
     private QuerySnapshotView snapshot(QueryType type, List<String> tables) {
         return new QuerySnapshotView(UUID.randomUUID(), UUID.randomUUID(), orgId, dsId, userId,
-                "SQL", type, false, DbType.POSTGRESQL, tables, null, null, "[]", 1L, 2, from, from);
+                "SQL", type, false, DbType.POSTGRESQL, tables, null, null, "[]", 1L, 2, from, from,
+                "SQL WHERE tenant = ?");
     }
 
     private OrganizationDataClassificationView tag(String table, DataClassification classification) {
@@ -138,6 +139,7 @@ class DefaultComplianceReportServiceTest {
         assertThat(report.type()).isEqualTo(ComplianceReportType.REGULATORY_AUDIT_TRAIL);
         assertThat(report.auditTrail()).hasSize(1);
         assertThat(report.auditTrail().getFirst().approvers()).hasSize(1);
+        assertThat(report.auditTrail().getFirst().effectiveSql()).isEqualTo("SQL WHERE tenant = ?");
         assertThat(report.auditTrail().getFirst().approvers().getFirst().email()).isEqualTo("rev@x.com");
         assertThat(report.classifiedAccess()).isEmpty();
     }

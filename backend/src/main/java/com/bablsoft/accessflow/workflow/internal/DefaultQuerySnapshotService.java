@@ -37,7 +37,7 @@ class DefaultQuerySnapshotService implements QuerySnapshotService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void recordOnExecution(UUID queryRequestId) {
+    public void recordOnExecution(UUID queryRequestId, String effectiveSql) {
         try {
             if (repository.existsByQueryRequestId(queryRequestId)) {
                 return;
@@ -55,6 +55,7 @@ class DefaultQuerySnapshotService implements QuerySnapshotService {
                 return;
             }
             var entity = build(query, detail);
+            entity.setEffectiveSql(effectiveSql);
             repository.save(entity);
         } catch (DataIntegrityViolationException ex) {
             // Lost the UNIQUE(query_request_id) race against a concurrent/redelivered event — fine.

@@ -88,7 +88,7 @@ class DefaultResultExportServiceTest {
     private QuerySnapshotView snapshot(QueryType queryType) {
         return new QuerySnapshotView(UUID.randomUUID(), queryId, orgId, datasourceId,
                 submitterId, "SELECT * FROM customers", queryType, false, DbType.POSTGRESQL,
-                List.of("public.customers"), "hash", null, null, 3L, 10, NOW, NOW);
+                List.of("public.customers"), "hash", null, null, 3L, 10, NOW, NOW, null);
     }
 
     private QueryResultPersistenceService.QueryResultSnapshot result(String rowsJson,

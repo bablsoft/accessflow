@@ -58,13 +58,15 @@ class CompliancePdfWriterTest {
                 t, t, t, null, List.of(),
                 List.of(new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "ProdDb",
                         UUID.randomUUID(), "alice@example.com", QueryType.DELETE,
-                        "DELETE FROM users", List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t)),
+                        "DELETE FROM users", List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t,
+                        "UPDATE users SET deleted_at = ?")),
                 false);
 
         var pdf = writer.write(report);
 
         var text = extractText(pdf);
         assertThat(text).contains("Regulatory Audit Trail");
+        assertThat(text).contains("Effective SQL");
         assertThat(text).contains("Rev");
     }
 
@@ -87,7 +89,7 @@ class CompliancePdfWriterTest {
         for (int i = 0; i < 80; i++) {
             rows.add(new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "ProdDb",
                     UUID.randomUUID(), "user" + i + "@example.com", QueryType.DELETE, longSql,
-                    List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t));
+                    List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t, null));
         }
         var report = new ComplianceReport(ComplianceReportType.REGULATORY_AUDIT_TRAIL, UUID.randomUUID(),
                 t, t, t, null, List.of(), rows, false);
