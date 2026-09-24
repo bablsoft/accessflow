@@ -17,8 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Upgrade test for V188 (#1092): drives Flyway to V187 on a private container, seeds estimates
- * whose plans carry inlined row-security values, then applies V188. V187 belongs to #937;
- * targeting it before that migration lands simply stops at V186.
+ * whose plans carry inlined row-security values, then applies V188.
  */
 class QueryEstimatePlanRedactionMigrationIntegrationTest {
 
