@@ -994,6 +994,14 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
 - **Audit.** The ids of the policies actually applied to an execution ride on the `QUERY_EXECUTED`
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
+- **Bound values never reach a persisted plan.** The pre-flight cost estimate (AF-624) dry-runs the
+  governed statement with the submitter's values bound, and engines inline those values into plan
+  predicate text (PostgreSQL `Index Cond` / `Filter`, MySQL `attached_condition`, MongoDB stage
+  filters). Whenever row security applied, the persisted estimate drops every plan node's `detail`
+  and the `raw_plan`, so reviewers and `QUERY_VIEW_ALL` holders never see another user's attribute
+  values and nothing is kept at rest (#1092; V188 stripped the rows stored before the fix).
+  Operation, table, row and cost figures are kept. The ad-hoc `POST /queries/dry-run` still returns
+  the full plan, but only to the caller about their own values, and stores nothing.
 
 ### Per-table row-limit policies (#934)
 

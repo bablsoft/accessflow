@@ -12,6 +12,8 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.ResolvedRowSecurityPredicate;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.events.QueryEstimateCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryEstimateFailedEvent;
@@ -187,6 +189,72 @@ class DefaultQueryCostEstimateServiceTest {
         verify(persistenceService).persist(eq(queryRequestId), captor.capture());
         assertThat(captor.getValue().scanType()).isEqualTo("Seq Scan");
         assertThat(captor.getValue().estimatedRows()).isEqualTo(2_400_000L);
+    }
+
+    @Test
+    void keepsPredicateDetailAndRawPlanWithoutRowSecurity() {
+        stubSelectDryRun(List.of(), Set.of());
+
+        service.estimateSubmittedQuery(queryRequestId);
+
+        var command = capturePersisted();
+        assertThat(command.planJson()).contains("(active = false)").contains("(id = 7)");
+        assertThat(command.rawPlan()).isEqualTo("[raw (active = false)]");
+    }
+
+    @Test
+    void dropsPredicateDetailAndRawPlanWhenRowSecurityResolved() {
+        var policyId = UUID.randomUUID();
+        stubSelectDryRun(List.of(new ResolvedRowSecurityPredicate(policyId, "public.users",
+                "email", RowSecurityOperator.EQUALS, List.of("dana@acme.example"))),
+                Set.of(policyId));
+
+        service.estimateSubmittedQuery(queryRequestId);
+
+        var command = capturePersisted();
+        assertThat(command.planJson()).doesNotContain("active = false")
+                .doesNotContain("id = 7")
+                .contains("\"operation\":\"Nested Loop\"")
+                .contains("\"operation\":\"Index Scan\"")
+                .contains("\"detail\":null");
+        assertThat(command.rawPlan()).isNull();
+        assertThat(command.scanType()).isEqualTo("Nested Loop");
+        assertThat(command.estimatedRows()).isEqualTo(10L);
+    }
+
+    @Test
+    void dropsPredicateDetailWhenEngineReportsAppliedPolicyWithoutResolvedDirective() {
+        stubSelectDryRun(List.of(), Set.of(UUID.randomUUID()));
+
+        service.estimateSubmittedQuery(queryRequestId);
+
+        var command = capturePersisted();
+        assertThat(command.planJson()).doesNotContain("active = false");
+        assertThat(command.rawPlan()).isNull();
+    }
+
+    private void stubSelectDryRun(List<ResolvedRowSecurityPredicate> predicates,
+                                  Set<UUID> appliedPolicyIds) {
+        when(lookupService.findByQueryRequestId(queryRequestId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(persistedSnapshot()));
+        when(queryRequestLookupService.findById(queryRequestId))
+                .thenReturn(Optional.of(snapshot(QueryType.SELECT, false)));
+        when(rowSecurityResolutionService.resolveApplicable(organizationId, datasourceId, userId))
+                .thenReturn(predicates);
+        var index = new QueryPlanNode("Index Scan", "orders", 1.0, 2.0, "(id = 7)");
+        var root = new QueryPlanNode("Nested Loop", null, 10.0, 8.0, "(active = false)",
+                List.of(index));
+        when(queryExecutor.dryRun(any())).thenReturn(QueryDryRunResult.of("postgresql",
+                QueryType.SELECT, 10L, root, "[raw (active = false)]", appliedPolicyIds,
+                Duration.ZERO));
+        when(persistenceService.persist(eq(queryRequestId), any())).thenReturn(estimateId);
+    }
+
+    private PersistQueryEstimateCommand capturePersisted() {
+        var captor = ArgumentCaptor.forClass(PersistQueryEstimateCommand.class);
+        verify(persistenceService).persist(eq(queryRequestId), captor.capture());
+        return captor.getValue();
     }
 
     @Test
