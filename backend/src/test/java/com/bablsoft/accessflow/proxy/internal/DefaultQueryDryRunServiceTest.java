@@ -66,7 +66,7 @@ class DefaultQueryDryRunServiceTest {
     private DatasourceUserPermissionView permission(boolean read, List<String> schemas,
                                                     List<String> tables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read,
-                false, false, false, schemas, tables, List.of(), null, null, null);
+                false, false, false, schemas, tables, List.of(), null, List.of(), List.of(), null, null);
     }
 
     @Test
@@ -180,13 +180,50 @@ class DefaultQueryDryRunServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(java.util.Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId, true, false, false, false,
-                        List.of(), List.of(), List.of(), List.of("users.ssn"), null, null)));
+                        List.of(), List.of(), List.of(), List.of("users.ssn"), List.of(), List.of(), null, null)));
         when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(), any()))
                 .thenReturn("column denied");
 
         assertThatThrownBy(() -> service.dryRun(datasourceId, "SELECT * FROM users", userId, orgId, false))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessage("column denied");
+        verify(queryExecutor, never()).dryRun(any());
+    }
+
+    @Test
+    void nonAdminReferencingDeniedTableIsDeniedBeforePlanning() {
+        when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(parse(QueryType.SELECT,
+                Set.of("crm.salary")));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(java.util.Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, false,
+                        List.of("crm"), List.of(), List.of(), null, List.of(),
+                        List.of("crm.salary"), null, null)));
+        when(messageSource.getMessage(eq("error.permission.table_denied"), any(), any()))
+                .thenReturn("table denied");
+
+        assertThatThrownBy(() -> service.dryRun(datasourceId, "SELECT * FROM crm.salary", userId,
+                orgId, false))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("table denied");
+        verify(queryExecutor, never()).dryRun(any());
+    }
+
+    @Test
+    void nonAdminReferencingATableInADeniedSchemaIsDeniedWithoutAnAllowList() {
+        when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(parse(QueryType.SELECT,
+                Set.of("hr.payroll")));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(java.util.Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, false,
+                        List.of(), List.of(), List.of(), null, List.of("hr"), List.of(), null,
+                        null)));
+
+        assertThatThrownBy(() -> service.dryRun(datasourceId, "SELECT * FROM hr.payroll", userId,
+                orgId, false))
+                .isInstanceOf(AccessDeniedException.class);
         verify(queryExecutor, never()).dryRun(any());
     }
 

@@ -660,6 +660,175 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void grantPermissionRoundTripsNormalizedDeniedSchemasAndTables() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"allowed_schemas":["crm"],
+                         "denied_schemas":["HR","hr"],
+                         "denied_tables":["CRM.Salary","bonus"]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.denied_schemas").asArray()
+                .containsExactly("hr");
+        assertThat(result).bodyJson().extractingPath("$.denied_tables").asArray()
+                .containsExactly("crm.salary", "bonus");
+
+        var listed = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(listed).hasStatus(200);
+        assertThat(listed).bodyJson().extractingPath("$.content[0].denied_tables").asArray()
+                .containsExactly("crm.salary", "bonus");
+        assertThat(listed).bodyJson().extractingPath("$.content[0].denied_schemas").asArray()
+                .containsExactly("hr");
+    }
+
+    @Test
+    void grantPermissionRejectsBlankDeniedTable() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_tables":["crm.salary","  "]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
+    void grantPermissionRejectsDeniedEntriesThatCouldNeverMatch() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        for (var body : List.of("\"denied_schemas\":[\"analytics.hr\"]",
+                "\"denied_tables\":[\"sal*\"]", "\"denied_tables\":[\"crm..salary\"]")) {
+            var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"user_id\":\"%s\",\"can_read\":true,%s}"
+                            .formatted(analyst.getId(), body))
+                    .exchange();
+
+            assertThat(result).hasStatus(400);
+        }
+    }
+
+    @Test
+    void grantPermissionRejectsBlankDeniedSchema() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_schemas":[""]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
+    void grantPermissionRejectsTooManyDeniedSchemas() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_schemas":%s}
+                        """.formatted(analyst.getId(), jsonNames("s", 51)))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(permissionRepository.existsByUser_IdAndDatasource_Id(analyst.getId(),
+                ds.getId())).isFalse();
+    }
+
+    @Test
+    void grantPermissionRejectsTooManyDeniedTables() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_tables":%s}
+                        """.formatted(analyst.getId(), jsonNames("t", 201)))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
+    void grantGroupPermissionRoundTripsDeniedSchemasAndTables() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true,
+                         "denied_schemas":["Audit"],"denied_tables":["crm.salary"]}
+                        """.formatted(group.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.denied_schemas").asArray()
+                .containsExactly("audit");
+        assertThat(result).bodyJson().extractingPath("$.denied_tables").asArray()
+                .containsExactly("crm.salary");
+
+        var listed = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(listed).hasStatus(200);
+        assertThat(listed).bodyJson().extractingPath("$.content[0].denied_tables").asArray()
+                .containsExactly("crm.salary");
+    }
+
+    @Test
+    void grantGroupPermissionRejectsBlankDeniedTableAndOversizeDeniedSchemas() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+
+        var blank = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true,"denied_tables":[" "]}
+                        """.formatted(group.getId()))
+                .exchange();
+        assertThat(blank).hasStatus(400);
+
+        var oversize = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true,"denied_schemas":%s}
+                        """.formatted(group.getId(), jsonNames("s", 51)))
+                .exchange();
+        assertThat(oversize).hasStatus(400);
+    }
+
+    private static String jsonNames(String prefix, int count) {
+        var names = new java.util.ArrayList<String>();
+        for (int i = 0; i < count; i++) {
+            names.add("\"" + prefix + i + "\"");
+        }
+        return "[" + String.join(",", names) + "]";
+    }
+
+    @Test
     void grantDuplicatePermissionReturns409() {
         var ds = saveDatasource(primaryOrg, "DS");
         savePermission(ds, analyst, admin, true, false, false);

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
@@ -13,8 +14,9 @@ import java.util.TreeSet;
 /**
  * Shared capability + allow-list checks for the standard query-submission gate and the break-glass
  * gate (AF-385). Both verify that a permission grants the capability for the parsed query type and
- * that every referenced table is within the permission's schema/table allow-list, and that no
- * referenced column is on the permission's deny list (#935).
+ * that every referenced table is within the permission's schema/table allow-list and outside its
+ * schema/table deny-lists (#939), and that no referenced column is on the permission's deny list
+ * (#935).
  */
 final class DatasourcePermissionChecker {
 
@@ -64,6 +66,27 @@ final class DatasourcePermissionChecker {
             }
         }
         return rejected;
+    }
+
+    /**
+     * @return the referenced tables the permission's {@code denied_schemas} / {@code denied_tables}
+     *         reach (#939), sorted; a denial applies whether or not an allow-list is set.
+     */
+    static Set<String> deniedTables(DatasourceUserPermissionView permission,
+                                    Set<String> referencedTables) {
+        return DeniedTables.rejected(permission.deniedSchemas(), permission.deniedTables(),
+                referencedTables);
+    }
+
+    /**
+     * @return every referenced table the permission does not let through — outside the allow-list
+     *         or denied — sorted. The one answer for callers that only need "may this user reach it".
+     */
+    static Set<String> blockedTables(DatasourceUserPermissionView permission,
+                                     Set<String> referencedTables) {
+        var blocked = new TreeSet<>(rejectedTables(permission, referencedTables));
+        blocked.addAll(deniedTables(permission, referencedTables));
+        return blocked;
     }
 
     /**

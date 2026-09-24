@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
@@ -134,9 +135,14 @@ class DefaultSampleDataService implements SampleDataService {
      * (the fail-closed rule {@code SchemaViewPermissionFilter} applies to the view, #936), counted
      * over the unfiltered catalog, fetched only for this fallback, since the caller's filtered view
      * may already hide the other table. A target without a schema is covered by a bare entry only.
+     * A denied table or schema (#939) is refused before any of that, whatever the allow-list says.
      */
     private static boolean targetAllowed(DatasourceUserPermissionView permission, Target target,
                                          Supplier<DatabaseSchemaView> fullCatalog) {
+        if (DeniedTables.deniesTable(permission.deniedSchemas(), permission.deniedTables(),
+                target.schema(), target.table())) {
+            return false;
+        }
         var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
         var allowedTables = AllowedTables.normalize(permission.allowedTables());
         if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {

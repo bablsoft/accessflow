@@ -36,7 +36,7 @@ class SchemaViewPermissionFilterTest {
                                                            List<String> tables,
                                                            List<String> denied) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID(), true, false, false, false, schemas, tables, null, denied, null,
+                UUID.randomUUID(), true, false, false, false, schemas, tables, null, denied, List.of(), List.of(), null,
                 null);
     }
 
@@ -160,6 +160,66 @@ class SchemaViewPermissionFilterTest {
 
         assertThat(tableNames(result)).containsExactly("public.orders", "public.customer");
         assertThat(result.schemas().getFirst().tables().getFirst().foreignKeys()).isEmpty();
+    }
+
+    private static DatasourceUserPermissionView denying(List<String> allowedSchemas,
+                                                        List<String> deniedSchemas,
+                                                        List<String> deniedTables) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), true, false, false, false, allowedSchemas, null, null, null,
+                deniedSchemas, deniedTables, null, null);
+    }
+
+    @Test
+    void aDeniedTableIsHiddenAndADenyOnlyGrantKeepsEverythingElse() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                denying(null, null, List.of("PUBLIC.Salary")));
+
+        assertThat(tableNames(result)).containsExactly("public.customer", "public.service",
+                "public.employee", "HR.payroll");
+        // A deny-only grant leaves the rest queryable, so an empty schema stays listed.
+        assertThat(result.schemas()).extracting(Schema::name)
+                .containsExactly("public", "HR", "empty");
+    }
+
+    @Test
+    void aDeniedTableIsHiddenInsideAnAllowedSchema() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                denying(List.of("public"), null, List.of("salary")));
+
+        assertThat(tableNames(result)).containsExactly("public.customer", "public.service",
+                "public.employee");
+    }
+
+    @Test
+    void aDeniedSchemaIsNotListedAtAll() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                denying(null, List.of("hr", "empty"), null));
+
+        assertThat(result.schemas()).extracting(Schema::name).containsExactly("public");
+        assertThat(tableNames(result)).hasSize(4);
+    }
+
+    @Test
+    void aDeniedSchemaBeatsTheSameSchemaOnTheAllowList() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                denying(List.of("hr", "empty"), List.of("empty"), null));
+
+        assertThat(result.schemas()).extracting(Schema::name).containsExactly("HR");
+        assertThat(tableNames(result)).containsExactly("HR.payroll");
+    }
+
+    @Test
+    void aForeignKeyToADeniedTableIsDropped() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                denying(null, null, List.of("public.employee")));
+
+        var tables = result.schemas().getFirst().tables();
+        assertThat(tables).extracting(Table::name)
+                .containsExactly("customer", "service", "salary");
+        assertThat(tables.get(0).foreignKeys()).isEmpty();
+        assertThat(tables.get(1).foreignKeys())
+                .containsExactly(new ForeignKey("id", "customer", "id"));
     }
 
     @Test

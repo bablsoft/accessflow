@@ -311,6 +311,8 @@ Grants a specific user access to a specific datasource with granular controls.
 | `allowed_tables` | TEXT[] — null means all tables permitted |
 | `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
 | `denied_columns` | TEXT[] nullable (#935, Flyway V186) — `table.column` / `schema.table.column` entries, stored normalised (unquoted, lowercase). A query that references one (including through `*`, `t.*` or a column-list-less `INSERT` on its table) is rejected with 403 before it is persisted. Relational engines only: a non-empty list is refused at grant time for an engine-managed datasource. Deny beats mask when a column is in both lists. Null/empty means nothing denied. |
+| `denied_schemas` | TEXT[] nullable (#939, Flyway V190) — schemas the grantee may not touch, stored normalised (unquoted, lowercase). A reference qualified with a denied schema (as any non-final segment) is rejected with 403, and so is **every unqualified reference** while any schema is denied, because the gate cannot know which schema the database resolves it to — grantees must schema-qualify table names. A denial always beats `allowed_schemas` / `allowed_tables`. Null/empty means nothing denied. |
+| `denied_tables` | TEXT[] nullable (#939, Flyway V190) — `table` or `schema.table` entries, stored normalised. An entry denies a reference when either name is a dot-aligned suffix of the other: bare `salary` denies `salary` in every schema; `crm.salary` denies `crm.salary`, `db.crm.salary` and an unqualified `salary`. Evaluated after the allow-list, so `allowed_schemas=[crm]` + `denied_tables=[crm.salary]` means "all of `crm` except `crm.salary`", including tables created later. Null/empty means nothing denied. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
 | `access_grant_request_id` | UUID nullable, FK → `access_grant_request` `ON DELETE SET NULL` (#969, Flyway V169) — the JIT request this row materialises; null on an admin-created row. Read by the effective-access report (#859) to label a source `JIT_GRANT`. Partial index on `(access_grant_request_id) WHERE access_grant_request_id IS NOT NULL`. Backfilled once by V169 from `access_grant_request.granted_permission_id` (datasource requests only) |
 | `created_by` | FK → `users` |
@@ -326,9 +328,13 @@ constraint and restriction columns clean), keyed on `group_id` instead of `user_
 **effective** permission is the most-permissive union of their direct grant and every unexpired group
 grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupService` (flags OR-ed;
 allow-lists unioned; `restricted_columns` and `denied_columns` intersected so a column is masked — or
-denied — only when every contributing grant masks or denies it; each grant's `expires_at` honoured independently). The one deliberate inversion is
-`row_limit_override`, which merges to the **smallest** non-null value so a wide group grant can never
-raise a tight per-user cap (#933). Mirrors how groups already drive
+denied — only when every contributing grant masks or denies it; each grant's `expires_at` honoured independently). Two deliberate inversions:
+`row_limit_override` merges to the **smallest** non-null value so a wide group grant can never
+raise a tight per-user cap (#933), and `denied_schemas` / `denied_tables` merge to their **union**
+(#939), so a permissive grant can never lift another grant's denial and a group grant's denial binds
+every member. (`denied_columns` still intersects — an intentional, documented asymmetry.) A denial
+lives on its row, so revoking or expiring that row (including an attestation revoke) drops the denial
+and can widen the user's effective access through their remaining grants. Mirrors how groups already drive
 masking-reveal and row-security.
 
 | Column | Type / Notes |
@@ -339,7 +345,7 @@ masking-reveal and row-security.
 | `group_id` | FK → `user_groups` ON DELETE CASCADE |
 | `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false — same semantics as the per-user table |
 | `row_limit_override` | INTEGER nullable — same semantics as the per-user table; merged most-restrictive (smallest non-null wins) |
-| `allowed_schemas` / `allowed_tables` / `restricted_columns` / `denied_columns` | TEXT[] nullable — same semantics as the per-user table (`denied_columns` added by V186, #935) |
+| `allowed_schemas` / `allowed_tables` / `restricted_columns` / `denied_columns` / `denied_schemas` / `denied_tables` | TEXT[] nullable — same semantics as the per-user table (`denied_columns` added by V186, #935; `denied_schemas` / `denied_tables` by V190, #939 — merged as a union across a user's grants) |
 | `expires_at` | TIMESTAMPTZ nullable — honoured per grant (an expired grant contributes nothing) |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |

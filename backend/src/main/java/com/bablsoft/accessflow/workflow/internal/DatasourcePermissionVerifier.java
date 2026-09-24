@@ -39,7 +39,7 @@ class DatasourcePermissionVerifier {
     /**
      * @throws AccessDeniedException when the user has no active permission on the datasource, the
      *         permission is expired, lacks the capability for {@code queryType}, any referenced
-     *         table falls outside the allow-list, or any referenced column is denied.
+     *         table falls outside the allow-list or is denied, or any referenced column is denied.
      */
     void verify(UUID userId, UUID datasourceId, QueryType queryType, SqlParseResult parsed) {
         var permission = permissionLookupService.findFor(userId, datasourceId)
@@ -53,7 +53,19 @@ class DatasourcePermissionVerifier {
                     "Insufficient permission for " + queryType + " on datasource: " + datasourceId);
         }
         verifyAllowedTables(permission, datasourceId, parsed.referencedTables());
+        verifyDeniedTables(permission, datasourceId, parsed.referencedTables());
         verifyDeniedColumns(permission, datasourceId, parsed);
+    }
+
+    private void verifyDeniedTables(DatasourceUserPermissionView permission, UUID datasourceId,
+                                    Set<String> referencedTables) {
+        var rejected = DatasourcePermissionChecker.deniedTables(permission, referencedTables);
+        if (!rejected.isEmpty()) {
+            log.warn("Table deny rejection on datasource {} for user {}: tables {} denied",
+                    datasourceId, permission.userId(), rejected);
+            throw new AccessDeniedException(msg("error.permission.table_denied",
+                    new Object[]{String.join(", ", rejected)}));
+        }
     }
 
     private void verifyDeniedColumns(DatasourceUserPermissionView permission, UUID datasourceId,

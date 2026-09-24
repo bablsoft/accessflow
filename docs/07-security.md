@@ -715,9 +715,12 @@ and every unexpired `datasource_group_permissions` grant for a group they belong
 capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned, and `restricted_columns`
 and `denied_columns` intersected (a column is masked — or denied — only when **every** contributing grant
 masks or denies it; #935), each grant's `expires_at`
-honoured independently. `row_limit_override` is the one deliberate inversion: the **smallest** non-null value
+honoured independently. Two fields are deliberate inversions. `row_limit_override`: the **smallest** non-null value
 wins, so a wide group grant can never raise a tight per-user cap, and the proxy clamps it to the datasource
-cap and the global ceiling (#933). The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
+cap and the global ceiling (#933). `denied_schemas` / `denied_tables` (#939) are **unioned**: a table stays
+denied when **any** contributing grant — direct, group or JIT — denies it, so a permissive group grant can
+never lift a denial from a direct grant, and a group grant's denial binds every member. (`denied_columns`
+still intersects — an intentional asymmetry, documented here so nobody "fixes" one without the other.) The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
 the single choke-point every enforcement path (proxy, JIT/break-glass gates, masking/row-security scoping,
 `requestgroups` checks) reads through, so groups behave here exactly as they already do for
 masking-reveal and row-security. Granting a group access lets an admin onboard a whole team without a
@@ -748,6 +751,15 @@ Are allowed_schemas / allowed_tables set?
         included (`DefaultRequestGroupService.validatePermission`).
   Violation → 403
          ↓
+Are denied_schemas / denied_tables set? (#939 — checked with or without an allow-list)
+  YES → match every referenced table against the deny-lists; a denial ALWAYS beats the allow-list.
+        denied_tables: either name a dot-aligned suffix of the other (`salary` denies every
+        schema's `salary`; `crm.salary` also denies an unqualified `salary`).
+        denied_schemas: any reference carrying the schema as a non-final segment, AND every
+        unqualified reference (the gate cannot know where search_path resolves it).
+        Reject (403, `error.permission.table_denied`) on any hit.
+  Violation → 403
+         ↓
 Are denied_columns set? (#935, relational engines only)
   YES → resolve every column the parsed statement references (select items, WHERE, JOIN ON/USING,
         GROUP BY, HAVING, ORDER BY, subqueries, UPDATE SET targets, INSERT column lists, RETURNING)
@@ -764,9 +776,10 @@ Are restricted_columns set?
 
 **Discovery follows the same rules (#936).** `GET /datasources/{id}/schema` and every surface built on
 it (editor autocomplete, table preview, AI preview / text-to-SQL context, MCP `get_datasource_schema`)
-show a non-admin only the tables their allow-list covers, without their denied columns, and without
+show a non-admin only the tables their allow-list covers and their deny-lists do not reach (a denied
+schema is never listed; #939), without their denied columns, and without
 foreign keys that start from or point at a denied column or at a hidden table — through the same
-`core.api.AllowedTables` / `DeniedColumns` matchers the gate above uses. Where the view cannot tell
+`core.api.AllowedTables` / `DeniedTables` / `DeniedColumns` matchers the gate above uses. Where the view cannot tell
 what the gate would allow it fails closed: a bare `allowed_tables` entry shows a table only when no
 other schema has one of the same name. Admins and system-actor introspection are unfiltered; the JIT request form keeps its
 name-only unfiltered listing, because requesting access to something you cannot yet see is its purpose.
@@ -788,8 +801,8 @@ question:
    lapses between the two reads.
 3. **Does the grant carry the capability the query type needs?** A read-only analyst is never shown
    a DDL suggestion they could not submit.
-4. **Is every referenced table inside their allow-list?** `DatasourcePermissionChecker.rejectedTables`
-   must come back empty. This is safe **only** because the aggregation guarantees
+4. **Is every referenced table inside their allow-list, and outside their deny-lists?**
+   `DatasourcePermissionChecker.blockedTables` (allow-list misses plus #939 denials) must come back empty. This is safe **only** because the aggregation guarantees
    `referenced_tables` is never empty — that method reports "nothing rejected" for an empty set, so
    a row whose tables could not be resolved would clear this check for everyone. The aggregation
    drops such rows rather than storing them; do not relax that guard.
@@ -827,14 +840,14 @@ A user can self-request temporary, scoped access — to a datasource or an API c
 - **A requester can never approve their own request.** Enforced in `DefaultAccessReviewService.prepareDecision()` at the service layer (not just the UI) — `requesterId == reviewerId` raises `AccessDeniedException` (403), exactly as the query-review self-approval block does.
 - **Eligibility is identical to query review.** The reviewer must be an approver at the request's current stage in the resource's review plan (the datasource's plan, or the connector's `review_plan_id`) *and* — for datasource requests — within the datasource's scoped-reviewer set (`datasource_reviewers`) when one is configured (reviewer scoping is a datasource-only concept). `REVIEWER`/`ADMIN` role is necessary but not sufficient.
 - **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` or `api_connector_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard access checks return 403 — and the connector-side effective-permission resolver already excludes rows past `expires_at` even before deletion.
-- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) direct permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* direct permission is revoked and replaced (extend/widen); group grants are never considered or touched. This preserves standing access as the source of truth while letting JIT grants stack predictably.
+- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) direct permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* direct permission — JIT or admin-created with an expiry — is revoked and replaced (extend/widen), and its `denied_columns` / `denied_schemas` / `denied_tables` carry over onto the new grant, so a JIT approval never lifts a denial (#939); group grants are never considered or touched. This preserves standing access as the source of truth while letting JIT grants stack predictably.
 - **Privilege ceiling on connector requests (AF-567).** A connector access request can only convey `can_read`/`can_write` plus an operation allow-list validated against the connector's catalog — `can_break_glass` and response-field-restriction changes are never self-requestable, and the materialised grant always carries `can_break_glass = false`.
 
 ### Break-glass / emergency access (AF-385)
 
 A distinct submission mode that **skips pre-approval** for genuine emergencies, with compensating controls and these non-negotiable security invariants:
 
-- **Gated by an explicit `can_break_glass` permission, required for everyone — including admins.** Unlike normal submission (where admins bypass the per-datasource permission check), break-glass is enforced for all callers at the service layer (`DefaultBreakGlassService`): a non-null, non-expired `datasource_user_permissions` row with `can_break_glass=true` **and** the capability for the parsed query type **and** the table allow-list, else `BreakGlassNotPermittedException` (403). Time-boxed via the grant's `expires_at`.
+- **Gated by an explicit `can_break_glass` permission, required for everyone — including admins.** Unlike normal submission (where admins bypass the per-datasource permission check), break-glass is enforced for all callers at the service layer (`DefaultBreakGlassService`): a non-null, non-expired `datasource_user_permissions` row with `can_break_glass=true` **and** the capability for the parsed query type **and** the table allow-list **and** the table/schema deny-lists (#939) **and** the denied columns, else `BreakGlassNotPermittedException` (403). Time-boxed via the grant's `expires_at`.
 - **All proxy guards still apply.** The query runs through the identical execution path — schema/table allow-list, dynamic masking, row-level security, and row caps are enforced exactly as for a reviewed query. Break-glass bypasses *approval*, never the *data-protection* controls.
 - **Justification is mandatory** and captured on the `break_glass_events` row and in the audit metadata.
 - **Compensating controls.** Instant fanout to every active org admin (incl. PagerDuty); a prominently distinct `QUERY_BREAK_GLASS_EXECUTED` audit row (not `QUERY_EXECUTED`); and a mandatory retro-review.
@@ -848,7 +861,7 @@ A distinct submission mode that **skips pre-approval** for genuine emergencies, 
 - Restricted columns can still be referenced in SQL (WHERE, JOIN, GROUP BY, etc.). The system does not reject the query; it masks the value in the SELECT response and informs the AI reviewer.
 - Masking happens in `JdbcResultRowMapper` before rows are added to the in-memory result and before they are written to `query_request_results.rows`. The raw value never lands in our database. The sentinel is `"***"`; `null` stays `null`.
 - The AI analyzer renders `*RESTRICTED*` markers next to flagged columns in the schema context and is instructed to emit `RESTRICTED_COLUMN_ACCESS` issues (severity `LOW`) — the workflow state machine ignores this category for auto-rejection logic.
-- For high-confidentiality data where the value must never be retrievable at all, use `denied_columns` (below), an `allowed_tables` denial, or a database-side view that excludes the column.
+- For high-confidentiality data where the value must never be retrievable at all, use `denied_columns` (below), a `denied_tables` entry (#939) or an `allowed_tables` omission for the whole table, or a database-side view that excludes the column.
 
 ### Denied columns — block, not mask (#935)
 
@@ -912,10 +925,60 @@ refuses the preview), and the access simulator, which reports the refusal as
 - **Precedence with masking.** Deny is evaluated before execution, so a column that is both denied and
   restricted is rejected. A column that is only restricted keeps masking exactly as before.
 - **Who it binds.** Like the table allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at
-  submission. Break-glass enforces it for everyone. A JIT grant never carries denied columns, and the
-  intersection merge means a grant that denies nothing lifts the deny for its holder. Entries meet by
+  submission. Break-glass enforces it for everyone. A JIT request cannot ask for denied columns; a
+  JIT grant carries only those of the expiring direct row it replaces (#939), and the intersection merge
+  means a grant that denies nothing lifts the deny for its holder. Entries meet by
   the column they name, not by spelling: `users.ssn` on one grant and `public.users.ssn` on another
   still deny `public.users.ssn`.
+
+### Table / schema deny-lists (#939)
+
+`denied_schemas` and `denied_tables` (`TEXT[]` on both permission tables) are the subtractive
+counterpart of the allow-list: `allowed_schemas=[crm]` + `denied_tables=[crm.salary]` grants all of
+`crm` — including tables created after the grant — except `crm.salary`. A denial is evaluated after the
+allow-list and **always wins**; it also works with no allow-list at all. All gates share one matcher,
+`core.api.DeniedTables`.
+
+- **Fail-closed matching.** The gate reads SQL, not the database's name resolution, so every rule
+  errs toward refusing. A `denied_tables` entry matches when either name is a dot-aligned suffix of
+  the other: bare `salary` denies `salary` in every schema, and `crm.salary` denies `crm.salary`,
+  `db.crm.salary` **and** an unqualified `salary`. A `denied_schemas` entry matches any reference
+  carrying it as a non-final segment and **every unqualified reference** — while any schema is
+  denied, the grantee must schema-qualify table names. A `schema.*` entry in `denied_tables` denies the
+  whole schema. Matching is case-insensitive with identifier quotes stripped and runs segment by segment
+  from the right: an empty segment (SQL Server `db..salary`) matches anything, an Oracle `@dblink`
+  suffix is ignored, and a reference that is a pattern (`*` / `?`, e.g. an Elasticsearch index pattern
+  `sal*`) is denied by any entry at all.
+- **Entry validation.** A `denied_schemas` entry is a single name (no dots, no `*` / `?`); a
+  `denied_tables` entry is `table`, `schema.table` or `schema.*` with no empty segment. Anything else is
+  refused at grant time (400), and again at the service layer for non-web callers.
+- **Union merge.** Denials union across direct, group and JIT grants (the inverse of every other
+  merged field). A permissive grant cannot dissolve a denial, and a group grant's denial binds every
+  member. `denied_columns` still merges by intersection — an intentional asymmetry for now.
+- **Removing a grant can widen access.** A denial lives on its grant row, so revoking or expiring that
+  row (an attestation revoke, expiry, an admin revoke) removes the denial too, and another grant the user
+  still holds may then expose the table.
+- **Where it is enforced.** Everywhere the allow-list is: submission (REST and MCP) and the recurring
+  per-occurrence recheck (403 `error.permission.table_denied`), break-glass (for everyone), dry-run
+  (403), the access simulator (`denied_tables` detail, `workflow.access_simulation.permission.table_denied`),
+  the effective-access reverse index (not granted), query suggestions (not offered), the table preview
+  (404, as if absent), and the filtered schema view — denied tables and schemas are hidden from the
+  schema browser, autocomplete, MCP tools and AI text-to-SQL context. Request-group `QUERY` members
+  are checked too; they are still not checked against the allow-list, a pre-existing gap tracked as a
+  follow-up.
+- **Who it binds.** Like the allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at
+  submission; break-glass enforces it for everyone. A JIT access request cannot add a deny-list, but a
+  JIT grant never lifts one: denials union across grants, and when a JIT approval replaces the user's
+  expiring direct row, that row's denials (tables, schemas and columns) carry over onto the new grant.
+- **Known limits.** Deny-lists apply to every engine, relational and plugin. On engines whose names
+  carry no schema (MongoDB collections, DynamoDB tables, Redis keys) every reference is unqualified, so
+  a `denied_schemas` entry refuses every query — use `denied_tables` there. A denial only sees the
+  references the parser or engine plugin reports, the same limit as the allow-list: views, function
+  bodies and SQL-text functions (`query_to_xml`, `dblink`, `OPENQUERY`) are invisible to the AST walk,
+  MongoDB `$lookup` / `$unionWith` / `$graphLookup` read unreported collections, Neo4j reports only
+  labels and relationship types (`MATCH (n) RETURN n` reports nothing), and Redis `KEYS` with a glob
+  reports no prefix. Pair a deny-list with database-side grants on the pool account where the table
+  must be unreachable even through those.
 
 ### Dynamic data masking policies (AF-381)
 
@@ -1225,7 +1288,7 @@ transformed values; the raw data is never sent over the wire).
 - `password_encrypted` is **excluded from all API serialization** (`@JsonIgnore`)
 - Credentials are decrypted only inside the `QueryProxyService` at JDBC pool creation time
 - The decrypted password is passed directly to HikariCP and not retained in application memory beyond pool initialization
-- A dedicated low-privilege service account is recommended on each customer database (SELECT only, or specific table grants matching `allowed_tables`)
+- A dedicated low-privilege service account is recommended on each customer database (SELECT only, or specific table grants matching `allowed_tables` and withholding what `denied_tables` / `denied_schemas` cover)
 
 ### External secret stores (AF-448)
 
@@ -1511,7 +1574,7 @@ AccessFlow uses defense-in-depth against injection attacks:
 
    There is exactly one carve-out, and it never executes anything: **the SQL Server dry-run plan read** (`SqlServerDryRunPlanner`, AF-762). `mssql-jdbc` returns no SHOWPLAN rows at all over the prepared/RPC path, so the plan query is issued as a plain `Statement` language batch. Four properties bound it: the statement text is the caller's own SQL, already JSqlParser-validated and allow-list-checked; nothing is concatenated into it; the planner refuses to run when the row-security rewrite produced binds, so no value is ever interpolated; and `SET SHOWPLAN_ALL ON` means SQL Server plans the statement rather than running it — for DDL and `SET` as much as for DML. All four are verified against a real SQL Server 2022 in `DefaultQueryExecutorMssqlIntegrationTest`, which asserts that an `UPDATE`/`DELETE` dry-run leaves every row untouched and that a `CREATE TABLE` / `DROP TABLE` dry-run changes no schema.
 
-3. **Schema allow-listing at AST level** — If `allowed_schemas` or `allowed_tables` is configured, the parsed SQL AST is walked by `SqlStatementInspector` (a `TablesNamesFinder` subclass) to extract referenced tables. It records tables itself instead of trusting the finder's final set, which drops every name that matches *any* derived-table, LATERAL or `WITH` alias in the statement (`… EXISTS (SELECT 1 FROM (SELECT 1) AS secret)` used to erase the real `secret`): a derived-table alias never hides a table, and a `WITH` name hides an unqualified table only inside the statement that declares it and only after its own body (every name of a `WITH RECURSIVE` list is visible throughout the list), so `WITH secret AS (SELECT * FROM secret) …` still reports `secret`. It also descends into positions the finder skips — window `PARTITION BY`, a function call's aggregate `ORDER BY` / `LIMIT` / `HAVING` / keyword arguments, array subscripts, `TOP`, and `XMLTABLE` / `JSON_TABLE` arguments in `FROM`. Row security (`RowSecurityRewriter`) uses the same walker, so both controls see the same table set. Identifiers are normalised (quotes stripped, ASCII-lowercased) before comparison; the union across `BEGIN; …; COMMIT;` envelopes is enforced as a single set. Violations are rejected (HTTP 403) without touching the database. **Known limit:** functions that take SQL *text* and run it server-side — PostgreSQL `query_to_xml('select … from t', …)`, `dblink(…)`, SQL Server `OPENQUERY(…)` / `OPENROWSET(…)` — are opaque to an AST walk, so the tables they read are not in the set. Block them with the deterministic SQL review `disallowed_function` rule (or revoke `EXECUTE` on them for the pool account); on PostgreSQL the read-only session in (7) stops their write variants on the `SELECT` path. See [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement) for the full match algorithm.
+3. **Schema allow-listing at AST level** — If `allowed_schemas` or `allowed_tables` is configured, the parsed SQL AST is walked by `SqlStatementInspector` (a `TablesNamesFinder` subclass) to extract referenced tables. It records tables itself instead of trusting the finder's final set, which drops every name that matches *any* derived-table, LATERAL or `WITH` alias in the statement (`… EXISTS (SELECT 1 FROM (SELECT 1) AS secret)` used to erase the real `secret`): a derived-table alias never hides a table, and a `WITH` name hides an unqualified table only inside the statement that declares it and only after its own body (every name of a `WITH RECURSIVE` list is visible throughout the list), so `WITH secret AS (SELECT * FROM secret) …` still reports `secret`. It also descends into positions the finder skips — window `PARTITION BY`, a function call's aggregate `ORDER BY` / `LIMIT` / `HAVING` / keyword arguments, array subscripts, `TOP`, and `XMLTABLE` / `JSON_TABLE` arguments in `FROM`. Row security (`RowSecurityRewriter`) uses the same walker, so both controls see the same table set. Identifiers are normalised (quotes stripped, ASCII-lowercased) before comparison; the union across `BEGIN; …; COMMIT;` envelopes is enforced as a single set. The same table set is then checked against the grant's `denied_schemas` / `denied_tables` (#939), which beat the allow-list and apply with or without one. Violations are rejected (HTTP 403) without touching the database. **Known limit:** functions that take SQL *text* and run it server-side — PostgreSQL `query_to_xml('select … from t', …)`, `dblink(…)`, SQL Server `OPENQUERY(…)` / `OPENROWSET(…)` — are opaque to an AST walk, so the tables they read are not in the set. Block them with the deterministic SQL review `disallowed_function` rule (or revoke `EXECUTE` on them for the pool account); on PostgreSQL the read-only session in (7) stops their write variants on the `SELECT` path. See [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement) for the full match algorithm.
 
 4. **DDL blocked by default** — `can_ddl=false` (the default) prevents CREATE/ALTER/DROP from being executed even if submitted by an ANALYST or REVIEWER.
 

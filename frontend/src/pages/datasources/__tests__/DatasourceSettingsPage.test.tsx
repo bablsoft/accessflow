@@ -887,3 +887,190 @@ describe('DatasourceSettingsPage — denied columns (#935)', () => {
     expect(within(row).getByText('2 columns')).toBeInTheDocument();
   });
 });
+
+describe('DatasourceSettingsPage — denied tables (#939)', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    getDatasource.mockResolvedValue(baseDs);
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+    grantPermission.mockReset();
+    grantPermission.mockResolvedValue(basePermission({ can_read: true }));
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({
+      schemas: [
+        { name: 'crm', tables: [{ name: 'salary', columns: [], foreign_keys: [] }] },
+      ],
+    });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+  });
+
+  function typeTag(dialog: HTMLElement, label: string, value: string) {
+    const input = within(dialog).getByLabelText(label);
+    fireEvent.change(input, { target: { value } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+  }
+
+  it('sends the denied schemas and tables typed into the grant form', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    typeTag(dialog, 'Denied schemas', 'hr');
+    typeTag(dialog, 'Denied tables', 'crm.salary');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_schemas).toEqual(['hr']);
+    expect(input.denied_tables).toEqual(['crm.salary']);
+  });
+
+  it('sends null when nothing is denied', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_schemas).toBeNull();
+    expect(input.denied_tables).toBeNull();
+  });
+
+  it('offers schema-qualified table names for the denied tables field', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await waitFor(() => expect(getDatasourceSchema).toHaveBeenCalled());
+    fireEvent.mouseDown(within(dialog).getByLabelText('Denied tables'));
+    expect((await screen.findAllByText('crm.salary')).length).toBeGreaterThan(0);
+  });
+
+  it('shows the field for engine-managed datasources too', async () => {
+    getDatasource.mockResolvedValue({ ...baseDs, db_type: 'MONGODB' });
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    expect(within(dialog).getByText('Denied tables')).toBeInTheDocument();
+    expect(within(dialog).getByText('Denied schemas')).toBeInTheDocument();
+  });
+
+  it('shows the denied-table count with schemas as schema.* on the permission row', async () => {
+    listPermissions.mockResolvedValue([
+      basePermission({ can_read: true, denied_schemas: ['hr'], denied_tables: ['crm.salary'] }),
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const emailCell = await screen.findByText('analyst@example.com');
+    const row = emailCell.closest('tr')!;
+    const tag = within(row).getByText('2 entries');
+    fireEvent.mouseEnter(tag);
+    expect(await screen.findByText('hr.*, crm.salary')).toBeInTheDocument();
+  });
+
+  it('refuses a denied table that could never match before calling the API', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    typeTag(dialog, 'Denied tables', 'sal*');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    expect(
+      await within(dialog).findByText('Use table, schema.table or schema.*'),
+    ).toBeInTheDocument();
+    expect(grantPermission).not.toHaveBeenCalled();
+  });
+
+  it('refuses a dotted denied schema before calling the API', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    typeTag(dialog, 'Denied schemas', 'analytics.hr');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    expect(
+      await within(dialog).findByText('Use a single schema name, without dots or wildcards'),
+    ).toBeInTheDocument();
+    expect(grantPermission).not.toHaveBeenCalled();
+  });
+
+  it('refuses more denied schemas than the backend accepts', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    const input = within(dialog).getByLabelText('Denied schemas');
+    const entries = Array.from({ length: 51 }, (_v, i) => `s${i}`).join(',');
+    fireEvent.change(input, { target: { value: `${entries},` } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    expect(await within(dialog).findByText('List at most 50 denied schemas')).toBeInTheDocument();
+    expect(grantPermission).not.toHaveBeenCalled();
+  });
+
+  it('shows a dash when a permission row denies no table', async () => {
+    listPermissions.mockResolvedValue([basePermission({ can_read: true })]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const emailCell = await screen.findByText('analyst@example.com');
+    const row = emailCell.closest('tr')!;
+    expect(screen.getAllByText('Denied tables').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Denied columns').length).toBeGreaterThan(0);
+    expect(within(row).getAllByText('—').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('shows the denied-table count on a group permission row', async () => {
+    listGroupPermissions.mockResolvedValue([
+      {
+        id: 'gp-1',
+        datasource_id: 'ds-1',
+        group_id: 'g-1',
+        group_name: 'Analysts',
+        member_count: 3,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: null,
+        allowed_schemas: null,
+        allowed_tables: null,
+        restricted_columns: null,
+        denied_columns: null,
+        denied_schemas: null,
+        denied_tables: ['crm.salary'],
+        expires_at: null,
+        created_by: 'admin',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const groupCell = await screen.findByText('Analysts');
+    const row = groupCell.closest('tr')!;
+    expect(within(row).getByText('1 entry')).toBeInTheDocument();
+  });
+});

@@ -52,7 +52,7 @@ class DatasourcePermissionVerifierTest {
                                                     List<String> allowedTables,
                                                     Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                canRead, canWrite, false, false, null, allowedTables, null, null, null, expiresAt);
+                canRead, canWrite, false, false, null, allowedTables, null, null, List.of(), List.of(), null, expiresAt);
     }
 
     @Test
@@ -195,9 +195,79 @@ class DatasourcePermissionVerifierTest {
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    void verifyThrowsLocalizedMessageWhenDeniedTableReferenced() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingTables(List.of("crm"), List.of(),
+                        List.of("crm.salary"))));
+        when(messageSource.getMessage(eq("error.permission.table_denied"),
+                eq(new Object[]{"crm.salary"}), any(Locale.class)))
+                .thenReturn("TABLE_DENIED_MARKER");
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                parsed(Set.of("crm.salary", "crm.customer"))))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("TABLE_DENIED_MARKER");
+    }
+
+    @Test
+    void verifyPassesForAnAllowedSiblingOfADeniedTable() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingTables(List.of("crm"), List.of(),
+                        List.of("crm.salary"))));
+
+        assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                parsed(Set.of("crm.customer", "crm.new_table"))))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void verifyRejectsADeniedTableWithoutAnyAllowList() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingTables(List.of(), List.of(),
+                        List.of("crm.salary"))));
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                parsed(Set.of("crm.salary"))))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void verifyRejectsATableInADeniedSchema() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingTables(List.of(), List.of("hr"), List.of())));
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                parsed(Set.of("hr.payroll"))))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void verifyReportsTheAllowListBeforeTheDenyList() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingTables(List.of("crm"), List.of(),
+                        List.of("crm.salary"))));
+        when(messageSource.getMessage(eq("error.permission.table_not_allowed"), any(),
+                any(Locale.class)))
+                .thenReturn("TABLE_NOT_ALLOWED_MARKER");
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                parsed(Set.of("crm.salary", "hr.payroll"))))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("TABLE_NOT_ALLOWED_MARKER");
+    }
+
+    private DatasourceUserPermissionView denyingTables(List<String> allowedSchemas,
+                                                       List<String> deniedSchemas,
+                                                       List<String> deniedTables) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
+                true, false, false, false, allowedSchemas, null, null, null, deniedSchemas,
+                deniedTables, null, null);
+    }
+
     private DatasourceUserPermissionView denying(List<String> deniedColumns) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, false, null, null, null, deniedColumns, null, null);
+                true, false, false, false, null, null, null, deniedColumns, List.of(), List.of(), null, null);
     }
 
     private static SqlParseResult parsed(Set<String> tables) {

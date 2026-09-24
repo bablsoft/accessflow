@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -52,7 +53,9 @@ class AccessGrantMaterializer {
             materializeConnectorGrant(entity, approvedByUserId, expiresAt);
             return;
         }
-        replaceExistingTimeBoxedPermission(entity);
+        // A replaced row's denials carry over (#939): a JIT approval widens capabilities and expiry,
+        // never lifts a denial an admin set — JIT requests cannot even ask for deny-lists.
+        var replaced = replaceExistingTimeBoxedPermission(entity);
         var command = new CreatePermissionCommand(
                 entity.getRequesterId(),
                 entity.isCanRead(),
@@ -63,7 +66,9 @@ class AccessGrantMaterializer {
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 null,
-                null,
+                replaced.map(DatasourceUserPermissionView::deniedColumns).orElse(null),
+                replaced.map(DatasourceUserPermissionView::deniedSchemas).orElse(null),
+                replaced.map(DatasourceUserPermissionView::deniedTables).orElse(null),
                 expiresAt,
                 entity.getId());
         var granted = datasourceAdminService.grantPermission(entity.getDatasourceId(),
@@ -108,13 +113,14 @@ class AccessGrantMaterializer {
                 });
     }
 
-    private void replaceExistingTimeBoxedPermission(AccessGrantRequestEntity entity) {
+    private Optional<DatasourceUserPermissionView> replaceExistingTimeBoxedPermission(
+            AccessGrantRequestEntity entity) {
         // JIT access manages the per-user datasource_user_permissions row specifically, so it must
         // look at the direct grant only — never a group grant (whose id it could not revoke here).
         var existing = permissionLookupService.findDirectFor(entity.getRequesterId(),
                 entity.getDatasourceId());
         if (existing.isEmpty()) {
-            return;
+            return Optional.empty();
         }
         DatasourceUserPermissionView permission = existing.get();
         if (permission.expiresAt() == null) {
@@ -126,6 +132,7 @@ class AccessGrantMaterializer {
                 permission.id(), entity.getRequesterId(), entity.getDatasourceId(), entity.getId());
         datasourceAdminService.revokePermission(entity.getDatasourceId(),
                 entity.getOrganizationId(), permission.id());
+        return existing;
     }
 
     private static List<String> toList(String[] values) {

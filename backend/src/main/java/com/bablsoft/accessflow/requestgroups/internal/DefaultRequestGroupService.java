@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
@@ -305,40 +306,47 @@ public class DefaultRequestGroupService implements RequestGroupService {
     }
 
     /**
-     * A member may not reach a table outside its submitter's allow-list, nor a column they are
-     * denied (#935) — break-glass included, as for a standalone break-glass query. The allow-list
-     * rule is {@code DatasourcePermissionChecker.rejectedTables}: both lists empty means no
-     * restriction, and a bare entry covers only an unqualified reference.
+     * A member may not reach a table outside its submitter's allow-list, a table or schema they
+     * are denied (#939), nor a column they are denied (#935) — break-glass included, as for a
+     * standalone break-glass query. The allow-list rule is
+     * {@code DatasourcePermissionChecker.rejectedTables}: both lists empty means no restriction,
+     * and a bare entry covers only an unqualified reference.
      */
     private void verifyTableAndColumnScope(RequestGroupItemEntity item,
                                            DatasourceUserPermissionView permission) {
         var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
         var allowedTables = AllowedTables.normalize(permission.allowedTables());
         var restrictsTables = !allowedSchemas.isEmpty() || !allowedTables.isEmpty();
-        var deniesColumns = !DeniedColumns.normalize(permission.deniedColumns()).isEmpty();
-        if (!restrictsTables && !deniesColumns) {
+        var tablesDenied = !DeniedTables.normalize(permission.deniedSchemas()).isEmpty()
+                || !DeniedTables.normalize(permission.deniedTables()).isEmpty();
+        var columnsDenied = !DeniedColumns.normalize(permission.deniedColumns()).isEmpty();
+        if (!restrictsTables && !tablesDenied && !columnsDenied) {
             return;
         }
         var parsed = parseQuery(item.getDatasourceId(), item.getSqlText());
         if (restrictsTables) {
-            var rejectedTables = new TreeSet<String>();
+            var outsideAllowList = new TreeSet<String>();
             for (String table : parsed.referencedTables()) {
                 if (AllowedTables.coveringEntry(allowedSchemas, allowedTables, table) == null) {
-                    rejectedTables.add(table);
+                    outsideAllowList.add(table);
                 }
             }
-            if (!rejectedTables.isEmpty()) {
+            if (!outsideAllowList.isEmpty()) {
                 throw new RequestGroupPermissionException(
                         "Tables outside the allow-list referenced: "
-                                + String.join(", ", rejectedTables));
+                                + String.join(", ", outsideAllowList));
             }
         }
-        if (deniesColumns) {
-            var rejected = DeniedColumns.rejected(permission.deniedColumns(), parsed);
-            if (!rejected.isEmpty()) {
-                throw new RequestGroupPermissionException(
-                        "Denied columns referenced: " + String.join(", ", rejected));
-            }
+        var rejectedTables = DeniedTables.rejected(permission.deniedSchemas(),
+                permission.deniedTables(), parsed.referencedTables());
+        if (!rejectedTables.isEmpty()) {
+            throw new RequestGroupPermissionException(
+                    "Denied tables referenced: " + String.join(", ", rejectedTables));
+        }
+        var rejected = DeniedColumns.rejected(permission.deniedColumns(), parsed);
+        if (!rejected.isEmpty()) {
+            throw new RequestGroupPermissionException(
+                    "Denied columns referenced: " + String.join(", ", rejected));
         }
     }
 

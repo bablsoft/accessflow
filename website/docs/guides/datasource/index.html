@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/guides/datasource/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/datasource/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Add your first datasource.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -424,8 +424,25 @@
             stripped, so <code>"Orders"</code> and <code>orders</code> are the same entry. But
             qualification is significant: an unqualified <code>orders</code> in the list matches an
             unqualified <code>FROM orders</code>, so list the form your users actually write — or
-            allow the schema instead, which covers both.
+            allow the schema instead, which covers every schema-qualified name in it (an allowed
+            schema never covers an unqualified <code>FROM orders</code>).
           </p>
+          <p>
+            When it is easier to name the exceptions, use <strong>Denied schemas</strong> and
+            <strong>Denied tables</strong> on the same grant. Allow the schema <code>crm</code> and
+            deny <code>crm.salary</code>, and the grant reaches every <code>crm</code> table —
+            including ones created next month — except the salary table. A denial always wins over
+            the allowed lists, and it also hides the table from the schema tree and autocomplete.
+            Write a denied schema as a single name, and a denied table as <code>table</code>,
+            <code>schema.table</code> or <code>schema.*</code> for a whole schema.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Denials are deliberately strict.</strong> A denied <code>crm.salary</code> also
+            refuses a query that writes plain <code>salary</code>, and while any schema is denied,
+            every table name without a schema is refused — AccessFlow cannot tell which schema the
+            database would pick. Tell the people on the grant to write <code>crm.customer</code>, not
+            <code>customer</code>.
+          </div>
         </section>
 
 <section class="docs-section">

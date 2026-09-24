@@ -687,12 +687,81 @@ exceeding it streams returns `413 CUSTOM_DRIVER_TOO_LARGE`.
   - allow if `T` is `schema.table` and `schema` appears in `allowed_schemas`;
   - otherwise reject.
 - Rejection throws `AccessDeniedException` → HTTP 403 (`error: FORBIDDEN`) and emits a `WARN` log with the rejected table list, the user id, and the datasource id. The localised detail uses the `error.permission.table_not_allowed` message bundle key.
+- Then, whatever the allow-list said, every referenced table is checked against the permission's `denied_schemas` / `denied_tables` (#939) — see "Table / schema deny-lists" below. A hit is a 403 with `error.permission.table_denied`. The denial runs with or without an allow-list, and always wins.
 
 Edge cases:
 
 - **Unqualified references** (`SELECT * FROM users`) match `allowed_tables` only when the bare table name is listed without a schema prefix. An admin who set `allowed_schemas=['public']` must either add the unqualified name to `allowed_tables` or require fully-qualified SQL. The parser cannot know PostgreSQL's runtime `search_path`, so the conservative reject-by-default keeps the gate predictable.
 - **Quoted mixed-case identifiers** (`"Public"."Users"`) are lowercased — case-insensitive matching is v1.0's behaviour across the board.
 - **Admins** (`SubmissionInput.isAdmin=true`) bypass the entire permission lookup, including the allow-list check.
+
+### Table / schema deny-lists (#939)
+
+`denied_schemas` and `denied_tables` (`TEXT[]` on both permission tables, V190) let an admin say
+"everything in `crm` except `crm.salary`" without enumerating every other table:
+`allowed_schemas=[crm]` + `denied_tables=[crm.salary]` admits `crm.customer` and any `crm` table created
+later, and refuses `crm.salary`. The denial is evaluated **after** the allow-list and **always beats it**;
+it applies equally with no allow-list at all.
+
+- **Matching.** `core.api.DeniedTables` is the single matcher (`normalize`, `denyingEntry`, `rejected`,
+  `deniesTable`, `deniesSchema`), over the same normalised names as `AllowedTables` (quotes stripped,
+  lowercased). Every rule fails closed, because the gate cannot know where the database resolves a name.
+  A `denied_tables` entry matches when either name is a dot-aligned suffix of the other: bare `salary`
+  denies `salary` in every schema; `crm.salary` denies `crm.salary`, `db.crm.salary` **and** an
+  unqualified `salary` (the gate cannot tell where `search_path` sends it). A `denied_schemas` entry
+  matches any reference carrying it as a non-final segment, and **every unqualified reference** — while
+  any schema is denied, the grantee must schema-qualify table names. A `schema.*` entry in
+  `denied_tables` denies the whole schema, the way the UI displays a denied schema. Names are compared
+  segment by segment from the right, and three reference shapes are hardened, all failing closed:
+  an **empty segment** (SQL Server `db..salary`, the caller's default schema) matches any segment, so a
+  matching table entry and any denied schema both deny it; an Oracle **`@dblink` suffix** is ignored
+  (`hr.salary@loop` is denied by `hr.salary`); and a reference that is a **pattern** rather than a name
+  (it contains `*` or `?` — an Elasticsearch / OpenSearch index pattern such as `sal*`) is denied by
+  any deny entry at all, since it may expand to a denied object.
+- **Merge.** `DefaultDatasourceUserPermissionLookupService` unions both lists across the direct, group
+  and JIT contributions — the inverse of every other merged field (booleans OR, allow-lists union with
+  empty = all, restricted/denied columns intersect). A permissive group grant can never lift a denial
+  from a direct grant, and a group grant's denial binds every member. `denied_columns` (#935) still
+  merges by intersection; the asymmetry is intentional and documented, and may be aligned later.
+- **Enforcement.** Everywhere the allow-list applies: `DatasourcePermissionVerifier.verify` (submission
+  and the recurring per-occurrence recheck, 403 `error.permission.table_denied`),
+  `DefaultBreakGlassService` (`BreakGlassNotPermittedException`), `DefaultQueryDryRunService` (403),
+  `DefaultAccessSimulationService` (a `DENY` on the permission step with `denied_tables` in the details,
+  `workflow.access_simulation.permission.table_denied`), `DefaultEffectiveAccessService` (a denied table
+  is not granted), `DefaultQuerySuggestionService` (a suggestion touching a denied table is not offered),
+  `DefaultSampleDataService` (a denied target is a 404, like one outside the allow-list), the #936
+  schema-view filter (denied tables and whole denied schemas are hidden, so the schema browser,
+  autocomplete, MCP tools and AI text-to-SQL context never see them), and every `QUERY` member of a
+  request group (`RequestGroupPermissionException`). `DatasourcePermissionChecker.blockedTables` is the
+  combined "outside the allow-list or denied" answer for callers that only need reachability.
+- **Grant time.** Entries are validated twice — Bean Validation `@Pattern` on the request
+  (`DeniedTables.SCHEMA_ENTRY_PATTERN` / `TABLE_ENTRY_PATTERN`, 400 with
+  `validation.denied_schemas.item_invalid` / `validation.denied_tables.item_invalid`) and again in
+  `DatasourceAdminServiceImpl` (`isValidSchemaEntry` / `isValidTableEntry`, raising
+  `IllegalDatasourcePermissionException`) for callers that skip the web layer. A `denied_schemas` entry is
+  one name with no dots and no `*` / `?` (`analytics.hr` is refused); a `denied_tables` entry is `table`,
+  `schema.table` (any depth) or `schema.*`, with no empty segment and no other wildcard. The service then
+  normalises both lists and drops duplicates (empty → null); the controller records non-empty lists in
+  the grant's audit metadata, and attestation snapshots carry both.
+- **JIT grants.** A JIT access request cannot ask for a deny-list, but a JIT grant never lifts one:
+  denials union with every other grant, and when `AccessGrantMaterializer` replaces the requester's
+  expiring direct row, that row's `denied_columns`, `denied_schemas` and `denied_tables` carry over onto
+  the new grant. A JIT approval can widen capabilities and expiry, never a denial.
+- **Known limits.**
+  - *Every engine.* Deny-lists apply to relational and plugin engines alike (unlike `denied_columns`).
+    On engines whose object names carry no schema — MongoDB collections, DynamoDB tables, Redis keys —
+    every reference is unqualified, so **any `denied_schemas` entry refuses every query**. Use
+    `denied_tables` there.
+  - *Reported references only.* A denial can only match what the parser or engine plugin reports as
+    referenced; the allow-list has the same limit. Known under-reporting: MongoDB aggregation stages
+    `$lookup` / `$unionWith` / `$graphLookup` read collections that are not reported; Neo4j reports only
+    labels and relationship types, so `MATCH (n) RETURN n` reports nothing; Redis `KEYS` with a glob
+    reports no key prefixes. On the relational path, views, function bodies and SQL-text functions are
+    opaque, as for the allow-list.
+  - *Removing a grant can widen access.* A denial lives on a grant row. Revoking or expiring that row —
+    an attestation revoke, JIT or grant expiry, an admin revoke — removes its denial with it, and another
+    grant the user still holds may then expose the table. Review the remaining grants before revoking one
+    that carries a denial.
 
 ### Group-based access grants (AF-530)
 
@@ -702,7 +771,8 @@ unexpired `datasource_group_permissions` grant for a group they belong to (group
 `UserGroupMembershipRepository.findGroupIdsForUser`). Booleans OR; `allowed_schemas`/`allowed_tables`
 merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` and
 `denied_columns` (#935, compared normalised) merge to the **intersection** (a column is masked — or
-denied — only when every contributing grant masks or denies it); expired grants
+denied — only when every contributing grant masks or denies it); `denied_schemas` / `denied_tables`
+(#939) merge to their **union**, so no contributor can lift another's denial; expired grants
 contribute nothing. Because `findFor` is the single choke-point every enforcement path already reads
 through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-SQL, workflow
 submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
@@ -723,7 +793,9 @@ connector enforcement point routes through — including the **API-editor visibi
 had the datasource gap. **Grouped requests** (`requestgroups`) validate every member at both draft-persist
 and submit time through the group-aware `DatasourceUserPermissionLookupService.findFor` (query members)
 and `ApiConnectorPermissionLookupService.findFor` (API members), so a group-only grant is sufficient to
-add and run a member. Admins are granted/revoked group access via
+add and run a member. A query member is checked for the capability, denied tables and schemas (#939)
+and denied columns (#935); it is **not** checked against the table allow-list — a pre-existing gap,
+tracked as a follow-up. Admins are granted/revoked group access via
 `DatasourceAdminService.{grant,list,revoke}GroupPermission` and the `/permissions/groups` endpoints,
 audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector side:
 `API_PERMISSION_GROUP_GRANTED` / `API_PERMISSION_GROUP_REVOKED`).
@@ -1021,13 +1093,13 @@ simulation must not become a side channel for them. Samples carry the query id, 
 
 The result is returned via `DatabaseSchemaView` (immutable nested records: `Schema → Table → Column` + `ForeignKey`). The web layer maps to `DatabaseSchemaResponse` for the `GET /api/v1/datasources/{id}/schema` endpoint; the AI module consumes the same view via `SystemPromptRenderer.describeSchema(...)`.
 
-**Scoped to the caller (#936).** For a non-admin, `introspectSchema` resolves the effective permission (`DatasourceUserPermissionLookupService.findFor`; none → `DatasourceNotFoundException`, before any connection is opened) and passes the view through the pure `core.internal.SchemaViewPermissionFilter`: tables outside `allowed_schemas`/`allowed_tables` are dropped. A table is visible when `core.api.AllowedTables.coveringEntry` — the matcher the query gate's `DatasourcePermissionChecker` delegates to — covers its `schema.table`, when an entry ends in `.schema.table` (catalog-qualified BigQuery / SQL Server grants), or when its bare name is listed and no other schema in the view has a table of that name. The last rule fails closed: a bare entry grants whatever the database resolves the unqualified name to, which the view cannot know, so an ambiguous name is shown nowhere until the admin qualifies the entry. Schemas left empty are dropped unless allow-listed, columns matched by `DeniedColumns.deniesColumn` are removed, and foreign keys from or to a denied column, to a table the caller cannot see, or to a bare name shared with a hidden table are removed (the introspector reports `toTable` by bare name, so a schema-qualified deny entry on the referenced side fails closed too). The matching is relational; engine plugins that qualify differently (Couchbase grants on `bucket.scope.collection` while its view names schemas by scope; Elasticsearch index patterns) can see fewer objects than their gate allows — a degradation, never a bypass, since query enforcement is unchanged. Admins get the unfiltered view. `introspectSchemaForSystem` — async AI analysis at submission, discovery, drift, promotion and query snapshots, query-replay compatibility, the JIT request form — is never filtered. Known residual: the submission-time AI analysis prompt is built from the unfiltered view, so its free-text issues shown to the submitter can in principle name a table outside their grant. Every user-path caller (editor, table preview, AI analyze-preview, text-to-SQL, MCP `get_datasource_schema` / `validate_sql`) inherits the scoping: a forbidden table looks absent, which is the point.
+**Scoped to the caller (#936).** For a non-admin, `introspectSchema` resolves the effective permission (`DatasourceUserPermissionLookupService.findFor`; none → `DatasourceNotFoundException`, before any connection is opened) and passes the view through the pure `core.internal.SchemaViewPermissionFilter`: tables outside `allowed_schemas`/`allowed_tables` are dropped. A table is visible when `core.api.AllowedTables.coveringEntry` — the matcher the query gate's `DatasourcePermissionChecker` delegates to — covers its `schema.table`, when an entry ends in `.schema.table` (catalog-qualified BigQuery / SQL Server grants), or when its bare name is listed and no other schema in the view has a table of that name. The last rule fails closed: a bare entry grants whatever the database resolves the unqualified name to, which the view cannot know, so an ambiguous name is shown nowhere until the admin qualifies the entry. Tables and schemas matched by `DeniedTables.deniesTable` / `deniesSchema` (#939) are dropped whatever the allow-list says — a denied schema is never listed, even when allow-listed. Schemas left empty are dropped unless allow-listed, columns matched by `DeniedColumns.deniesColumn` are removed, and foreign keys from or to a denied column, to a table the caller cannot see, or to a bare name shared with a hidden table are removed (the introspector reports `toTable` by bare name, so a schema-qualified deny entry on the referenced side fails closed too). The matching is relational; engine plugins that qualify differently (Couchbase grants on `bucket.scope.collection` while its view names schemas by scope; Elasticsearch index patterns) can see fewer objects than their gate allows — a degradation, never a bypass, since query enforcement is unchanged. Admins get the unfiltered view. `introspectSchemaForSystem` — async AI analysis at submission, discovery, drift, promotion and query snapshots, query-replay compatibility, the JIT request form — is never filtered. Known residual: the submission-time AI analysis prompt is built from the unfiltered view, so its free-text issues shown to the submitter can in principle name a table outside their grant. Every user-path caller (editor, table preview, AI analyze-preview, text-to-SQL, MCP `get_datasource_schema` / `validate_sql`) inherits the scoping: a forbidden table looks absent, which is the point.
 
 ### Sample data path (AF-443)
 
 `proxy.api.SampleDataService` returns a bounded, fully-governed sample of a single table's rows for the schema-explorer UI — an **ad-hoc read that bypasses review but not governance**. It does *not* create a `query_request`; it resolves the caller's directives and runs through the executor exactly like `DefaultQueryLifecycleService.doExecute`:
 
-1. **Authorization + allow-list.** `DefaultSampleDataService` calls `DatasourceAdminService.introspectSchema(...)` (which enforces org + permission-row access) and validates the requested `schema`/`table` against the returned `DatabaseSchemaView`. Non-ADMINs additionally need `can_read` and the target inside their `allowed_schemas`/`allowed_tables`, matched by `core.api.AllowedTables` (`normalize` + `coveringEntry`) — the query gate's matcher (`DatasourcePermissionChecker.rejectedTables`), so a `schema.table` or `allowed_schemas` grant covers the preview exactly as it covers a `SELECT` (#1089). A **bare** `allowed_tables` entry is the one place the two differ: the gate applies it to an *unqualified* reference, which the database resolves, while the preview reads a concrete `schema.table`. The preview admits it only when no other schema in the database has a table of that name — counted over the unfiltered catalog (`introspectSchemaForSystem`, fetched only for this fallback), since the caller's #936-filtered view may already hide the twin — and otherwise fails closed, matching `core.internal.SchemaViewPermissionFilter`. So `allowed_tables=[orders]` with both `public.orders` and `archive.orders` previews neither until the admin qualifies the entry, and a target whose schema reports no name is covered by a bare entry only. The fallback is deliberately looser than the gate in one case: with `orders` only in `archive` and `archive` off the search path, the preview reads `archive.orders` while an unqualified `SELECT * FROM orders` fails to resolve — the same table the schema tree already shows. The view's catalog-suffix rule (`mydb.dbo.orders` showing `dbo.orders`) is not honoured here, so such a table is listed but its preview returns 404. A miss raises `TableNotFoundException` (HTTP 404) — existence is never leaked.
+1. **Authorization + allow-list.** `DefaultSampleDataService` calls `DatasourceAdminService.introspectSchema(...)` (which enforces org + permission-row access) and validates the requested `schema`/`table` against the returned `DatabaseSchemaView`. Non-ADMINs additionally need `can_read` and the target inside their `allowed_schemas`/`allowed_tables`, matched by `core.api.AllowedTables` (`normalize` + `coveringEntry`) — the query gate's matcher (`DatasourcePermissionChecker.rejectedTables`), so a `schema.table` or `allowed_schemas` grant covers the preview exactly as it covers a `SELECT` (#1089). A **bare** `allowed_tables` entry is the one place the two differ: the gate applies it to an *unqualified* reference, which the database resolves, while the preview reads a concrete `schema.table`. The preview admits it only when no other schema in the database has a table of that name — counted over the unfiltered catalog (`introspectSchemaForSystem`, fetched only for this fallback), since the caller's #936-filtered view may already hide the twin — and otherwise fails closed, matching `core.internal.SchemaViewPermissionFilter`. So `allowed_tables=[orders]` with both `public.orders` and `archive.orders` previews neither until the admin qualifies the entry, and a target whose schema reports no name is covered by a bare entry only. The fallback is deliberately looser than the gate in one case: with `orders` only in `archive` and `archive` off the search path, the preview reads `archive.orders` while an unqualified `SELECT * FROM orders` fails to resolve — the same table the schema tree already shows. The view's catalog-suffix rule (`mydb.dbo.orders` showing `dbo.orders`) is not honoured here, so such a table is listed but its preview returns 404. A target on the caller's `denied_schemas` / `denied_tables` (#939, `DeniedTables.deniesTable`) is refused before the allow-list is consulted. A miss raises `TableNotFoundException` (HTTP 404) — existence is never leaked.
 2. **Directive resolution.** Restricted columns (from the permission), `ColumnMaskDirective`s (`MaskingPolicyResolutionService`), and `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved for the caller.
 3. **Execution.** `QueryExecutor.sampleTable(SampleTableRequest)` enforces the row cap (`maxRowsOverride` — the requested limit, lowered to the caller's effective `row_limit_override` when one applies (#933) and to any row-limit policy on the sampled table (#934) — clamped to the datasource + global `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`) and statement timeout, then:
    - **Relational** datasources: builds `SELECT * FROM <dialect-quoted, allow-listed identifier>` (via `IdentifierQuoter`, never raw input) and runs the existing JDBC path — `RowSecurityRewriter` injects RLS, `JdbcResultRowMapper` + `ColumnMasker` mask post-fetch, JDBC `setMaxRows` caps without a dialect-specific `LIMIT`.
@@ -1039,7 +1111,7 @@ The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET 
 
 `proxy.api.QueryDryRunService` returns a **non-committing execution plan + best-effort estimated row impact** for a query — the playground/sandbox a user reaches for before formal submission (`POST /api/v1/queries/dry-run`). Like the sample path it is an **ad-hoc read that bypasses review but not governance**, creates no `query_request`, and never mutates data — every engine plans the statement (relational `EXPLAIN`, Mongo `explain`, …) but never executes it.
 
-1. **Authorization + allow-list.** `DefaultQueryDryRunService` resolves the datasource via `DatasourceAdminService.getForUser`/`getForAdmin` (org + permission-row access; 404 on miss), parses the query through `QueryParser` (`InvalidSqlException` → 422) for the `QueryType` + `referencedTables`, and — for non-ADMINs — verifies the matching capability (`can_read`/`can_write`/`can_ddl`) and that every referenced table is inside the caller's allow-list (`core.api.AllowedTables.coveringEntry`, the query gate's matcher; a miss raises Spring Security `AccessDeniedException` → 403).
+1. **Authorization + allow-list.** `DefaultQueryDryRunService` resolves the datasource via `DatasourceAdminService.getForUser`/`getForAdmin` (org + permission-row access; 404 on miss), parses the query through `QueryParser` (`InvalidSqlException` → 422) for the `QueryType` + `referencedTables`, and — for non-ADMINs — verifies the matching capability (`can_read`/`can_write`/`can_ddl`) and that every referenced table is inside the caller's allow-list (`core.api.AllowedTables.coveringEntry`, the query gate's matcher; a miss raises Spring Security `AccessDeniedException` → 403) and outside their `denied_schemas` / `denied_tables` (#939, `core.api.DeniedTables`; 403 `error.permission.table_denied`), then that no denied column is referenced (#935).
 2. **Directive resolution.** The caller's `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved so the plan reflects the **governed** query. Column masks are irrelevant to a plan (no rows are returned) and are omitted.
 3. **Planning.** `QueryExecutor.dryRun(QueryExecutionRequest)` applies the `RowSecurityRewriter`, acquires a connection via `RoutingDataSourceResolver` (SELECT dry-runs prefer the read replica; writes plan on the primary — e.g. Oracle writes its scratch `PLAN_TABLE` there), and:
    - **Relational** datasources: a per-`DbType` `DryRunPlanner` (`proxy/internal/dryrun/`) runs the dialect's non-executing EXPLAIN — PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE` (rows deleted in a `finally`), SQL Server `SET SHOWPLAN_ALL ON` — and maps it to a `QueryPlanNode` tree. `CUSTOM` JDBC has no planner and degrades gracefully.
@@ -1615,7 +1687,9 @@ direct rows, the group rows and every relevant membership in one query each, the
 across its members in memory — and merges each user's own set
 through `core`'s `mergeContributions`, the same merge `findFor` applies. That matters more than it
 looks: the merge ORs booleans and **unions** allow-lists, so two grants that each fall short can
-together be enough, and any per-grant shortcut would quietly under-report.
+together be enough, and any per-grant shortcut would quietly under-report. It also unions the table and
+schema deny-lists (#939), so one grant's denial removes the table from every contributor's coverage —
+`granted` is read through `DatasourcePermissionChecker.blockedTables` over the merged view, never a part.
 
 Two representations carry the interesting cases. An unrestricted grant is `ALL_TABLES` and is never
 expanded into a table list — enumerating would need a live schema read, which this feature never
@@ -2491,7 +2565,7 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 **Grant materialisation.** On final-stage approval, `approve()` runs `AccessGrantMaterializer` inside the same transaction so approval + grant commit atomically. The materializer computes `expires_at = now + Duration.parse(requested_duration)` and branches on the resource kind: datasource requests call `core.api.DatasourceAdminService.grantPermission(...)`; connector requests call `apigov.api.ApiConnectorAdminService.grantPermission(...)` with `canRead`/`canWrite`, the request's `allowed_operations`, and **never** break-glass or response-field restrictions. The new permission id is stored on the request, and the datasource path also stamps the request id on the permission row (`datasource_user_permissions.access_grant_request_id`, V169 — FK `ON DELETE SET NULL`, backfilled once from `granted_permission_id`; #969), which is what the effective-access report (#859) reads to label a source `JIT_GRANT` instead of correlating on `(requester, datasource)`.
 
-**Pre-existing-permission policy.** If the requester already holds a **direct** permission on the resource (group grants are never considered or touched): a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409; the datasource path uses `core.api.DatasourceUserPermissionLookupService.findDirectFor`, the connector path `apigov.api.ApiConnectorPermissionLookupService.findDirectFor`). Another **time-boxed** (JIT) permission is replaced so the new grant's capabilities/expiry take effect (extend/widen) — revoke-then-grant on the datasource path, the `(connector_id, user_id)` upsert of `grantPermission` on the connector path. This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
+**Pre-existing-permission policy.** If the requester already holds a **direct** permission on the resource (group grants are never considered or touched): a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409; the datasource path uses `core.api.DatasourceUserPermissionLookupService.findDirectFor`, the connector path `apigov.api.ApiConnectorPermissionLookupService.findDirectFor`). Any other **time-boxed** direct permission — a JIT grant or an admin-created row with an `expires_at` alike — is replaced so the new grant's capabilities/expiry take effect (extend/widen) — revoke-then-grant on the datasource path, where the replaced row's `denied_columns` / `denied_schemas` / `denied_tables` carry over onto the new grant so a JIT approval never lifts a denial (#939), the `(connector_id, user_id)` upsert of `grantPermission` on the connector path. This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
 
 **Expiry & revoke.** `AccessGrantExpiryJob` (see "Scheduled jobs" above) revokes grants past `expires_at` → `EXPIRED`. An admin may early-revoke an active grant (`POST /admin/access-requests/{id}/revoke`) → `REVOKED`. Both paths revoke the materialised permission — deleting the `datasource_user_permissions` or `api_connector_user_permissions` row by kind (tolerating an already-deleted row) — and publish events consumed by the notifications + realtime modules. Effective-permission resolution needs no special handling: `EffectiveApiConnectorPermissionResolver` already excludes rows past `expires_at`, so a connector JIT grant stops resolving the moment it expires even before the job deletes it.
 
@@ -4616,8 +4690,8 @@ A `QUERY` member is also held to the permission's table scope, exactly as a stan
 every referenced table must be covered by `allowed_schemas` / `allowed_tables` (matched through
 `core.api.AllowedTables`, with `DatasourcePermissionChecker.rejectedTables` semantics — both lists
 empty means unrestricted, a schema entry covers any table qualified with it, and a bare table entry
-covers only an unqualified reference), and no denied column may be referenced (#935). Both checks
-bind break-glass groups too — standalone break-glass enforces the allow-list, and break-glass waives
+covers only an unqualified reference), no denied table or schema may be referenced (#939), and no
+denied column may be referenced (#935). These checks bind break-glass groups too — standalone break-glass enforces the allow-list, and break-glass waives
 approval, never data-protection controls — and neither binds `QUERY_ADMIN` holders, who skip the
 per-datasource gate on this path as on standard submission. A miss is `RequestGroupPermissionException`
 (403) and the group stays `DRAFT`. The query is parsed only when the permission carries an allow-list
