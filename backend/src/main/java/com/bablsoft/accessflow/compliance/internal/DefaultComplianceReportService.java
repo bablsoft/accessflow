@@ -124,7 +124,8 @@ class DefaultComplianceReportService implements ComplianceReportService {
                     snapshot.queryType(),
                     snapshot.sqlText(),
                     reviewDecisionsParser.approvers(snapshot.reviewDecisionsJson()),
-                    snapshot.executedAt()));
+                    snapshot.executedAt(),
+                    snapshot.effectiveSql()));
         }
 
         return new ComplianceReport(request.type(), organizationId, request.from(), request.to(),

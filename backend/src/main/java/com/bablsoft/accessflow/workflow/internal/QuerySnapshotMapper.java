@@ -33,6 +33,7 @@ final class QuerySnapshotMapper {
                 entity.getRowsAffected(),
                 entity.getExecutionDurationMs(),
                 entity.getExecutedAt(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getEffectiveSql());
     }
 }

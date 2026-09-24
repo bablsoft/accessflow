@@ -195,6 +195,33 @@ class DefaultQueryExecutorPostgresIntegrationTest {
         var result = (SelectExecutionResult) executor.execute(request);
 
         assertThat(result.rows()).extracting(row -> row.get(0)).containsExactly("apple", "carrot");
+        // #937: the effective statement keeps the placeholders — never the bound policy values.
+        assertThat(result.effectiveSql()).contains("name IN (?, ?)")
+                .doesNotContain("apple").doesNotContain("carrot");
+    }
+
+    @Test
+    void unrewrittenSelectReportsNoEffectiveSql() {
+        var result = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasource.getId(), "SELECT name FROM items", QueryType.SELECT, null, null));
+
+        assertThat(result.effectiveSql()).isNull();
+    }
+
+    @Test
+    void transactionalRowSecurityRewriteIsReportedPerStatement() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "items", "qty",
+                RowSecurityOperator.GREATER_THAN, List.of(5));
+        var request = new QueryExecutionRequest(datasource.getId(),
+                "BEGIN; UPDATE items SET name = 'x'; UPDATE items SET qty = qty; COMMIT;",
+                QueryType.UPDATE, null, null, List.of(), List.of(), List.of(directive), true,
+                List.of("UPDATE items SET name = 'x'", "UPDATE items SET qty = qty"));
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.effectiveSql()).startsWith("UPDATE items SET name = 'x' WHERE ")
+                .contains("qty > ?;\nUPDATE items SET qty = qty WHERE ").endsWith("qty > ?")
+                .doesNotContain("5");
     }
 
     @Test
@@ -210,6 +237,8 @@ class DefaultQueryExecutorPostgresIntegrationTest {
 
         assertThat(result.rowsAffected()).isEqualTo(2);
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+        assertThat(result.effectiveSql()).startsWith("UPDATE items SET name = 'updated' WHERE ")
+                .endsWith("qty > ?");
     }
 
     @Test

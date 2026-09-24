@@ -37,7 +37,6 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
-import { SqlBlock } from '@/components/common/SqlBlock';
 import { DetailCard } from '@/components/common/DetailCard';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { CostEstimatePanel } from '@/components/review/CostEstimatePanel';
@@ -73,6 +72,7 @@ import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { LinkedTicketRef, QueryDetail, QueryOccurrence } from '@/types/api';
 import { QueryDiffCard } from './QueryDiffCard';
+import { QuerySqlView } from './QuerySqlView';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
@@ -573,7 +573,11 @@ export function QueryDetailPage() {
               <QueryCollaboration query={query} currentUser={user} />
             ) : (
               <div style={{ padding: 14 }}>
-                <SqlBlock sql={query.sql_text} />
+                <QuerySqlView
+                  sql={query.sql_text}
+                  effectiveSql={query.effective_sql}
+                  dbType={query.db_type}
+                />
               </div>
             )}
           </DetailCard>

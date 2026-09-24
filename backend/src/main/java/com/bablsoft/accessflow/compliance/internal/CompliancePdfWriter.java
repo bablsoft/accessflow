@@ -95,14 +95,16 @@ class CompliancePdfWriter {
     }
 
     private void drawAuditTrail(Canvas c, List<RegulatoryAuditTrailRow> rows) throws IOException {
-        var headers = List.of("Executed At", "Datasource", "Submitter", "Type", "SQL", "Approvers");
-        float[] weights = {2f, 2f, 2f, 1f, 4f, 3f};
+        var headers = List.of("Executed At", "Datasource", "Submitter", "Type", "SQL",
+                "Effective SQL", "Approvers");
+        float[] weights = {2f, 2f, 2f, 1f, 3f, 3f, 2f};
         var data = new ArrayList<List<String>>();
         for (var row : rows) {
             data.add(List.of(
                     str(row.executedAt()), nullToEmpty(row.datasourceName()),
                     nullToEmpty(row.submitterEmail()), str(row.queryType()),
-                    nullToEmpty(row.sqlText()), formatApprovers(row.approvers())));
+                    nullToEmpty(row.sqlText()), nullToEmpty(row.effectiveSql()),
+                    formatApprovers(row.approvers())));
         }
         drawTable(c, headers, weights, data);
     }

@@ -45,7 +45,7 @@ class QuerySnapshotListener {
             return;
         }
         try {
-            querySnapshotService.recordOnExecution(event.queryRequestId());
+            querySnapshotService.recordOnExecution(event.queryRequestId(), event.effectiveSql());
         } catch (RuntimeException ex) {
             log.error("Snapshot listener failed for query {}", event.queryRequestId(), ex);
         }

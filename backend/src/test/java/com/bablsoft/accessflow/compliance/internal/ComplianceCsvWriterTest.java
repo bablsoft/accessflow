@@ -49,12 +49,15 @@ class ComplianceCsvWriterTest {
                 List.of(new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "Prod",
                         UUID.randomUUID(), "a@x.com", QueryType.DELETE,
                         "DELETE FROM users WHERE id = 1",
-                        List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t)),
+                        List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t,
+                        "DELETE FROM users WHERE id = 1 AND tenant = ?")),
                 false);
 
         var csv = new String(writer.write(report), UTF_8);
 
-        assertThat(csv).startsWith("query_request_id,datasource_id,datasource_name");
+        assertThat(csv).startsWith("query_request_id,datasource_id,datasource_name,"
+                + "submitter_email,query_type,sql_text,effective_sql,approvers,executed_at");
+        assertThat(csv).contains("DELETE FROM users WHERE id = 1 AND tenant = ?");
         assertThat(csv).contains("DELETE FROM users WHERE id = 1");
         assertThat(csv).contains("Rev <rev@x.com>");
     }

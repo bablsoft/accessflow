@@ -114,6 +114,7 @@ class DefaultQueryExecutor implements QueryExecutor {
         }
         var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates(),
                 request.softDeleteDirectives());
+        String effectiveSql = effectiveSql(rewrite, request.sql());
         // SELECT result cache (AF-457): keyed over the RLS-rewritten SQL + binds + mask/restriction
         // directives + row cap, so security scope is part of the key. SELECTs whose referenced
         // tables are unknown are never cached (no write-invalidation coverage).
@@ -127,7 +128,7 @@ class DefaultQueryExecutor implements QueryExecutor {
             var hit = resultCache.get(request.datasourceId(), cacheKey, durationSince(start));
             if (hit.isPresent()) {
                 observation.lowCardinalityKeyValue("cache", "hit");
-                return hit.get();
+                return hit.get().withEffectiveSql(effectiveSql);
             }
         }
         observation.lowCardinalityKeyValue("cache", cacheable ? "miss" : "off");
@@ -143,13 +144,13 @@ class DefaultQueryExecutor implements QueryExecutor {
                             execProps.maxResultBytes(), descriptor.dbType(), start,
                             request.restrictedColumns(), request.columnMasks(),
                             rewrite.appliedPolicyIds());
-                    if (cacheable && result instanceof SelectExecutionResult select) {
+                    if (cacheable) {
                         resultCache.put(request.datasourceId(), cacheKey,
-                                request.referencedTables(), resultCache.ttlFor(descriptor), select);
+                                request.referencedTables(), resultCache.ttlFor(descriptor), result);
                     }
-                    return result;
+                    return result.withEffectiveSql(effectiveSql);
                 }
-                var result = runUpdate(statement, start, rewrite.appliedPolicyIds());
+                var result = runUpdate(statement, start, rewrite.appliedPolicyIds(), effectiveSql);
                 // Any successful write drops cached SELECTs over the touched tables (unknown
                 // tables ⇒ full-datasource purge, fail-safe for DDL).
                 resultCache.invalidateTables(request.datasourceId(), request.referencedTables());
@@ -318,7 +319,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 }
                 throw ex;
             }
-            return new UpdateExecutionResult(totalAffected, durationSince(start), appliedPolicyIds);
+            return new UpdateExecutionResult(totalAffected, durationSince(start), appliedPolicyIds,
+                    effectiveBatchSql(statements, rewrites));
         } catch (SQLException ex) {
             log.debug("Transactional SQL execution failed for datasource {}: {}",
                     request.datasourceId(), ex.getMessage());
@@ -390,7 +392,28 @@ class DefaultQueryExecutor implements QueryExecutor {
         return sum;
     }
 
-    private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
+    /**
+     * The statement as actually executed (#937): the rewriter already deparses bound predicate
+     * values as {@code ?} placeholders, so this is the redacted form. {@code null} when nothing was
+     * rewritten, so an unrewritten query never stores a copy of its own SQL.
+     */
+    private static String effectiveSql(RowSecurityRewriter.RewriteResult rewrite, String original) {
+        return rewrite.sql().equals(original) ? null : rewrite.sql();
+    }
+
+    /** Whole-batch effective form — every statement, joined — or {@code null} when none changed. */
+    private static String effectiveBatchSql(List<String> statements,
+                                            RowSecurityRewriter.RewriteResult[] rewrites) {
+        boolean anyRewritten = false;
+        var joined = new java.util.StringJoiner(";\n");
+        for (int i = 0; i < rewrites.length; i++) {
+            anyRewritten |= !rewrites[i].sql().equals(statements.get(i));
+            joined.add(rewrites[i].sql());
+        }
+        return anyRewritten ? joined.toString() : null;
+    }
+
+    private SelectExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
                                            long maxResultBytes, DbType dbType, Instant start,
                                            List<String> restrictedColumns,
                                            List<ColumnMaskDirective> columnMasks,
@@ -407,10 +430,12 @@ class DefaultQueryExecutor implements QueryExecutor {
     }
 
     private UpdateExecutionResult runUpdate(PreparedStatement statement, Instant start,
-                                            java.util.Set<java.util.UUID> appliedRowSecurityPolicyIds)
+                                            java.util.Set<java.util.UUID> appliedRowSecurityPolicyIds,
+                                            String effectiveSql)
             throws SQLException {
         long affected = statement.executeLargeUpdate();
-        return new UpdateExecutionResult(affected, durationSince(start), appliedRowSecurityPolicyIds);
+        return new UpdateExecutionResult(affected, durationSince(start), appliedRowSecurityPolicyIds,
+                effectiveSql);
     }
 
     private static void bind(PreparedStatement statement, List<Object> binds) throws SQLException {

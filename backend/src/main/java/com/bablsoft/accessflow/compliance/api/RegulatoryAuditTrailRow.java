@@ -8,7 +8,9 @@ import java.util.UUID;
 
 /**
  * One executed DDL/DELETE operation with its approvers, for the
- * {@link ComplianceReportType#REGULATORY_AUDIT_TRAIL} report (#459).
+ * {@link ComplianceReportType#REGULATORY_AUDIT_TRAIL} report (#459). {@code effectiveSql} is the
+ * statement as actually executed, bound values redacted as {@code ?}, or {@code null} when no
+ * row-security / soft-delete rewrite occurred (#937).
  */
 public record RegulatoryAuditTrailRow(
         UUID queryRequestId,
@@ -19,7 +21,8 @@ public record RegulatoryAuditTrailRow(
         QueryType queryType,
         String sqlText,
         List<Approver> approvers,
-        Instant executedAt) {
+        Instant executedAt,
+        String effectiveSql) {
 
     public RegulatoryAuditTrailRow {
         approvers = approvers == null ? List.of() : List.copyOf(approvers);

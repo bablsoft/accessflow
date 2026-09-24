@@ -53,6 +53,10 @@ public class QuerySnapshotEntity {
     @Column(name = "sql_text", nullable = false, columnDefinition = "TEXT")
     private String sqlText;
 
+    /** Statement as actually executed, bound values redacted as {@code ?}; null when unrewritten (#937). */
+    @Column(name = "effective_sql", updatable = false, columnDefinition = "TEXT")
+    private String effectiveSql;
+
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "query_type", nullable = false, columnDefinition = "query_type")

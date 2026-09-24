@@ -53,7 +53,8 @@ class ComplianceCsvWriter {
 
     private void writeAuditTrail(StringBuilder sb, List<RegulatoryAuditTrailRow> rows) {
         writeRow(sb, List.of("query_request_id", "datasource_id", "datasource_name",
-                "submitter_email", "query_type", "sql_text", "approvers", "executed_at"));
+                "submitter_email", "query_type", "sql_text", "effective_sql", "approvers",
+                "executed_at"));
         for (var row : rows) {
             writeRow(sb, List.of(
                     str(row.queryRequestId()),
@@ -62,6 +63,7 @@ class ComplianceCsvWriter {
                     nullToEmpty(row.submitterEmail()),
                     str(row.queryType()),
                     nullToEmpty(row.sqlText()),
+                    nullToEmpty(row.effectiveSql()),
                     formatApprovers(row.approvers()),
                     str(row.executedAt())));
         }

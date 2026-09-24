@@ -77,7 +77,7 @@ class DefaultQueryReplayServiceTest {
     private QuerySnapshotView snapshot(DbType dbType, List<String> referenced) {
         return new QuerySnapshotView(UUID.randomUUID(), originalQueryId, orgId, sourceDsId, userId,
                 "SELECT * FROM users", QueryType.SELECT, false, dbType, referenced, "src-hash",
-                "{}", "[]", 3L, 9, Instant.now(), Instant.now());
+                "{}", "[]", 3L, 9, Instant.now(), Instant.now(), null);
     }
 
     private DatasourceView target(DbType dbType, boolean active) {

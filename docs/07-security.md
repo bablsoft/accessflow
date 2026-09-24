@@ -994,6 +994,14 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
 - **Audit.** The ids of the policies actually applied to an execution ride on the `QUERY_EXECUTED`
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
+- **Effective statement is stored, values redacted (#937).** The rewritten statement that actually ran
+  is frozen on the query's immutable snapshot (`query_snapshots.effective_sql`), so an auditor sees the
+  spliced predicate without reconstructing it from policy rows that may since have been edited or
+  deleted. It keeps every predicate value as its `?` placeholder — storing the bound values would copy
+  user attributes and group ids into the audit trail — and is `NULL` when nothing was rewritten.
+  Engine-plugin datasources (MongoDB, Redis, …) splice filters into native commands and so store no
+  effective statement; their applied policy ids remain the audit record. Readable on
+  `GET /queries/{id}` (submitter or `QUERY_VIEW_ALL`) and in the signed regulatory-audit-trail export.
 
 ### Per-table row-limit policies (#934)
 
@@ -1508,7 +1516,7 @@ The `compliance` module produces pre-built compliance reports and signed exports
 - **Reports are computed from the immutable `query_snapshots` forensic record** (AF-449) — never from live, mutable query rows — so a report reflects exactly what executed. Two reports: **classified-data access** (executed queries joined to `data_classification_tag` by datasource + table name, surfacing which queries touched PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE objects) and a **regulatory audit trail** of DDL/DELETE operations whose approver names are read from the snapshot's embedded review-decision JSON (forensically correct as of execution time).
 - **Digital signature.** `GET /api/v1/admin/compliance/reports/export?type=…&format=PDF|CSV` renders the report and returns a **detached RSA signature** (`SHA256withRSA`) over the exact delivered bytes, reusing the deployment's JWT RS256 key pair (`security.api.ExportSignatureService`) — no new secret. The signature, its algorithm, and the content SHA-256 are returned as response headers (`X-AccessFlow-Signature`, `X-AccessFlow-Signature-Algorithm`, `X-AccessFlow-Content-SHA256`). `GET /api/v1/admin/compliance/signing-certificate` publishes the PEM public key so an auditor verifies offline: `openssl dgst -sha256 -verify key.pem -signature sig.bin report.pdf`.
 - **Hash chained into the audit log.** Every export records a `COMPLIANCE_REPORT_EXPORTED` audit entry (`resource_type=compliance_report`) whose `metadata.content_sha256` and `metadata.signature` capture the exported bytes — so the export's hash is embedded in the tamper-evident HMAC chain and is itself detectable against later edits via the audit verifier. This audit write is **integrity-critical: if it fails, the export fails** (it is not swallowed, unlike the best-effort audit-CSV meta-audit).
-- **No new persisted data.** Reports reuse `query_snapshots` (V89) + `data_classification_tag` (V90, whose `idx_dct_org` index was added for this org-wide scan); the only schema change is the `AUDITOR` value added to the `user_role_type` enum (V91).
+- **No new persisted data.** Reports reuse `query_snapshots` (V89) + `data_classification_tag` (V90, whose `idx_dct_org` index was added for this org-wide scan); the only schema change is the `AUDITOR` value added to the `user_role_type` enum (V91). The regulatory audit trail also carries each snapshot's `effective_sql` (V187, #937) — the redacted statement as executed — in its JSON rows and both export formats.
 
 ---
 

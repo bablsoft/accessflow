@@ -394,6 +394,8 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).bodyJson().extractingPath("$.review_plan_name").asString()
                 .isEqualTo("Prod plan");
         assertThat(response).bodyJson().extractingPath("$.approval_timeout_hours").isEqualTo(24);
+        // No snapshot row (#937) → no effective statement; nulls are omitted from the JSON.
+        assertThat(response).bodyJson().doesNotHavePath("$.effective_sql");
     }
 
     @Test

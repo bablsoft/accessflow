@@ -22,6 +22,8 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ReanalyzeQueryCommand;
+import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
+import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
@@ -72,6 +74,7 @@ class QueryReadController {
     private final QueryTicketService queryTicketService;
     private final SqlReviewFindingService sqlReviewFindingService;
     private final SqlReviewFindingRenderer sqlReviewFindingRenderer;
+    private final QuerySnapshotService querySnapshotService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -206,8 +209,10 @@ class QueryReadController {
         var locale = LocaleContextHolder.getLocale();
         var findings = SqlReviewFindingDetail.from(sqlReviewFindingService.findByQueryRequest(id),
                 finding -> sqlReviewFindingRenderer.message(finding, locale));
+        var effectiveSql = querySnapshotService.find(id, caller.organizationId())
+                .map(QuerySnapshotView::effectiveSql).orElse(null);
         return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets,
-                includeApprovalPrediction, findings);
+                includeApprovalPrediction, findings, effectiveSql);
     }
 
     @PostMapping("/{id}/cancel")

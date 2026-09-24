@@ -108,11 +108,13 @@ class DefaultQuerySnapshotServiceTest {
                         Set.of("public.users")));
         when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId)).thenReturn(schema());
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, "SELECT * FROM (SELECT * FROM users WHERE id = ?) users");
 
         var captor = ArgumentCaptor.forClass(QuerySnapshotEntity.class);
         verify(repository).save(captor.capture());
         var saved = captor.getValue();
+        assertThat(saved.getEffectiveSql())
+                .isEqualTo("SELECT * FROM (SELECT * FROM users WHERE id = ?) users");
         assertThat(saved.getQueryRequestId()).isEqualTo(queryId);
         assertThat(saved.getOrganizationId()).isEqualTo(orgId);
         assertThat(saved.getDatasourceId()).isEqualTo(dsId);
@@ -132,7 +134,7 @@ class DefaultQuerySnapshotServiceTest {
     void skipsWhenSnapshotAlreadyExists() {
         when(repository.existsByQueryRequestId(queryId)).thenReturn(true);
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         verify(repository, never()).save(any());
     }
@@ -142,7 +144,7 @@ class DefaultQuerySnapshotServiceTest {
         when(repository.existsByQueryRequestId(queryId)).thenReturn(false);
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         verify(repository, never()).save(any());
     }
@@ -153,7 +155,7 @@ class DefaultQuerySnapshotServiceTest {
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(queryRequestLookupService.findDetailById(queryId, orgId)).thenReturn(Optional.empty());
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         verify(repository, never()).save(any());
     }
@@ -164,7 +166,7 @@ class DefaultQuerySnapshotServiceTest {
         when(queryParser.parse(any(), any())).thenThrow(new RuntimeException("boom"));
         when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId)).thenReturn(schema());
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         var captor = ArgumentCaptor.forClass(QuerySnapshotEntity.class);
         verify(repository).save(captor.capture());
@@ -179,7 +181,7 @@ class DefaultQuerySnapshotServiceTest {
         when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId))
                 .thenThrow(new RuntimeException("db down"));
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         var captor = ArgumentCaptor.forClass(QuerySnapshotEntity.class);
         verify(repository).save(captor.capture());
@@ -193,7 +195,7 @@ class DefaultQuerySnapshotServiceTest {
                 .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT * FROM users"));
         when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId)).thenReturn(schema());
 
-        service.recordOnExecution(queryId);
+        service.recordOnExecution(queryId, null);
 
         var captor = ArgumentCaptor.forClass(QuerySnapshotEntity.class);
         verify(repository).save(captor.capture());
@@ -208,7 +210,7 @@ class DefaultQuerySnapshotServiceTest {
         when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId)).thenReturn(schema());
         when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-        assertThatCode(() -> service.recordOnExecution(queryId)).doesNotThrowAnyException();
+        assertThatCode(() -> service.recordOnExecution(queryId, null)).doesNotThrowAnyException();
     }
 
     private QuerySnapshotEntity entity(QueryType type) {

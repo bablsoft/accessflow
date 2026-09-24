@@ -1742,6 +1742,7 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
   "db_type": "POSTGRESQL",
   "submitted_by": { "id": "uuid", "email": "alice@company.com", "display_name": "Alice" },
   "sql_text": "UPDATE orders SET status = 'shipped' WHERE id = 123",
+  "effective_sql": null,
   "query_type": "UPDATE",
   "status": "PENDING_REVIEW",
   "justification": "Customer support ticket #8821",
@@ -1854,6 +1855,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 `linked_tickets` lists the tickets auto-created in an external ticketing system (ServiceNow / Jira, AF-453) for this query's workflow events, oldest first — empty array when none. `system` is `SERVICENOW` | `JIRA`; `status` / `resolution` reflect the external system's labels as last synced by the [ticketing inbound webhook](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 `sql_review_findings` are the deterministic SQL review findings recorded for this query at submission (#864, epic #860) — the same per-finding shape as [`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863), ordered statement → line, with `message` rendered into the caller's `Accept-Language` at read time from the stored `rule_id` + `args` (never from stored text). Always present: an empty array for a datasource the rule catalog does not cover, for an organization with no ruleset bound, and for a clean evaluation. `line_number` is omitted when unknown. A `BLOCK` finding here explains why the query could not auto-approve: it suppressed routing `AUTO_APPROVE`, the grant fast path and the plan's own approvals and forced `PENDING_REVIEW` — it never rejects, and a routing `AUTO_REJECT` still rejects. Findings are evaluated once, at submission, so they are present even when AI analysis was skipped or failed, and are **not** re-evaluated on reanalysis or for recurring occurrences. See the "Submission enforcement (#864)" paragraph of [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862).
+
+`effective_sql` is the statement **as it actually executed** (#937), read from the query's immutable `query_snapshots` row: the submitted SQL with row-security predicates and soft-delete rewrites spliced in, every bound value left as a `?` placeholder (predicate values such as user attributes are never stored). For a transactional `BEGIN; … COMMIT;` batch it holds every statement's effective form joined by `;` + newline (the envelope markers are not included). It is omitted (`null`) when no rewrite occurred, when the query has not executed, and always for engine-plugin datasources (MongoDB, Redis, …), which splice filters into native commands and have no redacted form. Frozen at execution time — editing or deleting a policy afterwards never changes it. Visible under the same rule as the rest of the detail (the submitter or a `QUERY_VIEW_ALL` holder).
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
@@ -5764,7 +5767,7 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 }
 ```
 
-`GET /admin/compliance/reports/regulatory-audit-trail` has the same envelope but populates `audit_trail` (rows carry `sql_text` and an `approvers` array of `{email, display_name, decision, decided_at}`) and leaves `classified_access` empty. `truncated` is `true` when the snapshot scan hit `accessflow.compliance.max-rows` (default 50,000).
+`GET /admin/compliance/reports/regulatory-audit-trail` has the same envelope but populates `audit_trail` (rows carry `sql_text`, `effective_sql` — the redacted statement as executed, #937, omitted when no rewrite occurred — and an `approvers` array of `{email, display_name, decision, decided_at}`) and leaves `classified_access` empty. `truncated` is `true` when the snapshot scan hit `accessflow.compliance.max-rows` (default 50,000).
 
 #### GET /admin/compliance/reports/export — Signed export
 
@@ -5777,6 +5780,8 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 - `X-AccessFlow-Signature-Algorithm` — `SHA256withRSA`.
 - `X-AccessFlow-Content-SHA256` — lowercase hex SHA-256 of the bytes.
 - `X-AccessFlow-Export-Truncated: true` when the report hit the row cap.
+
+The `REGULATORY_AUDIT_TRAIL` export carries the effective executed statement (#937) next to the submitted one: the CSV has an `effective_sql` column right after `sql_text` (empty when no rewrite occurred), and the PDF an **Effective SQL** column. Bound values are always `?`.
 
 **Tamper-evidence** — every export writes a `COMPLIANCE_REPORT_EXPORTED` audit row (`resource_type=compliance_report`) whose `metadata` carries `report_type`, `format`, `period_from`, `period_to`, `datasource_id`, `row_count`, `truncated`, `content_sha256`, `signature`, and `signature_algorithm`, chaining the export's hash into the tamper-evident audit log. The audit write is integrity-critical — if it fails, the export fails.
 

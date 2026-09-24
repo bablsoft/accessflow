@@ -855,7 +855,16 @@
       "export_denied_classified_tooltip": "Export denied: this result contains columns classified as {{classifications}}",
       "card_sql_review": "SQL review findings",
       "sql_review_blocked_note_one": "{{count}} blocking rule fired at submission, so this query could not auto-approve and was sent to human review.",
-      "sql_review_blocked_note_other": "{{count}} blocking rules fired at submission, so this query could not auto-approve and was sent to human review."
+      "sql_review_blocked_note_other": "{{count}} blocking rules fired at submission, so this query could not auto-approve and was sent to human review.",
+      "effective_sql": {
+        "view_aria": "SQL view",
+        "view_submitted": "Submitted",
+        "view_effective": "Effective",
+        "view_diff": "Diff",
+        "hint": "Effective SQL is the statement as it actually ran, with row-security predicates spliced in. Bound values are shown as ? and never stored.",
+        "diff_submitted_label": "Submitted SQL",
+        "diff_effective_label": "Effective SQL"
+      }
     }
   },
   "reviews": {
@@ -3096,6 +3105,7 @@
     "col_classifications": "Classifications",
     "col_rows_affected": "Rows",
     "col_sql": "SQL",
+    "col_effective_sql": "Effective SQL",
     "col_approvers": "Approvers"
   },
   "enums": {

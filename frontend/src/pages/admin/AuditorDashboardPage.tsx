@@ -110,6 +110,11 @@ export default function AuditorDashboardPage() {
       render: (v: string) => <Text code>{v}</Text>,
     },
     {
+      title: t('auditor.col_effective_sql'),
+      dataIndex: 'effective_sql',
+      render: (v: string | null | undefined) => (v ? <Text code>{v}</Text> : '—'),
+    },
+    {
       title: t('auditor.col_approvers'),
       dataIndex: 'approvers',
       render: (approvers: RegulatoryAuditTrailRow['approvers']) =>

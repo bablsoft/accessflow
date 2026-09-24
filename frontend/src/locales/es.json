@@ -855,7 +855,16 @@
       "export_denied_classified_tooltip": "Exportación denegada: este resultado contiene columnas clasificadas como {{classifications}}",
       "card_sql_review": "Hallazgos de revisión SQL",
       "sql_review_blocked_note_one": "{{count}} regla bloqueante se activó al enviar, por lo que la consulta no pudo aprobarse automáticamente y pasó a revisión humana.",
-      "sql_review_blocked_note_other": "{{count}} reglas bloqueantes se activaron al enviar, por lo que la consulta no pudo aprobarse automáticamente y pasó a revisión humana."
+      "sql_review_blocked_note_other": "{{count}} reglas bloqueantes se activaron al enviar, por lo que la consulta no pudo aprobarse automáticamente y pasó a revisión humana.",
+      "effective_sql": {
+        "view_aria": "Vista de SQL",
+        "view_submitted": "Enviado",
+        "view_effective": "Efectivo",
+        "view_diff": "Diferencias",
+        "hint": "El SQL efectivo es la sentencia tal como se ejecutó realmente, con los predicados de seguridad de filas insertados. Los valores enlazados se muestran como ? y nunca se almacenan.",
+        "diff_submitted_label": "SQL enviado",
+        "diff_effective_label": "SQL efectivo"
+      }
     }
   },
   "reviews": {
@@ -3917,6 +3926,7 @@
     "col_classifications": "Clasificaciones",
     "col_rows_affected": "Filas",
     "col_sql": "SQL",
+    "col_effective_sql": "SQL efectivo",
     "col_approvers": "Aprobadores"
   },
   "anomalies": {

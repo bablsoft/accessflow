@@ -18,7 +18,7 @@ class QuerySnapshotViewTest {
         return new QuerySnapshotView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID(), "SELECT 1", QueryType.SELECT, false,
                 DbType.POSTGRESQL, referencedTables, "hash", null, "[]", 1L, 10,
-                Instant.now(), Instant.now());
+                Instant.now(), Instant.now(), null);
     }
 
     @Test

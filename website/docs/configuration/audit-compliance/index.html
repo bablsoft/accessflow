@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/configuration/audit-compliance/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/audit-compliance/",
       "image": "https://accessflow.io/og-image.png",
@@ -272,7 +272,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Audit & compliance.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -372,7 +372,8 @@
             <strong>classified-data access</strong> (which executed queries touched PII / PCI / PHI /
             GDPR / FINANCIAL / SENSITIVE data, joined to your data-classification tags) and a
             <strong>regulatory audit trail</strong> of DDL / DELETE operations with the approvers'
-            names. Use it to hand a regulator or internal auditor evidence they can verify themselves.
+            names and, where a row-security policy rewrote the statement, the <em>effective SQL</em>
+            that actually ran (filter values shown as <code>?</code>, never stored). Use it to hand a regulator or internal auditor evidence they can verify themselves.
           </p>
           <p>
             <strong>Configure it.</strong> Build and export reports from the compliance dashboard at

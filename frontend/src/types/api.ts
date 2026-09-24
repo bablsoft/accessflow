@@ -1400,6 +1400,11 @@ export interface QueryDetail {
   /** The human an API-key submitter acted for (#874); null for a human submission. */
   on_behalf_of?: { id: string; email: string | null } | null;
   sql_text: string;
+  /**
+   * The statement as actually executed (#937) — row-security / soft-delete rewrite with bound
+   * values redacted as `?`, frozen on the query snapshot. Omitted when no rewrite occurred.
+   */
+  effective_sql?: string | null;
   query_type: QueryType;
   status: QueryStatus;
   justification: string;
@@ -2210,6 +2215,8 @@ export interface RegulatoryAuditTrailRow {
   sql_text: string;
   approvers: ComplianceApprover[];
   executed_at: string;
+  /** Effective executed statement (#937); omitted when no rewrite occurred. */
+  effective_sql?: string | null;
 }
 
 export interface ComplianceReport {
