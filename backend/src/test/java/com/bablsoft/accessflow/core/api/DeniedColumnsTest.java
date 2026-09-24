@@ -110,9 +110,21 @@ class DeniedColumnsTest {
     }
 
     @Test
-    void ddlAndOtherAreOutOfScope() {
+    void ddlTouchingATableWithADeniedColumnIsRefused() {
+        var rename = new SqlParseResult(QueryType.DDL, false, List.of("sql"),
+                Set.of("public.customer"), false, false, Set.of(), true);
+        var elsewhere = new SqlParseResult(QueryType.DDL, false, List.of("sql"),
+                Set.of("orders"), false, false, Set.of(), true);
+
+        assertThat(DeniedColumns.rejected(DENIED, rename)).containsExactly("public.customer.national_id");
+        assertThat(DeniedColumns.rejected(DENIED, elsewhere)).isEmpty();
+    }
+
+    @Test
+    void unanalyzedDdlFailsClosedAndOtherIsNeverChecked() {
         assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.DDL,
-                "ALTER TABLE customer DROP COLUMN national_id"))).isEmpty();
+                "ALTER VIEW v AS SELECT national_id FROM customer")))
+                .containsExactly("public.customer.national_id");
         assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.OTHER, "CALL x()")))
                 .isEmpty();
     }

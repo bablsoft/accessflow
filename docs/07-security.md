@@ -867,7 +867,10 @@ refuses the preview), and the access simulator, which reports the refusal as
   whole rows without naming a column: `TABLE t`, pipe syntax (`FROM t |> …`), a bare alias or table
   name used as a value (PostgreSQL's `SELECT u`, `row_to_json(u)`, `(u).col`), and an alias that
   renames columns by position (`t AS u(a, b)`). A table name that is also one of its column names
-  (`SELECT status FROM status`) is read the same way. JSqlParser misreads a parenthesised
+  (`SELECT status FROM status`) is read the same way. So are PostgreSQL's functional notation for the
+  built-in row functions (`u.row_to_json`, `u.to_jsonb`, `u.hstore`), a `NATURAL` join (it compares
+  every same-named column), and a `*` inside any function but `COUNT` / `COUNT_BIG` (SQL Server's
+  `CHECKSUM(*)` hashes every column). JSqlParser misreads a parenthesised
   `(TABLE t)` FROM item as a table named `TABLE`, which would hide `t` from every check, so the
   parser refuses that statement with 422. Expanding `*` against the
   live schema would give the same answer, but the check does not need the schema, so a missing or
@@ -879,11 +882,17 @@ refuses the preview), and the access simulator, which reports the refusal as
 - **Relational engines only.** Column references are resolved only on the JSqlParser path. A grant
   with `denied_columns` on an engine-managed datasource (every plugin engine, warehouses included) is
   refused with 422 `DENIED_COLUMNS_NOT_SUPPORTED`. If a parse did not analyse columns, any non-empty
-  deny list refuses the query rather than being skipped. DDL is checked through the query it embeds,
-  so `CREATE TABLE … AS SELECT` and `CREATE VIEW … AS SELECT` cannot copy a denied column out. `OTHER`
-  statements are never checked, because no permission grants them. Values the database computes
-  from a column without the SQL naming it are out of reach (a view's own definition, a function body,
-  SQL inside a string argument); the table allow-list shares that limit.
+  deny list refuses the query rather than being skipped. DDL that touches a table with a denied
+  column is refused outright, because DDL can expose a column without reading it (`RENAME COLUMN`, a
+  generated column, `CREATE VIEW … AS SELECT`). DDL the parser cannot walk is refused whenever the
+  deny list is non-empty. `OTHER` statements are never checked, because no permission grants them.
+- **Known limits.** The check reads the SQL, not the database catalog. It cannot see a value the
+  database computes from a column the SQL never names: a view's or function's own body, SQL inside a
+  string argument, or PostgreSQL's string-cast functional notation (`u.text`, `u.name`, `u.varchar`),
+  which returns the whole row as text **only when** the table has no column of that name, and
+  otherwise reads that column. A user-defined function taking the row type has the same limit. The
+  table allow-list shares these limits. Where a value must be unreachable even through those, expose
+  the table to the grantee only through a database-side view that omits the column.
 - **Precedence with masking.** Deny is evaluated before execution, so a column that is both denied and
   restricted is rejected. A column that is only restricted keeps masking exactly as before.
 - **Who it binds.** Like the table allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at

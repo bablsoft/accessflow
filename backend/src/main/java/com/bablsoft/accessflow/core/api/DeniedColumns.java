@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.api;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -58,9 +59,10 @@ public final class DeniedColumns {
     /**
      * @return the denied entries the parsed query reaches, sorted; empty when it reaches none. A
      *         data query whose columns were not analyzed (a non-JSqlParser engine) reaches every
-     *         entry, so a deny list can never be silently skipped. DDL is checked through the query
-     *         it embeds ({@code CREATE TABLE … AS SELECT}); {@code OTHER} is never checked, since
-     *         no permission grants it.
+     *         entry, so a deny list can never be silently skipped. DDL is refused when it reads a
+     *         denied column through an embedded query ({@code CREATE TABLE … AS SELECT}) or touches
+     *         a table a denied entry names at all; {@code OTHER} is never checked, since no
+     *         permission grants it.
      */
     public static SortedSet<String> rejected(List<String> rawDenied, SqlParseResult parsed) {
         var denied = normalize(rawDenied);
@@ -68,10 +70,19 @@ public final class DeniedColumns {
             return new TreeSet<>();
         }
         if (!parsed.columnsAnalyzed()) {
-            // A DDL statement the walk could not traverse carries no query to read columns through.
-            return parsed.type() == QueryType.DDL ? new TreeSet<>() : new TreeSet<>(denied);
+            return new TreeSet<>(denied);
         }
-        return rejected(denied, parsed.referencedColumns());
+        var out = rejected(denied, parsed.referencedColumns());
+        if (parsed.type() == QueryType.DDL) {
+            // DDL can expose a column without reading it (RENAME COLUMN, a generated column, a view
+            // over it), so DDL touching a table with a denied column is refused outright.
+            var touched = new HashSet<ColumnReference>();
+            for (String table : parsed.referencedTables()) {
+                touched.add(ColumnReference.wildcard(Set.of(table)));
+            }
+            out.addAll(rejected(denied, touched));
+        }
+        return out;
     }
 
     /**

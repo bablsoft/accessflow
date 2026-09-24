@@ -125,6 +125,30 @@ class SqlStatementInspectorColumnsTest {
     }
 
     @Test
+    void postgresFunctionalNotationOnARowIsAWholeRowRead() {
+        for (var sql : java.util.List.of("SELECT u.row_to_json FROM users u",
+                "SELECT users.to_jsonb FROM users", "SELECT public.users.to_json FROM public.users")) {
+            assertThat(columns(sql)).as(sql)
+                    .anyMatch(r -> r.isWildcard() && r.candidateTables().stream()
+                            .anyMatch(t -> t.endsWith("users")));
+        }
+        assertThat(columns("SELECT u.name FROM users u")).noneMatch(ColumnReference::isWildcard);
+    }
+
+    @Test
+    void naturalJoinIsAWildcardOverTheJoinedTables() {
+        assertThat(columns("SELECT id FROM users NATURAL JOIN orders"))
+                .contains(ColumnReference.wildcard(Set.of("users", "orders")));
+    }
+
+    @Test
+    void aStarInsideAnyFunctionButCountReadsEveryColumn() {
+        assertThat(columns("SELECT CHECKSUM(*) FROM users"))
+                .contains(ColumnReference.wildcard(Set.of("users")));
+        assertThat(columns("SELECT COUNT_BIG(*) FROM users")).isEmpty();
+    }
+
+    @Test
     void aColumnNamedLikeADerivedTableIsNotAWholeRowRead() {
         assertThat(columns("SELECT t FROM (SELECT id FROM users) t"))
                 .noneMatch(ColumnReference::isWildcard);

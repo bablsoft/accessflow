@@ -739,8 +739,9 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
   is not a wildcard), `AllTableColumns` (`t.*`), JOIN `USING` column, `INSERT` column-list entry,
   and column-list-less `INSERT` (a wildcard on the target). Whole-row shapes are wildcards too:
   `TableStatement`, a pipe-syntax `FromQuery`, a bare alias or table name used as a value
-  (`row_to_json(u)`, `(u).col`), and a table alias with a column list. MySQL `MATCH (…) AGAINST`
-  columns are recorded. A qualifier resolves innermost-first to a real table. A derived table or
+  (`row_to_json(u)`, `(u).col`), a qualified reference to a built-in row function
+  (`u.to_jsonb` — `ROW_FUNCTIONS`), a `NATURAL` join, a `*` inside any function but `COUNT` /
+  `COUNT_BIG`, and a table alias with a column list. MySQL `MATCH (…) AGAINST` columns are recorded. A qualifier resolves innermost-first to a real table. A derived table or
   `WITH` name resolves to nothing, because the inner query is walked on its own. An unknown qualifier
   (`inserted`, `deleted`, `excluded`) and an unqualified column both take every real table of every
   enclosing scope as candidates. A FROM item JSqlParser reads as a table named `TABLE` (its misparse
@@ -752,8 +753,8 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
 - **Matching.** `core.api.DeniedColumns` is the single matcher: `normalize`, `isQualified`, and
   `rejected(denied, parsed)`. It returns every denied entry whose table matches a candidate (the
   schema must match only when both sides carry one) and whose column matches, or which a wildcard
-  reaches. It fails closed: a data query that was not column-analysed rejects every entry. OTHER, and
-  a DDL statement the walk could not traverse, return nothing. `rejectedForWholeTable` answers the
+  reaches. It fails closed: any statement that was not column-analysed rejects every entry, and a DDL
+  statement also rejects every entry on a table it touches. OTHER returns nothing. `rejectedForWholeTable` answers the
   table preview, and `intersect` merges grants by the column an entry names rather than its spelling.
 - **Enforcement.** The following all call it: `DatasourcePermissionVerifier.verify` (submission and
   the recurring per-occurrence recheck, 403 `error.permission.column_not_allowed`),

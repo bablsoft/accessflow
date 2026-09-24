@@ -89,6 +89,12 @@ class SqlParserServiceImplTest {
     }
 
     @Test
+    void aTopLevelUnionReportsNoWhereInsteadOfFailing() {
+        assertThat(service.parse("SELECT id FROM a WHERE x = 1 UNION SELECT id FROM b")
+                .hasWhereClause()).isFalse();
+    }
+
+    @Test
     void parenthesisedTableStatementInFromIsRefused() {
         assertThatThrownBy(() -> service.parse("SELECT t.ssn FROM (TABLE users) t"))
                 .isInstanceOf(InvalidSqlException.class);

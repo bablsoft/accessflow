@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -78,10 +79,23 @@ import java.util.function.Supplier;
  * are the shapes that return whole rows without naming a column — an {@code INSERT} without a column
  * list, {@code TABLE t}, a pipe-syntax {@code FROM t |> …}, a bare alias or table name used as a
  * value ({@code SELECT u}, {@code row_to_json(u)}, {@code (u).col}), and a table alias that renames
- * columns by position ({@code users AS u(a, b)}). A {@code *} inside a function call
- * ({@code COUNT(*)}) is not a column reference.
+ * columns by position ({@code users AS u(a, b)}). {@code COUNT(*)} is not a column reference,
+ * but any other function's {@code *} is, and a {@code NATURAL} join is a wildcard over the tables
+ * it joins.
  */
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
+
+    /**
+     * Built-in PostgreSQL functions that take a whole row, so functional notation ({@code u.f} for
+     * {@code f(u)}) turns them into a whole-row read. Limited to names no table uses as a column;
+     * the string casts ({@code u.text}, {@code u.name}) and user-defined functions over the row type
+     * look exactly like real columns and are out of reach without the catalog.
+     */
+    private static final Set<String> ROW_FUNCTIONS = Set.of("row_to_json", "to_json", "to_jsonb",
+            "hstore", "json_build_array", "jsonb_build_array", "record_out");
+
+    /** Aggregates whose {@code *} counts rows rather than reading columns. */
+    private static final Set<String> ROW_COUNTING_FUNCTIONS = Set.of("count", "count_big");
 
     private final Set<String> recorded = new HashSet<>();
     private final Deque<Scope> scopes = new ArrayDeque<>();
@@ -145,6 +159,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(Table table, S context) {
+        // Only the bare keyword: a quoted "table" keeps its quotes in the qualified name.
         if ("TABLE".equalsIgnoreCase(table.getFullyQualifiedName())) {
             misparsed = true;
         }
@@ -309,6 +324,10 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         var candidates = resolveQualifier(column.getTable());
         if (candidates != null) {
             columns.add(new ColumnReference(candidates, name));
+            if (ROW_FUNCTIONS.contains(name)) {
+                // PostgreSQL reads u.f as f(u) when u has no column f: u.to_jsonb is the row.
+                columns.add(ColumnReference.wildcard(candidates));
+            }
         }
         return null;
     }
@@ -497,6 +516,13 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
             return;
         }
         for (Join join : joins) {
+            if (join.isNatural()) {
+                // NATURAL joins on every same-named column, so it compares columns it never names.
+                var tables = unqualifiedCandidates();
+                if (!tables.isEmpty()) {
+                    columns.add(ColumnReference.wildcard(tables));
+                }
+            }
             if (join.getUsingColumns() != null) {
                 for (Column column : join.getUsingColumns()) {
                     var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
@@ -596,11 +622,18 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function instanceof XmlTableFunction || function instanceof JsonTableFunction) {
             return function.accept(this, context);
         }
-        functionDepth++;
+        // COUNT(*) counts rows; any other function's * (SQL Server CHECKSUM(*)) reads every column.
+        boolean countsRows = function.getName() != null
+                && ROW_COUNTING_FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT));
+        if (countsRows) {
+            functionDepth++;
+        }
         try {
             visitFunction(function, context);
         } finally {
-            functionDepth--;
+            if (countsRows) {
+                functionDepth--;
+            }
         }
         return null;
     }
