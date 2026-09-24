@@ -428,6 +428,12 @@
             <li><strong>Allowed schemas</strong> and <strong>Allowed tables</strong> — leave empty
               for everything, or narrow it. Submitting a query that touches anything outside the
               list is refused.</li>
+            <li><strong>Denied schemas</strong> and <strong>Denied tables</strong> — the exceptions:
+              allow <code>crm</code>, deny <code>crm.salary</code>, and everything else in
+              <code>crm</code> stays reachable. A denial always beats the allowed lists, and a table
+              denied by any of this person's grants stays denied. While a schema is denied, they must
+              write table names with their schema. Enter a schema as one name (<code>hr</code>) and a
+              table as <code>table</code>, <code>schema.table</code> or <code>schema.*</code>.</li>
             <li><strong>Restricted columns</strong> — masked in this person's results.</li>
             <li><strong>Denied columns</strong> — stricter than restricted: a query that touches one
               at all, including through <code>SELECT *</code>, is refused before it runs. Relational
@@ -438,8 +444,8 @@
           </ul>
           <p>
             Where someone has both a direct grant and one through a group, the effective result is
-            the most permissive combination of the two, with one exception: the row limit, where
-            the smallest override wins.
+            the most permissive combination of the two, with two exceptions: the row limit, where
+            the smallest override wins, and denied schemas and tables, which add up across grants.
           </p>
           <div class="docs-callout warn">
             <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>

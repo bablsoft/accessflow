@@ -55,6 +55,7 @@ export const KNOWN_DETAIL_KEYS = [
   'contributing_grants',
   'current',
   'db_type',
+  'denied_tables',
   'effective_min_approvals',
   'engine_id',
   'environment_allows_break_glass',

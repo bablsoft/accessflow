@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
@@ -78,6 +79,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 @Service
 @RequiredArgsConstructor
@@ -653,6 +655,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
         entity.setDeniedColumns(toArray(deniedColumns(datasource, command.deniedColumns())));
+        entity.setDeniedSchemas(toArray(deniedTables(command.deniedSchemas(),
+                DeniedTables::isValidSchemaEntry, "denied_schemas")));
+        entity.setDeniedTables(toArray(deniedTables(command.deniedTables(),
+                DeniedTables::isValidTableEntry, "denied_tables")));
         entity.setExpiresAt(command.expiresAt());
         entity.setAccessGrantRequestId(command.accessGrantRequestId());
         entity.setCreatedBy(grantedBy);
@@ -708,6 +714,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
         entity.setDeniedColumns(toArray(deniedColumns(datasource, command.deniedColumns())));
+        entity.setDeniedSchemas(toArray(deniedTables(command.deniedSchemas(),
+                DeniedTables::isValidSchemaEntry, "denied_schemas")));
+        entity.setDeniedTables(toArray(deniedTables(command.deniedTables(),
+                DeniedTables::isValidTableEntry, "denied_tables")));
         entity.setExpiresAt(command.expiresAt());
         entity.setCreatedBy(grantedBy);
         return toGroupPermissionView(groupPermissionRepository.save(entity));
@@ -1087,6 +1097,22 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     /**
+     * Normalises a grant's {@code denied_schemas} / {@code denied_tables} (#939), refusing an entry
+     * that could never match a reference (so would silently deny nothing); empty → null.
+     */
+    private static List<String> deniedTables(List<String> raw, Predicate<String> valid,
+                                             String field) {
+        var denied = DeniedTables.normalize(raw);
+        for (String entry : denied) {
+            if (!valid.test(entry)) {
+                throw new IllegalDatasourcePermissionException(
+                        field + " entry is not a valid name: " + entry);
+            }
+        }
+        return denied.isEmpty() ? null : denied;
+    }
+
+    /**
      * Normalises a grant's {@code denied_columns} (#935), refusing an entry that does not name its
      * table and any entry on an engine that cannot resolve column references.
      */
@@ -1124,6 +1150,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
                 toList(entity.getDeniedColumns()),
+                toList(entity.getDeniedSchemas()),
+                toList(entity.getDeniedTables()),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());
@@ -1147,6 +1175,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
                 toList(entity.getDeniedColumns()),
+                toList(entity.getDeniedSchemas()),
+                toList(entity.getDeniedTables()),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());

@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -94,6 +95,14 @@ class DefaultQueryDryRunService implements QueryDryRunService {
                     "Insufficient permission for " + queryType + " on datasource: " + datasourceId);
         }
         verifyAllowedTables(permission, datasourceId, parsed.referencedTables());
+        var deniedTables = DeniedTables.rejected(permission.deniedSchemas(),
+                permission.deniedTables(), parsed.referencedTables());
+        if (!deniedTables.isEmpty()) {
+            log.warn("Dry-run table deny rejection on datasource {} for user {}: tables {}",
+                    datasourceId, permission.userId(), deniedTables);
+            throw new AccessDeniedException(msg("error.permission.table_denied",
+                    new Object[]{String.join(", ", deniedTables)}));
+        }
         var deniedColumns = DeniedColumns.rejected(permission.deniedColumns(), parsed);
         if (!deniedColumns.isEmpty()) {
             log.warn("Dry-run column deny rejection on datasource {} for user {}: columns {}",

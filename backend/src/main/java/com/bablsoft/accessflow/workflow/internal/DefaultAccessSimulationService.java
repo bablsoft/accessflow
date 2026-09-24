@@ -245,6 +245,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             // QUERY_ADMIN holders skip the per-datasource gate outright, so they pass here with no
             // permission row at all. Saying so is the point: it is invisible on every other screen.
             details.put("rejected_tables", List.of());
+            details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
@@ -256,6 +257,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                 .orElse(null);
         if (permission == null) {
             details.put("rejected_tables", List.of());
+            details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
@@ -267,6 +269,9 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var rejected = DatasourcePermissionChecker.rejectedTables(permission,
                 parsed.referencedTables());
         details.put("rejected_tables", List.copyOf(rejected));
+        var deniedTables = DatasourcePermissionChecker.deniedTables(permission,
+                parsed.referencedTables());
+        details.put("denied_tables", List.copyOf(deniedTables));
         var rejectedColumns = DatasourcePermissionChecker.rejectedColumns(permission, parsed);
         details.put("rejected_columns", List.copyOf(rejectedColumns));
         if (!capable) {
@@ -277,6 +282,11 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         if (!rejected.isEmpty()) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.table_not_allowed", details));
+            return false;
+        }
+        if (!deniedTables.isEmpty()) {
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+                    "workflow.access_simulation.permission.table_denied", details));
             return false;
         }
         if (!rejectedColumns.isEmpty()) {

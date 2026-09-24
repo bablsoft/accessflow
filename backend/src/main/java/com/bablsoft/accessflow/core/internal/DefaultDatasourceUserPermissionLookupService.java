@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository;
@@ -174,7 +175,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
      * allow-lists union (null wins = all allowed); restricted-columns intersect (empty wins =
      * nothing masked), and so do denied-columns (#935 — empty wins = nothing denied); expiry is
      * the latest among contributors (null wins = never expires). The row limit is the inversion:
-     * the smallest non-null override wins (#933).
+     * the smallest non-null override wins (#933). Denied schemas and tables are the other
+     * inversion: they union, so no contributing grant can lift another's denial (#939).
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
                                                       List<DatasourcePermissionContribution> parts) {
@@ -207,8 +209,25 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionAllowList(parts, DatasourcePermissionContribution::allowedTables),
                 intersect(parts, DatasourcePermissionContribution::restrictedColumns),
                 intersectDenied(parts),
+                unionDenied(parts, DatasourcePermissionContribution::deniedSchemas),
+                unionDenied(parts, DatasourcePermissionContribution::deniedTables),
                 minRowLimit(parts),
                 anyNeverExpires ? null : expiresAt);
+    }
+
+    /**
+     * Deny-list union (#939): a table or schema stays denied when <em>any</em> contribution denies
+     * it. This is the inverse of the allow-list merge on purpose — a second, more permissive grant
+     * can widen what is allowed but can never dissolve a denial.
+     */
+    private static List<String> unionDenied(
+            List<DatasourcePermissionContribution> parts,
+            Function<DatasourcePermissionContribution, List<String>> field) {
+        var union = new LinkedHashSet<String>();
+        for (var p : parts) {
+            union.addAll(DeniedTables.normalize(field.apply(p)));
+        }
+        return List.copyOf(union);
     }
 
     /** Most restrictive non-null override; {@code null} when no contribution sets one. */
@@ -290,6 +309,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
                 DeniedColumns.normalize(toList(entity.getDeniedColumns())),
+                DeniedTables.normalize(toList(entity.getDeniedSchemas())),
+                DeniedTables.normalize(toList(entity.getDeniedTables())),
                 entity.getRowLimitOverride(),
                 entity.getExpiresAt());
     }
@@ -301,6 +322,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.isCanRead(), e.isCanWrite(), e.isCanDdl(), e.isCanBreakGlass(),
                 toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
+                toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 e.getRowLimitOverride(), e.getExpiresAt(), e.getAccessGrantRequestId());
     }
 
@@ -311,6 +333,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.getGroup().getName(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
                 e.isCanBreakGlass(), toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
+                toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 e.getRowLimitOverride(), e.getExpiresAt(), null);
     }
 

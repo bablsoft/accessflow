@@ -535,7 +535,7 @@ Opens a transient JDBC connection to a candidate read-replica using the values s
 
 ### GET /datasources/{id}/schema — Response
 
-Introspects tables and columns from the customer database via JDBC `DatabaseMetaData`. System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out. ADMINs may introspect any datasource in their organization and see every table. Non-ADMINs require an effective permission (direct or group grant; none → `404 DATASOURCE_NOT_FOUND`), and the response is scoped to it (#936): only tables their `allowed_schemas` / `allowed_tables` cover are returned (a table is shown when its `schema.table` name — or a catalog-qualified `catalog.schema.table` ending in it — is listed, when its schema is listed, or when its bare name is listed **and no other schema has a table of that name**; the qualified rules are the query gate's own matcher, and the ambiguous bare case fails closed because the view cannot know which table the database resolves an unqualified name to — qualify the entry. Both lists empty means no restriction), schemas left with no visible table are dropped unless the schema itself is allow-listed, columns on the grant's `denied_columns` are omitted, and a foreign key is omitted when it starts from a denied column, points at a denied column, or references a table the caller cannot see (foreign-key targets are reported by bare name, so one whose name is shared with a hidden table is omitted too). The same scoping applies wherever this user-facing introspection feeds another surface — editor autocomplete, the table preview, the AI analyze-preview and text-to-SQL schema context, and the MCP `get_datasource_schema` / `validate_sql` tools. System paths (async AI analysis at submission, discovery scans, schema drift and promotion snapshots, query snapshots, query-replay compatibility) introspect unfiltered, and the JIT request form keeps its own name-only, unfiltered endpoint (`GET /access-requests/datasources/{id}/schema`). The matcher follows relational qualification; for engine plugins with their own naming (Couchbase `bucket.scope.collection` grants, Elasticsearch index patterns) the view can hide objects the engine's gate allows — admins see everything, and the query gate is unchanged.
+Introspects tables and columns from the customer database via JDBC `DatabaseMetaData`. System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out. ADMINs may introspect any datasource in their organization and see every table. Non-ADMINs require an effective permission (direct or group grant; none → `404 DATASOURCE_NOT_FOUND`), and the response is scoped to it (#936): only tables their `allowed_schemas` / `allowed_tables` cover are returned (a table is shown when its `schema.table` name — or a catalog-qualified `catalog.schema.table` ending in it — is listed, when its schema is listed, or when its bare name is listed **and no other schema has a table of that name**; the qualified rules are the query gate's own matcher, and the ambiguous bare case fails closed because the view cannot know which table the database resolves an unqualified name to — qualify the entry. Both lists empty means no restriction), tables and schemas on the grant's `denied_tables` / `denied_schemas` (#939) are hidden whatever the allow-list says (a denied schema is never listed, even when allow-listed), schemas left with no visible table are dropped unless the schema itself is allow-listed, columns on the grant's `denied_columns` are omitted, and a foreign key is omitted when it starts from a denied column, points at a denied column, or references a table the caller cannot see (foreign-key targets are reported by bare name, so one whose name is shared with a hidden table is omitted too). The same scoping applies wherever this user-facing introspection feeds another surface — editor autocomplete, the table preview, the AI analyze-preview and text-to-SQL schema context, and the MCP `get_datasource_schema` / `validate_sql` tools. System paths (async AI analysis at submission, discovery scans, schema drift and promotion snapshots, query snapshots, query-replay compatibility) introspect unfiltered, and the JIT request form keeps its own name-only, unfiltered endpoint (`GET /access-requests/datasources/{id}/schema`). The matcher follows relational qualification; for engine plugins with their own naming (Couchbase `bucket.scope.collection` grants, Elasticsearch index patterns) the view can hide objects the engine's gate allows — admins see everything, and the query gate is unchanged.
 
 ```json
 {
@@ -607,10 +607,10 @@ GET /api/v1/datasources/{id}/sample-rows?schema=public&table=users&limit=50
 
 `restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap or the result byte cap (#49); `truncated_reason` says which (`"ROW_LIMIT"` | `"BYTE_LIMIT"`, `null` when not truncated).
 
-ADMINs may sample any datasource in their organization; non-ADMINs need a permission row with `can_read` and the target within their `allowed_schemas` / `allowed_tables`.
+ADMINs may sample any datasource in their organization; non-ADMINs need a permission row with `can_read` and the target within their `allowed_schemas` / `allowed_tables` and outside their `denied_schemas` / `denied_tables` (#939).
 
 **Response 400:** `limit` is out of the `1`–`200` range. `error: VALIDATION_ERROR`.
-**Response 404:** Datasource not accessible, or the table is absent from the introspected schema / outside the caller's allow-list. `error: DATASOURCE_NOT_FOUND` or `TABLE_NOT_FOUND`.
+**Response 404:** Datasource not accessible, or the table is absent from the introspected schema / outside the caller's allow-list / on their table or schema deny-list. `error: DATASOURCE_NOT_FOUND` or `TABLE_NOT_FOUND`.
 **Response 422:** Sampling failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.
 
 ### GET /datasources/{id}/permissions — Response 200
@@ -632,6 +632,8 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
       "denied_columns": ["public.users.password_hash"],
+      "denied_schemas": null,
+      "denied_tables": ["public.salary"],
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -643,6 +645,8 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
 `restricted_columns` is a list of fully-qualified `schema.table.column` strings (case-insensitive). Values for these columns are masked with `"***"` in SELECT result rows, and the AI analyzer is told that the SQL touches restricted columns (informational — never auto-rejects). Null or empty means no column restrictions.
 
 `denied_columns` (#935) is a list of `table.column` or `schema.table.column` strings, returned normalised (unquoted, lowercase). A query that references one — in the select list, `WHERE`, `JOIN`, `GROUP BY`, `HAVING`, `ORDER BY`, a subquery, an `UPDATE … SET` target or an `INSERT` column list, or through `*` / `t.*` / a column-list-less `INSERT` on the entry's table — is rejected **before** it is persisted. `POST /queries`, `POST /queries/dry-run` and `GET /datasources/{id}/sample-rows` answer 403 with `error: "FORBIDDEN"` and a localized `detail` naming the denied entries. Break-glass answers `error: "BREAK_GLASS_NOT_PERMITTED"`, and a request-group submit answers `error: "REQUEST_GROUP_PERMISSION_DENIED"`. The table preview is refused whenever its table has a denied column, since it reads every column. Deny beats mask for a column in both lists. Null or empty means nothing is denied.
+
+`denied_schemas` and `denied_tables` (#939) are table/schema deny-lists, returned normalised (unquoted, lowercase), `null` when unset. A denial **always beats** the allow-list and is evaluated after it, so `allowed_schemas: ["crm"]` + `denied_tables: ["crm.salary"]` permits `crm.customer` (and any `crm` table created later) while refusing `crm.salary`. Denials also apply with no allow-list at all. Matching fails closed, because the gate cannot know where the database resolves a name: a `denied_tables` entry matches when either name is a dot-aligned suffix of the other (bare `salary` denies `salary` in every schema; `crm.salary` denies `crm.salary`, `db.crm.salary` and an unqualified `salary`), and a `denied_schemas` entry matches any reference carrying it as a non-final segment **and every unqualified reference** — while any schema is denied, the grantee must schema-qualify table names. A `schema.*` entry in `denied_tables` denies the whole schema. Names are compared segment by segment from the right; an empty segment (SQL Server `db..salary`) matches anything, an Oracle `@dblink` suffix is ignored, and a pattern reference (`*` / `?`, e.g. an Elasticsearch index pattern `sal*`) is denied by any entry. Deny-lists apply to every engine; on engines whose names carry no schema (MongoDB, DynamoDB, Redis) any `denied_schemas` entry refuses every query, so use `denied_tables` there. A JIT approval that replaces the user's expiring direct row carries that row's denials onto the new grant. A query that reaches a denied table is rejected **before** it is persisted: `POST /queries` and `POST /queries/dry-run` answer 403 `FORBIDDEN` with `error.permission.table_denied` ("Query references one or more tables the user is denied on this datasource: …"), break-glass answers `BREAK_GLASS_NOT_PERMITTED`, and a request-group submit answers `REQUEST_GROUP_PERMISSION_DENIED`. A denied table is hidden from `GET /datasources/{id}/schema` (a denied schema disappears entirely) and answers 404 from `GET /datasources/{id}/sample-rows`, exactly like one outside the allow-list.
 
 ### POST /datasources/{id}/permissions — Request Body
 
@@ -658,6 +662,8 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn", "public.users.email"],
   "denied_columns": ["public.users.password_hash"],
+  "denied_schemas": ["audit"],
+  "denied_tables": ["public.salary"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
@@ -665,7 +671,15 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
 `restricted_columns` is optional. Each entry must be non-blank. `denied_columns` (#935) is optional,
 at most 200 entries, each `table.column` or `schema.table.column` with no blank part (400 otherwise).
 It is supported only on the in-process relational engines (PostgreSQL, MySQL, MariaDB, Oracle,
-SQL Server, `CUSTOM`). `can_break_glass` (AF-385, optional,
+SQL Server, `CUSTOM`). `denied_schemas` (#939) is optional, at most 50 non-blank entries,
+each a single schema name with no dots and no `*` / `?` (`analytics.hr` is refused).
+`denied_tables` is optional, at most 200 non-blank entries, each `table`, `schema.table` (any depth)
+or `schema.*` (the whole schema), with no empty segment and no other wildcard. A violation is
+400 `VALIDATION_ERROR` (`validation.denied_schemas.item_invalid` / `validation.denied_tables.item_invalid`,
+or the blank / too-many keys); the service re-checks the entry shape and raises
+`IllegalDatasourcePermissionException` (422 `ILLEGAL_DATASOURCE_PERMISSION`) for callers that bypass
+the web layer. Both are stored normalised with duplicates dropped, and both are
+recorded in the `PERMISSION_GRANTED` / `PERMISSION_GROUP_GRANTED` audit metadata when non-empty. `can_break_glass` (AF-385, optional,
 default `false`) grants the emergency break-glass submission mode on this datasource — time-boxed via
 `expires_at`. The flag is returned on the permission object alongside `can_read`/`can_write`/`can_ddl`.
 
@@ -685,7 +699,9 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 Group-based access grants (AF-530). A grant to a **user group** is inherited by every member; a user's
 **effective** access is the most-permissive union of their direct grant and every unexpired group grant
 for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` and `denied_columns`
-intersected so a column is masked — or denied — only when every contributing grant masks or denies it). Same shape as the per-user list, keyed on
+intersected so a column is masked — or denied — only when every contributing grant masks or denies it;
+`denied_schemas` / `denied_tables` **unioned** (#939), so a group grant's denial binds every member and no
+permissive grant can lift a denial from another). Same shape as the per-user list, keyed on
 the group instead of a user:
 
 ```json
@@ -706,6 +722,8 @@ the group instead of a user:
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
       "denied_columns": [],
+      "denied_schemas": null,
+      "denied_tables": null,
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -730,6 +748,8 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn"],
   "denied_columns": ["public.users.password_hash"],
+  "denied_schemas": ["audit"],
+  "denied_tables": ["public.salary"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
@@ -1624,7 +1644,7 @@ Identification and audit only — never an authorization input and not a routing
 
 **Errors:**
 - `400 VALIDATION_ERROR` — request body missing `datasource_id` or `sql`.
-- `403 FORBIDDEN` — caller has no active permission row for this datasource, the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL), or the SQL references a table outside the permission's `allowed_schemas` / `allowed_tables` allow-list (walked at the JSqlParser AST level; see [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement)). Admins bypass this check.
+- `403 FORBIDDEN` — caller has no active permission row for this datasource, the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL), the SQL references a table outside the permission's `allowed_schemas` / `allowed_tables` allow-list (walked at the JSqlParser AST level; see [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement)), or a table the permission's `denied_schemas` / `denied_tables` deny-list reaches (#939, `error.permission.table_denied` — a denial beats the allow-list), or a denied column (#935). Admins bypass this check.
 - `404 DATASOURCE_NOT_FOUND` — datasource does not exist in the caller's organization, or — for non-admin callers — the caller has no permission row for it.
 - `422 INVALID_SQL` — SQL did not parse, contained multiple statements without a `BEGIN/COMMIT` envelope, or classified as `OTHER`. The `detail` field carries the specific reason. Distinct sub-cases include:
   - mixed SELECT with INSERT/UPDATE/DELETE inside a transaction → "Transactions cannot mix SELECT with INSERT/UPDATE/DELETE; submit them as separate query requests";
@@ -2882,7 +2902,7 @@ Just-in-time, time-bound access requests. A user requests temporary scoped acces
 }
 ```
 
-**Exactly one** of `datasource_id` / `connector_id` must be set (AF-567). A connector request may carry `allowed_operations` — an optional operation-id allow-list validated against the connector's operation catalog (`null`/empty = all operations) — and must **not** carry `can_ddl`, `pre_approve_queries`, or `allowed_schemas`/`allowed_tables`; a datasource request must not carry `allowed_operations` (all enforced by Bean Validation, mirrored in the frontend form). `can_break_glass` is deliberately not self-requestable. `requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`); every access-request response carries `resource_kind` (`DATASOURCE` | `API_CONNECTOR`) plus the matching `datasource_*` / `connector_*` name fields, and the admin queue item nests a `datasource` **or** `connector` `{ id, name }` summary.
+**Exactly one** of `datasource_id` / `connector_id` must be set (AF-567). A connector request may carry `allowed_operations` — an optional operation-id allow-list validated against the connector's operation catalog (`null`/empty = all operations) — and must **not** carry `can_ddl`, `pre_approve_queries`, or `allowed_schemas`/`allowed_tables`; a datasource request must not carry `allowed_operations` (all enforced by Bean Validation, mirrored in the frontend form). `can_break_glass` is deliberately not self-requestable, and neither are table/schema deny-lists (#939) — there is no `denied_schemas` / `denied_tables` field. The materialised grant never lifts a denial: denials union across grants, and a replaced expiring direct row's denials carry over onto it. `requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`); every access-request response carries `resource_kind` (`DATASOURCE` | `API_CONNECTOR`) plus the matching `datasource_*` / `connector_*` name fields, and the admin queue item nests a `datasource` **or** `connector` `{ id, name }` summary.
 
 ### GET /access-requests — Query Parameters
 
@@ -4506,6 +4526,7 @@ follow up with one simulation per user of interest. It is deliberately not an N-
           { "source_kind": "GROUP", "source_id": "77b2…", "group_id": "0a41…", "group_name": "payments-oncall", "expires_at": "2026-10-01T00:00:00Z" }
         ],
         "rejected_tables": [],
+        "denied_tables": [],
         "rejected_columns": [],
         "expires_at": "2026-10-01T00:00:00Z"
       }
@@ -4599,7 +4620,7 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `DATASOURCE_GATES` | `db_type`, `active`, `ai_analysis_enabled`, `visible_to_user` | always |
 | `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
 | `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause` | whenever the statement parsed; `{}` when it did not |
-| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
 | | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed` | `MATCH` only |
@@ -4739,7 +4760,9 @@ schema read (which this endpoint never performs) and would go stale the moment a
 (`"public"`) or the qualified table (`"public.payments"`). It is `null`, and therefore absent, on a
 source whose own allow-list does not reach the table: `granted` is computed over the **merged** union,
 so a source can legitimately contribute the capability while another contributes the coverage. Read the
-row's `table_scope` for the verdict and the sources for the provenance.
+row's `table_scope` for the verdict and the sources for the provenance. A table any contributing grant
+denies through `denied_schemas` / `denied_tables` (#939) is not granted whatever the allow-lists say —
+denials union across grants and beat the allow-list — so that user is left out of the list.
 
 **`can_break_glass` does not feed `granted`.** Break-glass is a separate submission mode with its own
 compensating controls (instant admin fanout, a prominent audit row, a mandatory retro-review), not a

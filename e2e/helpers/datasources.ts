@@ -519,6 +519,10 @@ export async function grantPermissionViaApi(
     canBreakGlass?: boolean;
     // #935 — `table.column` / `schema.table.column` entries the grantee may never query.
     deniedColumns?: string[];
+    // #939 — schema/table deny-lists; a denial always beats the allow-list.
+    allowedSchemas?: string[];
+    deniedSchemas?: string[];
+    deniedTables?: string[];
   } = {},
 ): Promise<GrantedPermission> {
   const res = await request.post(
@@ -532,6 +536,9 @@ export async function grantPermissionViaApi(
         can_ddl: opts.canDdl ?? false,
         can_break_glass: opts.canBreakGlass ?? false,
         denied_columns: opts.deniedColumns ?? null,
+        allowed_schemas: opts.allowedSchemas ?? null,
+        denied_schemas: opts.deniedSchemas ?? null,
+        denied_tables: opts.deniedTables ?? null,
       },
     },
   );

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedTables;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -12,9 +13,9 @@ import java.util.Set;
 
 /**
  * Narrows an introspected schema to what a restricted caller may query (#936): tables outside the
- * allow-list, columns on the deny list, and foreign keys that would name a hidden table or column
- * are dropped. Matching goes through {@link AllowedTables} and {@link DeniedColumns}, the rules the
- * query gates enforce. Where the view cannot tell what the gate would allow it fails closed: a bare
+ * allow-list, tables and schemas on the deny-lists (#939), columns on the deny list, and foreign keys
+ * that would name a hidden table or column are dropped. Matching goes through {@link AllowedTables},
+ * {@link DeniedTables} and {@link DeniedColumns}, the rules the query gates enforce. Where the view cannot tell what the gate would allow it fails closed: a bare
  * {@code allowed_tables} entry names whatever table the database resolves the unqualified name to,
  * so it only shows a table whose name is unique in the view, and a foreign key whose bare target name
  * also belongs to a hidden table is dropped.
@@ -30,7 +31,10 @@ final class SchemaViewPermissionFilter {
         }
         var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
         var allowedTables = AllowedTables.normalize(permission.allowedTables());
-        var restricted = !allowedSchemas.isEmpty() || !allowedTables.isEmpty();
+        var deniedSchemas = DeniedTables.normalize(permission.deniedSchemas());
+        var deniedTables = DeniedTables.normalize(permission.deniedTables());
+        var allowListed = !allowedSchemas.isEmpty() || !allowedTables.isEmpty();
+        var restricted = allowListed || !deniedSchemas.isEmpty() || !deniedTables.isEmpty();
         var denied = permission.deniedColumns();
 
         var ambiguousNames = ambiguousTableNames(view);
@@ -42,8 +46,10 @@ final class SchemaViewPermissionFilter {
             var tables = new ArrayList<DatabaseSchemaView.Table>();
             for (var table : nullSafe(schema.tables())) {
                 var bare = AllowedTables.normalizeEntry(table.name());
-                if (!restricted || tableAllowed(allowedSchemas, allowedTables, normalizedSchema,
-                        bare, ambiguousNames)) {
+                var allowed = !allowListed || tableAllowed(allowedSchemas, allowedTables,
+                        normalizedSchema, bare, ambiguousNames);
+                if (allowed && !DeniedTables.deniesTable(deniedSchemas, deniedTables,
+                        schema.name(), table.name())) {
                     tables.add(table);
                     if (bare != null) {
                         visibleTableNames.add(bare);
@@ -52,9 +58,10 @@ final class SchemaViewPermissionFilter {
                     hiddenTableNames.add(bare);
                 }
             }
-            if (!tables.isEmpty()
-                    || (normalizedSchema != null && allowedSchemas.contains(normalizedSchema))
-                    || !restricted) {
+            var schemaDenied = DeniedTables.deniesSchema(deniedSchemas, schema.name());
+            // An empty schema stays listed when the caller could still query it, never when denied.
+            if (!tables.isEmpty() || (!schemaDenied && (!allowListed
+                    || (normalizedSchema != null && allowedSchemas.contains(normalizedSchema))))) {
                 visible.add(new DatabaseSchemaView.Schema(schema.name(), tables));
             }
         }

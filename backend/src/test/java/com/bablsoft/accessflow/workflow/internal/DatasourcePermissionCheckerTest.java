@@ -93,13 +93,13 @@ class DatasourcePermissionCheckerTest {
     private DatasourceUserPermissionView perm(boolean canRead, boolean canWrite, boolean canDdl) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), canRead, canWrite, canDdl, false,
-                List.of(), List.of(), List.of(), null, null, null);
+                List.of(), List.of(), List.of(), null, List.of(), List.of(), null, null);
     }
 
     private DatasourceUserPermissionView perm(List<String> allowedSchemas, List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, true, true, true,
-                allowedSchemas, allowedTables, List.of(), null, null, null);
+                allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), null, null);
     }
 
     @Test
@@ -144,7 +144,7 @@ class DatasourcePermissionCheckerTest {
         var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                 java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
                 java.util.UUID.randomUUID(), true, false, false, false, null, null, null,
-                List.of("users.ssn"), null, null);
+                List.of("users.ssn"), List.of(), List.of(), null, null);
         var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(
                 com.bablsoft.accessflow.core.api.QueryType.SELECT, false, List.of("sql"),
                 Set.of("users"), false, false, Set.of(
@@ -153,5 +153,71 @@ class DatasourcePermissionCheckerTest {
 
         assertThat(DatasourcePermissionChecker.rejectedColumns(permission, parsed))
                 .containsExactly("users.ssn");
+    }
+
+    @Test
+    void deniedTableCarvesAnExceptionOutOfASchemaAllowList() {
+        var permission = denying(List.of("crm"), List.of(), List.of(), List.of("crm.salary"));
+
+        assertThat(DatasourcePermissionChecker.blockedTables(permission, Set.of("crm.customer")))
+                .isEmpty();
+        assertThat(DatasourcePermissionChecker.blockedTables(permission, Set.of("crm.salary")))
+                .containsExactly("crm.salary");
+        assertThat(DatasourcePermissionChecker.deniedTables(permission,
+                Set.of("crm.customer", "crm.salary"))).containsExactly("crm.salary");
+    }
+
+    @Test
+    void tableAddedLaterUnderAnAllowedSchemaIsPermitted() {
+        var permission = denying(List.of("crm"), List.of(), List.of(), List.of("crm.salary"));
+
+        assertThat(DatasourcePermissionChecker.blockedTables(permission, Set.of("crm.new_table")))
+                .isEmpty();
+    }
+
+    @Test
+    void denialAppliesWithoutAnyAllowList() {
+        var permission = denying(List.of(), List.of(), List.of(), List.of("crm.salary"));
+
+        assertThat(DatasourcePermissionChecker.rejectedTables(permission, Set.of("crm.salary")))
+                .isEmpty();
+        assertThat(DatasourcePermissionChecker.deniedTables(permission, Set.of("crm.salary")))
+                .containsExactly("crm.salary");
+        assertThat(DatasourcePermissionChecker.blockedTables(permission,
+                Set.of("crm.salary", "crm.customer"))).containsExactly("crm.salary");
+    }
+
+    @Test
+    void deniedSchemaRejectsEveryTableInIt() {
+        var permission = denying(List.of(), List.of(), List.of("hr"), List.of());
+
+        assertThat(DatasourcePermissionChecker.deniedTables(permission,
+                Set.of("hr.salary", "crm.customer"))).containsExactly("hr.salary");
+    }
+
+    @Test
+    void blockedTablesUnionsTheAllowListAndTheDenyList() {
+        var permission = denying(List.of("crm"), List.of(), List.of(), List.of("crm.salary"));
+
+        assertThat(DatasourcePermissionChecker.blockedTables(permission,
+                Set.of("crm.salary", "hr.payroll", "crm.customer")))
+                .containsExactly("crm.salary", "hr.payroll");
+    }
+
+    @Test
+    void noDenyListDeniesNothing() {
+        var permission = denying(List.of(), List.of(), null, null);
+
+        assertThat(DatasourcePermissionChecker.deniedTables(permission, Set.of("crm.salary")))
+                .isEmpty();
+    }
+
+    private DatasourceUserPermissionView denying(List<String> allowedSchemas,
+                                                 List<String> allowedTables,
+                                                 List<String> deniedSchemas,
+                                                 List<String> deniedTables) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), true, true, true, false, allowedSchemas, allowedTables,
+                List.of(), null, deniedSchemas, deniedTables, null, null);
     }
 }

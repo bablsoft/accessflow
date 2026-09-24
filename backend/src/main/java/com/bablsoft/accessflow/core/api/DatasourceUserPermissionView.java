@@ -16,6 +16,8 @@ public record DatasourceUserPermissionView(
         List<String> allowedTables,
         List<String> restrictedColumns,
         List<String> deniedColumns,
+        List<String> deniedSchemas,
+        List<String> deniedTables,
         Integer rowLimitOverride,
         Instant expiresAt) {
 }

@@ -124,7 +124,7 @@ class DefaultQuerySuggestionService implements QuerySuggestionService {
     private boolean isReachable(DatasourceUserPermissionView permission,
                                 QuerySuggestionEntity row, List<String> tables) {
         return DatasourcePermissionChecker.hasCapability(permission, row.getQueryType())
-                && DatasourcePermissionChecker.rejectedTables(permission, new HashSet<>(tables))
+                && DatasourcePermissionChecker.blockedTables(permission, new HashSet<>(tables))
                         .isEmpty();
     }
 

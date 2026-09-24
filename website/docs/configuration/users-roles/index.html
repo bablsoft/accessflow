@@ -574,7 +574,8 @@
             <strong>Datasource-level permissions.</strong> Role is the org-wide ceiling. On top of
             it, every user needs an explicit <strong>per-datasource permission grant</strong> to
             access a given database — it controls <em>read</em> / <em>write</em> / <em>DDL</em> per
-            datasource, row caps, allowed schemas / tables, restricted columns (which are masked
+            datasource, row caps, allowed schemas / tables, denied schemas / tables (everything
+            except these — a denial always beats the allowed list), restricted columns (which are masked
             as <code>***</code> in <code>SELECT</code> results), and denied columns (a query that
             references one is refused before it runs). See
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
@@ -587,9 +588,12 @@
             someone to the group gives them access without a new grant. When a user has both a direct
             grant and one or more group grants, their <strong>effective access is the most-permissive
             union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks and denied columns apply
-            only where every grant restricts or denies them, and each grant's expiry is honoured independently. The
-            one exception is the row limit override: the smallest one wins, and it can only lower the
-            datasource's cap, never raise it.
+            only where every grant restricts or denies them, and each grant's expiry is honoured independently. Two
+            things work the other way. The row limit override: the smallest one wins, and it can only lower the
+            datasource's cap, never raise it. And denied schemas and tables add up: a table denied by any one
+            grant stays denied, so a wider group grant can never undo a denial, and a group's denial applies to
+            every member. The flip side: revoking or expiring the grant that carries a denial removes it,
+            and the user's other grants may then reach the table.
           </p>
           <h3 id="cfg-access-requests">Just-in-time (JIT) access requests</h3>
           <p>

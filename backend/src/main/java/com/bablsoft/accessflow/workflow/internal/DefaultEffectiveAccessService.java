@@ -170,7 +170,10 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                 contribution.expiresAt(), preApproveQueries);
     }
 
-    /** Both the capability and the table coverage are read off the merged permission, never a part. */
+    /**
+     * Both the capability and the table coverage are read off the merged permission, never a part —
+     * the merge is what unions every grant's denials (#939).
+     */
     private static boolean grants(DatasourceUserPermissionView merged, String table,
                                   QueryType queryType) {
         if (merged == null) {
@@ -179,7 +182,7 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
         if (!DatasourcePermissionChecker.hasCapability(merged, queryType)) {
             return false;
         }
-        return DatasourcePermissionChecker.rejectedTables(merged, Set.of(table)).isEmpty();
+        return DatasourcePermissionChecker.blockedTables(merged, Set.of(table)).isEmpty();
     }
 
     private static TableScope scopeOf(List<String> allowedSchemas, List<String> allowedTables) {
