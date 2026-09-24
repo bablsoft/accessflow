@@ -86,13 +86,24 @@ import java.util.function.Supplier;
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     /**
-     * Built-in PostgreSQL functions that take a whole row, so functional notation ({@code u.f} for
-     * {@code f(u)}) turns them into a whole-row read. Limited to names no table uses as a column;
-     * the string casts ({@code u.text}, {@code u.name}) and user-defined functions over the row type
-     * look exactly like real columns and are out of reach without the catalog.
+     * Every built-in PostgreSQL function whose one required argument takes a whole row (a
+     * {@code record} / {@code anyelement} / {@code "any"} parameter — enumerated from
+     * {@code pg_proc} on PostgreSQL 18), plus {@code hstore}. Functional notation reads {@code u.f}
+     * as {@code f(u)}, so a qualified reference to one of these is a whole-row read. A real column
+     * with one of these names ({@code max}, {@code mode}) on a table with a denied column is
+     * refused too — that fails closed. User-defined and other extension functions over the row
+     * type are out of reach without the catalog.
      */
-    private static final Set<String> ROW_FUNCTIONS = Set.of("row_to_json", "to_json", "to_jsonb",
-            "hstore", "json_build_array", "jsonb_build_array", "record_out");
+    private static final Set<String> ROW_FUNCTIONS = Set.of("any_out", "any_value",
+            "anycompatible_out", "anycompatiblenonarray_out", "anyelement_out", "anynonarray_out",
+            "array_agg", "concat", "count", "cume_dist", "dense_rank", "first_value", "hash_record",
+            "json_agg", "json_agg_strict", "json_build_array", "json_build_object", "jsonb_agg",
+            "jsonb_agg_strict", "jsonb_build_array", "jsonb_build_object", "lag", "last_value",
+            "lead", "max", "min", "mode", "num_nonnulls", "num_nulls", "percent_rank",
+            "pg_collation_for", "pg_column_compression", "pg_column_size",
+            "pg_column_toast_chunk_id", "pg_restore_attribute_stats", "pg_restore_relation_stats",
+            "pg_typeof", "quote_literal", "quote_nullable", "rank", "record_out", "record_send",
+            "row_to_json", "to_json", "to_jsonb", "hstore");
 
     /** Aggregates whose {@code *} counts rows rather than reading columns. */
     private static final Set<String> ROW_COUNTING_FUNCTIONS = Set.of("count", "count_big");
@@ -101,7 +112,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     private final Deque<Scope> scopes = new ArrayDeque<>();
     private final Deque<FromScope> fromScopes = new ArrayDeque<>();
     private final Set<ColumnReference> columns = new LinkedHashSet<>();
-    private int functionDepth;
+    private final Set<AllColumns> rowCountingStars = Collections.newSetFromMap(new IdentityHashMap<>());
     private boolean writesData;
     private boolean misparsed;
 
@@ -335,7 +346,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     @Override
     public <S> Void visit(AllColumns allColumns, S context) {
         super.visit(allColumns, context);
-        if (functionDepth == 0 && !fromScopes.isEmpty()) {
+        if (!rowCountingStars.contains(allColumns) && !fromScopes.isEmpty()) {
             var tables = realTables(fromScopes.peek());
             if (!tables.isEmpty()) {
                 columns.add(ColumnReference.wildcard(tables));
@@ -357,15 +368,11 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     }
 
     private <T> T fromScoped(FromScope scope, Supplier<T> body) {
-        // A subquery inside a function argument is a query of its own: its * is a column list.
-        int savedDepth = functionDepth;
-        functionDepth = 0;
         fromScopes.push(scope);
         try {
             return body.get();
         } finally {
             fromScopes.pop();
-            functionDepth = savedDepth;
         }
     }
 
@@ -398,8 +405,15 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                 }
             }
             case ParenthesedFromItem parenthesed -> {
+                int first = scope.tables().size();
                 addFromItem(scope, parenthesed.getFromItem());
                 addJoins(scope, parenthesed.getJoins());
+                // The statement-level join walk never sees a nested join's NATURAL / USING.
+                var grouped = new HashSet<String>();
+                for (Table table : scope.tables().subList(first, scope.tables().size())) {
+                    grouped.add(tableName(table));
+                }
+                recordJoinComparisons(parenthesed.getJoins(), grouped);
             }
             default -> {
                 if (item.getAlias() != null && item.getAlias().getName() != null) {
@@ -512,22 +526,23 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     }
 
     private void recordUsingColumns(List<Join> joins) {
-        if (joins == null) {
+        recordJoinComparisons(joins, unqualifiedCandidates());
+    }
+
+    private void recordJoinComparisons(List<Join> joins, Set<String> tables) {
+        if (joins == null || tables.isEmpty()) {
             return;
         }
         for (Join join : joins) {
             if (join.isNatural()) {
                 // NATURAL joins on every same-named column, so it compares columns it never names.
-                var tables = unqualifiedCandidates();
-                if (!tables.isEmpty()) {
-                    columns.add(ColumnReference.wildcard(tables));
-                }
+                columns.add(ColumnReference.wildcard(tables));
             }
             if (join.getUsingColumns() != null) {
                 for (Column column : join.getUsingColumns()) {
                     var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
                     if (!name.isBlank()) {
-                        columns.add(new ColumnReference(unqualifiedCandidates(), name));
+                        columns.add(new ColumnReference(tables, name));
                     }
                 }
             }
@@ -622,19 +637,16 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function instanceof XmlTableFunction || function instanceof JsonTableFunction) {
             return function.accept(this, context);
         }
-        // COUNT(*) counts rows; any other function's * (SQL Server CHECKSUM(*)) reads every column.
-        boolean countsRows = function.getName() != null
-                && ROW_COUNTING_FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT));
-        if (countsRows) {
-            functionDepth++;
+        // COUNT(*) counts rows; any other *, even nested under COUNT (CHECKSUM(*)), reads every
+        // column. Only COUNT's own direct * argument is exempt.
+        if (function.getName() != null
+                && ROW_COUNTING_FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT))
+                && function.getParameters() != null && function.getParameters().size() == 1
+                && function.getParameters().get(0) instanceof AllColumns star
+                && !(star instanceof AllTableColumns)) {
+            rowCountingStars.add(star);
         }
-        try {
-            visitFunction(function, context);
-        } finally {
-            if (countsRows) {
-                functionDepth--;
-            }
-        }
+        visitFunction(function, context);
         return null;
     }
 

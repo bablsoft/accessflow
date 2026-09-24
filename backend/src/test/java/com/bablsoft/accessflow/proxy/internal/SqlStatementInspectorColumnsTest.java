@@ -127,12 +127,24 @@ class SqlStatementInspectorColumnsTest {
     @Test
     void postgresFunctionalNotationOnARowIsAWholeRowRead() {
         for (var sql : java.util.List.of("SELECT u.row_to_json FROM users u",
-                "SELECT users.to_jsonb FROM users", "SELECT public.users.to_json FROM public.users")) {
+                "SELECT users.to_jsonb FROM users", "SELECT public.users.to_json FROM public.users",
+                "SELECT u.concat FROM users u", "SELECT u.hash_record FROM users u",
+                "SELECT u.quote_literal FROM users u", "SELECT u.max FROM users u")) {
             assertThat(columns(sql)).as(sql)
                     .anyMatch(r -> r.isWildcard() && r.candidateTables().stream()
                             .anyMatch(t -> t.endsWith("users")));
         }
         assertThat(columns("SELECT u.name FROM users u")).noneMatch(ColumnReference::isWildcard);
+    }
+
+    @Test
+    void joinsNestedInParenthesesRecordTheirNaturalAndUsingComparisons() {
+        assertThat(columns("SELECT id FROM (users NATURAL JOIN orders)"))
+                .contains(ColumnReference.wildcard(Set.of("users", "orders")));
+        assertThat(columns("SELECT id FROM (users JOIN orders USING (ssn))"))
+                .contains(new ColumnReference(Set.of("users", "orders"), "ssn"));
+        assertThat(columns("SELECT o.id FROM o JOIN (users NATURAL JOIN orders) ON true"))
+                .contains(ColumnReference.wildcard(Set.of("users", "orders")));
     }
 
     @Test
@@ -146,6 +158,8 @@ class SqlStatementInspectorColumnsTest {
         assertThat(columns("SELECT CHECKSUM(*) FROM users"))
                 .contains(ColumnReference.wildcard(Set.of("users")));
         assertThat(columns("SELECT COUNT_BIG(*) FROM users")).isEmpty();
+        assertThat(columns("SELECT COUNT(CASE WHEN CHECKSUM(*) = 5 THEN 1 END) FROM users"))
+                .contains(ColumnReference.wildcard(Set.of("users")));
     }
 
     @Test

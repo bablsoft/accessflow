@@ -740,8 +740,10 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
   and column-list-less `INSERT` (a wildcard on the target). Whole-row shapes are wildcards too:
   `TableStatement`, a pipe-syntax `FromQuery`, a bare alias or table name used as a value
   (`row_to_json(u)`, `(u).col`), a qualified reference to a built-in row function
-  (`u.to_jsonb` — `ROW_FUNCTIONS`), a `NATURAL` join, a `*` inside any function but `COUNT` /
-  `COUNT_BIG`, and a table alias with a column list. MySQL `MATCH (…) AGAINST` columns are recorded. A qualifier resolves innermost-first to a real table. A derived table or
+  (`u.concat` — `ROW_FUNCTIONS`, enumerated from PostgreSQL 18's `pg_proc`), a `NATURAL` join at any
+  nesting depth (JOIN `USING` columns likewise), any `*` other than the direct argument of `COUNT` /
+  `COUNT_BIG`, and a table alias with a column list. MySQL `MATCH (…) AGAINST` columns are recorded.
+  A qualifier resolves innermost-first to a real table. A derived table or
   `WITH` name resolves to nothing, because the inner query is walked on its own. An unknown qualifier
   (`inserted`, `deleted`, `excluded`) and an unqualified column both take every real table of every
   enclosing scope as candidates. A FROM item JSqlParser reads as a table named `TABLE` (its misparse

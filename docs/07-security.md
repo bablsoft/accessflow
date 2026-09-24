@@ -868,9 +868,9 @@ refuses the preview), and the access simulator, which reports the refusal as
   name used as a value (PostgreSQL's `SELECT u`, `row_to_json(u)`, `(u).col`), and an alias that
   renames columns by position (`t AS u(a, b)`). A table name that is also one of its column names
   (`SELECT status FROM status`) is read the same way. So are PostgreSQL's functional notation for the
-  built-in row functions (`u.row_to_json`, `u.to_jsonb`, `u.hstore`), a `NATURAL` join (it compares
-  every same-named column), and a `*` inside any function but `COUNT` / `COUNT_BIG` (SQL Server's
-  `CHECKSUM(*)` hashes every column). JSqlParser misreads a parenthesised
+  built-in row functions (`u.row_to_json`, `u.concat`, `u.max`), a `NATURAL` join at any nesting
+  depth (it compares every same-named column), and any `*` other than the direct argument of
+  `COUNT` / `COUNT_BIG` (SQL Server's `CHECKSUM(*)` hashes every column). JSqlParser misreads a parenthesised
   `(TABLE t)` FROM item as a table named `TABLE`, which would hide `t` from every check, so the
   parser refuses that statement with 422. Expanding `*` against the
   live schema would give the same answer, but the check does not need the schema, so a missing or
@@ -888,11 +888,15 @@ refuses the preview), and the access simulator, which reports the refusal as
   deny list is non-empty. `OTHER` statements are never checked, because no permission grants them.
 - **Known limits.** The check reads the SQL, not the database catalog. It cannot see a value the
   database computes from a column the SQL never names: a view's or function's own body, SQL inside a
-  string argument, or PostgreSQL's string-cast functional notation (`u.text`, `u.name`, `u.varchar`),
-  which returns the whole row as text **only when** the table has no column of that name, and
-  otherwise reads that column. A user-defined function taking the row type has the same limit. The
-  table allow-list shares these limits. Where a value must be unreachable even through those, expose
-  the table to the grantee only through a database-side view that omits the column.
+  string argument, or a user-defined or extension function over the row type called in PostgreSQL's
+  functional notation (`u.my_fn` for `my_fn(u)`). Every built-in PostgreSQL function that accepts a
+  whole row is covered (`u.concat`, `u.max`, `u.hash_record`, `u.to_jsonb`, … — enumerated from
+  `pg_proc`), at the cost of refusing a real column with one of those names on a table that has a
+  denied column. The table allow-list shares these limits. Where a value must be unreachable even
+  through those, expose the table to the grantee only through a database-side view that omits the
+  column.
+- **DDL for deny-listed users.** Any DDL the parser cannot walk (`CREATE FUNCTION`, some `ALTER`
+  forms) is refused for a user whose effective grant denies any column, even on an unrelated table.
 - **Precedence with masking.** Deny is evaluated before execution, so a column that is both denied and
   restricted is rejected. A column that is only restricted keeps masking exactly as before.
 - **Who it binds.** Like the table allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at
