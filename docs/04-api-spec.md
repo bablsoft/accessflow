@@ -176,7 +176,7 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `DELETE` | `/datasources/{id}` | ADMIN | Soft-delete datasource |
 | `POST` | `/datasources/{id}/test` | ADMIN | Test connection to customer database |
 | `POST` | `/datasources/{id}/test-replica` | ADMIN | Test a read-replica connection using live form values |
-| `GET` | `/datasources/{id}/schema` | Any (with access) | Introspect tables and columns from customer DB |
+| `GET` | `/datasources/{id}/schema` | Any (with access) | Introspect tables and columns from customer DB — non-admins see only what their grant allows (#936) |
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
@@ -535,7 +535,7 @@ Opens a transient JDBC connection to a candidate read-replica using the values s
 
 ### GET /datasources/{id}/schema — Response
 
-Introspects tables and columns from the customer database via JDBC `DatabaseMetaData`. System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out. ADMINs may introspect any datasource in their organization; non-ADMINs require a permission row.
+Introspects tables and columns from the customer database via JDBC `DatabaseMetaData`. System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out. ADMINs may introspect any datasource in their organization and see every table. Non-ADMINs require an effective permission (direct or group grant; none → `404 DATASOURCE_NOT_FOUND`), and the response is scoped to it (#936): only tables their `allowed_schemas` / `allowed_tables` cover are returned (a table is shown when its bare or `schema.table` name is listed, or its schema is — the same matcher the query gate uses; both lists empty means no restriction), schemas left with no visible table are dropped unless the schema itself is allow-listed, columns on the grant's `denied_columns` are omitted, and a foreign key is omitted when it starts from a denied column, points at a denied column, or references a table the caller cannot see. The same scoping applies wherever this user-facing introspection feeds another surface — editor autocomplete, the table preview, the AI analyze-preview and text-to-SQL schema context, and the MCP `get_datasource_schema` / `validate_sql` tools. System paths (async AI analysis, discovery scans, schema drift, query snapshots) introspect unfiltered, and the JIT request form keeps its own name-only, unfiltered endpoint (`GET /access-requests/datasources/{id}/schema`).
 
 ```json
 {

@@ -1,13 +1,12 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -88,41 +87,10 @@ final class DatasourcePermissionChecker {
      */
     static String coveringEntry(List<String> allowedSchemas, List<String> allowedTables,
                                 String table) {
-        if (allowedTables.contains(table)) {
-            return table;
-        }
-        int dotIdx = table.indexOf('.');
-        if (dotIdx > 0) {
-            var schema = table.substring(0, dotIdx);
-            if (allowedSchemas.contains(schema)) {
-                return schema;
-            }
-        }
-        return null;
+        return AllowedTables.coveringEntry(allowedSchemas, allowedTables, table);
     }
 
     static List<String> normalizeList(List<String> raw) {
-        if (raw == null || raw.isEmpty()) {
-            return List.of();
-        }
-        var out = new ArrayList<String>(raw.size());
-        for (String entry : raw) {
-            if (entry == null) {
-                continue;
-            }
-            var stripped = new StringBuilder(entry.length());
-            for (int i = 0; i < entry.length(); i++) {
-                char c = entry.charAt(i);
-                if (c == '"' || c == '`' || c == '[' || c == ']') {
-                    continue;
-                }
-                stripped.append(c);
-            }
-            var normalized = stripped.toString().trim().toLowerCase(Locale.ROOT);
-            if (!normalized.isEmpty()) {
-                out.add(normalized);
-            }
-        }
-        return List.copyOf(out);
+        return AllowedTables.normalize(raw);
     }
 }

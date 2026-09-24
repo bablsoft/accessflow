@@ -760,6 +760,13 @@ Are restricted_columns set?
   PROCEED to review plan
 ```
 
+**Discovery follows the same rules (#936).** `GET /datasources/{id}/schema` and every surface built on
+it (editor autocomplete, table preview, AI preview / text-to-SQL context, MCP `get_datasource_schema`)
+show a non-admin only the tables their allow-list covers, without their denied columns or foreign keys
+that would name either — through the same `core.api.AllowedTables` / `DeniedColumns` matchers the gate
+above uses. Admins and system-actor introspection are unfiltered; the JIT request form keeps its
+name-only unfiltered listing, because requesting access to something you cannot yet see is its purpose.
+
 ### Automatic query suggestion visibility (#776)
 
 The editor's suggestion rail offers **other analysts' approved SQL**. That makes visibility the

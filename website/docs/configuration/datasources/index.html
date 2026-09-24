@@ -361,6 +361,9 @@
             <li><strong>Supported datasources.</strong> PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC. The field is not offered for NoSQL or cloud data-warehouse datasources.</li>
           </ul>
           <p>
+            <strong>Users only see what they are granted.</strong> The same lists decide what a user can discover. The <em>Schema</em> tab, editor autocomplete, AI query drafting and the AI agent tools show a user only the tables their allowed schemas and tables cover, without their denied columns, so the names of other tables never reach them. Administrators still see every table. The just-in-time access request form keeps listing every schema and table name, because asking for access to a table you cannot see yet is what it is for.
+          </p>
+          <p>
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
             <em>Schema</em> and <em>ER diagram</em> tabs alongside <em>Configuration</em> /
             <em>Permissions</em>. The schema view introspects the live database (cached and

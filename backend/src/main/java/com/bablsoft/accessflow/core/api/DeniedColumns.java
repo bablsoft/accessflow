@@ -129,6 +129,26 @@ public final class DeniedColumns {
         return rejected(denied, Set.of(ColumnReference.wildcard(Set.of(normalizeEntry(table)))));
     }
 
+    /**
+     * @return whether the deny list denies {@code column} of the introspected table — the schema
+     *         view (#936) hides such columns from a restricted caller. {@code schema} may be null.
+     */
+    public static boolean deniesColumn(List<String> rawDenied, String schema, String table,
+                                       String column) {
+        var denied = normalize(rawDenied);
+        var normalizedTable = normalizeEntry(table);
+        var normalizedColumn = normalizeEntry(column);
+        if (denied.isEmpty() || normalizedTable == null || normalizedColumn == null) {
+            return false;
+        }
+        var normalizedSchema = normalizeEntry(schema);
+        var qualified = normalizedSchema == null
+                ? normalizedTable
+                : normalizedSchema + "." + normalizedTable;
+        return !rejected(denied,
+                Set.of(new ColumnReference(Set.of(qualified), normalizedColumn))).isEmpty();
+    }
+
     private static SortedSet<String> rejected(List<String> denied,
                                               Set<ColumnReference> references) {
         var out = new TreeSet<String>();

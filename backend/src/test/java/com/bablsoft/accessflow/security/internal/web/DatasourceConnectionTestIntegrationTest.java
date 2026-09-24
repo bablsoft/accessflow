@@ -181,6 +181,32 @@ class DatasourceConnectionTestIntegrationTest {
         assertThat(result.getResponse().getContentAsString()).contains("customers");
     }
 
+    @Test
+    void getSchemaAsAnalystIsScopedToTheirAllowListAndDeniedColumns() throws Exception {
+        var ds = saveDatasource(customerDb.getUsername(), customerDb.getPassword(),
+                customerDb.getDatabaseName());
+        var perm = new DatasourceUserPermissionEntity();
+        perm.setId(UUID.randomUUID());
+        perm.setDatasource(ds);
+        perm.setUser(analyst);
+        perm.setCreatedBy(admin);
+        perm.setCanRead(true);
+        perm.setAllowedTables(new String[]{"customers"});
+        perm.setDeniedColumns(new String[]{"public.customers.email"});
+        permissionRepository.save(perm);
+
+        var analystBody = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange().getResponse().getContentAsString();
+        var adminBody = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange().getResponse().getContentAsString();
+
+        assertThat(analystBody).contains("customers").doesNotContain("orders")
+                .doesNotContain("email");
+        assertThat(adminBody).contains("customers").contains("orders").contains("email");
+    }
+
     private UserEntity saveUser(String email, UserRoleType role) {
         var user = new UserEntity();
         user.setId(UUID.randomUUID());

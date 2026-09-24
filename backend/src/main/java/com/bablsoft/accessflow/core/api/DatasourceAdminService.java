@@ -38,8 +38,17 @@ public interface DatasourceAdminService {
      */
     ConnectionTestResult testReplica(UUID id, UUID organizationId, TestReplicaCommand command);
 
+    /**
+     * Introspects the datasource as the caller may see it (#936): an admin gets every table; any
+     * other caller needs an effective permission and gets only the tables its allow-list covers,
+     * without its denied columns or foreign keys that would name either.
+     *
+     * @throws DatasourceNotFoundException when the caller cannot see the datasource or holds no
+     *         effective permission on it
+     */
     DatabaseSchemaView introspectSchema(UUID id, UUID organizationId, UUID userId, boolean isAdmin);
 
+    /** Unfiltered introspection for system-actor paths — never exposed to a user as-is. */
     DatabaseSchemaView introspectSchemaForSystem(UUID id, UUID organizationId);
 
     List<DatasourcePermissionView> listPermissions(UUID datasourceId, UUID organizationId);

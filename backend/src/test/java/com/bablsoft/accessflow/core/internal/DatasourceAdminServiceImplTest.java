@@ -75,6 +75,8 @@ class DatasourceAdminServiceImplTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock org.springframework.context.MessageSource messageSource;
     @Mock com.bablsoft.accessflow.core.api.QuotaService quotaService;
+    @Mock com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService
+            permissionLookupService;
     @InjectMocks DatasourceAdminServiceImpl service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -1504,6 +1506,100 @@ class DatasourceAdminServiceImplTest {
 
         assertThat(result).isSameAs(schema);
         verify(driverCatalog, never()).resolve(any());
+    }
+
+    private com.bablsoft.accessflow.core.api.QueryEngine stubMongoSchema(
+            com.bablsoft.accessflow.core.api.DatabaseSchemaView schema) {
+        var entity = buildDatasource(datasourceId, orgId, "Docs");
+        entity.setDbType(DbType.MONGODB);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var engine = org.mockito.Mockito.mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        org.mockito.Mockito.lenient().when(engineCatalog.isEngineManaged(DbType.MONGODB))
+                .thenReturn(true);
+        org.mockito.Mockito.lenient().when(engineCatalog.engineFor(DbType.MONGODB))
+                .thenReturn(engine);
+        org.mockito.Mockito.lenient().when(engine.introspectSchema(any())).thenReturn(schema);
+        return engine;
+    }
+
+    private static com.bablsoft.accessflow.core.api.DatabaseSchemaView fourTableSchema() {
+        java.util.function.Function<String, com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table>
+                table = name -> new com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table(name,
+                        java.util.List.of(new com.bablsoft.accessflow.core.api.DatabaseSchemaView
+                                .Column("id", "int", false, true)), java.util.List.of());
+        return new com.bablsoft.accessflow.core.api.DatabaseSchemaView(java.util.List.of(
+                new com.bablsoft.accessflow.core.api.DatabaseSchemaView.Schema("public",
+                        java.util.List.of(table.apply("customer"), table.apply("service"),
+                                table.apply("salary"), table.apply("employee")))));
+    }
+
+    private com.bablsoft.accessflow.core.api.DatasourceUserPermissionView permission(
+            java.util.List<String> tables) {
+        return new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(UUID.randomUUID(),
+                userId, datasourceId, true, false, false, false, null, tables, null, null, null,
+                null);
+    }
+
+    @Test
+    void introspectSchemaScopesARestrictedUserToTheirAllowedTables() {
+        stubMongoSchema(fourTableSchema());
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
+                .thenReturn(true);
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(java.util.List.of("customer", "service"))));
+
+        var result = service.introspectSchema(datasourceId, orgId, userId, false);
+
+        assertThat(result.schemas()).singleElement().satisfies(schema ->
+                assertThat(schema.tables())
+                        .extracting(com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table::name)
+                        .containsExactly("customer", "service"));
+    }
+
+    @Test
+    void introspectSchemaForAnAdminIsUnfilteredAndSkipsThePermissionLookup() {
+        var schema = fourTableSchema();
+        stubMongoSchema(schema);
+
+        var result = service.introspectSchema(datasourceId, orgId, userId, true);
+
+        assertThat(result).isSameAs(schema);
+        verify(permissionLookupService, never()).findFor(any(), any());
+        verify(datasourceRepository, never()).existsVisibleToUser(any(), any(), any());
+    }
+
+    @Test
+    void introspectSchemaWithoutAnEffectivePermissionIsNotFoundWithoutConnecting() {
+        var engine = stubMongoSchema(fourTableSchema());
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
+                .thenReturn(true);
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.introspectSchema(datasourceId, orgId, userId, false))
+                .isInstanceOf(DatasourceNotFoundException.class);
+        verify(engine, never()).introspectSchema(any());
+    }
+
+    @Test
+    void introspectSchemaForAnInvisibleDatasourceIsNotFound() {
+        stubMongoSchema(fourTableSchema());
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> service.introspectSchema(datasourceId, orgId, userId, false))
+                .isInstanceOf(DatasourceNotFoundException.class);
+        verify(permissionLookupService, never()).findFor(any(), any());
+    }
+
+    @Test
+    void introspectSchemaForSystemIsNeverFiltered() {
+        var schema = fourTableSchema();
+        stubMongoSchema(schema);
+
+        var result = service.introspectSchemaForSystem(datasourceId, orgId);
+
+        assertThat(result).isSameAs(schema);
+        verify(permissionLookupService, never()).findFor(any(), any());
     }
 
     private DatasourceEntity buildDatasource(UUID id, UUID organizationId, String name) {

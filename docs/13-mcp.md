@@ -143,7 +143,7 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
 | Tool | Args | Returns |
 |------|------|---------|
 | `list_datasources` | `page?`, `size?` | Paginated list of datasources the caller can query (`id`, `name`, `db_type`, `host`, `database_name`, `active`, `require_review_reads/writes`). Admins see all org datasources. |
-| `get_datasource_schema` | `datasourceId` | `{ schemas: [{ name, tables: [{ name, columns: [{ name, type, nullable, primaryKey }] }] }] }`. Use this to discover what tables and columns exist before writing SQL. |
+| `get_datasource_schema` | `datasourceId` | `{ schemas: [{ name, tables: [{ name, columns: [{ name, type, nullable, primaryKey }] }] }] }`. Use this to discover what tables and columns exist before writing SQL. Non-admin callers see only the tables their grant's allow-list covers, without denied columns (#936). |
 | `list_my_queries` | `status?`, `datasourceId?`, `queryType?`, `page?`, `size?` | Caller's own queries (newest first). `status` is forced to the caller's history regardless of args — admins still see all submitters' queries via the REST endpoint, not this tool. |
 | `get_query_status` | `queryId` | Full detail: status, AI risk, review decisions, execution outcome. Submitter-or-admin only. |
 | `get_query_result` | `queryId` | Rows + columns (as JSON strings) for an `EXECUTED` `SELECT`. Returns `invalid_state` if the query is the wrong type or not executed yet. |

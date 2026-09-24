@@ -158,6 +158,32 @@ class DeniedColumnsTest {
         assertThat(ColumnReference.wildcard(Set.of("t")).isWildcard()).isTrue();
     }
 
+    @Test
+    void deniesColumnMatchesAQualifiedEntryOnlyInItsOwnSchema() {
+        assertThat(DeniedColumns.deniesColumn(DENIED, "public", "customer", "national_id")).isTrue();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "\"PUBLIC\"", "Customer", "NATIONAL_ID"))
+                .isTrue();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "archive", "customer", "national_id"))
+                .isFalse();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "public", "customer", "email")).isFalse();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "public", "orders", "national_id")).isFalse();
+    }
+
+    @Test
+    void deniesColumnFailsClosedWhenEitherSideLacksASchema() {
+        assertThat(DeniedColumns.deniesColumn(List.of("customer.ssn"), "archive", "customer", "ssn"))
+                .isTrue();
+        assertThat(DeniedColumns.deniesColumn(DENIED, null, "customer", "national_id")).isTrue();
+    }
+
+    @Test
+    void deniesColumnIsFalseForAnEmptyListOrBlankNames() {
+        assertThat(DeniedColumns.deniesColumn(List.of(), "public", "customer", "ssn")).isFalse();
+        assertThat(DeniedColumns.deniesColumn(null, "public", "customer", "ssn")).isFalse();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "public", " ", "national_id")).isFalse();
+        assertThat(DeniedColumns.deniesColumn(DENIED, "public", "customer", null)).isFalse();
+    }
+
     private static SqlParseResult parsed(QueryType type, ColumnReference... refs) {
         return new SqlParseResult(type, false, List.of("sql"), Set.of(), false, false,
                 Set.of(refs), true);
