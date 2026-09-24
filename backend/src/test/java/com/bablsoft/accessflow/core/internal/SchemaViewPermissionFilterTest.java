@@ -125,6 +125,44 @@ class SchemaViewPermissionFilterTest {
     }
 
     @Test
+    void aBareEntryDoesNotRevealASameNamedTableInAnotherSchema() {
+        var shared = new DatabaseSchemaView(List.of(
+                new Schema("public", List.of(table("customer"), table("orders"))),
+                new Schema("hr", List.of(table("customer")))));
+
+        var bare = SchemaViewPermissionFilter.apply(shared,
+                permission(null, List.of("customer", "orders"), null));
+        var qualified = SchemaViewPermissionFilter.apply(shared,
+                permission(null, List.of("public.customer"), null));
+
+        assertThat(tableNames(bare)).containsExactly("public.orders");
+        assertThat(tableNames(qualified)).containsExactly("public.customer");
+    }
+
+    @Test
+    void aCatalogQualifiedEntryCoversTheTrailingSchemaAndTable() {
+        var result = SchemaViewPermissionFilter.apply(view(),
+                permission(null, List.of("proj.public.salary", "other.hr.payroll.x"), null));
+
+        assertThat(tableNames(result)).containsExactly("public.salary");
+    }
+
+    @Test
+    void aForeignKeyWhoseTargetNameAlsoBelongsToAHiddenTableIsDropped() {
+        var shared = new DatabaseSchemaView(List.of(
+                new Schema("public", List.of(
+                        table("orders", new ForeignKey("id", "customer", "id")),
+                        table("customer"))),
+                new Schema("hr", List.of(table("customer")))));
+
+        var result = SchemaViewPermissionFilter.apply(shared,
+                permission(null, List.of("public.orders", "public.customer"), null));
+
+        assertThat(tableNames(result)).containsExactly("public.orders", "public.customer");
+        assertThat(result.schemas().getFirst().tables().getFirst().foreignKeys()).isEmpty();
+    }
+
+    @Test
     void nullViewsAndNullListsAreTolerated() {
         assertThat(SchemaViewPermissionFilter.apply(null, permission(null, null, null))).isNull();
         var nullSchemas = new DatabaseSchemaView(null);

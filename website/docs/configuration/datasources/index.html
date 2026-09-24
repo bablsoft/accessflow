@@ -361,7 +361,7 @@
             <li><strong>Supported datasources.</strong> PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC. The field is not offered for NoSQL or cloud data-warehouse datasources.</li>
           </ul>
           <p>
-            <strong>Users only see what they are granted.</strong> The same lists decide what a user can discover. The <em>Schema</em> tab, editor autocomplete, AI query drafting and the AI agent tools show a user only the tables their allowed schemas and tables cover, without their denied columns, so the names of other tables never reach them. Administrators still see every table. The just-in-time access request form keeps listing every schema and table name, because asking for access to a table you cannot see yet is what it is for.
+            <strong>Users only see the tables they are granted.</strong> The same lists decide what a user can browse. The schema tree in the query editor, autocomplete, AI query drafting and the AI agent tools show a user only the tables their allowed schemas and tables cover, and leave out their denied columns. Administrators still see every table. If the same table name exists in more than one schema, write the entry as <code>schema.table</code>; an entry with just the name then shows neither table. Two places still list every table name on purpose: the just-in-time access request form, because asking for access to a table you cannot see yet is its whole purpose, and the automatic AI review of a submitted query, which reads the whole schema, so its comments may mention other tables.
           </p>
           <p>
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries

@@ -195,12 +195,16 @@ class DatasourceConnectionTestIntegrationTest {
         perm.setDeniedColumns(new String[]{"public.customers.email"});
         permissionRepository.save(perm);
 
-        var analystBody = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
+        var analystResult = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
-                .exchange().getResponse().getContentAsString();
-        var adminBody = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
+                .exchange();
+        var adminResult = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .exchange().getResponse().getContentAsString();
+                .exchange();
+        assertThat(analystResult).hasStatus(200);
+        assertThat(adminResult).hasStatus(200);
+        var analystBody = analystResult.getResponse().getContentAsString();
+        var adminBody = adminResult.getResponse().getContentAsString();
 
         assertThat(analystBody).contains("customers").doesNotContain("orders")
                 .doesNotContain("email");

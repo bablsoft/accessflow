@@ -762,9 +762,11 @@ Are restricted_columns set?
 
 **Discovery follows the same rules (#936).** `GET /datasources/{id}/schema` and every surface built on
 it (editor autocomplete, table preview, AI preview / text-to-SQL context, MCP `get_datasource_schema`)
-show a non-admin only the tables their allow-list covers, without their denied columns or foreign keys
-that would name either — through the same `core.api.AllowedTables` / `DeniedColumns` matchers the gate
-above uses. Admins and system-actor introspection are unfiltered; the JIT request form keeps its
+show a non-admin only the tables their allow-list covers, without their denied columns, and without
+foreign keys that start from or point at a denied column or at a hidden table — through the same
+`core.api.AllowedTables` / `DeniedColumns` matchers the gate above uses. Where the view cannot tell
+what the gate would allow it fails closed: a bare `allowed_tables` entry shows a table only when no
+other schema has one of the same name. Admins and system-actor introspection are unfiltered; the JIT request form keeps its
 name-only unfiltered listing, because requesting access to something you cannot yet see is its purpose.
 
 ### Automatic query suggestion visibility (#776)
