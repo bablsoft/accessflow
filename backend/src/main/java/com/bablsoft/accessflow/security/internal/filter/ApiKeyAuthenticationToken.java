@@ -17,11 +17,17 @@ import java.util.UUID;
 class ApiKeyAuthenticationToken extends AbstractAuthenticationToken implements ApiKeyAuthentication {
 
     private final UUID apiKeyId;
+    private final String applicationName;
     private final JwtClaims claims;
 
     ApiKeyAuthenticationToken(UUID apiKeyId, JwtClaims claims) {
+        this(apiKeyId, null, claims);
+    }
+
+    ApiKeyAuthenticationToken(UUID apiKeyId, String applicationName, JwtClaims claims) {
         super(JwtAuthorities.from(claims));
         this.apiKeyId = apiKeyId;
+        this.applicationName = applicationName;
         this.claims = claims;
         setAuthenticated(true);
     }
@@ -29,6 +35,11 @@ class ApiKeyAuthenticationToken extends AbstractAuthenticationToken implements A
     @Override
     public UUID apiKeyId() {
         return apiKeyId;
+    }
+
+    @Override
+    public String applicationName() {
+        return applicationName;
     }
 
     @Override

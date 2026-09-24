@@ -3736,6 +3736,10 @@
       "FIXED_RATE": "Frecuencia fija",
       "CRON": "Cron",
       "ONE_TIME": "Única"
+    },
+    "application_name_source": {
+      "API_KEY": "Clave de API",
+      "HEADER": "Cabecera de la solicitud"
     }
   },
   "access": {
@@ -5742,5 +5746,19 @@
     "use_id": "Usar el ID {{id}}",
     "user_id_placeholder": "Pegue un ID de usuario",
     "masked_as": "{{field}} → {{strategy}}"
+  },
+  "client_application": {
+    "label": "Aplicación",
+    "untrusted": "No verificada",
+    "untrusted_tooltip": "Indicada por el cliente en la cabecera X-AccessFlow-Application. El cliente controla este valor, así que no está verificado.",
+    "trusted_tooltip": "Guardada en la clave de API que autenticó esta solicitud.",
+    "filter_placeholder": "Aplicación",
+    "filter_aria": "Filtrar por aplicación",
+    "key_label": "Nombre de la aplicación",
+    "key_placeholder": "p. ej. reporting-service",
+    "key_help": "Opcional. Se registra en cada solicitud que hace esta clave, para que el registro de auditoría muestre qué aplicación llamó.",
+    "key_size": "El nombre de la aplicación debe tener como máximo 100 caracteres.",
+    "rotate_help": "Déjalo vacío para conservar el nombre de aplicación de la clave actual.",
+    "column": "Aplicación"
   }
 }

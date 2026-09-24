@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.api.RequestApplicationService;
 import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.workflow.api.QueryReplayService;
 import com.bablsoft.accessflow.workflow.api.QueryReplayService.ReplayCommand;
@@ -46,6 +47,7 @@ class QueryReplayController {
     private final AuditLogService auditLogService;
     private final MessageSource messageSource;
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private final RequestApplicationService requestApplicationService;
 
     @PostMapping("/{id}/replay")
     @Operation(summary = "Replay an executed query's snapshot against a test datasource",
@@ -71,7 +73,8 @@ class QueryReplayController {
                 caller.has(Permission.QUERY_ADMIN),
                 auditContext.ipAddress(),
                 auditContext.userAgent(),
-                onBehalfOfPrincipalService.current().orElse(null)));
+                onBehalfOfPrincipalService.current().orElse(null),
+                requestApplicationService.current().orElse(null)));
         recordAudit(caller, id, result, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.newQueryId(), result.status(), null, null, null));

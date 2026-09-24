@@ -43,6 +43,7 @@ export const UPDATE_FORM_CONSTRAINTS = {
 /** `IssueServiceAccountKeyRequest` / `RotateServiceAccountKeyRequest` (#871). */
 export const KEY_FORM_CONSTRAINTS = {
   name: { required: true, max: 100 },
+  application_name: { max: 100 },
 } as const satisfies Record<string, FieldConstraints>;
 
 export function fieldRules(t: TFunction, constraints: FieldConstraints): Rule[] {

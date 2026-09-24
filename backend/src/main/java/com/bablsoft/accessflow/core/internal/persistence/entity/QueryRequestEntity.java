@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
+import com.bablsoft.accessflow.core.api.ApplicationNameSource;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
@@ -139,6 +140,17 @@ public class QueryRequestEntity {
     // no FK — and a second submitter identity for the self-approval guard. Never confers anything.
     @Column(name = "on_behalf_of_user_id")
     private UUID onBehalfOfUserId;
+
+    // The calling application (#938) — identification and audit only, never an authorization
+    // input. API_KEY = the name stored on the authenticating key (trustworthy); HEADER = the
+    // caller-supplied X-AccessFlow-Application header (client-controlled).
+    @Column(name = "application_name", length = 100)
+    private String applicationName;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "application_name_source", columnDefinition = "application_name_source")
+    private ApplicationNameSource applicationNameSource;
 
     @Version
     @Column(name = "updated_at", nullable = false)

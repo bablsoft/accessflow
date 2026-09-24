@@ -484,7 +484,7 @@ class DefaultServiceAccountAdminServiceTest {
         stubLoad();
         var expires = NOW.plusSeconds(3600);
         var view = key(userId, "ci", expires, null, false, null);
-        when(apiKeyService.issue(userId, ORG, "ci", expires)).thenReturn(new IssuedApiKey(view, "af_raw"));
+        when(apiKeyService.issue(userId, ORG, "ci", expires, null)).thenReturn(new IssuedApiKey(view, "af_raw"));
 
         var issued = service.issueKey(ORG, userId, new IssueServiceAccountKeyCommand("ci", expires));
 
@@ -497,7 +497,7 @@ class DefaultServiceAccountAdminServiceTest {
     @Test
     void issueKeyTranslatesADuplicateNameIntoTheModulesConflict() {
         stubLoad();
-        when(apiKeyService.issue(userId, ORG, "ci", null)).thenThrow(new ApiKeyDuplicateNameException("ci"));
+        when(apiKeyService.issue(userId, ORG, "ci", null, null)).thenThrow(new ApiKeyDuplicateNameException("ci"));
         assertThatThrownBy(() -> service.issueKey(ORG, userId, new IssueServiceAccountKeyCommand("ci", null)))
                 .isInstanceOf(ServiceAccountKeyNameConflictException.class)
                 .satisfies(ex -> assertThat(((ServiceAccountKeyNameConflictException) ex).name()).isEqualTo("ci"));
@@ -509,7 +509,7 @@ class DefaultServiceAccountAdminServiceTest {
         var old = key(userId, "ci", null, null, false, NOW.minusSeconds(60));
         when(apiKeyService.list(userId)).thenReturn(List.of(old));
         var replacement = key(userId, "ci-2", null, null, false, null);
-        when(apiKeyService.issue(userId, ORG, "ci-2", null)).thenReturn(new IssuedApiKey(replacement, "af_new"));
+        when(apiKeyService.issue(userId, ORG, "ci-2", null, null)).thenReturn(new IssuedApiKey(replacement, "af_new"));
 
         var rotated = service.rotateKey(ORG, userId, old.id(), new RotateServiceAccountKeyCommand("ci-2", null, null));
 
@@ -524,12 +524,39 @@ class DefaultServiceAccountAdminServiceTest {
     }
 
     @Test
+    void rotateKeyInheritsTheSupersededKeysApplicationNameUnlessOneIsGiven() {
+        stubLoad();
+        var old = new ApiKeyView(UUID.randomUUID(), userId, ORG, "ci", "af_ci", NOW.minusSeconds(3600),
+                null, null, null, false, "reporting");
+        when(apiKeyService.list(userId)).thenReturn(List.of(old));
+        when(apiKeyService.issue(userId, ORG, "ci-2", null, "reporting"))
+                .thenReturn(new IssuedApiKey(new ApiKeyView(UUID.randomUUID(), userId, ORG, "ci-2", "af_ci2",
+                        NOW, null, null, null, false, "reporting"), "af_new"));
+
+        var rotated = service.rotateKey(ORG, userId, old.id(), new RotateServiceAccountKeyCommand("ci-2", null, null));
+
+        assertThat(rotated.apiKey().applicationName()).isEqualTo("reporting");
+        assertThat(rotated.supersededKey().applicationName()).isEqualTo("reporting");
+
+        var older = new ApiKeyView(UUID.randomUUID(), userId, ORG, "ci-3", "af_ci3", NOW.minusSeconds(3600),
+                null, null, null, false, "reporting");
+        when(apiKeyService.list(userId)).thenReturn(List.of(older));
+        when(apiKeyService.issue(userId, ORG, "ci-4", null, "billing"))
+                .thenReturn(new IssuedApiKey(key(userId, "ci-4", null, null, false, null), "af_x"));
+
+        service.rotateKey(ORG, userId, older.id(),
+                new RotateServiceAccountKeyCommand("ci-4", null, null, "billing"));
+
+        verify(apiKeyService).issue(userId, ORG, "ci-4", null, "billing");
+    }
+
+    @Test
     void rotateKeyHonoursARequestGraceAndKeepsAnEarlierExistingExpiry() {
         stubLoad();
         var soon = NOW.plusSeconds(30);
         var old = key(userId, "ci", soon, null, false, null);
         when(apiKeyService.list(userId)).thenReturn(List.of(old));
-        when(apiKeyService.issue(userId, ORG, "ci-2", soon))
+        when(apiKeyService.issue(userId, ORG, "ci-2", soon, null))
                 .thenReturn(new IssuedApiKey(key(userId, "ci-2", soon, null, false, null), "af_new"));
 
         var rotated = service.rotateKey(ORG, userId, old.id(),
@@ -541,7 +568,7 @@ class DefaultServiceAccountAdminServiceTest {
         var later = key(userId, "ci-3", null, null, false, null);
         var oldSoon = key(userId, "ci-4", soon, null, false, null);
         when(apiKeyService.list(userId)).thenReturn(List.of(oldSoon));
-        when(apiKeyService.issue(userId, ORG, "ci-5", null)).thenReturn(new IssuedApiKey(later, "af_x"));
+        when(apiKeyService.issue(userId, ORG, "ci-5", null, null)).thenReturn(new IssuedApiKey(later, "af_x"));
 
         service.rotateKey(ORG, userId, oldSoon.id(), new RotateServiceAccountKeyCommand("ci-5", null, null));
 
@@ -556,7 +583,7 @@ class DefaultServiceAccountAdminServiceTest {
         assertThatThrownBy(() -> service.rotateKey(ORG, userId, old.id(),
                 new RotateServiceAccountKeyCommand("ci-2", null, Duration.ZERO)))
                 .isInstanceOf(IllegalArgumentException.class);
-        verify(apiKeyService, never()).issue(any(), any(), any(), any());
+        verify(apiKeyService, never()).issue(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -569,7 +596,7 @@ class DefaultServiceAccountAdminServiceTest {
                 .isInstanceOf(ServiceAccountKeyBootstrapDeclaredException.class)
                 .satisfies(ex -> assertThat(((ServiceAccountKeyBootstrapDeclaredException) ex).apiKeyId())
                         .isEqualTo(declared.id()));
-        verify(apiKeyService, never()).issue(any(), any(), any(), any());
+        verify(apiKeyService, never()).issue(any(), any(), any(), any(), any());
         verify(apiKeyService, never()).expireAt(any(), any(), any());
     }
 
@@ -601,7 +628,7 @@ class DefaultServiceAccountAdminServiceTest {
         stubLoad();
         var old = key(userId, "ci", null, null, false, null);
         when(apiKeyService.list(userId)).thenReturn(List.of(old));
-        when(apiKeyService.issue(userId, ORG, "ci", null)).thenThrow(new ApiKeyDuplicateNameException("ci"));
+        when(apiKeyService.issue(userId, ORG, "ci", null, null)).thenThrow(new ApiKeyDuplicateNameException("ci"));
         assertThatThrownBy(() -> service.rotateKey(ORG, userId, old.id(),
                 new RotateServiceAccountKeyCommand("ci", null, null)))
                 .isInstanceOf(ServiceAccountKeyNameConflictException.class);

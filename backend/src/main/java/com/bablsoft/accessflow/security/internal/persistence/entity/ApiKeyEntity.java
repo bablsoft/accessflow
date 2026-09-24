@@ -31,6 +31,14 @@ public class ApiKeyEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    /**
+     * The calling application this key identifies (#938) — recorded on every request the key
+     * authenticates. Trustworthy by construction: it cannot be forged without the key. Set at issue
+     * time only.
+     */
+    @Column(name = "application_name", length = 100)
+    private String applicationName;
+
     @Column(name = "key_prefix", nullable = false, length = 16)
     private String keyPrefix;
 

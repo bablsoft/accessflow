@@ -46,7 +46,35 @@ public record QueryDetailView(
         Instant updatedAt,
         /** The human an API-key submitter acted for (#874); null for a human submission. */
         UUID onBehalfOfUserId,
-        String onBehalfOfEmail) {
+        String onBehalfOfEmail,
+        /** The calling application (#938) and how it was learned; both null when unknown. */
+        String applicationName,
+        ApplicationNameSource applicationNameSource) {
+
+    /** Backward-compatible constructor without the #938 calling application. */
+    public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
+                           UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                           String submittedByDisplayName, String sqlText, QueryType queryType,
+                           QueryStatus status, String justification, AiAnalysisDetail aiAnalysis,
+                           CostEstimateDetail costEstimate,
+                           ApprovalPredictionDetail approvalPrediction, Long rowsAffected,
+                           Integer durationMs, String errorMessage, UUID previousRunId,
+                           UUID approvedByGrantId, String reviewPlanName,
+                           Integer approvalTimeoutHours, Instant escalatedAt,
+                           Integer escalationAfterHours, List<ReviewDecisionView> reviewDecisions,
+                           Instant scheduledFor, String recurrenceRule, Instant recurrenceUntil,
+                           Instant recurrenceNextRunAt, String recurrenceHaltedReason,
+                           UUID recurringParentId, Instant createdAt, Instant updatedAt,
+                           UUID onBehalfOfUserId, String onBehalfOfEmail) {
+        this(id, datasourceId, datasourceName, dbType, organizationId, submittedByUserId,
+                submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
+                aiAnalysis, costEstimate, approvalPrediction, rowsAffected, durationMs,
+                errorMessage, previousRunId, approvedByGrantId, reviewPlanName,
+                approvalTimeoutHours, escalatedAt, escalationAfterHours, reviewDecisions,
+                scheduledFor, recurrenceRule, recurrenceUntil, recurrenceNextRunAt,
+                recurrenceHaltedReason, recurringParentId, createdAt, updatedAt, onBehalfOfUserId,
+                onBehalfOfEmail, null, null);
+    }
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,

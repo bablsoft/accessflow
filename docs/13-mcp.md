@@ -223,6 +223,12 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
   tool is refused at invocation instead of at the transport: **`review_query` returns the structured
   `permission_denied` whenever a principal is present** — an agent may submit *for* a human, never
   vote *as* one.
+- **Calling application (#938).** `submit_query` records the calling application on the query like
+  the REST endpoint does: the `application_name` stored on the agent's API key (trusted), else an
+  `X-AccessFlow-Application` header sent on `POST /mcp` (untrusted), and every audit row the request
+  writes carries `application_name` / `application_name_source` in its metadata. Name the key after
+  the agent (`application_name` on `POST /me/api-keys` or the service-account key endpoints) so its
+  activity is filterable on the audit log without any client-side change.
 - **Errors:** tools return a structured `{ code, message }` rather than raw exceptions. Codes:
   - `permission_denied` — caller is not allowed; also returned when the tool is outside the
     caller's allow-list (the message names the tool).

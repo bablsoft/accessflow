@@ -95,6 +95,8 @@ class QueryReadController {
             @RequestParam(required = false) Instant to,
             @Parameter(description = "Filter by query type")
             @RequestParam(name = "query_type", required = false) QueryType queryType,
+            @Parameter(description = "Filter by the recorded calling application (exact match)")
+            @RequestParam(name = "application_name", required = false) String applicationName,
             @Parameter(hidden = true)
             @RequestParam(name = "datasourceId", required = false) UUID legacyDatasourceId,
             @Parameter(hidden = true)
@@ -111,7 +113,7 @@ class QueryReadController {
         var filter = buildFilter(caller, status,
                 firstNonNull(datasourceId, legacyDatasourceId),
                 firstNonNull(submittedBy, legacySubmittedBy),
-                firstNonNull(queryType, legacyQueryType), from, to);
+                firstNonNull(queryType, legacyQueryType), from, to, applicationName);
         var page = queryRequestLookupService.findForOrganization(filter,
                         SpringPageableAdapter.toPageRequest(pageable))
                 .map(QueryListItem::from);
@@ -134,6 +136,8 @@ class QueryReadController {
             @RequestParam(required = false) Instant to,
             @Parameter(description = "Filter by query type")
             @RequestParam(name = "query_type", required = false) QueryType queryType,
+            @Parameter(description = "Filter by the recorded calling application (exact match)")
+            @RequestParam(name = "application_name", required = false) String applicationName,
             @Parameter(hidden = true)
             @RequestParam(name = "datasourceId", required = false) UUID legacyDatasourceId,
             @Parameter(hidden = true)
@@ -145,7 +149,7 @@ class QueryReadController {
         var filter = buildFilter(caller, status,
                 firstNonNull(datasourceId, legacyDatasourceId),
                 firstNonNull(submittedBy, legacySubmittedBy),
-                firstNonNull(queryType, legacyQueryType), from, to);
+                firstNonNull(queryType, legacyQueryType), from, to, applicationName);
         var export = queryCsvExportService.exportQueries(filter);
 
         var headers = new HttpHeaders();
@@ -160,10 +164,11 @@ class QueryReadController {
 
     private static QueryListFilter buildFilter(JwtClaims caller, QueryStatus status,
                                                UUID datasourceId, UUID submittedBy,
-                                               QueryType queryType, Instant from, Instant to) {
+                                               QueryType queryType, Instant from, Instant to,
+                                               String applicationName) {
         var effectiveSubmitter = caller.has(Permission.QUERY_ADMIN) ? submittedBy : caller.userId();
         return new QueryListFilter(caller.organizationId(), effectiveSubmitter, datasourceId,
-                status, queryType, from, to);
+                status, queryType, from, to, applicationName);
     }
 
     // The camelCase names are the original bindings, kept as deprecated aliases so existing

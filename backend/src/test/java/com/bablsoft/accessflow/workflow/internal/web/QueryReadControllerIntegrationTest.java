@@ -168,7 +168,7 @@ class QueryReadControllerIntegrationTest {
         var submitter = UUID.randomUUID();
 
         var filter = listFilterVia("/api/v1/queries?status=EXECUTED&datasource_id=" + datasourceId
-                + "&submitted_by=" + submitter + "&query_type=UPDATE"
+                + "&submitted_by=" + submitter + "&query_type=UPDATE&application_name=reporting"
                 + "&from=2026-05-01T00:00:00Z&to=2026-06-01T00:00:00Z", adminToken);
 
         assertThat(filter.organizationId()).isEqualTo(org.getId());
@@ -178,6 +178,7 @@ class QueryReadControllerIntegrationTest {
         assertThat(filter.queryType()).isEqualTo(QueryType.UPDATE);
         assertThat(filter.from()).isEqualTo(Instant.parse("2026-05-01T00:00:00Z"));
         assertThat(filter.to()).isEqualTo(Instant.parse("2026-06-01T00:00:00Z"));
+        assertThat(filter.applicationName()).isEqualTo("reporting");
     }
 
     @Test

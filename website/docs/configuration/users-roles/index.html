@@ -727,10 +727,14 @@
               <em>owner</em> — the person accountable for the account, shown to attestation reviewers.</li>
             <li><strong>Issue a key.</strong> On the <em>API keys</em> tab, <em>Issue key</em> shows the
               plaintext exactly once — copy it into the pipeline or agent's secret store. Keys are the
-              account's only credential.</li>
+              account's only credential. Give each key an optional <em>Application name</em> (for
+              example <code>reporting-service</code>) so the audit log shows which application used
+              it; see <a href="/docs/configuration/audit-compliance/#cfg-audit-application">Which
+              application made a request?</a></li>
             <li><strong>Rotate rather than revoke.</strong> <em>Rotate</em> issues a replacement and
               keeps the old key working for a grace period (24 hours by default, or the number of hours
-              you enter), so a consumer can be updated without an outage. <em>Revoke</em> cuts access
+              you enter), so a consumer can be updated without an outage. The replacement keeps the old
+              key's application name unless you enter a new one. <em>Revoke</em> cuts access
               immediately.</li>
             <li><strong>Restrict its MCP tools.</strong> The <em>MCP tools</em> tab limits which tools
               the account's keys may call on the <a href="/ai-agents/">MCP server</a>. The server still

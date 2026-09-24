@@ -169,6 +169,48 @@ class AdminAuditLogControllerIntegrationTest {
     }
 
     @Test
+    void applicationNameFiltersOnTheMetadataKey() {
+        var tag = "reporting-" + UUID.randomUUID();
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), org.getId(), admin.getId(),
+                Map.of("application_name", tag, "application_name_source", "api_key"), null, null));
+        auditLogService.record(new AuditEntry(AuditAction.QUERY_SUBMITTED, AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(), org.getId(), admin.getId(),
+                Map.of("application_name", "other-app", "application_name_source", "header"), null, null));
+
+        var filtered = mvc.get().uri("/api/v1/admin/audit-log?applicationName=" + tag)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(filtered).hasStatus(200);
+        assertThat(filtered).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(filtered).bodyJson().extractingPath("$.content[0].metadata.application_name_source")
+                .asString().isEqualTo("api_key");
+    }
+
+    @Test
+    void requestHeaderIsStampedOnAuditRowsTheRequestWrites() {
+        var tag = "notebook-" + UUID.randomUUID();
+        var export = mvc.get().uri("/api/v1/admin/audit-log/export.csv?applicationName=nothing-matches")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .header("X-AccessFlow-Application", tag)
+                .exchange();
+        assertThat(export).hasStatus(200);
+
+        var rows = mvc.get().uri("/api/v1/admin/audit-log?applicationName=" + tag)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(rows).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(rows).bodyJson().extractingPath("$.content[0].action").asString()
+                .isEqualTo("AUDIT_LOG_EXPORTED");
+        assertThat(rows).bodyJson().extractingPath("$.content[0].metadata.application_name_source")
+                .asString().isEqualTo("header");
+        assertThat(rows).bodyJson().extractingPath("$.content[0].metadata.filter_application_name")
+                .asString().isEqualTo("nothing-matches");
+    }
+
+    @Test
     void analystGets403() {
         var result = mvc.get().uri("/api/v1/admin/audit-log")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)

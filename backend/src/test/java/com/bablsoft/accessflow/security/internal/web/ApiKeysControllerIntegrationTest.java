@@ -107,6 +107,32 @@ class ApiKeysControllerIntegrationTest {
     }
 
     @Test
+    void create_stores_the_application_name_and_list_shows_it() {
+        var create = mvc.post().uri("/api/v1/me/api-keys")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"reports\",\"application_name\":\"reporting-service\"}").exchange();
+        assertThat(create).hasStatus(201);
+        assertThat(create).bodyJson().extractingPath("$.api_key.application_name").asString()
+                .isEqualTo("reporting-service");
+
+        var list = mvc.get().uri("/api/v1/me/api-keys")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).exchange();
+        assertThat(list).bodyJson().extractingPath("$[0].application_name").asString()
+                .isEqualTo("reporting-service");
+    }
+
+    @Test
+    void overlong_application_name_returns_400() {
+        var create = mvc.post().uri("/api/v1/me/api-keys")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"reports\",\"application_name\":\"%s\"}".formatted("a".repeat(101)))
+                .exchange();
+        assertThat(create).hasStatus(400);
+    }
+
+    @Test
     void duplicate_name_returns_409() {
         mvc.post().uri("/api/v1/me/api-keys")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)

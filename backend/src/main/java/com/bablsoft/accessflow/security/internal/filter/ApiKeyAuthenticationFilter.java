@@ -60,7 +60,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // The key id rides on the token beside the claims (#869); the claims themselves are built
         // exactly as before, so downstream consumers of JwtClaims see no difference.
         return apiKeyService.resolve(rawKey).flatMap(resolved -> loadClaims(resolved.userId())
-                .map(claims -> new ApiKeyAuthenticationToken(resolved.apiKeyId(), claims)));
+                .map(claims -> new ApiKeyAuthenticationToken(resolved.apiKeyId(),
+                        resolved.applicationName(), claims)));
     }
 
     private Optional<JwtClaims> loadClaims(UUID userId) {

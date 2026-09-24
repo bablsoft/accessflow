@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.ClientApplication;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 
 import java.util.UUID;
@@ -69,14 +70,25 @@ public interface BreakGlassService {
             String submittedIp,
             String submittedUserAgent,
             /** The human an API-key caller acts for (#874); attribution only, null for a human. */
-            UUID onBehalfOfUserId) {
+            UUID onBehalfOfUserId,
+            /** The calling application (#938); null when unknown. */
+            ClientApplication application) {
+
+        /** Backward-compatible constructor without the #938 calling application. */
+        public BreakGlassInput(UUID datasourceId, String sql, String justification,
+                               UUID submitterUserId, UUID organizationId, boolean isAdmin,
+                               String submittedIp, String submittedUserAgent,
+                               UUID onBehalfOfUserId) {
+            this(datasourceId, sql, justification, submitterUserId, organizationId, isAdmin,
+                    submittedIp, submittedUserAgent, onBehalfOfUserId, null);
+        }
 
         /** Backward-compatible constructor without the #874 on-behalf-of principal. */
         public BreakGlassInput(UUID datasourceId, String sql, String justification,
                                UUID submitterUserId, UUID organizationId, boolean isAdmin,
                                String submittedIp, String submittedUserAgent) {
             this(datasourceId, sql, justification, submitterUserId, organizationId, isAdmin,
-                    submittedIp, submittedUserAgent, null);
+                    submittedIp, submittedUserAgent, null, null);
         }
     }
 

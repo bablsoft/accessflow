@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
+import com.bablsoft.accessflow.security.api.RequestApplicationService;
 import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
@@ -39,6 +40,7 @@ class QuerySubmissionController {
     private final QuerySubmissionService querySubmissionService;
     private final AuditLogService auditLogService;
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private final RequestApplicationService requestApplicationService;
 
     @PostMapping
     @Operation(summary = "Submit a query for AI analysis and (eventually) human review")
@@ -71,7 +73,8 @@ class QuerySubmissionController {
                 ciCdOrigin,
                 body.recurrenceRule(),
                 body.recurrenceUntil(),
-                onBehalfOfPrincipalService.current().orElse(null)));
+                onBehalfOfPrincipalService.current().orElse(null),
+                requestApplicationService.current().orElse(null)));
         recordAudit(caller, result.id(), body, submissionReason, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.id(), result.status(), null, null, null));

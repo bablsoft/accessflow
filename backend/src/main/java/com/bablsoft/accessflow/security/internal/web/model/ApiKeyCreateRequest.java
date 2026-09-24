@@ -9,5 +9,7 @@ public record ApiKeyCreateRequest(
         @NotBlank(message = "{validation.api_key.name.required}")
         @Size(min = 1, max = 100, message = "{validation.api_key.name.size}")
         String name,
-        Instant expiresAt
+        Instant expiresAt,
+        @Size(max = 100, message = "{validation.api_key.application_name.size}")
+        String applicationName
 ) {}

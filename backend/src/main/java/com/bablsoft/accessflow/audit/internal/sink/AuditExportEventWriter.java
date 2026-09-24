@@ -22,7 +22,11 @@ public class AuditExportEventWriter {
 
     private final ObjectMapper objectMapper;
 
+    static final String APPLICATION_NAME_KEY = "application_name";
+    static final String APPLICATION_NAME_SOURCE_KEY = "application_name_source";
+
     public AuditExportEvent toEvent(AuditLogEntity row) {
+        var metadata = metadataNode(row.getMetadata());
         return new AuditExportEvent(
                 row.getId(),
                 row.getOrganizationId(),
@@ -35,7 +39,9 @@ public class AuditExportEventWriter {
                 row.getUserAgent(),
                 row.getCreatedAt(),
                 hexOrNull(row.getPreviousHash()),
-                hexOrNull(row.getCurrentHash()));
+                hexOrNull(row.getCurrentHash()),
+                textOrNull(metadata, APPLICATION_NAME_KEY),
+                textOrNull(metadata, APPLICATION_NAME_SOURCE_KEY));
     }
 
     /** One event as a single-line JSON object. */
@@ -53,6 +59,8 @@ public class AuditExportEventWriter {
         fields.put("created_at", event.createdAt() == null ? null : event.createdAt().toString());
         fields.put("previous_hash", event.previousHash());
         fields.put("current_hash", event.currentHash());
+        fields.put("application_name", event.applicationName());
+        fields.put("application_name_source", event.applicationNameSource());
         return objectMapper.writeValueAsString(fields);
     }
 
@@ -79,6 +87,11 @@ public class AuditExportEventWriter {
             node.put("raw", metadataJson);
             return node;
         }
+    }
+
+    private static String textOrNull(JsonNode metadata, String key) {
+        var value = metadata.get(key);
+        return value != null && value.isString() ? value.asString() : null;
     }
 
     private static String hexOrNull(byte[] bytes) {

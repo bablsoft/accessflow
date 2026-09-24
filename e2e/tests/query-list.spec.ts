@@ -282,6 +282,43 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
     await search.fill('');
   });
 
+  // #938 — a query submitted with the X-AccessFlow-Application header records it as an untrusted
+  // calling application: the list filters on it server-side, the detail page flags it.
+  test('application filter narrows the list and the detail marks a header source untrusted', async ({
+    page,
+    request,
+  }) => {
+    if (!datasourceA) throw new Error('beforeAll did not create datasources');
+    const appName = `e2e-app-${UNIQUE_SUFFIX}`;
+    const res = await request.post(`${API_BASE}/api/v1/queries`, {
+      headers: {
+        Authorization: `Bearer ${adminAccessToken}`,
+        'X-AccessFlow-Application': appName,
+      },
+      data: { datasource_id: datasourceA.id, sql: 'SELECT 4', justification: 'e2e/query-list q4' },
+    });
+    expect(res.status()).toBe(202);
+    const { id: appQueryId } = (await res.json()) as { id: string };
+
+    await login(page);
+    await page.goto('/queries');
+    await waitForListReady(page);
+
+    await waitForListReady(page, () =>
+      page.getByLabel('Filter by application').fill(appName),
+    );
+    const rows = page.locator('tr.ant-table-row');
+    await expect(rows).toHaveCount(1, { timeout: 10_000 });
+    await expect(rows.first()).toContainText(appQueryId.slice(0, 8));
+
+    await rows.first().click();
+    await page.waitForURL(new RegExp(`/queries/${appQueryId}$`), { timeout: 15_000 });
+    await expect(page.getByTestId('query-application')).toContainText(appName, {
+      timeout: 10_000,
+    });
+    await expect(page.getByTestId('query-application-untrusted')).toBeVisible();
+  });
+
   test('clicking a row navigates to /queries/<uuid>', async ({ page }) => {
     await login(page);
     await page.goto('/queries');

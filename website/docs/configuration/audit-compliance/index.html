@@ -302,10 +302,30 @@
             <figcaption><code>/admin/audit-log</code> — filter, paginate, verify the HMAC chain, and export to CSV.</figcaption>
           </figure>
           <ol>
-            <li><strong>Filter and search.</strong> Narrow by action, resource type, actor user id, or resource id; an optional start/end date pair scopes the window.</li>
+            <li><strong>Filter and search.</strong> Narrow by action, resource type, actor user id, application, or resource id; an optional start/end date pair scopes the window.</li>
             <li><strong>Verify chain.</strong> The <em>Verify chain</em> button re-walks every row's HMAC link in order and surfaces the first mismatch — useful as a recurring auditor check.</li>
             <li><strong>Export CSV.</strong> Streams the current filter as RFC 4180 CSV with the same columns shown in the UI. Long-running exports respect the same query budget as the table view (use date filters to keep them bounded).</li>
           </ol>
+          <h3 id="cfg-audit-application">Which application made a request?</h3>
+          <p>
+            Each entry can also record the <strong>application</strong> that made the request, so you
+            can tell "the reporting service" apart from "the billing job" even when both use the same
+            service account. There are two ways it gets there:
+          </p>
+          <ul>
+            <li><strong>From the API key (trusted).</strong> Give a key an <em>Application name</em>
+              when you create it — on your profile, or on a service account's <em>API keys</em> tab.
+              Every request made with that key is recorded under that name. Nobody can fake it
+              without holding the key.</li>
+            <li><strong>From a request header (untrusted).</strong> A caller without a named key can
+              send an <code>X-AccessFlow-Application</code> header. Because the caller chooses the
+              value, AccessFlow records it but marks it <em>Untrusted</em> wherever it is shown.</li>
+          </ul>
+          <p>
+            The application appears under the actor in the audit log, in the entry's detail panel,
+            and on the query's detail page. Both the audit log and the query list can be filtered by
+            it. It is for identification only: it never grants or blocks access.
+          </p>
           <p>
             <strong>Tune it.</strong> The chain-signing key defaults to a per-deployment value derived
             from <code>ENCRYPTION_KEY</code>; set <code>AUDIT_HMAC_KEY</code> (hex, ≥ 32 bytes)
@@ -325,7 +345,9 @@
             never blocks audit writes, and each sink retries forever with backoff, so nothing is
             lost while a receiver is down (receivers de-duplicate on the immutable event id). Every
             streamed event carries its hash-chain links, so an exported window can be verified
-            independently of the database.
+            independently of the database, plus the calling application (when one was recorded) as
+            its own <code>application_name</code> / <code>application_name_source</code> fields —
+            <code>cs5</code> / <code>cs6</code> in CEF.
           </p>
           <p>
             <strong>Configure it.</strong> Manage sinks at <code>/admin/audit-sinks</code> (requires

@@ -58,6 +58,8 @@ public class CefFormatter {
                 event.resourceId() == null ? null : event.resourceId().toString());
         labeled(sb, "cs3", "current_hash", event.currentHash());
         labeled(sb, "cs4", "previous_hash", event.previousHash());
+        labeled(sb, "cs5", "application_name", event.applicationName());
+        labeled(sb, "cs6", "application_name_source", event.applicationNameSource());
         return sb.toString().stripTrailing();
     }
 

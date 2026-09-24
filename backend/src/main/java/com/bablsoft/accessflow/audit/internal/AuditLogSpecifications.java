@@ -13,6 +13,7 @@ import java.util.UUID;
 final class AuditLogSpecifications {
 
     static final String ON_BEHALF_OF_KEY = "on_behalf_of_user_id";
+    static final String APPLICATION_NAME_KEY = "application_name";
 
     private AuditLogSpecifications() {
     }
@@ -60,6 +61,13 @@ final class AuditLogSpecifications {
                         cb.function("jsonb_extract_path_text", String.class,
                                 root.get("metadata"), cb.literal(ON_BEHALF_OF_KEY)),
                         query.onBehalfOfUserId().toString()));
+            }
+            if (query.applicationName() != null && !query.applicationName().isBlank()) {
+                // Stamped into the JSONB metadata by the calling-application contributor (#938).
+                predicates.add(cb.equal(
+                        cb.function("jsonb_extract_path_text", String.class,
+                                root.get("metadata"), cb.literal(APPLICATION_NAME_KEY)),
+                        query.applicationName().strip()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

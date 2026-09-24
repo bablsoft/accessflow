@@ -198,6 +198,8 @@ class DefaultQueryRequestLookupServiceTest {
         var orgId = UUID.randomUUID();
         var entity = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
                 "alice@example.com", QueryStatus.PENDING_AI);
+        entity.setApplicationName("reporting");
+        entity.setApplicationNameSource(com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
         var pageable = PageRequest.of(0, 20);
         when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
                 eq(pageable)))
@@ -217,6 +219,9 @@ class DefaultQueryRequestLookupServiceTest {
         assertThat(item.aiRiskScore()).isNull();
         assertThat(item.queryType()).isEqualTo(QueryType.SELECT);
         assertThat(item.status()).isEqualTo(QueryStatus.PENDING_AI);
+        assertThat(item.applicationName()).isEqualTo("reporting");
+        assertThat(item.applicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
     }
 
     @Test
@@ -255,6 +260,8 @@ class DefaultQueryRequestLookupServiceTest {
                 "alice@example.com", QueryStatus.EXECUTED);
         entity.setRowsAffected(5L);
         entity.setExecutionDurationMs(99);
+        entity.setApplicationName("etl");
+        entity.setApplicationNameSource(com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER);
         entity.setUpdatedAt(Instant.parse("2025-01-15T11:00:00Z"));
         var aiId = UUID.randomUUID();
         entity.setAiAnalysisId(aiId);
@@ -291,6 +298,9 @@ class DefaultQueryRequestLookupServiceTest {
         assertThat(detail.aiAnalysis().failed()).isFalse();
         assertThat(detail.aiAnalysis().errorMessage()).isNull();
         assertThat(detail.reviewDecisions()).isEmpty();
+        assertThat(detail.applicationName()).isEqualTo("etl");
+        assertThat(detail.applicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER);
     }
 
     @Test

@@ -3736,6 +3736,10 @@
       "FIXED_RATE": "Fréquence fixe",
       "CRON": "Cron",
       "ONE_TIME": "Unique"
+    },
+    "application_name_source": {
+      "API_KEY": "Clé d'API",
+      "HEADER": "En-tête de requête"
     }
   },
   "access": {
@@ -5742,5 +5746,19 @@
     "use_id": "Utiliser l'ID {{id}}",
     "user_id_placeholder": "Collez un ID d'utilisateur",
     "masked_as": "{{field}} → {{strategy}}"
+  },
+  "client_application": {
+    "label": "Application",
+    "untrusted": "Non vérifiée",
+    "untrusted_tooltip": "Indiquée par l'appelant dans l'en-tête X-AccessFlow-Application. L'appelant contrôle cette valeur, elle n'est donc pas vérifiée.",
+    "trusted_tooltip": "Enregistrée sur la clé d'API qui a authentifié cette requête.",
+    "filter_placeholder": "Application",
+    "filter_aria": "Filtrer par application",
+    "key_label": "Nom de l'application",
+    "key_placeholder": "ex. reporting-service",
+    "key_help": "Facultatif. Enregistré sur chaque requête effectuée avec cette clé, pour que le journal d'audit indique quelle application a appelé.",
+    "key_size": "Le nom de l'application doit comporter au plus 100 caractères.",
+    "rotate_help": "Laissez vide pour conserver le nom d'application de la clé actuelle.",
+    "column": "Application"
   }
 }

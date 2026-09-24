@@ -11,9 +11,12 @@ public record IssueServiceAccountKeyRequest(
         @Size(max = 100, message = "{validation.service_account_key_name.size}")
         String name,
 
-        Instant expiresAt
+        Instant expiresAt,
+
+        @Size(max = 100, message = "{validation.api_key.application_name.size}")
+        String applicationName
 ) {
     public IssueServiceAccountKeyCommand toCommand() {
-        return new IssueServiceAccountKeyCommand(name, expiresAt);
+        return new IssueServiceAccountKeyCommand(name, expiresAt, applicationName);
     }
 }

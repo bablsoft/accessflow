@@ -117,6 +117,7 @@ describe('api/admin', () => {
     await adminApi.listAuditEvents({
       actor_id: 'u-1',
       on_behalf_of_user_id: 'u-2',
+      application_name: 'reporting',
       action: 'USER_LOGIN',
       resource_type: 'user',
       resource_id: 'r-1',
@@ -130,6 +131,7 @@ describe('api/admin', () => {
       params: {
         actorId: 'u-1',
         onBehalfOfUserId: 'u-2',
+        applicationName: 'reporting',
         action: 'USER_LOGIN',
         resourceType: 'user',
         resourceId: 'r-1',
@@ -195,6 +197,7 @@ describe('api/admin', () => {
     const result = await adminApi.exportAuditLogCsv({
       actor_id: 'u-1',
       on_behalf_of_user_id: 'u-2',
+      application_name: 'reporting',
       action: 'USER_LOGIN',
       resource_type: 'user',
       resource_id: 'r-1',
@@ -210,6 +213,7 @@ describe('api/admin', () => {
       params: {
         actorId: 'u-1',
         onBehalfOfUserId: 'u-2',
+        applicationName: 'reporting',
         action: 'USER_LOGIN',
         resourceType: 'user',
         resourceId: 'r-1',

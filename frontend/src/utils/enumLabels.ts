@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
+  ApplicationNameSource,
   SchemaChangePromotionStatus,
   SchemaChangeSetStatus,
   SchemaDriftBaseline,
@@ -141,6 +142,9 @@ export const OPTIMIZATION_TYPES: readonly OptimizationType[] = ['INDEX', 'REWRIT
 
 export const optimizationTypeLabel = (t: TFunction, v: OptimizationType): string =>
   t(`enums.optimization_type.${v}` as const);
+
+export const applicationNameSourceLabel = (t: TFunction, v: ApplicationNameSource): string =>
+  t(`enums.application_name_source.${v}` as const);
 
 export const submissionReasonLabel = (t: TFunction, v: SubmissionReason): string =>
   t(`enums.submission_reason.${v}` as const);

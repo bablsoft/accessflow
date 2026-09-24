@@ -17,6 +17,7 @@ import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQueryDetail;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQueryResult;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQuerySubmission;
 import com.bablsoft.accessflow.mcp.internal.tools.dto.McpQuerySummary;
+import com.bablsoft.accessflow.security.api.RequestApplicationService;
 import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
@@ -50,6 +51,7 @@ public class McpToolService {
     private final QuerySubmissionService querySubmissionService;
     private final QueryLifecycleService queryLifecycleService;
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private final RequestApplicationService requestApplicationService;
     private final AuditLogService auditLogService;
 
     @Tool(name = "list_datasources",
@@ -158,7 +160,8 @@ public class McpToolService {
                 datasourceId, sql, justification,
                 claims.userId(), claims.organizationId(), currentUser.isAdmin(), null, null,
                 null, null, false, null, null,
-                onBehalfOfPrincipalService.current().orElse(null));
+                onBehalfOfPrincipalService.current().orElse(null),
+                requestApplicationService.current().orElse(null));
         var result = querySubmissionService.submit(input);
         recordSubmitted(claims.organizationId(), claims.userId(), result.id(), datasourceId);
         return new McpQuerySubmission(result.id(), result.status().name());

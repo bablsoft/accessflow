@@ -44,6 +44,21 @@ class QueryListItemTest {
     }
 
     @Test
+    void fromCarriesTheCallingApplication() {
+        var view = new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                UUID.randomUUID(), "a@b.com", "A",
+                QueryType.SELECT, QueryStatus.EXECUTED, null, null, false,
+                null, false, null, Instant.now(), "reporting",
+                com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+
+        var item = QueryListItem.from(view);
+
+        assertThat(item.applicationName()).isEqualTo("reporting");
+        assertThat(item.applicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+    }
+
+    @Test
     void fromCarriesRecurringSeriesMarkers() {
         var parentId = UUID.randomUUID();
         var view = new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "ds",

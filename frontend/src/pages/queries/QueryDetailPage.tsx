@@ -76,6 +76,7 @@ import { QuerySqlView } from './QuerySqlView';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
+import { ClientApplicationTag } from '@/components/common/ClientApplicationTag';
 
 export function QueryDetailPage() {
   const { t } = useTranslation();
@@ -298,6 +299,17 @@ export function QueryDetailPage() {
             )}
             · {fmtDate(query.created_at)} ·{' '}
             <span className="mono">{query.datasource.name}</span>
+            {query.application_name && (
+              <>
+                {' '}
+                · {t('client_application.label')}{' '}
+                <ClientApplicationTag
+                  name={query.application_name}
+                  source={query.application_name_source}
+                  testId="query-application"
+                />
+              </>
+            )}
           </>
         }
         actions={

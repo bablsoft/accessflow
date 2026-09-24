@@ -26,6 +26,7 @@ import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 interface CreateFormValues {
   name: string;
   expires_at?: Dayjs | null;
+  application_name?: string;
 }
 
 const upTo = (limit: number) => Array.from({ length: Math.max(limit, 0) }, (_, i) => i);
@@ -77,6 +78,13 @@ export function ApiKeysSection() {
       dataIndex: 'name',
       key: 'name',
       render: (name: string) => <strong>{name}</strong>,
+    },
+    {
+      title: t('client_application.column'),
+      dataIndex: 'application_name',
+      key: 'application_name',
+      render: (name: string | null | undefined) =>
+        name ? <Typography.Text code>{name}</Typography.Text> : '—',
     },
     {
       title: t('profile.api_keys.column.prefix'),
@@ -197,13 +205,13 @@ export function ApiKeysSection() {
           form={form}
           name="createApiKey"
           layout="vertical"
-          onFinish={(values) =>
-            createMutation.mutate(
-              values.expires_at
-                ? { name: values.name, expires_at: values.expires_at.toISOString() }
-                : { name: values.name },
-            )
-          }
+          onFinish={(values) => {
+            const input: CreateApiKeyInput = { name: values.name };
+            if (values.expires_at) input.expires_at = values.expires_at.toISOString();
+            const applicationName = values.application_name?.trim();
+            if (applicationName) input.application_name = applicationName;
+            createMutation.mutate(input);
+          }}
         >
           <Form.Item
             name="name"
@@ -214,6 +222,14 @@ export function ApiKeysSection() {
             ]}
           >
             <Input placeholder={t('profile.api_keys.name_placeholder')} autoFocus />
+          </Form.Item>
+          <Form.Item
+            name="application_name"
+            label={t('client_application.key_label')}
+            extra={t('client_application.key_help')}
+            rules={[{ max: 100, message: t('client_application.key_size') }]}
+          >
+            <Input placeholder={t('client_application.key_placeholder')} />
           </Form.Item>
           <Form.Item
             name="expires_at"

@@ -3761,6 +3761,10 @@
       "FIXED_RATE": "Fixed rate",
       "CRON": "Cron",
       "ONE_TIME": "One time"
+    },
+    "application_name_source": {
+      "API_KEY": "API key",
+      "HEADER": "Request header"
     }
   },
   "access": {
@@ -5742,5 +5746,19 @@
     "use_id": "Use ID {{id}}",
     "user_id_placeholder": "Paste a user ID",
     "masked_as": "{{field}} → {{strategy}}"
+  },
+  "client_application": {
+    "label": "Application",
+    "untrusted": "Untrusted",
+    "untrusted_tooltip": "Reported by the caller in the X-AccessFlow-Application header. The caller controls this value, so it is not verified.",
+    "trusted_tooltip": "Stored on the API key that authenticated this request.",
+    "filter_placeholder": "Application",
+    "filter_aria": "Filter by application",
+    "key_label": "Application name",
+    "key_placeholder": "e.g. reporting-service",
+    "key_help": "Optional. Recorded on every request this key makes, so the audit log shows which application called.",
+    "key_size": "Application name must be at most 100 characters.",
+    "rotate_help": "Leave empty to keep the current key's application name.",
+    "column": "Application"
   }
 }

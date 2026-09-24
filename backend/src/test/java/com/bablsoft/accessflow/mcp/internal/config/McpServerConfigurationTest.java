@@ -30,6 +30,7 @@ class McpServerConfigurationTest {
                 Mockito.mock(com.bablsoft.accessflow.workflow.api.QuerySubmissionService.class),
                 Mockito.mock(com.bablsoft.accessflow.workflow.api.QueryLifecycleService.class),
                 Mockito.mock(OnBehalfOfPrincipalService.class),
+                Mockito.mock(com.bablsoft.accessflow.security.api.RequestApplicationService.class),
                 Mockito.mock(com.bablsoft.accessflow.audit.api.AuditLogService.class));
         var reviewTools = new McpReviewToolService(new McpCurrentUser(),
                 Mockito.mock(com.bablsoft.accessflow.workflow.api.ReviewService.class));

@@ -258,6 +258,20 @@ describe('QueryDetailPage — AI failure surface (AF-249)', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('shows the calling application and marks a header-supplied one untrusted (#938)', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      application_name: 'reporting-service',
+      application_name_source: 'HEADER',
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('query-application')).toHaveTextContent('reporting-service');
+    expect(screen.getByTestId('query-application-untrusted')).toBeInTheDocument();
+  });
+
   it('does not render the failure banner when analysis succeeded', async () => {
     setUser('REVIEWER');
     const ok = failedQuery();

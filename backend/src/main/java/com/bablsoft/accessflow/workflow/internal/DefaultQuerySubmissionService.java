@@ -94,7 +94,8 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
                 input.recurrenceRule(),
                 input.recurrenceUntil(),
                 initialNextRunAt,
-                input.onBehalfOfUserId()));
+                input.onBehalfOfUserId(),
+                input.application()));
         // Deterministic SQL review runs here, synchronously and before the AI is even asked (#864),
         // so the findings exist for the review decision even when AI analysis is skipped or fails.
         // Same transaction as the row itself; a not-applicable engine records nothing.

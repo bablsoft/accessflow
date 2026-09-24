@@ -231,6 +231,25 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void callingApplicationIsCopiedOntoTheResponse() {
+        var m = minimalView();
+        assertThat(QueryDetailResponse.from(m).applicationName()).isNull();
+
+        var view = new QueryDetailView(m.id(), m.datasourceId(), m.datasourceName(), m.dbType(),
+                m.organizationId(), m.submittedByUserId(), m.submittedByEmail(),
+                m.submittedByDisplayName(), m.sqlText(), m.queryType(), m.status(), m.justification(),
+                null, null, null, null, null, null, null, null, null, null, null, null, List.of(),
+                null, null, null, null, null, null, m.createdAt(), m.updatedAt(), null, null,
+                "reporting", com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER);
+
+        var response = QueryDetailResponse.from(view);
+
+        assertThat(response.applicationName()).isEqualTo("reporting");
+        assertThat(response.applicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER);
+    }
+
+    @Test
     void linkedTicketsAreEmptyForThreeArgOverloadAndNullList() {
         assertThat(QueryDetailResponse.from(minimalView()).linkedTickets()).isEmpty();
         assertThat(QueryDetailResponse.from(minimalView(), null).linkedTickets()).isEmpty();

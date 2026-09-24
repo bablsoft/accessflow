@@ -16,4 +16,12 @@ public interface ApiKeyAuthentication {
 
     /** The {@code api_keys.id} of the key presented on this request. */
     UUID apiKeyId();
+
+    /**
+     * The calling application stored on the presented key (#938), or {@code null} when the key
+     * names none. Trustworthy — unlike the {@code X-AccessFlow-Application} header.
+     */
+    default String applicationName() {
+        return null;
+    }
 }

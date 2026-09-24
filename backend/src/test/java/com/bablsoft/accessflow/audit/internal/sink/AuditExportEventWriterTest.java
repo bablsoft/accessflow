@@ -53,6 +53,32 @@ class AuditExportEventWriterTest {
         assertThat(event.createdAt()).isEqualTo(CREATED_AT);
         assertThat(event.previousHash()).isEqualTo("00abff");
         assertThat(event.currentHash()).isEqualTo("012c");
+        assertThat(event.applicationName()).isNull();
+        assertThat(event.applicationNameSource()).isNull();
+    }
+
+    @Test
+    void liftsTheCallingApplicationOutOfTheMetadata() {
+        var row = entity();
+        row.setMetadata("{\"application_name\":\"reporting\",\"application_name_source\":\"api_key\"}");
+
+        var event = writer.toEvent(row);
+        var node = mapper.readTree(writer.toJson(event));
+
+        assertThat(event.applicationName()).isEqualTo("reporting");
+        assertThat(event.applicationNameSource()).isEqualTo("api_key");
+        assertThat(node.get("application_name").asString()).isEqualTo("reporting");
+        assertThat(node.get("application_name_source").asString()).isEqualTo("api_key");
+    }
+
+    @Test
+    void ignoresANonStringApplicationNameAndCorruptMetadata() {
+        var row = entity();
+        row.setMetadata("{\"application_name\":42}");
+        assertThat(writer.toEvent(row).applicationName()).isNull();
+
+        row.setMetadata("{corrupt");
+        assertThat(writer.toEvent(row).applicationName()).isNull();
     }
 
     @Test

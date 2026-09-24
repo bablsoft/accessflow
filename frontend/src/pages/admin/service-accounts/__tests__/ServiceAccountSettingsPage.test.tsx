@@ -150,7 +150,11 @@ describe('ServiceAccountSettingsPage', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Issue key' }));
 
     await waitFor(() =>
-      expect(issueServiceAccountKey).toHaveBeenCalledWith('sa-1', { name: 'ci', expires_at: null }),
+      expect(issueServiceAccountKey).toHaveBeenCalledWith('sa-1', {
+        name: 'ci',
+        expires_at: null,
+        application_name: null,
+      }),
     );
     expect(await screen.findByTestId('issued-raw-key')).toHaveTextContent('af_raw_secret');
     expect(screen.getByText(/only time the key is shown/)).toBeInTheDocument();
@@ -175,6 +179,7 @@ describe('ServiceAccountSettingsPage', () => {
         name: `github-actions-${new Date().toISOString().slice(0, 10)}`,
         expires_at: null,
         grace_period: 'PT12H',
+        application_name: null,
       }),
     );
     expect(await screen.findByTestId('issued-raw-key')).toHaveTextContent('af_rotated');

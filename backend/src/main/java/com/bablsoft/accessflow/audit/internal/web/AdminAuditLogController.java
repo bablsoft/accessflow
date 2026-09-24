@@ -78,6 +78,8 @@ class AdminAuditLogController {
             @RequestParam(required = false) Instant to,
             @Parameter(description = "Filter by the person an API-key caller acted on behalf of (#874)")
             @RequestParam(required = false) UUID onBehalfOfUserId,
+            @Parameter(description = "Filter by the recorded calling application, exact match (#938)")
+            @RequestParam(required = false) String applicationName,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
@@ -87,7 +89,7 @@ class AdminAuditLogController {
         validateSort(pageable.getSort());
         var resourceTypeEnum = parseResourceType(resourceType);
         var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to,
-                onBehalfOfUserId);
+                onBehalfOfUserId, applicationName);
         PageResponse<AuditLogView> page = auditLogService.query(organizationId, filter,
                 SpringPageableAdapter.toPageRequest(pageable));
         Map<UUID, UserView> users = lookupUsers(organizationId, page);
@@ -123,13 +125,15 @@ class AdminAuditLogController {
             @RequestParam(required = false) Instant to,
             @Parameter(description = "Filter by the person an API-key caller acted on behalf of (#874)")
             @RequestParam(required = false) UUID onBehalfOfUserId,
+            @Parameter(description = "Filter by the recorded calling application, exact match (#938)")
+            @RequestParam(required = false) String applicationName,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @AuthenticationPrincipal(expression = "userId") UUID callerUserId,
             RequestAuditContext auditContext,
             HttpServletResponse response) throws IOException {
         var resourceTypeEnum = parseResourceType(resourceType);
         var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to,
-                onBehalfOfUserId);
+                onBehalfOfUserId, applicationName);
         long matched = auditLogCsvService.count(organizationId, filter);
         boolean truncated = matched > AuditLogCsvService.MAX_EXPORT_ROWS;
 
@@ -223,6 +227,10 @@ class AdminAuditLogController {
                 // what the attribution filter and chip read back — an export filtered by bob must not
                 // become a row claiming the admin exported on bob's behalf.
                 metadata.put("filter_on_behalf_of_user_id", filter.onBehalfOfUserId().toString());
+            }
+            if (filter.applicationName() != null) {
+                // Not "application_name": that key names the application that made THIS request.
+                metadata.put("filter_application_name", filter.applicationName());
             }
             if (filter.from() != null) {
                 metadata.put("from", filter.from().toString());

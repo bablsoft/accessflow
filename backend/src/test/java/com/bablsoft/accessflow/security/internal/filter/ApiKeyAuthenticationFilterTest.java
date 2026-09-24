@@ -146,7 +146,8 @@ class ApiKeyAuthenticationFilterTest {
     void resolved_token_exposes_the_originating_api_key_id() throws Exception {
         var userId = UUID.randomUUID();
         var apiKeyId = UUID.randomUUID();
-        when(apiKeyService.resolve("af_valid")).thenReturn(Optional.of(new ResolvedApiKey(apiKeyId, userId)));
+        when(apiKeyService.resolve("af_valid"))
+                .thenReturn(Optional.of(new ResolvedApiKey(apiKeyId, userId, "reporting")));
         when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, UUID.randomUUID()));
 
         var req = new MockHttpServletRequest();
@@ -156,6 +157,7 @@ class ApiKeyAuthenticationFilterTest {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         assertThat(auth).isInstanceOf(ApiKeyAuthentication.class);
         assertThat(((ApiKeyAuthentication) auth).apiKeyId()).isEqualTo(apiKeyId);
+        assertThat(((ApiKeyAuthentication) auth).applicationName()).isEqualTo("reporting");
         // The principal is byte-for-byte the JWT-path shape: the key id rides beside it, not in it.
         assertThat(((JwtClaims) auth.getPrincipal()).userId()).isEqualTo(userId);
     }

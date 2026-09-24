@@ -47,6 +47,8 @@ export interface QueryListFilters {
   from?: string;
   to?: string;
   query_type?: QueryType;
+  /** Exact match on the recorded calling application (#938). */
+  application_name?: string;
   page?: number;
   size?: number;
 }
@@ -191,6 +193,7 @@ function toQueryParams(filters: QueryListFilters): Record<string, string | numbe
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
   if (filters.query_type) params.query_type = filters.query_type;
+  if (filters.application_name) params.application_name = filters.application_name;
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
   return params;

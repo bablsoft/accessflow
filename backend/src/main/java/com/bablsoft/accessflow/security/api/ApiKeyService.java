@@ -15,7 +15,17 @@ import java.util.UUID;
  */
 public interface ApiKeyService {
 
-    IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt);
+    /**
+     * Issues a key. {@code applicationName} (#938) is the calling application the key identifies,
+     * recorded on every request it authenticates; {@code null} for none. Set here only — there is
+     * no update path.
+     */
+    IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt,
+                       String applicationName);
+
+    default IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt) {
+        return issue(userId, organizationId, name, expiresAt, null);
+    }
 
     /**
      * Stores a caller-supplied raw key (rather than generating one) for declarative provisioning —

@@ -52,7 +52,7 @@ class ApiKeysController {
                                 Authentication authentication) {
         var claims = (JwtClaims) authentication.getPrincipal();
         var issued = apiKeyService.issue(claims.userId(), claims.organizationId(),
-                request.name(), request.expiresAt());
+                request.name(), request.expiresAt(), request.applicationName());
         return ApiKeyCreateResponse.from(issued);
     }
 

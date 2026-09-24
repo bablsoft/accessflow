@@ -68,7 +68,8 @@ describe('service-account form ↔ backend validation parity', () => {
     });
     const rotate = constraintsOf('RotateServiceAccountKeyRequest.java');
     expect(rotate.name).toEqual(KEY_FORM_CONSTRAINTS.name);
+    expect(rotate.application_name).toEqual(KEY_FORM_CONSTRAINTS.application_name);
     // grace_period is @AssertTrue-positive on the backend; the form's InputNumber min=1 mirrors it.
-    expect(Object.keys(rotate)).toEqual(['name', 'expires_at', 'grace_period']);
+    expect(Object.keys(rotate)).toEqual(['name', 'expires_at', 'grace_period', 'application_name']);
   });
 });

@@ -1596,6 +1596,14 @@ The `sql` field carries the query text for **every** engine. For a `MONGODB` dat
 
 **Client-context capture (AF-446).** On submission the backend captures the source IP (`X-Forwarded-For` first hop, else remote address), the `User-Agent` header, and a CI/CD-origin flag, persisting them on `query_requests` for the context-aware routing conditions (`source_ip`, `user_agent`, `cicd_origin`). The CI/CD-origin flag is set when the request is authenticated via an API key **or** carries the optional **`X-AccessFlow-CI`** request header with a truthy value (`true` / `1` / `yes` / `ci` / `cicd`) — pipelines using a JWT instead of an API key set this header to opt into CI/CD-origin routing. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
+**Calling application (#938).** Every submission path (REST submit, break-glass, replay, the MCP `submit_query` tool) records *which application* submitted the query as `application_name` + `application_name_source` on `query_requests`, and every audit row written on the request carries the same pair in `metadata` (`application_name`, `application_name_source` = `api_key` \| `header`). Resolution, most trusted first:
+
+1. The `application_name` stored on the **API key** that authenticated the request (source `API_KEY`). Trustworthy — it cannot be forged without the key — and it always wins: a named key's caller cannot relabel itself with the header.
+2. Otherwise the optional **`X-AccessFlow-Application`** request header (source `HEADER`) — works for JWT sessions and unnamed keys, but is **entirely client-controlled**, so the UI labels it *Untrusted*. Trimmed; dropped when blank or containing control characters; truncated to 100 characters.
+3. Otherwise nothing is recorded.
+
+Identification and audit only — never an authorization input and not a routing operand (the same trust split as `cicd_origin`'s API-key vs `X-AccessFlow-CI` sources). The header is honoured on every endpoint, so rows the request writes elsewhere (API calls, deployments, request groups, admin actions) are attributable on the audit log too.
+
 ### POST /queries — Response 202 Accepted
 
 ```json
@@ -1696,6 +1704,7 @@ transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and re
 | `from` | ISO datetime | Created after |
 | `to` | ISO datetime | Created before |
 | `query_type` | string | SELECT, INSERT, UPDATE, DELETE, DDL |
+| `application_name` | string | Exact match on the recorded calling application (#938; trimmed, blank = no filter) |
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 
@@ -1704,7 +1713,7 @@ deprecated aliases (they were the only bound names before the snake_case filters
 when a filter is sent under both spellings, the snake_case value wins. New clients should use the
 snake_case names above. The same applies to `GET /queries/export.csv`.
 
-Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), `recurring` (boolean — `true` when the row is a recurring-series parent, #627, so the frontend can render a repeat indicator), `recurring_parent_id` (nullable UUID — set on occurrence rows), and `created_at`. The full SQL text and AI analysis are only on `GET /queries/{id}`.
+Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), `recurring` (boolean — `true` when the row is a recurring-series parent, #627, so the frontend can render a repeat indicator), `recurring_parent_id` (nullable UUID — set on occurrence rows), `created_at`, and — when one was recorded — `application_name` / `application_name_source` (`API_KEY` \| `HEADER`, #938). The full SQL text and AI analysis are only on `GET /queries/{id}`.
 
 ### GET /queries/export.csv — CSV export
 
@@ -1714,7 +1723,7 @@ callers see only their own queries; admins may pass `submitted_by` to scope to a
 Results are ordered by `created_at DESC`.
 
 **Query parameters** (all optional): `status`, `datasource_id`, `submitted_by` (admin-only
-override), `from`, `to`, `query_type` — same semantics as `GET /queries`.
+override), `from`, `to`, `query_type`, `application_name` — same semantics as `GET /queries`.
 
 **Response**:
 - `200 OK`
@@ -1741,6 +1750,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
   "datasource": { "id": "uuid", "name": "Production PostgreSQL" },
   "db_type": "POSTGRESQL",
   "submitted_by": { "id": "uuid", "email": "alice@company.com", "display_name": "Alice" },
+  "application_name": "reporting-service",
+  "application_name_source": "API_KEY",
   "sql_text": "UPDATE orders SET status = 'shipped' WHERE id = 123",
   "effective_sql": null,
   "query_type": "UPDATE",
@@ -1855,6 +1866,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 `linked_tickets` lists the tickets auto-created in an external ticketing system (ServiceNow / Jira, AF-453) for this query's workflow events, oldest first — empty array when none. `system` is `SERVICENOW` | `JIRA`; `status` / `resolution` reflect the external system's labels as last synced by the [ticketing inbound webhook](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 `sql_review_findings` are the deterministic SQL review findings recorded for this query at submission (#864, epic #860) — the same per-finding shape as [`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863), ordered statement → line, with `message` rendered into the caller's `Accept-Language` at read time from the stored `rule_id` + `args` (never from stored text). Always present: an empty array for a datasource the rule catalog does not cover, for an organization with no ruleset bound, and for a clean evaluation. `line_number` is omitted when unknown. A `BLOCK` finding here explains why the query could not auto-approve: it suppressed routing `AUTO_APPROVE`, the grant fast path and the plan's own approvals and forced `PENDING_REVIEW` — it never rejects, and a routing `AUTO_REJECT` still rejects. Findings are evaluated once, at submission, so they are present even when AI analysis was skipped or failed, and are **not** re-evaluated on reanalysis or for recurring occurrences. See the "Submission enforcement (#864)" paragraph of [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862).
+
+`application_name` / `application_name_source` (#938) are the calling application recorded at submission — `API_KEY` when it came from the authenticating key (trustworthy), `HEADER` when it came from the caller-supplied `X-AccessFlow-Application` header (client-controlled; the UI marks it *Untrusted*). Both omitted when none was recorded.
 
 `effective_sql` is the statement **as it actually executed** (#937), read from the query's immutable `query_snapshots` row: the submitted SQL with row-security predicates and soft-delete rewrites spliced in, every bound value left as a `?` placeholder (predicate values such as user attributes are never stored). For a transactional `BEGIN; … COMMIT;` batch it holds every statement's effective form joined by `;` + newline (the envelope markers are not included). It is omitted (`null`) when no rewrite occurred, when the query has not executed, and always for engine-plugin datasources (MongoDB, Redis, …), which splice filters into native commands and have no redacted form. Frozen at execution time — editing or deleting a policy afterwards never changes it. Visible under the same rule as the rest of the detail (the submitter or a `QUERY_VIEW_ALL` holder).
 
@@ -3647,18 +3660,19 @@ Soft-deactivates the account (`active = false`) — the same `UserDeactivatedEve
 Issues a key owned by the service account. The plaintext `raw_key` is the only chance to capture the secret — it is never persisted and never audited.
 
 ```json
-{ "name": "github-actions", "expires_at": null }
+{ "name": "github-actions", "expires_at": null, "application_name": "deploy-pipeline" }
 ```
 
 | Field | Constraints |
 |-------|-------------|
 | `name` | `@NotBlank`, `@Size(max=100)` — unique per account |
 | `expires_at` | Optional ISO-8601 timestamp; `null` for non-expiring |
+| `application_name` | Optional, `@Size(max=100)` (#938) — the calling application the key identifies, as on `POST /me/api-keys` |
 
 **Response 201:**
 ```json
 {
-  "api_key": { "id": "uuid", "name": "github-actions", "key_prefix": "af_kQ7abcde", "bootstrap_declared": false, "created_at": "…", "last_used_at": null, "expires_at": null, "revoked_at": null },
+  "api_key": { "id": "uuid", "name": "github-actions", "key_prefix": "af_kQ7abcde", "bootstrap_declared": false, "application_name": "deploy-pipeline", "created_at": "…", "last_used_at": null, "expires_at": null, "revoked_at": null },
   "raw_key": "af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 }
 ```
@@ -3678,6 +3692,7 @@ Rotation must not kill a running agent: it issues a **replacement** key and sets
 | `name` | `@NotBlank`, `@Size(max=100)` — the replacement key's name; must not collide with an existing key of the account |
 | `expires_at` | Optional expiry of the **replacement** key |
 | `grace_period` | Optional ISO-8601 duration, must be positive. Defaults to `ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE` (`PT24H`, see [09-deployment.md](09-deployment.md)) |
+| `application_name` | Optional, `@Size(max=100)` (#938). Absent or `null` = the replacement **inherits** the superseded key's application name, so a rotation never silently drops the attribution |
 
 **Response 201:**
 ```json
@@ -5497,11 +5512,13 @@ Delivery is **at-least-once**: a durable per-sink `(created_at, id)` keyset curs
   "user_agent": "Mozilla/5.0",
   "created_at": "2026-08-19T09:00:00.123456Z",
   "previous_hash": "9f2c…",
-  "current_hash": "b41a…"
+  "current_hash": "b41a…",
+  "application_name": "reporting-service",
+  "application_name_source": "api_key"
 }
 ```
 
-`metadata` is embedded as a JSON object, `created_at` is ISO-8601 with microsecond precision, and `previous_hash` / `current_hash` are the lowercase-hex HMAC chain bytes (as in the audit CSV export) — so any exported window is independently chain-verifiable.
+`application_name` / `application_name_source` (#938) are lifted out of `metadata` as first-class fields for Splunk / HTTPS-batch / S3 consumers (`null` when the row names no calling application); the syslog-CEF frame carries them as `cs5` (`cs5Label=application_name`) and `cs6` (`cs6Label=application_name_source`), omitted when absent. `metadata` is embedded as a JSON object, `created_at` is ISO-8601 with microsecond precision, and `previous_hash` / `current_hash` are the lowercase-hex HMAC chain bytes (as in the audit CSV export) — so any exported window is independently chain-verifiable.
 
 #### GET /admin/audit-sinks
 
@@ -5611,6 +5628,7 @@ Admin CRUD on sinks is audited best-effort as `AUDIT_SINK_CREATED` / `AUDIT_SINK
 | `from` | ISO datetime | Inclusive lower bound on `created_at` |
 | `to` | ISO datetime | Exclusive upper bound on `created_at` |
 | `onBehalfOfUserId` | UUID | Filter to rows whose `metadata.on_behalf_of_user_id` names this person — the requests an API-key caller made *for* them (#874, #875). Matches inside the JSONB metadata; nothing else on the row changes. |
+| `applicationName` | string | Filter to rows whose `metadata.application_name` equals this value exactly (#938, trimmed; blank = no filter) — the calling application recorded from the API key or the `X-AccessFlow-Application` header. `metadata.application_name_source` says which (`api_key` trusted, `header` untrusted). |
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 500). Requests over the cap get `400 BAD_AUDIT_QUERY` |
 | `sort` | string | Spring Data sort syntax; default `createdAt,DESC`. Allowed properties: `createdAt`, `action`, `resourceType`. Other values return 400 `BAD_AUDIT_QUERY`. |
@@ -5694,7 +5712,7 @@ ADMIN role required (otherwise 403).
 
 Streams a CSV of audit-log rows matching the same filter set as `GET /admin/audit-log`, minus pagination (`page`, `size`, `sort` are not bound on this endpoint). Rows are emitted in `createdAt DESC` order. ADMIN role required (otherwise 403).
 
-**Query parameters** (all optional): `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`, `onBehalfOfUserId` — same semantics as `GET /admin/audit-log`. The CSV columns are unchanged: the attribution rides in `metadata_json`.
+**Query parameters** (all optional): `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`, `onBehalfOfUserId`, `applicationName` — same semantics as `GET /admin/audit-log`. The CSV columns are unchanged: the attribution rides in `metadata_json`.
 
 **Response**:
 - `200 OK`
@@ -5713,7 +5731,7 @@ timestamp,organization_id,actor_email,action,resource_type,resource_id,ip_addres
 - `current_hash` / `previous_hash` — lowercase hex of the HMAC-SHA256 chain bytes. Empty for pre-V26 rows that have NULL hashes.
 - `metadata_json` — the row's JSONB metadata as a single string, RFC 4180 quoted when it contains a comma, quote, CR, or LF.
 
-**Audit of the export action** — every successful call writes a new `AUDIT_LOG_EXPORTED` row whose `metadata` captures the filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`, and `filter_on_behalf_of_user_id` for `onBehalfOfUserId` — deliberately *not* the `on_behalf_of_user_id` attribution key, which would make the export row read as done on that person's behalf) and the row counts (`matched_rows`, `truncated`). The export is therefore part of the same tamper-evident chain it is exporting.
+**Audit of the export action** — every successful call writes a new `AUDIT_LOG_EXPORTED` row whose `metadata` captures the filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`, and `filter_on_behalf_of_user_id` for `onBehalfOfUserId` — deliberately *not* the `on_behalf_of_user_id` attribution key, which would make the export row read as done on that person's behalf; likewise `filter_application_name` for `applicationName`, never `application_name`, which names the application that made the export request) and the row counts (`matched_rows`, `truncated`). The export is therefore part of the same tamper-evident chain it is exporting.
 
 **Response 400:** unknown `resourceType`. `error: BAD_AUDIT_QUERY`.
 
@@ -6536,7 +6554,7 @@ service account's key its own `rate_limit_*` when set.
 
 #### GET /me/api-keys
 
-Lists the calling user's API keys (newest first). The raw key is never included. `bootstrap_declared` (#871) marks the key the bootstrap reconciler declared for a service account — the one key an admin cannot revoke or rotate here.
+Lists the calling user's API keys (newest first). The raw key is never included. `bootstrap_declared` (#871) marks the key the bootstrap reconciler declared for a service account — the one key an admin cannot revoke or rotate here. `application_name` (#938) is the calling application the key identifies; absent when it names none.
 
 **Response 200:**
 ```json
@@ -6546,6 +6564,7 @@ Lists the calling user's API keys (newest first). The raw key is never included.
     "name": "claude-mcp",
     "key_prefix": "af_kQ7abcde",
     "bootstrap_declared": false,
+    "application_name": "reporting-service",
     "created_at": "2026-05-10T12:34:56Z",
     "last_used_at": "2026-05-12T08:11:02Z",
     "expires_at": null,
@@ -6562,7 +6581,8 @@ Creates a new API key. The plaintext `raw_key` is the only chance to capture the
 ```json
 {
   "name": "claude-mcp",
-  "expires_at": null
+  "expires_at": null,
+  "application_name": "reporting-service"
 }
 ```
 
@@ -6570,6 +6590,7 @@ Creates a new API key. The plaintext `raw_key` is the only chance to capture the
 |-------|-------------|
 | `name` | `@NotBlank`, `@Size(min=1, max=100)` — UNIQUE per user |
 | `expires_at` | Optional ISO-8601 timestamp; null for non-expiring |
+| `application_name` | Optional, `@Size(max=100)` (#938). The calling application this key identifies; stored stripped, blank = none. Recorded on every request the key authenticates as the trusted `API_KEY` source (see *Calling application* under the query submission endpoint). Set here only — there is no update path |
 
 **Response 201:**
 ```json
@@ -6591,7 +6612,7 @@ Creates a new API key. The plaintext `raw_key` is the only chance to capture the
 **Errors:**
 | Code | Status | Cause |
 |------|--------|-------|
-| `VALIDATION_ERROR` | 400 | Missing or oversize `name` |
+| `VALIDATION_ERROR` | 400 | Missing or oversize `name`, or oversize `application_name` |
 | `API_KEY_DUPLICATE_NAME` | 409 | Caller already has an API key with this name |
 
 #### DELETE /me/api-keys/{id}
