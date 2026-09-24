@@ -85,6 +85,28 @@ class QuerySnapshotListenerIntegrationTest {
     }
 
     @Test
+    void executedEventFreezesTheEffectiveStatementOnTheSnapshot() {
+        var effective = "SELECT 1 FROM (SELECT * FROM t WHERE region = ?) t";
+        eventPublisher.publishEvent(new QueryExecutedEvent(query.getId(), 1L, 5L,
+                QueryStatus.EXECUTED, null, effective));
+
+        // A redelivered event (or any later write) never rewrites the historical statement (#937).
+        eventPublisher.publishEvent(new QueryExecutedEvent(query.getId(), 1L, 5L,
+                QueryStatus.EXECUTED, null, "SELECT 1"));
+
+        var snapshot = snapshotRepository.findByQueryRequestId(query.getId()).orElseThrow();
+        assertThat(snapshot.getEffectiveSql()).isEqualTo(effective);
+    }
+
+    @Test
+    void unrewrittenExecutionStoresNullEffectiveStatement() {
+        eventPublisher.publishEvent(new QueryExecutedEvent(query.getId(), 1L, 5L, QueryStatus.EXECUTED));
+
+        var snapshot = snapshotRepository.findByQueryRequestId(query.getId()).orElseThrow();
+        assertThat(snapshot.getEffectiveSql()).isNull();
+    }
+
+    @Test
     void failedEventWritesNoSnapshot() {
         eventPublisher.publishEvent(new QueryExecutedEvent(query.getId(), null, 5L, QueryStatus.FAILED));
 

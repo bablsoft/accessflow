@@ -218,6 +218,19 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void effectiveSqlIsNullUnlessSuppliedAndCopiedWhenPresent() {
+        assertThat(QueryDetailResponse.from(minimalView()).effectiveSql()).isNull();
+        assertThat(QueryDetailResponse.from(minimalView(), null, null, null, false, null)
+                .effectiveSql()).isNull();
+
+        var response = QueryDetailResponse.from(minimalView(), null, null, null, false, null,
+                "SELECT * FROM (SELECT * FROM t WHERE region = ?) t");
+
+        assertThat(response.effectiveSql())
+                .isEqualTo("SELECT * FROM (SELECT * FROM t WHERE region = ?) t");
+    }
+
+    @Test
     void linkedTicketsAreEmptyForThreeArgOverloadAndNullList() {
         assertThat(QueryDetailResponse.from(minimalView()).linkedTickets()).isEmpty();
         assertThat(QueryDetailResponse.from(minimalView(), null).linkedTickets()).isEmpty();

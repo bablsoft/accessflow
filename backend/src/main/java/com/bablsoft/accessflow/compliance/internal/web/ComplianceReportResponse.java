@@ -56,7 +56,8 @@ public record ComplianceReportResponse(
             QueryType queryType,
             String sqlText,
             List<Approver> approvers,
-            Instant executedAt) {
+            Instant executedAt,
+            String effectiveSql) {
     }
 
     public record RetentionAdherenceRow(
@@ -93,7 +94,7 @@ public record ComplianceReportResponse(
                                 .map(a -> new Approver(a.email(), a.displayName(), a.decision(),
                                         a.decidedAt()))
                                 .toList(),
-                        r.executedAt()))
+                        r.executedAt(), r.effectiveSql()))
                 .toList();
         var retention = report.retentionAdherence().stream()
                 .map(r -> new RetentionAdherenceRow(

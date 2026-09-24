@@ -28,7 +28,18 @@ class QuerySnapshotListenerTest {
 
         listener.onQueryExecuted(new QueryExecutedEvent(queryId, 5L, 12L, QueryStatus.EXECUTED));
 
-        verify(querySnapshotService).recordOnExecution(queryId);
+        verify(querySnapshotService).recordOnExecution(queryId, null);
+    }
+
+    @Test
+    void forwardsEffectiveSqlToSnapshot() {
+        var queryId = UUID.randomUUID();
+        var effective = "SELECT * FROM (SELECT * FROM orders WHERE region = ?) orders";
+
+        listener.onQueryExecuted(new QueryExecutedEvent(queryId, 5L, 12L, QueryStatus.EXECUTED,
+                null, effective));
+
+        verify(querySnapshotService).recordOnExecution(queryId, effective);
     }
 
     @Test
@@ -36,13 +47,14 @@ class QuerySnapshotListenerTest {
         listener.onQueryExecuted(
                 new QueryExecutedEvent(UUID.randomUUID(), null, 12L, QueryStatus.FAILED));
 
-        verify(querySnapshotService, never()).recordOnExecution(org.mockito.ArgumentMatchers.any());
+        verify(querySnapshotService, never()).recordOnExecution(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
     void swallowsServiceFailure() {
         var queryId = UUID.randomUUID();
-        doThrow(new RuntimeException("boom")).when(querySnapshotService).recordOnExecution(queryId);
+        doThrow(new RuntimeException("boom")).when(querySnapshotService).recordOnExecution(queryId, null);
 
         assertThatCode(() -> listener.onQueryExecuted(
                 new QueryExecutedEvent(queryId, 1L, 1L, QueryStatus.EXECUTED)))

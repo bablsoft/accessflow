@@ -53,4 +53,25 @@ class SelectExecutionResultTest {
         assertThat(withIds.truncatedReason())
                 .isEqualTo(SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
     }
+
+    @Test
+    void legacyConstructorsDefaultEffectiveSqlToNull() {
+        assertThat(new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO)
+                .effectiveSql()).isNull();
+        assertThat(new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO,
+                Set.of(), Set.of(), null).effectiveSql()).isNull();
+    }
+
+    @Test
+    void withEffectiveSqlAndWithRowSecurityPolicyIdsPreserveEachOther() {
+        var id = UUID.randomUUID();
+        var result = new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO,
+                Set.of(), Set.of(), SelectExecutionResult.TRUNCATED_ROW_LIMIT)
+                .withEffectiveSql("SELECT * FROM (SELECT * FROM t WHERE r = ?) t")
+                .withRowSecurityPolicyIds(Set.of(id));
+
+        assertThat(result.effectiveSql()).isEqualTo("SELECT * FROM (SELECT * FROM t WHERE r = ?) t");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(id);
+        assertThat(result.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+    }
 }

@@ -46,13 +46,16 @@ class ComplianceReportResponseTest {
                 t, t, t, null, List.of(),
                 List.of(new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "Prod",
                         UUID.randomUUID(), "a@x.com", QueryType.DELETE, "DELETE FROM t",
-                        List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t)),
+                        List.of(new Approver("rev@x.com", "Rev", "APPROVED", t)), t,
+                        "DELETE FROM t WHERE tenant = ?")),
                 true);
 
         var response = ComplianceReportResponse.from(report);
 
         assertThat(response.truncated()).isTrue();
         assertThat(response.auditTrail()).hasSize(1);
+        assertThat(response.auditTrail().getFirst().effectiveSql())
+                .isEqualTo("DELETE FROM t WHERE tenant = ?");
         assertThat(response.auditTrail().getFirst().approvers().getFirst().displayName())
                 .isEqualTo("Rev");
         assertThat(response.classifiedAccess()).isEmpty();

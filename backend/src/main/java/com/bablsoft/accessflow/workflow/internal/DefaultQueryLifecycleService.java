@@ -348,17 +348,20 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             Set<UUID> appliedMaskingPolicyIds = Set.of();
             Set<UUID> appliedRowSecurityPolicyIds;
             Set<UUID> appliedRowLimitPolicyIds = Set.of();
+            String effectiveSql;
             switch (result) {
                 case SelectExecutionResult select -> {
                     rowsAffected = select.rowCount();
                     appliedRowLimitPolicyIds = bindingRowLimitPolicyIds;
                     appliedMaskingPolicyIds = select.appliedMaskingPolicyIds();
                     appliedRowSecurityPolicyIds = select.appliedRowSecurityPolicyIds();
+                    effectiveSql = select.effectiveSql();
                     persistSelectResult(query.id(), select, durationMs);
                 }
                 case UpdateExecutionResult update -> {
                     rowsAffected = update.rowsAffected();
                     appliedRowSecurityPolicyIds = update.appliedRowSecurityPolicyIds();
+                    effectiveSql = update.effectiveSql();
                 }
             }
             var canonicalSql = sqlCanonicalizer.canonicalize(query.sqlText());
@@ -404,7 +407,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     query.organizationId(), successMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
                     query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED,
-                    query.recurringParentId()));
+                    query.recurringParentId(), effectiveSql));
             return new ExecutionOutcome(query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs);
         } catch (UnrewritableRowSecurityException | InvalidSqlException ex) {
             // A structurally unfilterable (or unparseable) query is a client error. For an

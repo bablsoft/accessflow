@@ -24,7 +24,7 @@ class ClassificationJoinerTest {
     private QuerySnapshotView snapshot(UUID datasourceId, List<String> tables) {
         return new QuerySnapshotView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 datasourceId, userId, "SELECT 1", QueryType.SELECT, false, DbType.POSTGRESQL,
-                tables, null, null, "[]", 5L, 10, executedAt, executedAt);
+                tables, null, null, "[]", 5L, 10, executedAt, executedAt, null);
     }
 
     private OrganizationDataClassificationView tag(UUID datasourceId, String table, String column,

@@ -68,7 +68,7 @@ class DefaultResultExportGovernanceServiceTest {
     private QuerySnapshotView snapshot(List<String> referencedTables) {
         return new QuerySnapshotView(UUID.randomUUID(), queryId, orgId, datasourceId, userId,
                 "SELECT * FROM customers", QueryType.SELECT, false, DbType.POSTGRESQL,
-                referencedTables, "hash", null, null, 5L, 10, t, t);
+                referencedTables, "hash", null, null, 5L, 10, t, t, null);
     }
 
     private DataClassificationTagView tag(String table, String column, DataClassification c) {

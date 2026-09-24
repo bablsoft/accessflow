@@ -994,6 +994,7 @@ Immutable, sanitized snapshot of an **executed** query (AF-449). Exactly one row
 | `datasource_id` | UUID NOT NULL — the **source** datasource the query executed against |
 | `submitted_by` | UUID NOT NULL — the original submitter. No FK: an immutable record must outlive user deletion (like `audit_log.actor_id`) |
 | `sql_text` | TEXT NOT NULL — the exact SQL captured for replay (AccessFlow inlines literals into `sql_text`; there is no separate bound-parameter store, so this is the complete replay artifact) |
+| `effective_sql` | TEXT nullable (V187, #937) — the statement **as it actually executed**: `sql_text` with row-security predicates and soft-delete rewrites spliced in by `RowSecurityRewriter`, with every bound value left as a `?` placeholder (predicate values such as user attributes are never stored). A transactional batch stores every statement's effective form joined by `;` + newline. **NULL** when no rewrite occurred (and on every row written before V187, and always for engine-plugin datasources, which have no redacted form). Written once at insert and mapped `updatable = false`, so editing or deleting a policy later never changes the historical statement. Not used by replay, which re-runs `sql_text` under the policies in force at replay time |
 | `query_type` | ENUM `query_type` |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE |
 | `db_type` | ENUM `db_type` — the source engine; the replay gate requires the target datasource to match |

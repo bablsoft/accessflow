@@ -20,6 +20,7 @@ class QuerySnapshotMapperTest {
         entity.setDatasourceId(UUID.randomUUID());
         entity.setSubmittedBy(UUID.randomUUID());
         entity.setSqlText("SELECT 1");
+        entity.setEffectiveSql("SELECT 1 WHERE tenant = ?");
         entity.setQueryType(QueryType.SELECT);
         entity.setTransactional(true);
         entity.setDbType(DbType.POSTGRESQL);
@@ -45,6 +46,7 @@ class QuerySnapshotMapperTest {
         assertThat(view.datasourceId()).isEqualTo(entity.getDatasourceId());
         assertThat(view.submittedBy()).isEqualTo(entity.getSubmittedBy());
         assertThat(view.sqlText()).isEqualTo("SELECT 1");
+        assertThat(view.effectiveSql()).isEqualTo("SELECT 1 WHERE tenant = ?");
         assertThat(view.queryType()).isEqualTo(QueryType.SELECT);
         assertThat(view.transactional()).isTrue();
         assertThat(view.dbType()).isEqualTo(DbType.POSTGRESQL);

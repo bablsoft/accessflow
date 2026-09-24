@@ -39,7 +39,7 @@ class ComplianceReportTest {
         var report = new ComplianceReport(ComplianceReportType.REGULATORY_AUDIT_TRAIL, UUID.randomUUID(),
                 Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, null, List.of(), mutable, false);
         mutable.add(new RegulatoryAuditTrailRow(UUID.randomUUID(), UUID.randomUUID(), "ds",
-                UUID.randomUUID(), "a@x.com", QueryType.DELETE, "DELETE", List.of(), Instant.EPOCH));
+                UUID.randomUUID(), "a@x.com", QueryType.DELETE, "DELETE", List.of(), Instant.EPOCH, null));
 
         assertThat(report.auditTrail()).isEmpty();
     }

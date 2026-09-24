@@ -855,7 +855,16 @@
       "export_denied_classified_tooltip": "导出被拒绝：此结果包含分类为 {{classifications}} 的列",
       "card_sql_review": "SQL 审查发现",
       "sql_review_blocked_note_one": "提交时触发了 {{count}} 条阻断性规则，因此该查询无法自动批准，已转交人工审查。",
-      "sql_review_blocked_note_other": "提交时触发了 {{count}} 条阻断性规则，因此该查询无法自动批准，已转交人工审查。"
+      "sql_review_blocked_note_other": "提交时触发了 {{count}} 条阻断性规则，因此该查询无法自动批准，已转交人工审查。",
+      "effective_sql": {
+        "view_aria": "SQL 视图",
+        "view_submitted": "提交的",
+        "view_effective": "实际执行",
+        "view_diff": "差异",
+        "hint": "实际执行的 SQL 是语句真正运行时的形式，已应用行级安全过滤和软删除改写。绑定值显示为 ?，且从不存储。",
+        "diff_submitted_label": "提交的 SQL",
+        "diff_effective_label": "实际执行的 SQL"
+      }
     }
   },
   "reviews": {
@@ -3917,6 +3926,7 @@
     "col_classifications": "分类",
     "col_rows_affected": "行数",
     "col_sql": "SQL",
+    "col_effective_sql": "实际执行的 SQL",
     "col_approvers": "批准人"
   },
   "anomalies": {

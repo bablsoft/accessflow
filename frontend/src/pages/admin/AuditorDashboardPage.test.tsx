@@ -88,6 +88,47 @@ describe('AuditorDashboardPage', () => {
     );
   });
 
+  it('shows the effective executed SQL on the regulatory audit trail', async () => {
+    const trailRow = {
+      query_request_id: 'q-2',
+      datasource_id: 'ds-1',
+      datasource_name: 'ProdDb',
+      submitted_by: 'u-1',
+      submitter_email: 'bob@example.com',
+      query_type: 'DELETE' as const,
+      sql_text: 'DELETE FROM orders',
+      approvers: [],
+      executed_at: '2026-02-01T10:00:00Z',
+    };
+    fetchComplianceReportMock.mockImplementation(async (type: string) =>
+      type === 'REGULATORY_AUDIT_TRAIL'
+        ? {
+            ...classifiedReport(),
+            type: 'REGULATORY_AUDIT_TRAIL',
+            classified_access: [],
+            audit_trail: [
+              { ...trailRow, effective_sql: 'DELETE FROM orders WHERE orders.region = ?' },
+              { ...trailRow, query_request_id: 'q-3', sql_text: 'DELETE FROM carts' },
+            ],
+            row_count: 2,
+          }
+        : classifiedReport(),
+    );
+
+    render(wrap(<AuditorDashboardPage />));
+    await waitFor(() => expect(screen.getByText('alice@example.com')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Regulatory audit trail'));
+
+    await waitFor(() =>
+      expect(screen.getByText('DELETE FROM orders WHERE orders.region = ?')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Effective SQL')).toBeInTheDocument();
+    expect(screen.getByText('DELETE FROM carts')).toBeInTheDocument();
+    // The row without a rewrite renders the placeholder, never an empty code cell.
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
   it('exports a signed PDF on button click', async () => {
     fetchComplianceReportMock.mockResolvedValue(classifiedReport());
     exportComplianceReportMock.mockResolvedValue({

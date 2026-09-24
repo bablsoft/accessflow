@@ -855,7 +855,16 @@
       "export_denied_classified_tooltip": "Export verweigert: dieses Ergebnis enthält Spalten mit der Klassifizierung {{classifications}}",
       "card_sql_review": "SQL-Prüfbefunde",
       "sql_review_blocked_note_one": "{{count}} blockierende Regel hat beim Einreichen ausgelöst; die Abfrage konnte nicht automatisch freigegeben werden und ging in die manuelle Prüfung.",
-      "sql_review_blocked_note_other": "{{count}} blockierende Regeln haben beim Einreichen ausgelöst; die Abfrage konnte nicht automatisch freigegeben werden und ging in die manuelle Prüfung."
+      "sql_review_blocked_note_other": "{{count}} blockierende Regeln haben beim Einreichen ausgelöst; die Abfrage konnte nicht automatisch freigegeben werden und ging in die manuelle Prüfung.",
+      "effective_sql": {
+        "view_aria": "SQL-Ansicht",
+        "view_submitted": "Eingereicht",
+        "view_effective": "Effektiv",
+        "view_diff": "Vergleich",
+        "hint": "Effektives SQL ist die Anweisung, wie sie tatsächlich ausgeführt wurde, mit angewendeten Zeilensicherheits-Filtern und Soft-Delete-Umschreibungen. Gebundene Werte werden als ? angezeigt und nie gespeichert.",
+        "diff_submitted_label": "Eingereichtes SQL",
+        "diff_effective_label": "Effektives SQL"
+      }
     }
   },
   "reviews": {
@@ -3917,6 +3926,7 @@
     "col_classifications": "Klassifizierungen",
     "col_rows_affected": "Zeilen",
     "col_sql": "SQL",
+    "col_effective_sql": "Effektives SQL",
     "col_approvers": "Genehmiger"
   },
   "anomalies": {
