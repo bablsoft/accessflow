@@ -169,6 +169,44 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
     ).toHaveCount(0);
   });
 
+  test('records an application name on the key and shows it in the table (#938)', async ({
+    page,
+  }) => {
+    const keyName = `${KEY_NAME_PREFIX}app-${SUFFIX}`;
+    const appName = `reporting-${SUFFIX}`;
+    await page.getByRole('button', { name: 'Create API key', exact: true }).click();
+    const createDialog = page.getByRole('dialog', { name: 'Create a new API key' });
+    await expect(createDialog).toBeVisible({ timeout: 5_000 });
+    await createDialog.getByLabel('Key name', { exact: true }).fill(keyName);
+    await createDialog.getByLabel('Application name', { exact: true }).fill(`  ${appName}  `);
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/me\/api-keys$/.test(r.url()) &&
+        r.status() === 201,
+      { timeout: 10_000 },
+    );
+    await createDialog.getByRole('button', { name: 'Create API key', exact: true }).click();
+    const created = (await (await createResponsePromise).json()) as {
+      api_key: { application_name?: string };
+    };
+    expect(created.api_key.application_name).toBe(appName);
+
+    const issuedDialog = page.getByRole('dialog', { name: 'Copy your new API key' });
+    await issuedDialog
+      .locator('.ant-modal-footer')
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
+    await expect(issuedDialog).toBeHidden({ timeout: 5_000 });
+
+    const table = page.getByRole('table', { name: 'API keys' });
+    await expect(table.getByRole('columnheader', { name: 'Application' })).toBeVisible();
+    await expect(table.locator('tr').filter({ hasText: keyName })).toContainText(appName, {
+      timeout: 10_000,
+    });
+  });
+
   test('blocks create when name is empty', async ({ page }) => {
     await page.getByRole('button', { name: 'Create API key', exact: true }).click();
     const createDialog = page.getByRole('dialog', { name: 'Create a new API key' });
@@ -340,22 +378,22 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
       .click();
     await expect(issuedDialog).toBeHidden({ timeout: 5_000 });
 
-    // Columns: Name, Prefix, Created, Last used, Expires, Status, actions. Assert
+    // Columns: Name, Application, Prefix, Created, Last used, Expires, Status, actions. Assert
     // the header index before using it, so a column reorder fails loudly here
     // rather than silently moving the cell assertion onto the wrong column.
     const table = page.getByRole('table', { name: 'API keys' });
-    await expect(table.locator('thead th').nth(4)).toHaveText('Expires');
+    await expect(table.locator('thead th').nth(5)).toHaveText('Expires');
     const row = table.locator('tr').filter({ hasText: KEY_NAME_EXP });
     await expect(row).toBeVisible({ timeout: 10_000 });
     // The Expires cell renders through Intl.DateTimeFormat, whose exact wording
     // is locale-dependent — assert the year and day-of-month it must contain
     // rather than the placeholder it must not be.
-    const expiresCell = row.locator('td').nth(4);
+    const expiresCell = row.locator('td').nth(5);
     await expect(expiresCell).toContainText(String(target.getFullYear()));
     await expect(expiresCell).toContainText(String(target.getDate()));
 
     // Still Active: the expiry is 30 days out, not passed.
-    await expect(row.locator('td').nth(5)).toHaveText('Active');
+    await expect(row.locator('td').nth(6)).toHaveText('Active');
   });
 
   test.afterAll(async ({ request }) => {

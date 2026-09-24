@@ -1627,6 +1627,18 @@ the actor on `AuditLogPage` rows (`on_behalf_of_email`, resolved server-side fro
 The action / resource-type filter lists include the `SERVICE_ACCOUNT_*` actions and the
 `service_account` resource.
 
+**Calling application (#938).** `ClientApplicationTag` (`src/components/common/`) renders the
+recorded application name in `code` style with a tooltip naming its source; a `HEADER` source
+(`application_name_source`, or the lowercase `header` in audit metadata) adds a warning `Tag`
+reading *Untrusted*. It appears in the `QueryDetailPage` subtitle (`query.application_name`) and
+under the actor on `AuditLogPage` rows and in its detail drawer (from `metadata.application_name`).
+`QueryListPage` and `AuditLogPage` each gained an *Application* text filter (`application_name` /
+`applicationName`, sent server-side; the audit page also seeds `?application_name=` once on
+mount). The key create / issue / rotate forms (`ApiKeysSection`, `ServiceAccountKeysTab`) take an
+optional *Application name* (`max: 100`, mirrored in `KEY_FORM_CONSTRAINTS`; on rotate, empty keeps
+the superseded key's) and both key tables gained an *Application* column. Strings live under
+`client_application.*`; the source enum label is `applicationNameSourceLabel` in `enumLabels.ts`.
+
 ### OAuth 2.0 sign-in
 
 `LoginPage` renders one "Continue with &lt;Provider&gt;" button per active row returned by

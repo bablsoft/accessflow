@@ -31,7 +31,8 @@ public class DefaultApiKeyService implements ApiKeyService {
 
     @Override
     @Transactional
-    public IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt) {
+    public IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt,
+                              String applicationName) {
         if (apiKeyRepository.existsByUserIdAndName(userId, name)) {
             throw new ApiKeyDuplicateNameException(name);
         }
@@ -44,6 +45,7 @@ public class DefaultApiKeyService implements ApiKeyService {
         entity.setKeyPrefix(ApiKeyHasher.prefixOf(rawKey));
         entity.setKeyHash(ApiKeyHasher.hash(rawKey));
         entity.setExpiresAt(expiresAt);
+        entity.setApplicationName(normalizeApplicationName(applicationName));
         entity.setCreatedAt(Instant.now());
         var saved = apiKeyRepository.save(entity);
         return new IssuedApiKey(toView(saved), rawKey);
@@ -159,7 +161,15 @@ public class DefaultApiKeyService implements ApiKeyService {
         } catch (RuntimeException ex) {
             log.warn("Failed to touch last_used_at for api key {}: {}", entity.getId(), ex.getMessage());
         }
-        return Optional.of(new ResolvedApiKey(entity.getId(), entity.getUserId()));
+        return Optional.of(new ResolvedApiKey(entity.getId(), entity.getUserId(),
+                entity.getApplicationName()));
+    }
+
+    private static String normalizeApplicationName(String applicationName) {
+        if (applicationName == null || applicationName.isBlank()) {
+            return null;
+        }
+        return applicationName.strip();
     }
 
     static ApiKeyView toView(ApiKeyEntity entity) {
@@ -173,7 +183,8 @@ public class DefaultApiKeyService implements ApiKeyService {
                 entity.getLastUsedAt(),
                 entity.getExpiresAt(),
                 entity.getRevokedAt(),
-                entity.isBootstrapDeclared()
+                entity.isBootstrapDeclared(),
+                entity.getApplicationName()
         );
     }
 }

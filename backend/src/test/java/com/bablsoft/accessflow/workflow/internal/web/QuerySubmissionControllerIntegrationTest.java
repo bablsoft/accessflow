@@ -178,6 +178,25 @@ class QuerySubmissionControllerIntegrationTest {
     }
 
     @Test
+    void submitRecordsTheApplicationHeaderAsAnUntrustedSource() {
+        when(querySubmissionService.submit(any()))
+                .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
+
+        var response = mvc.post().uri("/api/v1/queries")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .header("X-AccessFlow-Application", "reporting-service")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"%s\",\"sql\":\"SELECT 1\"}".formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().application()).isEqualTo(new com.bablsoft.accessflow.core.api.ClientApplication(
+                "reporting-service", com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER));
+    }
+
+    @Test
     void submitWithoutCiHeaderDoesNotFlagCiCdOrigin() {
         when(querySubmissionService.submit(any()))
                 .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
@@ -192,6 +211,7 @@ class QuerySubmissionControllerIntegrationTest {
         var captor = ArgumentCaptor.forClass(SubmissionInput.class);
         verify(querySubmissionService).submit(captor.capture());
         assertThat(captor.getValue().ciCdOrigin()).isFalse();
+        assertThat(captor.getValue().application()).isNull();
     }
 
     @Test

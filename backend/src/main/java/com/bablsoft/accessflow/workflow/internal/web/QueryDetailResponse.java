@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
+import com.bablsoft.accessflow.core.api.ApplicationNameSource;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
@@ -58,7 +59,11 @@ public record QueryDetailResponse(
         Instant createdAt,
         Instant updatedAt,
         /** The human an API-key submitter acted for (#874); null for a human submission. */
-        OnBehalfOfRef onBehalfOf) {
+        OnBehalfOfRef onBehalfOf,
+        /** The calling application (#938); null when unknown. */
+        String applicationName,
+        /** {@code API_KEY} (trustworthy) or {@code HEADER} (client-controlled). */
+        ApplicationNameSource applicationNameSource) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
         return from(view, null, null);
@@ -154,7 +159,9 @@ public record QueryDetailResponse(
                 view.createdAt(),
                 view.updatedAt(),
                 view.onBehalfOfUserId() == null ? null
-                        : new OnBehalfOfRef(view.onBehalfOfUserId(), view.onBehalfOfEmail()));
+                        : new OnBehalfOfRef(view.onBehalfOfUserId(), view.onBehalfOfEmail()),
+                view.applicationName(),
+                view.applicationNameSource());
     }
 
     /** A ticket auto-created in an external ticketing system for this query (AF-453). */

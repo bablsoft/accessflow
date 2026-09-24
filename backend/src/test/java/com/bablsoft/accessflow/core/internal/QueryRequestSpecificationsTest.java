@@ -150,6 +150,21 @@ class QueryRequestSpecificationsTest {
         verify(cb, never()).greaterThanOrEqualTo(any(Expression.class), any(Instant.class));
     }
 
+    @Test
+    void applicationNameFilterIsAnExactStrippedMatchAndBlankIsIgnored() {
+        var applicationNamePath = mock(Path.class);
+        when(root.get("applicationName")).thenReturn(applicationNamePath);
+        var orgId = UUID.randomUUID();
+
+        QueryRequestSpecifications.forFilter(new QueryListFilter(orgId, null, null, null, null, null, null,
+                " reporting ")).toPredicate(root, cq, cb);
+        QueryRequestSpecifications.forFilter(new QueryListFilter(orgId, null, null, null, null, null, null,
+                "  ")).toPredicate(root, cq, cb);
+
+        verify(cb).equal(applicationNamePath, "reporting");
+        verify(cb, org.mockito.Mockito.times(1)).equal(eq(applicationNamePath), any(Object.class));
+    }
+
     private static QueryListFilter filter(UUID orgId, UUID userId, UUID dsId,
                                            QueryStatus status, QueryType queryType,
                                            Instant from, Instant to) {

@@ -34,6 +34,7 @@ import { serviceAccountErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import {
   KEY_FORM_CONSTRAINTS,
+  NO_CONTROL_CHARACTERS,
   fieldRules,
   gracePeriodOf,
   keyStatus,
@@ -48,6 +49,7 @@ const DEFAULT_GRACE_HOURS = 24;
 interface KeyFormValues {
   name: string;
   expires_at?: Dayjs | null;
+  application_name?: string;
   grace_hours?: number | null;
 }
 
@@ -72,6 +74,7 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
       issueServiceAccountKey(account.id, {
         name: values.name.trim(),
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+        application_name: values.application_name?.trim() || null,
       }),
     onSuccess: (result) => {
       message.success(t('admin.service_accounts.keys.issued'));
@@ -89,6 +92,8 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
         name: values.name.trim(),
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
         grace_period: gracePeriodOf(values.grace_hours) ?? null,
+        // Omitted (null) keeps the superseded key's application name on the backend (#938).
+        application_name: values.application_name?.trim() || null,
       }),
     onSuccess: (result) => {
       message.success(t('admin.service_accounts.keys.rotated'));
@@ -125,6 +130,12 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
           )}
         </Space>
       ),
+    },
+    {
+      title: t('client_application.column'),
+      dataIndex: 'application_name',
+      render: (v: string | null | undefined) =>
+        v ? <Typography.Text code>{v}</Typography.Text> : <span className="muted">—</span>,
     },
     {
       title: t('admin.service_accounts.keys.col_prefix'),
@@ -213,6 +224,19 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
         rules={fieldRules(t, KEY_FORM_CONSTRAINTS.name)}
       >
         <Input placeholder={t('admin.service_accounts.keys.name_placeholder')} autoFocus={form === 'issue'} />
+      </Form.Item>
+      <Form.Item
+        name="application_name"
+        label={t('client_application.key_label')}
+        extra={
+          form === 'rotate' ? t('client_application.rotate_help') : t('client_application.key_help')
+        }
+        rules={[
+          ...fieldRules(t, KEY_FORM_CONSTRAINTS.application_name),
+          { pattern: NO_CONTROL_CHARACTERS, message: t('client_application.key_control_chars') },
+        ]}
+      >
+        <Input placeholder={t('client_application.key_placeholder')} />
       </Form.Item>
       <Form.Item
         name="expires_at"

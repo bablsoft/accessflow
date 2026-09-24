@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.api.RequestApplicationService;
 import com.bablsoft.accessflow.serviceaccounts.api.OnBehalfOfPrincipalService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
@@ -27,8 +28,9 @@ class BreakGlassControllerTest {
 
     private final BreakGlassService breakGlassService = mock(BreakGlassService.class);
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
+    private final RequestApplicationService requestApplicationService = mock(RequestApplicationService.class);
     private final BreakGlassController controller = new BreakGlassController(breakGlassService,
-            onBehalfOfPrincipalService);
+            onBehalfOfPrincipalService, requestApplicationService);
 
     private final UUID organizationId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();

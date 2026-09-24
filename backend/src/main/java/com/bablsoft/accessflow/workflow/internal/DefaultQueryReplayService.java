@@ -66,7 +66,8 @@ class DefaultQueryReplayService implements QueryReplayService {
                 false,
                 null,
                 null,
-                command.onBehalfOfUserId()));
+                command.onBehalfOfUserId(),
+                command.application()));
 
         return new ReplayResult(result.id(), result.status(), snapshot.schemaHash(),
                 targetSchemaHash, snapshot.datasourceId(), target.id());

@@ -189,6 +189,7 @@ export async function listAuditEvents(
   const params: Record<string, string | number> = {};
   if (filters.actor_id) params.actorId = filters.actor_id;
   if (filters.on_behalf_of_user_id) params.onBehalfOfUserId = filters.on_behalf_of_user_id;
+  if (filters.application_name) params.applicationName = filters.application_name;
   if (filters.action) params.action = filters.action;
   if (filters.resource_type) params.resourceType = filters.resource_type;
   if (filters.resource_id) params.resourceId = filters.resource_id;
@@ -225,6 +226,7 @@ export async function exportAuditLogCsv(
   const params: Record<string, string> = {};
   if (filters.actor_id) params.actorId = filters.actor_id;
   if (filters.on_behalf_of_user_id) params.onBehalfOfUserId = filters.on_behalf_of_user_id;
+  if (filters.application_name) params.applicationName = filters.application_name;
   if (filters.action) params.action = filters.action;
   if (filters.resource_type) params.resourceType = filters.resource_type;
   if (filters.resource_id) params.resourceId = filters.resource_id;

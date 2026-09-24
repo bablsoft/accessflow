@@ -1324,7 +1324,15 @@ export interface QueryListItem {
   recurring: boolean;
   recurring_parent_id: string | null;
   created_at: string;
+  application_name?: string | null;
+  application_name_source?: ApplicationNameSource | null;
 }
+
+/**
+ * Where a request's calling application came from (#938): the API key (trustworthy) or the
+ * caller-supplied `X-AccessFlow-Application` header (client-controlled, shown as untrusted).
+ */
+export type ApplicationNameSource = 'API_KEY' | 'HEADER';
 
 export interface AiAnalysisDetail {
   id: string;
@@ -1399,6 +1407,9 @@ export interface QueryDetail {
   submitted_by: UserRef;
   /** The human an API-key submitter acted for (#874); null for a human submission. */
   on_behalf_of?: { id: string; email: string | null } | null;
+  /** The calling application (#938); absent when unknown. */
+  application_name?: string | null;
+  application_name_source?: ApplicationNameSource | null;
   sql_text: string;
   /**
    * The statement as actually executed (#937) — row-security / soft-delete rewrite with bound
@@ -1911,6 +1922,8 @@ export interface AuditLogFilters {
   actor_id?: string;
   /** Rows whose metadata names this person as the on-behalf-of principal (#874). */
   on_behalf_of_user_id?: string;
+  /** Rows whose metadata names this calling application (#938), exact match. */
+  application_name?: string;
   action?: string;
   resource_type?: string;
   resource_id?: string;
@@ -2538,11 +2551,14 @@ export interface ApiKey {
   last_used_at: string | null;
   expires_at: string | null;
   revoked_at: string | null;
+  /** The calling application the key identifies (#938); absent when it names none. */
+  application_name?: string | null;
 }
 
 export interface CreateApiKeyInput {
   name: string;
   expires_at?: string | null;
+  application_name?: string | null;
 }
 
 export interface CreateApiKeyResponse {
@@ -2637,6 +2653,8 @@ export interface UpdateServiceAccountInput {
 export interface IssueServiceAccountKeyInput {
   name: string;
   expires_at?: string | null;
+  /** On rotate, omitting it keeps the superseded key's application name (#938). */
+  application_name?: string | null;
 }
 
 export interface IssuedServiceAccountKey {

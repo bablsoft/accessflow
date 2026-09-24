@@ -56,7 +56,13 @@ describe('AuditLogPage — on-behalf-of attribution (#874, #875)', () => {
       content: [
         event({
           on_behalf_of_email: 'alice@example.com',
-          metadata: { on_behalf_of_user_id: 'u-alice', service_account: true, api_key_id: 'k-1' },
+          metadata: {
+            on_behalf_of_user_id: 'u-alice',
+            service_account: true,
+            api_key_id: 'k-1',
+            application_name: 'reporting-service',
+            application_name_source: 'header',
+          },
         }),
         event({ id: 'a-2', actor_id: 'u-bob', actor_email: 'bob@example.com', actor_display_name: 'Bob' }),
       ],
@@ -83,6 +89,40 @@ describe('AuditLogPage — on-behalf-of attribution (#874, #875)', () => {
     await screen.findByText('CI bot');
     expect(listAuditEvents).toHaveBeenCalledWith(
       expect.objectContaining({ actor_id: 'sa-1', on_behalf_of_user_id: 'u-alice' }),
+    );
+  });
+
+  it('shows the calling application with an untrusted marker for a header source (#938)', async () => {
+    render(wrap(<AuditLogPage />));
+
+    const botRow = (await screen.findByText('CI bot')).closest('tr');
+    expect(within(botRow!).getByTestId('audit-application-a-1')).toHaveTextContent('reporting-service');
+    expect(within(botRow!).getByTestId('audit-application-a-1-untrusted')).toBeInTheDocument();
+    const bobRow = screen.getByText('Bob').closest('tr');
+    expect(within(bobRow!).queryByText('reporting-service')).not.toBeInTheDocument();
+  });
+
+  it('shows the application in the detail drawer, or a dash when the row has none', async () => {
+    render(wrap(<AuditLogPage />));
+
+    fireEvent.click((await screen.findByText('CI bot')).closest('tr')!);
+    expect(await screen.findByTestId('audit-detail-application')).toHaveTextContent('reporting-service');
+    expect(screen.getByTestId('audit-detail-application-untrusted')).toBeInTheDocument();
+  });
+
+  it('seeds and applies the application filter', async () => {
+    render(wrap(<AuditLogPage />, '/admin/audit-log?application_name=etl'));
+    await screen.findByText('CI bot');
+    expect(listAuditEvents).toHaveBeenCalledWith(expect.objectContaining({ application_name: 'etl' }));
+
+    fireEvent.change(screen.getByLabelText('Filter by application'), {
+      target: { value: ' billing ' },
+    });
+
+    await waitFor(() =>
+      expect(listAuditEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({ application_name: 'billing', page: 0 }),
+      ),
     );
   });
 

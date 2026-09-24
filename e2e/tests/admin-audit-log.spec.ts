@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  apiBase,
   createPostgresDatasource,
   deleteDatasource,
   loginViaApi,
@@ -253,6 +254,86 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
     await page.getByTestId('verify-chain-button').click();
     const verifyOk = (await (await verifyResponse).json()) as { ok: boolean };
     expect(verifyOk.ok).toBe(true);
+  });
+
+  // #938 — the calling application: a named API key is trustworthy, the X-AccessFlow-Application
+  // header is not. Both land in audit metadata; the page filters on it and marks the header
+  // source as untrusted.
+  test('filters by calling application and marks a header-supplied one untrusted', async ({
+    page,
+    request,
+  }) => {
+    const keyApp = `e2e-key-app-${UNIQUE_SUFFIX}`;
+    const headerApp = `e2e-header-app-${UNIQUE_SUFFIX}`;
+    const createKey = await request.post(`${apiBase()}/api/v1/me/api-keys`, {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: { name: `e2e-app-key-${UNIQUE_SUFFIX}`, application_name: keyApp },
+    });
+    expect(createKey.status()).toBe(201);
+    const issued = (await createKey.json()) as {
+      api_key: { id: string; application_name: string };
+      raw_key: string;
+    };
+    expect(issued.api_key.application_name).toBe(keyApp);
+
+    try {
+      // The CSV export is itself audited (AUDIT_LOG_EXPORTED), so each call writes one row that
+      // carries the request's calling application.
+      const viaKey = await request.get(`${apiBase()}/api/v1/admin/audit-log/export.csv`, {
+        headers: {
+          'X-API-Key': issued.raw_key,
+          // A named key wins over the header — this value must never be recorded.
+          'X-AccessFlow-Application': 'spoofed-by-header',
+          Accept: 'text/csv',
+        },
+      });
+      expect(viaKey.status()).toBe(200);
+      const viaHeader = await request.get(`${apiBase()}/api/v1/admin/audit-log/export.csv`, {
+        headers: {
+          Authorization: `Bearer ${adminAccessToken}`,
+          'X-AccessFlow-Application': headerApp,
+          Accept: 'text/csv',
+        },
+      });
+      expect(viaHeader.status()).toBe(200);
+
+      await login(page);
+      await page.goto('/admin/audit-log');
+      await waitForAuditListReady(page);
+
+      const keyFiltered = page.waitForResponse(
+        (r) =>
+          r.request().method() === 'GET' &&
+          r.url().includes(`applicationName=${keyApp}`) &&
+          r.ok(),
+        { timeout: 15_000 },
+      );
+      await page.getByLabel('Filter by application').fill(keyApp);
+      const keyBody = (await (await keyFiltered).json()) as { total_elements: number };
+      expect(keyBody.total_elements).toBe(1);
+      const table = page.getByRole('table');
+      const keyRow = table.locator('tr').filter({ hasText: 'AUDIT_LOG_EXPORTED' });
+      await expect(keyRow).toHaveCount(1);
+      await expect(keyRow).toContainText(keyApp);
+      await expect(keyRow.getByText('Untrusted', { exact: true })).toHaveCount(0);
+
+      const headerFiltered = page.waitForResponse(
+        (r) =>
+          r.request().method() === 'GET' &&
+          r.url().includes(`applicationName=${headerApp}`) &&
+          r.ok(),
+        { timeout: 15_000 },
+      );
+      await page.getByLabel('Filter by application').fill(headerApp);
+      await headerFiltered;
+      const headerRow = table.locator('tr').filter({ hasText: headerApp });
+      await expect(headerRow).toHaveCount(1);
+      await expect(headerRow.getByText('Untrusted', { exact: true })).toBeVisible();
+    } finally {
+      await request.delete(`${apiBase()}/api/v1/me/api-keys/${issued.api_key.id}`, {
+        headers: { Authorization: `Bearer ${adminAccessToken}` },
+      });
+    }
   });
 
   test('filter that matches no events renders the empty-state', async ({ page }) => {

@@ -24,6 +24,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
+import { ClientApplicationTag } from '@/components/common/ClientApplicationTag';
 import {
   auditKeys,
   exportAuditLogCsv,
@@ -140,6 +141,9 @@ export function AuditLogPage() {
   const [onBehalfOfUserId, setOnBehalfOfUserId] = useState(
     () => searchParams.get('on_behalf_of_user_id') ?? '',
   );
+  const [applicationName, setApplicationName] = useState(
+    () => searchParams.get('application_name') ?? '',
+  );
   const [resourceId, setResourceId] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [detail, setDetail] = useState<AuditEvent | null>(null);
@@ -169,11 +173,12 @@ export function AuditLogPage() {
       resource_type: resourceType === 'all' ? undefined : resourceType,
       actor_id: actorId.trim() || undefined,
       on_behalf_of_user_id: onBehalfOfUserId.trim() || undefined,
+      application_name: applicationName.trim() || undefined,
       resource_id: resourceId.trim() || undefined,
       from: range?.[0]?.toISOString(),
       to: range?.[1]?.toISOString(),
     }),
-    [page, action, resourceType, actorId, onBehalfOfUserId, resourceId, range],
+    [page, action, resourceType, actorId, onBehalfOfUserId, applicationName, resourceId, range],
   );
 
   const exportCsv = useMutation({
@@ -281,6 +286,17 @@ export function AuditLogPage() {
             setPage(0);
           }}
           style={{ width: 240 }}
+          className="mono"
+        />
+        <Input
+          placeholder={t('client_application.filter_placeholder')}
+          aria-label={t('client_application.filter_aria')}
+          value={applicationName}
+          onChange={(e) => {
+            setApplicationName(e.target.value);
+            setPage(0);
+          }}
+          style={{ width: 200 }}
           className="mono"
         />
         <Input
@@ -404,6 +420,19 @@ export function AuditLogPage() {
                           email={e.on_behalf_of_email}
                           userId={typeof onBehalfOfId === 'string' ? onBehalfOfId : null}
                         />
+                        {typeof e.metadata.application_name === 'string' && (
+                          <div style={{ fontSize: 10 }}>
+                            <ClientApplicationTag
+                              name={e.metadata.application_name}
+                              source={
+                                typeof e.metadata.application_name_source === 'string'
+                                  ? e.metadata.application_name_source
+                                  : null
+                              }
+                              testId={`audit-application-${e.id}`}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -496,6 +525,30 @@ export function AuditLogPage() {
                 <Row k="actor.email" v={detail.actor_email ?? '—'} />
                 <Row k="actor.display_name" v={detail.actor_display_name ?? '—'} />
                 <Row k="on_behalf_of.email" v={detail.on_behalf_of_email ?? '—'} />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                  }}
+                >
+                  <span className="muted">application</span>
+                  {typeof detail.metadata.application_name === 'string' ? (
+                    <ClientApplicationTag
+                      name={detail.metadata.application_name}
+                      source={
+                        typeof detail.metadata.application_name_source === 'string'
+                          ? detail.metadata.application_name_source
+                          : null
+                      }
+                      testId="audit-detail-application"
+                    />
+                  ) : (
+                    <span>—</span>
+                  )}
+                </div>
                 <Row k="resource.type" v={detail.resource_type} />
                 <Row k="resource.id" v={detail.resource_id ?? '—'} />
                 <Row k="ip" v={detail.ip_address ?? '—'} />

@@ -38,6 +38,10 @@ final class QueryRequestSpecifications {
             if (filter.to() != null) {
                 predicates.add(cb.lessThan(root.get("createdAt"), filter.to()));
             }
+            if (filter.applicationName() != null && !filter.applicationName().isBlank()) {
+                predicates.add(cb.equal(root.get("applicationName"),
+                        filter.applicationName().strip()));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

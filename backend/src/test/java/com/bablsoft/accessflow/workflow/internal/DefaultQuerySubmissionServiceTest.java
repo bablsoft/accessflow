@@ -465,6 +465,22 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     @Test
+    void persistsTheCallingApplicationOntoCommand() {
+        stubParse("SELECT 1", QueryType.SELECT);
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null);
+        stubPersist();
+        var app = new com.bablsoft.accessflow.core.api.ClientApplication("reporting", com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+
+        service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
+                userId, organizationId, false, null, null, null, null, true, null, null, null, app));
+
+        ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
+        verify(queryRequestPersistenceService).submit(captor.capture());
+        assertThat(captor.getValue().application()).isEqualTo(app);
+    }
+
+    @Test
     void propagatesAiSuggestionSubmissionReason() {
         stubParse("SELECT 1", QueryType.SELECT);
         stubActiveDatasourceForUser();

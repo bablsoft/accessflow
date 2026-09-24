@@ -71,6 +71,33 @@ class DefaultQueryRequestPersistenceServiceTest {
         assertThat(saved.getStatus())
                 .isEqualTo(com.bablsoft.accessflow.core.api.QueryStatus.PENDING_AI);
         assertThat(saved.getCreatedAt()).isNotNull();
+        assertThat(saved.getApplicationName()).isNull();
+        assertThat(saved.getApplicationNameSource()).isNull();
+    }
+
+    @Test
+    void submitStoresTheCallingApplication() {
+        var datasourceId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var datasource = new DatasourceEntity();
+        datasource.setId(datasourceId);
+        var user = new UserEntity();
+        user.setId(userId);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(datasource));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(queryRequestRepository.save(any(QueryRequestEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        service.submit(new SubmitQueryCommand(datasourceId, userId, "SELECT 1", QueryType.SELECT,
+                false, null, null, SubmissionReason.USER_SUBMITTED, null, null, true, null, null,
+                null, null, new com.bablsoft.accessflow.core.api.ClientApplication("reporting",
+                        com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER)));
+
+        ArgumentCaptor<QueryRequestEntity> captor = ArgumentCaptor.forClass(QueryRequestEntity.class);
+        verify(queryRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().getApplicationName()).isEqualTo("reporting");
+        assertThat(captor.getValue().getApplicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.HEADER);
     }
 
     @Test
@@ -131,6 +158,8 @@ class DefaultQueryRequestPersistenceServiceTest {
     @Test
     void createRecurringOccurrenceCopiesParentFieldsAndAdvancesCursorAtomically() {
         var parent = recurringParent();
+        parent.setApplicationName("reporting");
+        parent.setApplicationNameSource(com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
         var nextRunAt = java.time.Instant.now().plusSeconds(6 * 3600);
         when(queryRequestRepository.findByIdForUpdate(parent.getId()))
                 .thenReturn(Optional.of(parent));
@@ -155,6 +184,9 @@ class DefaultQueryRequestPersistenceServiceTest {
                 .isEqualTo(com.bablsoft.accessflow.core.api.QueryStatus.APPROVED);
         assertThat(child.getSubmissionReason()).isEqualTo(SubmissionReason.RECURRING);
         assertThat(child.getRecurringParentId()).isEqualTo(parent.getId());
+        assertThat(child.getApplicationName()).isEqualTo("reporting");
+        assertThat(child.getApplicationNameSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
         // The child never inherits the series definition — only the parent carries it.
         assertThat(child.getRecurrenceRule()).isNull();
         assertThat(child.getRecurrenceNextRunAt()).isNull();

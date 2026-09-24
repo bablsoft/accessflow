@@ -301,7 +301,9 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getScheduledFor(),
                 entity.getRecurrenceRule() != null,
                 entity.getRecurringParentId(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getApplicationName(),
+                entity.getApplicationNameSource());
     }
 
     private QueryDetailView toDetailView(QueryRequestEntity entity) {
@@ -358,7 +360,9 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
                 entity.getOnBehalfOfUserId(),
-                onBehalfOfEmail(entity.getOnBehalfOfUserId()));
+                onBehalfOfEmail(entity.getOnBehalfOfUserId()),
+                entity.getApplicationName(),
+                entity.getApplicationNameSource());
     }
 
     private String onBehalfOfEmail(UUID onBehalfOfUserId) {

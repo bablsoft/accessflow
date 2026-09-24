@@ -191,19 +191,21 @@ class ServiceAccountWebModelsTest {
     @Test
     void keyRequestsMapToCommandsAndValidateTheGrace() {
         var expires = Instant.parse("2027-01-01T00:00:00Z");
-        var issue = new IssueServiceAccountKeyRequest("ci", expires).toCommand();
+        var issue = new IssueServiceAccountKeyRequest("ci", expires, "reporting").toCommand();
         assertThat(issue.name()).isEqualTo("ci");
+        assertThat(issue.applicationName()).isEqualTo("reporting");
         assertThat(issue.expiresAt()).isEqualTo(expires);
 
-        var rotate = new RotateServiceAccountKeyRequest("ci-2", expires, Duration.ofMinutes(5));
+        var rotate = new RotateServiceAccountKeyRequest("ci-2", expires, Duration.ofMinutes(5), "etl");
         assertThat(rotate.isGracePeriodPositive()).isTrue();
         assertThat(rotate.toCommand().name()).isEqualTo("ci-2");
         assertThat(rotate.toCommand().expiresAt()).isEqualTo(expires);
         assertThat(rotate.toCommand().gracePeriod()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(rotate.toCommand().applicationName()).isEqualTo("etl");
 
-        assertThat(new RotateServiceAccountKeyRequest("x", null, null).isGracePeriodPositive()).isTrue();
-        assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ZERO).isGracePeriodPositive()).isFalse();
-        assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ofSeconds(-1)).isGracePeriodPositive())
+        assertThat(new RotateServiceAccountKeyRequest("x", null, null, null).isGracePeriodPositive()).isTrue();
+        assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ZERO, null).isGracePeriodPositive()).isFalse();
+        assertThat(new RotateServiceAccountKeyRequest("x", null, Duration.ofSeconds(-1), null).isGracePeriodPositive())
                 .isFalse();
     }
     @Test

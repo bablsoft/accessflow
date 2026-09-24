@@ -200,6 +200,31 @@ class AuditLogSpecificationsTest {
     }
 
     @Test
+    void applicationNameFilterMatchesTheMetadataKey() {
+        var metadataPath = mock(Path.class);
+        var literal = mock(Expression.class);
+        var extracted = mock(Expression.class);
+        when(root.get("metadata")).thenReturn(metadataPath);
+        when(cb.literal("application_name")).thenReturn(literal);
+        when(cb.function(eq("jsonb_extract_path_text"), eq(String.class), eq(metadataPath), eq(literal)))
+                .thenReturn(extracted);
+        var query = new AuditLogQuery(null, null, null, null, null, null, null, " reporting ");
+
+        AuditLogSpecifications.forQuery(UUID.randomUUID(), query).toPredicate(root, cq, cb);
+
+        verify(cb).equal(extracted, "reporting");
+    }
+
+    @Test
+    void blankApplicationNameIsIgnored() {
+        var query = new AuditLogQuery(null, null, null, null, null, null, null, "  ");
+
+        AuditLogSpecifications.forQuery(UUID.randomUUID(), query).toPredicate(root, cq, cb);
+
+        verify(root, never()).get("metadata");
+    }
+
+    @Test
     void emptyFilterNeverTouchesTheMetadataColumn() {
         AuditLogSpecifications.forQuery(UUID.randomUUID(), AuditLogQuery.empty()).toPredicate(root, cq, cb);
 

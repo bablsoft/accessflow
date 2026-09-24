@@ -5742,5 +5742,20 @@
     "use_id": "ID {{id}} verwenden",
     "user_id_placeholder": "Benutzer-ID einfügen",
     "masked_as": "{{field}} → {{strategy}}"
+  },
+  "client_application": {
+    "label": "Anwendung",
+    "untrusted": "Nicht vertrauenswürdig",
+    "untrusted_tooltip": "Vom Aufrufer im Header X-AccessFlow-Application gemeldet. Der Aufrufer bestimmt diesen Wert, daher ist er nicht überprüft.",
+    "trusted_tooltip": "Am API-Schlüssel gespeichert, mit dem diese Anfrage authentifiziert wurde.",
+    "filter_placeholder": "Anwendung",
+    "filter_aria": "Nach Anwendung filtern",
+    "key_label": "Anwendungsname",
+    "key_placeholder": "z. B. reporting-service",
+    "key_help": "Optional. Wird bei jeder Anfrage dieses Schlüssels erfasst, sodass das Audit-Log zeigt, welche Anwendung aufgerufen hat.",
+    "key_size": "Der Anwendungsname darf höchstens 100 Zeichen lang sein.",
+    "key_control_chars": "Der Anwendungsname darf keine Steuerzeichen enthalten.",
+    "rotate_help": "Leer lassen, um den Anwendungsnamen des aktuellen Schlüssels beizubehalten.",
+    "column": "Anwendung"
   }
 }

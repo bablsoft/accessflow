@@ -43,6 +43,7 @@ export const UPDATE_FORM_CONSTRAINTS = {
 /** `IssueServiceAccountKeyRequest` / `RotateServiceAccountKeyRequest` (#871). */
 export const KEY_FORM_CONSTRAINTS = {
   name: { required: true, max: 100 },
+  application_name: { max: 100 },
 } as const satisfies Record<string, FieldConstraints>;
 
 export function fieldRules(t: TFunction, constraints: FieldConstraints): Rule[] {
@@ -249,6 +250,9 @@ export function suggestedRotationName(name: string, now: Date = new Date()): str
   const base = name.replace(/-\d{4}-\d{2}-\d{2}$/, '');
   return `${base.slice(0, KEY_FORM_CONSTRAINTS.name.max - stamp.length - 1)}-${stamp}`;
 }
+
+/** Mirrors the key requests' `@Pattern("[^\\p{Cntrl}]*")` on `application_name` (#938). */
+export const NO_CONTROL_CHARACTERS = /^\P{Cc}*$/u;
 
 /** The rotation grace as the API's ISO-8601 duration; `undefined` keeps the deployment default. */
 export function gracePeriodOf(hours: number | null | undefined): string | undefined {

@@ -203,7 +203,7 @@ class ServiceAccountControllerTest {
         when(service.issueKey(eq(organizationId), eq(accountId), any())).thenReturn(issued);
         var expires = Instant.parse("2027-01-01T00:00:00Z");
 
-        var response = controller.issueKey(accountId, new IssueServiceAccountKeyRequest("ci", expires),
+        var response = controller.issueKey(accountId, new IssueServiceAccountKeyRequest("ci", expires, null),
                 authentication, auditContext);
 
         var captor = ArgumentCaptor.forClass(IssueServiceAccountKeyCommand.class);
@@ -229,7 +229,7 @@ class ServiceAccountControllerTest {
         when(service.rotateKey(eq(organizationId), eq(accountId), eq(keyId), any())).thenReturn(rotated);
 
         var response = controller.rotateKey(accountId, keyId,
-                new RotateServiceAccountKeyRequest("ci-2", null, Duration.ofHours(1)), authentication, auditContext);
+                new RotateServiceAccountKeyRequest("ci-2", null, Duration.ofHours(1), null), authentication, auditContext);
 
         var captor = ArgumentCaptor.forClass(RotateServiceAccountKeyCommand.class);
         verify(service).rotateKey(eq(organizationId), eq(accountId), eq(keyId), captor.capture());

@@ -5742,5 +5742,20 @@
     "use_id": "使用 ID {{id}}",
     "user_id_placeholder": "粘贴用户 ID",
     "masked_as": "{{field}} → {{strategy}}"
+  },
+  "client_application": {
+    "label": "应用",
+    "untrusted": "未验证",
+    "untrusted_tooltip": "由调用方在 X-AccessFlow-Application 请求头中提供。该值由调用方控制，因此未经验证。",
+    "trusted_tooltip": "存储在认证此请求的 API 密钥上。",
+    "filter_placeholder": "应用",
+    "filter_aria": "按应用筛选",
+    "key_label": "应用名称",
+    "key_placeholder": "例如 reporting-service",
+    "key_help": "可选。此密钥发出的每个请求都会记录该名称，审计日志因此能显示是哪个应用发起的调用。",
+    "key_size": "应用名称最多 100 个字符。",
+    "key_control_chars": "应用名称不能包含控制字符。",
+    "rotate_help": "留空则沿用当前密钥的应用名称。",
+    "column": "应用"
   }
 }

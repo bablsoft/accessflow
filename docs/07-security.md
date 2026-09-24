@@ -1176,6 +1176,27 @@ Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](0
 - **Audit.** A matched `ESCALATE` / `REQUIRE_APPROVALS` policy records its id, resolved
   `effective_min_approvals`, and reason on the `QUERY_REVIEW_REQUESTED` audit row.
 
+### Calling application (#938)
+
+Every request can be attributed to the **application** that made it — recorded as
+`application_name` + `application_name_source` on `query_requests` and in the metadata of every
+audit row the request writes (`security.api.RequestApplicationService`,
+`security.internal.ApplicationAuditMetadataContributor`). Two sources, with different trust:
+
+- **`API_KEY` — trustworthy.** The optional `application_name` stored on the API key that
+  authenticated the request. A caller cannot forge it without the key, and it always wins: the
+  holder of a named key cannot relabel itself with the header. Set at issue time only; a rotation
+  inherits it.
+- **`HEADER` — untrusted.** The `X-AccessFlow-Application` request header, used only when the key
+  names no application or the caller has a JWT session. It is entirely client-controlled: the value
+  is trimmed, dropped when blank or containing control characters (no log / CSV / CEF injection), and
+  truncated to 100 characters, and the UI labels it *Untrusted* on the query detail and audit log.
+
+This is **identification and audit only** — not an authorization dimension and not a routing
+operand. Should a future routing condition read it, it must follow the `cicd_origin` precedent above:
+a `HEADER` source must never be the sole basis of a permissive `AUTO_APPROVE`, and the leaf must fail
+closed on a missing or header-sourced value.
+
 ### Lifecycle pseudonymization & salt rotation (AF-499)
 
 A `PSEUDONYMIZE` retention policy applies an **irreversible** read-time transform to its target

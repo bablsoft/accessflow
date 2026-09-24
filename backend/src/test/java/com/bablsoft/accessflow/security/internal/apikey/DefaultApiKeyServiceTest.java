@@ -64,6 +64,18 @@ class DefaultApiKeyServiceTest {
     }
 
     @Test
+    void issue_stores_a_stripped_application_name_and_treats_blank_as_none() {
+        when(apiKeyRepository.existsByUserIdAndName(any(), any())).thenReturn(false);
+        when(apiKeyRepository.save(any(ApiKeyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var named = service.issue(userId, orgId, "ci", null, "  reporting  ");
+        var blank = service.issue(userId, orgId, "ci-2", null, "   ");
+
+        assertThat(named.view().applicationName()).isEqualTo("reporting");
+        assertThat(blank.view().applicationName()).isNull();
+    }
+
+    @Test
     void issue_rejects_duplicate_name_for_same_user() {
         when(apiKeyRepository.existsByUserIdAndName(userId, "ci")).thenReturn(true);
         assertThatThrownBy(() -> service.issue(userId, orgId, "ci", null))
@@ -267,6 +279,18 @@ class DefaultApiKeyServiceTest {
 
         assertThat(result).contains(new ResolvedApiKey(entity.getId(), userId));
         verify(apiKeyRepository).touchLastUsedAt(eq(entity.getId()), any(Instant.class));
+    }
+
+    @Test
+    void resolve_carries_the_keys_application_name() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        entity.setApplicationName("reporting");
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+
+        assertThat(service.resolve(raw))
+                .contains(new ResolvedApiKey(entity.getId(), userId, "reporting"));
     }
 
     @Test

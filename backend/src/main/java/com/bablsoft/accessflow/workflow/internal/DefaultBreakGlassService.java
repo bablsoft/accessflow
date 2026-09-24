@@ -91,7 +91,8 @@ class DefaultBreakGlassService implements BreakGlassService {
                 null,
                 null,
                 null,
-                input.onBehalfOfUserId()));
+                input.onBehalfOfUserId(),
+                input.application()));
         // SQL review findings are recorded for the retro-review but never gate an emergency (#864):
         // break-glass bypasses the decision chain the BLOCK guard lives in, by design.
         sqlReviewFindingService.recordForQuery(queryId,

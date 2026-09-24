@@ -59,6 +59,37 @@ describe('ApiKeysSection', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
+  it('shows the application a key identifies (#938)', async () => {
+    listApiKeys.mockResolvedValueOnce([{ ...baseKey, application_name: 'reporting-service' }]);
+    render(wrap(<ApiKeysSection />));
+    expect(await screen.findByText('reporting-service')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Application' })).toBeInTheDocument();
+  });
+
+  it('sends a trimmed application name when one is given', async () => {
+    listApiKeys.mockResolvedValue([]);
+    createApiKey.mockResolvedValueOnce({
+      api_key: { ...baseKey, name: 'reports', application_name: 'reporting-service' },
+      raw_key: 'af_x',
+    });
+    render(wrap(<ApiKeysSection />));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create API key' }));
+    fireEvent.change(await screen.findByLabelText('Key name'), { target: { value: 'reports' } });
+    fireEvent.change(screen.getByLabelText('Application name'), {
+      target: { value: '  reporting-service ' },
+    });
+    const createButtons = screen.getAllByRole('button', { name: 'Create API key' });
+    fireEvent.click(createButtons[createButtons.length - 1]!);
+
+    await waitFor(() =>
+      expect(createApiKey).toHaveBeenCalledWith({
+        name: 'reports',
+        application_name: 'reporting-service',
+      }),
+    );
+  });
+
   it('labels a key past its expiry as Expired rather than Active', async () => {
     listApiKeys.mockResolvedValueOnce([
       { ...baseKey, id: 'k-2', name: 'stale', expires_at: '2026-05-02T12:00:00Z' },

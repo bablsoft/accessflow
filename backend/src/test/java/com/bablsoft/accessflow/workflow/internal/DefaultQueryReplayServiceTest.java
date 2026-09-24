@@ -69,9 +69,11 @@ class DefaultQueryReplayServiceTest {
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 
+    private static final com.bablsoft.accessflow.core.api.ClientApplication APP = new com.bablsoft.accessflow.core.api.ClientApplication("reporting", com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+
     private ReplayCommand command(boolean isAdmin) {
         return new ReplayCommand(originalQueryId, targetDsId, userId, orgId, isAdmin,
-                "1.2.3.4", "curl");
+                "1.2.3.4", "curl", null, APP);
     }
 
     private QuerySnapshotView snapshot(DbType dbType, List<String> referenced) {
@@ -123,6 +125,7 @@ class DefaultQueryReplayServiceTest {
         assertThat(input.organizationId()).isEqualTo(orgId);
         assertThat(input.scheduledFor()).isNull();
         assertThat(input.submissionReason()).isEqualTo(SubmissionReason.USER_SUBMITTED);
+        assertThat(input.application()).isEqualTo(APP);
         assertThat(input.ciCdOrigin()).isFalse();
         assertThat(input.submittedIp()).isEqualTo("1.2.3.4");
         assertThat(input.submittedUserAgent()).isEqualTo("curl");

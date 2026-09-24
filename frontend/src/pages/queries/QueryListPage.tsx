@@ -52,6 +52,7 @@ export function QueryListPage() {
   const [type, setType] = useState<QueryType | 'all'>('all');
   const [risk, setRisk] = useState<RiskLevel | 'all'>('all');
   const [datasource, setDatasource] = useState<string | 'all'>('all');
+  const [application, setApplication] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [page, setPage] = useState(0);
 
@@ -60,12 +61,13 @@ export function QueryListPage() {
       status: status === 'all' ? undefined : status,
       query_type: type === 'all' ? undefined : type,
       datasource_id: datasource === 'all' ? undefined : datasource,
+      application_name: application.trim() || undefined,
       from: range?.[0] ? range[0].toISOString() : undefined,
       to: range?.[1] ? range[1].endOf('day').toISOString() : undefined,
       page,
       size: PAGE_SIZE,
     }),
-    [status, type, datasource, range, page],
+    [status, type, datasource, application, range, page],
   );
 
   const { data, isLoading } = useQuery({
@@ -274,6 +276,17 @@ export function QueryListPage() {
             ...dsOpts.map(([id, name]) => ({ value: id, label: name })),
           ]}
           style={{ width: 200 }}
+        />
+        <Input
+          placeholder={t('client_application.filter_placeholder')}
+          aria-label={t('client_application.filter_aria')}
+          value={application}
+          onChange={(e) => {
+            setApplication(e.target.value);
+            setPage(0);
+          }}
+          allowClear
+          style={{ width: 180 }}
         />
         <DatePicker.RangePicker
           value={range as [Dayjs | null, Dayjs | null]}

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "d3b6cd6a8de9",
-  "generatedAt": "2026-09-24T11:11:17.030Z",
-  "sourceCommit": "4614328fe393e510b79f671cf91bbbb416e1233a",
-  "chunkCount": 586,
-  "sha256": "d3b6cd6a8de98b1e738ff540809911a8a76effe444620108796d7773ce842ce3",
+  "corpusVersion": "b7e0f4f488b8",
+  "generatedAt": "2026-09-24T12:36:14.636Z",
+  "sourceCommit": "f37a068d56e37fc9f9710a5e894e3f9cf9e8e0d5",
+  "chunkCount": 587,
+  "sha256": "b7e0f4f488b88ca88bf5248c29f68ca94cb317cea961a2722eaa77989f346c38",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -180,8 +180,8 @@
       "title": "Audit & compliance",
       "url": "https://accessflow.io/docs/configuration/audit-compliance/",
       "section": "Reference",
-      "chunks": 7,
-      "sha256": "c5614e71536e35690d3eb0c3f739b2f0cc183f65abde90cbc987c7ae20195581"
+      "chunks": 8,
+      "sha256": "c6395f9049daa2405813c9488864fcae4a7f2f1fbd2e8e18e15df324edc3ff40"
     },
     {
       "path": "website/docs/configuration/auth/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "917315b30f9410bd5d4d62489980920ef32e37377e8e4c3dfa8f671bf6d82f90"
+      "sha256": "6e24fffc3ed9eea66d263a4f1cfe678f47b3fec661d60c1a9e2d8f0def82cb53"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "f472575231cccfe92ec7133e86bf79972329f033f50e217bff9d3484b6061c6f"
+      "sha256": "95dd1629dd086cab9bf35f8dd5bce167b02cb35159ed22ba6cc88852ea7ce1c8"
     }
   ]
 }

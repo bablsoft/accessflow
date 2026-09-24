@@ -42,6 +42,19 @@ class CefFormatterTest {
     }
 
     @Test
+    void emitsTheCallingApplicationAsCs5AndCs6() {
+        var event = new AuditExportEvent(EVENT_ID, UUID.randomUUID(), ACTOR_ID, "QUERY_SUBMITTED",
+                "query_request", RESOURCE_ID, "{}", null, null, CREATED_AT, null, null,
+                "reporting", "header");
+
+        var message = formatter.format(event);
+
+        assertThat(message).contains("cs5Label=application_name cs5=reporting");
+        assertThat(message).contains("cs6Label=application_name_source cs6=header");
+        assertThat(formatter.format(event("QUERY_SUBMITTED"))).doesNotContain("cs5");
+    }
+
+    @Test
     void severityHeuristicFlagsDestructiveActions() {
         assertThat(CefFormatter.cefSeverity("QUERY_BREAK_GLASS_EXECUTED")).isEqualTo(7);
         assertThat(CefFormatter.cefSeverity("DATASOURCE_DELETED")).isEqualTo(7);

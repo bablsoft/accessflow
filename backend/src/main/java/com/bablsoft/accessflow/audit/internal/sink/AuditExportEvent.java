@@ -7,7 +7,9 @@ import java.util.UUID;
  * The canonical exported form of one {@code audit_log} row (#628). {@code metadataJson} is the
  * raw stored JSONB (embedded as an object on the wire, not a string); the hashes are lowercase
  * hex (the audit CSV-export convention) so any exported window is independently
- * chain-verifiable against the in-DB HMAC chain.
+ * chain-verifiable against the in-DB HMAC chain. {@code applicationName} /
+ * {@code applicationNameSource} (#938) are lifted out of the metadata so SIEM consumers get the
+ * calling application as a first-class field; both null when the row names none.
  */
 public record AuditExportEvent(
         UUID id,
@@ -21,5 +23,15 @@ public record AuditExportEvent(
         String userAgent,
         Instant createdAt,
         String previousHash,
-        String currentHash) {
+        String currentHash,
+        String applicationName,
+        String applicationNameSource) {
+
+    public AuditExportEvent(UUID id, UUID organizationId, UUID actorId, String action,
+                            String resourceType, UUID resourceId, String metadataJson,
+                            String ipAddress, String userAgent, Instant createdAt,
+                            String previousHash, String currentHash) {
+        this(id, organizationId, actorId, action, resourceType, resourceId, metadataJson, ipAddress,
+                userAgent, createdAt, previousHash, currentHash, null, null);
+    }
 }

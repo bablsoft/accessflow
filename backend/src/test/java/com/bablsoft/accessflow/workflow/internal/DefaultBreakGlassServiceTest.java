@@ -113,6 +113,7 @@ class DefaultBreakGlassServiceTest {
         var cmd = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(cmd.capture());
         assertThat(cmd.getValue().submissionReason()).isEqualTo(SubmissionReason.EMERGENCY_ACCESS);
+        assertThat(cmd.getValue().application()).isEqualTo(APP);
         verify(eventPublisher, never()).publishEvent(any(QuerySubmittedEvent.class));
 
         // Force-approve then execute.
@@ -295,9 +296,11 @@ class DefaultBreakGlassServiceTest {
         assertThat(entity.getValue().getJustification()).isEqualTo("(none)");
     }
 
+    private static final com.bablsoft.accessflow.core.api.ClientApplication APP = new com.bablsoft.accessflow.core.api.ClientApplication("reporting", com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+
     private BreakGlassInput input(String sql, boolean isAdmin) {
         return new BreakGlassInput(datasourceId, sql, "prod is down", userId, organizationId,
-                isAdmin, "10.0.0.1", "agent");
+                isAdmin, "10.0.0.1", "agent", null, APP);
     }
 
     private void stubParse(String sql, QueryType type, Set<String> tables) {

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.ApplicationNameSource;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -21,7 +22,11 @@ public record QueryListItem(
         Instant scheduledFor,
         boolean recurring,
         UUID recurringParentId,
-        Instant createdAt) {
+        Instant createdAt,
+        /** The calling application (#938); null when unknown. */
+        String applicationName,
+        /** {@code API_KEY} (trustworthy) or {@code HEADER} (client-controlled). */
+        ApplicationNameSource applicationNameSource) {
 
     public static QueryListItem from(QueryListItemView view) {
         return new QueryListItem(
@@ -37,7 +42,9 @@ public record QueryListItem(
                 view.scheduledFor(),
                 view.recurring(),
                 view.recurringParentId(),
-                view.createdAt());
+                view.createdAt(),
+                view.applicationName(),
+                view.applicationNameSource());
     }
 
     public record DatasourceRef(UUID id, String name) {

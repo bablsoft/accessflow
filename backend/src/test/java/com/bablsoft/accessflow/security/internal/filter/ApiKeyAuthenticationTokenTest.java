@@ -31,5 +31,13 @@ class ApiKeyAuthenticationTokenTest {
         var token = new ApiKeyAuthenticationToken(UUID.randomUUID(), claims);
         assertThat(token).isInstanceOf(ApiKeyAuthentication.class);
         assertThat(((ApiKeyAuthentication) token).apiKeyId()).isEqualTo(token.apiKeyId());
+        assertThat(token.applicationName()).isNull();
+    }
+
+    @Test
+    void carriesTheKeysApplicationName() {
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID());
+        var token = new ApiKeyAuthenticationToken(UUID.randomUUID(), "reporting", claims);
+        assertThat(((ApiKeyAuthentication) token).applicationName()).isEqualTo("reporting");
     }
 }

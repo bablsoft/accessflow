@@ -184,7 +184,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
                                             IssueServiceAccountKeyCommand command) {
         load(organizationId, userId);
         try {
-            var issued = apiKeyService.issue(userId, organizationId, command.name(), command.expiresAt());
+            var issued = apiKeyService.issue(userId, organizationId, command.name(), command.expiresAt(),
+                    command.applicationName());
             return new ServiceAccountIssuedKey(toKeyView(issued.view()), issued.rawKey());
         } catch (ApiKeyDuplicateNameException ex) {
             throw new ServiceAccountKeyNameConflictException(command.name());
@@ -208,7 +209,9 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
             throw new IllegalArgumentException("Rotation grace period must be positive");
         }
         var replacement = issueKey(organizationId, userId,
-                new IssueServiceAccountKeyCommand(command.name(), command.expiresAt()));
+                new IssueServiceAccountKeyCommand(command.name(), command.expiresAt(),
+                        command.applicationName() != null ? command.applicationName()
+                                : old.applicationName()));
         // Expire, never revoke: the old key keeps authenticating until the window elapses, so a
         // running agent is not cut off mid-deploy. An earlier existing expiry is kept.
         var graceUntil = clock.instant().plus(grace);
@@ -216,7 +219,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
                 ? old.expiresAt() : graceUntil;
         apiKeyService.expireAt(userId, keyId, expiresAt);
         var superseded = new ServiceAccountKeyView(old.id(), old.name(), old.keyPrefix(),
-                old.bootstrapDeclared(), old.createdAt(), old.lastUsedAt(), expiresAt, old.revokedAt());
+                old.bootstrapDeclared(), old.createdAt(), old.lastUsedAt(), expiresAt, old.revokedAt(),
+                old.applicationName());
         return new ServiceAccountRotatedKey(replacement.apiKey(), replacement.rawKey(), superseded);
     }
 
@@ -355,6 +359,6 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
 
     static ServiceAccountKeyView toKeyView(ApiKeyView key) {
         return new ServiceAccountKeyView(key.id(), key.name(), key.keyPrefix(), key.bootstrapDeclared(),
-                key.createdAt(), key.lastUsedAt(), key.expiresAt(), key.revokedAt());
+                key.createdAt(), key.lastUsedAt(), key.expiresAt(), key.revokedAt(), key.applicationName());
     }
 }
