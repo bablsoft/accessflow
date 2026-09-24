@@ -1158,8 +1158,8 @@ Persisted pre-flight cost / blast-radius estimate for a submitted query (AF-624,
 | `affected_row_count` | BIGINT nullable — exact governed count for UPDATE/DELETE; null when the shape can't be provably counted (joins, `USING`, MERGE, …) or the engine doesn't support counting |
 | `scan_type` | VARCHAR(128) nullable — the plan's root operation (e.g. `Seq Scan`, `COLLSCAN`) |
 | `estimated_cost` | DOUBLE PRECISION nullable — the plan's root cost when the engine exposes one |
-| `plan` | JSONB nullable — the snake_case plan-node tree (same shape as the dry-run endpoint's `plan`) |
-| `raw_plan` | TEXT nullable — the engine's raw plan output |
+| `plan` | JSONB nullable — the snake_case plan-node tree (same shape as the dry-run endpoint's `plan`). Every node's `detail` is null when row security applied to the submitter, because engines inline the bound values into predicate text (#1092; V188 stripped all rows stored earlier) |
+| `raw_plan` | TEXT nullable — the engine's raw plan output; null when row security applied (#1092) |
 | `unsupported_reason` | VARCHAR(500) nullable — localized reason when `supported=false` |
 | `failed` | BOOLEAN NOT NULL DEFAULT false — true when the computation hit an unexpected error (sentinel row) |
 | `error_message` | VARCHAR(500) nullable — failure reason when `failed=true` |

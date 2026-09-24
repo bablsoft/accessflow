@@ -1008,6 +1008,14 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
   (so how many group / attribute values they hold), and an always-false `1 = 0` when their attribute
   did not resolve. Before #937 the policy text was admin-only. The values themselves never leave the
   proxy.
+- **Bound values never reach a persisted plan.** The pre-flight cost estimate (AF-624) dry-runs the
+  governed statement with the submitter's values bound, and engines inline those values into plan
+  predicate text (PostgreSQL `Index Cond` / `Filter`, MySQL `attached_condition`, MongoDB stage
+  filters). Whenever row security applied, the persisted estimate drops every plan node's `detail`
+  and the `raw_plan`, so reviewers and `QUERY_VIEW_ALL` holders never see another user's attribute
+  values and nothing is kept at rest (#1092; V188 stripped the rows stored before the fix).
+  Operation, table, row and cost figures are kept. The ad-hoc `POST /queries/dry-run` still returns
+  the full plan, but only to the caller about their own values, and stores nothing.
 
 ### Per-table row-limit policies (#934)
 

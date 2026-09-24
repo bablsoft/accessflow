@@ -77,8 +77,10 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
             var request = buildRequest(snapshot);
             var dryRun = queryExecutor.dryRun(request);
             Long affectedRows = countAffectedRows(request, snapshot.queryType());
-            return persistAndPublish(queryRequestId,
-                    toCommand(snapshot, dryRun, affectedRows, durationMs(start)), true);
+            boolean redactPredicates = !request.rowSecurityPredicates().isEmpty()
+                    || !dryRun.appliedRowSecurityPolicyIds().isEmpty();
+            return persistAndPublish(queryRequestId, toCommand(snapshot, dryRun, affectedRows,
+                    redactPredicates, durationMs(start)), true);
         } catch (RuntimeException ex) {
             log.warn("Cost estimate failed for query {}: {}", queryRequestId, ex.getMessage());
             var command = new PersistQueryEstimateCommand(null, snapshot.queryType(), false, null,
@@ -119,7 +121,7 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
 
     private PersistQueryEstimateCommand toCommand(QueryRequestSnapshot snapshot,
                                                   QueryDryRunResult dryRun, Long affectedRows,
-                                                  int durationMs) {
+                                                  boolean redactPredicates, int durationMs) {
         if (!dryRun.supported()) {
             var reason = dryRun.unsupportedReason() != null
                     ? dryRun.unsupportedReason()
@@ -142,8 +144,8 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
                 affectedRows,
                 access != null ? truncateTo(access.operation(), 128) : null,
                 root != null ? root.estimatedCost() : null,
-                planJson(root),
-                dryRun.rawPlan(), null, false, null, durationMs);
+                planJson(root, redactPredicates),
+                redactPredicates ? null : dryRun.rawPlan(), null, false, null, durationMs);
     }
 
     /**
@@ -176,15 +178,19 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
                 command.unsupportedReason(), command.failed(), command.errorMessage(), durationMs);
     }
 
-    /** Serializes the plan tree with explicit snake_case keys — the frontend's PlanTree shape. */
-    private String planJson(QueryPlanNode root) {
+    /**
+     * Serializes the plan tree with explicit snake_case keys — the frontend's PlanTree shape. With
+     * {@code redactPredicates} every node's {@code detail} is dropped: the dry-run bound the
+     * submitter's row-security values, and engines inline them into predicate text (#1092).
+     */
+    private String planJson(QueryPlanNode root, boolean redactPredicates) {
         if (root == null) {
             return null;
         }
-        return objectMapper.writeValueAsString(planNode(root));
+        return objectMapper.writeValueAsString(planNode(root, redactPredicates));
     }
 
-    private ObjectNode planNode(QueryPlanNode node) {
+    private ObjectNode planNode(QueryPlanNode node, boolean redactPredicates) {
         var out = objectMapper.createObjectNode();
         out.put("operation", node.operation());
         out.put("target", node.target());
@@ -198,10 +204,10 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
         } else {
             out.putNull("estimated_cost");
         }
-        out.put("detail", node.detail());
+        out.put("detail", redactPredicates ? null : node.detail());
         var children = out.putArray("children");
         for (var child : node.children()) {
-            children.add(planNode(child));
+            children.add(planNode(child, redactPredicates));
         }
         return out;
     }
