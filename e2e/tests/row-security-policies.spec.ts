@@ -185,10 +185,11 @@ test.describe.serial('row-level security policies (AF-380)', () => {
     await page.goto(`/queries/${scopedQueryId}`);
     const sqlView = page.getByTestId('query-effective-sql');
     await expect(sqlView).toBeVisible({ timeout: 15_000 });
-    // AntD Segmented hides its radio inputs — click the visible item label.
-    await sqlView.locator('.ant-segmented-item', { hasText: 'Effective' }).click();
+    // AntD Segmented hides its radio inputs — click the visible label. `exact` because the
+    // hint line below the toggle also mentions "Effective SQL".
+    await sqlView.getByText('Effective', { exact: true }).click();
     await expect(sqlView.locator('pre')).toContainText('email = ?');
-    await sqlView.locator('.ant-segmented-item', { hasText: 'Diff' }).click();
+    await sqlView.getByText('Diff', { exact: true }).click();
     await expect(sqlView.getByTestId('sql-diff-view')).toBeVisible();
   });
 

@@ -861,7 +861,7 @@
         "view_submitted": "Eingereicht",
         "view_effective": "Effektiv",
         "view_diff": "Vergleich",
-        "hint": "Effektives SQL ist die Anweisung, wie sie tatsächlich ausgeführt wurde, mit eingefügten Zeilensicherheits-Prädikaten. Gebundene Werte werden als ? angezeigt und nie gespeichert.",
+        "hint": "Effektives SQL ist die Anweisung, wie sie tatsächlich ausgeführt wurde, mit angewendeten Zeilensicherheits-Filtern und Soft-Delete-Umschreibungen. Gebundene Werte werden als ? angezeigt und nie gespeichert.",
         "diff_submitted_label": "Eingereichtes SQL",
         "diff_effective_label": "Effektives SQL"
       }

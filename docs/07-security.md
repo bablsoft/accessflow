@@ -1000,8 +1000,14 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
   deleted. It keeps every predicate value as its `?` placeholder — storing the bound values would copy
   user attributes and group ids into the audit trail — and is `NULL` when nothing was rewritten.
   Engine-plugin datasources (MongoDB, Redis, …) splice filters into native commands and so store no
-  effective statement; their applied policy ids remain the audit record. Readable on
-  `GET /queries/{id}` (submitter or `QUERY_VIEW_ALL`) and in the signed regulatory-audit-trail export.
+  effective statement; their applied policy ids remain the audit record, as they do for members of a
+  request group, which executes without a snapshot. Readable on `GET /queries/{id}` (submitter or
+  `QUERY_VIEW_ALL`) and in the signed regulatory-audit-trail export.
+  **The submitter sees the predicate's shape, not its values** — deliberately, per #937's "behind the
+  existing permissions": which column filters them, the operator, how many `?` an `IN` list carries
+  (so how many group / attribute values they hold), and an always-false `1 = 0` when their attribute
+  did not resolve. Before #937 the policy text was admin-only. The values themselves never leave the
+  proxy.
 
 ### Per-table row-limit policies (#934)
 

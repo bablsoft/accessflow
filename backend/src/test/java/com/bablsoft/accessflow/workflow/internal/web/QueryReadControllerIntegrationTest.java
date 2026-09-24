@@ -29,6 +29,8 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecutionOutco
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotReanalyzableException;
+import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
+import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +74,7 @@ class QueryReadControllerIntegrationTest {
     @MockitoBean QueryResultPersistenceService queryResultPersistenceService;
     @MockitoBean QueryCsvExportService queryCsvExportService;
     @MockitoBean AuditLogService auditLogService;
+    @MockitoBean QuerySnapshotService querySnapshotService;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -396,6 +399,33 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).bodyJson().extractingPath("$.approval_timeout_hours").isEqualTo(24);
         // No snapshot row (#937) → no effective statement; nulls are omitted from the JSON.
         assertThat(response).bodyJson().doesNotHavePath("$.effective_sql");
+    }
+
+    @Test
+    void getSurfacesTheSnapshotEffectiveSqlReadInTheCallersOrganization() {
+        var qid = UUID.randomUUID();
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(), analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "SELECT v FROM t", QueryType.SELECT, QueryStatus.EXECUTED, "x", null,
+                1L, 3, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detail));
+        var effective = "SELECT v FROM (SELECT * FROM t WHERE t.region = ?) t";
+        when(querySnapshotService.find(qid, org.getId())).thenReturn(Optional.of(
+                new QuerySnapshotView(UUID.randomUUID(), qid, org.getId(), UUID.randomUUID(),
+                        analyst.getId(), "SELECT v FROM t", QueryType.SELECT, false,
+                        DbType.POSTGRESQL, List.of("t"), null, null, "[]", 1L, 3,
+                        Instant.now(), Instant.now(), effective)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.effective_sql").asString()
+                .isEqualTo(effective);
+        // Scoped to the caller's organization — a snapshot is never looked up org-blind.
+        verify(querySnapshotService).find(qid, org.getId());
     }
 
     @Test

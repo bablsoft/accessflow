@@ -372,8 +372,9 @@
             <strong>classified-data access</strong> (which executed queries touched PII / PCI / PHI /
             GDPR / FINANCIAL / SENSITIVE data, joined to your data-classification tags) and a
             <strong>regulatory audit trail</strong> of DDL / DELETE operations with the approvers'
-            names and, where a row-security policy rewrote the statement, the <em>effective SQL</em>
-            that actually ran (filter values shown as <code>?</code>, never stored). Use it to hand a regulator or internal auditor evidence they can verify themselves.
+            names and, where a row-security filter or a soft-delete rule rewrote the statement, the
+            <em>effective SQL</em> that actually ran (filter values shown as <code>?</code>, never
+            stored). Use it to hand a regulator or internal auditor evidence they can verify themselves.
           </p>
           <p>
             <strong>Configure it.</strong> Build and export reports from the compliance dashboard at

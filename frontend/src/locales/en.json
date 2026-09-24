@@ -861,7 +861,7 @@
         "view_submitted": "Submitted",
         "view_effective": "Effective",
         "view_diff": "Diff",
-        "hint": "Effective SQL is the statement as it actually ran, with row-security predicates spliced in. Bound values are shown as ? and never stored.",
+        "hint": "Effective SQL is the statement as it actually ran, with row-security filters and soft-delete rewrites applied. Bound values are shown as ? and never stored.",
         "diff_submitted_label": "Submitted SQL",
         "diff_effective_label": "Effective SQL"
       }

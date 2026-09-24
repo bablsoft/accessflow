@@ -861,7 +861,7 @@
         "view_submitted": "Enviado",
         "view_effective": "Efectivo",
         "view_diff": "Diferencias",
-        "hint": "El SQL efectivo es la sentencia tal como se ejecutó realmente, con los predicados de seguridad de filas insertados. Los valores enlazados se muestran como ? y nunca se almacenan.",
+        "hint": "El SQL efectivo es la sentencia tal como se ejecutó realmente, con los filtros de seguridad de filas y las reescrituras de borrado lógico aplicados. Los valores enlazados se muestran como ? y nunca se almacenan.",
         "diff_submitted_label": "SQL enviado",
         "diff_effective_label": "SQL efectivo"
       }

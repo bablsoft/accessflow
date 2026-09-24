@@ -861,7 +861,7 @@
         "view_submitted": "Soumis",
         "view_effective": "Effectif",
         "view_diff": "Différences",
-        "hint": "Le SQL effectif est l’instruction telle qu’elle a réellement été exécutée, avec les prédicats de sécurité des lignes intégrés. Les valeurs liées sont affichées sous forme de ? et ne sont jamais stockées.",
+        "hint": "Le SQL effectif est l’instruction telle qu’elle a réellement été exécutée, avec les filtres de sécurité des lignes et les réécritures de suppression logique appliqués. Les valeurs liées sont affichées sous forme de ? et ne sont jamais stockées.",
         "diff_submitted_label": "SQL soumis",
         "diff_effective_label": "SQL effectif"
       }

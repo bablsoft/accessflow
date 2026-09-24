@@ -125,6 +125,8 @@ describe('AuditorDashboardPage', () => {
     );
     expect(screen.getByText('Effective SQL')).toBeInTheDocument();
     expect(screen.getByText('DELETE FROM carts')).toBeInTheDocument();
+    // The row without a rewrite renders the placeholder, never an empty code cell.
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('exports a signed PDF on button click', async () => {

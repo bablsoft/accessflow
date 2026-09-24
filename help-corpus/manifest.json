@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "d4f915554675",
-  "generatedAt": "2026-09-24T10:58:15.231Z",
-  "sourceCommit": "e310bfdd3c03a446290691da4cd358736a9c9658",
+  "corpusVersion": "d3b6cd6a8de9",
+  "generatedAt": "2026-09-24T11:11:17.030Z",
+  "sourceCommit": "4614328fe393e510b79f671cf91bbbb416e1233a",
   "chunkCount": 586,
-  "sha256": "d4f915554675adb9598c7601d0fd45c084f49ce5e43da97c422da9fe6780d00e",
+  "sha256": "d3b6cd6a8de98b1e738ff540809911a8a76effe444620108796d7773ce842ce3",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -181,7 +181,7 @@
       "url": "https://accessflow.io/docs/configuration/audit-compliance/",
       "section": "Reference",
       "chunks": 7,
-      "sha256": "199b675bcfff7830e05c04fda4f19b7db53123934bb978f3c2ec1e46ac8e8298"
+      "sha256": "c5614e71536e35690d3eb0c3f739b2f0cc183f65abde90cbc987c7ae20195581"
     },
     {
       "path": "website/docs/configuration/auth/index.html",
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "2c3e2bf64c8d98d2410ddccc82a895efa499077c14bf1585a9fd6e482c3fb6e0"
+      "sha256": "c04ee5df0d61efc86caa3dcea7b651645bcd474af32edd2ea383e64e1b387cbc"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "6975d96d513c9aa82237a4b0f74c93516da879bb4412bbe0213e268fef64b95a"
+      "sha256": "f472575231cccfe92ec7133e86bf79972329f033f50e217bff9d3484b6061c6f"
     }
   ]
 }
