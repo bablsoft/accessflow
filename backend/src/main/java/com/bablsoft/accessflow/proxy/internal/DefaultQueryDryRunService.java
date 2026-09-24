@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
@@ -21,9 +22,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -106,8 +105,8 @@ class DefaultQueryDryRunService implements QueryDryRunService {
 
     private void verifyAllowedTables(DatasourceUserPermissionView permission, UUID datasourceId,
                                      Set<String> referencedTables) {
-        var allowedSchemas = normalizeList(permission.allowedSchemas());
-        var allowedTables = normalizeList(permission.allowedTables());
+        var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
+        var allowedTables = AllowedTables.normalize(permission.allowedTables());
         if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {
             return;
         }
@@ -116,14 +115,9 @@ class DefaultQueryDryRunService implements QueryDryRunService {
         }
         var rejected = new TreeSet<String>();
         for (String table : referencedTables) {
-            if (allowedTables.contains(table)) {
-                continue;
+            if (AllowedTables.coveringEntry(allowedSchemas, allowedTables, table) == null) {
+                rejected.add(table);
             }
-            int dotIdx = table.indexOf('.');
-            if (dotIdx > 0 && allowedSchemas.contains(table.substring(0, dotIdx))) {
-                continue;
-            }
-            rejected.add(table);
         }
         if (!rejected.isEmpty()) {
             log.warn("Dry-run allow-list rejection on datasource {} for user {}: tables {}",
@@ -140,31 +134,6 @@ class DefaultQueryDryRunService implements QueryDryRunService {
             case DDL -> permission.canDdl();
             case OTHER -> false;
         };
-    }
-
-    private static List<String> normalizeList(List<String> raw) {
-        if (raw == null || raw.isEmpty()) {
-            return List.of();
-        }
-        var out = new ArrayList<String>(raw.size());
-        for (String entry : raw) {
-            if (entry == null) {
-                continue;
-            }
-            var stripped = new StringBuilder(entry.length());
-            for (int i = 0; i < entry.length(); i++) {
-                char c = entry.charAt(i);
-                if (c == '"' || c == '`' || c == '[' || c == ']') {
-                    continue;
-                }
-                stripped.append(c);
-            }
-            var normalized = stripped.toString().trim().toLowerCase(Locale.ROOT);
-            if (!normalized.isEmpty()) {
-                out.add(normalized);
-            }
-        }
-        return List.copyOf(out);
     }
 
     private String msg(String key, Object[] args) {

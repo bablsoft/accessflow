@@ -284,6 +284,103 @@ class DefaultSampleDataServiceTest {
         assertThat(captor.getValue().maxRowsOverride()).isEqualTo(7);
     }
 
+    @Test
+    void bareEntryDoesNotAdmitASchemaQualifiedTargetWhenTheNameIsAmbiguous() {
+        stubSchemas(schema("public", "orders"), schema("archive", "orders"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of(), List.of("orders"))));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "archive", "orders", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "orders", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        verify(queryExecutor, never()).sampleTable(any());
+    }
+
+    @Test
+    void bareEntryAdmitsTheOnlyTableOfThatName() {
+        stubSchemas(schema("archive", "orders"), schema("public", "customers"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of(), List.of("orders"))));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "archive", "orders",
+                50)).isSameAs(result);
+    }
+
+    @Test
+    void qualifiedEntryDoesNotCoverTheSameNameInAnotherSchema() {
+        stubSchemas(schema("public", "orders"), schema("archive", "orders"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of(),
+                        List.of("public.orders"))));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "archive", "orders", 50))
+                .isInstanceOf(TableNotFoundException.class);
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "orders",
+                50)).isSameAs(result);
+    }
+
+    @Test
+    void allowedSchemaCoversAnAmbiguousNameInsideIt() {
+        stubSchemas(schema("public", "orders"), schema("archive", "orders"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of("archive"), List.of())));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "archive", "orders",
+                50)).isSameAs(result);
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false,
+                "public", "orders", 50))
+                .isInstanceOf(TableNotFoundException.class);
+    }
+
+    @Test
+    void quotedMixedCaseEntriesAreNormalizedLikeTheQueryGate() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of(),
+                        List.of(" \"PUBLIC\".[Users] ", ""))));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "users",
+                50)).isSameAs(result);
+    }
+
+    @Test
+    void unnamedSchemaTargetIsCoveredOnlyByABareEntry() {
+        stubSchemas(schema("", "orders"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of(), List.of("orders"))));
+
+        assertThat(service.sample(datasourceId, organizationId, userId, false, null, "orders", 50))
+                .isSameAs(result);
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().table()).isEqualTo("orders");
+    }
+
+    @Test
+    void unnamedSchemaTargetIsRefusedWithOnlyAQualifiedEntry() {
+        stubSchemas(schema("", "orders"));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(permission(true, List.of(), List.of("public"),
+                        List.of("public.orders"))));
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, false, null,
+                "orders", 50))
+                .isInstanceOf(TableNotFoundException.class);
+    }
+
+    private void stubSchemas(DatabaseSchemaView.Schema... schemas) {
+        when(datasourceAdminService.introspectSchema(eq(datasourceId), eq(organizationId),
+                eq(userId), anyBoolean())).thenReturn(new DatabaseSchemaView(List.of(schemas)));
+    }
+
+    private static DatabaseSchemaView.Schema schema(String name, String table) {
+        return new DatabaseSchemaView.Schema(name, List.of(new DatabaseSchemaView.Table(table,
+                List.of(new DatabaseSchemaView.Column("id", "uuid", false, true)), List.of())));
+    }
+
     private DatasourceUserPermissionView permission(boolean canRead, List<String> restrictedColumns,
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
