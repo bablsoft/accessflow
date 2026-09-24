@@ -10,6 +10,7 @@ import net.sf.jsqlparser.expression.JsonExpression;
 import net.sf.jsqlparser.expression.JsonTableFunction;
 import net.sf.jsqlparser.expression.KeepExpression;
 import net.sf.jsqlparser.expression.MySQLGroupConcat;
+import net.sf.jsqlparser.expression.UserVariable;
 import net.sf.jsqlparser.expression.XmlTableFunction;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.expression.operators.relational.FullTextSearch;
@@ -299,6 +300,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         addJoins(scope, update.getJoins());
         return scoped(update.getWithItemsList(), () -> fromScoped(scope, () -> {
             super.visit(update, context);
+            recordUsingColumns(update.getStartJoins());
             recordUsingColumns(update.getJoins());
             return null;
         }));
@@ -468,6 +470,25 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                 return;
             }
         }
+    }
+
+    /**
+     * JSqlParser reads PostgreSQL's prefix {@code @} (absolute value) as a MySQL user variable, so
+     * {@code @salary} and {@code @e.salary} are recorded as the column they may be. On MySQL this
+     * can only over-deny a variable named like a denied column.
+     */
+    @Override
+    public <S> Void visit(UserVariable variable, S context) {
+        super.visit(variable, context);
+        var name = variable.getName();
+        if (variable.isDoubleAdd() || name == null || name.isBlank()) {
+            return null;
+        }
+        int dot = name.lastIndexOf('.');
+        var column = dot < 0
+                ? new Column(name)
+                : new Column(new Table(name.substring(0, dot)), name.substring(dot + 1));
+        return visit(column, context);
     }
 
     @Override

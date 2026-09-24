@@ -870,7 +870,8 @@ refuses the preview), and the access simulator, which reports the refusal as
   (`SELECT status FROM status`) is read the same way. So are PostgreSQL's functional notation for the
   built-in row functions (`u.row_to_json`, `u.concat`, `u.max`), a `NATURAL` join at any nesting
   depth (it compares every same-named column), and any `*` other than the direct argument of
-  `COUNT` / `COUNT_BIG` (SQL Server's `CHECKSUM(*)` hashes every column). JSqlParser misreads a parenthesised
+  `COUNT` / `COUNT_BIG` (SQL Server's `CHECKSUM(*)` hashes every column). PostgreSQL's prefix `@` (absolute
+  value) is read as a column reference, since JSqlParser parses `@salary` as a MySQL variable. JSqlParser misreads a parenthesised
   `(TABLE t)` FROM item as a table named `TABLE`, which would hide `t` from every check, so the
   parser refuses that statement with 422. Expanding `*` against the
   live schema would give the same answer, but the check does not need the schema, so a missing or

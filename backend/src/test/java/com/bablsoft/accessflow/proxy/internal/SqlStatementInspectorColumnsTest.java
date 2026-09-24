@@ -148,6 +148,21 @@ class SqlStatementInspectorColumnsTest {
     }
 
     @Test
+    void postgresAbsoluteValueOperatorIsAColumnReference() {
+        assertThat(columns("SELECT @salary FROM emp")).contains(ref("salary", "emp"));
+        assertThat(columns("SELECT @e.salary FROM emp e")).contains(ref("salary", "emp"));
+        assertThat(columns("SELECT @@version")).isEmpty();
+    }
+
+    @Test
+    void mysqlMultiTableUpdateJoinsAreRecorded() {
+        assertThat(columns("UPDATE users u JOIN o USING (ssn) SET u.id = 1"))
+                .contains(new ColumnReference(Set.of("users", "o"), "ssn"));
+        assertThat(columns("UPDATE users u NATURAL JOIN o SET u.id = 1"))
+                .contains(ColumnReference.wildcard(Set.of("users", "o")));
+    }
+
+    @Test
     void naturalJoinIsAWildcardOverTheJoinedTables() {
         assertThat(columns("SELECT id FROM users NATURAL JOIN orders"))
                 .contains(ColumnReference.wildcard(Set.of("users", "orders")));
