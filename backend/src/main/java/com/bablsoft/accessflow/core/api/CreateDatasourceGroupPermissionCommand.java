@@ -14,5 +14,6 @@ public record CreateDatasourceGroupPermissionCommand(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
+        List<String> deniedColumns,
         Instant expiresAt) {
 }

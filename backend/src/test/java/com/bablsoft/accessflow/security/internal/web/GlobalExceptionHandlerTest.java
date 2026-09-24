@@ -280,6 +280,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void deniedColumnsNotSupportedReturns422() {
+        var pd = handler.handleDeniedColumnsNotSupported(
+                new com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException(
+                        com.bablsoft.accessflow.core.api.DbType.MONGODB));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DENIED_COLUMNS_NOT_SUPPORTED")
+                .containsEntry("dbType", "MONGODB");
+    }
+
+    @Test
     void invalidSqlReturns422() {
         var pd = handler.handleInvalidSql(new InvalidSqlException("nope"));
 

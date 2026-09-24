@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -107,14 +108,14 @@ class EffectiveAccessEnforcementParityTest {
         var schemas = split(allowedSchemas);
         var tables = split(allowedTables);
         var permission = new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, false, schemas, tables, List.of(), null, null);
+                true, false, false, false, schemas, tables, List.of(), null, null, null);
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(permission));
         when(permissionLookupService.findContributionsForDatasource(datasourceId))
                 .thenReturn(List.of(new DatasourcePermissionContribution(
                         DatasourcePermissionSourceKind.DIRECT, permission.id(), userId,
                         datasourceId, null, null, true, false, false, false, schemas, tables,
-                        List.of(), null, null, null)));
+                        List.of(), null, null, null, null)));
         when(permissionLookupService.mergeContributions(any()))
                 .thenReturn(Optional.of(permission));
 
@@ -132,7 +133,8 @@ class EffectiveAccessEnforcementParityTest {
 
     private boolean allows(Set<String> referencedTables) {
         try {
-            verifier.verify(userId, datasourceId, QueryType.SELECT, referencedTables);
+            verifier.verify(userId, datasourceId, QueryType.SELECT, new SqlParseResult(
+                    QueryType.SELECT, false, List.of("sql"), referencedTables));
             return true;
         } catch (AccessDeniedException ex) {
             return false;

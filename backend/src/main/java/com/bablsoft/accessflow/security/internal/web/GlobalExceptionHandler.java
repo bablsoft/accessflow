@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.core.api.InvalidSecretReferenceException;
 import com.bablsoft.accessflow.core.api.SecretProviderDisabledException;
 import com.bablsoft.accessflow.core.api.SecretResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
@@ -407,6 +408,16 @@ class GlobalExceptionHandler {
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.illegal_datasource_permission"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DeniedColumnsNotSupportedException.class)
+    ProblemDetail handleDeniedColumnsNotSupported(DeniedColumnsNotSupportedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
+                msg("error.denied_columns_not_supported", ex.dbType().name()));
+        pd.setProperty("error", "DENIED_COLUMNS_NOT_SUPPORTED");
+        pd.setProperty("dbType", ex.dbType().name());
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

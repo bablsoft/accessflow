@@ -301,7 +301,7 @@ class DefaultQueryLifecycleServiceTest {
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         var permissionView = new DatasourceUserPermissionView(
                 UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null, null);
+                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null, null, null);
         when(permissionLookupService.findFor(submitterId, datasourceId))
                 .thenReturn(Optional.of(permissionView));
         when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
@@ -543,7 +543,7 @@ class DefaultQueryLifecycleServiceTest {
     private DatasourceUserPermissionView permissionWithRowLimit(Integer rowLimitOverride) {
         return new DatasourceUserPermissionView(
                 UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of(), rowLimitOverride, null);
+                List.of(), List.of(), List.of(), null, rowLimitOverride, null);
     }
 
     @Test

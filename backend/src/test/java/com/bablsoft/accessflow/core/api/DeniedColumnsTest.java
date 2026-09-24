@@ -1,0 +1,121 @@
+package com.bablsoft.accessflow.core.api;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class DeniedColumnsTest {
+
+    private static final List<String> DENIED = List.of("public.customer.national_id");
+
+    @Test
+    void normalizeStripsQuotesLowercasesAndDropsBlanksAndDuplicates() {
+        var input = new java.util.ArrayList<String>();
+        input.add(" \"Public\".[Customer].`SSN` ");
+        input.add("public.customer.ssn");
+        input.add("  ");
+        input.add(null);
+
+        assertThat(DeniedColumns.normalize(input)).containsExactly("public.customer.ssn");
+        assertThat(DeniedColumns.normalize(null)).isEmpty();
+        assertThat(DeniedColumns.normalize(List.of())).isEmpty();
+    }
+
+    @Test
+    void isQualifiedAcceptsTwoOrThreeParts() {
+        assertThat(DeniedColumns.isQualified("customer.ssn")).isTrue();
+        assertThat(DeniedColumns.isQualified("public.customer.ssn")).isTrue();
+        assertThat(DeniedColumns.isQualified("ssn")).isFalse();
+        assertThat(DeniedColumns.isQualified("a.b.c.d")).isFalse();
+        assertThat(DeniedColumns.isQualified("customer.")).isFalse();
+        assertThat(DeniedColumns.isQualified(".ssn")).isFalse();
+        assertThat(DeniedColumns.isQualified(" ")).isFalse();
+        assertThat(DeniedColumns.isQualified(null)).isFalse();
+    }
+
+    @Test
+    void namedColumnOnTheDeniedTableIsRejected() {
+        var parsed = parsed(QueryType.SELECT, new ColumnReference(Set.of("customer"), "national_id"));
+
+        assertThat(DeniedColumns.rejected(DENIED, parsed)).containsExactly("public.customer.national_id");
+    }
+
+    @Test
+    void schemaMismatchIsNotRejectedButMissingSchemaFailsClosed() {
+        assertThat(DeniedColumns.rejected(DENIED, parsed(QueryType.SELECT,
+                new ColumnReference(Set.of("other.customer"), "national_id")))).isEmpty();
+        assertThat(DeniedColumns.rejected(List.of("customer.national_id"), parsed(QueryType.SELECT,
+                new ColumnReference(Set.of("other.customer"), "national_id"))))
+                .containsExactly("customer.national_id");
+        assertThat(DeniedColumns.rejected(DENIED, parsed(QueryType.SELECT,
+                new ColumnReference(Set.of("db.public.customer"), "national_id"))))
+                .containsExactly("public.customer.national_id");
+    }
+
+    @Test
+    void otherColumnsAndTablesAreAllowed() {
+        assertThat(DeniedColumns.rejected(DENIED, parsed(QueryType.SELECT,
+                new ColumnReference(Set.of("customer"), "name"),
+                new ColumnReference(Set.of("orders"), "national_id")))).isEmpty();
+    }
+
+    @Test
+    void wildcardOnTheDeniedTableIsRejected() {
+        assertThat(DeniedColumns.rejected(DENIED, parsed(QueryType.SELECT,
+                ColumnReference.wildcard(Set.of("orders", "public.customer")))))
+                .containsExactly("public.customer.national_id");
+    }
+
+    @Test
+    void unanalyzedDataQueryRejectsEveryDeniedEntry() {
+        var unanalyzed = new SqlParseResult(QueryType.SELECT, "db.customer.find({})");
+
+        assertThat(DeniedColumns.rejected(List.of("b.c", "a.b.c"), unanalyzed))
+                .containsExactly("a.b.c", "b.c");
+    }
+
+    @Test
+    void ddlAndOtherAreOutOfScope() {
+        assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.DDL,
+                "ALTER TABLE customer DROP COLUMN national_id"))).isEmpty();
+        assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.OTHER, "CALL x()")))
+                .isEmpty();
+    }
+
+    @Test
+    void emptyDenyListOrNullParseRejectsNothing() {
+        var parsed = parsed(QueryType.SELECT, ColumnReference.wildcard(Set.of("customer")));
+
+        assertThat(DeniedColumns.rejected(List.of(), parsed)).isEmpty();
+        assertThat(DeniedColumns.rejected(null, parsed)).isEmpty();
+        assertThat(DeniedColumns.rejected(DENIED, null)).isEmpty();
+    }
+
+    @Test
+    void dmlTypesAreEnforced() {
+        for (var type : List.of(QueryType.INSERT, QueryType.UPDATE, QueryType.DELETE)) {
+            assertThat(DeniedColumns.rejected(DENIED, parsed(type,
+                    new ColumnReference(Set.of("public.customer"), "national_id")))).hasSize(1);
+        }
+    }
+
+    @Test
+    void columnReferenceRejectsBlankColumnAndDefaultsTables() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new ColumnReference(Set.of(), " "))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new ColumnReference(Set.of(), null))
+                .isInstanceOf(IllegalArgumentException.class);
+        var ref = new ColumnReference(null, "x");
+        assertThat(ref.candidateTables()).isEmpty();
+        assertThat(ref.isWildcard()).isFalse();
+        assertThat(ColumnReference.wildcard(Set.of("t")).isWildcard()).isTrue();
+    }
+
+    private static SqlParseResult parsed(QueryType type, ColumnReference... refs) {
+        return new SqlParseResult(type, false, List.of("sql"), Set.of(), false, false,
+                Set.of(refs), true);
+    }
+}

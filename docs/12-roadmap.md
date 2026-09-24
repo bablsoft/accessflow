@@ -251,7 +251,6 @@
 - **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
 
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
-- **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
 
 ---
 

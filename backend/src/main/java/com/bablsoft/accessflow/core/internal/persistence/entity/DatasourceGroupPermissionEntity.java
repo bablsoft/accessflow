@@ -65,6 +65,10 @@ public class DatasourceGroupPermissionEntity {
     @Column(name = "restricted_columns", columnDefinition = "text[]")
     private String[] restrictedColumns;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "denied_columns", columnDefinition = "text[]")
+    private String[] deniedColumns;
+
     @Column(name = "expires_at")
     private Instant expiresAt;
 

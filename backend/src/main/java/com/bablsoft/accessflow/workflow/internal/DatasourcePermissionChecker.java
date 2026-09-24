@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +14,8 @@ import java.util.TreeSet;
 /**
  * Shared capability + allow-list checks for the standard query-submission gate and the break-glass
  * gate (AF-385). Both verify that a permission grants the capability for the parsed query type and
- * that every referenced table is within the permission's schema/table allow-list.
+ * that every referenced table is within the permission's schema/table allow-list, and that no
+ * referenced column is on the permission's deny list (#935).
  */
 final class DatasourcePermissionChecker {
 
@@ -62,6 +65,15 @@ final class DatasourcePermissionChecker {
             }
         }
         return rejected;
+    }
+
+    /**
+     * @return the permission's {@code denied_columns} entries the parsed query reaches, sorted;
+     *         empty when it reaches none. Fails closed over a parse that did not analyze columns.
+     */
+    static Set<String> rejectedColumns(DatasourceUserPermissionView permission,
+                                       SqlParseResult parsed) {
+        return DeniedColumns.rejected(permission.deniedColumns(), parsed);
     }
 
     /**

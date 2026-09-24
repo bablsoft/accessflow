@@ -1073,7 +1073,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1085,7 +1085,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1104,7 +1104,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(DatasourcePermissionAlreadyExistsException.class);
     }
@@ -1131,7 +1131,7 @@ class DatasourceAdminServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new CreatePermissionCommand(userId, true, true, false, true, 500,
-                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null, null);
+                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null, null, null);
         var view = service.grantPermission(datasourceId, orgId, adminId, command);
 
         // An admin-created row has no originating JIT request (#969).
@@ -1170,10 +1170,80 @@ class DatasourceAdminServiceImplTest {
         var accessGrantRequestId = UUID.randomUUID();
 
         service.grantPermission(datasourceId, orgId, adminId, new CreatePermissionCommand(userId,
-                true, false, false, false, null, null, null, null,
+                true, false, false, false, null, null, null, null, null,
                 Instant.now().plusSeconds(3600), accessGrantRequestId));
 
         assertThat(saved.getValue().getAccessGrantRequestId()).isEqualTo(accessGrantRequestId);
+    }
+
+    @Test
+    void grantPermissionPersistsNormalizedDeniedColumns() {
+        stubGrantableUser(DbType.POSTGRESQL);
+        var grantedBy = new UserEntity();
+        grantedBy.setId(adminId);
+        when(userRepository.getReferenceById(adminId)).thenReturn(grantedBy);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.grantPermission(datasourceId, orgId, adminId, deniedCommand(
+                List.of(" \"Public\".Customer.National_ID ", "orders.card", "orders.card")));
+
+        assertThat(saved.getValue().getDeniedColumns())
+                .containsExactly("public.customer.national_id", "orders.card");
+        assertThat(view.deniedColumns()).containsExactly("public.customer.national_id", "orders.card");
+    }
+
+    @Test
+    void grantPermissionStoresNoDeniedColumnsWhenAllBlank() {
+        stubGrantableUser(DbType.POSTGRESQL);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.grantPermission(datasourceId, orgId, adminId, deniedCommand(List.of(" ")));
+
+        assertThat(saved.getValue().getDeniedColumns()).isNull();
+    }
+
+    @Test
+    void grantPermissionRejectsAnUnqualifiedDeniedColumn() {
+        stubGrantableUser(DbType.POSTGRESQL);
+
+        assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
+                deniedCommand(List.of("ssn"))))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(permissionRepository, never()).save(any());
+    }
+
+    @Test
+    void grantPermissionRejectsDeniedColumnsOnAnEngineManagedDatasource() {
+        stubGrantableUser(DbType.MONGODB);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
+                deniedCommand(List.of("customers.ssn"))))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException.class)
+                .satisfies(ex -> assertThat(((com.bablsoft.accessflow.core.api
+                        .DeniedColumnsNotSupportedException) ex).dbType()).isEqualTo(DbType.MONGODB));
+        verify(permissionRepository, never()).save(any());
+    }
+
+    private void stubGrantableUser(DbType dbType) {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setDbType(dbType);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var user = new UserEntity();
+        user.setId(userId);
+        user.setOrganization(org);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(permissionRepository.existsByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(false);
+    }
+
+    private CreatePermissionCommand deniedCommand(List<String> deniedColumns) {
+        return new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
+                null, deniedColumns, null, null);
     }
 
     @Test
@@ -1240,7 +1310,7 @@ class DatasourceAdminServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, true, false, false, null, List.of("public"), null, null, null);
+                groupId, true, true, false, false, null, List.of("public"), null, null, null, null);
         var view = service.grantGroupPermission(datasourceId, orgId, adminId, command);
 
         assertThat(view.groupId()).isEqualTo(groupId);
@@ -1263,7 +1333,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, false, false, false, null, null, null, null, null);
+                groupId, true, false, false, false, null, null, null, null, null, null);
         assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException.class);
     }
@@ -1277,7 +1347,7 @@ class DatasourceAdminServiceImplTest {
                 .thenThrow(new com.bablsoft.accessflow.core.api.UserGroupNotFoundException(groupId));
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, false, false, false, null, null, null, null, null);
+                groupId, true, false, false, false, null, null, null, null, null, null);
         assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.UserGroupNotFoundException.class);
     }

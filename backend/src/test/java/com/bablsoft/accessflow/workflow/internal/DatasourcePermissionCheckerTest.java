@@ -93,13 +93,13 @@ class DatasourcePermissionCheckerTest {
     private DatasourceUserPermissionView perm(boolean canRead, boolean canWrite, boolean canDdl) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), canRead, canWrite, canDdl, false,
-                List.of(), List.of(), List.of(), null, null);
+                List.of(), List.of(), List.of(), null, null, null);
     }
 
     private DatasourceUserPermissionView perm(List<String> allowedSchemas, List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, true, true, true,
-                allowedSchemas, allowedTables, List.of(), null, null);
+                allowedSchemas, allowedTables, List.of(), null, null, null);
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -18,7 +19,7 @@ import java.util.UUID;
  * The per-user datasource permission gate shared by query submission and the per-occurrence
  * fail-closed recheck of recurring series (#627): an active (unexpired) permission row must exist,
  * grant the capability matching the query type, and cover every referenced table with its
- * schema/table allow-list. Extracted verbatim from {@code DefaultQuerySubmissionService} so the
+ * schema/table allow-list, and reference no column on its deny list (#935). Extracted verbatim from {@code DefaultQuerySubmissionService} so the
  * recurring path re-evaluates the exact same rules with current permission state.
  */
 @Component
@@ -36,11 +37,10 @@ class DatasourcePermissionVerifier {
 
     /**
      * @throws AccessDeniedException when the user has no active permission on the datasource, the
-     *         permission is expired, lacks the capability for {@code queryType}, or any referenced
-     *         table falls outside the allow-list.
+     *         permission is expired, lacks the capability for {@code queryType}, any referenced
+     *         table falls outside the allow-list, or any referenced column is denied.
      */
-    void verify(UUID userId, UUID datasourceId, QueryType queryType,
-                Set<String> referencedTables) {
+    void verify(UUID userId, UUID datasourceId, QueryType queryType, SqlParseResult parsed) {
         var permission = permissionLookupService.findFor(userId, datasourceId)
                 .orElseThrow(() -> new AccessDeniedException(
                         "No active permission on datasource: " + datasourceId));
@@ -51,7 +51,19 @@ class DatasourcePermissionVerifier {
             throw new AccessDeniedException(
                     "Insufficient permission for " + queryType + " on datasource: " + datasourceId);
         }
-        verifyAllowedTables(permission, datasourceId, referencedTables);
+        verifyAllowedTables(permission, datasourceId, parsed.referencedTables());
+        verifyDeniedColumns(permission, datasourceId, parsed);
+    }
+
+    private void verifyDeniedColumns(DatasourceUserPermissionView permission, UUID datasourceId,
+                                     SqlParseResult parsed) {
+        var rejected = DatasourcePermissionChecker.rejectedColumns(permission, parsed);
+        if (!rejected.isEmpty()) {
+            log.warn("Column deny rejection on datasource {} for user {}: columns {} denied",
+                    datasourceId, permission.userId(), rejected);
+            throw new AccessDeniedException(msg("error.permission.column_not_allowed",
+                    new Object[]{String.join(", ", rejected)}));
+        }
     }
 
     private void verifyAllowedTables(DatasourceUserPermissionView permission,

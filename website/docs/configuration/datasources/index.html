@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -348,7 +348,10 @@
             deployment-wide.
           </p>
           <p>
-            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, and restricted columns (masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, restricted columns (masked as <code>***</code> in <code>SELECT</code> results), and denied columns. Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
+          </p>
+          <p>
+            <strong>Denied columns — block instead of mask.</strong> A restricted column can still be queried; only its value is hidden. For a column that must never be read at all, list it under <em>Denied columns</em> as <code>table.column</code> or <code>schema.table.column</code>. Any query that references it is refused before it runs, whether the column is selected, filtered on in <code>WHERE</code>, joined on, sorted by, or reached through <code>SELECT *</code> on its table. A column that is both restricted and denied is refused. When a table has a denied column, spell out the columns you need instead of using <code>SELECT *</code>. An unqualified column in a query that joins several tables is refused if any of those tables denies a column of that name. Denied columns are available on PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC datasources. The field is not offered for NoSQL or cloud data-warehouse datasources.
           </p>
           <p>
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries

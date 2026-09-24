@@ -18,6 +18,8 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
@@ -643,6 +645,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
+        entity.setDeniedColumns(toArray(deniedColumns(datasource, command.deniedColumns())));
         entity.setExpiresAt(command.expiresAt());
         entity.setAccessGrantRequestId(command.accessGrantRequestId());
         entity.setCreatedBy(grantedBy);
@@ -697,6 +700,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
+        entity.setDeniedColumns(toArray(deniedColumns(datasource, command.deniedColumns())));
         entity.setExpiresAt(command.expiresAt());
         entity.setCreatedBy(grantedBy);
         return toGroupPermissionView(groupPermissionRepository.save(entity));
@@ -1075,6 +1079,27 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         return value == null || value.isBlank() ? null : value;
     }
 
+    /**
+     * Normalises a grant's {@code denied_columns} (#935), refusing an entry that does not name its
+     * table and any entry on an engine that cannot resolve column references.
+     */
+    private List<String> deniedColumns(DatasourceEntity datasource, List<String> raw) {
+        var denied = DeniedColumns.normalize(raw);
+        if (denied.isEmpty()) {
+            return null;
+        }
+        for (String entry : denied) {
+            if (!DeniedColumns.isQualified(entry)) {
+                throw new IllegalDatasourcePermissionException(
+                        "denied_columns entry must be table.column or schema.table.column: " + entry);
+            }
+        }
+        if (engineCatalog.isEngineManaged(datasource.getDbType())) {
+            throw new DeniedColumnsNotSupportedException(datasource.getDbType());
+        }
+        return denied;
+    }
+
     private DatasourcePermissionView toPermissionView(DatasourceUserPermissionEntity entity) {
         UserEntity user = entity.getUser();
         return new DatasourcePermissionView(
@@ -1091,6 +1116,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
+                toList(entity.getDeniedColumns()),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());
@@ -1113,6 +1139,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
+                toList(entity.getDeniedColumns()),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());

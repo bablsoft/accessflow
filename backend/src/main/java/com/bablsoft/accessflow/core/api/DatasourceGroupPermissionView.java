@@ -18,6 +18,7 @@ public record DatasourceGroupPermissionView(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
+        List<String> deniedColumns,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt) {

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnReference;
+
 import net.sf.jsqlparser.expression.AnalyticExpression;
 import net.sf.jsqlparser.expression.ArrayExpression;
 import net.sf.jsqlparser.expression.Expression;
@@ -9,13 +11,19 @@ import net.sf.jsqlparser.expression.JsonTableFunction;
 import net.sf.jsqlparser.expression.KeepExpression;
 import net.sf.jsqlparser.expression.MySQLGroupConcat;
 import net.sf.jsqlparser.expression.XmlTableFunction;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.expression.operators.relational.IsUnknownExpression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.select.AllColumns;
+import net.sf.jsqlparser.statement.select.AllTableColumns;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.OrderByElement;
+import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -25,11 +33,15 @@ import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -51,20 +63,41 @@ import java.util.function.Supplier;
  * function call's aggregate {@code ORDER BY} / {@code LIMIT} / {@code HAVING} / keyword and named
  * arguments, JSON path segments ({@code a:(SELECT …)}), Oracle {@code KEEP}, MySQL {@code GROUP_CONCAT}, {@code IS UNKNOWN}, array subscripts
  * and slices, {@code TOP}, and {@code XMLTABLE} / {@code JSON_TABLE} used as a FROM item.
+ *
+ * <p>The same walk records every referenced column for column-level authorization (#935). Each
+ * {@code SELECT} / {@code UPDATE} / {@code DELETE} / {@code INSERT} pushes its FROM scope (alias →
+ * item). A qualified column resolves through the scopes, innermost first: to a real table, or — for
+ * a derived table or {@code WITH} name — to nothing, because the inner query is walked on its own
+ * and its columns are recorded at the source. An unknown qualifier is kept as a table name, and an
+ * unqualified column takes every real table of every enclosing scope as a candidate: both fail
+ * closed. {@code *} is a wildcard over the current scope's real tables, {@code t.*} over one table,
+ * and an {@code INSERT} without a column list over its target. A {@code *} inside a function call
+ * ({@code COUNT(*)}) is not a column reference.
  */
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     private final Set<String> recorded = new HashSet<>();
     private final Deque<Scope> scopes = new ArrayDeque<>();
+    private final Deque<FromScope> fromScopes = new ArrayDeque<>();
+    private final Set<ColumnReference> columns = new LinkedHashSet<>();
+    private int functionDepth;
     private boolean writesData;
 
     private SqlStatementInspector() {
     }
 
-    record Inspection(Set<String> tables, boolean writesData) {
+    record Inspection(Set<String> tables, boolean writesData, Set<ColumnReference> columns) {
     }
 
     private record Scope(Set<WithItem<?>> declared, Set<String> names) {
+    }
+
+    /** One statement's FROM items by every name a column may qualify them with. */
+    private record FromScope(Map<String, FromItem> byName, List<Table> tables) {
+
+        static FromScope empty() {
+            return new FromScope(new HashMap<>(), new ArrayList<>());
+        }
     }
 
     /**
@@ -74,7 +107,7 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     static Inspection inspect(Statement statement) {
         var inspector = new SqlStatementInspector();
         var tables = inspector.union(inspector.getTables(statement));
-        return new Inspection(tables, inspector.writesData);
+        return new Inspection(tables, inspector.writesData, Set.copyOf(inspector.columns));
     }
 
     /**
@@ -171,13 +204,17 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                 || plainSelect.getMySqlSelectIntoClause() != null) {
             writesData = true;
         }
-        return scoped(plainSelect.getWithItemsList(), () -> {
+        var scope = FromScope.empty();
+        addFromItem(scope, plainSelect.getFromItem());
+        addJoins(scope, plainSelect.getJoins());
+        return scoped(plainSelect.getWithItemsList(), () -> fromScoped(scope, () -> {
             super.visit(plainSelect, context);
             if (plainSelect.getTop() != null) {
                 accept(plainSelect.getTop().getExpression(), context);
             }
+            recordUsingColumns(plainSelect.getJoins());
             return null;
-        });
+        }));
     }
 
     @Override
@@ -198,17 +235,223 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(Insert insert, S context) {
-        return scoped(insert.getWithItemsList(), () -> super.visit(insert, context));
+        var scope = FromScope.empty();
+        addFromItem(scope, insert.getTable());
+        return scoped(insert.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(insert, context);
+            recordInsertTarget(insert);
+            return null;
+        }));
     }
 
     @Override
     public <S> Void visit(Update update, S context) {
-        return scoped(update.getWithItemsList(), () -> super.visit(update, context));
+        var scope = FromScope.empty();
+        if (!update.isTargetTableAlias()) {
+            addFromItem(scope, update.getTable());
+        }
+        addJoins(scope, update.getStartJoins());
+        addFromItem(scope, update.getFromItem());
+        addJoins(scope, update.getJoins());
+        return scoped(update.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(update, context);
+            recordUsingColumns(update.getJoins());
+            return null;
+        }));
     }
 
     @Override
     public <S> Void visit(Delete delete, S context) {
-        return scoped(delete.getWithItemsList(), () -> super.visit(delete, context));
+        var scope = FromScope.empty();
+        addFromItem(scope, delete.getTable());
+        if (delete.getUsingFromItemList() != null) {
+            delete.getUsingFromItemList().forEach(item -> addFromItem(scope, item));
+        }
+        addJoins(scope, delete.getJoins());
+        return scoped(delete.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(delete, context);
+            recordUsingColumns(delete.getJoins());
+            return null;
+        }));
+    }
+
+    @Override
+    public <S> Void visit(Column column, S context) {
+        super.visit(column, context);
+        var qualifier = column.getTable() == null ? null : column.getTable().getName();
+        var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+        if (name.isBlank()) {
+            return null;
+        }
+        if (qualifier == null || qualifier.isBlank()) {
+            columns.add(new ColumnReference(unqualifiedCandidates(), name));
+            return null;
+        }
+        var candidates = resolveQualifier(column.getTable());
+        if (candidates != null) {
+            columns.add(new ColumnReference(candidates, name));
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(AllColumns allColumns, S context) {
+        super.visit(allColumns, context);
+        if (functionDepth == 0 && !fromScopes.isEmpty()) {
+            var tables = realTables(fromScopes.peek());
+            if (!tables.isEmpty()) {
+                columns.add(ColumnReference.wildcard(tables));
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(AllTableColumns allTableColumns, S context) {
+        super.visit(allTableColumns, context);
+        if (allTableColumns.getTable() != null) {
+            var candidates = resolveQualifier(allTableColumns.getTable());
+            if (candidates != null) {
+                columns.add(ColumnReference.wildcard(candidates));
+            }
+        }
+        return null;
+    }
+
+    private <T> T fromScoped(FromScope scope, Supplier<T> body) {
+        // A subquery inside a function argument is a query of its own: its * is a column list.
+        int savedDepth = functionDepth;
+        functionDepth = 0;
+        fromScopes.push(scope);
+        try {
+            return body.get();
+        } finally {
+            fromScopes.pop();
+            functionDepth = savedDepth;
+        }
+    }
+
+    private static void addJoins(FromScope scope, List<Join> joins) {
+        if (joins != null) {
+            joins.forEach(join -> addFromItem(scope, join.getFromItem()));
+        }
+    }
+
+    private static void addFromItem(FromScope scope, FromItem item) {
+        switch (item) {
+            case null -> {
+                // no FROM clause
+            }
+            case Table table -> {
+                if (table.isTableVariable()) {
+                    return;
+                }
+                scope.tables().add(table);
+                if (table.getAlias() != null && table.getAlias().getName() != null) {
+                    scope.byName().put(key(table.getAlias().getName()), table);
+                } else {
+                    scope.byName().put(key(table.getName()), table);
+                    scope.byName().put(key(table.getFullyQualifiedName()), table);
+                }
+            }
+            case ParenthesedFromItem parenthesed -> {
+                addFromItem(scope, parenthesed.getFromItem());
+                addJoins(scope, parenthesed.getJoins());
+            }
+            default -> {
+                if (item.getAlias() != null && item.getAlias().getName() != null) {
+                    scope.byName().put(key(item.getAlias().getName()), item);
+                }
+            }
+        }
+    }
+
+    /**
+     * @return the real table a qualifier names, or {@code null} when it names a derived table or a
+     *     {@code WITH} item whose own body records its columns
+     */
+    private Set<String> resolveQualifier(Table qualifier) {
+        var fullName = key(qualifier.getFullyQualifiedName());
+        var shortName = key(qualifier.getName());
+        for (FromScope scope : fromScopes) {
+            var item = scope.byName().get(fullName);
+            if (item == null) {
+                item = scope.byName().get(shortName);
+            }
+            if (item instanceof Table table) {
+                return hiddenByWithName(table) ? null : Set.of(tableName(table));
+            }
+            if (item != null) {
+                return null;
+            }
+        }
+        if (fullName.indexOf('.') < 0 && hiddenByWithName(qualifier)) {
+            return null;
+        }
+        return Set.of(fullName);
+    }
+
+    private Set<String> unqualifiedCandidates() {
+        var out = new HashSet<String>();
+        for (FromScope scope : fromScopes) {
+            out.addAll(realTables(scope));
+        }
+        return out;
+    }
+
+    private Set<String> realTables(FromScope scope) {
+        var out = new HashSet<String>();
+        for (Table table : scope.tables()) {
+            if (!hiddenByWithName(table)) {
+                out.add(tableName(table));
+            }
+        }
+        return out;
+    }
+
+    private void recordUsingColumns(List<Join> joins) {
+        if (joins == null) {
+            return;
+        }
+        for (Join join : joins) {
+            if (join.getUsingColumns() != null) {
+                for (Column column : join.getUsingColumns()) {
+                    var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+                    if (!name.isBlank()) {
+                        columns.add(new ColumnReference(unqualifiedCandidates(), name));
+                    }
+                }
+            }
+        }
+    }
+
+    private void recordInsertTarget(Insert insert) {
+        var target = insert.getTable();
+        if (target == null || target.isTableVariable() || hiddenByWithName(target)) {
+            return;
+        }
+        var targetName = Set.of(tableName(target));
+        var insertColumns = insert.getColumns();
+        if (insertColumns == null || insertColumns.isEmpty()) {
+            if (insert.getSetUpdateSets() == null || insert.getSetUpdateSets().isEmpty()) {
+                columns.add(ColumnReference.wildcard(targetName));
+            }
+            return;
+        }
+        for (Column column : insertColumns) {
+            var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+            if (!name.isBlank()) {
+                columns.add(new ColumnReference(targetName, name));
+            }
+        }
+    }
+
+    private String tableName(Table table) {
+        return SqlParserServiceImpl.normalizeIdentifier(extractTableName(table));
+    }
+
+    private static String key(String identifier) {
+        return SqlParserServiceImpl.normalizeIdentifier(identifier);
     }
 
     @Override
@@ -270,6 +513,16 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function instanceof XmlTableFunction || function instanceof JsonTableFunction) {
             return function.accept(this, context);
         }
+        functionDepth++;
+        try {
+            visitFunction(function, context);
+        } finally {
+            functionDepth--;
+        }
+        return null;
+    }
+
+    private <S> void visitFunction(Function function, S context) {
         super.visit(function, context);
         accept(function.getNamedParameters(), context);
         accept(function.getKeep(), context);
@@ -289,7 +542,6 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function.getHavingClause() != null) {
             accept(function.getHavingClause().getExpression(), context);
         }
-        return null;
     }
 
     private <S> void acceptOrderBy(List<OrderByElement> elements, S context) {

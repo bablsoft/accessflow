@@ -213,7 +213,7 @@ class DefaultSampleDataServiceTest {
     void rowLimitOverrideBelowTheRequestedLimitCapsThePreview() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
                         5, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -227,7 +227,7 @@ class DefaultSampleDataServiceTest {
     void rowLimitOverrideAboveTheRequestedLimitLeavesTheLimit() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
                         500, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -241,7 +241,7 @@ class DefaultSampleDataServiceTest {
     void rowLimitPolicyOnTheSampledTableCapsThePreview() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
-                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null,
                         20, null)));
         when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
                 java.util.Set.of("public.users")))
@@ -259,6 +259,6 @@ class DefaultSampleDataServiceTest {
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, null);
+                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, null, null);
     }
 }

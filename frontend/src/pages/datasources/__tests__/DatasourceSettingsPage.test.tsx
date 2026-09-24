@@ -621,6 +621,7 @@ function basePermission(over: Partial<DatasourcePermission>): DatasourcePermissi
     allowed_schemas: null,
     allowed_tables: null,
     restricted_columns: null,
+    denied_columns: null,
     expires_at: null,
     created_by: 'admin',
     created_at: '2026-05-01T00:00:00Z',
@@ -726,5 +727,100 @@ describe('DatasourceSettingsPage — break-glass permission grant', () => {
     const emailCell = await screen.findByText('analyst@example.com');
     const row = emailCell.closest('tr')!;
     expect(within(row).getAllByRole('img', { name: 'check' })).toHaveLength(1);
+  });
+});
+
+describe('DatasourceSettingsPage — denied columns (#935)', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    getDatasource.mockResolvedValue(baseDs);
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+    grantPermission.mockReset();
+    grantPermission.mockResolvedValue(basePermission({ can_read: true }));
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({ schemas: [] });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+  });
+
+  function typeDeniedColumn(dialog: HTMLElement, value: string) {
+    const input = within(dialog).getByLabelText('Denied columns');
+    fireEvent.change(input, { target: { value } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+  }
+
+  it('sends the denied columns typed into the grant form', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    typeDeniedColumn(dialog, 'public.customer.national_id');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_columns).toEqual(['public.customer.national_id']);
+  });
+
+  it('sends null when no column is denied', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_columns).toBeNull();
+  });
+
+  it('refuses an unqualified denied column before calling the API', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    typeDeniedColumn(dialog, 'national_id');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    expect(
+      await within(dialog).findByText('Use table.column or schema.table.column'),
+    ).toBeInTheDocument();
+    expect(grantPermission).not.toHaveBeenCalled();
+  });
+
+  it('hides the field for an engine without column-level blocking', async () => {
+    getDatasource.mockResolvedValue({ ...baseDs, db_type: 'MONGODB' });
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    expect(within(dialog).queryByText('Denied columns')).not.toBeInTheDocument();
+  });
+
+  it('shows the denied-column count on the permission row', async () => {
+    listPermissions.mockResolvedValue([
+      basePermission({
+        can_read: true,
+        denied_columns: ['public.customer.national_id', 'public.customer.ssn'],
+      }),
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const emailCell = await screen.findByText('analyst@example.com');
+    const row = emailCell.closest('tr')!;
+    expect(within(row).getByText('2 columns')).toBeInTheDocument();
   });
 });

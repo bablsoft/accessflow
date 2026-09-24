@@ -79,7 +79,7 @@ class DefaultAttestationLifecycleServiceTest {
     private DatasourcePermissionView permission(UUID userId) {
         return new DatasourcePermissionView(UUID.randomUUID(), datasourceId, userId,
                 userId + "@example.com", "User", true, false, false, false, null,
-                List.of("public"), List.of(), List.of(), null, UUID.randomUUID(), Instant.now());
+                List.of("public"), List.of(), List.of(), null, null, UUID.randomUUID(), Instant.now());
     }
 
     @Test

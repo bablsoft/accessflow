@@ -11,11 +11,14 @@ import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.requestgroups.api.CreateRequestGroupCommand;
@@ -290,9 +293,27 @@ public class DefaultRequestGroupService implements RequestGroupService {
     }
 
     private QueryType classifyQuery(UUID datasourceId, String sql) {
+        return parseQuery(datasourceId, sql).type();
+    }
+
+    private SqlParseResult parseQuery(UUID datasourceId, String sql) {
         var dbType = datasourceLookupService.findById(datasourceId)
                 .map(d -> d.dbType()).orElse(DbType.POSTGRESQL);
-        return queryParser.parse(sql, dbType).type();
+        return queryParser.parse(sql, dbType);
+    }
+
+    /** A member may not reach a column its submitter is denied (#935), break-glass included. */
+    private void verifyDeniedColumns(RequestGroupItemEntity item,
+                                     DatasourceUserPermissionView permission) {
+        if (DeniedColumns.normalize(permission.deniedColumns()).isEmpty()) {
+            return;
+        }
+        var rejected = DeniedColumns.rejected(permission.deniedColumns(),
+                parseQuery(item.getDatasourceId(), item.getSqlText()));
+        if (!rejected.isEmpty()) {
+            throw new RequestGroupPermissionException(
+                    "Denied columns referenced: " + String.join(", ", rejected));
+        }
     }
 
     private void validatePermission(RequestGroupItemEntity item, UUID submitterId, boolean admin,
@@ -304,6 +325,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
                     throw new RequestGroupPermissionException(
                             "Break-glass requires can_break_glass on every member target");
                 }
+                verifyDeniedColumns(item, perm.get());
                 return;
             }
             if (admin) {
@@ -316,6 +338,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
                 throw new RequestGroupPermissionException(
                         "You are not permitted to run this query on the selected datasource");
             }
+            verifyDeniedColumns(item, perm.get());
         } else {
             var perm = apiConnectorPermissionLookupService.findFor(item.getApiConnectorId(), submitterId);
             if (breakGlass) {

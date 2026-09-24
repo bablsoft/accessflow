@@ -325,7 +325,9 @@ class DatasourceController {
     @ApiResponse(responseCode = "201", description = "Permission granted")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
     @ApiResponse(responseCode = "409", description = "Permission already exists for this user")
-    @ApiResponse(responseCode = "422", description = "Target user is not in the organization")
+    @ApiResponse(responseCode = "422",
+            description = "Target user is not in the organization, or denied_columns is not "
+                    + "supported by the datasource engine")
     ResponseEntity<PermissionResponse> grantPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreatePermissionRequest request,
@@ -342,6 +344,7 @@ class DatasourceController {
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
+                request.deniedColumns(),
                 request.expiresAt(),
                 // Admin-created: no originating JIT request (#969).
                 null);
@@ -354,6 +357,9 @@ class DatasourceController {
         metadata.put("can_write", view.canWrite());
         metadata.put("can_ddl", view.canDdl());
         metadata.put("can_break_glass", view.canBreakGlass());
+        if (view.deniedColumns() != null && !view.deniedColumns().isEmpty()) {
+            metadata.put("denied_columns", view.deniedColumns());
+        }
         recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -400,6 +406,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "201", description = "Group permission granted")
     @ApiResponse(responseCode = "404", description = "Datasource or group not found")
     @ApiResponse(responseCode = "409", description = "Permission already exists for this group")
+    @ApiResponse(responseCode = "422",
+            description = "denied_columns is not supported by the datasource engine")
     ResponseEntity<GroupPermissionResponse> grantGroupPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreateGroupPermissionRequest request,
@@ -416,6 +424,7 @@ class DatasourceController {
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
+                request.deniedColumns(),
                 request.expiresAt());
         var view = datasourceAdminService.grantGroupPermission(id, caller.organizationId(),
                 caller.userId(), command);
@@ -426,6 +435,9 @@ class DatasourceController {
         metadata.put("can_write", view.canWrite());
         metadata.put("can_ddl", view.canDdl());
         metadata.put("can_break_glass", view.canBreakGlass());
+        if (view.deniedColumns() != null && !view.deniedColumns().isEmpty()) {
+            metadata.put("denied_columns", view.deniedColumns());
+        }
         recordAudit(AuditAction.PERMISSION_GROUP_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()

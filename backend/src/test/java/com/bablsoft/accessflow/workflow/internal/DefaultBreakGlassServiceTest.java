@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.ColumnReference;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -215,6 +216,24 @@ class DefaultBreakGlassServiceTest {
     }
 
     @Test
+    void deniesWhenDeniedColumnReferenced() {
+        stubDatasourceForUser(true);
+        when(queryParser.parse(eq("SELECT ssn FROM customer"), any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                        List.of("SELECT ssn FROM customer"), Set.of("customer"), false, false,
+                        Set.of(new ColumnReference(Set.of("customer"), "ssn")), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, true,
+                        List.of(), List.of(), List.of(), List.of("customer.ssn"), null, null)));
+
+        assertThatThrownBy(() -> service.breakGlassExecute(
+                input("SELECT ssn FROM customer", false)))
+                .isInstanceOf(BreakGlassNotPermittedException.class);
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
     void rejectsQueryTypeOther() {
         stubDatasourceForUser(true);
         stubParse("BEGIN", QueryType.OTHER, Set.of());
@@ -303,7 +322,7 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl, canBreakGlass,
-                        allowedSchemas, allowedTables, List.of(), null, expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), null, null, expiresAt)));
     }
 
     private DatasourceView datasourceView(boolean active) {

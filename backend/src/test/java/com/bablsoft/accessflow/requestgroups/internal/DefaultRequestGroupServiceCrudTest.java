@@ -104,7 +104,7 @@ class DefaultRequestGroupServiceCrudTest {
 
     private DatasourceUserPermissionView dsPerm(boolean read, boolean write, boolean bg) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read, write,
-                false, bg, List.of(), List.of(), List.of(), null, null);
+                false, bg, List.of(), List.of(), List.of(), null, null, null);
     }
 
     private ApiConnectorPermissionLookupView apiPerm(boolean read, boolean write, boolean bg) {
@@ -218,6 +218,59 @@ class DefaultRequestGroupServiceCrudTest {
         assertThat(result.id()).isEqualTo(group.getId());
         verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
         verify(eventPublisher).publishEvent(any(RequestGroupSubmittedEvent.class));
+    }
+
+    @Test
+    void submitRejectsAMemberThatReferencesADeniedColumn() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(deniedColumnItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingPerm(false)));
+        stubDeniedColumnParse();
+
+        assertThatThrownBy(() -> service.submit(new SubmitRequestGroupCommand(group.getId(), orgId,
+                userId, false, false, null, "1.2.3.4", "ua")))
+                .isInstanceOf(RequestGroupPermissionException.class);
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    @Test
+    void breakGlassSubmitAlsoRejectsADeniedColumn() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(deniedColumnItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingPerm(true)));
+        stubDeniedColumnParse();
+
+        assertThatThrownBy(() -> service.submit(new SubmitRequestGroupCommand(group.getId(), orgId,
+                userId, false, true, null, "1.2.3.4", "ua")))
+                .isInstanceOf(RequestGroupPermissionException.class);
+    }
+
+    private RequestGroupItemEntity deniedColumnItem() {
+        var item = new RequestGroupItemEntity();
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(datasourceId);
+        item.setQueryType(QueryType.SELECT);
+        item.setSqlText("SELECT ssn FROM customer");
+        return item;
+    }
+
+    private DatasourceUserPermissionView denyingPerm(boolean breakGlass) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true, false,
+                false, breakGlass, List.of(), List.of(), List.of(), List.of("customer.ssn"), null, null);
+    }
+
+    private void stubDeniedColumnParse() {
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
+        when(queryParser.parse(any(), any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT ssn FROM customer"), java.util.Set.of("customer"), false, false,
+                java.util.Set.of(new com.bablsoft.accessflow.core.api.ColumnReference(
+                        java.util.Set.of("customer"), "ssn")), true));
     }
 
     @Test

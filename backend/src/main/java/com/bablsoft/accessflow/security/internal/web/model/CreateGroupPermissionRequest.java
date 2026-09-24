@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.security.internal.web.model;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,5 +20,10 @@ public record CreateGroupPermissionRequest(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<@NotBlank(message = "{validation.restricted_columns.item_blank}") String> restrictedColumns,
+        @Size(max = 200, message = "{validation.denied_columns.too_many}")
+        List<@NotBlank(message = "{validation.denied_columns.item_blank}")
+             @Pattern(regexp = CreatePermissionRequest.DENIED_COLUMN_PATTERN,
+                      message = "{validation.denied_columns.item_unqualified}") String> deniedColumns,
         Instant expiresAt
-) {}
+) {
+}

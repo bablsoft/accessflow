@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.bablsoft.accessflow.core.api.ColumnReference;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -55,6 +56,32 @@ class SqlParserServiceImplTest {
         SqlParseResult result = service.parse("SELECT * FROM users");
 
         assertThat(result.type()).isEqualTo(QueryType.SELECT);
+    }
+
+    @Test
+    void recordsReferencedColumnsForADataQuery() {
+        var result = service.parse("SELECT national_id FROM customer WHERE ssn = '1'");
+
+        assertThat(result.columnsAnalyzed()).isTrue();
+        assertThat(result.referencedColumns()).containsExactlyInAnyOrder(
+                new ColumnReference(java.util.Set.of("customer"), "national_id"),
+                new ColumnReference(java.util.Set.of("customer"), "ssn"));
+    }
+
+    @Test
+    void transactionUnionsColumnsOfEveryStatement() {
+        var result = service.parse(
+                "BEGIN; UPDATE a SET x = 1; DELETE FROM b WHERE y = 2; COMMIT;");
+
+        assertThat(result.columnsAnalyzed()).isTrue();
+        assertThat(result.referencedColumns()).containsExactlyInAnyOrder(
+                new ColumnReference(java.util.Set.of("a"), "x"),
+                new ColumnReference(java.util.Set.of("b"), "y"));
+    }
+
+    @Test
+    void ddlIsNotColumnAnalyzed() {
+        assertThat(service.parse("CREATE TABLE t (id INT)").columnsAnalyzed()).isFalse();
     }
 
     @Test

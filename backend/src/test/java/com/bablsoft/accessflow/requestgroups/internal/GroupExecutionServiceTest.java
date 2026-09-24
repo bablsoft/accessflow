@@ -195,7 +195,7 @@ class GroupExecutionServiceTest {
                         new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                                 UUID.randomUUID(), group.getSubmittedBy(), item.getDatasourceId(),
                                 true, false, false, false, List.of(), List.of(),
-                                List.of("public.users.ssn"), 100, null)));
+                                List.of("public.users.ssn"), null, 100, null)));
         when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
         when(rowSecurityResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
         when(datasourceLookupService.findById(any())).thenReturn(java.util.Optional.empty());
@@ -232,7 +232,7 @@ class GroupExecutionServiceTest {
                         new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                                 UUID.randomUUID(), group.getSubmittedBy(), item.getDatasourceId(),
                                 true, false, false, false, List.of(), List.of(),
-                                List.of("public.users.ssn"), 100, null)));
+                                List.of("public.users.ssn"), null, 100, null)));
         when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
         when(rowSecurityResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
         when(datasourceLookupService.findById(any())).thenReturn(java.util.Optional.empty());

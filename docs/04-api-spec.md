@@ -631,6 +631,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
       "allowed_schemas": ["public"],
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
+      "denied_columns": ["public.users.password_hash"],
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -640,6 +641,8 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
 ```
 
 `restricted_columns` is a list of fully-qualified `schema.table.column` strings (case-insensitive). Values for these columns are masked with `"***"` in SELECT result rows, and the AI analyzer is told that the SQL touches restricted columns (informational — never auto-rejects). Null or empty means no column restrictions.
+
+`denied_columns` (#935) is a list of `table.column` or `schema.table.column` strings, returned normalised (unquoted, lowercase). A query that references one — in the select list, `WHERE`, `JOIN`, `GROUP BY`, `HAVING`, `ORDER BY`, a subquery, an `UPDATE … SET` target or an `INSERT` column list, or through `*` / `t.*` / a column-list-less `INSERT` on the entry's table — is rejected **before** it is persisted: `POST /queries`, `POST /queries/dry-run`, `POST /queries/break-glass` and a request-group submit answer 403 (`error.permission.column_not_allowed` naming the denied entries; break-glass answers `BREAK_GLASS_NOT_PERMITTED` and a group answers `REQUEST_GROUP_PERMISSION_DENIED`). Deny beats mask for a column in both lists. Null or empty means nothing is denied.
 
 ### POST /datasources/{id}/permissions — Request Body
 
@@ -654,11 +657,15 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn", "public.users.email"],
+  "denied_columns": ["public.users.password_hash"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
 
-`restricted_columns` is optional. Each entry must be non-blank. `can_break_glass` (AF-385, optional,
+`restricted_columns` is optional. Each entry must be non-blank. `denied_columns` (#935) is optional,
+at most 200 entries, each `table.column` or `schema.table.column` with no blank part (400 otherwise).
+It is supported only on the in-process relational engines (PostgreSQL, MySQL, MariaDB, Oracle,
+SQL Server, `CUSTOM`). `can_break_glass` (AF-385, optional,
 default `false`) grants the emergency break-glass submission mode on this datasource — time-boxed via
 `expires_at`. The flag is returned on the permission object alongside `can_read`/`can_write`/`can_ddl`.
 
@@ -666,6 +673,7 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
 **Response 409:** A permission row already exists for `(user_id, datasource_id)`. `error: DATASOURCE_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** Target user does not exist or does not belong to the caller's organization. `error: ILLEGAL_DATASOURCE_PERMISSION`.
+**Response 422:** `denied_columns` is non-empty on an engine-managed datasource (every engine plugin, warehouses included). `error: DENIED_COLUMNS_NOT_SUPPORTED`, with `dbType`.
 
 ### DELETE /datasources/{id}/permissions/{permId}
 
@@ -676,8 +684,8 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 
 Group-based access grants (AF-530). A grant to a **user group** is inherited by every member; a user's
 **effective** access is the most-permissive union of their direct grant and every unexpired group grant
-for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` intersected so a
-column is masked only when every contributing grant masks it). Same shape as the per-user list, keyed on
+for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` and `denied_columns`
+intersected so a column is masked — or denied — only when every contributing grant masks or denies it). Same shape as the per-user list, keyed on
 the group instead of a user:
 
 ```json
@@ -697,6 +705,7 @@ the group instead of a user:
       "allowed_schemas": ["public"],
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
+      "denied_columns": [],
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -720,6 +729,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn"],
+  "denied_columns": ["public.users.password_hash"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
@@ -727,6 +737,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
 **Response 201:** Group permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/groups/{permId}`.
 **Response 404:** Datasource or group does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
 **Response 409:** A permission row already exists for `(group_id, datasource_id)`. `error: DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS`.
+**Response 422:** `denied_columns` on an engine-managed datasource. `error: DENIED_COLUMNS_NOT_SUPPORTED`.
 
 ### DELETE /datasources/{id}/permissions/groups/{permId}
 

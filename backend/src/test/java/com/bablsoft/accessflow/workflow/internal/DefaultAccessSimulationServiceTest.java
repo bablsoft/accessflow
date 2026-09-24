@@ -372,6 +372,27 @@ class DefaultAccessSimulationServiceTest {
     }
 
     @Test
+    void aDeniedColumnStopsTheRequestAndNamesIt() {
+        when(queryParser.parse(any(), any())).thenReturn(new SqlParseResult(QueryType.SELECT,
+                false, List.of("SELECT card FROM public.payments"), Set.of("public.payments"), false,
+                false, Set.of(new com.bablsoft.accessflow.core.api.ColumnReference(
+                        Set.of("public.payments"), "card")), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        List.of("public.payments.card"), null, null)));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        assertThat(permission.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(permission.reasonKey())
+                .isEqualTo("workflow.access_simulation.permission.column_denied");
+        assertThat(permission.details())
+                .containsEntry("rejected_columns", List.of("public.payments.card"));
+    }
+
+    @Test
     void anAllowListPassOverNoTablesIsFlaggedAsVacuous() {
         // rejectedTables() returns empty for an empty table set, in the simulator exactly as in the
         // gate. Reporting it as a plain ALLOW would read as a verdict the check never actually made.
@@ -684,13 +705,13 @@ class DefaultAccessSimulationServiceTest {
     private DatasourcePermissionContribution contribution() {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), "payments-oncall",
-                true, false, false, false, List.of("public"), List.of(), List.of(), null, null, null);
+                true, false, false, false, List.of("public"), List.of(), List.of(), null, null, null, null);
     }
 
     private DatasourceUserPermissionView permission(boolean canRead, boolean canWrite,
                                                     boolean canDdl, List<String> allowedSchemas) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null, null);
+                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null, null, null);
     }
 
     private ReviewPlanSnapshot plan() {

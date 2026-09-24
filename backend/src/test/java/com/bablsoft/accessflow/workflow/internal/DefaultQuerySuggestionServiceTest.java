@@ -274,6 +274,6 @@ class DefaultQuerySuggestionServiceTest {
                                                            boolean ddl, List<String> schemas,
                                                            List<String> tables, Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), USER, DATASOURCE, read, write,
-                ddl, false, schemas, tables, List.of(), null, expiresAt);
+                ddl, false, schemas, tables, List.of(), null, null, expiresAt);
     }
 }

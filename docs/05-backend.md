@@ -700,8 +700,9 @@ Edge cases:
 permission: the most-permissive union of their direct `datasource_user_permissions` row and every
 unexpired `datasource_group_permissions` grant for a group they belong to (group ids via
 `UserGroupMembershipRepository.findGroupIdsForUser`). Booleans OR; `allowed_schemas`/`allowed_tables`
-merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` merges to
-the **intersection** (a column is masked only when every contributing grant masks it); expired grants
+merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` and
+`denied_columns` (#935, compared normalised) merge to the **intersection** (a column is masked — or
+denied — only when every contributing grant masks or denies it); expired grants
 contribute nothing. Because `findFor` is the single choke-point every enforcement path already reads
 through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-SQL, workflow
 submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
@@ -726,6 +727,36 @@ add and run a member. Admins are granted/revoked group access via
 `DatasourceAdminService.{grant,list,revoke}GroupPermission` and the `/permissions/groups` endpoints,
 audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector side:
 `API_PERMISSION_GROUP_GRANTED` / `API_PERMISSION_GROUP_REVOKED`).
+
+### Column-level authorization — denied columns (#935)
+
+`denied_columns` blocks a query instead of masking its result. Three pieces make it up:
+
+- **Column extraction.** `proxy/internal/SqlStatementInspector` — the same single walk that collects
+  referenced tables — pushes a FROM scope (alias → item) for each `SELECT`, `UPDATE`, `DELETE` and
+  `INSERT` and records a `core.api.ColumnReference(candidateTables, column)` for every `Column`,
+  `AllColumns` (`*`, over the current scope's real tables; not inside a function call, so `COUNT(*)`
+  is not a wildcard), `AllTableColumns` (`t.*`), JOIN `USING` column, `INSERT` column-list entry,
+  and column-list-less `INSERT` (a wildcard on the target). A qualifier resolves innermost-first to a
+  real table. A derived table or `WITH` name resolves to nothing, because the inner query is walked
+  on its own. An unknown qualifier is kept as a table name. An unqualified column takes every real
+  table of every enclosing scope as a candidate. `SqlParserServiceImpl` puts the set on
+  `SqlParseResult.referencedColumns` and sets `columnsAnalyzed=true` for SELECT/INSERT/UPDATE/DELETE,
+  unioned across a `BEGIN … COMMIT` envelope. Engine plugins keep the 6-argument constructor, which
+  leaves both empty/`false`.
+- **Matching.** `core.api.DeniedColumns` is the single matcher: `normalize`, `isQualified`, and
+  `rejected(denied, parsed)`. It returns every denied entry whose table matches a candidate (the
+  schema must match only when both sides carry one) and whose column matches, or which a wildcard
+  reaches. It fails closed: a data query that was not column-analysed rejects every entry. DDL and
+  OTHER return nothing.
+- **Enforcement.** The following all call it: `DatasourcePermissionVerifier.verify` (submission and
+  the recurring per-occurrence recheck, 403 `error.permission.column_not_allowed`),
+  `DefaultBreakGlassService` (`BreakGlassNotPermittedException`), `DefaultQueryDryRunService` (same
+  403), `DefaultRequestGroupService.validatePermission` for every `QUERY` member, break-glass groups
+  included (`RequestGroupPermissionException`), and `DefaultAccessSimulationService` (a `DENY` on the
+  permission step with `rejected_columns`). `DatasourceAdminServiceImpl` normalises entries at grant
+  time, refuses an unqualified one, and refuses the field on an engine-managed `DbType`
+  (`DeniedColumnsNotSupportedException` → 422 `DENIED_COLUMNS_NOT_SUPPORTED`).
 
 ### Column-level masking
 

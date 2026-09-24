@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnReference;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -66,8 +67,9 @@ class SqlParserServiceImpl implements SqlParserService {
         }
         var statement = statements.get(0);
         var type = classify(statement);
-        return new SqlParseResult(type, false, List.of(sql),
-                extractReferencedTables(statement, type), hasWhere(statement), hasLimit(statement));
+        var analysis = analyze(statement, type);
+        return new SqlParseResult(type, false, List.of(sql), analysis.tables(),
+                hasWhere(statement), hasLimit(statement), analysis.columns(), isDataQuery(type));
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -110,15 +112,19 @@ class SqlParserServiceImpl implements SqlParserService {
         var representativeType = classify(statements.get(0));
         var statementSlices = sliceStatements(statements);
         var referencedTables = new HashSet<String>();
+        var referencedColumns = new HashSet<ColumnReference>();
         boolean anyWhere = false;
         boolean anyLimit = false;
         for (Statement statement : statements) {
-            referencedTables.addAll(extractReferencedTables(statement, classify(statement)));
+            var analysis = analyze(statement, classify(statement));
+            referencedTables.addAll(analysis.tables());
+            referencedColumns.addAll(analysis.columns());
             anyWhere = anyWhere || hasWhere(statement);
             anyLimit = anyLimit || hasLimit(statement);
         }
+        // Every inner statement is INSERT / UPDATE / DELETE here, so each was fully analyzed.
         return new SqlParseResult(representativeType, true, statementSlices, referencedTables,
-                anyWhere, anyLimit);
+                anyWhere, anyLimit, referencedColumns, true);
     }
 
     private List<Statement> parseStatementsOrThrow(String sql) {
@@ -152,9 +158,9 @@ class SqlParserServiceImpl implements SqlParserService {
      * otherwise be classified by its outer shape — a {@code SELECT} needing only {@code can_read} —
      * so it is rejected outright rather than reclassified. For {@code SELECT} / {@code INSERT} /
      * {@code UPDATE} / {@code DELETE} a traversal failure is fatal too: an empty or partial table set
-     * would let the allow-list check pass without having seen every table.
+     * would let the allow-list check pass without having seen every table — or every column (#935).
      */
-    private Set<String> extractReferencedTables(Statement statement, QueryType type) {
+    private Analysis analyze(Statement statement, QueryType type) {
         SqlStatementInspector.Inspection inspection;
         try {
             inspection = SqlStatementInspector.inspect(statement);
@@ -162,22 +168,26 @@ class SqlParserServiceImpl implements SqlParserService {
             if (type == QueryType.DDL || type == QueryType.OTHER) {
                 // JSqlParser raises UnsupportedOperationException on a handful of non-DML shapes.
                 // DDL is gated by canDdl and OTHER needs write access, neither via the allow-list.
-                return Set.of();
+                return new Analysis(Set.of(), Set.of());
             }
             throw new InvalidSqlException(msg("error.sql_analysis_failed"), ex);
         }
         if (inspection.writesData()) {
             throw new InvalidSqlException(msg("error.sql_embedded_write_not_allowed"));
         }
-        var raw = inspection.tables();
-        if (raw.isEmpty()) {
-            return Set.of();
-        }
-        var out = new HashSet<String>(raw.size());
-        for (String name : raw) {
+        var out = new HashSet<String>(inspection.tables().size());
+        for (String name : inspection.tables()) {
             out.add(normalizeIdentifier(name));
         }
-        return out;
+        return new Analysis(out, inspection.columns());
+    }
+
+    private record Analysis(Set<String> tables, Set<ColumnReference> columns) {
+    }
+
+    private static boolean isDataQuery(QueryType type) {
+        return type == QueryType.SELECT || type == QueryType.INSERT
+                || type == QueryType.UPDATE || type == QueryType.DELETE;
     }
 
     /**

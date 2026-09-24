@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.proxy.internal;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -51,9 +53,10 @@ class DefaultQueryDryRunService implements QueryDryRunService {
         // 2. Parse (InvalidSqlException -> 422) for the query type + referenced-table allow-list keys.
         var parsed = queryParser.parse(sql, datasource.dbType());
 
-        // 3. Same permission model as a real submission: capability + allow-list for non-admins.
+        // 3. Same permission model as a real submission: capability + allow-list + column deny list
+        //    for non-admins.
         if (!isAdmin) {
-            verifyPermission(userId, datasourceId, parsed.type(), parsed.referencedTables());
+            verifyPermission(userId, datasourceId, parsed);
         }
 
         // 4. Resolve the caller's row-security directives so the plan reflects the governed query.
@@ -78,8 +81,8 @@ class DefaultQueryDryRunService implements QueryDryRunService {
         return result;
     }
 
-    private void verifyPermission(UUID userId, UUID datasourceId, QueryType queryType,
-                                  Set<String> referencedTables) {
+    private void verifyPermission(UUID userId, UUID datasourceId, SqlParseResult parsed) {
+        var queryType = parsed.type();
         var permission = permissionLookupService.findFor(userId, datasourceId)
                 .orElseThrow(() -> new AccessDeniedException(
                         "No active permission on datasource: " + datasourceId));
@@ -91,7 +94,14 @@ class DefaultQueryDryRunService implements QueryDryRunService {
             throw new AccessDeniedException(
                     "Insufficient permission for " + queryType + " on datasource: " + datasourceId);
         }
-        verifyAllowedTables(permission, datasourceId, referencedTables);
+        verifyAllowedTables(permission, datasourceId, parsed.referencedTables());
+        var deniedColumns = DeniedColumns.rejected(permission.deniedColumns(), parsed);
+        if (!deniedColumns.isEmpty()) {
+            log.warn("Dry-run column deny rejection on datasource {} for user {}: columns {}",
+                    datasourceId, permission.userId(), deniedColumns);
+            throw new AccessDeniedException(msg("error.permission.column_not_allowed",
+                    new Object[]{String.join(", ", deniedColumns)}));
+        }
     }
 
     private void verifyAllowedTables(DatasourceUserPermissionView permission, UUID datasourceId,
