@@ -23,7 +23,7 @@ export function ClientApplicationTag({
   if (!trimmed) return null;
   const untrusted = source === 'HEADER' || source === 'header';
   return (
-    <Space size={4} data-testid={testId}>
+    <Space size={4} wrap data-testid={testId}>
       <Tooltip
         title={
           untrusted
@@ -31,7 +31,9 @@ export function ClientApplicationTag({
             : t('client_application.trusted_tooltip')
         }
       >
-        <Typography.Text code>{trimmed}</Typography.Text>
+        <Typography.Text code style={{ whiteSpace: 'nowrap' }}>
+          {trimmed}
+        </Typography.Text>
       </Tooltip>
       {untrusted && (
         <Tag color="warning" data-testid={`${testId}-untrusted`} style={{ marginInlineEnd: 0 }}>
