@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
+import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -108,6 +109,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final QueryEngineCatalog engineCatalog;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
+    private final DatasourceUserPermissionLookupService permissionLookupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -578,10 +580,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     public DatabaseSchemaView introspectSchema(UUID id, UUID organizationId, UUID userId,
                                                boolean isAdmin) {
         var entity = loadInOrganization(id, organizationId);
-        if (!isAdmin && !datasourceRepository.existsVisibleToUser(id, userId, Instant.now())) {
+        if (isAdmin) {
+            return introspect(id, entity);
+        }
+        if (!datasourceRepository.existsVisibleToUser(id, userId, Instant.now())) {
             throw new DatasourceNotFoundException(id);
         }
-        return introspect(id, entity);
+        var permission = permissionLookupService.findFor(userId, id)
+                .orElseThrow(() -> new DatasourceNotFoundException(id));
+        return SchemaViewPermissionFilter.apply(introspect(id, entity), permission);
     }
 
     @Override

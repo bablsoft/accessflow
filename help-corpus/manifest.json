@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "8754c1134523",
-  "generatedAt": "2026-09-24T07:45:40.106Z",
-  "sourceCommit": "12cdf69b6b1d287d873800163956e8ecb57b4540",
+  "corpusVersion": "2561f6312374",
+  "generatedAt": "2026-09-24T09:22:48.045Z",
+  "sourceCommit": "9518af83030350beb8f73fdac7e8731893d5b958",
   "chunkCount": 586,
-  "sha256": "8754c11345235a237df17da7a92d4c2a678b4ce8a27e39a7bdead9eb53d14f42",
+  "sha256": "2561f63123747e9089d17bd0592b6d09b15856388e9ed7262405df00e882d9f7",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "7a9107c02bf639b783a0d3b0ac81569ca31f39a73a6ebb02cb9d85be76a62cc5"
+      "sha256": "23feb73f450f20f6a0eb8a7ee8b963e5c9e33c8fd61e93fb26b12ed8a9281c6e"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
