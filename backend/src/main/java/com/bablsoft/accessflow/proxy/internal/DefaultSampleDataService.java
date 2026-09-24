@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +56,9 @@ class DefaultSampleDataService implements SampleDataService {
         if (!isAdmin) {
             // Non-admins additionally need read capability + the target inside their allow-list.
             var view = permission.orElseThrow(() -> new TableNotFoundException(datasourceId, table));
-            if (!view.canRead() || !targetAllowed(view, target, schemaView)) {
+            if (!view.canRead() || !targetAllowed(view, target,
+                    () -> datasourceAdminService.introspectSchemaForSystem(datasourceId,
+                            organizationId))) {
                 throw new TableNotFoundException(datasourceId, table);
             }
             // The preview reads every column, so a denied column on the table refuses it (#935).
@@ -123,15 +126,17 @@ class DefaultSampleDataService implements SampleDataService {
     }
 
     /**
-     * The allow-list rule the query gate applies ({@link AllowedTables#coveringEntry}), so a preview
-     * can never read a table the equivalent {@code SELECT} would be refused. The preview always
-     * names a concrete {@code schema.table}, while a bare {@code allowed_tables} entry covers only an
-     * unqualified reference — whatever table the database resolves that name to. It therefore admits
-     * the target only when no other schema in the view has a table of that name, the fail-closed
-     * rule {@code SchemaViewPermissionFilter} applies to the view itself (#936).
+     * Matches through {@link AllowedTables#coveringEntry}, the query gate's matcher: the qualified
+     * target is covered by its own {@code schema.table} entry or by its schema. A bare
+     * {@code allowed_tables} entry covers only an unqualified reference in the gate — whatever table
+     * the database resolves that name to — which a preview of a concrete {@code schema.table} cannot
+     * know. It admits the target only when no other schema in the database has a table of that name
+     * (the fail-closed rule {@code SchemaViewPermissionFilter} applies to the view, #936), counted
+     * over the unfiltered catalog, fetched only for this fallback, since the caller's filtered view
+     * may already hide the other table. A target without a schema is covered by a bare entry only.
      */
     private static boolean targetAllowed(DatasourceUserPermissionView permission, Target target,
-                                         DatabaseSchemaView view) {
+                                         Supplier<DatabaseSchemaView> fullCatalog) {
         var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
         var allowedTables = AllowedTables.normalize(permission.allowedTables());
         if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {
@@ -148,7 +153,7 @@ class DefaultSampleDataService implements SampleDataService {
         if (AllowedTables.coveringEntry(allowedSchemas, allowedTables, schema + "." + bare) != null) {
             return true;
         }
-        return allowedTables.contains(bare) && tablesNamed(view, bare) == 1;
+        return allowedTables.contains(bare) && tablesNamed(fullCatalog.get(), bare) == 1;
     }
 
     private static int tablesNamed(DatabaseSchemaView view, String bare) {
