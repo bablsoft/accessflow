@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
@@ -32,7 +33,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -72,7 +72,7 @@ class DefaultBreakGlassService implements BreakGlassService {
         }
         // The break-glass grant is required for everyone — including admins (AF-385).
         verifyBreakGlassPermission(input.submitterUserId(), datasource.id(), parsed.type(),
-                parsed.referencedTables());
+                parsed);
 
         // Persist as EMERGENCY_ACCESS WITHOUT publishing QuerySubmittedEvent — AI analysis and human
         // review are intentionally bypassed. The query is then force-approved and executed inline.
@@ -161,7 +161,7 @@ class DefaultBreakGlassService implements BreakGlassService {
     }
 
     private void verifyBreakGlassPermission(UUID userId, UUID datasourceId, QueryType queryType,
-                                            Set<String> referencedTables) {
+                                            SqlParseResult parsed) {
         var permission = permissionLookupService.findFor(userId, datasourceId)
                 .orElseThrow(() -> denied(datasourceId, userId, "no permission"));
         if (!permission.canBreakGlass()) {
@@ -173,8 +173,12 @@ class DefaultBreakGlassService implements BreakGlassService {
         if (!DatasourcePermissionChecker.hasCapability(permission, queryType)) {
             throw denied(datasourceId, userId, "missing " + queryType + " capability");
         }
-        if (!DatasourcePermissionChecker.rejectedTables(permission, referencedTables).isEmpty()) {
+        if (!DatasourcePermissionChecker.rejectedTables(permission, parsed.referencedTables())
+                .isEmpty()) {
             throw denied(datasourceId, userId, "tables outside allow-list");
+        }
+        if (!DatasourcePermissionChecker.rejectedColumns(permission, parsed).isEmpty()) {
+            throw denied(datasourceId, userId, "denied columns referenced");
         }
     }
 

@@ -57,6 +57,6 @@ class DefaultBreakGlassEligibilityServiceTest {
 
     private DatasourceUserPermissionView view(UUID datasourceId, Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, true, List.of(), List.of(), List.of(), null, expiresAt);
+                true, false, false, true, List.of(), List.of(), List.of(), null, null, expiresAt);
     }
 }

@@ -250,6 +250,8 @@ export function datasourceGrantErrorMessage(err: unknown): string {
     if (code === 'ILLEGAL_DATASOURCE_PERMISSION') {
       return i18n.t('errors.illegal_datasource_permission');
     }
+    // The server's localized detail names the engine (#935); the title is a bare "422".
+    if (code === 'DENIED_COLUMNS_NOT_SUPPORTED' && body?.detail) return body.detail;
     if (body?.title) return body.title;
     if (body?.detail) return body.detail;
     if (ax.message) return ax.message;

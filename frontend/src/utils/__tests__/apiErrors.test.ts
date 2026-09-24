@@ -264,6 +264,18 @@ describe('datasourceGrantErrorMessage', () => {
     ).toBe('That user is not part of your organization.');
   });
 
+  it('surfaces the server detail for DENIED_COLUMNS_NOT_SUPPORTED', () => {
+    expect(
+      datasourceGrantErrorMessage(
+        buildAxiosError(422, {
+          error: 'DENIED_COLUMNS_NOT_SUPPORTED',
+          title: 'Unprocessable Content',
+          detail: 'Denied columns are not supported for MONGODB datasources',
+        }),
+      ),
+    ).toBe('Denied columns are not supported for MONGODB datasources');
+  });
+
   it('falls back to ProblemDetail.title', () => {
     expect(datasourceGrantErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
   });

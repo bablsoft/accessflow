@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnReference;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +52,7 @@ class DatasourcePermissionVerifierTest {
                                                     List<String> allowedTables,
                                                     Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                canRead, canWrite, false, false, null, allowedTables, null, null, expiresAt);
+                canRead, canWrite, false, false, null, allowedTables, null, null, null, expiresAt);
     }
 
     @Test
@@ -59,7 +61,7 @@ class DatasourcePermissionVerifierTest {
                 .thenReturn(Optional.of(permission(true, false, null, null)));
 
         assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of("public.users")))
+                parsed(Set.of("public.users"))))
                 .doesNotThrowAnyException();
     }
 
@@ -69,7 +71,7 @@ class DatasourcePermissionVerifierTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of()))
+                parsed(Set.of())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -80,7 +82,7 @@ class DatasourcePermissionVerifierTest {
                         permission(true, false, null, NOW.minusSeconds(1))));
 
         assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of()))
+                parsed(Set.of())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -91,7 +93,7 @@ class DatasourcePermissionVerifierTest {
                         permission(true, false, null, NOW.plus(Duration.ofHours(1)))));
 
         assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of()))
+                parsed(Set.of())))
                 .doesNotThrowAnyException();
     }
 
@@ -101,7 +103,7 @@ class DatasourcePermissionVerifierTest {
                 .thenReturn(Optional.of(permission(false, true, null, null)));
 
         assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of()))
+                parsed(Set.of())))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -111,7 +113,7 @@ class DatasourcePermissionVerifierTest {
                 .thenReturn(Optional.of(permission(false, true, null, null)));
 
         assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.INSERT,
-                Set.of()))
+                parsed(Set.of())))
                 .doesNotThrowAnyException();
     }
 
@@ -125,7 +127,7 @@ class DatasourcePermissionVerifierTest {
                 .thenReturn("TABLE_NOT_ALLOWED_MARKER");
 
         assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of("public.orders")))
+                parsed(Set.of("public.orders"))))
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessage("TABLE_NOT_ALLOWED_MARKER");
     }
@@ -137,7 +139,69 @@ class DatasourcePermissionVerifierTest {
                         permission(true, false, List.of("public.users"), null)));
 
         assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
-                Set.of()))
+                parsed(Set.of())))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void verifyThrowsLocalizedMessageWhenDeniedColumnReferenced() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("public.customer.national_id"))));
+        when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(),
+                any(Locale.class)))
+                .thenReturn("COLUMN_DENIED_MARKER");
+        var parsed = new SqlParseResult(QueryType.SELECT, false, List.of("sql"),
+                Set.of("customer"), false, false,
+                Set.of(new ColumnReference(Set.of("customer"), "national_id")), true);
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT, parsed))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("COLUMN_DENIED_MARKER");
+    }
+
+    @Test
+    void verifyThrowsWhenWildcardReachesDeniedColumnsTable() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("customer.national_id"))));
+        var parsed = new SqlParseResult(QueryType.SELECT, false, List.of("sql"),
+                Set.of("public.customer"), false, false,
+                Set.of(ColumnReference.wildcard(Set.of("public.customer"))), true);
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT, parsed))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void verifyFailsClosedWhenColumnsWereNotAnalyzed() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("customer.national_id"))));
+        var unanalyzed = new SqlParseResult(QueryType.SELECT, false, List.of("sql"),
+                Set.of("customer"));
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                unanalyzed))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void verifyPassesWhenDeniedColumnIsNotReferenced() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denying(List.of("customer.national_id"))));
+        var parsed = new SqlParseResult(QueryType.SELECT, false, List.of("sql"),
+                Set.of("customer"), false, false,
+                Set.of(new ColumnReference(Set.of("customer"), "name")), true);
+
+        assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT, parsed))
+                .doesNotThrowAnyException();
+    }
+
+    private DatasourceUserPermissionView denying(List<String> deniedColumns) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
+                true, false, false, false, null, null, null, deniedColumns, null, null);
+    }
+
+    private static SqlParseResult parsed(Set<String> tables) {
+        return new SqlParseResult(QueryType.SELECT, false, List.of("sql"), tables, false, false,
+                Set.of(), true);
     }
 }

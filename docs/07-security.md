@@ -713,7 +713,8 @@ Beyond platform roles, every action against a customer database is validated aga
 **effective permission** — the most-permissive union of their direct `datasource_user_permissions` row
 and every unexpired `datasource_group_permissions` grant for a group they belong to (AF-530). Boolean
 capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned, and `restricted_columns`
-intersected (a column is masked only when **every** contributing grant masks it), each grant's `expires_at`
+and `denied_columns` intersected (a column is masked — or denied — only when **every** contributing grant
+masks or denies it; #935), each grant's `expires_at`
 honoured independently. `row_limit_override` is the one deliberate inversion: the **smallest** non-null value
 wins, so a wide group grant can never raise a tight per-user cap, and the proxy clamps it to the datasource
 cap and the global ceiling (#933). The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
@@ -743,6 +744,13 @@ Are allowed_schemas / allowed_tables set?
         intersect with allow-list; reject (403, `error.permission.table_not_allowed`) on any miss.
         Unqualified references match `allowed_tables` only when the bare name is listed —
         a schemas-only allow-list does NOT cover them.
+  Violation → 403
+         ↓
+Are denied_columns set? (#935, relational engines only)
+  YES → resolve every column the parsed statement references (select items, WHERE, JOIN ON/USING,
+        GROUP BY, HAVING, ORDER BY, subqueries, UPDATE SET targets, INSERT column lists, RETURNING)
+        to its candidate tables; a `*` / `t.*` / column-list-less INSERT on a table a denied entry
+        names counts as a reference; reject (403, `error.permission.column_not_allowed`) on any hit.
   Violation → 403
          ↓
 Are restricted_columns set?
@@ -829,7 +837,74 @@ A distinct submission mode that **skips pre-approval** for genuine emergencies, 
 - Restricted columns can still be referenced in SQL (WHERE, JOIN, GROUP BY, etc.). The system does not reject the query; it masks the value in the SELECT response and informs the AI reviewer.
 - Masking happens in `JdbcResultRowMapper` before rows are added to the in-memory result and before they are written to `query_request_results.rows`. The raw value never lands in our database. The sentinel is `"***"`; `null` stays `null`.
 - The AI analyzer renders `*RESTRICTED*` markers next to flagged columns in the schema context and is instructed to emit `RESTRICTED_COLUMN_ACCESS` issues (severity `LOW`) — the workflow state machine ignores this category for auto-rejection logic.
-- For high-confidentiality data where the value must never be retrievable at all, prefer an `allowed_tables` denial or a database-side view that excludes the column.
+- For high-confidentiality data where the value must never be retrievable at all, use `denied_columns` (below), an `allowed_tables` denial, or a database-side view that excludes the column.
+
+### Denied columns — block, not mask (#935)
+
+`denied_columns` (`TEXT[]` on both `datasource_user_permissions` and `datasource_group_permissions`)
+is the stricter sibling of `restricted_columns`: a query that **references** a denied column is
+rejected with 403 before it is persisted, reviewed or executed. It is an access boundary, enforced at
+every gate that evaluates a permission — submission (REST and MCP), the per-occurrence recheck of a
+recurring series (a newly denied column halts the series), break-glass, dry-run, every `QUERY`
+member of a request group (break-glass groups included), the table preview (`/sample-rows` and the
+MCP `get_column_samples` tool, which read every column, so a denied column anywhere on the table
+refuses the preview), and the access simulator, which reports the refusal as
+`workflow.access_simulation.permission.column_denied`. All of them call one matcher,
+`core.api.DeniedColumns`, so they cannot disagree.
+
+- **Entries name their table.** Each entry is `table.column` or `schema.table.column`; a bare column
+  name is refused at grant time (400). Entries are normalised (quotes stripped, lowercased).
+- **References come from the AST.** `SqlStatementInspector` resolves each column through the FROM
+  scope of its statement: an alias to its table, a derived table or `WITH` name to nothing (the inner
+  query is walked on its own, so its columns are caught at the source). It fails closed in two
+  places. An unqualified column in a multi-table query takes **every** table in scope as a candidate,
+  so `SELECT id FROM a JOIN b` is refused when either `a.id` or `b.id` is denied; for the same
+  reason, a column alias reused in `ORDER BY` can produce a false rejection. An unknown qualifier —
+  SQL Server's `inserted` / `deleted`, PostgreSQL's `excluded` — takes itself and every table in
+  scope as candidates.
+- **Wildcards need no introspection.** `SELECT *`, `t.*`, `RETURNING *` and an `INSERT` without a
+  column list are refused when they reach a table a denied entry names. So is every shape that returns
+  whole rows without naming a column: `TABLE t`, pipe syntax (`FROM t |> …`), a bare alias or table
+  name used as a value (PostgreSQL's `SELECT u`, `row_to_json(u)`, `(u).col`), and an alias that
+  renames columns by position (`t AS u(a, b)`). A table name that is also one of its column names
+  (`SELECT status FROM status`) is read the same way. So are PostgreSQL's functional notation for the
+  built-in row functions (`u.row_to_json`, `u.concat`, `u.max`), a `NATURAL` join at any nesting
+  depth (it compares every same-named column), and any `*` other than the direct argument of
+  `COUNT` / `COUNT_BIG` (SQL Server's `CHECKSUM(*)` hashes every column). PostgreSQL's prefix `@` (absolute
+  value) is read as a column reference, since JSqlParser parses `@salary` as a MySQL variable. JSqlParser misreads a parenthesised
+  `(TABLE t)` FROM item as a table named `TABLE`, which would hide `t` from every check, so the
+  parser refuses that statement with 422. Expanding `*` against the
+  live schema would give the same answer, but the check does not need the schema, so a missing or
+  stale schema cannot open a gap. A deny entry for a column that no longer exists still refuses
+  `SELECT *` on its table. `COUNT(*)` is not a wildcard. `EXISTS (SELECT * …)` is, and is refused on
+  a table with a denied column; write it as `SELECT 1`.
+- **Schema matching.** When both the entry and the referenced table carry a schema, they must match.
+  When either lacks one, the table name alone decides.
+- **Relational engines only.** Column references are resolved only on the JSqlParser path. A grant
+  with `denied_columns` on an engine-managed datasource (every plugin engine, warehouses included) is
+  refused with 422 `DENIED_COLUMNS_NOT_SUPPORTED`. If a parse did not analyse columns, any non-empty
+  deny list refuses the query rather than being skipped. DDL that touches a table with a denied
+  column is refused outright, because DDL can expose a column without reading it (`RENAME COLUMN`, a
+  generated column, `CREATE VIEW … AS SELECT`). DDL the parser cannot walk is refused whenever the
+  deny list is non-empty. `OTHER` statements are never checked, because no permission grants them.
+- **Known limits.** The check reads the SQL, not the database catalog. It cannot see a value the
+  database computes from a column the SQL never names: a view's or function's own body, SQL inside a
+  string argument, or a user-defined or extension function over the row type called in PostgreSQL's
+  functional notation (`u.my_fn` for `my_fn(u)`). Every built-in PostgreSQL function that accepts a
+  whole row is covered (`u.concat`, `u.max`, `u.hash_record`, `u.to_jsonb`, … — enumerated from
+  `pg_proc`), at the cost of refusing a real column with one of those names on a table that has a
+  denied column. The table allow-list shares these limits. Where a value must be unreachable even
+  through those, expose the table to the grantee only through a database-side view that omits the
+  column.
+- **DDL for deny-listed users.** Any DDL the parser cannot walk (`CREATE FUNCTION`, some `ALTER`
+  forms) is refused for a user whose effective grant denies any column, even on an unrelated table.
+- **Precedence with masking.** Deny is evaluated before execution, so a column that is both denied and
+  restricted is rejected. A column that is only restricted keeps masking exactly as before.
+- **Who it binds.** Like the table allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at
+  submission. Break-glass enforces it for everyone. A JIT grant never carries denied columns, and the
+  intersection merge means a grant that denies nothing lifts the deny for its holder. Entries meet by
+  the column they name, not by spelling: `users.ssn` on one grant and `public.users.ssn` on another
+  still deny `public.users.ssn`.
 
 ### Dynamic data masking policies (AF-381)
 

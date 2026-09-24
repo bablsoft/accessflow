@@ -386,7 +386,7 @@ class DefaultEffectiveAccessServiceTest {
                                                     Instant expiresAt, boolean breakGlass) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, canRead, canWrite, false,
-                breakGlass, schemas, tables, List.of(), null, expiresAt, null);
+                breakGlass, schemas, tables, List.of(), null, null, expiresAt, null);
     }
 
     /** A time-boxed direct row materialised from the given JIT request (#969). */
@@ -394,13 +394,13 @@ class DefaultEffectiveAccessServiceTest {
                                                  UUID accessGrantRequestId) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, true, false, false, false,
-                List.of("public"), List.of(), List.of(), null, expiresAt, accessGrantRequestId);
+                List.of("public"), List.of(), List.of(), null, null, expiresAt, accessGrantRequestId);
     }
 
     private DatasourcePermissionContribution ddlGrant(UUID userId) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, false, false, true, false,
-                List.of(), List.of(), List.of(), null, null, null);
+                List.of(), List.of(), List.of(), null, null, null, null);
     }
 
     private DatasourcePermissionContribution group(UUID userId, boolean canRead, boolean canWrite,
@@ -408,7 +408,7 @@ class DefaultEffectiveAccessServiceTest {
                                                    String groupName) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), groupName, canRead,
-                canWrite, false, false, schemas, tables, List.of(), null, null, null);
+                canWrite, false, false, schemas, tables, List.of(), null, null, null, null);
     }
 
     private AccessGrantView grant(UUID grantId, UUID requesterId) {
@@ -453,7 +453,7 @@ class DefaultEffectiveAccessServiceTest {
         return new DatasourceUserPermissionView(parts.get(0).sourceId(), parts.get(0).userId(),
                 datasourceId, canRead, canWrite, canDdl, breakGlass,
                 unrestrictedSchemas ? List.of() : new ArrayList<>(schemas),
-                unrestrictedTables ? List.of() : new ArrayList<>(tables), List.of(),
+                unrestrictedTables ? List.of() : new ArrayList<>(tables), List.of(), null,
                 null, anyNeverExpires ? null : expiresAt);
     }
 }

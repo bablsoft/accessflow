@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -574,8 +574,9 @@
             <strong>Datasource-level permissions.</strong> Role is the org-wide ceiling. On top of
             it, every user needs an explicit <strong>per-datasource permission grant</strong> to
             access a given database — it controls <em>read</em> / <em>write</em> / <em>DDL</em> per
-            datasource, row caps, allowed schemas / tables, and restricted columns (which are masked
-            as <code>***</code> in <code>SELECT</code> results). See
+            datasource, row caps, allowed schemas / tables, restricted columns (which are masked
+            as <code>***</code> in <code>SELECT</code> results), and denied columns (a query that
+            references one is refused before it runs). See
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
             for the full authorization matrix.
           </p>
@@ -585,8 +586,8 @@
             read / write / DDL / break-glass controls); every member inherits the grant, and adding
             someone to the group gives them access without a new grant. When a user has both a direct
             grant and one or more group grants, their <strong>effective access is the most-permissive
-            union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
-            only where every grant restricts, and each grant's expiry is honoured independently. The
+            union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks and denied columns apply
+            only where every grant restricts or denies them, and each grant's expiry is honoured independently. The
             one exception is the row limit override: the smallest one wins, and it can only lower the
             datasource's cap, never raise it.
           </p>

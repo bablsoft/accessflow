@@ -27,7 +27,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,7 +66,7 @@ class DefaultQueryDryRunServiceTest {
     private DatasourceUserPermissionView permission(boolean read, List<String> schemas,
                                                     List<String> tables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read,
-                false, false, false, schemas, tables, List.of(), null, null);
+                false, false, false, schemas, tables, List.of(), null, null, null);
     }
 
     @Test
@@ -132,6 +134,26 @@ class DefaultQueryDryRunServiceTest {
 
         assertThatThrownBy(() -> service.dryRun(datasourceId, "SELECT * FROM users", userId, orgId, false))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void nonAdminReferencingDeniedColumnIsDeniedBeforePlanning() {
+        when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(new SqlParseResult(
+                QueryType.SELECT, false, List.of("SELECT * FROM users"), Set.of("users"), false,
+                false, Set.of(com.bablsoft.accessflow.core.api.ColumnReference.wildcard(
+                        Set.of("users"))), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(java.util.Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, false,
+                        List.of(), List.of(), List.of(), List.of("users.ssn"), null, null)));
+        when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(), any()))
+                .thenReturn("column denied");
+
+        assertThatThrownBy(() -> service.dryRun(datasourceId, "SELECT * FROM users", userId, orgId, false))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("column denied");
+        verify(queryExecutor, never()).dryRun(any());
     }
 
     @Test

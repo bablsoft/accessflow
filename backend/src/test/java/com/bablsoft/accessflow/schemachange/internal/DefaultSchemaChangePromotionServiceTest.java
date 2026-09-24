@@ -678,7 +678,7 @@ class DefaultSchemaChangePromotionServiceTest {
     private void givenDdl(UUID datasourceId, boolean canDdl) {
         lenient().when(permissionLookupService.findFor(actorId, datasourceId)).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), actorId, datasourceId, true, true, canDdl, false,
-                        List.of(), List.of(), List.of(), null, null)));
+                        List.of(), List.of(), List.of(), null, null, null)));
     }
 
     private DeploymentEnvironmentView environment(UUID id, String name, int sortOrder, UUID datasourceId,

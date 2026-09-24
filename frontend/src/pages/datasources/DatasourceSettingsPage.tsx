@@ -52,6 +52,11 @@ import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReferenc
 import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
+import {
+  DENIED_COLUMNS_MAX,
+  isQualifiedColumnRef,
+  supportsDeniedColumns,
+} from '@/utils/deniedColumns';
 import { userDisplay } from '@/utils/userDisplay';
 import {
   datasourceKeys,
@@ -99,6 +104,7 @@ import type {
   CreatePermissionInput,
   DataClassification,
   Datasource,
+  DbType,
   DatasourceGroupPermission,
   DatasourcePermission,
   UpdateDatasourceInput,
@@ -313,7 +319,7 @@ export function DatasourceSettingsPage() {
       />
       <div style={{ flex: 1, overflow: 'auto' }}>
         {tab === 'config' && <ConfigTab ds={ds} onDelete={onDelete} deletePending={deleteMutation.isPending} />}
-        {tab === 'permissions' && <PermissionMatrix dsId={ds.id} />}
+        {tab === 'permissions' && <PermissionMatrix dsId={ds.id} dbType={ds.db_type} />}
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
@@ -910,7 +916,7 @@ function Grid({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PermissionMatrix({ dsId }: { dsId: string }) {
+function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
   const { t } = useTranslation();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
@@ -999,6 +1005,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
       <GrantAccessModal
         open={grantOpen}
         dsId={dsId}
+        dbType={dbType}
         existingUserIds={permissions.map((p) => p.user_id)}
         existingGroupIds={groupPermissions.map((p) => p.group_id)}
         onClose={() => setGrantOpen(false)}
@@ -1084,6 +1091,10 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
                 </Tooltip>
               );
             },
+          },
+          {
+            title: t('datasources.settings.perm_col_denied_columns'),
+            render: (_v, p) => <DeniedColumnsCell columns={p.denied_columns} />,
           },
           {
             title: t('datasources.settings.perm_col_expires'),
@@ -1198,6 +1209,10 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
                 ),
               },
               {
+                title: t('datasources.settings.perm_col_denied_columns'),
+                render: (_v, p) => <DeniedColumnsCell columns={p.denied_columns} />,
+              },
+              {
                 title: t('datasources.settings.perm_col_expires'),
                 width: 170,
                 render: (_v, p) =>
@@ -1234,6 +1249,21 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
   );
 }
 
+function DeniedColumnsCell({ columns }: { columns: string[] | null | undefined }) {
+  const { t } = useTranslation();
+  const cols = columns ?? [];
+  if (cols.length === 0) {
+    return <span className="muted">{t('datasources.settings.perm_no_denied')}</span>;
+  }
+  return (
+    <Tooltip title={cols.join(', ')}>
+      <Tag color="red" style={{ fontSize: 12 }}>
+        {t('datasources.settings.perm_denied_count', { count: cols.length })}
+      </Tag>
+    </Tooltip>
+  );
+}
+
 type GrantTarget = 'user' | 'group';
 
 interface GrantFormValues {
@@ -1248,12 +1278,14 @@ interface GrantFormValues {
   allowed_schemas?: string[];
   allowed_tables?: string[];
   restricted_columns?: string[];
+  denied_columns?: string[];
   expires_at?: Dayjs | null;
 }
 
 interface GrantAccessModalProps {
   open: boolean;
   dsId: string;
+  dbType: DbType;
   existingUserIds: string[];
   existingGroupIds: string[];
   onClose: () => void;
@@ -1262,6 +1294,7 @@ interface GrantAccessModalProps {
 function GrantAccessModal({
   open,
   dsId,
+  dbType,
   existingUserIds,
   existingGroupIds,
   onClose,
@@ -1369,6 +1402,10 @@ function GrantAccessModal({
         restricted_columns:
           values.restricted_columns && values.restricted_columns.length > 0
             ? values.restricted_columns
+            : null,
+        denied_columns:
+          values.denied_columns && values.denied_columns.length > 0
+            ? values.denied_columns
             : null,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
       };
@@ -1575,6 +1612,41 @@ function GrantAccessModal({
             allowClear
           />
         </Form.Item>
+        {supportsDeniedColumns(dbType) && (
+          <Form.Item
+            name="denied_columns"
+            label={t('datasources.settings.grant_denied_columns_label')}
+            extra={t('datasources.settings.grant_denied_columns_help')}
+            rules={[
+              {
+                validator: (_rule, value: string[] | undefined) => {
+                  const entries = value ?? [];
+                  if (entries.length > DENIED_COLUMNS_MAX) {
+                    return Promise.reject(
+                      new Error(t('datasources.settings.grant_denied_columns_too_many')),
+                    );
+                  }
+                  if (entries.some((entry) => !isQualifiedColumnRef(entry))) {
+                    return Promise.reject(
+                      new Error(t('datasources.settings.grant_denied_columns_invalid')),
+                    );
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Select
+              mode="tags"
+              tokenSeparators={[',', ' ']}
+              placeholder={t('datasources.settings.grant_denied_columns_placeholder')}
+              loading={schemaQuery.isLoading}
+              options={restrictedColumnOptions}
+              showSearch={{ optionFilterProp: 'label' }}
+              allowClear
+            />
+          </Form.Item>
+        )}
         <Form.Item
           name="expires_at"
           label={t('datasources.settings.grant_expires_label')}

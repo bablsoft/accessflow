@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnReference;
+
 import net.sf.jsqlparser.expression.AnalyticExpression;
 import net.sf.jsqlparser.expression.ArrayExpression;
 import net.sf.jsqlparser.expression.Expression;
@@ -8,28 +10,43 @@ import net.sf.jsqlparser.expression.JsonExpression;
 import net.sf.jsqlparser.expression.JsonTableFunction;
 import net.sf.jsqlparser.expression.KeepExpression;
 import net.sf.jsqlparser.expression.MySQLGroupConcat;
+import net.sf.jsqlparser.expression.UserVariable;
 import net.sf.jsqlparser.expression.XmlTableFunction;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.expression.operators.relational.FullTextSearch;
 import net.sf.jsqlparser.expression.operators.relational.IsUnknownExpression;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.merge.Merge;
+import net.sf.jsqlparser.statement.piped.FromQuery;
+import net.sf.jsqlparser.statement.select.AllColumns;
+import net.sf.jsqlparser.statement.select.AllTableColumns;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.OrderByElement;
+import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SetOperationList;
+import net.sf.jsqlparser.statement.select.TableStatement;
 import net.sf.jsqlparser.statement.select.WithItem;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -51,20 +68,76 @@ import java.util.function.Supplier;
  * function call's aggregate {@code ORDER BY} / {@code LIMIT} / {@code HAVING} / keyword and named
  * arguments, JSON path segments ({@code a:(SELECT …)}), Oracle {@code KEEP}, MySQL {@code GROUP_CONCAT}, {@code IS UNKNOWN}, array subscripts
  * and slices, {@code TOP}, and {@code XMLTABLE} / {@code JSON_TABLE} used as a FROM item.
+ *
+ * <p>The same walk records every referenced column for column-level authorization (#935). Each
+ * {@code SELECT} / {@code UPDATE} / {@code DELETE} / {@code INSERT} pushes its FROM scope (alias →
+ * item). A qualified column resolves through the scopes, innermost first: to a real table, or — for
+ * a derived table or {@code WITH} name — to nothing, because the inner query is walked on its own
+ * and its columns are recorded at the source. An unknown qualifier (a pseudo-table such as SQL
+ * Server's {@code inserted} / {@code deleted} or PostgreSQL's {@code excluded}) takes itself and
+ * every real table in scope as candidates, and so does an unqualified column: both fail closed.
+ * {@code *} is a wildcard over the current scope's real tables, {@code t.*} over one table, and so
+ * are the shapes that return whole rows without naming a column — an {@code INSERT} without a column
+ * list, {@code TABLE t}, a pipe-syntax {@code FROM t |> …}, a bare alias or table name used as a
+ * value ({@code SELECT u}, {@code row_to_json(u)}, {@code (u).col}), and a table alias that renames
+ * columns by position ({@code users AS u(a, b)}). {@code COUNT(*)} is not a column reference,
+ * but any other function's {@code *} is, and a {@code NATURAL} join is a wildcard over the tables
+ * it joins.
  */
 final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
+    /**
+     * Every built-in PostgreSQL function whose one required argument takes a whole row (a
+     * {@code record} / {@code anyelement} / {@code "any"} parameter — enumerated from
+     * {@code pg_proc} on PostgreSQL 18), plus {@code hstore}. Functional notation reads {@code u.f}
+     * as {@code f(u)}, so a qualified reference to one of these is a whole-row read. A real column
+     * with one of these names ({@code max}, {@code mode}) on a table with a denied column is
+     * refused too — that fails closed. User-defined and other extension functions over the row
+     * type are out of reach without the catalog.
+     */
+    private static final Set<String> ROW_FUNCTIONS = Set.of("any_out", "any_value",
+            "anycompatible_out", "anycompatiblenonarray_out", "anyelement_out", "anynonarray_out",
+            "array_agg", "concat", "count", "cume_dist", "dense_rank", "first_value", "hash_record",
+            "json_agg", "json_agg_strict", "json_build_array", "json_build_object", "jsonb_agg",
+            "jsonb_agg_strict", "jsonb_build_array", "jsonb_build_object", "lag", "last_value",
+            "lead", "max", "min", "mode", "num_nonnulls", "num_nulls", "percent_rank",
+            "pg_collation_for", "pg_column_compression", "pg_column_size",
+            "pg_column_toast_chunk_id", "pg_restore_attribute_stats", "pg_restore_relation_stats",
+            "pg_typeof", "quote_literal", "quote_nullable", "rank", "record_out", "record_send",
+            "row_to_json", "to_json", "to_jsonb", "hstore");
+
+    /** Aggregates whose {@code *} counts rows rather than reading columns. */
+    private static final Set<String> ROW_COUNTING_FUNCTIONS = Set.of("count", "count_big");
+
     private final Set<String> recorded = new HashSet<>();
     private final Deque<Scope> scopes = new ArrayDeque<>();
+    private final Deque<FromScope> fromScopes = new ArrayDeque<>();
+    private final Set<ColumnReference> columns = new LinkedHashSet<>();
+    private final Set<AllColumns> rowCountingStars = Collections.newSetFromMap(new IdentityHashMap<>());
     private boolean writesData;
+    private boolean misparsed;
 
     private SqlStatementInspector() {
     }
 
-    record Inspection(Set<String> tables, boolean writesData) {
+    /**
+     * @param misparsed JSqlParser read a parenthesised {@code (TABLE t)} FROM item as a table named
+     *     {@code TABLE} aliased {@code t}, so the real table is hidden from every check; the caller
+     *     refuses the statement
+     */
+    record Inspection(Set<String> tables, boolean writesData, Set<ColumnReference> columns,
+                      boolean misparsed) {
     }
 
     private record Scope(Set<WithItem<?>> declared, Set<String> names) {
+    }
+
+    /** One statement's FROM items by every name a column may qualify them with. */
+    private record FromScope(Map<String, FromItem> byName, List<Table> tables) {
+
+        static FromScope empty() {
+            return new FromScope(new HashMap<>(), new ArrayList<>());
+        }
     }
 
     /**
@@ -74,7 +147,8 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
     static Inspection inspect(Statement statement) {
         var inspector = new SqlStatementInspector();
         var tables = inspector.union(inspector.getTables(statement));
-        return new Inspection(tables, inspector.writesData);
+        return new Inspection(tables, inspector.writesData, Set.copyOf(inspector.columns),
+                inspector.misparsed);
     }
 
     /**
@@ -97,6 +171,10 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(Table table, S context) {
+        // Only the bare keyword: a quoted "table" keeps its quotes in the qualified name.
+        if ("TABLE".equalsIgnoreCase(table.getFullyQualifiedName())) {
+            misparsed = true;
+        }
         if (!table.isTableVariable() && !hiddenByWithName(table)) {
             recorded.add(extractTableName(table));
         }
@@ -171,13 +249,17 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
                 || plainSelect.getMySqlSelectIntoClause() != null) {
             writesData = true;
         }
-        return scoped(plainSelect.getWithItemsList(), () -> {
+        var scope = FromScope.empty();
+        addFromItem(scope, plainSelect.getFromItem());
+        addJoins(scope, plainSelect.getJoins());
+        return scoped(plainSelect.getWithItemsList(), () -> fromScoped(scope, () -> {
             super.visit(plainSelect, context);
             if (plainSelect.getTop() != null) {
                 accept(plainSelect.getTop().getExpression(), context);
             }
+            recordUsingColumns(plainSelect.getJoins());
             return null;
-        });
+        }));
     }
 
     @Override
@@ -198,17 +280,323 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(Insert insert, S context) {
-        return scoped(insert.getWithItemsList(), () -> super.visit(insert, context));
+        var scope = FromScope.empty();
+        addFromItem(scope, insert.getTable());
+        return scoped(insert.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(insert, context);
+            recordInsertTarget(insert);
+            return null;
+        }));
     }
 
     @Override
     public <S> Void visit(Update update, S context) {
-        return scoped(update.getWithItemsList(), () -> super.visit(update, context));
+        var scope = FromScope.empty();
+        if (!update.isTargetTableAlias()) {
+            addFromItem(scope, update.getTable());
+        }
+        addJoins(scope, update.getStartJoins());
+        addFromItem(scope, update.getFromItem());
+        addJoins(scope, update.getJoins());
+        return scoped(update.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(update, context);
+            recordUsingColumns(update.getStartJoins());
+            recordUsingColumns(update.getJoins());
+            return null;
+        }));
     }
 
     @Override
     public <S> Void visit(Delete delete, S context) {
-        return scoped(delete.getWithItemsList(), () -> super.visit(delete, context));
+        var scope = FromScope.empty();
+        addFromItem(scope, delete.getTable());
+        if (delete.getUsingFromItemList() != null) {
+            delete.getUsingFromItemList().forEach(item -> addFromItem(scope, item));
+        }
+        addJoins(scope, delete.getJoins());
+        return scoped(delete.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(delete, context);
+            recordUsingColumns(delete.getJoins());
+            return null;
+        }));
+    }
+
+    @Override
+    public <S> Void visit(Column column, S context) {
+        super.visit(column, context);
+        var qualifier = column.getTable() == null ? null : column.getTable().getName();
+        var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+        if (name.isBlank()) {
+            return null;
+        }
+        if (qualifier == null || qualifier.isBlank()) {
+            columns.add(new ColumnReference(unqualifiedCandidates(), name));
+            recordWholeRowReference(name);
+            return null;
+        }
+        var candidates = resolveQualifier(column.getTable());
+        if (candidates != null) {
+            columns.add(new ColumnReference(candidates, name));
+            if (ROW_FUNCTIONS.contains(name)) {
+                // PostgreSQL reads u.f as f(u) when u has no column f: u.to_jsonb is the row.
+                columns.add(ColumnReference.wildcard(candidates));
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(AllColumns allColumns, S context) {
+        super.visit(allColumns, context);
+        if (!rowCountingStars.contains(allColumns) && !fromScopes.isEmpty()) {
+            var tables = realTables(fromScopes.peek());
+            if (!tables.isEmpty()) {
+                columns.add(ColumnReference.wildcard(tables));
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(AllTableColumns allTableColumns, S context) {
+        super.visit(allTableColumns, context);
+        if (allTableColumns.getTable() != null) {
+            var candidates = resolveQualifier(allTableColumns.getTable());
+            if (candidates != null) {
+                columns.add(ColumnReference.wildcard(candidates));
+            }
+        }
+        return null;
+    }
+
+    private <T> T fromScoped(FromScope scope, Supplier<T> body) {
+        fromScopes.push(scope);
+        try {
+            return body.get();
+        } finally {
+            fromScopes.pop();
+        }
+    }
+
+    private void addJoins(FromScope scope, List<Join> joins) {
+        if (joins != null) {
+            joins.forEach(join -> addFromItem(scope, join.getFromItem()));
+        }
+    }
+
+    private void addFromItem(FromScope scope, FromItem item) {
+        switch (item) {
+            case null -> {
+                // no FROM clause
+            }
+            case Table table -> {
+                if (table.isTableVariable()) {
+                    return;
+                }
+                scope.tables().add(table);
+                if (table.getAlias() != null && table.getAlias().getAliasColumns() != null
+                        && !table.getAlias().getAliasColumns().isEmpty()) {
+                    // u(a, b) renames columns by position, so a name no longer says which column.
+                    columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+                }
+                if (table.getAlias() != null && table.getAlias().getName() != null) {
+                    scope.byName().put(key(table.getAlias().getName()), table);
+                } else {
+                    scope.byName().put(key(table.getName()), table);
+                    scope.byName().put(key(table.getFullyQualifiedName()), table);
+                }
+            }
+            case ParenthesedFromItem parenthesed -> {
+                int first = scope.tables().size();
+                addFromItem(scope, parenthesed.getFromItem());
+                addJoins(scope, parenthesed.getJoins());
+                // The statement-level join walk never sees a nested join's NATURAL / USING.
+                var grouped = new HashSet<String>();
+                for (Table table : scope.tables().subList(first, scope.tables().size())) {
+                    grouped.add(tableName(table));
+                }
+                recordJoinComparisons(parenthesed.getJoins(), grouped);
+            }
+            default -> {
+                if (item.getAlias() != null && item.getAlias().getName() != null) {
+                    scope.byName().put(key(item.getAlias().getName()), item);
+                }
+            }
+        }
+    }
+
+    /**
+     * @return the real table a qualifier names, or {@code null} when it names a derived table or a
+     *     {@code WITH} item whose own body records its columns
+     */
+    private Set<String> resolveQualifier(Table qualifier) {
+        var fullName = key(qualifier.getFullyQualifiedName());
+        var shortName = key(qualifier.getName());
+        for (FromScope scope : fromScopes) {
+            var item = scope.byName().get(fullName);
+            if (item == null) {
+                item = scope.byName().get(shortName);
+            }
+            if (item instanceof Table table) {
+                return hiddenByWithName(table) ? null : Set.of(tableName(table));
+            }
+            if (item != null) {
+                return null;
+            }
+        }
+        if (fullName.indexOf('.') < 0 && hiddenByWithName(qualifier)) {
+            return null;
+        }
+        var candidates = unqualifiedCandidates();
+        candidates.add(fullName);
+        return candidates;
+    }
+
+    /**
+     * PostgreSQL reads a bare alias or table name as the whole row ({@code SELECT u},
+     * {@code row_to_json(u)}, {@code (u).col}), so a name that resolves to a real table in scope is
+     * a wildcard over that table too.
+     */
+    private void recordWholeRowReference(String name) {
+        for (FromScope scope : fromScopes) {
+            var item = scope.byName().get(name);
+            if (item instanceof Table table) {
+                if (!hiddenByWithName(table)) {
+                    columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+                }
+                return;
+            }
+            if (item != null) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * JSqlParser reads PostgreSQL's prefix {@code @} (absolute value) as a MySQL user variable, so
+     * {@code @salary} and {@code @e.salary} are recorded as the column they may be. On MySQL this
+     * can only over-deny a variable named like a denied column.
+     */
+    @Override
+    public <S> Void visit(UserVariable variable, S context) {
+        super.visit(variable, context);
+        var name = variable.getName();
+        if (variable.isDoubleAdd() || name == null || name.isBlank()) {
+            return null;
+        }
+        int dot = name.lastIndexOf('.');
+        var column = dot < 0
+                ? new Column(name)
+                : new Column(new Table(name.substring(0, dot)), name.substring(dot + 1));
+        return visit(column, context);
+    }
+
+    @Override
+    public <S> Void visit(TableStatement tableStatement, S context) {
+        super.visit(tableStatement, context);
+        var table = tableStatement.getTable();
+        if (table != null && !hiddenByWithName(table)) {
+            columns.add(ColumnReference.wildcard(Set.of(tableName(table))));
+        }
+        return null;
+    }
+
+    @Override
+    public <S> Void visit(FromQuery fromQuery, S context) {
+        var scope = FromScope.empty();
+        addFromItem(scope, fromQuery.getFromItem());
+        addJoins(scope, fromQuery.getJoins());
+        return scoped(fromQuery.getWithItemsList(), () -> fromScoped(scope, () -> {
+            super.visit(fromQuery, context);
+            // Pipe operators can project, extend or pass rows through untouched; treat the source
+            // as read whole rather than follow each operator.
+            var tables = realTables(scope);
+            if (!tables.isEmpty()) {
+                columns.add(ColumnReference.wildcard(tables));
+            }
+            return null;
+        }));
+    }
+
+    @Override
+    public <S> Void visit(FullTextSearch fullTextSearch, S context) {
+        super.visit(fullTextSearch, context);
+        if (fullTextSearch.getMatchColumns() != null) {
+            fullTextSearch.getMatchColumns().forEach(column -> column.accept(this, context));
+        }
+        accept(fullTextSearch.getAgainstValue(), context);
+        return null;
+    }
+
+    private Set<String> unqualifiedCandidates() {
+        var out = new HashSet<String>();
+        for (FromScope scope : fromScopes) {
+            out.addAll(realTables(scope));
+        }
+        return out;
+    }
+
+    private Set<String> realTables(FromScope scope) {
+        var out = new HashSet<String>();
+        for (Table table : scope.tables()) {
+            if (!hiddenByWithName(table)) {
+                out.add(tableName(table));
+            }
+        }
+        return out;
+    }
+
+    private void recordUsingColumns(List<Join> joins) {
+        recordJoinComparisons(joins, unqualifiedCandidates());
+    }
+
+    private void recordJoinComparisons(List<Join> joins, Set<String> tables) {
+        if (joins == null || tables.isEmpty()) {
+            return;
+        }
+        for (Join join : joins) {
+            if (join.isNatural()) {
+                // NATURAL joins on every same-named column, so it compares columns it never names.
+                columns.add(ColumnReference.wildcard(tables));
+            }
+            if (join.getUsingColumns() != null) {
+                for (Column column : join.getUsingColumns()) {
+                    var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+                    if (!name.isBlank()) {
+                        columns.add(new ColumnReference(tables, name));
+                    }
+                }
+            }
+        }
+    }
+
+    private void recordInsertTarget(Insert insert) {
+        var target = insert.getTable();
+        if (target == null || target.isTableVariable() || hiddenByWithName(target)) {
+            return;
+        }
+        var targetName = Set.of(tableName(target));
+        var insertColumns = insert.getColumns();
+        if (insertColumns == null || insertColumns.isEmpty()) {
+            if (insert.getSetUpdateSets() == null || insert.getSetUpdateSets().isEmpty()) {
+                columns.add(ColumnReference.wildcard(targetName));
+            }
+            return;
+        }
+        for (Column column : insertColumns) {
+            var name = SqlParserServiceImpl.normalizeIdentifier(column.getColumnName());
+            if (!name.isBlank()) {
+                columns.add(new ColumnReference(targetName, name));
+            }
+        }
+    }
+
+    private String tableName(Table table) {
+        return SqlParserServiceImpl.normalizeIdentifier(extractTableName(table));
+    }
+
+    private static String key(String identifier) {
+        return SqlParserServiceImpl.normalizeIdentifier(identifier);
     }
 
     @Override
@@ -270,6 +658,20 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function instanceof XmlTableFunction || function instanceof JsonTableFunction) {
             return function.accept(this, context);
         }
+        // COUNT(*) counts rows; any other *, even nested under COUNT (CHECKSUM(*)), reads every
+        // column. Only COUNT's own direct * argument is exempt.
+        if (function.getName() != null
+                && ROW_COUNTING_FUNCTIONS.contains(function.getName().toLowerCase(Locale.ROOT))
+                && function.getParameters() != null && function.getParameters().size() == 1
+                && function.getParameters().get(0) instanceof AllColumns star
+                && !(star instanceof AllTableColumns)) {
+            rowCountingStars.add(star);
+        }
+        visitFunction(function, context);
+        return null;
+    }
+
+    private <S> void visitFunction(Function function, S context) {
         super.visit(function, context);
         accept(function.getNamedParameters(), context);
         accept(function.getKeep(), context);
@@ -289,7 +691,6 @@ final class SqlStatementInspector extends TablesNamesFinder<Void> {
         if (function.getHavingClause() != null) {
             accept(function.getHavingClause().getExpression(), context);
         }
-        return null;
     }
 
     private <S> void acceptOrderBy(List<OrderByElement> elements, S context) {

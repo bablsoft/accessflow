@@ -93,13 +93,13 @@ class DatasourcePermissionCheckerTest {
     private DatasourceUserPermissionView perm(boolean canRead, boolean canWrite, boolean canDdl) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), canRead, canWrite, canDdl, false,
-                List.of(), List.of(), List.of(), null, null);
+                List.of(), List.of(), List.of(), null, null, null);
     }
 
     private DatasourceUserPermissionView perm(List<String> allowedSchemas, List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, true, true, true,
-                allowedSchemas, allowedTables, List.of(), null, null);
+                allowedSchemas, allowedTables, List.of(), null, null, null);
     }
 
     @Test
@@ -137,5 +137,21 @@ class DatasourcePermissionCheckerTest {
                     .rejectedTables(schemas, tables, Set.of(table)).isEmpty();
             assertThat(covered).as(table).isEqualTo(allowed);
         }
+    }
+
+    @Test
+    void rejectedColumnsReadsThePermissionDenyList() {
+        var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(), true, false, false, false, null, null, null,
+                List.of("users.ssn"), null, null);
+        var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(
+                com.bablsoft.accessflow.core.api.QueryType.SELECT, false, List.of("sql"),
+                Set.of("users"), false, false, Set.of(
+                        com.bablsoft.accessflow.core.api.ColumnReference.wildcard(Set.of("users"))),
+                true);
+
+        assertThat(DatasourcePermissionChecker.rejectedColumns(permission, parsed))
+                .containsExactly("users.ssn");
     }
 }

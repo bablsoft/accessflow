@@ -212,7 +212,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .map(DatasourceConnectionDescriptor::dbType)
                     .orElseThrow(() -> new AccessDeniedException(
                             "Datasource inactive or gone: " + parent.datasourceId()));
-            var referencedTables = queryParser.parse(parent.sqlText(), dbType).referencedTables();
+            var parsed = queryParser.parse(parent.sqlText(), dbType);
             // Admins bypass the per-datasource permission gate at submission; mirror that here so
             // an admin-submitted series isn't halted for lacking a permission row. Losing the
             // admin role (and holding no row) still halts — the fail-closed contract survives.
@@ -221,7 +221,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             if (!effectivePermissions.contains(
                     com.bablsoft.accessflow.core.api.Permission.QUERY_ADMIN)) {
                 permissionVerifier.verify(parent.submittedByUserId(), parent.datasourceId(),
-                        parent.queryType(), referencedTables);
+                        parent.queryType(), parsed);
             }
             next = nextOccurrenceOrNull(parent, now);
         } catch (AccessDeniedException | InvalidSqlException | IllegalArgumentException

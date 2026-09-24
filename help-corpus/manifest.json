@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "a8fde9662cc9",
-  "generatedAt": "2026-09-23T16:23:11.466Z",
-  "sourceCommit": "3974851f8ef32942861baafa145b4cb30b16e64e",
-  "chunkCount": 585,
-  "sha256": "a8fde9662cc9e4ffce72fe2b5410a794aae17da3c1a35b7ae349e003c998241b",
+  "corpusVersion": "8754c1134523",
+  "generatedAt": "2026-09-24T07:45:40.106Z",
+  "sourceCommit": "12cdf69b6b1d287d873800163956e8ecb57b4540",
+  "chunkCount": 586,
+  "sha256": "8754c11345235a237df17da7a92d4c2a678b4ce8a27e39a7bdead9eb53d14f42",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 14,
-      "sha256": "07779b6e321125cc05a81c012cea2827e7d8fe1f9c1ea0fc5e1fd24d450e0d06"
+      "chunks": 15,
+      "sha256": "7a9107c02bf639b783a0d3b0ac81569ca31f39a73a6ebb02cb9d85be76a62cc5"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "1a390503ffc20ab4796400b23541826a73af5edaf9d1ccc15bc1bd1af0e44e7c"
+      "sha256": "917315b30f9410bd5d4d62489980920ef32e37377e8e4c3dfa8f671bf6d82f90"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -309,7 +309,7 @@
       "url": "https://accessflow.io/docs/guides/team/",
       "section": "Guides",
       "chunks": 8,
-      "sha256": "e4753e2b26f96d11869266dd1028f4cd23a1be05c448ba09ca506d33f2e6574e"
+      "sha256": "297c57fcf530d09dc9a17d0def19263ca9b41e0dbec94a1809b7c0b12589886a"
     },
     {
       "path": "website/docs/guides/terraform/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "2dc0b881df4ecf1ef49ecd54feb64f6f14aa51c3ccfa9004626b1ea162b640b9"
+      "sha256": "45da22212c855b134225f27af03dfd563e807166a3c41a2e1feac4faab6b8f3f"
     }
   ]
 }

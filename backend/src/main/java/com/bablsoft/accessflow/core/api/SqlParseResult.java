@@ -23,10 +23,16 @@ import java.util.Set;
  * WHERE clause or a LIMIT clause respectively (OR-ed across a transactional batch). They feed the
  * routing-policy engine's {@code has_where} / {@code has_limit} conditions; LIMIT is only
  * meaningful for SELECT.
+ *
+ * <p>{@code referencedColumns} lists every column a data statement references, resolved to its
+ * candidate tables (#935). It is populated only by the JSqlParser path, which then sets
+ * {@code columnsAnalyzed}; engine plugins leave both empty/{@code false}, and a column-level gate
+ * must fail closed over an unanalyzed parse rather than read the empty set as "no columns".
  */
 public record SqlParseResult(QueryType type, boolean transactional, List<String> statements,
                              Set<String> referencedTables, boolean hasWhereClause,
-                             boolean hasLimitClause) {
+                             boolean hasLimitClause, Set<ColumnReference> referencedColumns,
+                             boolean columnsAnalyzed) {
 
     public SqlParseResult {
         if (statements == null || statements.isEmpty()) {
@@ -34,6 +40,14 @@ public record SqlParseResult(QueryType type, boolean transactional, List<String>
         }
         statements = List.copyOf(statements);
         referencedTables = referencedTables == null ? Set.of() : Set.copyOf(referencedTables);
+        referencedColumns = referencedColumns == null ? Set.of() : Set.copyOf(referencedColumns);
+    }
+
+    public SqlParseResult(QueryType type, boolean transactional, List<String> statements,
+                          Set<String> referencedTables, boolean hasWhereClause,
+                          boolean hasLimitClause) {
+        this(type, transactional, statements, referencedTables, hasWhereClause, hasLimitClause,
+                Set.of(), false);
     }
 
     public SqlParseResult(QueryType type, String sql) {

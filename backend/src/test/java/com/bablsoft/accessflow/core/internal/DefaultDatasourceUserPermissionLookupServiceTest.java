@@ -183,6 +183,48 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
     }
 
     @Test
+    void findForIntersectsDeniedColumnsCaseInsensitively() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setDeniedColumns(new String[] {"Public.Users.SSN", "public.users.email"});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setDeniedColumns(new String[] {"users.ssn"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+
+        // A column is denied only when every contributing grant denies it (least-restrictive).
+        assertThat(view.deniedColumns()).containsExactly("public.users.ssn");
+    }
+
+    @Test
+    void findForDeniesNothingWhenOneGrantDeniesNothing() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setDeniedColumns(new String[] {"public.users.ssn"});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().deniedColumns()).isEmpty();
+    }
+
+    @Test
     void findForAllowListWideOpenWhenOneGrantHasNoRestriction() {
         var userId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();

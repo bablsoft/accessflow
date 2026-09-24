@@ -301,7 +301,7 @@ class DefaultQueryLifecycleServiceTest {
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         var permissionView = new DatasourceUserPermissionView(
                 UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null, null);
+                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null, null, null);
         when(permissionLookupService.findFor(submitterId, datasourceId))
                 .thenReturn(Optional.of(permissionView));
         when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
@@ -543,7 +543,7 @@ class DefaultQueryLifecycleServiceTest {
     private DatasourceUserPermissionView permissionWithRowLimit(Integer rowLimitOverride) {
         return new DatasourceUserPermissionView(
                 UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
-                List.of(), List.of(), List.of(), rowLimitOverride, null);
+                List.of(), List.of(), List.of(), null, rowLimitOverride, null);
     }
 
     @Test
@@ -1068,6 +1068,28 @@ class DefaultQueryLifecycleServiceTest {
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.RECURRING_SERIES_HALTED);
         assertThat(auditCaptor.getValue().metadata()).containsEntry("reason", "permission revoked");
+    }
+
+    @Test
+    void executeRecurringOccurrenceRechecksTheFullParseSoANewlyDeniedColumnHalts() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(QueryType.SELECT, false,
+                java.util.List.of("SELECT ssn FROM users"), java.util.Set.of("users"), false, false,
+                java.util.Set.of(new com.bablsoft.accessflow.core.api.ColumnReference(
+                        java.util.Set.of("users"), "ssn")), true);
+        when(queryParser.parse(any(), any())).thenReturn(parsed);
+        org.mockito.Mockito.doThrow(new AccessDeniedException("column denied"))
+                .when(permissionVerifier).verify(submitterId, datasourceId, QueryType.SELECT, parsed);
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, "column denied");
+        verify(queryExecutor, never()).execute(any());
     }
 
     @Test

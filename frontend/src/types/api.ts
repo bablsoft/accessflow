@@ -840,6 +840,7 @@ export interface CreatePermissionInput {
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
   restricted_columns?: string[] | null;
+  denied_columns?: string[] | null;
   expires_at?: string | null;
 }
 
@@ -853,6 +854,7 @@ export interface CreateGroupPermissionInput {
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
   restricted_columns?: string[] | null;
+  denied_columns?: string[] | null;
   expires_at?: string | null;
 }
 
@@ -1949,6 +1951,7 @@ export interface DatasourcePermission {
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
   restricted_columns: string[] | null;
+  denied_columns?: string[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
@@ -1968,6 +1971,7 @@ export interface DatasourceGroupPermission {
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
   restricted_columns: string[] | null;
+  denied_columns?: string[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;

@@ -20,6 +20,7 @@ public record GroupPermissionResponse(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
+        List<String> deniedColumns,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt
@@ -39,6 +40,7 @@ public record GroupPermissionResponse(
                 view.allowedSchemas(),
                 view.allowedTables(),
                 view.restrictedColumns(),
+                view.deniedColumns(),
                 view.expiresAt(),
                 view.createdBy(),
                 view.createdAt());

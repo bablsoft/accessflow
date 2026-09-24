@@ -74,7 +74,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
         }
         if (!input.isAdmin()) {
             permissionVerifier.verify(input.submitterUserId(), datasource.id(), parsed.type(),
-                    parsed.referencedTables());
+                    parsed);
         }
         var submissionReason = input.submissionReason() != null
                 ? input.submissionReason()

@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/guides/team/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/team/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Invite your team and assign roles.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -429,6 +429,10 @@
               for everything, or narrow it. Submitting a query that touches anything outside the
               list is refused.</li>
             <li><strong>Restricted columns</strong> — masked in this person's results.</li>
+            <li><strong>Denied columns</strong> — stricter than restricted: a query that touches one
+              at all, including through <code>SELECT *</code>, is refused before it runs. Relational
+              datasources only. Administrators are not bound by it, and it holds only while every
+              grant this person has on the datasource denies the column.</li>
             <li><strong>Expires at</strong> — optional, and the single most useful field on the
               form. Access that removes itself is access nobody has to remember to remove.</li>
           </ul>

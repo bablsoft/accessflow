@@ -627,6 +627,39 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void grantPermissionPersistsNormalizedDeniedColumns() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,
+                         "denied_columns":["Public.Customer.National_ID","orders.card"]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.denied_columns").asArray()
+                .containsExactly("public.customer.national_id", "orders.card");
+    }
+
+    @Test
+    void grantPermissionRejectsUnqualifiedDeniedColumn() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_columns":["national_id"]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
     void grantDuplicatePermissionReturns409() {
         var ds = saveDatasource(primaryOrg, "DS");
         savePermission(ds, analyst, admin, true, false, false);

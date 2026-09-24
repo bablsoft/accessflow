@@ -309,6 +309,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `allowed_schemas` | TEXT[] — null means all schemas permitted |
 | `allowed_tables` | TEXT[] — null means all tables permitted |
 | `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
+| `denied_columns` | TEXT[] nullable (#935, Flyway V186) — `table.column` / `schema.table.column` entries, stored normalised (unquoted, lowercase). A query that references one (including through `*`, `t.*` or a column-list-less `INSERT` on its table) is rejected with 403 before it is persisted. Relational engines only: a non-empty list is refused at grant time for an engine-managed datasource. Deny beats mask when a column is in both lists. Null/empty means nothing denied. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
 | `access_grant_request_id` | UUID nullable, FK → `access_grant_request` `ON DELETE SET NULL` (#969, Flyway V169) — the JIT request this row materialises; null on an admin-created row. Read by the effective-access report (#859) to label a source `JIT_GRANT`. Partial index on `(access_grant_request_id) WHERE access_grant_request_id IS NOT NULL`. Backfilled once by V169 from `access_grant_request.granted_permission_id` (datasource requests only) |
 | `created_by` | FK → `users` |
@@ -323,8 +324,8 @@ Grants a **user group** access to a datasource; every member inherits the grant.
 constraint and restriction columns clean), keyed on `group_id` instead of `user_id`. A user's
 **effective** permission is the most-permissive union of their direct grant and every unexpired group
 grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupService` (flags OR-ed;
-allow-lists unioned; `restricted_columns` intersected so a column is masked only when every contributing
-grant masks it; each grant's `expires_at` honoured independently). The one deliberate inversion is
+allow-lists unioned; `restricted_columns` and `denied_columns` intersected so a column is masked — or
+denied — only when every contributing grant masks or denies it; each grant's `expires_at` honoured independently). The one deliberate inversion is
 `row_limit_override`, which merges to the **smallest** non-null value so a wide group grant can never
 raise a tight per-user cap (#933). Mirrors how groups already drive
 masking-reveal and row-security.
@@ -337,7 +338,7 @@ masking-reveal and row-security.
 | `group_id` | FK → `user_groups` ON DELETE CASCADE |
 | `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false — same semantics as the per-user table |
 | `row_limit_override` | INTEGER nullable — same semantics as the per-user table; merged most-restrictive (smallest non-null wins) |
-| `allowed_schemas` / `allowed_tables` / `restricted_columns` | TEXT[] nullable — same semantics as the per-user table |
+| `allowed_schemas` / `allowed_tables` / `restricted_columns` / `denied_columns` | TEXT[] nullable — same semantics as the per-user table (`denied_columns` added by V186, #935) |
 | `expires_at` | TIMESTAMPTZ nullable — honoured per grant (an expired grant contributes nothing) |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |

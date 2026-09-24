@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-24",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -348,8 +348,18 @@
             deployment-wide.
           </p>
           <p>
-            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, and restricted columns (masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, restricted columns (masked as <code>***</code> in <code>SELECT</code> results), and denied columns. Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
           </p>
+          <p>
+            <strong>Denied columns — block instead of mask.</strong> A restricted column can still be queried; only its value is hidden. For a column that must never be read at all, list it under <em>Denied columns</em> as <code>table.column</code> or <code>schema.table.column</code>. A query that uses it is refused before it runs:
+          </p>
+          <ul>
+            <li><strong>What counts as using it.</strong> Selecting it, filtering, joining, grouping or sorting on it, or reading its whole table through <code>SELECT *</code>, <code>TABLE t</code> or a whole-row value such as <code>row_to_json(t)</code>. Spell out the columns you need instead of <code>*</code>. The table preview on the <em>Schema</em> tab reads every column, so it is refused on a table with a denied column.</li>
+            <li><strong>Joins.</strong> A column written without its table in a query that joins several tables is refused if any of those tables denies a column of that name. Prefix it with the table to avoid this.</li>
+            <li><strong>Deny beats mask.</strong> A query that uses a column that is both restricted and denied is refused.</li>
+            <li><strong>Who it does not bind.</strong> Administrators (any role with query-admin rights) skip per-datasource permission checks, so a denied column does not stop them. If a user holds several grants on the datasource — their own and their groups' — a column stays denied only while every one of those grants denies it. A grant that denies nothing, including a temporary just-in-time grant, lifts the deny.</li>
+            <li><strong>Supported datasources.</strong> PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC. The field is not offered for NoSQL or cloud data-warehouse datasources.</li>
+          </ul>
           <p>
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
             <em>Schema</em> and <em>ER diagram</em> tabs alongside <em>Configuration</em> /
