@@ -378,22 +378,22 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
       .click();
     await expect(issuedDialog).toBeHidden({ timeout: 5_000 });
 
-    // Columns: Name, Prefix, Created, Last used, Expires, Status, actions. Assert
+    // Columns: Name, Application, Prefix, Created, Last used, Expires, Status, actions. Assert
     // the header index before using it, so a column reorder fails loudly here
     // rather than silently moving the cell assertion onto the wrong column.
     const table = page.getByRole('table', { name: 'API keys' });
-    await expect(table.locator('thead th').nth(4)).toHaveText('Expires');
+    await expect(table.locator('thead th').nth(5)).toHaveText('Expires');
     const row = table.locator('tr').filter({ hasText: KEY_NAME_EXP });
     await expect(row).toBeVisible({ timeout: 10_000 });
     // The Expires cell renders through Intl.DateTimeFormat, whose exact wording
     // is locale-dependent — assert the year and day-of-month it must contain
     // rather than the placeholder it must not be.
-    const expiresCell = row.locator('td').nth(4);
+    const expiresCell = row.locator('td').nth(5);
     await expect(expiresCell).toContainText(String(target.getFullYear()));
     await expect(expiresCell).toContainText(String(target.getDate()));
 
     // Still Active: the expiry is 30 days out, not passed.
-    await expect(row.locator('td').nth(5)).toHaveText('Active');
+    await expect(row.locator('td').nth(6)).toHaveText('Active');
   });
 
   test.afterAll(async ({ request }) => {

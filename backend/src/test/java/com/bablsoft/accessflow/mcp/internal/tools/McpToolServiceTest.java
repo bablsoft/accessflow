@@ -179,6 +179,8 @@ class McpToolServiceTest {
     void submit_query_delegates_to_submission_service() {
         var queryId = UUID.randomUUID();
         var dsId = UUID.randomUUID();
+        var app = new com.bablsoft.accessflow.core.api.ClientApplication("reporting", com.bablsoft.accessflow.core.api.ApplicationNameSource.API_KEY);
+        when(requestApplicationService.current()).thenReturn(java.util.Optional.of(app));
         when(querySubmissionService.submit(any(QuerySubmissionService.SubmissionInput.class)))
                 .thenReturn(new QuerySubmissionService.QuerySubmissionResult(queryId, QueryStatus.PENDING_AI));
 
@@ -192,6 +194,7 @@ class McpToolServiceTest {
         assertThat(result.queryRequestId()).isEqualTo(queryId);
         assertThat(result.status()).isEqualTo("PENDING_AI");
         assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+        assertThat(captor.getValue().application()).isEqualTo(app);
         // The MCP surface writes QUERY_SUBMITTED itself (#874) — the REST controller does the same.
         var audit = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(audit.capture());

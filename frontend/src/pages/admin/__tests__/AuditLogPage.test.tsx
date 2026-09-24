@@ -102,6 +102,14 @@ describe('AuditLogPage — on-behalf-of attribution (#874, #875)', () => {
     expect(within(bobRow!).queryByText('reporting-service')).not.toBeInTheDocument();
   });
 
+  it('shows the application in the detail drawer, or a dash when the row has none', async () => {
+    render(wrap(<AuditLogPage />));
+
+    fireEvent.click((await screen.findByText('CI bot')).closest('tr')!);
+    expect(await screen.findByTestId('audit-detail-application')).toHaveTextContent('reporting-service');
+    expect(screen.getByTestId('audit-detail-application-untrusted')).toBeInTheDocument();
+  });
+
   it('seeds and applies the application filter', async () => {
     render(wrap(<AuditLogPage />, '/admin/audit-log?application_name=etl'));
     await screen.findByText('CI bot');

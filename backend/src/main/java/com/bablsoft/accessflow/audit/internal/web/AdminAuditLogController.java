@@ -228,7 +228,7 @@ class AdminAuditLogController {
                 // become a row claiming the admin exported on bob's behalf.
                 metadata.put("filter_on_behalf_of_user_id", filter.onBehalfOfUserId().toString());
             }
-            if (filter.applicationName() != null) {
+            if (filter.applicationName() != null && !filter.applicationName().isBlank()) {
                 // Not "application_name": that key names the application that made THIS request.
                 metadata.put("filter_application_name", filter.applicationName());
             }

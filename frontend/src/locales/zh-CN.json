@@ -3736,10 +3736,6 @@
       "FIXED_RATE": "固定频率",
       "CRON": "Cron",
       "ONE_TIME": "一次性"
-    },
-    "application_name_source": {
-      "API_KEY": "API 密钥",
-      "HEADER": "请求头"
     }
   },
   "access": {
@@ -5758,6 +5754,7 @@
     "key_placeholder": "例如 reporting-service",
     "key_help": "可选。此密钥发出的每个请求都会记录该名称，审计日志因此能显示是哪个应用发起的调用。",
     "key_size": "应用名称最多 100 个字符。",
+    "key_control_chars": "应用名称不能包含控制字符。",
     "rotate_help": "留空则沿用当前密钥的应用名称。",
     "column": "应用"
   }

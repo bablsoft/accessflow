@@ -3736,10 +3736,6 @@
       "FIXED_RATE": "Feste Rate",
       "CRON": "Cron",
       "ONE_TIME": "Einmalig"
-    },
-    "application_name_source": {
-      "API_KEY": "API-Schlüssel",
-      "HEADER": "Anfrage-Header"
     }
   },
   "access": {
@@ -5758,6 +5754,7 @@
     "key_placeholder": "z. B. reporting-service",
     "key_help": "Optional. Wird bei jeder Anfrage dieses Schlüssels erfasst, sodass das Audit-Log zeigt, welche Anwendung aufgerufen hat.",
     "key_size": "Der Anwendungsname darf höchstens 100 Zeichen lang sein.",
+    "key_control_chars": "Der Anwendungsname darf keine Steuerzeichen enthalten.",
     "rotate_help": "Leer lassen, um den Anwendungsnamen des aktuellen Schlüssels beizubehalten.",
     "column": "Anwendung"
   }

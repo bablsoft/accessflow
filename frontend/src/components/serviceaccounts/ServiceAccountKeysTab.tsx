@@ -34,6 +34,7 @@ import { serviceAccountErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import {
   KEY_FORM_CONSTRAINTS,
+  NO_CONTROL_CHARACTERS,
   fieldRules,
   gracePeriodOf,
   keyStatus,
@@ -230,7 +231,10 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
         extra={
           form === 'rotate' ? t('client_application.rotate_help') : t('client_application.key_help')
         }
-        rules={fieldRules(t, KEY_FORM_CONSTRAINTS.application_name)}
+        rules={[
+          ...fieldRules(t, KEY_FORM_CONSTRAINTS.application_name),
+          { pattern: NO_CONTROL_CHARACTERS, message: t('client_application.key_control_chars') },
+        ]}
       >
         <Input placeholder={t('client_application.key_placeholder')} />
       </Form.Item>

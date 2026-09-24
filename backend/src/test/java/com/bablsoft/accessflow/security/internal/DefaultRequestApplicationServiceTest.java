@@ -99,6 +99,16 @@ class DefaultRequestApplicationServiceTest {
     }
 
     @Test
+    void truncationNeverSplitsASurrogatePair() {
+        var name = "a".repeat(RequestApplicationService.MAX_LENGTH - 1) + "\uD83D\uDE00tail";
+
+        var result = DefaultRequestApplicationService.sanitize(name);
+
+        assertThat(result.codePointCount(0, result.length())).isEqualTo(RequestApplicationService.MAX_LENGTH);
+        assertThat(result).endsWith("\uD83D\uDE00");
+    }
+
+    @Test
     void headerWithControlCharactersIsIgnored() {
         request.addHeader(RequestApplicationService.HEADER, "evil\u0007");
 

@@ -3761,10 +3761,6 @@
       "FIXED_RATE": "Fixed rate",
       "CRON": "Cron",
       "ONE_TIME": "One time"
-    },
-    "application_name_source": {
-      "API_KEY": "API key",
-      "HEADER": "Request header"
     }
   },
   "access": {
@@ -5758,6 +5754,7 @@
     "key_placeholder": "e.g. reporting-service",
     "key_help": "Optional. Recorded on every request this key makes, so the audit log shows which application called.",
     "key_size": "Application name must be at most 100 characters.",
+    "key_control_chars": "Application name must not contain control characters.",
     "rotate_help": "Leave empty to keep the current key's application name.",
     "column": "Application"
   }

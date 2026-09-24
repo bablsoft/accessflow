@@ -39,6 +39,9 @@ class DefaultRequestApplicationService implements RequestApplicationService {
         if (value.isEmpty() || value.chars().anyMatch(Character::isISOControl)) {
             return null;
         }
-        return value.length() > MAX_LENGTH ? value.substring(0, MAX_LENGTH) : value;
+        if (value.codePointCount(0, value.length()) <= MAX_LENGTH) {
+            return value;
+        }
+        return value.substring(0, value.offsetByCodePoints(0, MAX_LENGTH));
     }
 }

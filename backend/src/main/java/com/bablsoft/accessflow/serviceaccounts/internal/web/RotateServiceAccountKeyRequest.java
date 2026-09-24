@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.serviceaccounts.internal.web;
 import com.bablsoft.accessflow.serviceaccounts.api.RotateServiceAccountKeyCommand;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.time.Duration;
@@ -23,6 +24,7 @@ public record RotateServiceAccountKeyRequest(
         Duration gracePeriod,
 
         @Size(max = 100, message = "{validation.api_key.application_name.size}")
+        @Pattern(regexp = "[^\\p{Cntrl}]*", message = "{validation.api_key.application_name.pattern}")
         String applicationName
 ) {
     @AssertTrue(message = "{validation.service_account_key_grace.positive}")

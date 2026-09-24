@@ -133,6 +133,16 @@ class ApiKeysControllerIntegrationTest {
     }
 
     @Test
+    void application_name_with_a_control_character_returns_400() {
+        var create = mvc.post().uri("/api/v1/me/api-keys")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"reports\",\"application_name\":\"bad\\tname\"}")
+                .exchange();
+        assertThat(create).hasStatus(400);
+    }
+
+    @Test
     void duplicate_name_returns_409() {
         mvc.post().uri("/api/v1/me/api-keys")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)

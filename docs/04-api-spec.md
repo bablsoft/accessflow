@@ -3692,7 +3692,7 @@ Rotation must not kill a running agent: it issues a **replacement** key and sets
 | `name` | `@NotBlank`, `@Size(max=100)` — the replacement key's name; must not collide with an existing key of the account |
 | `expires_at` | Optional expiry of the **replacement** key |
 | `grace_period` | Optional ISO-8601 duration, must be positive. Defaults to `ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE` (`PT24H`, see [09-deployment.md](09-deployment.md)) |
-| `application_name` | Optional, `@Size(max=100)` (#938). Absent or `null` = the replacement **inherits** the superseded key's application name, so a rotation never silently drops the attribution |
+| `application_name` | Optional, `@Size(max=100)` (#938). Absent or `null` = the replacement **inherits** the superseded key's application name, so a rotation never silently drops the attribution; an explicit blank string clears it |
 
 **Response 201:**
 ```json

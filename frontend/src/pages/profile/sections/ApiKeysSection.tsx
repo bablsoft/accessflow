@@ -22,6 +22,7 @@ import { apiKeysKeys, createApiKey, listApiKeys, revokeApiKey } from '@/api/apiK
 import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '@/types/api';
 import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
+import { NO_CONTROL_CHARACTERS } from '@/pages/admin/service-accounts/serviceAccountForm';
 
 interface CreateFormValues {
   name: string;
@@ -227,7 +228,10 @@ export function ApiKeysSection() {
             name="application_name"
             label={t('client_application.key_label')}
             extra={t('client_application.key_help')}
-            rules={[{ max: 100, message: t('client_application.key_size') }]}
+            rules={[
+              { max: 100, message: t('client_application.key_size') },
+              { pattern: NO_CONTROL_CHARACTERS, message: t('client_application.key_control_chars') },
+            ]}
           >
             <Input placeholder={t('client_application.key_placeholder')} />
           </Form.Item>

@@ -139,6 +139,34 @@ describe('ServiceAccountSettingsPage', () => {
     expect(await screen.findByText('Service account updated')).toBeInTheDocument();
   });
 
+  it('shows each key\'s application and sends a trimmed one on issue (#938)', async () => {
+    getServiceAccount.mockResolvedValue(
+      account({ api_keys: [key({ application_name: 'deploy-pipeline' }), key({ id: 'k-9', name: 'bare' })] }),
+    );
+    issueServiceAccountKey.mockResolvedValue({ api_key: key({ id: 'k-2', name: 'ci' }), raw_key: 'af_raw' });
+    render(wrap(<ServiceAccountSettingsPage />, '/admin/service-accounts/sa-1?tab=api-keys'));
+    await screen.findByRole('heading', { name: 'CI bot' });
+
+    expect(within(panel()).getByText('deploy-pipeline')).toBeInTheDocument();
+
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Issue key' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Recorded on every request this key makes/)).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText('Key name'), { target: { value: 'ci' } });
+    fireEvent.change(within(dialog).getByLabelText('Application name'), {
+      target: { value: '  reporting  ' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue key' }));
+
+    await waitFor(() =>
+      expect(issueServiceAccountKey).toHaveBeenCalledWith('sa-1', {
+        name: 'ci',
+        expires_at: null,
+        application_name: 'reporting',
+      }),
+    );
+  });
+
   it('issues a key and shows it exactly once', async () => {
     issueServiceAccountKey.mockResolvedValue({ api_key: key({ id: 'k-2', name: 'ci' }), raw_key: 'af_raw_secret' });
     render(wrap(<ServiceAccountSettingsPage />, '/admin/service-accounts/sa-1?tab=api-keys'));

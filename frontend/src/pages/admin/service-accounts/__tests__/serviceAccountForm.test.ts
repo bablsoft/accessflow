@@ -4,6 +4,7 @@ import type { ServiceAccount } from '@/types/api';
 import {
   CREATE_FORM_CONSTRAINTS,
   KEY_FORM_CONSTRAINTS,
+  NO_CONTROL_CHARACTERS,
   allowedToolCount,
   createInputFromForm,
   fieldRules,
@@ -235,5 +236,14 @@ describe('keys', () => {
     expect(gracePeriodOf(0)).toBeUndefined();
     expect(gracePeriodOf(null)).toBeUndefined();
     expect(gracePeriodOf(Number.NaN)).toBeUndefined();
+  });
+});
+
+describe('NO_CONTROL_CHARACTERS (#938)', () => {
+  it('accepts printable names and rejects control characters', () => {
+    expect(NO_CONTROL_CHARACTERS.test('reporting-service')).toBe(true);
+    expect(NO_CONTROL_CHARACTERS.test('')).toBe(true);
+    expect(NO_CONTROL_CHARACTERS.test('tab\tname')).toBe(false);
+    expect(NO_CONTROL_CHARACTERS.test('bell\u0007')).toBe(false);
   });
 });
