@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -21,12 +22,12 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +56,9 @@ class DefaultSampleDataService implements SampleDataService {
         if (!isAdmin) {
             // Non-admins additionally need read capability + the target inside their allow-list.
             var view = permission.orElseThrow(() -> new TableNotFoundException(datasourceId, table));
-            if (!view.canRead() || !targetAllowed(view, target)) {
+            if (!view.canRead() || !targetAllowed(view, target,
+                    () -> datasourceAdminService.introspectSchemaForSystem(datasourceId,
+                            organizationId))) {
                 throw new TableNotFoundException(datasourceId, table);
             }
             // The preview reads every column, so a denied column on the table refuses it (#935).
@@ -123,59 +126,51 @@ class DefaultSampleDataService implements SampleDataService {
     }
 
     /**
-     * Mirrors the allow-list semantics of {@code DefaultQuerySubmissionService.verifyAllowedTables}:
-     * empty lists allow everything; otherwise the table (bare or {@code schema.table}) must be in
-     * {@code allowedTables}, or its schema in {@code allowedSchemas}.
+     * Matches through {@link AllowedTables#coveringEntry}, the query gate's matcher: the qualified
+     * target is covered by its own {@code schema.table} entry or by its schema. A bare
+     * {@code allowed_tables} entry covers only an unqualified reference in the gate — whatever table
+     * the database resolves that name to — which a preview of a concrete {@code schema.table} cannot
+     * know. It admits the target only when no other schema in the database has a table of that name
+     * (the fail-closed rule {@code SchemaViewPermissionFilter} applies to the view, #936), counted
+     * over the unfiltered catalog, fetched only for this fallback, since the caller's filtered view
+     * may already hide the other table. A target without a schema is covered by a bare entry only.
      */
-    private static boolean targetAllowed(DatasourceUserPermissionView permission, Target target) {
-        var allowedSchemas = normalizeList(permission.allowedSchemas());
-        var allowedTables = normalizeList(permission.allowedTables());
+    private static boolean targetAllowed(DatasourceUserPermissionView permission, Target target,
+                                         Supplier<DatabaseSchemaView> fullCatalog) {
+        var allowedSchemas = AllowedTables.normalize(permission.allowedSchemas());
+        var allowedTables = AllowedTables.normalize(permission.allowedTables());
         if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {
             return true;
         }
-        var bare = normalize(target.table());
-        var qualified = target.schema() == null || target.schema().isBlank()
-                ? bare
-                : normalize(target.schema()) + "." + bare;
-        if (allowedTables.contains(bare) || allowedTables.contains(qualified)) {
+        var bare = AllowedTables.normalizeEntry(target.table());
+        if (bare == null) {
+            return false;
+        }
+        var schema = AllowedTables.normalizeEntry(target.schema());
+        if (schema == null) {
+            return allowedTables.contains(bare);
+        }
+        if (AllowedTables.coveringEntry(allowedSchemas, allowedTables, schema + "." + bare) != null) {
             return true;
         }
-        return target.schema() != null && !target.schema().isBlank()
-                && allowedSchemas.contains(normalize(target.schema()));
+        return allowedTables.contains(bare) && tablesNamed(fullCatalog.get(), bare) == 1;
     }
 
-    private static List<String> normalizeList(List<String> raw) {
-        if (raw == null || raw.isEmpty()) {
-            return List.of();
-        }
-        var out = new ArrayList<String>(raw.size());
-        for (String entry : raw) {
-            if (entry == null) {
-                continue;
-            }
-            var normalized = normalize(entry);
-            if (!normalized.isEmpty()) {
-                out.add(normalized);
+    private static int tablesNamed(DatabaseSchemaView view, String bare) {
+        var count = 0;
+        for (var ns : view.schemas()) {
+            for (var t : ns.tables()) {
+                if (bare.equals(AllowedTables.normalizeEntry(t.name()))) {
+                    count++;
+                }
             }
         }
-        return List.copyOf(out);
+        return count;
     }
 
     private static String qualifiedName(Target target) {
-        return target.schema() == null || target.schema().isBlank()
-                ? normalize(target.table())
-                : normalize(target.schema()) + "." + normalize(target.table());
-    }
-
-    private static String normalize(String raw) {
-        var stripped = new StringBuilder(raw.length());
-        for (int i = 0; i < raw.length(); i++) {
-            char c = raw.charAt(i);
-            if (c == '"' || c == '`' || c == '[' || c == ']') {
-                continue;
-            }
-            stripped.append(c);
-        }
-        return stripped.toString().trim().toLowerCase(Locale.ROOT);
+        var table = Objects.requireNonNullElse(AllowedTables.normalizeEntry(target.table()), "");
+        var schema = AllowedTables.normalizeEntry(target.schema());
+        return schema == null ? table : schema + "." + table;
     }
 }

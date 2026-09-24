@@ -125,6 +125,40 @@ class DefaultQueryDryRunServiceTest {
     }
 
     @Test
+    void nonAdminReferencingTablesCoveredBySchemaOrQualifiedEntryPasses() {
+        when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any()))
+                .thenReturn(parse(QueryType.SELECT, Set.of("sales.orders", "public.users")));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(java.util.Optional.of(permission(true, List.of("Sales"),
+                        List.of("\"PUBLIC\".\"USERS\""))));
+        when(rowSecurityResolutionService.resolveApplicable(orgId, datasourceId, userId))
+                .thenReturn(List.of());
+        var expected = QueryDryRunResult.of("postgresql", QueryType.SELECT, 1L, null, null,
+                Set.of(), Duration.ZERO);
+        when(queryExecutor.dryRun(any())).thenReturn(expected);
+
+        assertThat(service.dryRun(datasourceId, "SELECT 1", userId, orgId, false))
+                .isSameAs(expected);
+    }
+
+    @Test
+    void nonAdminWithAllowListAndNoReferencedTablesPasses() {
+        when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(parse(QueryType.SELECT, Set.of()));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(java.util.Optional.of(permission(true, List.of(), List.of("orders"))));
+        when(rowSecurityResolutionService.resolveApplicable(orgId, datasourceId, userId))
+                .thenReturn(List.of());
+        var expected = QueryDryRunResult.of("postgresql", QueryType.SELECT, 1L, null, null,
+                Set.of(), Duration.ZERO);
+        when(queryExecutor.dryRun(any())).thenReturn(expected);
+
+        assertThat(service.dryRun(datasourceId, "SELECT 1", userId, orgId, false))
+                .isSameAs(expected);
+    }
+
+    @Test
     void nonAdminReferencingDisallowedTableIsDenied() {
         when(datasourceAdminService.getForUser(datasourceId, orgId, userId)).thenReturn(view());
         when(queryParser.parse(anyString(), any())).thenReturn(parse(QueryType.SELECT, Set.of("users")));
