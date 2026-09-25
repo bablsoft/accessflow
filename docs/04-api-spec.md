@@ -625,12 +625,13 @@ GET /api/v1/datasources/{id}/sample-rows?schema=public&table=users&limit=50
 }
 ```
 
-`restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap or the result byte cap (#49); `truncated_reason` says which (`"ROW_LIMIT"` | `"BYTE_LIMIT"`, `null` when not truncated).
+`restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap or the result byte cap (#49); `truncated_reason` says which (`"ROW_LIMIT"` | `"BYTE_LIMIT"` | `"DATA_BUDGET"` — the caller's remaining data-budget allowance, #942 — `null` when not truncated). A preview spends the caller's data budget like a query: it is capped to the remaining rows and bytes and recorded as usage.
 
 ADMINs may sample any datasource in their organization; non-ADMINs need a permission row with `can_read` and the target within their `allowed_schemas` / `allowed_tables` and outside their `denied_schemas` / `denied_tables` (#939).
 
 **Response 400:** `limit` is out of the `1`–`200` range. `error: VALIDATION_ERROR`.
 **Response 404:** Datasource not accessible, or the table is absent from the introspected schema / outside the caller's allow-list / on their table or schema deny-list. `error: DATASOURCE_NOT_FOUND` or `TABLE_NOT_FOUND`.
+**Response 409:** A data budget that applies to the caller on this datasource is used up (#942), whatever its breach action — a preview has no review to fall back on. `error: DATA_BUDGET_EXHAUSTED`, with `budgetId`, `maxRows`, `maxBytes` (a limit the budget does not set is `null`) and `windowMinutes`; `detail` names the budget.
 **Response 422:** Sampling failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.
 
 ### GET /datasources/{id}/permissions — Response 200
@@ -1043,6 +1044,164 @@ applies-to list is cleared. **Response 200:** the updated policy object. **Respo
 
 Create, update and delete write `ROW_LIMIT_POLICY_CREATED` / `_UPDATED` / `_DELETED` audit rows
 (resource `row_limit_policy`).
+
+---
+
+### Data budgets (#942)
+
+Per-user **data-volume budgets** on a datasource: how many result rows and/or result bytes **each**
+targeted user may read from it over a rolling window. CRUD requires the `DATA_BUDGET_MANAGE`
+permission (ADMIN by default); reading your own standing requires only authentication. A budget
+bounds the *sum* of a user's reads; the per-query caps (`max_rows_per_query`, row-limit policies, the
+byte cap) still bound each one. See
+[05-backend.md → Per-user data-volume budgets](05-backend.md#per-user-data-volume-budgets-942) for
+the enforcement semantics.
+
+- **What counts.** Every delivered SELECT result: interactive, scheduled, recurring, break-glass,
+  request-group members and table previews (`GET /datasources/{id}/sample-rows`). Rows are what the
+  user actually received — after row security and every cap, masked rows included. Bytes are the
+  proxy's estimated in-memory result size, measured the same way for every engine — an estimate, not
+  wire bytes. Writes never count. Usage is recorded only while a budget applies to the user, so it is
+  charged from the moment a budget exists.
+- **Window.** `window_minutes` is a rolling window trailing back from now (60–44,640 minutes, 1 hour to
+  31 days); usage ages out continuously — there is no reset time.
+- **Scope.** The `applies_to_*` model of row-limit policies: all three empty ⇒ every user of the
+  datasource. Each user gets their own allowance; a group target is not a shared pool. Several
+  applying budgets combine to the most constrained (smallest remaining rows / bytes; `REJECT` beats
+  `REQUIRE_REVIEW` once exhausted).
+- **Enforcement.** While allowance remains, a SELECT's result is capped to it (`truncated_reason:
+  "DATA_BUDGET"` when the budget was the binding cap). Once a budget is used up, a SELECT is rejected
+  (`breach_action: REJECT` — status `REJECTED` at submission, `FAILED` at execution) or held for a
+  person (`REQUIRE_REVIEW` — every automatic approval is suppressed, and the run executes once a human
+  approved it — only an approval given for a review the exhausted budget forced lifts it). Break-glass is counted but never capped or blocked by a budget. A table preview has no review to
+  fall back on: an exhausted budget answers **409** `DATA_BUDGET_EXHAUSTED` whatever the action.
+
+#### POST /datasources/{datasourceId}/data-budgets — Request Body
+
+```json
+{
+  "name": "Analyst daily read budget",
+  "max_rows": 500000,
+  "max_bytes": 2000000000,
+  "window_minutes": 1440,
+  "breach_action": "REQUIRE_REVIEW",
+  "warn_threshold_percent": 80,
+  "applies_to_roles": ["ANALYST"],
+  "applies_to_group_ids": [],
+  "applies_to_user_ids": [],
+  "enabled": true
+}
+```
+
+`name` is required (non-blank, ≤ 120 chars). `max_rows` and `max_bytes` are optional (`≥ 1`) but at
+least one must be set. `window_minutes` defaults to `1440` (60–44,640). `breach_action` is `REJECT` or
+`REQUIRE_REVIEW` (default). `warn_threshold_percent` is optional (1–99); crossing it sends the user a
+`DATA_BUDGET_THRESHOLD_REACHED` notification, and reaching the limit sends `DATA_BUDGET_EXHAUSTED` to
+the user and every `DATA_BUDGET_MANAGE` holder (see [08-notifications.md](08-notifications.md)).
+`enabled` defaults to `true`. Applies-to targets must belong to the caller's organization.
+
+**Response 201:** Data budget object. `Location` header points to
+`/api/v1/datasources/{datasourceId}/data-budgets/{budgetId}`.
+**Response 400:** Bean Validation failure (blank or over-long `name`, a limit below 1, a window or
+threshold out of range).
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** No limit set, a value out of range, an unknown applies-to role, or an applies-to
+user/group outside the organization. `error: ILLEGAL_DATA_BUDGET`.
+
+#### GET /datasources/{datasourceId}/data-budgets — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "name": "Analyst daily read budget",
+      "max_rows": 500000,
+      "max_bytes": 2000000000,
+      "window_minutes": 1440,
+      "breach_action": "REQUIRE_REVIEW",
+      "warn_threshold_percent": 80,
+      "applies_to_roles": ["ANALYST"],
+      "applies_to_group_ids": [],
+      "applies_to_user_ids": [],
+      "enabled": true,
+      "created_at": "2026-09-25T10:00:00Z",
+      "updated_at": "2026-09-25T10:00:00Z"
+    }
+  ]
+}
+```
+
+A limit the budget does not set, and an unset `warn_threshold_percent`, are omitted.
+
+#### PUT /datasources/{datasourceId}/data-budgets/{budgetId}
+
+Same body and validation as `POST`. The update is a full replacement: an omitted limit, threshold or
+applies-to list is cleared. **Response 200:** the updated budget object. **Response 404:**
+`DATASOURCE_NOT_FOUND` or `DATA_BUDGET_NOT_FOUND`. **Response 422:** `ILLEGAL_DATA_BUDGET`.
+
+#### DELETE /datasources/{datasourceId}/data-budgets/{budgetId}
+
+**Response 204:** No content. **Response 404:** `DATASOURCE_NOT_FOUND` or `DATA_BUDGET_NOT_FOUND`.
+Recorded usage is kept until it ages out of the ledger.
+
+Create, update and delete write `DATA_BUDGET_CREATED` / `_UPDATED` / `_DELETED` audit rows
+(resource `data_budget`).
+
+#### GET /datasources/{datasourceId}/data-budgets/me — Response 200
+
+The caller's own standing on the datasource — what the query editor shows. Any authenticated user;
+the datasource is resolved first (`QUERY_ADMIN` / `DATASOURCE_MANAGE` holders see any datasource in the
+organization, everyone else needs a permission on it), so an invisible datasource is **404**, never an
+empty 200.
+
+```json
+{
+  "datasource_id": "uuid",
+  "datasource_name": "Production DB",
+  "exhausted": false,
+  "remaining_rows": 120000,
+  "remaining_bytes": 850000000,
+  "used_percent": 76,
+  "budgets": [
+    {
+      "id": "uuid",
+      "name": "Analyst daily read budget",
+      "max_rows": 500000,
+      "max_bytes": 2000000000,
+      "window_minutes": 1440,
+      "breach_action": "REQUIRE_REVIEW",
+      "warn_threshold_percent": 80,
+      "used_rows": 380000,
+      "used_bytes": 1150000000,
+      "remaining_rows": 120000,
+      "remaining_bytes": 850000000,
+      "used_percent": 76,
+      "exhausted": false
+    }
+  ]
+}
+```
+
+The top-level fields are the effective (most constrained) standing across `budgets`: `used_percent`
+is the highest share any budget has used (floored, may exceed 100), `remaining_rows` /
+`remaining_bytes` the smallest remaining allowance per metric (omitted when no applying budget sets
+that limit), and `breach_action` — present only while `exhausted` — the strictest action among
+exhausted budgets. When no budget applies, `budgets` is `[]`, `exhausted` is `false` and the other
+effective fields are omitted. **Response 404:** `DATASOURCE_NOT_FOUND`.
+
+#### GET /admin/users/{userId}/data-budget-usage — Response 200
+
+A user's standing on every datasource where a budget applies to them — the users page's *Data usage*
+drawer. Requires `DATA_BUDGET_MANAGE` or `USER_MANAGE`.
+
+```json
+{ "content": [ { "datasource_id": "uuid", "datasource_name": "Production DB", "exhausted": false, "budgets": [ … ] } ] }
+```
+
+Each entry has the shape of `GET /datasources/{datasourceId}/data-budgets/me`. **Response 404:** the
+user does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 
 ---
 
@@ -2060,7 +2219,7 @@ The replay is **distinctly audited**: a `QUERY_SUBMITTED` audit row is written o
 }
 ```
 
-`truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit a per-result byte cap — `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` on the relational JDBC path (#49), or an engine's own equivalent, currently only `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_MAX_RESULT_BYTES` (#633), and `null` when the result was not truncated (or was persisted before the field existed).
+`truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit a per-result byte cap — `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` on the relational JDBC path (#49), or an engine's own equivalent, currently only `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_MAX_RESULT_BYTES` (#633), `"DATA_BUDGET"` when the submitter's remaining data-budget allowance (#942) was the binding cap on rows or bytes, and `null` when the result was not truncated (or was persisted before the field existed).
 
 `columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
 
@@ -4035,7 +4194,7 @@ All endpoints require `role=ADMIN` and operate within the caller's organization.
 }
 ```
 
-`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`. The `query_shape` operand (#940) — `{"type": "query_shape", "any_of": ["JOIN", "SUBQUERY"]}` — matches a query that has any listed shape (`JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`) anywhere in the statement; an empty `any_of` is rejected with **422** `ROUTING_POLICY_INVALID`, and the leaf fails closed when the SQL cannot be parsed for its shape. Routing re-parses the stored SQL text with JSqlParser whatever the engine, so on a plugin datasource the leaf matches only when that text happens to be standard SQL JSqlParser can read (often true for a warehouse, never for a MongoDB or Redis command). Pair it with `ESCALATE` or `REQUIRE_APPROVALS` to send, say, every joined query to a second reviewer, or with `AUTO_REJECT` to refuse it outright; a grant's `denied_shapes` refuses at submission instead. The `estimated_bytes_scanned` operand (#941) — `{"type": "estimated_bytes_scanned", "operator": "GT", "value": 1000000000000}` — compares the warehouse's pre-flight bytes-scanned estimate (raw bytes, `value ≥ 0`) and, like `estimated_rows`, **fails closed**: it is `false` whenever no bytes estimate exists, which is every engine except BigQuery, Snowflake and Databricks. It is the advisory counterpart of the datasource and grant bytes-scanned cap.
+`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`. The `query_shape` operand (#940) — `{"type": "query_shape", "any_of": ["JOIN", "SUBQUERY"]}` — matches a query that has any listed shape (`JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`) anywhere in the statement; an empty `any_of` is rejected with **422** `ROUTING_POLICY_INVALID`, and the leaf fails closed when the SQL cannot be parsed for its shape. Routing re-parses the stored SQL text with JSqlParser whatever the engine, so on a plugin datasource the leaf matches only when that text happens to be standard SQL JSqlParser can read (often true for a warehouse, never for a MongoDB or Redis command). Pair it with `ESCALATE` or `REQUIRE_APPROVALS` to send, say, every joined query to a second reviewer, or with `AUTO_REJECT` to refuse it outright; a grant's `denied_shapes` refuses at submission instead. The `estimated_bytes_scanned` operand (#941) — `{"type": "estimated_bytes_scanned", "operator": "GT", "value": 1000000000000}` — compares the warehouse's pre-flight bytes-scanned estimate (raw bytes, `value ≥ 0`) and, like `estimated_rows`, **fails closed**: it is `false` whenever no bytes estimate exists, which is every engine except BigQuery, Snowflake and Databricks. It is the advisory counterpart of the datasource and grant bytes-scanned cap. The `data_budget_used_percent` operand (#942) — `{"type": "data_budget_used_percent", "operator": "GTE", "value": 80}` — compares the share of the submitter's most-used applying data budget on the datasource, as a whole percent (`value ≥ 0`; usage may exceed 100). It **fails closed**: `false` when no budget applies, for a non-SELECT, and in the policy simulator's historical replay (past usage is not reconstructed). Pair it with `ESCALATE` to send a heavy reader's queries to a second reviewer before the budget itself stops them.
 
 **Response 201:** Full routing-policy object (see the list shape below). `Location` header points to `/api/v1/admin/routing-policies/{id}`.
 **Response 400:** Bean Validation failure on the request body. `error: VALIDATION_ERROR`.
@@ -4642,7 +4801,8 @@ follow up with one simulation per user of interest. It is deliberately not an N-
     "scan_type": null,
     "query_shapes": [],
     "shapes_analyzed": true,
-    "estimated_bytes_scanned": null
+    "estimated_bytes_scanned": null,
+    "data_budget_used_percent": null
   },
   "caveats": ["CLIENT_CONTEXT_ABSENT", "COST_ESTIMATE_ABSENT"]
 }
@@ -4658,7 +4818,7 @@ it. Every later step is still present with `outcome: "SKIP"`.
 all. Those are exactly the traces worth reading closely, so treat its absence as information — it means
 no routing condition was evaluated, not that the signals were empty.
 
-**`steps` is always all twelve, in this fixed order**, so a client can render a stable checklist: a step
+**`steps` is always all fourteen, in this fixed order**, so a client can render a stable checklist: a step
 that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outcome` is one of `ALLOW`,
 `DENY`, `MATCH`, `NO_MATCH`, `SKIP`. `reason` is localized to the request's `Accept-Language`.
 
@@ -4673,11 +4833,12 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `BYTES_SCANNED_CAP` | `bytes_scanned_cap`, `bytes_scanned_cap_source`, `estimated_bytes_scanned`, `bytes_scanned_cap_outcome` | whenever a cap applies (#941); `{}` on `NO_MATCH` (no cap). In a simulation the step is always `SKIP` with no estimate — the cap is named, never compared. On a live trace: `ALLOW` within the cap, `DENY` over it or with no estimate under `REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`), `MATCH` with no estimate under `REQUIRE_REVIEW` — every auto-approve stage below then reports `bytes_cap_suppressed: true` |
+| `DATA_BUDGET` | `data_budget_used_percent`, `data_budget_remaining_rows`, `data_budget_remaining_bytes`, `data_budget_action`, `data_budget_id`, `data_budget_name` | whenever a budget applies to the user on a SELECT (#942); `{}` on `NO_MATCH` (no budget, or not a SELECT). Read live in both a simulation and a real decision — usage is a persisted fact about the user. `ALLOW` while allowance remains; `DENY` when an exhausted budget has `breach_action: REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`); `MATCH` when it has `REQUIRE_REVIEW` — every auto-approve stage below then reports `data_budget_suppressed: true`. `data_budget_id` / `_name` name the exhausted budget that decided |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
-| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed`, `bytes_cap_suppressed` | `MATCH` only |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed`, `bytes_cap_suppressed`, `data_budget_suppressed` | `MATCH` only |
 | `GRANT_FAST_PATH` | `considered_grant_ids` | whenever grants were looked up |
 | | `grant_id`, `approver_email` | `MATCH`, and `NO_MATCH` when a covering grant was suppressed by a `BLOCK` finding |
-| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed`, `bytes_cap_suppressed` | always (both `*_suppressed` keys absent on `SKIP`) |
+| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed`, `bytes_cap_suppressed`, `data_budget_suppressed` | always (the `*_suppressed` keys absent on `SKIP`) |
 | | `review_plan_id`, `min_approvals_required` | only when the datasource has a review plan |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded` | always |
 | | `reviewers[]` (`user_id`, `email`, `display_name`) | when the datasource has its own reviewer assignment |
@@ -7871,15 +8032,19 @@ deployment events (`DEPLOYMENT_SUBMITTED` \| `DEPLOYMENT_APPROVED` \|
 `DEPLOYMENT_REJECTED` \| `DEPLOYMENT_OUTCOME_FAILED` \|
 `DEPLOYMENT_BREAK_GLASS_EXECUTED` — #695), and the schema-change events
 (`SCHEMA_CHANGE_PROMOTION_SUBMITTED` \| `SCHEMA_CHANGE_PROMOTION_APPLIED` \|
-`SCHEMA_CHANGE_PROMOTION_FAILED` \| `SCHEMA_DRIFT_DETECTED` — #882). At most one of
+`SCHEMA_CHANGE_PROMOTION_FAILED` \| `SCHEMA_DRIFT_DETECTED` — #882), and the data-budget
+events (`DATA_BUDGET_THRESHOLD_REACHED` \| `DATA_BUDGET_EXHAUSTED` — #942). At most one of
 `query_request_id` \| `api_request_id` \| `deployment_request_id` \|
-`schema_change_promotion_id` is set, naming the row's target (a drift row names none). The
+`schema_change_promotion_id` is set, naming the row's target (a drift or data-budget row names
+none). The
 `payload` keys are best-effort context for the client to render a human-readable message
 and link — UIs must treat individual keys as optional; deployment rows add
 `deployment_id`, `environment`, `version`, and `outcome`, with the pipeline name riding
 the `datasource` key; schema-change rows add `schema_change_promotion_id`, `change_set`,
 `environment` and `promotion_status` (`FAILED` or `PARTIALLY_APPLIED` on a failure), and a
-drift row adds `new_finding_count` — again with the pipeline name in `datasource`.
+drift row adds `new_finding_count` — again with the pipeline name in `datasource`. Data-budget
+rows add `datasource_id`, `budget` and `used_percent`, with the budget's user in `submitter` /
+`submitter_name`.
 
 ### GET /notifications/unread-count — Response 200
 
@@ -9207,6 +9372,9 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ON_BEHALF_OF_NOT_PERMITTED` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` on a JWT session (`reason=not_api_key`), or naming a human the calling service account may not act for (`reason=not_permitted` — one opaque code for unknown / other organization / inactive / not human / no live grant) (#874). |
 | `ON_BEHALF_OF_REVIEW_FORBIDDEN` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` sent to a review / decision endpoint — an agent may submit *for* a human, never vote *as* one (#874). |
 | `REQUEST_GROUP_ON_BEHALF_OF_CONFLICT` | 409 | `IllegalRequestGroupStateException.OnBehalfOfConflict` | A request-group draft already naming a different on-behalf-of principal was submitted with another (#874). |
+| `DATA_BUDGET_NOT_FOUND` | 404 | `DataBudgetNotFoundException` | Unknown data-budget id, or the budget belongs to another datasource / organization (#942). |
+| `ILLEGAL_DATA_BUDGET` | 422 | `IllegalDataBudgetException` | A data budget with no limit, a value out of range, an unknown applies-to role, or an applies-to user / group outside the organization (#942). |
+| `DATA_BUDGET_EXHAUSTED` | 409 | `DataBudgetExhaustedException` | A table preview (`GET /datasources/{id}/sample-rows`) by a user whose data budget on the datasource is used up (#942). Body includes `budgetId`, `maxRows`, `maxBytes`, `windowMinutes`. Query execution records `FAILED` with the same message instead of returning it. |
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |

@@ -36,6 +36,8 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `SCHEMA_CHANGE_PROMOTION_APPLIED` | Every statement of a promotion executed on its target environment (`APPLIED`, #882) | The promoter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
 | `SCHEMA_CHANGE_PROMOTION_FAILED` | A promotion's run failed — `FAILED`, or `PARTIALLY_APPLIED` (the run stops on the first error, so a partial run means a statement failed; the in-app payload's `promotion_status` (the webhook block's `status`) says which) (#882) | The promoter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
 | `SCHEMA_DRIFT_DETECTED` | A schema-drift scan of one environment **opened** at least one finding (#882) — a newly created finding, or a `RESOLVED` one that came back. An acknowledged finding whose values changed counts too — nobody accepted the new difference. A finding merely re-seen on a later scan while already open never notifies, so a persistent finding does not alert every scan. One notification per environment scan, carrying the count | Every active holder of `SCHEMA_CHANGE_MANAGE` (system and custom roles). Org-wide channel fanout; never pages and never opens a ticket — findings carry no severity, so there is nothing to key a paging trigger on. | implemented |
+| `DATA_BUDGET_THRESHOLD_REACHED` | A recorded read carried a user across the warning threshold of one of their data budgets on a datasource (#942). Fired once per crossing — a read that stays above the mark never re-fires, and a read that jumps straight past the limit fires only `DATA_BUDGET_EXHAUSTED` | That user only. Org-wide channel fanout; never pages and never opens a ticket — a read quota is advisory, not an incident. The in-app row has no target column; its payload carries `datasource_id`, `budget` and `used_percent`, and the bell opens the query editor (`/editor`). | implemented |
+| `DATA_BUDGET_EXHAUSTED` | A recorded read used up one of a user's data budgets on a datasource (#942); further SELECTs are rejected or sent to review per the budget's breach action until usage falls back under the limit | That user **and** every active holder of `DATA_BUDGET_MANAGE` (system and custom roles), de-duplicated when the user is one. Org-wide channel fanout; never pages, never opens a ticket. Same in-app payload and `/editor` link as the warning. | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | A **recurring occurrence** completes (#627) — fired for both `EXECUTED` and `FAILED` occurrence outcomes; one-off executions do not notify | Query submitter, via the review plan's channels. Email carries the occurrence results as a `results.csv` attachment (successful SELECT occurrences only; post-mask values; capped at 10,000 rows with a truncation note row); chat channels get a summary with a link to the occurrence. PagerDuty and ticketing not-applicable (no trigger mapping). | implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -96,6 +98,8 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/schema-change-promotion-applied.html` — `SCHEMA_CHANGE_PROMOTION_APPLIED` (#882; green accent)
 - `email/schema-change-promotion-failed.html` — `SCHEMA_CHANGE_PROMOTION_FAILED` (#882; copy branches on `FAILED` vs `PARTIALLY_APPLIED`, red banner)
 - `email/schema-drift-detected.html` — `SCHEMA_DRIFT_DETECTED` (#882; pipeline, environment, and the number of newly opened findings; its *Open in AccessFlow* button links to `/schema-drift`, #883)
+- `email/data-budget-threshold-reached.html` — `DATA_BUDGET_THRESHOLD_REACHED` (#942; datasource, user, budget, percent used, rows / bytes used against each limit the budget sets, the window, and the warning threshold; links to `/editor`)
+- `email/data-budget-exhausted.html` — `DATA_BUDGET_EXHAUSTED` (#942; the same fields plus the breach action, red accent)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)
@@ -236,7 +240,11 @@ environment, version, outcome, decision_reason }` — since the `query_request` 
 the pipeline name for them. Schema-change events (`SCHEMA_CHANGE_PROMOTION_*`,
 `SCHEMA_DRIFT_DETECTED`, #882) add a sibling `schema_change` object — `{ promotion_id,
 change_set_name, pipeline_id, pipeline_name, environment, status, new_finding_count }`, with the
-promotion fields null for drift and `new_finding_count` null for promotions. All three blocks are **additive**: existing event shapes are unchanged, so
+promotion fields null for drift and `new_finding_count` null for promotions. Data-budget events
+(`DATA_BUDGET_THRESHOLD_REACHED`, `DATA_BUDGET_EXHAUSTED`, #942) add a sibling `data_budget`
+object — `{ budget_id, budget_name, datasource_id, user_id, exhausted, warn_threshold_percent,
+used_percent, max_rows, used_rows, max_bytes, used_bytes, window_minutes, breach_action }`, with
+`max_rows` / `max_bytes` null for a limit the budget does not set. All four blocks are **additive**: existing event shapes are unchanged, so
 subscribers' HMAC-verified payloads are unaffected.
 
 **Request headers:**
@@ -336,7 +344,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
-  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident. Neither do the schema-change events (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882): a promotion's lifecycle is not an incident, and a drift finding carries no severity to separate a critical divergence from a cosmetic one.
+  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident. Neither do the schema-change events (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882): a promotion's lifecycle is not an incident, and a drift finding carries no severity to separate a critical divergence from a cosmetic one. Nor do the data-budget events (`DATA_BUDGET_THRESHOLD_REACHED`, `DATA_BUDGET_EXHAUSTED`, #942): a user reaching a read quota is an advisory, not an incident.
   - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
   - `REVIEW_STALLED` → the `REVIEW_ESCALATED` event (nobody decided within the plan's `escalation_after_hours`, #622). There is deliberately **no** trigger for `REVIEW_NUDGE` — a reminder is not an incident and must never page.
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
@@ -540,6 +548,8 @@ in `NotificationContextBuilder`:
 | `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | The target datasource's eligible reviewers (every plan approver rule ∪ datasource reviewer assignments, else `REVIEW_OVERRIDE` holders), excluding the promoter |
 | `SCHEMA_CHANGE_PROMOTION_APPLIED` / `SCHEMA_CHANGE_PROMOTION_FAILED` | The promoter |
 | `SCHEMA_DRIFT_DETECTED` | Every active `SCHEMA_CHANGE_MANAGE` holder |
+| `DATA_BUDGET_THRESHOLD_REACHED` | The user whose budget it is |
+| `DATA_BUDGET_EXHAUSTED` | The user whose budget it is ∪ every active `DATA_BUDGET_MANAGE` holder, de-duplicated |
 | `TEST` | Skipped — never persisted to the inbox |
 
 **Persistence flow.** `NotificationDispatcher` first calls `userNotificationService.recordForUsers(...)`

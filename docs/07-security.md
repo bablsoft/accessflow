@@ -537,6 +537,15 @@ CRUD (`/api/v1/datasources/{id}/row-limit-policies`,
 `@PreAuthorize("hasAuthority('PERM_ROW_LIMIT_POLICY_MANAGE')")`). It sits in the `DATA_POLICIES`
 group and is held by `ADMIN` (seeded by `V185`).
 
+**Per-user data budgets (#942):** `DATA_BUDGET_MANAGE` gates the per-datasource data-budget CRUD
+(`/api/v1/datasources/{id}/data-budgets`, `@PreAuthorize("hasAuthority('PERM_DATA_BUDGET_MANAGE')")`)
+and receives the `DATA_BUDGET_EXHAUSTED` notification. It sits in the `DATA_POLICIES` group and is
+held by `ADMIN` (seeded by `V194`). Two read endpoints are not admin surfaces: a user's own standing
+(`GET /datasources/{id}/data-budgets/me`) needs only authentication and resolves the datasource the
+way the rest of the API does, so an invisible datasource is 404, never an empty 200; another user's
+usage (`GET /admin/users/{id}/data-budget-usage`) needs `DATA_BUDGET_MANAGE` **or** `USER_MANAGE`
+and is org-scoped (a foreign user is 404).
+
 **Result-export governance (#626):** `EXPORT_POLICY_MANAGE` gates the per-datasource export-policy
 CRUD (`/api/v1/datasources/{id}/export-policies`,
 `@PreAuthorize("hasAuthority('PERM_EXPORT_POLICY_MANAGE')")`); it sits in the `DATA_POLICIES` group
@@ -696,6 +705,9 @@ A deployment hosts one or more `organizations`, each a fully isolated tenant. Is
   `max_queries_per_day` (a rolling trailing-24h count over `query_requests` — no counter table, no
   reset job). A breach throws and the API responds `409 Conflict` with `error: "QUOTA_EXCEEDED"` and a
   localized `detail` naming the limit. Quotas bound consumption; they are not an access boundary.
+  They count **queries per organization**; the per-user, data-volume counterpart is the
+  [data budget](#per-user-data-volume-budgets-942), which bounds how many rows and bytes one person
+  reads from one datasource over a rolling window.
 - **Multi-org login routing is future work.** Per-org login pages / SSO routing across multiple orgs
   are explicitly out of scope for AF-456. Unauthenticated provider discovery degrades gracefully when
   more than one org exists (it never discloses per-org identity — see
@@ -1047,6 +1059,43 @@ an over-estimate refuses a legitimate query, an under-estimate lets an expensive
   are not exempt: the cap binds the datasource, not the reviewer.
 - **Audited.** `QUERY_BYTES_SCANNED_CAP_ENFORCED` (null actor) records the limit, its source, the
   estimate and the outcome whenever the cap changed an outcome.
+
+### Per-user data-volume budgets (#942)
+
+A **slow-exfiltration control.** Every per-query cap — `max_rows_per_query`, row-limit policies, the
+result byte cap — bounds one read, so a user who stays under all of them can still copy a table out a
+few thousand rows at a time. A data budget bounds the **sum**: how many result rows and/or bytes each
+targeted user may read from one datasource over a rolling window (1 hour to 31 days). Like the org
+quotas it bounds consumption rather than granting or denying access, and with no budget configured
+nothing changes.
+
+- **Per person, never pooled.** A budget scoped to a role or group gives every member their own
+  allowance; one heavy reader cannot exhaust a colleague's. Several applying budgets combine to the
+  most constrained, and `REJECT` beats `REQUIRE_REVIEW`.
+- **Counts what was delivered.** Rows after row security and every cap, masked rows included, and
+  the result's estimated in-memory size, measured the same way for every engine. Every read path
+  charges it: interactive, scheduled, recurring, grouped, table previews (including through MCP) and
+  break-glass. Writes are never charged. Usage is charged from the moment a budget exists.
+- **Enforced twice.** When the query leaves `PENDING_AI` — an exhausted `REJECT` budget rejects before
+  routing, an exhausted `REQUIRE_REVIEW` budget suppresses every automatic approval (a routing
+  `AUTO_APPROVE`, the JIT grant fast path, the plan's own auto-approval) so a person decides — and
+  again just before execution, where a run is capped to the allowance left, and an exhausted budget
+  fails the run unless a person approved it under `REQUIRE_REVIEW`. That second check covers scheduled
+  and recurring runs approved while allowance remained. `QUERY_ADMIN` holders are not exempt unless
+  the budget's scope leaves them out.
+- **Only a budget-forced review lifts the budget.** Under `REQUIRE_REVIEW` an approved query runs
+  past an exhausted budget only if the exhausted budget itself sent it to review
+  (`data_budget_review_forced`); an approval given while allowance remained never does, so a user
+  cannot pre-approve a large read and unlock it by spending the rest on small ones. Request-group
+  members are refused under any exhausted budget (group review is not budget-aware — fail closed).
+- **Break-glass is counted, never capped or blocked.** An emergency read is not cut short or refused
+  by a budget (the per-query row and byte caps still apply) and is still counted. Its control is the
+  mandatory retro-review, not the budget.
+- **Known overshoot.** Standing is read before a run and charged after it, so concurrent reads by one
+  user can each overshoot by up to one query's worth. An estimate, not billing.
+- **Audited and notified.** `QUERY_DATA_BUDGET_ENFORCED` (null actor) whenever a budget changed an
+  outcome, `DATA_BUDGET_CREATED/_UPDATED/_DELETED` for configuration; the user is warned at the
+  optional threshold, and the user plus every `DATA_BUDGET_MANAGE` holder is told when it runs out.
 
 ### Dynamic data masking policies (AF-381)
 

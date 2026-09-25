@@ -180,7 +180,9 @@ names both `application/json` and `text/event-stream`; real MCP clients send bot
     also refuses the human a query was submitted *on behalf of*.
   - `get_column_samples` runs through the same governed read path as the schema explorer (AF-443):
     it applies the caller's row-level security predicates and column masks and enforces `canRead` +
-    the schema/table allow-list, so a masked column never returns a raw value.
+    the schema/table allow-list, so a masked column never returns a raw value. It also spends the
+    caller's data-volume budget (#942): the sample is capped at the allowance left, and an exhausted
+    budget refuses it with a tool error, since a preview has no review to escalate to.
   - `get_audit_log` is always scoped to the caller (`actorId` is forced to the calling user) and the
     caller's organisation — it never returns another user's activity, even for an admin key.
   - `validate_sql` only parses; it never executes or runs AI analysis. It needs the datasource to be
