@@ -397,9 +397,21 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "read_replicas": [],
   "result_cache_enabled": false,
   "result_cache_ttl_seconds": null,
-  "environment": "PRODUCTION"
+  "environment": "PRODUCTION",
+  "max_bytes_scanned_per_query": null,
+  "bytes_cap_missing_estimate": "REQUIRE_REVIEW"
 }
 ```
+
+`max_bytes_scanned_per_query` (#941) is the optional **bytes-scanned cap** in raw bytes (`@Min(1)`,
+`validation.bytes_cap.min`): a query whose pre-flight scan estimate is larger is refused. It is
+accepted only for `BIGQUERY`, `SNOWFLAKE` and `DATABRICKS` — the engines whose dry-run reports a
+bytes estimate — and any other `db_type` answers **422** `BYTES_SCANNED_CAP_NOT_SUPPORTED` (with
+`dbType`). `bytes_cap_missing_estimate` (`REQUIRE_REVIEW` default, or `REJECT`) decides what the
+cap does with a query that has no bytes estimate: hold every automatic approval for a person, or
+refuse the query. It is stored on every datasource but only matters while a cap applies — see
+[05-backend.md → Bytes-scanned cost caps](05-backend.md#bytes-scanned-cost-caps-941). Both are
+returned on the datasource object; an unset cap is omitted.
 
 `environment` (#861, epic #860) is optional: one of `DEVELOPMENT` / `TEST` / `STAGING` /
 `PRODUCTION`, or omitted. It selects which SQL review ruleset the datasource's queries are
@@ -473,9 +485,16 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   "result_cache_ttl_seconds": 120,
   "environment": "STAGING",
   "clear_environment": false,
+  "max_bytes_scanned_per_query": 1000000000000,
+  "clear_max_bytes_scanned_per_query": false,
+  "bytes_cap_missing_estimate": "REJECT",
   "active": true
 }
 ```
+
+`max_bytes_scanned_per_query` (#941) follows the same shape: omitted or `null` leaves the cap
+unchanged, `"clear_max_bytes_scanned_per_query": true` removes it, and a value wins when both are
+sent. Setting a cap on an engine without a bytes estimate is **422** `BYTES_SCANNED_CAP_NOT_SUPPORTED`.
 
 `environment` follows the `clear_ai_config` shape (#861): omitted or `null` leaves it unchanged,
 `"clear_environment": true` unsets it, and a non-null `environment` wins when both are sent.
@@ -485,6 +504,7 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
 **Response 200:** Updated datasource object.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
 **Response 409:** Renaming would conflict with another datasource in the same organization. `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+**Response 422:** A bytes-scanned cap on an engine without a bytes estimate. `error: BYTES_SCANNED_CAP_NOT_SUPPORTED`, with `dbType`.
 
 ### DELETE /datasources/{id}
 
@@ -628,6 +648,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
       "can_write": false,
       "can_ddl": false,
       "row_limit_override": null,
+      "bytes_scanned_limit_override": null,
       "allowed_schemas": ["public"],
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
@@ -661,6 +682,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
   "can_ddl": false,
   "can_break_glass": false,
   "row_limit_override": 1000,
+  "bytes_scanned_limit_override": null,
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn", "public.users.email"],
@@ -691,6 +713,10 @@ It is stored in declaration order with duplicates dropped, recorded in the grant
 non-empty, and supported only on the in-process relational engines. `can_break_glass` (AF-385, optional,
 default `false`) grants the emergency break-glass submission mode on this datasource — time-boxed via
 `expires_at`. The flag is returned on the permission object alongside `can_read`/`can_write`/`can_ddl`.
+`bytes_scanned_limit_override` (#941, optional, `@Min(1)`) is a bytes-scanned cap in raw bytes for
+this grantee: the smaller of it and the datasource's `max_bytes_scanned_per_query` applies, and
+across a user's direct and group grants the smallest wins. It is accepted only on BigQuery,
+Snowflake and Databricks datasources (422 `BYTES_SCANNED_CAP_NOT_SUPPORTED` otherwise).
 
 **Response 201:** Permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/{permId}`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
@@ -698,6 +724,7 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 **Response 422:** Target user does not exist or does not belong to the caller's organization. `error: ILLEGAL_DATASOURCE_PERMISSION`.
 **Response 422:** `denied_columns` is non-empty on an engine-managed datasource (every engine plugin, warehouses included). `error: DENIED_COLUMNS_NOT_SUPPORTED`, with `dbType`.
 **Response 422:** `denied_shapes` is non-empty on an engine-managed datasource. `error: DENIED_SHAPES_NOT_SUPPORTED`, with `dbType`.
+**Response 422:** `bytes_scanned_limit_override` on an engine without a bytes estimate. `error: BYTES_SCANNED_CAP_NOT_SUPPORTED`, with `dbType`.
 
 ### DELETE /datasources/{id}/permissions/{permId}
 
@@ -728,6 +755,7 @@ the group instead of a user:
       "can_ddl": false,
       "can_break_glass": false,
       "row_limit_override": null,
+      "bytes_scanned_limit_override": null,
       "allowed_schemas": ["public"],
       "allowed_tables": null,
       "restricted_columns": ["public.users.ssn"],
@@ -755,6 +783,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
   "can_ddl": false,
   "can_break_glass": false,
   "row_limit_override": 1000,
+  "bytes_scanned_limit_override": 500000000000,
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
   "restricted_columns": ["public.users.ssn"],
@@ -771,6 +800,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
 **Response 409:** A permission row already exists for `(group_id, datasource_id)`. `error: DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** `denied_columns` on an engine-managed datasource. `error: DENIED_COLUMNS_NOT_SUPPORTED`.
 **Response 422:** `denied_shapes` on an engine-managed datasource. `error: DENIED_SHAPES_NOT_SUPPORTED`.
+**Response 422:** `bytes_scanned_limit_override` on an engine without a bytes estimate. `error: BYTES_SCANNED_CAP_NOT_SUPPORTED`.
 
 ### DELETE /datasources/{id}/permissions/groups/{permId}
 
@@ -1815,8 +1845,10 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "unsupported_reason": null,
     "failed": false,
     "error_message": null,
-    "duration_ms": 12
+    "duration_ms": 12,
+    "estimated_bytes_scanned": null
   },
+  "bytes_scanned_cap": null,
   "approval_prediction": {
     "id": "uuid",
     "probability": 0.78,
@@ -1890,7 +1922,9 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 
 `matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
-`cost_estimate` is the query's persisted pre-flight cost / blast-radius estimate (AF-624), computed automatically and asynchronously right after submission — `null` while it is still being computed (typically only during `PENDING_AI`). `supported=false` with a localized `unsupported_reason` marks engines/statement shapes with no plan concept; `failed=true` with `error_message` marks a computation error. `affected_row_count` is the exact governed row count for UPDATE/DELETE (relational `SELECT COUNT(*)` rewrite, or the engine's native non-mutating count) and is `null` when the shape cannot be provably counted; `estimated_rows`/`scan_type`/`estimated_cost` come from the plan root, and `plan` reuses the dry-run endpoint's plan-node shape (when row security applied to the submitter, every node's `detail` and `raw_plan` are `null` so bound attribute values are never exposed — #1092) — see [POST /queries/dry-run](#post-queriesdry-run--response-200) and [docs/05-backend.md → "Automatic pre-flight cost estimate"](05-backend.md#automatic-pre-flight-cost-estimate-af-624). The `query.estimate_complete` WebSocket event signals completion.
+`cost_estimate` is the query's persisted pre-flight cost / blast-radius estimate (AF-624), computed automatically and asynchronously right after submission — `null` while it is still being computed (typically only during `PENDING_AI`). `supported=false` with a localized `unsupported_reason` marks engines/statement shapes with no plan concept; `failed=true` with `error_message` marks a computation error. `affected_row_count` is the exact governed row count for UPDATE/DELETE (relational `SELECT COUNT(*)` rewrite, or the engine's native non-mutating count) and is `null` when the shape cannot be provably counted; `estimated_rows`/`scan_type`/`estimated_cost` come from the plan root, and `plan` reuses the dry-run endpoint's plan-node shape (when row security applied to the submitter, every node's `detail` and `raw_plan` are `null` so bound attribute values are never exposed — #1092) — see [POST /queries/dry-run](#post-queriesdry-run--response-200) and [docs/05-backend.md → "Automatic pre-flight cost estimate"](05-backend.md#automatic-pre-flight-cost-estimate-af-624). The `query.estimate_complete` WebSocket event signals completion. `estimated_bytes_scanned` (#941) is the warehouse engine's pre-flight scan estimate in raw bytes (BigQuery / Snowflake / Databricks) and is omitted for every other engine.
+
+`bytes_scanned_cap` (#941) is the bytes-scanned cap that bound the submitter when the query left `PENDING_AI` — `{ "limit": 1000000000000, "source": "DATASOURCE" | "GRANT", "outcome": "WITHIN" | "EXCEEDED" | "NO_ESTIMATE_REVIEW" | "NO_ESTIMATE_REJECTED" }`, omitted when no cap applied. `EXCEEDED` and `NO_ESTIMATE_REJECTED` accompany status `REJECTED`; `NO_ESTIMATE_REVIEW` means an automatic approval was held for a person. A refusal by the re-check just before execution does not change this object: the query is `FAILED` and `error_message` names the estimate and the cap.
 
 `approval_prediction` is the query's advisory approval-outcome prediction (AF-645) — the probability that a human reviewer approves it, computed from the organization's own decision history. It is a **triage signal only**: it never auto-approves, auto-rejects, or feeds the routing engine, grant coverage, or any other decision path, and clients must present it in neutral wording rather than as an instruction. The block is `null` until the asynchronous scoring pass persists a row (a query only ever gets one — auto-approved, auto-rejected, grant-covered and break-glass queries never reach review, so they never get scored at all). Once present, exactly one of three shapes applies: `probability` in `[0,1]` with `skipped=false, failed=false`; `skipped=true` with a `skipped_reason` machine token the client localizes — the closed set is `DISABLED` (the feature is switched off) and `MODEL_NOT_SERVING` (the org has too little history, the model failed its holdout quality gate, or it was trained against an older feature schema); or `failed=true`, the sentinel for an unexpected scoring error. `probability` is `null` on both sentinel shapes. The block is **omitted entirely** — not merely blanked — for callers who lack `QUERY_REVIEW` and for the query's own submitter, a reviewer reading their own request included: the prediction is a triage aid for whoever decides, and letting a submitter read the likely verdict on their own query would invite cancelling and resubmitting until it looks better. See [docs/05-backend.md → "Approval-outcome prediction"](05-backend.md#approval-outcome-prediction-af-645). The `query.prediction_complete` WebSocket event signals completion.
 
@@ -4001,7 +4035,7 @@ All endpoints require `role=ADMIN` and operate within the caller's organization.
 }
 ```
 
-`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`. The `query_shape` operand (#940) — `{"type": "query_shape", "any_of": ["JOIN", "SUBQUERY"]}` — matches a query that has any listed shape (`JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`) anywhere in the statement; an empty `any_of` is rejected with **422** `ROUTING_POLICY_INVALID`, and the leaf fails closed when the SQL cannot be parsed for its shape. Routing re-parses the stored SQL text with JSqlParser whatever the engine, so on a plugin datasource the leaf matches only when that text happens to be standard SQL JSqlParser can read (often true for a warehouse, never for a MongoDB or Redis command). Pair it with `ESCALATE` or `REQUIRE_APPROVALS` to send, say, every joined query to a second reviewer, or with `AUTO_REJECT` to refuse it outright; a grant's `denied_shapes` refuses at submission instead.
+`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`. The `query_shape` operand (#940) — `{"type": "query_shape", "any_of": ["JOIN", "SUBQUERY"]}` — matches a query that has any listed shape (`JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`) anywhere in the statement; an empty `any_of` is rejected with **422** `ROUTING_POLICY_INVALID`, and the leaf fails closed when the SQL cannot be parsed for its shape. Routing re-parses the stored SQL text with JSqlParser whatever the engine, so on a plugin datasource the leaf matches only when that text happens to be standard SQL JSqlParser can read (often true for a warehouse, never for a MongoDB or Redis command). Pair it with `ESCALATE` or `REQUIRE_APPROVALS` to send, say, every joined query to a second reviewer, or with `AUTO_REJECT` to refuse it outright; a grant's `denied_shapes` refuses at submission instead. The `estimated_bytes_scanned` operand (#941) — `{"type": "estimated_bytes_scanned", "operator": "GT", "value": 1000000000000}` — compares the warehouse's pre-flight bytes-scanned estimate (raw bytes, `value ≥ 0`) and, like `estimated_rows`, **fails closed**: it is `false` whenever no bytes estimate exists, which is every engine except BigQuery, Snowflake and Databricks. It is the advisory counterpart of the datasource and grant bytes-scanned cap.
 
 **Response 201:** Full routing-policy object (see the list shape below). `Location` header points to `/api/v1/admin/routing-policies/{id}`.
 **Response 400:** Bean Validation failure on the request body. `error: VALIDATION_ERROR`.
@@ -4607,7 +4641,8 @@ follow up with one simulation per user of interest. It is deliberately not an N-
     "estimated_rows": null,
     "scan_type": null,
     "query_shapes": [],
-    "shapes_analyzed": true
+    "shapes_analyzed": true,
+    "estimated_bytes_scanned": null
   },
   "caveats": ["CLIENT_CONTEXT_ABSENT", "COST_ESTIMATE_ABSENT"]
 }
@@ -4637,11 +4672,12 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause`, `query_shapes` (#940 — the statement's shapes in declaration order), `shapes_analyzed` (`false` for every engine plugin — warehouses included, since only the in-process JSqlParser path reads shapes — and for a statement the walker cannot traverse) | whenever the statement parsed; `{}` when it did not |
 | `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
+| `BYTES_SCANNED_CAP` | `bytes_scanned_cap`, `bytes_scanned_cap_source`, `estimated_bytes_scanned`, `bytes_scanned_cap_outcome` | whenever a cap applies (#941); `{}` on `NO_MATCH` (no cap). In a simulation the step is always `SKIP` with no estimate — the cap is named, never compared. On a live trace: `ALLOW` within the cap, `DENY` over it or with no estimate under `REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`), `MATCH` with no estimate under `REQUIRE_REVIEW` — every auto-approve stage below then reports `bytes_cap_suppressed: true` |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
-| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed` | `MATCH` only |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed`, `bytes_cap_suppressed` | `MATCH` only |
 | `GRANT_FAST_PATH` | `considered_grant_ids` | whenever grants were looked up |
 | | `grant_id`, `approver_email` | `MATCH`, and `NO_MATCH` when a covering grant was suppressed by a `BLOCK` finding |
-| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed` | always (`sql_review_suppressed` absent on `SKIP`) |
+| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed`, `bytes_cap_suppressed` | always (both `*_suppressed` keys absent on `SKIP`) |
 | | `review_plan_id`, `min_approvals_required` | only when the datasource has a review plan |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded` | always |
 | | `reviewers[]` (`user_id`, `email`, `display_name`) | when the datasource has its own reviewer assignment |
@@ -4682,7 +4718,7 @@ endpoint reads both signals live:
 | `caveats` value | Meaning |
 |---|---|
 | `CLIENT_CONTEXT_ABSENT` | A hypothetical request carries no source IP, user agent or CI/CD origin, so every client-context routing condition (AF-446) evaluates to `false`. A policy keyed on one of those will report `matched: false` here and still fire on the real submission. |
-| `COST_ESTIMATE_ABSENT` | The AF-624 pre-flight estimate is computed per submitted query, so `estimated_rows` / `scan_type` conditions evaluate to `false`. |
+| `COST_ESTIMATE_ABSENT` | The AF-624 pre-flight estimate is computed per submitted query, so `estimated_rows` / `estimated_bytes_scanned` / `scan_type` conditions evaluate to `false`, and a bytes-scanned cap is reported (`BYTES_SCANNED_CAP` → `SKIP`) but not compared. |
 | `COLUMN_MATCH_BARE_NAME` | At least one masking policy's `column_ref` is a bare column name, which matches every table. See below. |
 | `ENGINE_CLASSIFICATION_UNAVAILABLE` | Row security could not be classified offline — the datasource's engine needs live schema knowledge (Cassandra / ScyllaDB). Reported as `UNKNOWN`, never as "no impact". |
 

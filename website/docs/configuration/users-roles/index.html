@@ -590,8 +590,8 @@
             grant and one or more group grants, their <strong>effective access is the most-permissive
             union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
             only where every grant restricts them, and each grant's expiry is honoured independently. Two
-            things work the other way. The row limit override: the smallest one wins, and it can only lower the
-            datasource's cap, never raise it. And denied schemas, tables, columns and query shapes add up: anything denied by
+            things work the other way. The row limit override and the bytes-scanned cap: for each, the smallest value wins,
+            and a grant can only lower the datasource's own limit, never raise it. And denied schemas, tables, columns and query shapes add up: anything denied by
             any one grant stays denied, so a wider group grant can never undo a denial, and a group's denial
             applies to every member. The flip side: revoking or expiring the grant that carries a denial removes it,
             and the user's other grants may then reach the table.
