@@ -19,7 +19,7 @@ import {
   type InvitedUser,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
-import { findRowAcrossPages } from '../helpers/ui';
+import { clickTab, findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -173,7 +173,7 @@ test.describe.serial('per-user data-volume budgets (#942)', () => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
-    await page.getByRole('tab', { name: /Data budgets/ }).click();
+    await clickTab(page, /Data budgets/);
 
     // The settings page renders tab content beside <Tabs>, not inside its tabpanel.
     await expect(page.getByText('Three rows, then review')).toBeVisible({ timeout: 15_000 });
@@ -193,15 +193,31 @@ test.describe.serial('per-user data-volume budgets (#942)', () => {
   test('admin sees a user\'s data usage from the users page', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    // Collapse the onboarding checklist: it is sticky and would overlay the row actions.
+    await page.evaluate(() => {
+      const key = 'af-preferences';
+      const raw = localStorage.getItem(key);
+      const stored = raw ? JSON.parse(raw) : { state: {}, version: 0 };
+      stored.state = { ...(stored.state ?? {}), setupProgressCollapsed: true };
+      localStorage.setItem(key, JSON.stringify(stored));
+    });
     await page.goto('/admin/users');
 
     // The users table has no server-side search; page through it (parallel specs add users).
-    // The invitations table below lists the same email; the users table renders first.
-    const row = page.getByRole('row').filter({ hasText: reviewAnalyst.email }).first();
+    // The pending-invitations table lists the same email as an ACCEPTED invitation; skip it.
+    const row = page
+      .getByRole('row')
+      .filter({ hasText: reviewAnalyst.email })
+      .filter({ hasNotText: 'ACCEPTED' });
     await findRowAcrossPages(page, row);
-    // dispatchEvent: the sticky onboarding panel can overlay the row once the table scrolls.
-    await row.getByRole('button', { name: 'Edit' }).dispatchEvent('click');
-    await page.getByRole('menuitem', { name: /Data usage/ }).click();
+    // The users table is wider than the viewport, so its action column can sit off-screen where a
+    // physical click cannot land; dispatch the events instead (the clickTab trick).
+    await expect(async () => {
+      await row.getByRole('button', { name: 'Edit' }).dispatchEvent('click');
+      await page.getByRole('menuitem', { name: /Data usage/ }).dispatchEvent('click', undefined, {
+        timeout: 5_000,
+      });
+    }).toPass({ timeout: 30_000 });
 
     const drawer = page.getByRole('dialog').filter({ hasText: 'Data usage —' });
     await expect(drawer.getByText(datasource.name)).toBeVisible({ timeout: 15_000 });
