@@ -1,5 +1,10 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.ByteSizeFormat;
+import com.bablsoft.accessflow.core.api.BytesScannedCapExceededException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
+import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
+import com.bablsoft.accessflow.proxy.api.QueryCostEstimateService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -87,6 +92,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
+    private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    private final QueryCostEstimateService queryCostEstimateService;
 
     private String msg(String key) {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
@@ -277,6 +284,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                                        AuditAction successAction) {
         var startedAt = Instant.now();
         try {
+            // #941: re-checked here, not only when the query left PENDING_AI — scheduled, recurring
+            // and break-glass runs execute later or without that decision, and the cap may have
+            // been lowered since. A refusal is recorded as a failed execution.
+            var bytesCap = enforceBytesScannedCap(query);
             var permission = permissionLookupService
                     .findFor(query.submittedByUserId(), query.datasourceId());
             var restrictedColumns = permission
@@ -398,6 +409,13 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                         appliedRowSecurityPolicyIds.stream()
                                 .map(UUID::toString).sorted().toList());
             }
+            if (bytesCap != null) {
+                successMetadata.put("bytes_scanned_cap", bytesCap.limit());
+                successMetadata.put("bytes_scanned_cap_source", bytesCap.source().name());
+                if (bytesCap.estimatedBytes() != null) {
+                    successMetadata.put("bytes_scanned_estimate", bytesCap.estimatedBytes());
+                }
+            }
             if (!appliedRowLimitPolicyIds.isEmpty()) {
                 successMetadata.put("applied_row_limit_policy_ids",
                         appliedRowLimitPolicyIds.stream()
@@ -421,6 +439,56 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         } catch (RuntimeException ex) {
             return recordFailure(query, actorUserId, trigger, startedAt, ex);
         }
+    }
+
+    /**
+     * @return the cap that applied and the estimate it was compared with, or {@code null} when no
+     *         cap binds the submitter here
+     * @throws BytesScannedCapExceededException when the estimate exceeds the cap, or is missing and
+     *         the datasource rejects on a missing estimate. A missing estimate under
+     *         {@code REQUIRE_REVIEW} passes: the review it demands happened before approval.
+     */
+    private BytesCapCheck enforceBytesScannedCap(QueryRequestSnapshot query) {
+        var cap = bytesScannedCapResolutionService
+                .resolve(query.datasourceId(), query.submittedByUserId())
+                .orElse(null);
+        if (cap == null) {
+            return null;
+        }
+        Long estimated;
+        try {
+            estimated = queryCostEstimateService.estimateSubmittedQuery(query.id())
+                    .filter(e -> !e.failed())
+                    .map(QueryEstimateSnapshot::estimatedBytesScanned)
+                    .orElse(null);
+        } catch (RuntimeException ex) {
+            log.warn("Pre-flight estimate unavailable for query {} at execution: {}", query.id(),
+                    ex.getMessage());
+            estimated = null;
+        }
+        var check = BytesCapCheck.of(cap, estimated);
+        if (!check.rejects()) {
+            return check;
+        }
+        var limit = ByteSizeFormat.format(cap.limit());
+        var message = estimated == null
+                ? messageSource.getMessage("error.bytes_cap.no_estimate", new Object[]{limit},
+                        LocaleContextHolder.getLocale())
+                : messageSource.getMessage("error.bytes_cap.exceeded",
+                        new Object[]{ByteSizeFormat.format(estimated), limit},
+                        LocaleContextHolder.getLocale());
+        var metadata = new HashMap<String, Object>();
+        metadata.put("trigger", "bytes_scanned_cap");
+        metadata.put("stage", "execution");
+        metadata.put("limit", cap.limit());
+        metadata.put("source", cap.source().name());
+        if (estimated != null) {
+            metadata.put("estimated_bytes", estimated);
+        }
+        metadata.put("outcome", check.outcome().name());
+        recordAudit(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED, query.id(), null,
+                query.organizationId(), metadata);
+        throw new BytesScannedCapExceededException(message, cap, estimated, check.outcome());
     }
 
     private ExecutionOutcome recordFailure(QueryRequestSnapshot query, UUID actorUserId,

@@ -69,7 +69,7 @@ class ConditionContextFactoryTest {
             Long estimatedRows, Long affectedRowCount, String scanType, boolean failed) {
         return new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(UUID.randomUUID(),
                 queryId, "postgresql", QueryType.SELECT, true, estimatedRows, affectedRowCount,
-                scanType, null, null, null, null, failed, null, 5, SUBMITTED_AT);
+                scanType, null, null, null, null, null, failed, null, 5, SUBMITTED_AT);
     }
 
     private QueryCorpusRow row(RiskLevel level, Integer score) {
@@ -144,6 +144,23 @@ class ConditionContextFactoryTest {
         assertThat(context.hasEstimateSignal()).isTrue();
         assertThat(context.estimatedRows()).isEqualTo(5_000L);
         assertThat(context.scanType()).isEqualTo("Seq Scan");
+    }
+
+    @Test
+    void theBytesEstimateIsReplayedAndAbsentOnAFailedEstimate() {
+        var withBytes = new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(
+                UUID.randomUUID(), queryId, "bigquery", QueryType.SELECT, true, 10L, null, null,
+                null, 7_000_000L, null, null, null, false, null, 5, SUBMITTED_AT);
+        when(queryEstimateLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(withBytes));
+
+        assertThat(factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"))
+                .estimatedBytesScanned()).isEqualTo(7_000_000L);
+
+        when(queryEstimateLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(estimate(5_000L, null, "Seq Scan", true)));
+        assertThat(factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"))
+                .estimatedBytesScanned()).isNull();
     }
 
     @Test

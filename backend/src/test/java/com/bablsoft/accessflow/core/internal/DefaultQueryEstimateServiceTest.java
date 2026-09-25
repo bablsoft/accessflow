@@ -33,7 +33,7 @@ class DefaultQueryEstimateServiceTest {
 
     private static PersistQueryEstimateCommand command() {
         return new PersistQueryEstimateCommand("postgresql", QueryType.DELETE, true, 120L, 90L,
-                "Seq Scan", 44.5, "{\"operation\":\"Seq Scan\"}", "[raw]", null, false, null, 12);
+                "Seq Scan", 44.5, null, "{\"operation\":\"Seq Scan\"}", "[raw]", null, false, null, 12);
     }
 
     @Test

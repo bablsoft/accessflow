@@ -69,7 +69,7 @@ class AccessGrantMaterializerTest {
 
     private DatasourcePermissionView granted() {
         return new DatasourcePermissionView(newPermissionId, datasourceId, requesterId, "u@x.io",
-                "U", true, false, false, false, null, List.of("public"), null, null, null, List.of(), List.of(),
+                "U", true, false, false, false, null, null, List.of("public"), null, null, null, List.of(), List.of(),
                 List.of(),
                 Instant.now().plusSeconds(3600), approverId, Instant.now());
     }
@@ -153,6 +153,25 @@ class AccessGrantMaterializerTest {
         assertThat(captor.getValue().deniedTables()).containsExactly("crm.salary");
         assertThat(captor.getValue().deniedShapes())
                 .containsExactly(com.bablsoft.accessflow.core.api.QueryShape.JOIN);
+    }
+
+    @Test
+    void materialiseCarriesTheReplacedRowsBytesScannedCapSoAJitApprovalNeverWidensIt() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(approved()));
+        var existing = new DatasourceUserPermissionView(UUID.randomUUID(), requesterId,
+                datasourceId, true, false, false, false, null, null, null, null, null, null, null,
+                null, 4_000L, Instant.now().plusSeconds(60));
+        when(permissionLookupService.findDirectFor(requesterId, datasourceId))
+                .thenReturn(Optional.of(existing));
+        when(datasourceAdminService.grantPermission(any(), any(), any(), any()))
+                .thenReturn(granted());
+
+        materializer.materialize(requestId, approverId);
+
+        var captor = ArgumentCaptor.forClass(CreatePermissionCommand.class);
+        verify(datasourceAdminService).grantPermission(eq(datasourceId), eq(organizationId),
+                eq(approverId), captor.capture());
+        assertThat(captor.getValue().bytesScannedLimitOverride()).isEqualTo(4_000L);
     }
 
     @Test

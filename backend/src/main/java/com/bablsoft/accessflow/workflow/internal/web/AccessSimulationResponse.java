@@ -68,7 +68,8 @@ record AccessSimulationResponse(List<Step> steps, QueryStatus resultingStatus,
                             String requesterIpAddress, String requesterUserAgent,
                             boolean ciCdOrigin, Integer minutesSinceLastApproval,
                             boolean anomalyActive, Long estimatedRows, String scanType,
-                            List<QueryShape> queryShapes, boolean shapesAnalyzed) {
+                            List<QueryShape> queryShapes, boolean shapesAnalyzed,
+                            Long estimatedBytesScanned) {
 
         static EvaluatedContext from(ConditionContext context) {
             if (context == null) {
@@ -82,7 +83,8 @@ record AccessSimulationResponse(List<Step> steps, QueryStatus resultingStatus,
                     context.requesterIpAddress(), context.requesterUserAgent(),
                     context.ciCdOrigin(), context.minutesSinceLastApproval(),
                     context.anomalyActive(), context.estimatedRows(), context.scanType(),
-                    context.queryShapes().stream().sorted().toList(), context.shapesAnalyzed());
+                    context.queryShapes().stream().sorted().toList(), context.shapesAnalyzed(),
+                    context.estimatedBytesScanned());
         }
     }
 }

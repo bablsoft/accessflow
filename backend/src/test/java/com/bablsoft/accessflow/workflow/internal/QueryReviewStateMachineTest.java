@@ -72,6 +72,9 @@ class QueryReviewStateMachineTest {
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
+    @Mock org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     // A real ConditionContextFactory over the same mocks, not a mock of it: the context builder is
     // what turns these signals into routing input, and mocking it away would stop testing that.
@@ -97,7 +100,8 @@ class QueryReviewStateMachineTest {
                 sqlParserService, routingPolicyEngine, accessGrantLookupService);
         stateMachine = new QueryReviewStateMachine(queryRequestLookupService, evaluator,
                 queryRequestStateService, routingDecisionService, sqlReviewFindingService,
-                auditLogService, messageSource, eventPublisher);
+                auditLogService, messageSource, eventPublisher, bytesScannedCapResolutionService,
+                queryCostEstimateService, queryEstimateLookupService, transactionManager);
     }
 
     @BeforeEach
@@ -689,6 +693,176 @@ class QueryReviewStateMachineTest {
 
         verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
                 QueryStatus.PENDING_REVIEW);
+    }
+
+    // ── Bytes-scanned cap (#941) ──────────────────────────────────────────────
+
+    private void givenCap(long limit,
+                          com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction missing) {
+        when(bytesScannedCapResolutionService.resolve(datasourceId, submitterId))
+                .thenReturn(Optional.of(new com.bablsoft.accessflow.core.api.AppliedBytesCap(limit,
+                        com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE, missing)));
+    }
+
+    private void givenEstimate(Long bytes, boolean failed) {
+        when(queryEstimateLookupService.findByQueryRequestId(queryId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(UUID.randomUUID(),
+                        queryId, "bigquery", QueryType.SELECT, !failed, null, null, null, null,
+                        bytes, null, null, null, failed, null, 5, Instant.now())));
+    }
+
+    @Test
+    void aSkippedAnalysisWaitsForTheEstimateBeforeRouting() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryCostEstimateService).estimateSubmittedQuery(queryId);
+        verify(queryRequestStateService, never()).recordBytesScannedCap(any(), org.mockito.ArgumentMatchers.anyLong(),
+                any(), any());
+    }
+
+    @Test
+    void aLostEstimateRaceIsReadBackRatherThanFailingTheDecision() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        // The listener won the insert: our own write fails, its row is what the cap compares.
+        when(queryCostEstimateService.estimateSubmittedQuery(queryId))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate"));
+        givenEstimate(5_000L, false);
+        when(messageSource.getMessage(eq("workflow.bytes_cap.rejected_exceeded"), any(), any()))
+                .thenReturn("over the cap");
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+        verify(transactionManager).rollback(any());
+    }
+
+    @Test
+    void theAiCompletedPathOnlyEstimatesWhenACapApplies() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryCostEstimateService, never()).estimateSubmittedQuery(any());
+    }
+
+    @Test
+    void anEstimateFailureOnTheSkippedPathIsAMissingEstimateNotAnError() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        when(queryCostEstimateService.estimateSubmittedQuery(queryId))
+                .thenThrow(new IllegalStateException("warehouse down"));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void anEstimateOverTheCapIsRejectedStampedAndAudited() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        givenEstimate(5_000L, false);
+        when(messageSource.getMessage(eq("workflow.bytes_cap.rejected_exceeded"), any(), any()))
+                .thenReturn("over the cap");
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).recordBytesScannedCap(queryId, 1_000L,
+                com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE,
+                com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED);
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+        verify(eventPublisher).publishEvent(new QueryAutoRejectedEvent(queryId, null, "over the cap"));
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED);
+        assertThat(audit.getValue().metadata())
+                .containsEntry("stage", "decision")
+                .containsEntry("limit", 1_000L)
+                .containsEntry("estimated_bytes", 5_000L)
+                .containsEntry("outcome", "EXCEEDED")
+                .containsEntry("source", "DATASOURCE");
+        verify(routingPolicyEngine, never()).evaluate(any(), any(), any());
+    }
+
+    @Test
+    void aFailedEstimateUnderRejectIsRejectedWithTheNoEstimateReason() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REJECT);
+        givenEstimate(null, true);
+        when(messageSource.getMessage(eq("workflow.bytes_cap.rejected_no_estimate"), any(), any()))
+                .thenReturn("no estimate");
+
+        stateMachine.onAiFailed(new AiAnalysisFailedEvent(queryId, "provider error"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+        verify(eventPublisher).publishEvent(new QueryAutoRejectedEvent(queryId, null, "no estimate"));
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().metadata()).doesNotContainKey("estimated_bytes")
+                .containsEntry("outcome", "NO_ESTIMATE_REJECTED");
+    }
+
+    @Test
+    void aMissingEstimateUnderRequireReviewHoldsAnAutoApprovalAndAuditsIt() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, false, RiskLevel.LOW);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).recordBytesScannedCap(queryId, 1_000L,
+                com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE,
+                com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.NO_ESTIMATE_REVIEW);
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED);
+    }
+
+    @Test
+    void anEstimateWithinTheCapIsStampedButNotAudited() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, false, RiskLevel.LOW);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REJECT);
+        givenEstimate(10L, false);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).recordBytesScannedCap(queryId, 1_000L,
+                com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE,
+                com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.WITHIN);
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.APPROVED);
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void aFailingCapAuditNeverUndoesTheRejection() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        givenEstimate(5_000L, false);
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit down"))
+                .when(auditLogService).record(any());
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
     }
 
     private void givenActiveGrant(AccessGrantView grant) {

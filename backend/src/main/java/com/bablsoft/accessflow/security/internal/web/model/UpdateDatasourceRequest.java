@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.SslMode;
 import jakarta.validation.Valid;
@@ -52,5 +53,9 @@ public record UpdateDatasourceRequest(
         String privateKeyPassphrase,
         // #861: null leaves the environment unchanged; clearEnvironment=true unsets it.
         DatasourceEnvironment environment,
-        Boolean clearEnvironment
+        Boolean clearEnvironment,
+        // #941: null leaves the cap unchanged; clearMaxBytesScannedPerQuery=true removes it.
+        @Min(value = 1, message = "{validation.bytes_cap.min}") Long maxBytesScannedPerQuery,
+        Boolean clearMaxBytesScannedPerQuery,
+        BytesCapMissingEstimateAction bytesCapMissingEstimate
 ) {}

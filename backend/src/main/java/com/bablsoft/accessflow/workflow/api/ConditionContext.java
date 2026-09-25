@@ -36,6 +36,10 @@ import java.util.UUID;
  * {@code scanType} is the plan's root operation (e.g. {@code Seq Scan}). Both are {@code null}
  * when the estimate is absent, unsupported, or failed — the matching conditions fail closed.
  *
+ * <p>{@code estimatedBytesScanned} (#941) is the warehouse engines' pre-flight scan estimate in raw
+ * bytes from the same row — {@code null} for every engine that reports none, and whenever the
+ * estimate is absent or failed.
+ *
  * <p>{@code queryShapes} are the structural features re-derived from the SQL with the WHERE / LIMIT
  * signals (#940). {@code shapesAnalyzed} is {@code false} when the SQL could not be parsed or walked
  * (typically a non-SQL engine); the {@code query_shape} condition then fails closed.
@@ -59,12 +63,28 @@ public record ConditionContext(
         Long estimatedRows,
         String scanType,
         Set<QueryShape> queryShapes,
-        boolean shapesAnalyzed) {
+        boolean shapesAnalyzed,
+        Long estimatedBytesScanned) {
 
     public ConditionContext {
         referencedTables = Set.copyOf(referencedTables == null ? Set.of() : referencedTables);
         requesterGroupIds = Set.copyOf(requesterGroupIds == null ? Set.of() : requesterGroupIds);
         queryShapes = Set.copyOf(queryShapes == null ? Set.of() : queryShapes);
+    }
+
+    /** Backward-compatible constructor without the #941 bytes estimate (defaults to absent). */
+    public ConditionContext(QueryType queryType, Set<String> referencedTables, RiskLevel riskLevel,
+                            int riskScore, String requesterRoleName, Set<UUID> requesterGroupIds,
+                            LocalDateTime evaluatedAt, boolean hasWhereClause,
+                            boolean hasLimitClause, boolean transactional,
+                            String requesterIpAddress, String requesterUserAgent,
+                            boolean ciCdOrigin, Integer minutesSinceLastApproval,
+                            boolean anomalyActive, Long estimatedRows, String scanType,
+                            Set<QueryShape> queryShapes, boolean shapesAnalyzed) {
+        this(queryType, referencedTables, riskLevel, riskScore, requesterRoleName,
+                requesterGroupIds, evaluatedAt, hasWhereClause, hasLimitClause, transactional,
+                requesterIpAddress, requesterUserAgent, ciCdOrigin, minutesSinceLastApproval,
+                anomalyActive, estimatedRows, scanType, queryShapes, shapesAnalyzed, null);
     }
 
     /** Backward-compatible constructor without the #940 shape signals (defaults to not analyzed). */
@@ -92,7 +112,7 @@ public record ConditionContext(
         this(queryType, referencedTables, riskLevel, riskScore, requesterRoleName,
                 requesterGroupIds, evaluatedAt, hasWhereClause, hasLimitClause, transactional,
                 requesterIpAddress, requesterUserAgent, ciCdOrigin, minutesSinceLastApproval,
-                anomalyActive, null, null, Set.of(), false);
+                anomalyActive, null, null, Set.of(), false, null);
     }
 
     /** @return {@code true} when an AI risk level / score signal is present. */

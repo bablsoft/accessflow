@@ -215,6 +215,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionDenied(parts, DatasourcePermissionContribution::deniedTables),
                 unionDeniedShapes(parts),
                 minRowLimit(parts),
+                minBytesLimit(parts),
                 anyNeverExpires ? null : expiresAt);
     }
 
@@ -247,6 +248,18 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
         Integer min = null;
         for (var p : parts) {
             var limit = p.rowLimitOverride();
+            if (limit != null && (min == null || limit < min)) {
+                min = limit;
+            }
+        }
+        return min;
+    }
+
+    /** Like {@link #minRowLimit}: the most restrictive bytes-scanned cap wins (#941). */
+    private static Long minBytesLimit(List<DatasourcePermissionContribution> parts) {
+        Long min = null;
+        for (var p : parts) {
+            var limit = p.bytesScannedLimitOverride();
             if (limit != null && (min == null || limit < min)) {
                 min = limit;
             }
@@ -318,6 +331,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 DeniedTables.normalize(toList(entity.getDeniedTables())),
                 DeniedShapes.fromNames(toList(entity.getDeniedShapes())),
                 entity.getRowLimitOverride(),
+                entity.getBytesScannedLimitOverride(),
                 entity.getExpiresAt());
     }
 
@@ -330,7 +344,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 DeniedShapes.fromNames(toList(e.getDeniedShapes())),
-                e.getRowLimitOverride(), e.getExpiresAt(), e.getAccessGrantRequestId());
+                e.getRowLimitOverride(), e.getBytesScannedLimitOverride(), e.getExpiresAt(),
+                e.getAccessGrantRequestId());
     }
 
     private static DatasourcePermissionContribution toContribution(
@@ -342,7 +357,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 DeniedShapes.fromNames(toList(e.getDeniedShapes())),
-                e.getRowLimitOverride(), e.getExpiresAt(), null);
+                e.getRowLimitOverride(), e.getBytesScannedLimitOverride(), e.getExpiresAt(),
+                null);
     }
 
     private static List<String> toList(String[] array) {

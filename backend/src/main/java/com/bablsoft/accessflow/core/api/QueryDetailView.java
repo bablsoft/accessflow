@@ -49,7 +49,40 @@ public record QueryDetailView(
         String onBehalfOfEmail,
         /** The calling application (#938) and how it was learned; both null when unknown. */
         String applicationName,
-        ApplicationNameSource applicationNameSource) {
+        ApplicationNameSource applicationNameSource,
+        /** The bytes-scanned cap (#941) that applied when the query left PENDING_AI; null when none. */
+        BytesScannedCapDetail bytesScannedCap) {
+
+    /** Backward-compatible constructor without the #941 bytes-scanned cap. */
+    public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
+                           UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                           String submittedByDisplayName, String sqlText, QueryType queryType,
+                           QueryStatus status, String justification, AiAnalysisDetail aiAnalysis,
+                           CostEstimateDetail costEstimate,
+                           ApprovalPredictionDetail approvalPrediction, Long rowsAffected,
+                           Integer durationMs, String errorMessage, UUID previousRunId,
+                           UUID approvedByGrantId, String reviewPlanName,
+                           Integer approvalTimeoutHours, Instant escalatedAt,
+                           Integer escalationAfterHours, List<ReviewDecisionView> reviewDecisions,
+                           Instant scheduledFor, String recurrenceRule, Instant recurrenceUntil,
+                           Instant recurrenceNextRunAt, String recurrenceHaltedReason,
+                           UUID recurringParentId, Instant createdAt, Instant updatedAt,
+                           UUID onBehalfOfUserId, String onBehalfOfEmail, String applicationName,
+                           ApplicationNameSource applicationNameSource) {
+        this(id, datasourceId, datasourceName, dbType, organizationId, submittedByUserId,
+                submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
+                aiAnalysis, costEstimate, approvalPrediction, rowsAffected, durationMs,
+                errorMessage, previousRunId, approvedByGrantId, reviewPlanName,
+                approvalTimeoutHours, escalatedAt, escalationAfterHours, reviewDecisions,
+                scheduledFor, recurrenceRule, recurrenceUntil, recurrenceNextRunAt,
+                recurrenceHaltedReason, recurringParentId, createdAt, updatedAt, onBehalfOfUserId,
+                onBehalfOfEmail, applicationName, applicationNameSource, null);
+    }
+
+    /** The bytes-scanned cap (#941) recorded on the request, and how its estimate compared. */
+    public record BytesScannedCapDetail(long limit, BytesScannedCapSource source,
+                                        BytesScannedCapOutcome outcome) {
+    }
 
     /** Backward-compatible constructor without the #938 calling application. */
     public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
@@ -73,7 +106,7 @@ public record QueryDetailView(
                 approvalTimeoutHours, escalatedAt, escalationAfterHours, reviewDecisions,
                 scheduledFor, recurrenceRule, recurrenceUntil, recurrenceNextRunAt,
                 recurrenceHaltedReason, recurringParentId, createdAt, updatedAt, onBehalfOfUserId,
-                onBehalfOfEmail, null, null);
+                onBehalfOfEmail, (String) null, (ApplicationNameSource) null);
     }
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
@@ -186,7 +219,20 @@ public record QueryDetailView(
             String unsupportedReason,
             boolean failed,
             String errorMessage,
-            Integer durationMs) {
+            Integer durationMs,
+            /** The warehouse engines' pre-flight scan estimate in raw bytes (#941); else null. */
+            Long estimatedBytesScanned) {
+
+        /** Backward-compatible constructor without the #941 bytes estimate. */
+        public CostEstimateDetail(UUID id, String engineId, QueryType queryType, boolean supported,
+                                  Long estimatedRows, Long affectedRowCount, String scanType,
+                                  Double estimatedCost, String planJson, String rawPlan,
+                                  String unsupportedReason, boolean failed, String errorMessage,
+                                  Integer durationMs) {
+            this(id, engineId, queryType, supported, estimatedRows, affectedRowCount, scanType,
+                    estimatedCost, planJson, rawPlan, unsupportedReason, failed, errorMessage,
+                    durationMs, null);
+        }
     }
 
     /**

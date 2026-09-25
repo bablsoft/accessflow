@@ -47,6 +47,7 @@ class DefaultQueryRequestLookupServiceTest {
     @Mock AiAnalysisRepository aiAnalysisRepository;
     @Mock ReviewDecisionRepository reviewDecisionRepository;
     @Mock ApprovalPredictionRepository approvalPredictionRepository;
+    @Mock com.bablsoft.accessflow.core.internal.persistence.repo.QueryEstimateRepository queryEstimateRepository;
     @InjectMocks DefaultQueryRequestLookupService service;
 
     @Test
@@ -331,6 +332,51 @@ class DefaultQueryRequestLookupServiceTest {
 
         assertThat(detail.aiAnalysis().failed()).isTrue();
         assertThat(detail.aiAnalysis().errorMessage()).isEqualTo("provider unavailable");
+    }
+
+    @Test
+    void findDetailByIdCarriesTheBytesScannedCapAndTheBytesEstimate() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.REJECTED);
+        entity.setBytesScannedCap(1_000L);
+        entity.setBytesScannedCapSource(com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE);
+        entity.setBytesScannedCapOutcome(com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED);
+        var estimateId = UUID.randomUUID();
+        entity.setQueryEstimateId(estimateId);
+        var estimate = new com.bablsoft.accessflow.core.internal.persistence.entity.QueryEstimateEntity();
+        estimate.setId(estimateId);
+        estimate.setQueryRequest(entity);
+        estimate.setSupported(true);
+        estimate.setEstimatedBytesScanned(9_000L);
+        when(queryEstimateRepository.findById(estimateId)).thenReturn(Optional.of(estimate));
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.costEstimate().estimatedBytesScanned()).isEqualTo(9_000L);
+        assertThat(detail.bytesScannedCap().limit()).isEqualTo(1_000L);
+        assertThat(detail.bytesScannedCap().source())
+                .isEqualTo(com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE);
+        assertThat(detail.bytesScannedCap().outcome())
+                .isEqualTo(com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED);
+    }
+
+    @Test
+    void findDetailByIdLeavesTheBytesScannedCapNullWhenNoneApplied() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_AI);
+        entity.setBytesScannedCap(1_000L);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
+
+        assertThat(service.findDetailById(queryId, orgId).orElseThrow().bytesScannedCap()).isNull();
     }
 
     @Test

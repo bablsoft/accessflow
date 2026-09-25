@@ -6,6 +6,9 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.ByteSizeFormat;
+import com.bablsoft.accessflow.core.api.BytesScannedCapExceededException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
@@ -17,7 +20,11 @@ import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
+import com.bablsoft.accessflow.proxy.api.QueryCostEstimateService;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.GroupReviewDecisionRepository;
+import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
@@ -31,9 +38,12 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,6 +76,10 @@ public class GroupExecutionService {
     private final ApiInlineExecutionService apiInlineExecutionService;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
+    private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    private final MessageSource messageSource;
+    private final QueryCostEstimateService queryCostEstimateService;
+    private final GroupReviewDecisionRepository decisionRepository;
 
     /** Execute an APPROVED group. Idempotent: silently returns if it is not APPROVED (or not yet due). */
     public void execute(UUID groupId, UUID actorUserId, String trigger) {
@@ -172,10 +186,12 @@ public class GroupExecutionService {
         if (appliedRowLimit.isPresent()) {
             rowLimitOverride = appliedRowLimit.get().tighten(rowLimitOverride);
         }
-        var result = queryExecutor.execute(new QueryExecutionRequest(
+        var request = new QueryExecutionRequest(
                 item.getDatasourceId(), item.getSqlText(), item.getQueryType(), rowLimitOverride,
                 null, restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),
-                parsed.statements(), List.of(), parsed.referencedTables()));
+                parsed.statements(), List.of(), parsed.referencedTables());
+        enforceBytesScannedCap(group, item, request);
+        var result = queryExecutor.execute(request);
         long rows = switch (result) {
             case SelectExecutionResult select -> select.rowCount();
             case UpdateExecutionResult update -> update.rowsAffected();
@@ -218,6 +234,59 @@ public class GroupExecutionService {
                 "sequence_order", item.getSequenceOrder(),
                 "target_kind", item.getTargetKind().name(),
                 "member_status", item.getStatus().name()));
+    }
+
+    /**
+     * A member has no persisted estimate of its own, so when a bytes-scanned cap (#941) binds the
+     * submitter the member is dry-run here — only then, so an uncapped group pays nothing. A
+     * refusal fails the member like any execution error ({@code continue_on_error} decides the
+     * rest). A missing estimate under {@code REQUIRE_REVIEW} passes only when a person approved
+     * the group.
+     */
+    private void enforceBytesScannedCap(RequestGroupEntity group, RequestGroupItemEntity item,
+                                        QueryExecutionRequest request) {
+        var cap = bytesScannedCapResolutionService
+                .resolve(item.getDatasourceId(), group.getSubmittedBy())
+                .orElse(null);
+        if (cap == null) {
+            return;
+        }
+        var estimated = queryCostEstimateService.estimateBytesScanned(request).orElse(null);
+        var outcome = cap.check(estimated);
+        // A group can be auto-approved by its plans without anyone looking at it, and the cap is
+        // not consulted at that point — so "require review" is only satisfied when a person
+        // actually approved the group. Otherwise the member is refused rather than run unreviewed.
+        boolean unreviewed = outcome == BytesScannedCapOutcome.NO_ESTIMATE_REVIEW
+                && !decisionRepository.existsByRequestGroupIdAndDecision(group.getId(),
+                        DecisionType.APPROVED);
+        if (!outcome.rejects() && !unreviewed) {
+            return;
+        }
+        var limit = ByteSizeFormat.format(cap.limit());
+        var locale = LocaleContextHolder.getLocale();
+        String message;
+        if (estimated != null) {
+            message = messageSource.getMessage("error.bytes_cap.exceeded",
+                    new Object[]{ByteSizeFormat.format(estimated), limit}, locale);
+        } else if (unreviewed) {
+            message = messageSource.getMessage("error.bytes_cap.no_estimate_unreviewed",
+                    new Object[]{limit}, locale);
+        } else {
+            message = messageSource.getMessage("error.bytes_cap.no_estimate", new Object[]{limit},
+                    locale);
+        }
+        var metadata = new HashMap<String, Object>();
+        metadata.put("trigger", "bytes_scanned_cap");
+        metadata.put("stage", "execution");
+        metadata.put("item_id", item.getId().toString());
+        metadata.put("limit", cap.limit());
+        metadata.put("source", cap.source().name());
+        if (estimated != null) {
+            metadata.put("estimated_bytes", estimated);
+        }
+        metadata.put("outcome", outcome.name());
+        audit(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED, group, null, metadata);
+        throw new BytesScannedCapExceededException(message, cap, estimated, outcome);
     }
 
     private void audit(AuditAction action, RequestGroupEntity group, UUID actorId,

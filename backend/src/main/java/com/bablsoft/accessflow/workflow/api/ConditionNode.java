@@ -216,6 +216,25 @@ public sealed interface ConditionNode {
     }
 
     /**
+     * Compares the warehouse engines' pre-flight bytes-scanned estimate (#941 — BigQuery dry-run
+     * {@code totalBytesProcessed}, Snowflake {@code bytesAssigned}, Databricks {@code sizeInBytes})
+     * with {@code value}, in raw bytes. <strong>Fails closed</strong>: evaluates to {@code false}
+     * when no bytes estimate exists — every engine without one, a failed or unsupported estimate —
+     * so it is an escalation trigger, never a way to auto-approve on missing context.
+     */
+    record EstimatedBytesScanned(ComparisonOperator operator, long value) implements ConditionNode {
+        public EstimatedBytesScanned {
+            if (operator == null) {
+                throw new IllegalArgumentException(
+                        "EstimatedBytesScanned condition requires an operator");
+            }
+            if (value < 0) {
+                throw new IllegalArgumentException("EstimatedBytesScanned value must be >= 0");
+            }
+        }
+    }
+
+    /**
      * Matches when the pre-flight plan's root scan/operation type (AF-624 — e.g. {@code Seq Scan},
      * {@code Index Scan}, {@code COLLSCAN}) matches any glob in {@code patterns} ({@code *} = any
      * run of characters, case-insensitive — same matcher as referenced tables).

@@ -143,7 +143,7 @@ class DatasourceController {
     @ApiResponse(responseCode = "201", description = "Datasource created")
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "409", description = "A datasource with this name already exists")
-    @ApiResponse(responseCode = "422", description = "JDBC driver for the selected db_type cannot be resolved")
+    @ApiResponse(responseCode = "422", description = "JDBC driver for the selected db_type cannot be resolved, or a bytes-scanned cap on an engine without a bytes estimate (BYTES_SCANNED_CAP_NOT_SUPPORTED)")
     ResponseEntity<DatasourceResponse> createDatasource(
             @Valid @RequestBody CreateDatasourceRequest request,
             Authentication authentication,
@@ -176,7 +176,9 @@ class DatasourceController {
                 request.resultCacheEnabled(),
                 request.resultCacheTtlSeconds(),
                 request.privateKeyPassphrase(),
-                request.environment());
+                request.environment(),
+                request.maxBytesScannedPerQuery(),
+                request.bytesCapMissingEstimate());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -206,6 +208,7 @@ class DatasourceController {
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
     @ApiResponse(responseCode = "409", description = "Name conflict with another datasource")
+    @ApiResponse(responseCode = "422", description = "Bytes-scanned cap on an engine without a bytes estimate (BYTES_SCANNED_CAP_NOT_SUPPORTED)")
     DatasourceResponse updateDatasource(@PathVariable UUID id,
                                         @Valid @RequestBody UpdateDatasourceRequest request,
                                         Authentication authentication,
@@ -237,7 +240,10 @@ class DatasourceController {
                 request.resultCacheTtlSeconds(),
                 request.privateKeyPassphrase(),
                 request.environment(),
-                request.clearEnvironment());
+                request.clearEnvironment(),
+                request.maxBytesScannedPerQuery(),
+                request.clearMaxBytesScannedPerQuery(),
+                request.bytesCapMissingEstimate());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
                 auditContext, Map.of("name", updated.name()));
@@ -335,7 +341,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "409", description = "Permission already exists for this user")
     @ApiResponse(responseCode = "422",
             description = "Target user is not in the organization, or denied_columns / "
-                    + "denied_shapes is not supported by the datasource engine")
+                    + "denied_shapes / bytes_scanned_limit_override is not supported by the "
+                    + "datasource engine")
     ResponseEntity<PermissionResponse> grantPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreatePermissionRequest request,
@@ -349,6 +356,7 @@ class DatasourceController {
                 request.canDdl(),
                 request.canBreakGlass(),
                 request.rowLimitOverride(),
+                request.bytesScannedLimitOverride(),
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
@@ -425,8 +433,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "404", description = "Datasource or group not found")
     @ApiResponse(responseCode = "409", description = "Permission already exists for this group")
     @ApiResponse(responseCode = "422",
-            description = "denied_columns or denied_shapes is not supported by the datasource "
-                    + "engine")
+            description = "denied_columns, denied_shapes or bytes_scanned_limit_override is not "
+                    + "supported by the datasource engine")
     ResponseEntity<GroupPermissionResponse> grantGroupPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreateGroupPermissionRequest request,
@@ -440,6 +448,7 @@ class DatasourceController {
                 request.canDdl(),
                 request.canBreakGlass(),
                 request.rowLimitOverride(),
+                request.bytesScannedLimitOverride(),
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),

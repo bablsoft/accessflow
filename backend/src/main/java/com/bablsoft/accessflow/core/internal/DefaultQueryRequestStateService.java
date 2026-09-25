@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
+import com.bablsoft.accessflow.core.api.BytesScannedCapSource;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordApprovalCommand;
@@ -63,6 +65,18 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         entity.setApprovedByGrantId(accessGrantId);
         queryRequestRepository.save(entity);
         publishStatusChanged(entity, previous, QueryStatus.APPROVED);
+    }
+
+    @Override
+    @Transactional
+    public void recordBytesScannedCap(UUID queryRequestId, long limit,
+                                      BytesScannedCapSource source,
+                                      BytesScannedCapOutcome outcome) {
+        var entity = lockOrThrow(queryRequestId);
+        entity.setBytesScannedCap(limit);
+        entity.setBytesScannedCapSource(source);
+        entity.setBytesScannedCapOutcome(outcome);
+        queryRequestRepository.save(entity);
     }
 
     @Override

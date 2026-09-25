@@ -95,6 +95,8 @@ class DefaultQueryLifecycleServiceTest {
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
 
     DefaultQueryLifecycleService service;
 
@@ -132,7 +134,9 @@ class DefaultQueryLifecycleServiceTest {
                 auditLogService,
                 new ObjectMapper(),
                 messageSource,
-                eventPublisher);
+                eventPublisher,
+                bytesScannedCapResolutionService,
+                queryCostEstimateService);
         when(queryParser.parse(anyString(), any())).thenAnswer(inv -> {
             String sql = inv.getArgument(0);
             return new SqlParseResult(QueryType.SELECT, sql);
@@ -617,6 +621,108 @@ class DefaultQueryLifecycleServiceTest {
     }
 
     // ── execute (failure) ─────────────────────────────────────────────────────
+
+    // ── execute: bytes-scanned cap (#941) ─────────────────────────────────────
+
+    private void givenBytesCap(long limit,
+                               com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction missing) {
+        when(bytesScannedCapResolutionService.resolve(datasourceId, submitterId))
+                .thenReturn(Optional.of(new com.bablsoft.accessflow.core.api.AppliedBytesCap(limit,
+                        com.bablsoft.accessflow.core.api.BytesScannedCapSource.GRANT, missing)));
+    }
+
+    private void givenBytesEstimate(Long bytes) {
+        when(queryCostEstimateService.estimateSubmittedQuery(queryId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(UUID.randomUUID(),
+                        queryId, "bigquery", QueryType.SELECT, true, null, null, null, null,
+                        bytes, null, null, null, false, null, 5, java.time.Instant.now())));
+    }
+
+    @Test
+    void executeFailsBeforeTheExecutorWhenTheEstimateExceedsTheCap() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBytesCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        givenBytesEstimate(9_000L);
+        when(messageSource.getMessage(eq("error.bytes_cap.exceeded"), any(), any()))
+                .thenReturn("estimate over the cap");
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId,
+                organizationId, false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+        verify(queryExecutor, never()).execute(any());
+        var execCaptor = ArgumentCaptor.forClass(RecordExecutionCommand.class);
+        verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
+        assertThat(execCaptor.getValue().errorMessage()).isEqualTo("estimate over the cap");
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.times(2)).record(auditCaptor.capture());
+        assertThat(auditCaptor.getAllValues()).extracting(AuditEntry::action).containsExactly(
+                AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED, AuditAction.QUERY_FAILED);
+        assertThat(auditCaptor.getAllValues().get(0).metadata())
+                .containsEntry("stage", "execution")
+                .containsEntry("estimated_bytes", 9_000L)
+                .containsEntry("source", "GRANT");
+    }
+
+    @Test
+    void executeFailsAMissingEstimateUnderReject() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBytesCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REJECT);
+        when(queryCostEstimateService.estimateSubmittedQuery(queryId))
+                .thenThrow(new IllegalStateException("warehouse down"));
+        when(messageSource.getMessage(eq("error.bytes_cap.no_estimate"), any(), any()))
+                .thenReturn("no estimate");
+
+        var outcome = service.executeBreakGlass(queryId, submitterId);
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+        verify(queryExecutor, never()).execute(any());
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.times(2)).record(auditCaptor.capture());
+        assertThat(auditCaptor.getAllValues().get(0).metadata())
+                .doesNotContainKey("estimated_bytes")
+                .containsEntry("outcome", "NO_ESTIMATE_REJECTED");
+    }
+
+    @Test
+    void executeRunsAMissingEstimateUnderRequireReviewAndRecordsTheCap() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBytesCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")), List.of(List.of(1)), 1L, false,
+                Duration.ofMillis(5)));
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId,
+                organizationId, false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("bytes_scanned_cap", 1_000L)
+                .containsEntry("bytes_scanned_cap_source", "GRANT")
+                .doesNotContainKey("bytes_scanned_estimate");
+    }
+
+    @Test
+    void executeWithinTheCapRecordsTheEstimateOnTheExecutedRow() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBytesCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REJECT);
+        givenBytesEstimate(10L);
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")), List.of(List.of(1)), 1L, false,
+                Duration.ofMillis(5)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata()).containsEntry("bytes_scanned_estimate", 10L);
+    }
 
     @Test
     void executeRecordsFailureWhenExecutorThrows() {

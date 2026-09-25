@@ -26,6 +26,14 @@ public interface QueryRequestStateService {
     void approveByAccessGrant(UUID queryRequestId, UUID accessGrantId);
 
     /**
+     * Records the bytes-scanned cap (#941) that applied when the query left {@code PENDING_AI},
+     * and how its estimate compared. A plain stamp, not a transition — it runs just before the
+     * decision is applied so the detail view can explain the outcome.
+     */
+    void recordBytesScannedCap(UUID queryRequestId, long limit, BytesScannedCapSource source,
+                               BytesScannedCapOutcome outcome);
+
+    /**
      * Inserts an {@code APPROVED} {@link com.bablsoft.accessflow.core.api.DecisionType} row
      * for the given reviewer/stage and, if the per-stage threshold is now met AND it was the
      * last stage, transitions {@code PENDING_REVIEW → APPROVED} in the same transaction.

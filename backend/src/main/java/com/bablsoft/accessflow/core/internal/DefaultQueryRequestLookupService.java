@@ -362,7 +362,13 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getOnBehalfOfUserId(),
                 onBehalfOfEmail(entity.getOnBehalfOfUserId()),
                 entity.getApplicationName(),
-                entity.getApplicationNameSource());
+                entity.getApplicationNameSource(),
+                entity.getBytesScannedCap() != null && entity.getBytesScannedCapSource() != null
+                        && entity.getBytesScannedCapOutcome() != null
+                        ? new QueryDetailView.BytesScannedCapDetail(entity.getBytesScannedCap(),
+                                entity.getBytesScannedCapSource(),
+                                entity.getBytesScannedCapOutcome())
+                        : null);
     }
 
     private String onBehalfOfEmail(UUID onBehalfOfUserId) {
@@ -444,7 +450,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getUnsupportedReason(),
                 entity.isFailed(),
                 entity.getErrorMessage(),
-                entity.getDurationMs());
+                entity.getDurationMs(),
+                entity.getEstimatedBytesScanned());
     }
 
     private static QueryDetailView.ApprovalPredictionDetail toApprovalPredictionDetail(

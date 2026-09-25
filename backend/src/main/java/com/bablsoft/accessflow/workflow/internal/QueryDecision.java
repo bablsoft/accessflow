@@ -25,17 +25,30 @@ import java.util.UUID;
  *                            into human review (#864), or {@code null} when the finding changed
  *                            nothing — no block, {@code WARN} only, or the request was headed to
  *                            review regardless
+ * @param bytesCap            the bytes-scanned cap that applied (#941), or {@code null} when none
+ * @param bytesCapChangedOutcome whether the cap refused the query or turned an automatic approval
+ *                            into human review — the condition for its audit row
  */
 record QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
                      Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
                      ConditionContext context, DecisionTrace trace,
-                     SqlReviewSuppression sqlReviewSuppression) {
+                     SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
+                     boolean bytesCapChangedOutcome) {
+
+    /** A decision no bytes-scanned cap took part in. */
+    QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
+                  Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
+                  ConditionContext context, DecisionTrace trace,
+                  SqlReviewSuppression sqlReviewSuppression) {
+        this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
+                trace, sqlReviewSuppression, null, false);
+    }
 
     /** A decision no SQL review finding interfered with. */
     QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
                   Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
                   ConditionContext context, DecisionTrace trace) {
         this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
-                trace, null);
+                trace, (SqlReviewSuppression) null);
     }
 }

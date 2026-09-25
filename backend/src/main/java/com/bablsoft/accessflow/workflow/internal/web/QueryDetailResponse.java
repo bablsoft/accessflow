@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.workflow.internal.web;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.core.api.ApplicationNameSource;
+import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
+import com.bablsoft.accessflow.core.api.BytesScannedCapSource;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
@@ -63,7 +65,9 @@ public record QueryDetailResponse(
         /** The calling application (#938); null when unknown. */
         String applicationName,
         /** {@code API_KEY} (trustworthy) or {@code HEADER} (client-controlled). */
-        ApplicationNameSource applicationNameSource) {
+        ApplicationNameSource applicationNameSource,
+        /** The bytes-scanned cap (#941) that applied to this query; null when none did. */
+        BytesScannedCapDetail bytesScannedCap) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
         return from(view, null, null);
@@ -161,7 +165,21 @@ public record QueryDetailResponse(
                 view.onBehalfOfUserId() == null ? null
                         : new OnBehalfOfRef(view.onBehalfOfUserId(), view.onBehalfOfEmail()),
                 view.applicationName(),
-                view.applicationNameSource());
+                view.applicationNameSource(),
+                BytesScannedCapDetail.from(view.bytesScannedCap()));
+    }
+
+    /**
+     * The bytes-scanned cap (#941) recorded when the query left {@code PENDING_AI}: the limit, the
+     * configuration it came from, and how the estimate compared.
+     */
+    public record BytesScannedCapDetail(long limit, BytesScannedCapSource source,
+                                        BytesScannedCapOutcome outcome) {
+
+        static BytesScannedCapDetail from(QueryDetailView.BytesScannedCapDetail src) {
+            return src == null ? null
+                    : new BytesScannedCapDetail(src.limit(), src.source(), src.outcome());
+        }
     }
 
     /** A ticket auto-created in an external ticketing system for this query (AF-453). */
@@ -285,7 +303,8 @@ public record QueryDetailResponse(
             String unsupportedReason,
             boolean failed,
             String errorMessage,
-            Integer durationMs) {
+            Integer durationMs,
+            Long estimatedBytesScanned) {
 
         static CostEstimateDetail from(QueryDetailView.CostEstimateDetail src) {
             if (src == null) {
@@ -305,7 +324,8 @@ public record QueryDetailResponse(
                     src.unsupportedReason(),
                     src.failed(),
                     src.errorMessage(),
-                    src.durationMs());
+                    src.durationMs(),
+                    src.estimatedBytesScanned());
         }
     }
 

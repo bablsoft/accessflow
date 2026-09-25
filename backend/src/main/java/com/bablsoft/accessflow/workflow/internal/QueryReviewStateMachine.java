@@ -4,7 +4,14 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.ByteSizeFormat;
+import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
+import com.bablsoft.accessflow.core.api.AppliedBytesCap;
+import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
+import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
+import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.proxy.api.QueryCostEstimateService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -25,6 +32,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -53,6 +63,11 @@ import java.util.UUID;
  * when any are present. When that actually changed the outcome, one {@code SQL_REVIEW_BLOCKED} audit
  * row is written here — system-attributed, {@code trigger=sql_review}.
  *
+ * <p>The bytes-scanned cap (#941) is resolved and compared against the persisted pre-flight estimate
+ * at every entry point and handed to the evaluator; the cap, its source and the comparison are
+ * stamped on the query before the decision is applied, and a {@code QUERY_BYTES_SCANNED_CAP_ENFORCED}
+ * audit row is written when the cap refused the query or forced it to review.
+ *
  * <p>AI failure unconditionally lands in {@code PENDING_REVIEW} so a human can inspect the query. The
  * skipped path (datasource has {@code ai_analysis_enabled = false}) runs routing with no risk signal
  * — risk-based conditions evaluate to {@code false} — and otherwise respects
@@ -73,6 +88,10 @@ class QueryReviewStateMachine {
     private final AuditLogService auditLogService;
     private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
+    private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    private final QueryCostEstimateService queryCostEstimateService;
+    private final QueryEstimateLookupService queryEstimateLookupService;
+    private final PlatformTransactionManager transactionManager;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone. A field
     // (not an injected bean) so it can be overridden in tests without colliding with the proxy's
@@ -85,29 +104,97 @@ class QueryReviewStateMachine {
 
     @ApplicationModuleListener
     void onAiCompleted(AiAnalysisCompletedEvent event) {
+        // The AI analyzer computed the estimate before publishing, so it is only read here.
+        var cap = prepare(event.queryRequestId(), false);
         var query = load(event.queryRequestId(), "AiAnalysisCompletedEvent");
         if (query != null) {
-            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.COMPLETED,
-                    event.riskLevel(), event.riskScore(), blockingRuleIds(query), clock));
+            decide(query, AiOutcome.COMPLETED, event.riskLevel(), event.riskScore(), cap);
         }
     }
 
     @ApplicationModuleListener
     void onAiSkipped(AiAnalysisSkippedEvent event) {
+        // With AI off nothing has waited for the pre-flight estimate: an independent listener
+        // computes it, and routing would race it, so an estimated_rows / estimated_bytes_scanned
+        // policy would silently fail closed on an estimate that was about to exist (#941).
+        var cap = prepare(event.queryRequestId(), true);
         var query = load(event.queryRequestId(), "AiAnalysisSkippedEvent");
         if (query != null) {
-            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.SKIPPED, null, -1,
-                    blockingRuleIds(query), clock));
+            decide(query, AiOutcome.SKIPPED, null, -1, cap);
         }
     }
 
     @ApplicationModuleListener
     void onAiFailed(AiAnalysisFailedEvent event) {
+        var cap = prepare(event.queryRequestId(), false);
         var query = load(event.queryRequestId(), "AiAnalysisFailedEvent");
         if (query != null) {
-            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.FAILED, null, -1,
-                    blockingRuleIds(query), clock));
+            decide(query, AiOutcome.FAILED, null, -1, cap);
         }
+    }
+
+    /**
+     * Resolves the bytes-scanned cap (#941) and makes sure the pre-flight estimate exists — when AI
+     * was skipped, or when a cap applies — <em>before</em> the decision transaction reads anything.
+     *
+     * <p>It runs in its own transaction on purpose. The estimate write is a check-then-insert
+     * that races the independent estimate listener on a unique key, and it updates the
+     * version-checked {@code query_requests} row. Inside the decision transaction a lost race would
+     * mark that transaction rollback-only — and with it the transition, stranding the query in
+     * {@code PENDING_AI} — while a won race would leave the decision holding a stale query row.
+     * Here a lost race only fails this inner transaction; the winner's row is read afterwards.
+     */
+    private AppliedBytesCap prepare(UUID queryRequestId, boolean alwaysEstimate) {
+        var template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        try {
+            return template.execute(status -> {
+                var query = queryRequestLookupService.findById(queryRequestId).orElse(null);
+                if (query == null || query.status() != QueryStatus.PENDING_AI) {
+                    return null;
+                }
+                var cap = bytesScannedCapResolutionService
+                        .resolve(query.datasourceId(), query.submittedByUserId())
+                        .orElse(null);
+                if (alwaysEstimate || cap != null) {
+                    queryCostEstimateService.estimateSubmittedQuery(queryRequestId);
+                }
+                return cap;
+            });
+        } catch (RuntimeException ex) {
+            // Typically the estimate listener won the insert race. The cap itself is re-resolved
+            // below; a missing estimate is a missing estimate, never an error.
+            log.warn("Pre-flight estimate preparation failed for query {}: {}", queryRequestId,
+                    ex.getMessage());
+            return resolveQuietly(queryRequestId);
+        }
+    }
+
+    private AppliedBytesCap resolveQuietly(UUID queryRequestId) {
+        return queryRequestLookupService.findById(queryRequestId)
+                .flatMap(q -> bytesScannedCapResolutionService.resolve(q.datasourceId(),
+                        q.submittedByUserId()))
+                .orElse(null);
+    }
+
+    private void decide(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
+                        int riskScore, AppliedBytesCap cap) {
+        var bytesCap = cap == null ? null : BytesCapCheck.of(cap, estimatedBytes(query));
+        var decision = queryDecisionEvaluator.evaluate(query, aiOutcome, riskLevel, riskScore,
+                blockingRuleIds(query), bytesCap, clock);
+        if (bytesCap != null) {
+            queryRequestStateService.recordBytesScannedCap(query.id(), bytesCap.limit(),
+                    bytesCap.source(), bytesCap.outcome());
+        }
+        apply(query, decision);
+    }
+
+    /** The persisted bytes estimate; absent, failed or unsupported all read as "none". */
+    private Long estimatedBytes(QueryRequestSnapshot query) {
+        return queryEstimateLookupService.findByQueryRequestId(query.id())
+                .filter(e -> !e.failed())
+                .map(QueryEstimateSnapshot::estimatedBytesScanned)
+                .orElse(null);
     }
 
     private List<String> blockingRuleIds(QueryRequestSnapshot query) {
@@ -173,12 +260,21 @@ class QueryReviewStateMachine {
                         ? new QueryAutoApprovedEvent(query.id())
                         : new QueryReadyForReviewEvent(query.id()));
             }
+            case BYTES_CAP_REJECTED -> {
+                queryRequestStateService.transitionTo(query.id(), QueryStatus.PENDING_AI,
+                        QueryStatus.REJECTED);
+                eventPublisher.publishEvent(new QueryAutoRejectedEvent(query.id(), null,
+                        bytesCapReason(decision.bytesCap())));
+            }
             // A switch STATEMENT over an enum is not exhaustiveness-checked, so a new kind would
             // otherwise fall through silently and strand the query in PENDING_AI forever.
             default -> throw new IllegalStateException("Unhandled decision kind " + decision.kind());
         }
         if (decision.sqlReviewSuppression() != null) {
             auditSqlReviewBlocked(query, decision);
+        }
+        if (decision.bytesCapChangedOutcome()) {
+            auditBytesCapEnforced(query, decision);
         }
         // Logged after the fact: a line claiming a query was auto-approved must not outlive a
         // persistence call that then failed.
@@ -218,6 +314,46 @@ class QueryReviewStateMachine {
         } catch (RuntimeException ex) {
             log.error("Audit write failed for SQL_REVIEW_BLOCKED on query {}", query.id(), ex);
         }
+    }
+
+    /**
+     * One row per query whose outcome the bytes-scanned cap changed (#941) — a refusal, or an
+     * automatic approval turned into review. Swallow-and-log, like the SQL review row above.
+     */
+    private void auditBytesCapEnforced(QueryRequestSnapshot query, QueryDecision decision) {
+        var cap = decision.bytesCap();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "bytes_scanned_cap");
+        metadata.put("stage", "decision");
+        metadata.put("limit", cap.limit());
+        metadata.put("source", cap.source().name());
+        if (cap.estimatedBytes() != null) {
+            metadata.put("estimated_bytes", cap.estimatedBytes());
+        }
+        metadata.put("outcome", cap.outcome().name());
+        if (decision.routingMatch() != null) {
+            metadata.put("matched_policy_id", decision.routingMatch().policyId());
+        }
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED,
+                    AuditResourceType.QUERY_REQUEST, query.id(), query.organizationId(), null,
+                    metadata, null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_BYTES_SCANNED_CAP_ENFORCED on query {}",
+                    query.id(), ex);
+        }
+    }
+
+    /** Server-default locale for the same reason as {@link #grantReason}. */
+    private String bytesCapReason(BytesCapCheck cap) {
+        var limit = ByteSizeFormat.format(cap.limit());
+        if (cap.estimatedBytes() == null) {
+            return messageSource.getMessage("workflow.bytes_cap.rejected_no_estimate",
+                    new Object[]{limit}, Locale.getDefault());
+        }
+        return messageSource.getMessage("workflow.bytes_cap.rejected_exceeded",
+                new Object[]{ByteSizeFormat.format(cap.estimatedBytes()), limit},
+                Locale.getDefault());
     }
 
     /**

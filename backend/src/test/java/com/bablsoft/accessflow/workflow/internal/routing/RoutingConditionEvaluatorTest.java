@@ -344,6 +344,28 @@ class RoutingConditionEvaluatorTest {
     }
 
     @Test
+    void estimatedBytesScanned() {
+        var ctx = bytesContext(2_000_000_000_000L);
+        assertThat(evaluator.matches(new ConditionNode.EstimatedBytesScanned(
+                ComparisonOperator.GT, 1_000_000_000_000L), ctx)).isTrue();
+        assertThat(evaluator.matches(new ConditionNode.EstimatedBytesScanned(
+                ComparisonOperator.LTE, 1_000_000_000_000L), ctx)).isFalse();
+    }
+
+    @Test
+    void estimatedBytesScannedFailsClosedWhenNoEstimate() {
+        assertThat(evaluator.matches(new ConditionNode.EstimatedBytesScanned(
+                ComparisonOperator.GTE, 0), bytesContext(null))).isFalse();
+    }
+
+    private ConditionContext bytesContext(Long bytes) {
+        return new ConditionContext(QueryType.SELECT, Set.of("ds.events"), RiskLevel.LOW, 10,
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, null, null, false, null, false, 10L, null, Set.of(), false,
+                bytes);
+    }
+
+    @Test
     void scanType() {
         var ctx = estimateContext(500L, "Seq Scan");
         assertThat(evaluator.matches(

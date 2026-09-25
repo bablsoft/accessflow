@@ -58,6 +58,9 @@ public class QueryEstimateEntity {
     @Column(name = "estimated_cost")
     private Double estimatedCost;
 
+    @Column(name = "estimated_bytes_scanned")
+    private Long estimatedBytesScanned;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String plan;

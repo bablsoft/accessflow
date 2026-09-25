@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -36,7 +37,9 @@ public record DatasourceResponse(
         String localDatacenter,
         boolean resultCacheEnabled,
         Integer resultCacheTtlSeconds,
-        DatasourceEnvironment environment
+        DatasourceEnvironment environment,
+        Long maxBytesScannedPerQuery,
+        BytesCapMissingEstimateAction bytesCapMissingEstimate
 ) {
     /** One read-replica endpoint — never carries the password. */
     public record ReadReplicaResponse(UUID id, String jdbcUrl, String username) {
@@ -73,6 +76,8 @@ public record DatasourceResponse(
                 view.localDatacenter(),
                 view.resultCacheEnabled(),
                 view.resultCacheTtlSeconds(),
-                view.environment());
+                view.environment(),
+                view.maxBytesScannedPerQuery(),
+                view.bytesCapMissingEstimate());
     }
 }

@@ -132,6 +132,14 @@ public enum AuditAction {
      * when the guard changed the outcome; never for {@code WARN}, never on a rejection.
      */
     SQL_REVIEW_BLOCKED,
+    /**
+     * The bytes-scanned cap (#941) changed a query's outcome: refused it when it left
+     * {@code PENDING_AI} ({@code stage=decision}), turned an automatic approval into human review,
+     * or failed it just before execution ({@code stage=execution}). System-attributed — null actor,
+     * {@code trigger=bytes_scanned_cap}; metadata carries {@code limit}, {@code source},
+     * {@code estimated_bytes} and {@code outcome}.
+     */
+    QUERY_BYTES_SCANNED_CAP_ENFORCED,
     ROW_SECURITY_POLICY_CREATED,
     ROW_SECURITY_POLICY_UPDATED,
     ROW_SECURITY_POLICY_DELETED,

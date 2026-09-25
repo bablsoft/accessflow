@@ -54,7 +54,8 @@ class AccessGrantMaterializer {
             return;
         }
         // A replaced row's denials carry over (#939): a JIT approval widens capabilities and expiry,
-        // never lifts a denial an admin set — JIT requests cannot even ask for deny-lists.
+        // never lifts a denial an admin set — JIT requests cannot even ask for deny-lists. The
+        // bytes-scanned cap carries over for the same reason (#941): a JIT approval never widens cost.
         var replaced = replaceExistingTimeBoxedPermission(entity);
         var command = new CreatePermissionCommand(
                 entity.getRequesterId(),
@@ -63,6 +64,7 @@ class AccessGrantMaterializer {
                 entity.isCanDdl(),
                 false,
                 null,
+                replaced.map(DatasourceUserPermissionView::bytesScannedLimitOverride).orElse(null),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 null,

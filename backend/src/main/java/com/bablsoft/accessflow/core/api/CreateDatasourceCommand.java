@@ -30,8 +30,32 @@ public record CreateDatasourceCommand(
         Boolean resultCacheEnabled,
         Integer resultCacheTtlSeconds,
         String privateKeyPassphrase,
-        DatasourceEnvironment environment
+        DatasourceEnvironment environment,
+        Long maxBytesScannedPerQuery,
+        BytesCapMissingEstimateAction bytesCapMissingEstimate
 ) {
+    /**
+     * Backward-compatible constructor for the pre-#941 canonical shape (no bytes-scanned cap);
+     * delegates with {@code null} — no cap, default missing-estimate policy.
+     */
+    public CreateDatasourceCommand(
+            UUID organizationId, String name, DbType dbType, String host, Integer port,
+            String databaseName, String username, String password, SslMode sslMode,
+            Integer connectionPoolSize, Integer maxRowsPerQuery, Boolean requireReviewReads,
+            Boolean requireReviewWrites, UUID reviewPlanId, Boolean aiAnalysisEnabled,
+            UUID aiConfigId, Boolean textToSqlEnabled, UUID customDriverId, String connectorId,
+            String jdbcUrlOverride, List<ReplicaEndpointInput> readReplicas,
+            String localDatacenter, String apiKey, Boolean resultCacheEnabled,
+            Integer resultCacheTtlSeconds, String privateKeyPassphrase,
+            DatasourceEnvironment environment) {
+        this(organizationId, name, dbType, host, port, databaseName, username, password, sslMode,
+                connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
+                reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
+                connectorId, jdbcUrlOverride, readReplicas, localDatacenter, apiKey,
+                resultCacheEnabled, resultCacheTtlSeconds, privateKeyPassphrase, environment,
+                null, null);
+    }
+
     /**
      * Backward-compatible constructor for the pre-#861 canonical shape (no {@code environment});
      * delegates with {@code null} — an unset environment is a legitimate state.
@@ -49,7 +73,8 @@ public record CreateDatasourceCommand(
                 connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
                 reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
                 connectorId, jdbcUrlOverride, readReplicas, localDatacenter, apiKey,
-                resultCacheEnabled, resultCacheTtlSeconds, privateKeyPassphrase, null);
+                resultCacheEnabled, resultCacheTtlSeconds, privateKeyPassphrase,
+                (DatasourceEnvironment) null);
     }
 
     /**

@@ -52,6 +52,7 @@ class RoutingConditionCodecTest {
                 new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 1440),
                 new ConditionNode.CiCdOrigin(true),
                 new ConditionNode.EstimatedRows(ComparisonOperator.GT, 100_000L),
+                new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, 1_000_000_000L),
                 new ConditionNode.ScanTypeMatches(List.of("Seq*", "COLLSCAN"))));
 
         var json = codec.encode(tree);
@@ -68,6 +69,17 @@ class RoutingConditionCodecTest {
 
         assertThat(json).contains("\"type\":\"estimated_rows\"")
                 .contains("\"type\":\"scan_type\"");
+    }
+
+    @Test
+    void estimatedBytesScannedUsesItsSnakeCaseDiscriminator() {
+        var json = codec.encode(
+                new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GTE, 1_000L));
+
+        assertThat(json).contains("\"type\":\"estimated_bytes_scanned\"");
+        assertThat(codec.decode(
+                "{\"type\":\"estimated_bytes_scanned\",\"operator\":\"GT\",\"value\":5}"))
+                .isEqualTo(new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, 5L));
     }
 
     @Test
