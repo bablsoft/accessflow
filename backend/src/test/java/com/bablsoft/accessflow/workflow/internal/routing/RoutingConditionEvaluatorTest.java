@@ -358,6 +358,28 @@ class RoutingConditionEvaluatorTest {
                 ComparisonOperator.GTE, 0), bytesContext(null))).isFalse();
     }
 
+    @Test
+    void dataBudgetUsedPercent() {
+        var ctx = budgetContext(85);
+        assertThat(evaluator.matches(new ConditionNode.DataBudgetUsedPercent(
+                ComparisonOperator.GTE, 80), ctx)).isTrue();
+        assertThat(evaluator.matches(new ConditionNode.DataBudgetUsedPercent(
+                ComparisonOperator.GTE, 90), ctx)).isFalse();
+    }
+
+    @Test
+    void dataBudgetUsedPercentFailsClosedWhenNoBudgetApplies() {
+        assertThat(evaluator.matches(new ConditionNode.DataBudgetUsedPercent(
+                ComparisonOperator.GTE, 0), budgetContext(null))).isFalse();
+    }
+
+    private ConditionContext budgetContext(Integer usedPercent) {
+        return new ConditionContext(QueryType.SELECT, Set.of("ds.events"), RiskLevel.LOW, 10,
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, null, null, false, null, false, 10L, null, Set.of(), false,
+                null, usedPercent);
+    }
+
     private ConditionContext bytesContext(Long bytes) {
         return new ConditionContext(QueryType.SELECT, Set.of("ds.events"), RiskLevel.LOW, 10,
                 "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),

@@ -28,6 +28,9 @@ import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
 import com.bablsoft.accessflow.core.api.ExportPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalExportPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowLimitPolicyException;
+import com.bablsoft.accessflow.core.api.DataBudgetExhaustedException;
+import com.bablsoft.accessflow.core.api.DataBudgetNotFoundException;
+import com.bablsoft.accessflow.core.api.IllegalDataBudgetException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.InvalidSimulationPeriodException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
@@ -649,6 +652,40 @@ class GlobalExceptionHandler {
         // Message is resolved at the throw site via MessageSource — see DefaultRowLimitPolicyAdminService.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_ROW_LIMIT_POLICY");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DataBudgetNotFoundException.class)
+    ProblemDetail handleDataBudgetNotFound(DataBudgetNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.data_budget.not_found"));
+        pd.setProperty("error", "DATA_BUDGET_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalDataBudgetException.class)
+    ProblemDetail handleIllegalDataBudget(IllegalDataBudgetException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultDataBudgetAdminService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_DATA_BUDGET");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DataBudgetExhaustedException.class)
+    ProblemDetail handleDataBudgetExhausted(DataBudgetExhaustedException ex) {
+        // Message is resolved at the throw site — it names the exhausted budget.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        pd.setProperty("error", "DATA_BUDGET_EXHAUSTED");
+        var budget = ex.budget();
+        if (budget != null) {
+            pd.setProperty("budgetId", budget.budgetId());
+            pd.setProperty("maxRows", budget.maxRows());
+            pd.setProperty("maxBytes", budget.maxBytes());
+            pd.setProperty("windowMinutes", budget.windowMinutes());
+        }
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

@@ -8,9 +8,11 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
 import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
+import com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -39,6 +41,7 @@ import org.springframework.stereotype.Component;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -191,7 +194,8 @@ class NotificationContextBuilder {
                  DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
                  DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED,
                  SCHEMA_CHANGE_PROMOTION_SUBMITTED, SCHEMA_CHANGE_PROMOTION_APPLIED,
-                 SCHEMA_CHANGE_PROMOTION_FAILED, SCHEMA_DRIFT_DETECTED -> List.of();
+                 SCHEMA_CHANGE_PROMOTION_FAILED, SCHEMA_DRIFT_DETECTED,
+                 DATA_BUDGET_THRESHOLD_REACHED, DATA_BUDGET_EXHAUSTED -> List.of();
         };
     }
 
@@ -671,6 +675,77 @@ class NotificationContextBuilder {
                 null, null, null,
                 null, null, null, null,
                 event.newFindingCount()));
+    }
+
+    /**
+     * Builds the context for a data-budget crossing (#942): the datasource in
+     * {@code datasourceId}/{@code datasourceName}, the budget's user in the {@code submitter*}
+     * fields and the usage in {@code dataBudget}. A warning reaches that user only; exhaustion also
+     * reaches every active {@code DATA_BUDGET_MANAGE} holder, deduplicated when the user is one.
+     * {@code reviewUrl} opens the query editor. Empty when the user is gone or inactive and nobody
+     * else is to be told.
+     */
+    Optional<NotificationContext> buildDataBudget(DataBudgetThresholdCrossedEvent event) {
+        var eventType = event.exhausted()
+                ? NotificationEventType.DATA_BUDGET_EXHAUSTED
+                : NotificationEventType.DATA_BUDGET_THRESHOLD_REACHED;
+        var ids = new LinkedHashSet<UUID>();
+        ids.add(event.userId());
+        if (event.exhausted()) {
+            ids.addAll(rolePermissionHolderLookupService
+                    .findUserIdsWithPermission(event.organizationId(), Permission.DATA_BUDGET_MANAGE));
+        }
+        var recipients = toActiveRecipients(List.copyOf(ids));
+        if (recipients.isEmpty()) {
+            return Optional.empty();
+        }
+        var user = userQueryService.findById(event.userId()).orElse(null);
+        var locale = localizationConfigService.getOrDefault(event.organizationId()).defaultLanguage();
+        var notice = new DataBudgetNotice(event.budgetId(), event.budgetName(), event.exhausted(),
+                event.warnThresholdPercent(), event.usedPercent(), event.maxRows(), event.maxBytes(),
+                event.usedRows(), event.usedBytes(), event.windowMinutes(), event.breachAction());
+        return Optional.of(new NotificationContext(
+                eventType,
+                event.organizationId(),
+                null,
+                null, null, null, null,
+                null, null, null,
+                event.datasourceId(),
+                datasourceName(event.datasourceId(), event.organizationId()),
+                event.userId(),
+                user != null ? user.email() : null,
+                user != null ? user.displayName() : null,
+                null,
+                null, null, null,
+                buildAppUrl("/editor"),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                null, null, null, null, null,
+                null, null, null, null,
+                null,
+                notice));
+    }
+
+    private String datasourceName(UUID datasourceId, UUID organizationId) {
+        if (datasourceId == null) {
+            return null;
+        }
+        try {
+            var datasource = datasourceAdminService.getForAdmin(datasourceId, organizationId);
+            return datasource != null ? datasource.name() : null;
+        } catch (DatasourceNotFoundException ex) {
+            log.debug("Datasource {} vanished before its data-budget notification", datasourceId);
+            return null;
+        }
     }
 
     private List<RecipientView> schemaChangeRecipients(NotificationEventType eventType,

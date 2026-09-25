@@ -235,6 +235,25 @@ public sealed interface ConditionNode {
     }
 
     /**
+     * Compares the share of the submitter's data-volume budget already used on this datasource
+     * (#942 — the most-used applying budget, as a whole percentage that can exceed 100) with
+     * {@code value}. <strong>Fails closed</strong>: evaluates to {@code false} when no budget applies
+     * to the submitter, the statement is not a SELECT, or on a historical replay — so it is an
+     * escalation trigger, never a way to auto-approve on missing context.
+     */
+    record DataBudgetUsedPercent(ComparisonOperator operator, int value) implements ConditionNode {
+        public DataBudgetUsedPercent {
+            if (operator == null) {
+                throw new IllegalArgumentException(
+                        "DataBudgetUsedPercent condition requires an operator");
+            }
+            if (value < 0) {
+                throw new IllegalArgumentException("DataBudgetUsedPercent value must be >= 0");
+            }
+        }
+    }
+
+    /**
      * Matches when the pre-flight plan's root scan/operation type (AF-624 — e.g. {@code Seq Scan},
      * {@code Index Scan}, {@code COLLSCAN}) matches any glob in {@code patterns} ({@code *} = any
      * run of characters, case-insensitive — same matcher as referenced tables).

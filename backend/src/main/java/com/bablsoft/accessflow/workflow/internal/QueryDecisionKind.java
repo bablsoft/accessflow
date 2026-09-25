@@ -36,5 +36,11 @@ enum QueryDecisionKind {
      * The bytes-scanned cap (#941) refused the query: its estimate exceeds the cap, or it has none
      * and the datasource rejects on a missing estimate. Decided before routing and AI failure.
      */
-    BYTES_CAP_REJECTED
+    BYTES_CAP_REJECTED,
+
+    /**
+     * The submitter's data budget (#942) is exhausted and its breach action is {@code REJECT}.
+     * Decided right after the bytes-scanned cap, before routing and AI failure.
+     */
+    DATA_BUDGET_REJECTED
 }

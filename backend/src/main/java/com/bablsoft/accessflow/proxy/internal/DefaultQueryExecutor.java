@@ -83,6 +83,9 @@ class DefaultQueryExecutor implements QueryExecutor {
         try (Observation.Scope ignored = observation.openScope()) {
             QueryExecutionResult result = executeInternal(request, descriptor,
                     effectiveMaxRows, effectiveTimeout, execProps, observation);
+            if (result instanceof SelectExecutionResult select) {
+                result = measureBytes(select, request.maxResultBytesOverride());
+            }
             observation.lowCardinalityKeyValue("outcome", "success");
             return result;
         } catch (RuntimeException ex) {
@@ -446,6 +449,25 @@ class DefaultQueryExecutor implements QueryExecutor {
 
     private Duration durationSince(Instant start) {
         return Duration.between(start, clock.instant());
+    }
+
+    /**
+     * Stamps the delivered size (#942) and, under a result-byte override — which only the data
+     * budget sets — trims the rows past it, attributing the cut to the budget.
+     * Runs over every SELECT result — JDBC, engine plugin, cache hit — so accounting is uniform.
+     * As in the row mapper, the first row is always kept.
+     */
+    static SelectExecutionResult measureBytes(SelectExecutionResult result, Long maxBytes) {
+        long total = 0;
+        var rows = result.rows();
+        for (int i = 0; i < rows.size(); i++) {
+            long next = total + ResultByteEstimator.estimateRow(rows.get(i));
+            if (maxBytes != null && next > maxBytes && i > 0) {
+                return result.truncatedTo(i, SelectExecutionResult.TRUNCATED_DATA_BUDGET, total);
+            }
+            total = next;
+        }
+        return result.withResultBytes(total);
     }
 
     /** An override only ever lowers the cap — never above the datasource cap or global ceiling. */

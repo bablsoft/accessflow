@@ -912,4 +912,42 @@ class DefaultQueryExecutorTest {
         when(rs.next()).thenReturn(false);
         return rs;
     }
+
+    @Test
+    void measureBytesStampsTheDeliveredSizeWithoutAnOverride() {
+        List<List<Object>> rows = List.of(List.of("abc"), List.of("defg"));
+        var result = new SelectExecutionResult(List.of(), rows, 2, false, Duration.ZERO);
+
+        var measured = DefaultQueryExecutor.measureBytes(result, null);
+
+        assertThat(measured.resultBytes()).isEqualTo(ResultByteEstimator.estimateRow(rows.get(0))
+                + ResultByteEstimator.estimateRow(rows.get(1)));
+        assertThat(measured.truncated()).isFalse();
+        assertThat(measured.rowCount()).isEqualTo(2);
+    }
+
+    @Test
+    void measureBytesTrimsPastTheOverrideAndAttributesItToTheBudget() {
+        List<List<Object>> rows = List.of(List.of("aaaa"), List.of("bbbb"), List.of("cccc"));
+        var one = ResultByteEstimator.estimateRow(rows.get(0));
+        var result = new SelectExecutionResult(List.of(), rows, 3, false, Duration.ZERO);
+
+        var trimmed = DefaultQueryExecutor.measureBytes(result, one + 1);
+
+        assertThat(trimmed.rowCount()).isEqualTo(1);
+        assertThat(trimmed.truncated()).isTrue();
+        assertThat(trimmed.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_DATA_BUDGET);
+        assertThat(trimmed.resultBytes()).isEqualTo(one);
+    }
+
+    @Test
+    void measureBytesAlwaysKeepsTheFirstRow() {
+        List<List<Object>> rows = List.of(List.of("a very long value indeed"));
+        var result = new SelectExecutionResult(List.of(), rows, 1, false, Duration.ZERO);
+
+        var kept = DefaultQueryExecutor.measureBytes(result, 1L);
+
+        assertThat(kept.rowCount()).isEqualTo(1);
+        assertThat(kept.truncated()).isFalse();
+    }
 }

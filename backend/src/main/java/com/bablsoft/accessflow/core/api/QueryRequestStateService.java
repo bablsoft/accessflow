@@ -34,6 +34,18 @@ public interface QueryRequestStateService {
                                BytesScannedCapOutcome outcome);
 
     /**
+     * Stamps that an exhausted {@code REQUIRE_REVIEW} data budget (#942) forced the query into
+     * human review as it left {@code PENDING_AI}. A plain stamp, not a transition.
+     */
+    void recordDataBudgetReviewForced(UUID queryRequestId);
+
+    /**
+     * Whether an exhausted data budget forced this query into review (#942) — the only case in which
+     * an approved query may run past an exhausted {@code REQUIRE_REVIEW} budget.
+     */
+    boolean isDataBudgetReviewForced(UUID queryRequestId);
+
+    /**
      * Inserts an {@code APPROVED} {@link com.bablsoft.accessflow.core.api.DecisionType} row
      * for the given reviewer/stage and, if the per-stage threshold is now met AND it was the
      * last stage, transitions {@code PENDING_REVIEW → APPROVED} in the same transaction.

@@ -182,6 +182,27 @@ class ConditionNodeTest {
     }
 
     @Test
+    void dataBudgetUsedPercentRejectsANullOperatorAndANegativeValue() {
+        assertThatThrownBy(() -> new ConditionNode.DataBudgetUsedPercent(null, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ConditionNode.DataBudgetUsedPercent(ComparisonOperator.GT, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+        var node = new ConditionNode.DataBudgetUsedPercent(ComparisonOperator.GTE, 80);
+        assertThat(node.operator()).isEqualTo(ComparisonOperator.GTE);
+        assertThat(node.value()).isEqualTo(80);
+    }
+
+    @Test
+    void theBytesCompatibleContextConstructorLeavesTheBudgetSignalAbsent() {
+        var ctx = new ConditionContext(com.bablsoft.accessflow.core.api.QueryType.SELECT,
+                java.util.Set.of(), null, -1, null, java.util.Set.of(),
+                java.time.LocalDateTime.of(2026, 6, 3, 14, 30), false, false, false, null, null,
+                false, null, false, null, null, java.util.Set.of(), false, 5L);
+        assertThat(ctx.estimatedBytesScanned()).isEqualTo(5L);
+        assertThat(ctx.dataBudgetUsedPercent()).isNull();
+    }
+
+    @Test
     void theShapeCompatibleContextConstructorLeavesTheBytesEstimateAbsent() {
         var context = new ConditionContext(QueryType.SELECT, Set.of(), RiskLevel.LOW, 1, "ANALYST",
                 Set.of(), java.time.LocalDateTime.now(), false, false, false, null, null, false,

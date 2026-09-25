@@ -140,6 +140,15 @@ public enum AuditAction {
      * {@code estimated_bytes} and {@code outcome}.
      */
     QUERY_BYTES_SCANNED_CAP_ENFORCED,
+    /**
+     * An exhausted data-volume budget (#942) refused a query or turned an automatic approval into
+     * human review ({@code stage=decision}), or refused an execution ({@code stage=execution}).
+     */
+    QUERY_DATA_BUDGET_ENFORCED,
+    /** A data-volume budget (#942) was created, updated or deleted. */
+    DATA_BUDGET_CREATED,
+    DATA_BUDGET_UPDATED,
+    DATA_BUDGET_DELETED,
     ROW_SECURITY_POLICY_CREATED,
     ROW_SECURITY_POLICY_UPDATED,
     ROW_SECURITY_POLICY_DELETED,

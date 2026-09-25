@@ -169,6 +169,11 @@ public class QueryRequestEntity {
     @Column(name = "bytes_scanned_cap_outcome", columnDefinition = "bytes_scanned_cap_outcome")
     private BytesScannedCapOutcome bytesScannedCapOutcome;
 
+    // #942: an exhausted REQUIRE_REVIEW data budget forced this query into review; only then may
+    // it run past the exhausted budget once approved.
+    @Column(name = "data_budget_review_forced", nullable = false)
+    private boolean dataBudgetReviewForced;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

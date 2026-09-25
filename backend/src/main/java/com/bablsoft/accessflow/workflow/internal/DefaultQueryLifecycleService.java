@@ -1,6 +1,14 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.ByteSizeFormat;
+import com.bablsoft.accessflow.core.api.DataBudgetBreachAction;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.DataBudgetExhaustedException;
+import com.bablsoft.accessflow.core.api.DataBudgetStatus;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageRecord;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageSource;
 import com.bablsoft.accessflow.core.api.BytesScannedCapExceededException;
 import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
 import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
@@ -94,6 +102,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final ApplicationEventPublisher eventPublisher;
     private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
     private final QueryCostEstimateService queryCostEstimateService;
+    private final DataBudgetStatusService dataBudgetStatusService;
+    private final DataBudgetUsageService dataBudgetUsageService;
 
     private String msg(String key) {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
@@ -288,6 +298,11 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             // and break-glass runs execute later or without that decision, and the cap may have
             // been lowered since. A refusal is recorded as a failed execution.
             var bytesCap = enforceBytesScannedCap(query);
+            // #942: the reader's data budget. Allowance left ⇒ the result is capped to it; exhausted
+            // ⇒ refused, unless the exhausted budget itself forced the review this query passed.
+            // Break-glass is counted but never capped or refused by a budget.
+            var budget = enforceDataBudget(query,
+                    successAction == AuditAction.QUERY_BREAK_GLASS_EXECUTED);
             var permission = permissionLookupService
                     .findFor(query.submittedByUserId(), query.datasourceId());
             var restrictedColumns = permission
@@ -349,10 +364,20 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     softDeleteFilters.stream()).toList();
             var softDeletes = lifecycleDirectiveResolutionService
                     .resolveSoftDeletes(query.organizationId(), query.datasourceId());
-            var result = queryExecutor.execute(new QueryExecutionRequest(
+            var executionRequest = new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), rowLimitOverride,
                     null, restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
-                    parsed.statements(), softDeletes, parsed.referencedTables()));
+                    parsed.statements(), softDeletes, parsed.referencedTables());
+            if (budget != null && budget.capped()) {
+                executionRequest = executionRequest.withAllowance(
+                        budget.status().remainingRows(), budget.status().remainingBytes());
+            }
+            var result = queryExecutor.execute(executionRequest);
+            if (budget != null && budget.capped() && result instanceof SelectExecutionResult select) {
+                result = attributeBudgetTruncation(select, budget.status().remainingRows(),
+                        rowLimitOverride, descriptor.map(DatasourceConnectionDescriptor::maxRowsPerQuery)
+                                .orElse(null));
+            }
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;
@@ -420,6 +445,11 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                 successMetadata.put("applied_row_limit_policy_ids",
                         appliedRowLimitPolicyIds.stream()
                                 .map(UUID::toString).sorted().toList());
+            }
+            if (budget != null && result instanceof SelectExecutionResult select) {
+                successMetadata.put("data_budget_rows_charged", select.rowCount());
+                successMetadata.put("data_budget_bytes_charged", select.resultBytes());
+                chargeDataBudget(query, select);
             }
             recordAudit(successAction, query.id(), actorUserId,
                     query.organizationId(), successMetadata);
@@ -489,6 +519,90 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         recordAudit(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED, query.id(), null,
                 query.organizationId(), metadata);
         throw new BytesScannedCapExceededException(message, cap, estimated, check.outcome());
+    }
+
+    /** A budget that applies to this read, and whether the result must be capped to it. */
+    private record BudgetGate(DataBudgetStatus status, boolean capped) {
+    }
+
+    /**
+     * @return {@code null} when no budget applies (or the statement is not a SELECT); otherwise the
+     *         standing and whether to cap the result to the remaining allowance
+     * @throws DataBudgetExhaustedException when an exhausted budget refuses this run
+     */
+    private BudgetGate enforceDataBudget(QueryRequestSnapshot query, boolean breakGlass) {
+        if (query.queryType() != QueryType.SELECT) {
+            return null;
+        }
+        var status = dataBudgetStatusService.statusFor(query.datasourceId(),
+                query.submittedByUserId());
+        if (status.isEmpty()) {
+            return null;
+        }
+        if (breakGlass) {
+            return new BudgetGate(status, false);
+        }
+        if (!status.exhausted()) {
+            return new BudgetGate(status, true);
+        }
+        if (status.breachAction() == DataBudgetBreachAction.REQUIRE_REVIEW
+                && budgetForcedReview(query)) {
+            return new BudgetGate(status, false);
+        }
+        var deciding = status.decidingBudget();
+        var metadata = new HashMap<String, Object>();
+        metadata.put("trigger", "data_budget");
+        metadata.put("stage", "execution");
+        metadata.put("action", status.breachAction().name());
+        metadata.put("data_budget_id", deciding.budgetId());
+        metadata.put("used_rows", deciding.usedRows());
+        metadata.put("used_bytes", deciding.usedBytes());
+        metadata.put("window_minutes", deciding.windowMinutes());
+        recordAudit(AuditAction.QUERY_DATA_BUDGET_ENFORCED, query.id(), null,
+                query.organizationId(), metadata);
+        throw new DataBudgetExhaustedException(messageSource.getMessage(
+                "error.data_budget.exhausted", new Object[]{deciding.name()},
+                LocaleContextHolder.getLocale()), deciding);
+    }
+
+    /**
+     * The exhausted budget itself sent this query — or, for a recurring occurrence, its series — to
+     * review, so its approval (by a reviewer or a synced ticket) was given knowing the budget was
+     * spent. An approval obtained while allowance remained never lifts the budget.
+     */
+    private boolean budgetForcedReview(QueryRequestSnapshot query) {
+        return queryRequestStateService.isDataBudgetReviewForced(query.id())
+                || (query.recurringParentId() != null
+                        && queryRequestStateService.isDataBudgetReviewForced(
+                                query.recurringParentId()));
+    }
+
+    /**
+     * The row allowance was the binding cap when the result stopped exactly at it and it sits below
+     * every other row cap we know of; the global ceiling is covered by the exact-count test.
+     */
+    static SelectExecutionResult attributeBudgetTruncation(SelectExecutionResult select,
+                                                           Long budgetRows, Integer otherRowCap,
+                                                           Integer datasourceRowCap) {
+        if (!select.truncated() || budgetRows == null
+                || !SelectExecutionResult.TRUNCATED_ROW_LIMIT.equals(select.truncatedReason())
+                || select.rowCount() != budgetRows
+                || (otherRowCap != null && otherRowCap <= budgetRows)
+                || (datasourceRowCap != null && datasourceRowCap <= budgetRows)) {
+            return select;
+        }
+        return select.withTruncatedReason(SelectExecutionResult.TRUNCATED_DATA_BUDGET);
+    }
+
+    /** Never fails the execution: the rows were already delivered. */
+    private void chargeDataBudget(QueryRequestSnapshot query, SelectExecutionResult select) {
+        try {
+            dataBudgetUsageService.record(new DataBudgetUsageRecord(query.submittedByUserId(),
+                    query.datasourceId(), select.rowCount(), select.resultBytes(),
+                    DataBudgetUsageSource.QUERY, query.id(), null));
+        } catch (RuntimeException ex) {
+            log.error("Data-budget usage write failed for query {}", query.id(), ex);
+        }
     }
 
     private ExecutionOutcome recordFailure(QueryRequestSnapshot query, UUID actorUserId,

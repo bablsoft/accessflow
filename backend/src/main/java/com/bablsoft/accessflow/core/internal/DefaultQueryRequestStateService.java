@@ -81,6 +81,22 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
 
     @Override
     @Transactional
+    public void recordDataBudgetReviewForced(UUID queryRequestId) {
+        var entity = lockOrThrow(queryRequestId);
+        entity.setDataBudgetReviewForced(true);
+        queryRequestRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDataBudgetReviewForced(UUID queryRequestId) {
+        return queryRequestRepository.findById(queryRequestId)
+                .map(QueryRequestEntity::isDataBudgetReviewForced)
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional
     public RecordDecisionResult recordApprovalAndAdvance(RecordApprovalCommand command) {
         var entity = lockOrThrow(command.queryRequestId());
         if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {

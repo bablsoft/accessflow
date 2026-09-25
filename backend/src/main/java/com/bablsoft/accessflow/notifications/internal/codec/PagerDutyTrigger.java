@@ -27,7 +27,9 @@ import java.util.Set;
  * deliberately have no trigger either — routine lifecycle progress is not an incident. Nor do the
  * schema-change events ({@code SCHEMA_CHANGE_PROMOTION_*}, {@code SCHEMA_DRIFT_DETECTED}, #882):
  * a promotion's lifecycle is not an incident, and a drift finding carries no severity that could
- * tell a critical divergence apart from a cosmetic one.
+ * tell a critical divergence apart from a cosmetic one. Nor do the data-budget events
+ * ({@code DATA_BUDGET_THRESHOLD_REACHED}, {@code DATA_BUDGET_EXHAUSTED}, #942): a user reaching a
+ * read quota is an advisory, not an incident.
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),

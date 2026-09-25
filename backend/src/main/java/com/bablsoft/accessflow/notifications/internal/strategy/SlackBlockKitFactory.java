@@ -99,6 +99,9 @@ class SlackBlockKitFactory {
         if (ctx.isSchemaChangeEvent()) {
             return schemaChangeSection(ctx);
         }
+        if (ctx.isDataBudgetEvent()) {
+            return dataBudgetSection(ctx);
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -171,6 +174,15 @@ class SlackBlockKitFactory {
         }
         if (ctx.driftNewFindingCount() != null) {
             fields.add(mrkdwn("*New findings:*\n" + ctx.driftNewFindingCount()));
+        }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    // #942: data budgets — shared field set with the other chat channels.
+    private static SectionBlock dataBudgetSection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        for (var field : DataBudgetText.fields(ctx)) {
+            fields.add(mrkdwn("*" + field.getKey() + ":*\n" + field.getValue()));
         }
         return SectionBlock.builder().fields(fields).build();
     }
@@ -280,6 +292,8 @@ class SlackBlockKitFactory {
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";
             case SCHEMA_DRIFT_DETECTED -> "⚠️ Schema Drift Detected";
+            case DATA_BUDGET_THRESHOLD_REACHED -> "📊 Data Budget Warning Threshold Reached";
+            case DATA_BUDGET_EXHAUSTED -> "🛑 Data Budget Exhausted";
         };
     }
 

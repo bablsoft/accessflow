@@ -35,6 +35,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ConditionNode.AnomalyDetected.class, name = "anomaly_detected"),
         @JsonSubTypes.Type(value = ConditionNode.EstimatedRows.class, name = "estimated_rows"),
         @JsonSubTypes.Type(value = ConditionNode.EstimatedBytesScanned.class, name = "estimated_bytes_scanned"),
+        @JsonSubTypes.Type(value = ConditionNode.DataBudgetUsedPercent.class, name = "data_budget_used_percent"),
         @JsonSubTypes.Type(value = ConditionNode.ScanTypeMatches.class, name = "scan_type")
 })
 interface ConditionNodeMixin {

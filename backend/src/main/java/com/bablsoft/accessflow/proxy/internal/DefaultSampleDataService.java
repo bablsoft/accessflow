@@ -2,6 +2,16 @@ package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.DataBudgetConsumption;
+import com.bablsoft.accessflow.core.api.DataBudgetExhaustedException;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageRecord;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageSource;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
@@ -18,11 +28,13 @@ import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.SampleDataService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -32,6 +44,7 @@ import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 class DefaultSampleDataService implements SampleDataService {
 
     private final DatasourceAdminService datasourceAdminService;
@@ -41,6 +54,9 @@ class DefaultSampleDataService implements SampleDataService {
     private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final QueryExecutor queryExecutor;
     private final MessageSource messageSource;
+    private final DataBudgetStatusService dataBudgetStatusService;
+    private final DataBudgetUsageService dataBudgetUsageService;
+    private final AuditLogService auditLogService;
 
     @Override
     public SelectExecutionResult sample(UUID datasourceId, UUID organizationId, UUID userId,
@@ -97,10 +113,68 @@ class DefaultSampleDataService implements SampleDataService {
             rowLimitOverride = appliedRowLimit.get().tighten(rowLimitOverride);
         }
 
+        // #942: a preview reads real rows, so it spends the data budget like a query. It has no
+        // review to escalate to: an exhausted budget refuses it whatever the breach action.
+        var budget = dataBudgetStatusService.statusFor(datasourceId, userId);
+        if (budget.exhausted()) {
+            var deciding = budget.decidingBudget();
+            auditRefusal(organizationId, datasourceId, userId, deciding, qualifiedName(target));
+            throw new DataBudgetExhaustedException(messageSource.getMessage(
+                    "error.data_budget.exhausted", new Object[]{deciding.name()},
+                    LocaleContextHolder.getLocale()), deciding);
+        }
+        var policyLimit = effectiveLimit(limit, rowLimitOverride);
+        var rowLimit = policyLimit;
+        if (budget.remainingRows() != null) {
+            rowLimit = (int) Math.min(rowLimit, Math.max(1, budget.remainingRows()));
+        }
+
         // 3. Execute via the proxy executor — RLS rewrite + post-fetch masking + row cap + timeout.
-        return queryExecutor.sampleTable(new SampleTableRequest(datasourceId, target.schema(),
+        var result = queryExecutor.sampleTable(new SampleTableRequest(datasourceId, target.schema(),
                 target.table(), restrictedColumns, columnMasks, rowSecurityPredicates,
-                effectiveLimit(limit, rowLimitOverride), null));
+                rowLimit, null));
+        if (budget.isEmpty()) {
+            return result;
+        }
+        var remainingBytes = budget.remainingBytes();
+        var measured = DefaultQueryExecutor.measureBytes(result,
+                remainingBytes == null ? null : Math.max(1, remainingBytes));
+        // The budget's row allowance was the binding cap: say so, as the query path does.
+        if (rowLimit < policyLimit && measured.truncated()
+                && SelectExecutionResult.TRUNCATED_ROW_LIMIT.equals(measured.truncatedReason())
+                && measured.rowCount() == rowLimit) {
+            measured = measured.withTruncatedReason(SelectExecutionResult.TRUNCATED_DATA_BUDGET);
+        }
+        try {
+            dataBudgetUsageService.record(new DataBudgetUsageRecord(userId, datasourceId,
+                    measured.rowCount(), measured.resultBytes(), DataBudgetUsageSource.SAMPLE_DATA,
+                    null, null));
+        } catch (RuntimeException ex) {
+            log.error("Data-budget usage write failed for a sample of datasource {}", datasourceId,
+                    ex);
+        }
+        return measured;
+    }
+
+    private void auditRefusal(UUID organizationId, UUID datasourceId, UUID userId,
+                              DataBudgetConsumption deciding, String table) {
+        var metadata = new HashMap<String, Object>();
+        metadata.put("trigger", "data_budget");
+        metadata.put("stage", "sample");
+        metadata.put("action", deciding.breachAction().name());
+        metadata.put("data_budget_id", deciding.budgetId());
+        metadata.put("used_rows", deciding.usedRows());
+        metadata.put("used_bytes", deciding.usedBytes());
+        metadata.put("window_minutes", deciding.windowMinutes());
+        metadata.put("table", table);
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.QUERY_DATA_BUDGET_ENFORCED,
+                    AuditResourceType.DATASOURCE, datasourceId, organizationId, userId, metadata,
+                    null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_DATA_BUDGET_ENFORCED on datasource {}",
+                    datasourceId, ex);
+        }
     }
 
     /** The caller's row-limit override (#933) and row-limit policies (#934) cap the preview too, so it can't be used to get around the cap. */

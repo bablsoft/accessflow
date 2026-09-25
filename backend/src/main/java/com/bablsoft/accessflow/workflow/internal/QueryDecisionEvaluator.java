@@ -75,25 +75,39 @@ class QueryDecisionEvaluator {
         return evaluate(query, aiOutcome, riskLevel, riskScore, blockingRuleIds, null, clock);
     }
 
+    /** {@link #evaluate(QueryRequestSnapshot, AiOutcome, RiskLevel, int, List, BytesCapCheck, DataBudgetCheck, Clock)} with no data budget. */
+    QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
+                           int riskScore, List<String> blockingRuleIds, BytesCapCheck bytesCap,
+                           Clock clock) {
+        return evaluate(query, aiOutcome, riskLevel, riskScore, blockingRuleIds, bytesCap, null,
+                clock);
+    }
+
     /**
      * @param riskScore       the AI's numeric score, or {@code -1} when there is none — the same
      *                        "absent" sentinel the live completion event uses
      * @param blockingRuleIds the distinct SQL review rule ids that fired at {@code BLOCK} for this
      *                        request, empty when none did (#864)
      * @param bytesCap        the bytes-scanned cap that applies (#941), {@code null} when none does
+     * @param dataBudget      the submitter's data-budget standing (#942), {@code null} when no budget
+     *                        applies or the statement is not a SELECT
      */
     QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
                            int riskScore, List<String> blockingRuleIds, BytesCapCheck bytesCap,
-                           Clock clock) {
+                           DataBudgetCheck dataBudget, Clock clock) {
         var block = blockingRuleIds == null ? List.<String>of() : List.copyOf(blockingRuleIds);
-        var guard = new Guard(block, bytesCap);
+        var guard = new Guard(block, bytesCap, dataBudget);
         // A hard cap is a refusal, not a routing signal: it decides before routing and before the
         // AI-failure fallback, so no policy or plan can approve a query the cap has refused.
         if (bytesCap != null && bytesCap.rejects()) {
-            return bytesCapRejected(block, bytesCap);
+            return bytesCapRejected(block, bytesCap, dataBudget);
+        }
+        // An exhausted budget under REJECT is the same kind of refusal, decided just after the cap.
+        if (dataBudget != null && dataBudget.rejects()) {
+            return dataBudgetRejected(block, bytesCap, dataBudget);
         }
         if (aiOutcome == AiOutcome.FAILED) {
-            return aiFailed(block, bytesCap);
+            return aiFailed(block, bytesCap, dataBudget);
         }
         // Only a COMPLETED analysis carries a risk signal. Normalising here rather than trusting the
         // caller keeps the SKIPPED branch identical to production, where the listener passes no risk
@@ -106,6 +120,7 @@ class QueryDecisionEvaluator {
         var steps = new ArrayList<DecisionTraceStep>(5);
         steps.add(sqlReviewStep(block));
         steps.add(bytesCapStep(bytesCap));
+        steps.add(dataBudgetStep(dataBudget));
 
         var match = routingPolicyEngine.evaluate(query.organizationId(), query.datasourceId(),
                 context).orElse(null);
@@ -122,7 +137,8 @@ class QueryDecisionEvaluator {
                     "workflow.decision.plan.skipped_grant_covered", planDetails(plan)));
             return new QueryDecision(QueryDecisionKind.GRANT_FAST_PATH, QueryStatus.APPROVED, null,
                     null, grant.id(), grant.approverEmail(), context,
-                    new DecisionTrace(steps, QueryStatus.APPROVED), null, bytesCap, false);
+                    new DecisionTrace(steps, QueryStatus.APPROVED), null, bytesCap, false,
+                    dataBudget, false);
         }
 
         return planned(query, plan, effectiveRisk, context, steps, guard, suppressed);
@@ -130,22 +146,79 @@ class QueryDecisionEvaluator {
 
     /**
      * What may turn an automatic approval into human review: a {@code BLOCK} SQL review finding
-     * (#864) and a bytes-scanned cap with no estimate to compare against (#941). The trace names
-     * the SQL review first when both apply.
+     * (#864), a bytes-scanned cap with no estimate to compare against (#941), and an exhausted data
+     * budget under {@code REQUIRE_REVIEW} (#942). The trace names them in that order of precedence.
      */
-    private record Guard(List<String> block, BytesCapCheck bytesCap) {
+    private record Guard(List<String> block, BytesCapCheck bytesCap, DataBudgetCheck dataBudget) {
 
         boolean suppresses() {
-            return !block.isEmpty() || (bytesCap != null && bytesCap.forcesReview());
+            return !block.isEmpty() || capForcesReview() || budgetForcesReview();
         }
 
         boolean capForcesReview() {
             return bytesCap != null && bytesCap.forcesReview();
         }
 
-        String reasonSuffix() {
-            return block.isEmpty() ? "bytes_cap" : "sql_review";
+        boolean budgetForcesReview() {
+            return dataBudget != null && dataBudget.forcesReview();
         }
+
+        String reasonSuffix() {
+            if (!block.isEmpty()) {
+                return "sql_review";
+            }
+            return capForcesReview() ? "bytes_cap" : "data_budget";
+        }
+    }
+
+    /** The budget step is always present so the trace keeps one entry per stage. */
+    private static DecisionTraceStep dataBudgetStep(DataBudgetCheck budget) {
+        if (budget == null) {
+            return DecisionTraceStep.of(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.NO_MATCH,
+                    "workflow.decision.data_budget.none");
+        }
+        var percent = String.valueOf((long) Math.floor(budget.usedPercent()));
+        var details = new LinkedHashMap<String, Object>();
+        details.put("data_budget_used_percent", Math.floor(budget.usedPercent()));
+        details.put("data_budget_remaining_rows", budget.remainingRows());
+        details.put("data_budget_remaining_bytes", budget.remainingBytes());
+        details.put("data_budget_action", budget.action() == null ? null : budget.action().name());
+        if (budget.deciding() != null) {
+            details.put("data_budget_id", budget.deciding().budgetId());
+            details.put("data_budget_name", budget.deciding().name());
+        }
+        if (budget.rejects()) {
+            return new DecisionTraceStep(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.DENY,
+                    "workflow.decision.data_budget.exhausted_rejected",
+                    List.of(String.valueOf(budget.deciding().name())), details);
+        }
+        if (budget.forcesReview()) {
+            return new DecisionTraceStep(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.MATCH,
+                    "workflow.decision.data_budget.exhausted_review",
+                    List.of(String.valueOf(budget.deciding().name())), details);
+        }
+        return new DecisionTraceStep(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.ALLOW,
+                "workflow.decision.data_budget.within", List.of(percent), details);
+    }
+
+    /**
+     * An exhausted budget refused the query (#942). Like the cap, nothing downstream runs.
+     */
+    private static QueryDecision dataBudgetRejected(List<String> block, BytesCapCheck cap,
+                                                    DataBudgetCheck budget) {
+        var steps = List.of(
+                sqlReviewStep(block),
+                bytesCapStep(cap),
+                dataBudgetStep(budget),
+                DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
+                        "workflow.decision.routing.skipped_data_budget"),
+                DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
+                        "workflow.decision.grant.skipped_data_budget"),
+                DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+                        "workflow.decision.plan.skipped_data_budget"));
+        return new QueryDecision(QueryDecisionKind.DATA_BUDGET_REJECTED, QueryStatus.REJECTED, null,
+                null, null, null, null, new DecisionTrace(steps, QueryStatus.REJECTED), null, cap,
+                false, budget, true);
     }
 
     /** The cap step is always present so the trace keeps one entry per stage. */
@@ -184,10 +257,12 @@ class QueryDecisionEvaluator {
      * The cap refused the query (#941). Nothing downstream runs — there is no routing decision to
      * record and no plan to consult — which is why the context is not even built.
      */
-    private static QueryDecision bytesCapRejected(List<String> block, BytesCapCheck cap) {
+    private static QueryDecision bytesCapRejected(List<String> block, BytesCapCheck cap,
+                                                  DataBudgetCheck budget) {
         var steps = List.of(
                 sqlReviewStep(block),
                 bytesCapStep(cap),
+                dataBudgetStep(budget),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_bytes_cap"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
@@ -196,7 +271,7 @@ class QueryDecisionEvaluator {
                         "workflow.decision.plan.skipped_bytes_cap"));
         return new QueryDecision(QueryDecisionKind.BYTES_CAP_REJECTED, QueryStatus.REJECTED, null,
                 null, null, null, null, new DecisionTrace(steps, QueryStatus.REJECTED), null, cap,
-                true);
+                true, budget, false);
     }
 
     /**
@@ -227,10 +302,12 @@ class QueryDecisionEvaluator {
      * auto-decision signal — and neither does the grant fast path or the review plan. Decided before
      * any lookup, mirroring the live listener, which builds no context at all.
      */
-    private static QueryDecision aiFailed(List<String> block, BytesCapCheck bytesCap) {
+    private static QueryDecision aiFailed(List<String> block, BytesCapCheck bytesCap,
+                                          DataBudgetCheck budget) {
         var steps = List.of(
                 sqlReviewStep(block),
                 bytesCapStep(bytesCap),
+                dataBudgetStep(budget),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_ai_failed"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
@@ -239,7 +316,8 @@ class QueryDecisionEvaluator {
                         "workflow.decision.plan.skipped_ai_failed"));
         return new QueryDecision(QueryDecisionKind.AI_FAILED_PENDING_REVIEW,
                 QueryStatus.PENDING_REVIEW, null, null, null, null, null,
-                new DecisionTrace(steps, QueryStatus.PENDING_REVIEW), null, bytesCap, false);
+                new DecisionTrace(steps, QueryStatus.PENDING_REVIEW), null, bytesCap, false,
+                budget, false);
     }
 
     /**
@@ -276,10 +354,12 @@ class QueryDecisionEvaluator {
         details.put("effective_min_approvals", effective);
         details.put("sql_review_suppressed", suppressedApprove && !block.isEmpty());
         details.put("bytes_cap_suppressed", suppressedApprove && guard.capForcesReview());
+        details.put("data_budget_suppressed", suppressedApprove && guard.budgetForcesReview());
         steps.add(suppressedApprove
                 ? new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
                         block.isEmpty()
-                                ? "workflow.decision.routing.matched_auto_approve_suppressed_bytes_cap"
+                                ? "workflow.decision.routing.matched_auto_approve_suppressed_"
+                                        + guard.reasonSuffix()
                                 : "workflow.decision.routing.matched_auto_approve_suppressed",
                         List.of(String.valueOf(match.policyName())), details)
                 : new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
@@ -294,7 +374,8 @@ class QueryDecisionEvaluator {
                 suppressedApprove && !block.isEmpty()
                         ? new SqlReviewSuppression(block, List.of(SuppressedAutoApproval.ROUTING_AUTO_APPROVE))
                         : null,
-                guard.bytesCap(), suppressedApprove && guard.capForcesReview());
+                guard.bytesCap(), suppressedApprove && guard.capForcesReview(),
+                guard.dataBudget(), suppressedApprove && guard.budgetForcesReview());
     }
 
     /**
@@ -406,6 +487,7 @@ class QueryDecisionEvaluator {
         boolean planSuppressed = suppressed.contains(SuppressedAutoApproval.REVIEW_PLAN);
         details.put("sql_review_suppressed", planSuppressed && !block.isEmpty());
         details.put("bytes_cap_suppressed", planSuppressed && guard.capForcesReview());
+        details.put("data_budget_suppressed", planSuppressed && guard.budgetForcesReview());
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN,
                 nextStatus == QueryStatus.APPROVED ? StepOutcome.ALLOW : StepOutcome.DENY,
                 reasonKey, details));
@@ -414,7 +496,8 @@ class QueryDecisionEvaluator {
                 : QueryDecisionKind.PLAN_PENDING_REVIEW;
         return new QueryDecision(kind, nextStatus, null, null, null, null, context,
                 new DecisionTrace(steps, nextStatus), suppression(block, suppressed),
-                guard.bytesCap(), guard.capForcesReview() && !suppressed.isEmpty());
+                guard.bytesCap(), guard.capForcesReview() && !suppressed.isEmpty(),
+                guard.dataBudget(), guard.budgetForcesReview() && !suppressed.isEmpty());
     }
 
     private static LinkedHashMap<String, Object> consideredGrants(List<AccessGrantView> grants) {

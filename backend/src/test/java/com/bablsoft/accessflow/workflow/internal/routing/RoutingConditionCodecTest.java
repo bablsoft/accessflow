@@ -53,6 +53,7 @@ class RoutingConditionCodecTest {
                 new ConditionNode.CiCdOrigin(true),
                 new ConditionNode.EstimatedRows(ComparisonOperator.GT, 100_000L),
                 new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, 1_000_000_000L),
+                new ConditionNode.DataBudgetUsedPercent(ComparisonOperator.GTE, 80),
                 new ConditionNode.ScanTypeMatches(List.of("Seq*", "COLLSCAN"))));
 
         var json = codec.encode(tree);
@@ -80,6 +81,16 @@ class RoutingConditionCodecTest {
         assertThat(codec.decode(
                 "{\"type\":\"estimated_bytes_scanned\",\"operator\":\"GT\",\"value\":5}"))
                 .isEqualTo(new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, 5L));
+    }
+
+    @Test
+    void dataBudgetUsedPercentUsesItsSnakeCaseDiscriminator() {
+        var json = codec.encode(new ConditionNode.DataBudgetUsedPercent(ComparisonOperator.GTE, 80));
+
+        assertThat(json).contains("\"type\":\"data_budget_used_percent\"");
+        assertThat(codec.decode(
+                "{\"type\":\"data_budget_used_percent\",\"operator\":\"GT\",\"value\":50}"))
+                .isEqualTo(new ConditionNode.DataBudgetUsedPercent(ComparisonOperator.GT, 50));
     }
 
     @Test

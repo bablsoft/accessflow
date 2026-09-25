@@ -801,6 +801,68 @@ class NotificationContextBuilderTest {
                 UUID.randomUUID(), orgId, UUID.randomUUID(), UUID.randomUUID(), 1))).isEmpty();
     }
 
+    private com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent budgetEvent(boolean exhausted) {
+        return new com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent(orgId, submitterId,
+                datasourceId, UUID.randomUUID(), "daily-reads", exhausted, 80, exhausted ? 100 : 82,
+                1000L, 5_000_000L, exhausted ? 1000L : 820L, 1_200_000L, 1440,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT);
+    }
+
+    @Test
+    void dataBudgetWarningGoesToTheUserOnly() {
+        var alice = user(submitterId, "alice@example.com", UserRoleType.ANALYST);
+        when(userQuery.findByIds(List.of(submitterId))).thenReturn(List.of(alice));
+
+        var ctx = builder.buildDataBudget(budgetEvent(false)).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.DATA_BUDGET_THRESHOLD_REACHED);
+        assertThat(ctx.isDataBudgetEvent()).isTrue();
+        assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(submitterId);
+        assertThat(ctx.datasourceId()).isEqualTo(datasourceId);
+        assertThat(ctx.datasourceName()).isEqualTo("Production");
+        assertThat(ctx.submitterEmail()).isEqualTo("alice@example.com");
+        assertThat(ctx.dataBudget().budgetName()).isEqualTo("daily-reads");
+        assertThat(ctx.dataBudget().usedPercent()).isEqualTo(82);
+        assertThat(ctx.reviewUrl()).hasToString("https://app.example.test/editor");
+        org.mockito.Mockito.verifyNoInteractions(permissionHolderLookup);
+    }
+
+    @Test
+    void dataBudgetExhaustionAlsoReachesBudgetManagersWithoutDuplicates() {
+        var alice = user(submitterId, "alice@example.com", UserRoleType.ANALYST);
+        var manager = user(UUID.randomUUID(), "mgr@example.com", UserRoleType.ADMIN);
+        when(permissionHolderLookup.findUserIdsWithPermission(orgId,
+                com.bablsoft.accessflow.core.api.Permission.DATA_BUDGET_MANAGE))
+                .thenReturn(List.of(manager.id(), submitterId));
+        when(userQuery.findByIds(List.of(submitterId, manager.id()))).thenReturn(List.of(alice, manager));
+
+        var ctx = builder.buildDataBudget(budgetEvent(true)).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.DATA_BUDGET_EXHAUSTED);
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(submitterId, manager.id());
+        assertThat(ctx.dataBudget().exhausted()).isTrue();
+    }
+
+    @Test
+    void dataBudgetSurvivesADeletedDatasource() {
+        var alice = user(submitterId, "alice@example.com", UserRoleType.ANALYST);
+        when(userQuery.findByIds(List.of(submitterId))).thenReturn(List.of(alice));
+        when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId)))
+                .thenThrow(new com.bablsoft.accessflow.core.api.DatasourceNotFoundException(datasourceId));
+
+        var ctx = builder.buildDataBudget(budgetEvent(false)).orElseThrow();
+
+        assertThat(ctx.datasourceName()).isNull();
+    }
+
+    @Test
+    void dataBudgetEmptyWhenNobodyActiveIsLeft() {
+        when(userQuery.findByIds(List.of(submitterId))).thenReturn(List.of());
+
+        assertThat(builder.buildDataBudget(budgetEvent(false))).isEmpty();
+    }
+
     private com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotificationView promotionView(
             UUID promotionId, UUID promoterId) {
         return new com.bablsoft.accessflow.schemachange.api.SchemaChangePromotionNotificationView(promotionId,

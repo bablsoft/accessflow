@@ -49,6 +49,14 @@ public enum QueryDecisionStepKind implements DecisionStepKind {
      */
     BYTES_SCANNED_CAP,
 
+    /**
+     * The submitter's data-volume budget (#942): {@code DENY} when an exhausted budget rejects;
+     * {@code MATCH} when an exhausted budget forces human review (every auto-approve stage below is
+     * then suppressed); {@code ALLOW} while allowance remains; {@code NO_MATCH} when no budget
+     * applies or the statement is not a SELECT.
+     */
+    DATA_BUDGET,
+
     /** Every enabled routing policy in ascending priority order, matched and unmatched. */
     ROUTING_POLICIES,
 

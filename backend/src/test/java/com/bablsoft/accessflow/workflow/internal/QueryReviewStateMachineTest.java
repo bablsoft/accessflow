@@ -75,6 +75,7 @@ class QueryReviewStateMachineTest {
     @Mock com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
     @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
     @Mock org.springframework.transaction.PlatformTransactionManager transactionManager;
+    @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
 
     // A real ConditionContextFactory over the same mocks, not a mock of it: the context builder is
     // what turns these signals into routing input, and mocking it away would stop testing that.
@@ -93,7 +94,7 @@ class QueryReviewStateMachineTest {
         var contextFactory = new com.bablsoft.accessflow.workflow.internal.routing
                 .ConditionContextFactory(queryRequestLookupService, sqlParserService,
                 userQueryService, userGroupService, behaviorAnomalyLookupService,
-                queryEstimateLookupService);
+                queryEstimateLookupService, dataBudgetStatusService);
         // A real QueryDecisionEvaluator too, for the same reason: the assertions below are about the
         // chain's behaviour, and mocking the decision away would leave only the switch under test.
         var evaluator = new QueryDecisionEvaluator(reviewPlanLookupService, contextFactory,
@@ -101,7 +102,10 @@ class QueryReviewStateMachineTest {
         stateMachine = new QueryReviewStateMachine(queryRequestLookupService, evaluator,
                 queryRequestStateService, routingDecisionService, sqlReviewFindingService,
                 auditLogService, messageSource, eventPublisher, bytesScannedCapResolutionService,
-                queryCostEstimateService, queryEstimateLookupService, transactionManager);
+                queryCostEstimateService, queryEstimateLookupService, transactionManager,
+                dataBudgetStatusService);
+        lenient().when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
     }
 
     @BeforeEach
@@ -855,6 +859,89 @@ class QueryReviewStateMachineTest {
         givenPendingAiQuery(QueryType.SELECT);
         givenCap(1_000L, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
         givenEstimate(5_000L, false);
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit down"))
+                .when(auditLogService).record(any());
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+    }
+
+    // ── Data budget (#942) ────────────────────────────────────────────────────
+
+    private void givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction action,
+                             long usedRows) {
+        when(dataBudgetStatusService.statusFor(datasourceId, submitterId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds", List.of(
+                        new com.bablsoft.accessflow.core.api.DataBudgetConsumption(budgetId,
+                                "Daily", 100L, null, 1440, action, 80, usedRows, 0))));
+    }
+
+    private final UUID budgetId = UUID.randomUUID();
+
+    @Test
+    void anExhaustedRejectBudgetRejectsAndAudits() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100);
+        when(messageSource.getMessage(eq("workflow.data_budget.rejected"), any(), any()))
+                .thenReturn("budget used up");
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+        verify(queryRequestStateService, never()).recordDataBudgetReviewForced(any());
+        verify(eventPublisher).publishEvent(new QueryAutoRejectedEvent(queryId, null,
+                "budget used up"));
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.QUERY_DATA_BUDGET_ENFORCED);
+        assertThat(audit.getValue().metadata())
+                .containsEntry("trigger", "data_budget")
+                .containsEntry("stage", "decision")
+                .containsEntry("action", "REJECT")
+                .containsEntry("data_budget_id", budgetId)
+                .containsEntry("used_rows", 100L)
+                .containsEntry("window_minutes", 1440);
+        verify(routingPolicyEngine, never()).evaluate(any(), any(), any());
+    }
+
+    @Test
+    void anExhaustedReviewBudgetHoldsAnAutoApprovalAndAuditsIt() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, false, RiskLevel.LOW);
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 150);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(queryRequestStateService).recordDataBudgetReviewForced(queryId);
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.QUERY_DATA_BUDGET_ENFORCED);
+        assertThat(audit.getValue().metadata()).containsEntry("action", "REQUIRE_REVIEW");
+    }
+
+    @Test
+    void aWriteIsNeverCheckedAgainstTheBudget() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, false, RiskLevel.LOW);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(dataBudgetStatusService, never()).statusFor(any(), any());
+    }
+
+    @Test
+    void aFailingBudgetAuditNeverUndoesTheRejection() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100);
         org.mockito.Mockito.doThrow(new IllegalStateException("audit down"))
                 .when(auditLogService).record(any());
 

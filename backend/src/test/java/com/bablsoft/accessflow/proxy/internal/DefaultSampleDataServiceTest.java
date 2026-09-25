@@ -56,6 +56,13 @@ class DefaultSampleDataServiceTest {
     @Mock
     private org.springframework.context.MessageSource messageSource;
 
+    @Mock
+    private com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
+    @Mock
+    private com.bablsoft.accessflow.core.api.DataBudgetUsageService dataBudgetUsageService;
+    @Mock
+    private com.bablsoft.accessflow.audit.api.AuditLogService auditLogService;
+
     @InjectMocks
     private DefaultSampleDataService service;
 
@@ -68,6 +75,9 @@ class DefaultSampleDataServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(
+                        inv.getArgument(0)));
         var schemaView = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("Users", List.of(
@@ -474,5 +484,115 @@ class DefaultSampleDataServiceTest {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                 false, false, false, allowedSchemas, List.of(), List.of(), null, deniedSchemas,
                 deniedTables, List.of(), null, null);
+    }
+
+    @Test
+    void exhaustedBudgetRefusesThePreviewWhateverTheAction() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+        var budget = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(UUID.randomUUID(),
+                "Daily", 10L, null, 60,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, null, 10, 0);
+        when(dataBudgetStatusService.statusFor(datasourceId, userId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds",
+                        List.of(budget)));
+        when(messageSource.getMessage(eq("error.data_budget.exhausted"), any(), any()))
+                .thenReturn("used up");
+
+        assertThatThrownBy(() -> service.sample(datasourceId, organizationId, userId, true,
+                "public", "users", 50))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DataBudgetExhaustedException.class)
+                .hasMessage("used up");
+        verify(queryExecutor, never()).sampleTable(any());
+        var audit = ArgumentCaptor.forClass(com.bablsoft.accessflow.audit.api.AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action())
+                .isEqualTo(com.bablsoft.accessflow.audit.api.AuditAction.QUERY_DATA_BUDGET_ENFORCED);
+        assertThat(audit.getValue().metadata()).containsEntry("stage", "sample")
+                .containsEntry("table", "public.users");
+    }
+
+    @Test
+    void remainingAllowanceCapsThePreviewAndIsCharged() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+        var budget = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(UUID.randomUUID(),
+                "Daily", 10L, 1_000_000L, 60,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, null, 7, 0);
+        when(dataBudgetStatusService.statusFor(datasourceId, userId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds",
+                        List.of(budget)));
+        List<List<Object>> rows = List.of(List.of("a"), List.of("b"));
+        when(queryExecutor.sampleTable(any())).thenReturn(
+                new SelectExecutionResult(List.of(), rows, 2, false, Duration.ZERO));
+
+        var out = service.sample(datasourceId, organizationId, userId, true, "public", "users", 50);
+
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(3);
+        assertThat(out.resultBytes()).isPositive();
+        var usage = ArgumentCaptor.forClass(com.bablsoft.accessflow.core.api.DataBudgetUsageRecord.class);
+        verify(dataBudgetUsageService).record(usage.capture());
+        assertThat(usage.getValue().rowsRead()).isEqualTo(2);
+        assertThat(usage.getValue().bytesRead()).isEqualTo(out.resultBytes());
+        assertThat(usage.getValue().source())
+                .isEqualTo(com.bablsoft.accessflow.core.api.DataBudgetUsageSource.SAMPLE_DATA);
+    }
+
+    @Test
+    void aPreviewCutAtTheBudgetRowAllowanceIsAttributedToTheBudget() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+        var budget = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(UUID.randomUUID(),
+                "Daily", 10L, null, 60,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, null, 8, 0);
+        when(dataBudgetStatusService.statusFor(datasourceId, userId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds",
+                        List.of(budget)));
+        List<List<Object>> rows = List.of(List.of("a"), List.of("b"));
+        when(queryExecutor.sampleTable(any())).thenReturn(new SelectExecutionResult(List.of(), rows,
+                2, true, Duration.ZERO, java.util.Set.of(), java.util.Set.of(),
+                SelectExecutionResult.TRUNCATED_ROW_LIMIT));
+
+        var out = service.sample(datasourceId, organizationId, userId, true, "public", "users", 50);
+
+        assertThat(out.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_DATA_BUDGET);
+    }
+
+    @Test
+    void aPreviewCutByItsOwnLimitKeepsTheRowLimitReason() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+        var budget = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(UUID.randomUUID(),
+                "Daily", 1_000L, null, 60,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, null, 0, 0);
+        when(dataBudgetStatusService.statusFor(datasourceId, userId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds",
+                        List.of(budget)));
+        List<List<Object>> rows = List.of(List.of("a"), List.of("b"));
+        when(queryExecutor.sampleTable(any())).thenReturn(new SelectExecutionResult(List.of(), rows,
+                2, true, Duration.ZERO, java.util.Set.of(), java.util.Set.of(),
+                SelectExecutionResult.TRUNCATED_ROW_LIMIT));
+
+        var out = service.sample(datasourceId, organizationId, userId, true, "public", "users", 2);
+
+        assertThat(out.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+    }
+
+    @Test
+    void aFailedUsageWriteNeverFailsThePreview() {
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.empty());
+        var budget = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(UUID.randomUUID(),
+                "Daily", null, 1_000_000L, 60,
+                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, null, 0, 0);
+        when(dataBudgetStatusService.statusFor(datasourceId, userId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds",
+                        List.of(budget)));
+        org.mockito.Mockito.doThrow(new IllegalStateException("db down"))
+                .when(dataBudgetUsageService).record(any());
+
+        var out = service.sample(datasourceId, organizationId, userId, true, "public", "users", 50);
+
+        assertThat(out.rowCount()).isZero();
+        var captor = ArgumentCaptor.forClass(SampleTableRequest.class);
+        verify(queryExecutor).sampleTable(captor.capture());
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(50);
     }
 }
