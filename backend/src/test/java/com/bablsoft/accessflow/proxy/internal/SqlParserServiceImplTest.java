@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.bablsoft.accessflow.core.api.ColumnReference;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -141,6 +142,58 @@ class SqlParserServiceImplTest {
 
         assertThat(result.transactional()).isTrue();
         assertThat(result.hasWhereClause()).isTrue();
+    }
+
+    @Test
+    void reportsQueryShapesOnASingleStatement() {
+        var result = service.parse("SELECT u.id, count(*) FROM users u JOIN orders o ON o.user_id = u.id GROUP BY u.id");
+
+        assertThat(result.shapesAnalyzed()).isTrue();
+        assertThat(result.shapes()).containsExactlyInAnyOrder(QueryShape.JOIN, QueryShape.AGGREGATE,
+                QueryShape.GROUP_BY);
+    }
+
+    @Test
+    void aSimpleQueryIsAnalyzedWithNoShapes() {
+        var result = service.parse("SELECT id FROM users WHERE id = 1");
+
+        assertThat(result.shapesAnalyzed()).isTrue();
+        assertThat(result.shapes()).isEmpty();
+    }
+
+    @Test
+    void transactionalBatchUnionsShapesAcrossStatements() {
+        var result = service.parse("BEGIN; UPDATE users SET active = false WHERE id IN (SELECT user_id FROM bans);"
+                + " DELETE FROM orders USING users WHERE orders.user_id = users.id; COMMIT;");
+
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.shapesAnalyzed()).isTrue();
+        assertThat(result.shapes()).containsExactlyInAnyOrder(QueryShape.SUBQUERY, QueryShape.JOIN);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "CREATE TABLE t (id INT)",
+            "CREATE INDEX idx_users_name ON users (name)",
+            "ALTER TABLE users ADD COLUMN age INT",
+            "DROP TABLE users",
+            "TRUNCATE TABLE users"
+    })
+    void commonDdlIsShapeAnalyzed(String sql) {
+        var result = service.parse(sql);
+
+        assertThat(result.shapesAnalyzed()).isTrue();
+        assertThat(result.shapes()).isEmpty();
+    }
+
+    @Test
+    void aStatementTheDetectorCannotWalkIsReportedAsNotShapeAnalyzed() {
+        // JSqlParser's finder raises on CREATE SCHEMA; parsing still succeeds, the shape is unknown.
+        var result = service.parse("CREATE SCHEMA reporting");
+
+        assertThat(result.type()).isEqualTo(QueryType.DDL);
+        assertThat(result.shapesAnalyzed()).isFalse();
+        assertThat(result.shapes()).isEmpty();
     }
 
     @Test

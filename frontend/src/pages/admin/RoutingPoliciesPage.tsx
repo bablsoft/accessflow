@@ -51,6 +51,7 @@ import { routingPolicyErrorMessage } from '@/utils/apiErrors';
 import {
   COMPARISON_OPERATORS,
   CONDITION_OPERANDS,
+  QUERY_SHAPES,
   QUERY_TYPES,
   RISK_LEVELS,
   ROUTING_ACTIONS,
@@ -58,6 +59,7 @@ import {
   comparisonOperatorLabel,
   conditionOperandLabel,
   enumOptions,
+  queryShapeLabel,
   queryTypeLabel,
   riskLevelLabel,
   routingActionLabel,
@@ -834,6 +836,16 @@ function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionV
       return (
         <Form.Item name={[name, 'weekdays']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
           <Select mode="multiple" options={enumOptions(WEEKDAYS, weekdayLabel, t)} />
+        </Form.Item>
+      );
+    case 'query_shape':
+      return (
+        <Form.Item name={[name, 'shapes']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+          <Select
+            mode="multiple"
+            aria-label={t('admin.routing_policies.query_shapes_label')}
+            options={enumOptions(QUERY_SHAPES, queryShapeLabel, t)}
+          />
         </Form.Item>
       );
     case 'has_where':

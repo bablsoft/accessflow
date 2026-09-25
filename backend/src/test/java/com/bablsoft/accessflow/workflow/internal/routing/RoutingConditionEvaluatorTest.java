@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.routing;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.workflow.api.ComparisonOperator;
@@ -149,6 +150,37 @@ class RoutingConditionEvaluatorTest {
     void hasLimitClause() {
         assertThat(evaluator.matches(new ConditionNode.HasLimitClause(false), context())).isTrue();
         assertThat(evaluator.matches(new ConditionNode.HasLimitClause(true), context())).isFalse();
+    }
+
+    private ConditionContext shapedContext(Set<QueryShape> shapes, boolean analyzed) {
+        return new ConditionContext(QueryType.SELECT, Set.of("public.orders"), RiskLevel.LOW, 10,
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, null, null, false, null, false, null, null, shapes, analyzed);
+    }
+
+    @Test
+    void queryShapeMatchesAJoinedQueryAndLeavesASimpleOneAlone() {
+        var node = new ConditionNode.QueryShapeIn(Set.of(QueryShape.JOIN));
+
+        assertThat(evaluator.matches(node, shapedContext(Set.of(QueryShape.JOIN, QueryShape.AGGREGATE), true)))
+                .isTrue();
+        assertThat(evaluator.matches(node, shapedContext(Set.of(), true))).isFalse();
+        assertThat(evaluator.matches(node, shapedContext(Set.of(QueryShape.UNION), true))).isFalse();
+    }
+
+    @Test
+    void queryShapeMatchesAnyListedShape() {
+        var node = new ConditionNode.QueryShapeIn(Set.of(QueryShape.CTE, QueryShape.SUBQUERY));
+
+        assertThat(evaluator.matches(node, shapedContext(Set.of(QueryShape.SUBQUERY), true))).isTrue();
+    }
+
+    @Test
+    void queryShapeFailsClosedWhenTheShapeWasNotAnalyzed() {
+        var node = new ConditionNode.QueryShapeIn(Set.of(QueryShape.JOIN));
+
+        assertThat(evaluator.matches(node, shapedContext(Set.of(QueryShape.JOIN), false))).isFalse();
+        assertThat(evaluator.matches(node, context())).isFalse();
     }
 
     @Test

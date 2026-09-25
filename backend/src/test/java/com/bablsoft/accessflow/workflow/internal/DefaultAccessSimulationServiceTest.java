@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.QuotaService;
@@ -438,6 +439,19 @@ class DefaultAccessSimulationServiceTest {
                 .isEqualTo("workflow.access_simulation.permission.column_denied");
         assertThat(permission.details())
                 .containsEntry("rejected_columns", List.of("public.payments.card"));
+    }
+
+    @Test
+    void theParseStepEchoesTheQueryShapesInDeclarationOrder() {
+        when(queryParser.parse(any(), any())).thenReturn(
+                new SqlParseResult(QueryType.SELECT, false, List.of("SELECT 1"), Set.of(), false,
+                        false, Set.of(), true, Set.of(QueryShape.UNION, QueryShape.JOIN), true));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        assertThat(step(result.steps(), QueryDecisionStepKind.SQL_PARSE).details())
+                .containsEntry("query_shapes", List.of("JOIN", "UNION"))
+                .containsEntry("shapes_analyzed", true);
     }
 
     @Test

@@ -35,6 +35,25 @@ describe('routingPolicyForm', () => {
       tsla_minutes: 1440,
     });
     expect(defaultRow('cicd_origin')).toMatchObject({ bool_value: true });
+    expect(defaultRow('query_shape')).toMatchObject({ shapes: ['JOIN'] });
+  });
+
+  it('maps a query_shape row to its any_of leaf and summarises it with shape labels', () => {
+    const rows: RoutingConditionRow[] = [
+      { operand: 'query_shape', negate: false, shapes: ['JOIN', 'SUBQUERY'] },
+    ];
+    const condition = rowsToCondition('ALL', rows);
+    expect(condition).toEqual({
+      type: 'and',
+      children: [{ type: 'query_shape', any_of: ['JOIN', 'SUBQUERY'] }],
+    });
+    expect(conditionSummary(t, condition)).toBe(
+      'enums.condition_operand.query_shape: enums.query_shape.JOIN, enums.query_shape.SUBQUERY',
+    );
+    expect(rowsToCondition('ALL', [{ operand: 'query_shape', negate: false }])).toEqual({
+      type: 'and',
+      children: [{ type: 'query_shape', any_of: [] }],
+    });
   });
 
   it('rowsToCondition wraps leaves in AND/OR and applies negation', () => {
@@ -64,6 +83,7 @@ describe('routingPolicyForm', () => {
       { operand: 'day_of_week', negate: false, weekdays: ['MONDAY'] },
       { operand: 'has_where', negate: false, bool_value: false },
       { operand: 'has_limit', negate: true, bool_value: false },
+      { operand: 'query_shape', negate: true, shapes: ['UNION', 'WINDOW_FUNCTION'] },
       { operand: 'transactional', negate: false, bool_value: true },
       { operand: 'source_ip', negate: false, cidrs: ['10.0.0.0/8', '2001:db8::/32'] },
       { operand: 'user_agent', negate: true, ua_patterns: ['*curl*'] },

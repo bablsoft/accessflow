@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
   ComparisonOperator,
+  QueryShape,
   QueryType,
   RiskLevel,
   RoutingAction,
@@ -11,6 +12,7 @@ import type {
 import {
   comparisonOperatorLabel,
   conditionOperandLabel,
+  queryShapeLabel,
   queryTypeLabel,
   riskLevelLabel,
   roleLabel,
@@ -40,6 +42,7 @@ export interface RoutingConditionRow {
   time_start_min?: number;
   time_end_min?: number;
   bool_value?: boolean;
+  shapes?: QueryShape[];
   cidrs?: string[];
   ua_patterns?: string[];
   tsla_operator?: ComparisonOperator;
@@ -86,6 +89,8 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
     case 'has_limit':
     case 'transactional':
       return { ...base, bool_value: false };
+    case 'query_shape':
+      return { ...base, shapes: ['JOIN'] };
     case 'source_ip':
       return { ...base, cidrs: [] };
     case 'user_agent':
@@ -159,6 +164,8 @@ function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
       return { type: 'has_where', expected: row.bool_value ?? false };
     case 'has_limit':
       return { type: 'has_limit', expected: row.bool_value ?? false };
+    case 'query_shape':
+      return { type: 'query_shape', any_of: row.shapes ?? [] };
     case 'transactional':
       return { type: 'transactional', expected: row.bool_value ?? false };
     case 'source_ip':
@@ -227,6 +234,8 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
       return { operand: 'has_where', negate, bool_value: node.expected };
     case 'has_limit':
       return { operand: 'has_limit', negate, bool_value: node.expected };
+    case 'query_shape':
+      return { operand: 'query_shape', negate, shapes: node.any_of };
     case 'transactional':
       return { operand: 'transactional', negate, bool_value: node.expected };
     case 'source_ip':
@@ -356,6 +365,9 @@ function rowSummary(t: TFunction, row: RoutingConditionRow): string {
     case 'cicd_origin':
     case 'transactional':
       value = row.bool_value ? t('common.yes') : t('common.no');
+      break;
+    case 'query_shape':
+      value = (row.shapes ?? []).map((v) => queryShapeLabel(t, v)).join(', ');
       break;
     case 'source_ip':
       value = (row.cidrs ?? []).join(', ');

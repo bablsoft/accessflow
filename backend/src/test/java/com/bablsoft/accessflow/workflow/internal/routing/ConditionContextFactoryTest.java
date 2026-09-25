@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.QueryCorpusRow;
 import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -204,5 +205,19 @@ class ConditionContextFactoryTest {
         assertThat(context.referencedTables()).isEmpty();
         assertThat(context.hasWhereClause()).isFalse();
         assertThat(context.hasLimitClause()).isFalse();
+        assertThat(context.queryShapes()).isEmpty();
+        assertThat(context.shapesAnalyzed()).isFalse();
+    }
+
+    @Test
+    void historicalRowCarriesTheParsedQueryShapes() {
+        when(sqlParserService.parse(any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT 1"), Set.of("public.orders"), true, false, Set.of(), true,
+                Set.of(QueryShape.JOIN, QueryShape.AGGREGATE), true));
+
+        var context = factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"));
+
+        assertThat(context.queryShapes()).containsExactlyInAnyOrder(QueryShape.JOIN, QueryShape.AGGREGATE);
+        assertThat(context.shapesAnalyzed()).isTrue();
     }
 }

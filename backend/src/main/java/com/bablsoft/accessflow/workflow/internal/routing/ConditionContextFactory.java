@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.QueryCorpusRow;
 import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserGroupService;
@@ -63,7 +64,7 @@ public class ConditionContextFactory {
                         query.datasourceId(), query.id(), clock.instant()),
                 behaviorAnomalyLookupService.hasActiveAnomaly(query.organizationId(),
                         query.submittedByUserId(), query.datasourceId()),
-                estimate.rows(), estimate.scanType());
+                estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed());
     }
 
     /**
@@ -86,7 +87,7 @@ public class ConditionContextFactory {
                 parsed.transactional(), row.submittedIp(), row.submittedUserAgent(), row.ciCdOrigin(),
                 minutesSinceLastApproval(row.organizationId(), row.submittedByUserId(),
                         row.datasourceId(), row.id(), row.createdAt()),
-                false, estimate.rows(), estimate.scanType());
+                false, estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed());
     }
 
     /**
@@ -133,16 +134,18 @@ public class ConditionContextFactory {
         try {
             var parsed = sqlParserService.parse(sqlText);
             return new ParsedSignals(parsed.referencedTables(), parsed.hasWhereClause(),
-                    parsed.hasLimitClause(), parsed.transactional());
+                    parsed.hasLimitClause(), parsed.transactional(), parsed.shapes(),
+                    parsed.shapesAnalyzed());
         } catch (RuntimeException ex) {
             log.warn("Routing: failed to re-parse SQL for query {}; table/clause signals unavailable",
                     queryId);
-            return new ParsedSignals(Set.of(), false, false, transactional);
+            return new ParsedSignals(Set.of(), false, false, transactional, Set.of(), false);
         }
     }
 
-    /** The four signals re-derived from the SQL text; unavailable ones fail closed. */
+    /** The signals re-derived from the SQL text; unavailable ones fail closed. */
     private record ParsedSignals(Set<String> tables, boolean hasWhere, boolean hasLimit,
-                                 boolean transactional) {
+                                 boolean transactional, Set<QueryShape> shapes,
+                                 boolean shapesAnalyzed) {
     }
 }
