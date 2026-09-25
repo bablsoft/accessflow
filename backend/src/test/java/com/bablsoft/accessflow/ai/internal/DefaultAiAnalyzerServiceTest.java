@@ -270,7 +270,7 @@ class DefaultAiAnalyzerServiceTest {
         service.analyzeSubmittedQuery(queryRequestId);
 
         assertThat(costContext.getValue())
-                .isEqualTo("The warehouse estimates this query will scan 2.5 GB (2500000000 bytes).");
+                .isEqualTo("The warehouse estimates this query will scan 2.5 GB (2500000000 B).");
     }
 
     @Test
