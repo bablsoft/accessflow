@@ -86,35 +86,33 @@ public final class DeniedColumns {
     }
 
     /**
-     * The columns two deny lists both deny, compared by what each entry matches rather than by its
-     * spelling: {@code users.ssn} and {@code public.users.ssn} overlap in {@code public.users.ssn}.
-     * Used to merge a user's grants, where a column stays denied only if every grant denies it.
+     * The columns either deny list denies, deduplicated by what each entry matches rather than by
+     * its spelling: {@code users.ssn} already denies {@code public.users.ssn} (an entry without a
+     * schema matches the table in every schema), so the union keeps only {@code users.ssn}. Used to
+     * merge a user's grants, where a column stays denied if any grant denies it (#1099).
      */
-    public static List<String> intersect(List<String> left, List<String> right) {
-        var out = new ArrayList<String>();
-        for (String a : normalize(left)) {
-            for (String b : normalize(right)) {
-                var overlap = overlap(a, b);
-                if (overlap != null && !out.contains(overlap)) {
-                    out.add(overlap);
-                }
+    public static List<String> union(List<String> left, List<String> right) {
+        var all = new ArrayList<String>(normalize(left));
+        for (String entry : normalize(right)) {
+            if (!all.contains(entry)) {
+                all.add(entry);
+            }
+        }
+        var out = new ArrayList<String>(all.size());
+        for (String entry : all) {
+            if (all.stream().noneMatch(other -> covers(other, entry))) {
+                out.add(entry);
             }
         }
         return List.copyOf(out);
     }
 
-    private static String overlap(String a, String b) {
-        var pa = a.split("\\.");
-        var pb = b.split("\\.");
-        if (!pa[pa.length - 1].equals(pb[pb.length - 1])
-                || pa.length < 2 || pb.length < 2
-                || !pa[pa.length - 2].equals(pb[pb.length - 2])) {
-            return null;
-        }
-        if (pa.length > 2 && pb.length > 2) {
-            return pa[0].equals(pb[0]) ? a : null;
-        }
-        return pa.length >= pb.length ? a : b;
+    /** {@code true} when {@code broader} is {@code table.column} and {@code narrower} pins a schema. */
+    private static boolean covers(String broader, String narrower) {
+        var pb = broader.split("\\.");
+        var pn = narrower.split("\\.");
+        return pb.length == 2 && pn.length == 3
+                && pb[0].equals(pn[1]) && pb[1].equals(pn[2]);
     }
 
     /**

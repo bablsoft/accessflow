@@ -327,12 +327,12 @@ Grants a **user group** access to a datasource; every member inherits the grant.
 constraint and restriction columns clean), keyed on `group_id` instead of `user_id`. A user's
 **effective** permission is the most-permissive union of their direct grant and every unexpired group
 grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupService` (flags OR-ed;
-allow-lists unioned; `restricted_columns` and `denied_columns` intersected so a column is masked — or
-denied — only when every contributing grant masks or denies it; each grant's `expires_at` honoured independently). Two deliberate inversions:
+allow-lists unioned; `restricted_columns` intersected so a column is masked only when every
+contributing grant masks it; each grant's `expires_at` honoured independently). Two deliberate inversions:
 `row_limit_override` merges to the **smallest** non-null value so a wide group grant can never
-raise a tight per-user cap (#933), and `denied_schemas` / `denied_tables` merge to their **union**
-(#939), so a permissive grant can never lift another grant's denial and a group grant's denial binds
-every member. (`denied_columns` still intersects — an intentional, documented asymmetry.) A denial
+raise a tight per-user cap (#933), and the deny-lists — `denied_schemas` / `denied_tables` (#939) and
+`denied_columns` (#1099) — merge to their **union**, so a permissive grant can never lift another
+grant's denial and a group grant's denial binds every member. A denial
 lives on its row, so revoking or expiring that row (including an attestation revoke) drops the denial
 and can widen the user's effective access through their remaining grants. Mirrors how groups already drive
 masking-reveal and row-security.

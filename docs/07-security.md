@@ -713,14 +713,13 @@ Beyond platform roles, every action against a customer database is validated aga
 **effective permission** — the most-permissive union of their direct `datasource_user_permissions` row
 and every unexpired `datasource_group_permissions` grant for a group they belong to (AF-530). Boolean
 capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned, and `restricted_columns`
-and `denied_columns` intersected (a column is masked — or denied — only when **every** contributing grant
-masks or denies it; #935), each grant's `expires_at`
+intersected (a column is masked only when **every** contributing grant masks it), each grant's `expires_at`
 honoured independently. Two fields are deliberate inversions. `row_limit_override`: the **smallest** non-null value
 wins, so a wide group grant can never raise a tight per-user cap, and the proxy clamps it to the datasource
-cap and the global ceiling (#933). `denied_schemas` / `denied_tables` (#939) are **unioned**: a table stays
-denied when **any** contributing grant — direct, group or JIT — denies it, so a permissive group grant can
-never lift a denial from a direct grant, and a group grant's denial binds every member. (`denied_columns`
-still intersects — an intentional asymmetry, documented here so nobody "fixes" one without the other.) The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
+cap and the global ceiling (#933). The deny-lists — `denied_schemas` / `denied_tables` (#939) and
+`denied_columns` (#935, #1099) — are **unioned**: a table or column stays denied when **any** contributing
+grant — direct, group or JIT — denies it, so a permissive group grant can never lift a denial from a direct
+grant, and a group grant's denial binds every member. The merge is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
 the single choke-point every enforcement path (proxy, JIT/break-glass gates, masking/row-security scoping,
 `requestgroups` checks) reads through, so groups behave here exactly as they already do for
 masking-reveal and row-security. Granting a group access lets an admin onboard a whole team without a
@@ -926,10 +925,11 @@ refuses the preview), and the access simulator, which reports the refusal as
   restricted is rejected. A column that is only restricted keeps masking exactly as before.
 - **Who it binds.** Like the table allow-list, `QUERY_ADMIN` holders skip the per-datasource gate at
   submission. Break-glass enforces it for everyone. A JIT request cannot ask for denied columns; a
-  JIT grant carries only those of the expiring direct row it replaces (#939), and the intersection merge
-  means a grant that denies nothing lifts the deny for its holder. Entries meet by
-  the column they name, not by spelling: `users.ssn` on one grant and `public.users.ssn` on another
-  still deny `public.users.ssn`.
+  JIT grant carries only those of the expiring direct row it replaces (#939). Denied columns union
+  across grants (#1099), so a grant that denies nothing never lifts another grant's deny, and a group
+  grant's deny binds every member. Entries are compared by the column they name, not by spelling:
+  `users.ssn` on one grant and `public.users.ssn` on another merge to `users.ssn`, which denies `ssn`
+  in every schema's `users` table.
 
 ### Table / schema deny-lists (#939)
 
@@ -954,7 +954,7 @@ allow-list and **always wins**; it also works with no allow-list at all. All gat
   refused at grant time (400), and again at the service layer for non-web callers.
 - **Union merge.** Denials union across direct, group and JIT grants (the inverse of every other
   merged field). A permissive grant cannot dissolve a denial, and a group grant's denial binds every
-  member. `denied_columns` still merges by intersection — an intentional asymmetry for now.
+  member. `denied_columns` merges the same way (#1099).
 - **Removing a grant can widen access.** A denial lives on its grant row, so revoking or expiring that
   row (an attestation revoke, expiry, an admin revoke) removes the denial too, and another grant the user
   still holds may then expose the table.
