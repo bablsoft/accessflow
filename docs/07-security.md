@@ -747,6 +747,8 @@ Are allowed_schemas / allowed_tables set?
         intersect with allow-list; reject (403, `error.permission.table_not_allowed`) on any miss.
         Unqualified references match `allowed_tables` only when the bare name is listed —
         a schemas-only allow-list does NOT cover them.
+        The same check binds every `QUERY` member of a request group, break-glass groups
+        included (`DefaultRequestGroupService.validatePermission`).
   Violation → 403
          ↓
 Are denied_schemas / denied_tables set? (#939 — checked with or without an allow-list)

@@ -4686,6 +4686,16 @@ rows) and publishes `RequestGroupItemExecutedEvent`; the group publishes
 permission for its target — `core.api.DatasourceUserPermissionLookupService` for query members, a new
 `apigov.api` connector-permission lookup for API members. A **break-glass group**
 (`submission_reason = EMERGENCY_ACCESS`) requires `can_break_glass` on **every** member target.
+A `QUERY` member is also held to the permission's table scope, exactly as a standalone query is:
+every referenced table must be covered by `allowed_schemas` / `allowed_tables` (matched through
+`core.api.AllowedTables`, with `DatasourcePermissionChecker.rejectedTables` semantics — both lists
+empty means unrestricted, a schema entry covers any table qualified with it, and a bare table entry
+covers only an unqualified reference), no denied table or schema may be referenced (#939), and no
+denied column may be referenced (#935). These checks bind break-glass groups too — standalone break-glass enforces the allow-list, and break-glass waives
+approval, never data-protection controls — and neither binds `QUERY_ADMIN` holders, who skip the
+per-datasource gate on this path as on standard submission. A miss is `RequestGroupPermissionException`
+(403) and the group stays `DRAFT`. The query is parsed only when the permission carries an allow-list
+or a deny list.
 
 **Audit & realtime.** New `AuditResourceType.REQUEST_GROUP` and `AuditAction.REQUEST_GROUP_*` values
 record the group lifecycle alongside each member's own query/API audit row. New
