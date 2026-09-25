@@ -763,7 +763,9 @@ Are denied_columns set? (#935, relational engines only)
   YES → resolve every column the parsed statement references (select items, WHERE, JOIN ON/USING,
         GROUP BY, HAVING, ORDER BY, subqueries, UPDATE SET targets, INSERT column lists, RETURNING)
         to its candidate tables; a `*` / `t.*` / column-list-less INSERT on a table a denied entry
-        names counts as a reference; reject (403, `error.permission.column_not_allowed`) on any hit.
+        names counts as a reference; an unanalysed parse and an OTHER statement (MERGE, CALL — a
+        request-group member) reach every entry; reject (403, `error.permission.column_not_allowed`)
+        on any hit.
   Violation → 403
          ↓
 Are restricted_columns set?
@@ -909,7 +911,11 @@ refuses the preview), and the access simulator, which reports the refusal as
   deny list refuses the query rather than being skipped. DDL that touches a table with a denied
   column is refused outright, because DDL can expose a column without reading it (`RENAME COLUMN`, a
   generated column, `CREATE VIEW … AS SELECT`). DDL the parser cannot walk is refused whenever the
-  deny list is non-empty. `OTHER` statements are never checked, because no permission grants them.
+  deny list is non-empty. `OTHER` statements (`MERGE`, `CALL`, …) are never column-analysed, so
+  one is refused whenever the deny list is non-empty. A standalone query never reaches this — no
+  capability grants `OTHER` — but a request-group member can: `can_write` admits an `OTHER` member
+  (`can_break_glass` in a break-glass group), and without this rule
+  `MERGE INTO t USING (SELECT ssn FROM users) …` would read a denied `users.ssn`.
 - **Known limits.** The check reads the SQL, not the database catalog. It cannot see a value the
   database computes from a column the SQL never names: a view's or function's own body, SQL inside a
   string argument, or a user-defined or extension function over the row type called in PostgreSQL's

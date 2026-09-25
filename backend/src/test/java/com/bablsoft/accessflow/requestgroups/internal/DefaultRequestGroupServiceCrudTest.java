@@ -285,6 +285,65 @@ class DefaultRequestGroupServiceCrudTest {
         verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
     }
 
+    @Test
+    void submitRejectsAnOtherMemberWhenTheSubmitterIsDeniedAColumn() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(mergeItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(writerDenyingSsn(false)));
+        stubMergeParse();
+
+        assertThatThrownBy(() -> service.submit(new SubmitRequestGroupCommand(group.getId(), orgId,
+                userId, false, false, null, "1.2.3.4", "ua")))
+                .isInstanceOf(RequestGroupPermissionException.class)
+                .hasMessageContaining("users.ssn");
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    @Test
+    void breakGlassSubmitAlsoRejectsAnOtherMemberWhenTheSubmitterIsDeniedAColumn() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(mergeItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(writerDenyingSsn(true)));
+        stubMergeParse();
+
+        assertThatThrownBy(() -> service.submit(new SubmitRequestGroupCommand(group.getId(), orgId,
+                userId, false, true, null, "1.2.3.4", "ua")))
+                .isInstanceOf(RequestGroupPermissionException.class)
+                .hasMessageContaining("users.ssn");
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    private static final String MERGE_SQL = "MERGE INTO t USING (SELECT id, ssn FROM users) s "
+            + "ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET x = s.ssn";
+
+    private RequestGroupItemEntity mergeItem() {
+        var item = new RequestGroupItemEntity();
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(datasourceId);
+        item.setQueryType(QueryType.OTHER);
+        item.setSqlText(MERGE_SQL);
+        return item;
+    }
+
+    private DatasourceUserPermissionView writerDenyingSsn(boolean breakGlass) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, false, true,
+                false, breakGlass, List.of(), List.of(), List.of(), List.of("users.ssn"), List.of(),
+                List.of(), null, null);
+    }
+
+    private void stubMergeParse() {
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
+        when(queryParser.parse(any(), any())).thenReturn(new SqlParseResult(QueryType.OTHER, false,
+                List.of(MERGE_SQL), java.util.Set.of("t", "users"), false, false,
+                java.util.Set.of(), false));
+    }
+
     private RequestGroupItemEntity deniedTableItem() {
         var item = new RequestGroupItemEntity();
         item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
