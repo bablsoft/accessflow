@@ -58,18 +58,18 @@ public final class DeniedColumns {
 
     /**
      * @return the denied entries the parsed query reaches, sorted; empty when it reaches none. A
-     *         data query whose columns were not analyzed (a non-JSqlParser engine) reaches every
-     *         entry, so a deny list can never be silently skipped. DDL is refused when it reads a
-     *         denied column through an embedded query ({@code CREATE TABLE … AS SELECT}) or touches
-     *         a table a denied entry names at all; {@code OTHER} is never checked, since no
-     *         permission grants it.
+     *         query whose columns were not analyzed (a non-JSqlParser engine) reaches every entry,
+     *         so a deny list can never be silently skipped. DDL is refused when it reads a denied
+     *         column through an embedded query ({@code CREATE TABLE … AS SELECT}) or touches a
+     *         table a denied entry names at all. {@code OTHER} ({@code MERGE}, {@code CALL}) is
+     *         never column-analyzed, so it reaches every entry — a request-group member may be one.
      */
     public static SortedSet<String> rejected(List<String> rawDenied, SqlParseResult parsed) {
         var denied = normalize(rawDenied);
-        if (denied.isEmpty() || parsed == null || parsed.type() == QueryType.OTHER) {
+        if (denied.isEmpty() || parsed == null) {
             return new TreeSet<>();
         }
-        if (!parsed.columnsAnalyzed()) {
+        if (!parsed.columnsAnalyzed() || parsed.type() == QueryType.OTHER) {
             return new TreeSet<>(denied);
         }
         var out = rejected(denied, parsed.referencedColumns());

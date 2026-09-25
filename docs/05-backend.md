@@ -879,7 +879,7 @@ audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector si
   `rejected(denied, parsed)`. It returns every denied entry whose table matches a candidate (the
   schema must match only when both sides carry one) and whose column matches, or which a wildcard
   reaches. It fails closed: any statement that was not column-analysed rejects every entry, and a DDL
-  statement also rejects every entry on a table it touches. OTHER returns nothing. `rejectedForWholeTable` answers the
+  statement also rejects every entry on a table it touches. OTHER (`MERGE`, `CALL`) is never column-analysed and rejects every entry — no capability grants it standalone, but a request-group member admits it under `can_write` / `can_break_glass`. `rejectedForWholeTable` answers the
   table preview, and `union` merges grants (#1099): a column stays denied when any grant denies it,
   and overlapping spellings collapse to the broader entry (`users.ssn` covers `public.users.ssn`).
 - **Enforcement.** The following all call it: `DatasourcePermissionVerifier.verify` (submission and

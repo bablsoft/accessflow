@@ -127,12 +127,29 @@ class DeniedColumnsTest {
     }
 
     @Test
-    void unanalyzedDdlFailsClosedAndOtherIsNeverChecked() {
+    void unanalyzedDdlFailsClosed() {
         assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.DDL,
                 "ALTER VIEW v AS SELECT national_id FROM customer")))
                 .containsExactly("public.customer.national_id");
-        assertThat(DeniedColumns.rejected(DENIED, new SqlParseResult(QueryType.OTHER, "CALL x()")))
-                .isEmpty();
+    }
+
+    @Test
+    void otherStatementReachesEveryDeniedEntry() {
+        var denied = List.of("users.ssn", "public.customer.national_id");
+
+        assertThat(DeniedColumns.rejected(denied, new SqlParseResult(QueryType.OTHER, "CALL x()")))
+                .containsExactly("public.customer.national_id", "users.ssn");
+    }
+
+    @Test
+    void otherStatementFailsClosedEvenWhenMarkedAnalyzed() {
+        var merge = new SqlParseResult(QueryType.OTHER, false,
+                List.of("MERGE INTO t USING (SELECT ssn FROM users) s ON (t.id = s.id) "
+                        + "WHEN MATCHED THEN UPDATE SET t.x = s.ssn"),
+                Set.of("t", "users"), false, false,
+                Set.of(new ColumnReference(Set.of("orders"), "total")), true);
+
+        assertThat(DeniedColumns.rejected(List.of("users.ssn"), merge)).containsExactly("users.ssn");
     }
 
     @Test
