@@ -186,4 +186,23 @@ describe('formatStepDetails — masking, omission and enum values (#1066 review)
     expect(byKey.scope).toBe('PIPELINE');
     expect(rows.find((r) => r.key === 'approver_email')?.label).toBe('Approver');
   });
+
+  it('formats the bytes-scanned cap step with byte sizes and labelled enums (#941)', () => {
+    const rows = formatStepDetails(
+      {
+        bytes_scanned_cap: 1_000_000_000_000,
+        bytes_scanned_cap_source: 'GRANT',
+        estimated_bytes_scanned: 2_500_000_000,
+        bytes_scanned_cap_outcome: 'EXCEEDED',
+      },
+      t,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    expect(byKey.bytes_scanned_cap).toBe('1 TB');
+    expect(byKey.estimated_bytes_scanned).toBe('2.5 GB');
+    expect(byKey.bytes_scanned_cap_source).toBe('Grant override');
+    expect(byKey.bytes_scanned_cap_outcome).toBe(
+      'Rejected: the estimate exceeds the bytes-scanned cap',
+    );
+  });
 });

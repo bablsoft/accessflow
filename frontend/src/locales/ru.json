@@ -36,7 +36,8 @@
     "view_docs_aria": "Открыть документацию (в новой вкладке)",
     "on_behalf_of": "от имени {{name}}",
     "on_behalf_of_tooltip": "Вызывающий с API-ключом действовал от имени этого человека (X-AccessFlow-On-Behalf-Of). Названный человек считается отправителем для запрета самоодобрения.",
-    "principal_service_account_tooltip": "Нечеловеческая идентичность: аутентифицируется только API-ключом и никогда не может войти интерактивно."
+    "principal_service_account_tooltip": "Нечеловеческая идентичность: аутентифицируется только API-ключом и никогда не может войти интерактивно.",
+    "bytes_unit": "Единица"
   },
   "nav": {
     "editor": "Редактор SQL",
@@ -654,7 +655,8 @@
     "affected_rows_label": "Затронутые строки (точно)",
     "est_rows_label": "Оценка строк",
     "scan_type_label": "Тип сканирования",
-    "cost_label": "Оценочная стоимость"
+    "cost_label": "Оценочная стоимость",
+    "est_bytes_label": "Оценка сканируемых байтов"
   },
   "approval_prediction": {
     "value_label": "Историческая вероятность одобрения",
@@ -864,7 +866,9 @@
         "hint": "Фактический SQL — это запрос в том виде, в котором он был выполнен, с применёнными фильтрами построчной безопасности и перезаписью мягкого удаления. Связанные значения показаны как ? и никогда не сохраняются.",
         "diff_submitted_label": "Отправленный SQL",
         "diff_effective_label": "Фактический SQL"
-      }
+      },
+      "bytes_cap_body": "Оценка сканирования: {{estimate}} · Лимит: {{limit}} ({{source}})",
+      "bytes_cap_no_estimate": "нет оценки"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "Среда",
       "environment_not_set": "Не задано (правила организации по умолчанию)",
-      "environment_help": "Определяет, какой набор правил проверки SQL применяется к запросам к этому источнику данных."
+      "environment_help": "Определяет, какой набор правил проверки SQL применяется к запросам к этому источнику данных.",
+      "label_max_bytes_scanned": "Макс. сканируемых байтов на запрос",
+      "max_bytes_scanned_help": "Отклонять запросы, чья предварительная оценка сканирования больше. Оставьте пустым, чтобы не ограничивать.",
+      "max_bytes_scanned_placeholder": "Без лимита",
+      "label_bytes_cap_missing_estimate": "Если оценки в байтах нет",
+      "bytes_cap_missing_estimate_help": "Действует только при заданном лимите. «Требовать проверку человеком» оставляет автоматические одобрения человеку; «Отклонить» отклоняет запрос.",
+      "perm_col_bytes_cap": "Лимит байтов",
+      "perm_bytes_cap_none": "по умолчанию",
+      "grant_bytes_cap_label": "Лимит сканируемых байтов",
+      "grant_bytes_cap_help": "Более низкий лимит для этой выдачи доступа. Применяется самый строгий из лимита источника данных и всех выдач.",
+      "grant_bytes_cap_min": "Лимит сканируемых байтов должен быть не менее 1 байта.",
+      "grant_bytes_cap_placeholder": "По умолчанию источника данных"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "напр. *curl*, *GitHubActions*",
       "minutes_suffix": "мин",
       "cicd_present_label": "Источник CI/CD",
-      "scan_type_placeholder": "напр. Seq Scan, COLLSCAN, Index*"
+      "scan_type_placeholder": "напр. Seq Scan, COLLSCAN, Index*",
+      "bytes_value_label": "Сканируемые байты"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3270,7 +3286,8 @@
       "time_since_last_approval": "Время с последнего одобрения",
       "cicd_origin": "Источник CI/CD",
       "estimated_rows": "Оценка строк",
-      "scan_type": "Тип сканирования"
+      "scan_type": "Тип сканирования",
+      "estimated_bytes_scanned": "Оценка сканируемых байтов"
     },
     "query_shape": {
       "JOIN": "Соединение (JOIN)",
@@ -3715,7 +3732,8 @@
       "ELIGIBLE_REVIEWERS": "Допустимые проверяющие",
       "ROW_SECURITY": "Построчная безопасность",
       "MASKING": "Маскирование",
-      "BREAK_GLASS": "Экстренный доступ"
+      "BREAK_GLASS": "Экстренный доступ",
+      "BYTES_SCANNED_CAP": "Лимит сканируемых байтов"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Проверки коннектора",
@@ -3770,6 +3788,20 @@
       "FIXED_RATE": "Фиксированная частота",
       "CRON": "Cron",
       "ONE_TIME": "Однократно"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "Требовать проверку человеком",
+      "REJECT": "Отклонить запрос"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "Лимит источника данных",
+      "GRANT": "Переопределение выдачи доступа"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "В пределах лимита сканируемых байтов",
+      "EXCEEDED": "Отклонено: оценка превышает лимит сканируемых байтов",
+      "NO_ESTIMATE_REVIEW": "Отправлено на проверку: нет оценки в байтах при лимите",
+      "NO_ESTIMATE_REJECTED": "Отклонено: нет оценки в байтах при лимите"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "User agent автора",
       "risk_level": "Уровень риска",
       "risk_score": "Оценка риска",
-      "scan_type": "Тип сканирования"
+      "scan_type": "Тип сканирования",
+      "bytes_cap_suppressed": "Подавлено лимитом байтов",
+      "bytes_scanned_cap": "Лимит сканируемых байтов",
+      "bytes_scanned_cap_outcome": "Результат лимита",
+      "bytes_scanned_cap_source": "Источник лимита",
+      "estimated_bytes_scanned": "Оценка сканируемых байтов"
     },
     "use_id": "Использовать ID {{id}}",
     "user_id_placeholder": "Вставьте ID пользователя",

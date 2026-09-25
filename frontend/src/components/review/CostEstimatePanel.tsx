@@ -2,7 +2,7 @@ import { InfoCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { CostEstimateDetail, QueryStatus } from '@/types/api';
 import { fmtNum } from '@/utils/dateFormat';
-import { formatCost } from '@/utils/queryPlan';
+import { formatBytes, formatCost } from '@/utils/queryPlan';
 import { PlanTree } from '@/components/editor/PlanTree';
 
 interface CostEstimatePanelProps {
@@ -12,8 +12,8 @@ interface CostEstimatePanelProps {
 
 /**
  * Persisted pre-flight cost / blast-radius panel on the query detail page (AF-624): the estimate
- * computed automatically at submission — estimated rows, exact affected-row count for writes, scan
- * type, cost, and the execution-plan tree — with pending / unavailable / failed fallbacks.
+ * computed automatically at submission — estimated rows, exact affected-row count for writes, the
+ * warehouse bytes-scanned estimate (#941), scan type, cost, and the execution-plan tree — with pending / unavailable / failed fallbacks.
  */
 export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) {
   const { t } = useTranslation();
@@ -111,6 +111,13 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
               : fmtNum(estimate.estimated_rows)}
           </span>
         </div>
+        {estimate.estimated_bytes_scanned !== null &&
+          estimate.estimated_bytes_scanned !== undefined && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span className="muted">{t('cost_estimate_panel.est_bytes_label')}</span>
+              <span>{formatBytes(estimate.estimated_bytes_scanned)}</span>
+            </div>
+          )}
         {estimate.scan_type && (
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span className="muted">{t('cost_estimate_panel.scan_type_label')}</span>

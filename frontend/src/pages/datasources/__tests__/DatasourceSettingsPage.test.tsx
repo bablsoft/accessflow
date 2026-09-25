@@ -1185,3 +1185,129 @@ describe('DatasourceSettingsPage — denied query shapes (#940)', () => {
     expect(within(row).getByText('1 shape')).toBeInTheDocument();
   });
 });
+
+describe('DatasourceSettingsPage — bytes-scanned cap (#941)', () => {
+  const warehouse: Datasource = {
+    ...baseDs,
+    db_type: 'BIGQUERY',
+    host: null,
+    port: null,
+    database_name: 'my-project',
+    username: '',
+  };
+
+  beforeEach(() => {
+    getDatasource.mockReset();
+    updateDatasource.mockReset();
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+    grantPermission.mockReset();
+    grantPermission.mockResolvedValue(basePermission({ can_read: true }));
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({ schemas: [] });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+  });
+
+  function sentBody(): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(updateDatasource.mock.calls[0]![1])) as Record<
+      string,
+      unknown
+    >;
+  }
+
+  it('offers the cap on a warehouse and sends it in bytes', async () => {
+    getDatasource.mockResolvedValue(warehouse);
+    updateDatasource.mockResolvedValue(warehouse);
+    render(wrap(<DatasourceSettingsPage />));
+
+    const input = await screen.findByLabelText('Max bytes scanned per query');
+    fireEvent.change(input, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = sentBody();
+    expect(body.max_bytes_scanned_per_query).toBe(2_000_000_000);
+    expect(body.bytes_cap_missing_estimate).toBe('REQUIRE_REVIEW');
+    expect(body).not.toHaveProperty('clear_max_bytes_scanned_per_query');
+  });
+
+  it('clears a stored cap explicitly when the field is emptied', async () => {
+    const capped = { ...warehouse, max_bytes_scanned_per_query: 1_000_000_000_000 };
+    getDatasource.mockResolvedValue(capped);
+    updateDatasource.mockResolvedValue(capped);
+    render(wrap(<DatasourceSettingsPage />));
+
+    const input = await screen.findByLabelText('Max bytes scanned per query');
+    expect(input).toHaveValue('1');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = sentBody();
+    expect(body.clear_max_bytes_scanned_per_query).toBe(true);
+    expect(body).not.toHaveProperty('max_bytes_scanned_per_query');
+  });
+
+  it('never offers or sends the cap on an engine without a bytes estimate', async () => {
+    getDatasource.mockResolvedValue(baseDs);
+    updateDatasource.mockResolvedValue(baseDs);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByLabelText('Name')).toBeInTheDocument());
+    expect(screen.queryByLabelText('Max bytes scanned per query')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = sentBody();
+    expect(body).not.toHaveProperty('max_bytes_scanned_per_query');
+    expect(body).not.toHaveProperty('bytes_cap_missing_estimate');
+  });
+
+  it('sends a grant-level cap on a warehouse and null when left empty', async () => {
+    getDatasource.mockResolvedValue(warehouse);
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    fireEvent.change(within(dialog).getByLabelText('Bytes-scanned cap'), {
+      target: { value: '500' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.bytes_scanned_limit_override).toBe(500_000_000_000);
+  });
+
+  it('hides the grant-level cap on a relational datasource', async () => {
+    getDatasource.mockResolvedValue(baseDs);
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    expect(within(dialog).queryByLabelText('Bytes-scanned cap')).toBeNull();
+  });
+
+  it('shows a grant cap in the permissions table of a warehouse', async () => {
+    getDatasource.mockResolvedValue(warehouse);
+    listPermissions.mockResolvedValue([
+      basePermission({ can_read: true, bytes_scanned_limit_override: 3_000_000_000_000 }),
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Permissions/ }));
+
+    expect(await screen.findByText('3 TB')).toBeInTheDocument();
+    expect(screen.getAllByText('Bytes cap').length).toBeGreaterThan(0);
+  });
+});

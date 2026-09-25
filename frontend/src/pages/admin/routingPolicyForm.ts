@@ -19,6 +19,7 @@ import {
   routingActionLabel,
   weekdayLabel,
 } from '@/utils/enumLabels';
+import { formatBytes } from '@/utils/queryPlan';
 
 export type ConditionMatchType = 'ALL' | 'ANY';
 
@@ -49,6 +50,9 @@ export interface RoutingConditionRow {
   tsla_minutes?: number;
   est_operator?: ComparisonOperator;
   est_value?: number;
+  /** Raw bytes (#941); the editor offers MB/GB/TB but the wire value is always bytes. */
+  bytes_operator?: ComparisonOperator;
+  bytes_value?: number;
   scan_patterns?: string[];
 }
 
@@ -101,6 +105,8 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
       return { ...base, bool_value: true };
     case 'estimated_rows':
       return { ...base, est_operator: 'GT', est_value: 100000 };
+    case 'estimated_bytes_scanned':
+      return { ...base, bytes_operator: 'GT', bytes_value: 1_000_000_000_000 };
     case 'scan_type':
       return { ...base, scan_patterns: [] };
     default:
@@ -186,6 +192,12 @@ function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
         operator: row.est_operator ?? 'GT',
         value: row.est_value ?? 0,
       };
+    case 'estimated_bytes_scanned':
+      return {
+        type: 'estimated_bytes_scanned',
+        operator: row.bytes_operator ?? 'GT',
+        value: row.bytes_value ?? 0,
+      };
     case 'scan_type':
       return { type: 'scan_type', patterns: row.scan_patterns ?? [] };
   }
@@ -257,6 +269,13 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
         negate,
         est_operator: node.operator,
         est_value: node.value,
+      };
+    case 'estimated_bytes_scanned':
+      return {
+        operand: 'estimated_bytes_scanned',
+        negate,
+        bytes_operator: node.operator,
+        bytes_value: node.value,
       };
     case 'scan_type':
       return { operand: 'scan_type', negate, scan_patterns: node.patterns };
@@ -381,6 +400,10 @@ function rowSummary(t: TFunction, row: RoutingConditionRow): string {
       break;
     case 'estimated_rows':
       value = `${comparisonOperatorLabel(t, row.est_operator ?? 'GT')} ${row.est_value ?? 0}`;
+      break;
+    case 'estimated_bytes_scanned':
+      value = `${comparisonOperatorLabel(t, row.bytes_operator ?? 'GT')} `
+        + `${formatBytes(row.bytes_value ?? 0) ?? ''}`;
       break;
     case 'scan_type':
       value = (row.scan_patterns ?? []).join(', ');

@@ -16,7 +16,15 @@ import {
 import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
-import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
+import {
+  BYTES_CAP_MISSING_ESTIMATE_ACTIONS,
+  aiProviderLabel,
+  bytesCapMissingEstimateLabel,
+  enumOptions,
+  sslModeLabel,
+} from '@/utils/enumLabels';
+import { BYTES_CAP_MIN, supportsBytesCap } from '@/utils/bytesCap';
+import { BytesInput } from '@/components/common/BytesInput';
 import {
   datasourceEnvironmentOptions,
   toEnvironmentCreate,
@@ -28,6 +36,7 @@ import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { showApiError } from '@/utils/showApiError';
 import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import type {
+  BytesCapMissingEstimateAction,
   ConnectionTestResult,
   CreateDatasourceInput,
   Datasource,
@@ -68,6 +77,8 @@ interface ConnectionFormValues {
 interface SettingsFormValues {
   connection_pool_size: number;
   max_rows_per_query: number;
+  max_bytes_scanned_per_query?: number | null;
+  bytes_cap_missing_estimate?: BytesCapMissingEstimateAction;
   review_plan_id: string | null;
   environment: DatasourceEnvironmentFormValue;
   require_review_reads: boolean;
@@ -321,6 +332,15 @@ export default function DatasourceCreateWizardPage() {
       }
       if (!values.ai_analysis_enabled && !values.text_to_sql_enabled) {
         input.clear_ai_config = true;
+      }
+      // Bytes-scanned cap (#941): warehouse engines only, and never sent elsewhere.
+      if (supportsBytesCap(createdDatasource.db_type)) {
+        if (typeof values.max_bytes_scanned_per_query === 'number') {
+          input.max_bytes_scanned_per_query = values.max_bytes_scanned_per_query;
+        }
+        if (values.bytes_cap_missing_estimate) {
+          input.bytes_cap_missing_estimate = values.bytes_cap_missing_estimate;
+        }
       }
       return updateDatasource(createdDatasource.id, input);
     },
@@ -795,6 +815,9 @@ export default function DatasourceCreateWizardPage() {
             max_rows_per_query: createdDatasource.max_rows_per_query,
             review_plan_id: createdDatasource.review_plan_id ?? null,
             environment: toEnvironmentFormValue(createdDatasource.environment),
+            max_bytes_scanned_per_query: createdDatasource.max_bytes_scanned_per_query ?? null,
+            bytes_cap_missing_estimate:
+              createdDatasource.bytes_cap_missing_estimate ?? 'REQUIRE_REVIEW',
             require_review_reads: createdDatasource.require_review_reads,
             require_review_writes: createdDatasource.require_review_writes,
             ai_analysis_enabled: createdDatasource.ai_analysis_enabled,
@@ -828,6 +851,36 @@ export default function DatasourceCreateWizardPage() {
             >
               <InputNumber style={{ width: '100%' }} min={1} max={1_000_000} />
             </Form.Item>
+            {createdDatasource && supportsBytesCap(createdDatasource.db_type) && (
+              <>
+                <Form.Item
+                  label={t('datasources.settings.label_max_bytes_scanned')}
+                  name="max_bytes_scanned_per_query"
+                  extra={t('datasources.settings.max_bytes_scanned_help')}
+                  rules={[
+                    {
+                      type: 'number',
+                      min: BYTES_CAP_MIN,
+                      message: t('datasources.settings.grant_bytes_cap_min'),
+                    },
+                  ]}
+                >
+                  <BytesInput placeholder={t('datasources.settings.max_bytes_scanned_placeholder')} />
+                </Form.Item>
+                <Form.Item
+                  label={t('datasources.settings.label_bytes_cap_missing_estimate')}
+                  name="bytes_cap_missing_estimate"
+                  extra={t('datasources.settings.bytes_cap_missing_estimate_help')}
+                >
+                  <Select
+                    options={BYTES_CAP_MISSING_ESTIMATE_ACTIONS.map((v) => ({
+                      value: v,
+                      label: bytesCapMissingEstimateLabel(t, v),
+                    }))}
+                  />
+                </Form.Item>
+              </>
+            )}
             <Form.Item
               label={t('datasources.create.label_review_plan')}
               name="review_plan_id"

@@ -45,8 +45,8 @@ describe('decision-trace enum labels', () => {
     }
   });
 
-  it('keeps the query step enum at the twelve backend values', () => {
-    expect(QUERY_DECISION_STEP_KINDS).toHaveLength(12);
+  it('keeps the query step enum at the thirteen backend values', () => {
+    expect(QUERY_DECISION_STEP_KINDS).toHaveLength(13);
     expect(API_DECISION_STEP_KINDS).toHaveLength(9);
     expect(DEPLOYMENT_DECISION_STEP_KINDS).toHaveLength(9);
   });

@@ -1,6 +1,9 @@
 import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
+  BytesCapMissingEstimateAction,
+  BytesScannedCapOutcome,
+  BytesScannedCapSource,
   SchemaChangePromotionStatus,
   SchemaChangeSetStatus,
   SchemaDriftBaseline,
@@ -404,6 +407,7 @@ export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
   'time_since_last_approval',
   'cicd_origin',
   'estimated_rows',
+  'estimated_bytes_scanned',
   'scan_type',
 ] as const;
 
@@ -432,6 +436,35 @@ export const weekdayLabel = (t: TFunction, v: Weekday): string =>
 
 export const conditionOperandLabel = (t: TFunction, v: RoutingConditionOperand): string =>
   t(`enums.condition_operand.${v}` as const);
+
+// ── Bytes-scanned cost caps (#941) ────────────────────────────────────────────
+export const BYTES_CAP_MISSING_ESTIMATE_ACTIONS: readonly BytesCapMissingEstimateAction[] = [
+  'REQUIRE_REVIEW',
+  'REJECT',
+] as const;
+
+export const BYTES_SCANNED_CAP_SOURCES: readonly BytesScannedCapSource[] = [
+  'DATASOURCE',
+  'GRANT',
+] as const;
+
+export const BYTES_SCANNED_CAP_OUTCOMES: readonly BytesScannedCapOutcome[] = [
+  'WITHIN',
+  'EXCEEDED',
+  'NO_ESTIMATE_REVIEW',
+  'NO_ESTIMATE_REJECTED',
+] as const;
+
+export const bytesCapMissingEstimateLabel = (
+  t: TFunction,
+  v: BytesCapMissingEstimateAction,
+): string => t(`enums.bytes_cap_missing_estimate.${v}` as const);
+
+export const bytesScannedCapSourceLabel = (t: TFunction, v: BytesScannedCapSource): string =>
+  t(`enums.bytes_scanned_cap_source.${v}` as const);
+
+export const bytesScannedCapOutcomeLabel = (t: TFunction, v: BytesScannedCapOutcome): string =>
+  t(`enums.bytes_scanned_cap_outcome.${v}` as const);
 
 // ── Attestation campaigns (AF-384) ─────────────────────────────────────────────
 export const ATTESTATION_CAMPAIGN_STATUSES: readonly AttestationCampaignStatus[] = [
@@ -522,6 +555,7 @@ export const QUERY_DECISION_STEP_KINDS: readonly QueryDecisionStepKind[] = [
   'SQL_PARSE',
   'EFFECTIVE_PERMISSION',
   'SQL_REVIEW',
+  'BYTES_SCANNED_CAP',
   'ROUTING_POLICIES',
   'GRANT_FAST_PATH',
   'REVIEW_PLAN',

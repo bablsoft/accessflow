@@ -36,7 +36,8 @@
     "view_docs_aria": "Dokumentation anzeigen (wird in einem neuen Tab geöffnet)",
     "on_behalf_of": "im Auftrag von {{name}}",
     "on_behalf_of_tooltip": "Ein API-Key-Aufrufer hat für diese Person gehandelt (X-AccessFlow-On-Behalf-Of). Die genannte Person gilt für das Selbstgenehmigungsverbot als Einreicher.",
-    "principal_service_account_tooltip": "Eine nicht-menschliche Identität: sie authentifiziert sich nur per API-Key und kann sich nie interaktiv anmelden."
+    "principal_service_account_tooltip": "Eine nicht-menschliche Identität: sie authentifiziert sich nur per API-Key und kann sich nie interaktiv anmelden.",
+    "bytes_unit": "Einheit"
   },
   "nav": {
     "editor": "SQL-Editor",
@@ -654,7 +655,8 @@
     "affected_rows_label": "Betroffene Zeilen (exakt)",
     "est_rows_label": "Geschätzte Zeilen",
     "scan_type_label": "Scan-Typ",
-    "cost_label": "Geschätzte Kosten"
+    "cost_label": "Geschätzte Kosten",
+    "est_bytes_label": "Geschätzte gescannte Bytes"
   },
   "approval_prediction": {
     "value_label": "Historische Genehmigungswahrscheinlichkeit",
@@ -864,7 +866,9 @@
         "hint": "Effektives SQL ist die Anweisung, wie sie tatsächlich ausgeführt wurde, mit angewendeten Zeilensicherheits-Filtern und Soft-Delete-Umschreibungen. Gebundene Werte werden als ? angezeigt und nie gespeichert.",
         "diff_submitted_label": "Eingereichtes SQL",
         "diff_effective_label": "Effektives SQL"
-      }
+      },
+      "bytes_cap_body": "Geschätzter Scan: {{estimate}} · Limit: {{limit}} ({{source}})",
+      "bytes_cap_no_estimate": "keine Schätzung"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "Umgebung",
       "environment_not_set": "Nicht gesetzt (Standardregeln der Organisation)",
-      "environment_help": "Legt fest, welcher SQL-Prüfregelsatz für Abfragen an dieser Datenquelle gilt."
+      "environment_help": "Legt fest, welcher SQL-Prüfregelsatz für Abfragen an dieser Datenquelle gilt.",
+      "label_max_bytes_scanned": "Max. gescannte Bytes pro Abfrage",
+      "max_bytes_scanned_help": "Abfragen ablehnen, deren Scan-Schätzung vor der Ausführung größer ist. Leer lassen für kein Limit.",
+      "max_bytes_scanned_placeholder": "Kein Limit",
+      "label_bytes_cap_missing_estimate": "Wenn keine Byte-Schätzung vorliegt",
+      "bytes_cap_missing_estimate_help": "Gilt nur, solange ein Limit gesetzt ist. „Menschliche Prüfung verlangen“ hält automatische Genehmigungen für eine Person zurück; „Ablehnen“ weist die Abfrage ab.",
+      "perm_col_bytes_cap": "Byte-Limit",
+      "perm_bytes_cap_none": "Standard",
+      "grant_bytes_cap_label": "Limit für gescannte Bytes",
+      "grant_bytes_cap_help": "Ein niedrigeres Limit für diesen Grant. Es gilt das strengste aus Datenquellen-Limit und allen Grants.",
+      "grant_bytes_cap_min": "Das Limit für gescannte Bytes muss mindestens 1 Byte betragen.",
+      "grant_bytes_cap_placeholder": "Standard der Datenquelle"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "z. B. *curl*, *GitHubActions*",
       "minutes_suffix": "Min.",
       "cicd_present_label": "Ist CI/CD-Herkunft",
-      "scan_type_placeholder": "z. B. Seq Scan, COLLSCAN, Index*"
+      "scan_type_placeholder": "z. B. Seq Scan, COLLSCAN, Index*",
+      "bytes_value_label": "Gescannte Bytes"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3270,7 +3286,8 @@
       "time_since_last_approval": "Zeit seit letzter Genehmigung",
       "cicd_origin": "CI/CD-Herkunft",
       "estimated_rows": "Geschätzte Zeilen",
-      "scan_type": "Scan-Typ"
+      "scan_type": "Scan-Typ",
+      "estimated_bytes_scanned": "Geschätzte gescannte Bytes"
     },
     "query_shape": {
       "JOIN": "Join",
@@ -3715,7 +3732,8 @@
       "ELIGIBLE_REVIEWERS": "Berechtigte Prüfer",
       "ROW_SECURITY": "Zeilensicherheit",
       "MASKING": "Maskierung",
-      "BREAK_GLASS": "Break-Glass"
+      "BREAK_GLASS": "Break-Glass",
+      "BYTES_SCANNED_CAP": "Limit für gescannte Bytes"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Konnektor-Prüfungen",
@@ -3770,6 +3788,20 @@
       "FIXED_RATE": "Feste Rate",
       "CRON": "Cron",
       "ONE_TIME": "Einmalig"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "Menschliche Prüfung verlangen",
+      "REJECT": "Abfrage ablehnen"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "Datenquellen-Limit",
+      "GRANT": "Grant-Override"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "Innerhalb des Limits für gescannte Bytes",
+      "EXCEEDED": "Abgelehnt: die Schätzung überschreitet das Limit für gescannte Bytes",
+      "NO_ESTIMATE_REVIEW": "Zur Prüfung zurückgehalten: keine Byte-Schätzung unter dem Limit",
+      "NO_ESTIMATE_REJECTED": "Abgelehnt: keine Byte-Schätzung unter dem Limit"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "User-Agent des Anfragenden",
       "risk_level": "Risikostufe",
       "risk_score": "Risikowert",
-      "scan_type": "Scan-Typ"
+      "scan_type": "Scan-Typ",
+      "bytes_cap_suppressed": "Durch das Byte-Limit unterdrückt",
+      "bytes_scanned_cap": "Limit für gescannte Bytes",
+      "bytes_scanned_cap_outcome": "Ergebnis des Limits",
+      "bytes_scanned_cap_source": "Quelle des Limits",
+      "estimated_bytes_scanned": "Geschätzte gescannte Bytes"
     },
     "use_id": "ID {{id}} verwenden",
     "user_id_placeholder": "Benutzer-ID einfügen",

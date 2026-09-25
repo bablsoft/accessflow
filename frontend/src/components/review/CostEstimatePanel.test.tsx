@@ -67,6 +67,22 @@ describe('CostEstimatePanel', () => {
     expect(screen.getByText('44,543.5')).toBeInTheDocument();
   });
 
+  it('renders the warehouse bytes-scanned estimate when present (#941)', () => {
+    render(
+      <CostEstimatePanel
+        estimate={estimate({ estimated_bytes_scanned: 1_500_000_000_000 })}
+        status="PENDING_REVIEW"
+      />,
+    );
+    expect(screen.getByText('Estimated bytes scanned')).toBeInTheDocument();
+    expect(screen.getByText('1.5 TB')).toBeInTheDocument();
+  });
+
+  it('omits the bytes line for engines that report none', () => {
+    render(<CostEstimatePanel estimate={estimate()} status="PENDING_REVIEW" />);
+    expect(screen.queryByText('Estimated bytes scanned')).not.toBeInTheDocument();
+  });
+
   it('renders the exact affected-row count for writes when present', () => {
     render(
       <CostEstimatePanel

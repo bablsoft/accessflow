@@ -36,7 +36,8 @@
     "view_docs_aria": "Voir la documentation (s'ouvre dans un nouvel onglet)",
     "on_behalf_of": "pour le compte de {{name}}",
     "on_behalf_of_tooltip": "Un appelant par clé d'API a agi pour cette personne (X-AccessFlow-On-Behalf-Of). La personne nommée compte comme demandeur pour l'interdiction d'auto-approbation.",
-    "principal_service_account_tooltip": "Une identité non humaine : elle s'authentifie uniquement par clé d'API et ne peut jamais se connecter de façon interactive."
+    "principal_service_account_tooltip": "Une identité non humaine : elle s'authentifie uniquement par clé d'API et ne peut jamais se connecter de façon interactive.",
+    "bytes_unit": "Unité"
   },
   "nav": {
     "editor": "Éditeur SQL",
@@ -654,7 +655,8 @@
     "affected_rows_label": "Lignes affectées (exact)",
     "est_rows_label": "Lignes estimées",
     "scan_type_label": "Type de scan",
-    "cost_label": "Coût estimé"
+    "cost_label": "Coût estimé",
+    "est_bytes_label": "Octets analysés estimés"
   },
   "approval_prediction": {
     "value_label": "Probabilité d'approbation historique",
@@ -864,7 +866,9 @@
         "hint": "Le SQL effectif est l’instruction telle qu’elle a réellement été exécutée, avec les filtres de sécurité des lignes et les réécritures de suppression logique appliqués. Les valeurs liées sont affichées sous forme de ? et ne sont jamais stockées.",
         "diff_submitted_label": "SQL soumis",
         "diff_effective_label": "SQL effectif"
-      }
+      },
+      "bytes_cap_body": "Analyse estimée : {{estimate}} · Limite : {{limit}} ({{source}})",
+      "bytes_cap_no_estimate": "aucune estimation"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "Environnement",
       "environment_not_set": "Non défini (règles par défaut de l'organisation)",
-      "environment_help": "Détermine quel jeu de règles de revue SQL s’applique aux requêtes sur cette source de données."
+      "environment_help": "Détermine quel jeu de règles de revue SQL s’applique aux requêtes sur cette source de données.",
+      "label_max_bytes_scanned": "Octets analysés max. par requête",
+      "max_bytes_scanned_help": "Refuse les requêtes dont l’estimation préalable dépasse cette valeur. Laisser vide pour aucune limite.",
+      "max_bytes_scanned_placeholder": "Aucune limite",
+      "label_bytes_cap_missing_estimate": "Sans estimation en octets",
+      "bytes_cap_missing_estimate_help": "S’applique seulement si une limite est définie. « Exiger une revue humaine » soumet les approbations automatiques à une personne ; « Rejeter » refuse la requête.",
+      "perm_col_bytes_cap": "Limite d’octets",
+      "perm_bytes_cap_none": "par défaut",
+      "grant_bytes_cap_label": "Limite d’octets analysés",
+      "grant_bytes_cap_help": "Une limite plus basse pour cette autorisation. La plus stricte entre la limite de la source de données et toutes les autorisations s’applique.",
+      "grant_bytes_cap_min": "La limite d’octets analysés doit être d’au moins 1 octet.",
+      "grant_bytes_cap_placeholder": "Valeur par défaut de la source de données"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "p. ex. *curl*, *GitHubActions*",
       "minutes_suffix": "min",
       "cicd_present_label": "Provenance CI/CD",
-      "scan_type_placeholder": "p. ex. Seq Scan, COLLSCAN, Index*"
+      "scan_type_placeholder": "p. ex. Seq Scan, COLLSCAN, Index*",
+      "bytes_value_label": "Octets analysés"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3270,7 +3286,8 @@
       "time_since_last_approval": "Temps depuis la dernière approbation",
       "cicd_origin": "Provenance CI/CD",
       "estimated_rows": "Lignes estimées",
-      "scan_type": "Type de scan"
+      "scan_type": "Type de scan",
+      "estimated_bytes_scanned": "Octets analysés estimés"
     },
     "query_shape": {
       "JOIN": "Jointure",
@@ -3715,7 +3732,8 @@
       "ELIGIBLE_REVIEWERS": "Réviseurs éligibles",
       "ROW_SECURITY": "Sécurité par ligne",
       "MASKING": "Masquage",
-      "BREAK_GLASS": "Accès d'urgence"
+      "BREAK_GLASS": "Accès d'urgence",
+      "BYTES_SCANNED_CAP": "Limite d’octets analysés"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Contrôles du connecteur",
@@ -3770,6 +3788,20 @@
       "FIXED_RATE": "Fréquence fixe",
       "CRON": "Cron",
       "ONE_TIME": "Unique"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "Exiger une revue humaine",
+      "REJECT": "Rejeter la requête"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "Limite de la source de données",
+      "GRANT": "Dérogation de l’autorisation"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "Dans la limite d’octets analysés",
+      "EXCEEDED": "Rejetée : l’estimation dépasse la limite d’octets analysés",
+      "NO_ESTIMATE_REVIEW": "Mise en revue : aucune estimation en octets sous la limite",
+      "NO_ESTIMATE_REJECTED": "Rejetée : aucune estimation en octets sous la limite"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "Agent utilisateur du demandeur",
       "risk_level": "Niveau de risque",
       "risk_score": "Score de risque",
-      "scan_type": "Type de parcours"
+      "scan_type": "Type de parcours",
+      "bytes_cap_suppressed": "Neutralisé par la limite d’octets",
+      "bytes_scanned_cap": "Limite d’octets analysés",
+      "bytes_scanned_cap_outcome": "Résultat de la limite",
+      "bytes_scanned_cap_source": "Origine de la limite",
+      "estimated_bytes_scanned": "Octets analysés estimés"
     },
     "use_id": "Utiliser l'ID {{id}}",
     "user_id_placeholder": "Collez un ID d'utilisateur",
