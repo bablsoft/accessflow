@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
@@ -314,6 +315,45 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
     }
 
     @Test
+    void findForUnionsDeniedShapesAcrossGrantsSoAGroupGrantCannotLiftOne() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setDeniedShapes(new String[] {"JOIN", "CTE"});
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setDeniedShapes(new String[] {"UNION", "JOIN"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        var view = service.findFor(userId, datasourceId).orElseThrow();
+        var contributions = service.findContributions(userId, datasourceId);
+
+        assertThat(view.deniedShapes()).containsExactly(QueryShape.JOIN, QueryShape.UNION, QueryShape.CTE);
+        assertThat(contributions.get(0).deniedShapes()).containsExactly(QueryShape.JOIN, QueryShape.CTE);
+        assertThat(contributions.get(1).deniedShapes()).containsExactly(QueryShape.JOIN, QueryShape.UNION);
+    }
+
+    @Test
+    void findDirectForReadsTheStoredDeniedShapes() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setDeniedShapes(new String[] {"WINDOW_FUNCTION", "GROUP_BY"});
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+
+        var view = service.findDirectFor(userId, datasourceId).orElseThrow();
+
+        assertThat(view.deniedShapes()).containsExactly(QueryShape.GROUP_BY, QueryShape.WINDOW_FUNCTION);
+    }
+
+    @Test
     void findForDeniesNothingWhenNoGrantDeniesATable() {
         var userId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
@@ -326,6 +366,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
 
         assertThat(view.deniedSchemas()).isEmpty();
         assertThat(view.deniedTables()).isEmpty();
+        assertThat(view.deniedShapes()).isEmpty();
     }
 
     @Test

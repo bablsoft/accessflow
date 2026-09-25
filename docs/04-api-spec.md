@@ -634,6 +634,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
       "denied_columns": ["public.users.password_hash"],
       "denied_schemas": null,
       "denied_tables": ["public.salary"],
+      "denied_shapes": ["JOIN", "SUBQUERY"],
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -647,6 +648,8 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
 `denied_columns` (#935) is a list of `table.column` or `schema.table.column` strings, returned normalised (unquoted, lowercase). A query that references one — in the select list, `WHERE`, `JOIN`, `GROUP BY`, `HAVING`, `ORDER BY`, a subquery, an `UPDATE … SET` target or an `INSERT` column list, or through `*` / `t.*` / a column-list-less `INSERT` on the entry's table — is rejected **before** it is persisted. `POST /queries`, `POST /queries/dry-run` and `GET /datasources/{id}/sample-rows` answer 403 with `error: "FORBIDDEN"` and a localized `detail` naming the denied entries. Break-glass answers `error: "BREAK_GLASS_NOT_PERMITTED"`, and a request-group submit answers `error: "REQUEST_GROUP_PERMISSION_DENIED"`. The table preview is refused whenever its table has a denied column, since it reads every column. Deny beats mask for a column in both lists. Null or empty means nothing is denied.
 
 `denied_schemas` and `denied_tables` (#939) are table/schema deny-lists, returned normalised (unquoted, lowercase), `null` when unset. A denial **always beats** the allow-list and is evaluated after it, so `allowed_schemas: ["crm"]` + `denied_tables: ["crm.salary"]` permits `crm.customer` (and any `crm` table created later) while refusing `crm.salary`. Denials also apply with no allow-list at all. Matching fails closed, because the gate cannot know where the database resolves a name: a `denied_tables` entry matches when either name is a dot-aligned suffix of the other (bare `salary` denies `salary` in every schema; `crm.salary` denies `crm.salary`, `db.crm.salary` and an unqualified `salary`), and a `denied_schemas` entry matches any reference carrying it as a non-final segment **and every unqualified reference** — while any schema is denied, the grantee must schema-qualify table names. A `schema.*` entry in `denied_tables` denies the whole schema. Names are compared segment by segment from the right; an empty segment (SQL Server `db..salary`) matches anything, an Oracle `@dblink` suffix is ignored, and a pattern reference (`*` / `?`, e.g. an Elasticsearch index pattern `sal*`) is denied by any entry. Deny-lists apply to every engine; on engines whose names carry no schema (MongoDB, DynamoDB, Redis) any `denied_schemas` entry refuses every query, so use `denied_tables` there. A JIT approval that replaces the user's expiring direct row carries that row's denials onto the new grant. A query that reaches a denied table is rejected **before** it is persisted: `POST /queries` and `POST /queries/dry-run` answer 403 `FORBIDDEN` with `error.permission.table_denied` ("Query references one or more tables the user is denied on this datasource: …"), break-glass answers `BREAK_GLASS_NOT_PERMITTED`, and a request-group submit answers `REQUEST_GROUP_PERMISSION_DENIED`. A denied table is hidden from `GET /datasources/{id}/schema` (a denied schema disappears entirely) and answers 404 from `GET /datasources/{id}/sample-rows`, exactly like one outside the allow-list.
+
+`denied_shapes` (#940) is a query-shape deny-list — `QueryShape` names returned in declaration order, `null` when unset: `JOIN`, `UNION` (every set operation — `UNION`, `INTERSECT`, `EXCEPT`, `MINUS`), `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE` and `WINDOW_FUNCTION`. The shape is read from the JSqlParser AST **anywhere** in the statement — a join inside a subquery or a CTE body counts, and a `BEGIN … COMMIT` batch carries the union of its statements' shapes. `AGGREGATE` is the built-in aggregate set of the in-process engines, matched by name (`COUNT`, `COUNT_BIG`, `SUM`, `AVG`, `MIN`, `MAX`, `STRING_AGG`, `ARRAY_AGG`, `GROUP_CONCAT`, `LISTAGG`, `XMLAGG`, `COLLECT`, `JSON_AGG` / `JSONB_AGG` / `JSON_OBJECT_AGG`, `JSON_ARRAYAGG` / `JSON_OBJECTAGG`, the `STDDEV*` / `STD` / `STDEV*` / `VAR*` family, `CORR`, `COVAR_*`, `REGR_*`, `BOOL_AND` / `BOOL_OR` / `EVERY`, `BIT_*`, `CHECKSUM_AGG`, `APPROX_COUNT_DISTINCT`, `ANY_VALUE`, `MEDIAN`, `MODE`, `PERCENTILE_*`), plus any ordered-set (`WITHIN GROUP`) or `FILTER`ed call; a user-defined aggregate is not detected, and the list is best-effort — an engine's rarer built-in can be missing. A parenthesised select that is the statement's own query — a set-operation branch, a CTE body, the rows of `INSERT … SELECT` / `CREATE TABLE … AS SELECT` — is not a `SUBQUERY`; any other select is, including one passed as a function argument (`ARRAY(SELECT …)`). A parenthesised join (`FROM (a JOIN b ON …)`) and every `MERGE` count as `JOIN`, and `OTHER`-type statements (a request-group member may be one) are checked like the rest. The check **fails closed**: a statement whose shape could not be analysed has every denied shape. A query with a denied shape is rejected **before** it is persisted: `POST /queries` and `POST /queries/dry-run` answer 403 `FORBIDDEN` with `error.permission.shape_denied` ("Query has one or more shapes the user is denied on this datasource: …"), break-glass answers `BREAK_GLASS_NOT_PERMITTED`, and a request-group submit answers `REQUEST_GROUP_PERMISSION_DENIED`. No `denied_shapes` means behaviour is unchanged. To escalate a shape rather than refuse it, use the `query_shape` routing condition instead.
 
 ### POST /datasources/{id}/permissions — Request Body
 
@@ -664,6 +667,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
   "denied_columns": ["public.users.password_hash"],
   "denied_schemas": ["audit"],
   "denied_tables": ["public.salary"],
+  "denied_shapes": ["JOIN"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
@@ -679,7 +683,12 @@ or `schema.*` (the whole schema), with no empty segment and no other wildcard. A
 or the blank / too-many keys); the service re-checks the entry shape and raises
 `IllegalDatasourcePermissionException` (422 `ILLEGAL_DATASOURCE_PERMISSION`) for callers that bypass
 the web layer. Both are stored normalised with duplicates dropped, and both are
-recorded in the `PERMISSION_GRANTED` / `PERMISSION_GROUP_GRANTED` audit metadata when non-empty. `can_break_glass` (AF-385, optional,
+recorded in the `PERMISSION_GRANTED` / `PERMISSION_GROUP_GRANTED` audit metadata when non-empty.
+`denied_shapes` (#940) is optional, at most 8 non-null `QueryShape` names; an unknown name is 400
+`VALIDATION_ERROR` (`error.datasource_body_unreadable` — every `/datasources` endpoint answers an
+unreadable body, such as an unknown `db_type`, with this 400 rather than a 500), too many is 400 (`validation.denied_shapes.too_many`).
+It is stored in declaration order with duplicates dropped, recorded in the grant audit metadata when
+non-empty, and supported only on the in-process relational engines. `can_break_glass` (AF-385, optional,
 default `false`) grants the emergency break-glass submission mode on this datasource — time-boxed via
 `expires_at`. The flag is returned on the permission object alongside `can_read`/`can_write`/`can_ddl`.
 
@@ -688,6 +697,7 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 **Response 409:** A permission row already exists for `(user_id, datasource_id)`. `error: DATASOURCE_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** Target user does not exist or does not belong to the caller's organization. `error: ILLEGAL_DATASOURCE_PERMISSION`.
 **Response 422:** `denied_columns` is non-empty on an engine-managed datasource (every engine plugin, warehouses included). `error: DENIED_COLUMNS_NOT_SUPPORTED`, with `dbType`.
+**Response 422:** `denied_shapes` is non-empty on an engine-managed datasource. `error: DENIED_SHAPES_NOT_SUPPORTED`, with `dbType`.
 
 ### DELETE /datasources/{id}/permissions/{permId}
 
@@ -699,8 +709,8 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 Group-based access grants (AF-530). A grant to a **user group** is inherited by every member; a user's
 **effective** access is the most-permissive union of their direct grant and every unexpired group grant
 for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` intersected so a
-column is masked only when every contributing grant masks it; `denied_schemas` / `denied_tables` (#939)
-and `denied_columns` (#1099) **unioned**, so a group grant's denial binds every member and no permissive
+column is masked only when every contributing grant masks it; `denied_schemas` / `denied_tables` (#939),
+`denied_columns` (#1099) and `denied_shapes` (#940) **unioned**, so a group grant's denial binds every member and no permissive
 grant can lift a denial from another). Same shape as the per-user list, keyed on
 the group instead of a user:
 
@@ -724,6 +734,7 @@ the group instead of a user:
       "denied_columns": [],
       "denied_schemas": null,
       "denied_tables": null,
+      "denied_shapes": null,
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -750,6 +761,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
   "denied_columns": ["public.users.password_hash"],
   "denied_schemas": ["audit"],
   "denied_tables": ["public.salary"],
+  "denied_shapes": ["JOIN"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
@@ -758,6 +770,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
 **Response 404:** Datasource or group does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
 **Response 409:** A permission row already exists for `(group_id, datasource_id)`. `error: DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** `denied_columns` on an engine-managed datasource. `error: DENIED_COLUMNS_NOT_SUPPORTED`.
+**Response 422:** `denied_shapes` on an engine-managed datasource. `error: DENIED_SHAPES_NOT_SUPPORTED`.
 
 ### DELETE /datasources/{id}/permissions/groups/{permId}
 
@@ -1644,7 +1657,7 @@ Identification and audit only — never an authorization input and not a routing
 
 **Errors:**
 - `400 VALIDATION_ERROR` — request body missing `datasource_id` or `sql`.
-- `403 FORBIDDEN` — caller has no active permission row for this datasource, the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL), the SQL references a table outside the permission's `allowed_schemas` / `allowed_tables` allow-list (walked at the JSqlParser AST level; see [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement)), or a table the permission's `denied_schemas` / `denied_tables` deny-list reaches (#939, `error.permission.table_denied` — a denial beats the allow-list), or a denied column (#935). Admins bypass this check.
+- `403 FORBIDDEN` — caller has no active permission row for this datasource, the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL), the SQL references a table outside the permission's `allowed_schemas` / `allowed_tables` allow-list (walked at the JSqlParser AST level; see [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement)), or a table the permission's `denied_schemas` / `denied_tables` deny-list reaches (#939, `error.permission.table_denied` — a denial beats the allow-list), or a denied column (#935), or a query shape on the permission's `denied_shapes` (#940, `error.permission.shape_denied` — fails closed when the shape could not be analysed). Admins bypass this check.
 - `404 DATASOURCE_NOT_FOUND` — datasource does not exist in the caller's organization, or — for non-admin callers — the caller has no permission row for it.
 - `422 INVALID_SQL` — SQL did not parse, contained multiple statements without a `BEGIN/COMMIT` envelope, or classified as `OTHER`. The `detail` field carries the specific reason. Distinct sub-cases include:
   - mixed SELECT with INSERT/UPDATE/DELETE inside a transaction → "Transactions cannot mix SELECT with INSERT/UPDATE/DELETE; submit them as separate query requests";
@@ -2902,7 +2915,7 @@ Just-in-time, time-bound access requests. A user requests temporary scoped acces
 }
 ```
 
-**Exactly one** of `datasource_id` / `connector_id` must be set (AF-567). A connector request may carry `allowed_operations` — an optional operation-id allow-list validated against the connector's operation catalog (`null`/empty = all operations) — and must **not** carry `can_ddl`, `pre_approve_queries`, or `allowed_schemas`/`allowed_tables`; a datasource request must not carry `allowed_operations` (all enforced by Bean Validation, mirrored in the frontend form). `can_break_glass` is deliberately not self-requestable, and neither are table/schema deny-lists (#939) — there is no `denied_schemas` / `denied_tables` field. The materialised grant never lifts a denial: denials union across grants, and a replaced expiring direct row's denials carry over onto it. `requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`); every access-request response carries `resource_kind` (`DATASOURCE` | `API_CONNECTOR`) plus the matching `datasource_*` / `connector_*` name fields, and the admin queue item nests a `datasource` **or** `connector` `{ id, name }` summary.
+**Exactly one** of `datasource_id` / `connector_id` must be set (AF-567). A connector request may carry `allowed_operations` — an optional operation-id allow-list validated against the connector's operation catalog (`null`/empty = all operations) — and must **not** carry `can_ddl`, `pre_approve_queries`, or `allowed_schemas`/`allowed_tables`; a datasource request must not carry `allowed_operations` (all enforced by Bean Validation, mirrored in the frontend form). `can_break_glass` is deliberately not self-requestable, and neither are deny-lists (#939, #940) — there is no `denied_schemas` / `denied_tables` / `denied_shapes` field. The materialised grant never lifts a denial: denials union across grants, and a replaced expiring direct row's denials carry over onto it. `requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`); every access-request response carries `resource_kind` (`DATASOURCE` | `API_CONNECTOR`) plus the matching `datasource_*` / `connector_*` name fields, and the admin queue item nests a `datasource` **or** `connector` `{ id, name }` summary.
 
 ### GET /access-requests — Query Parameters
 
@@ -3988,7 +4001,7 @@ All endpoints require `role=ADMIN` and operate within the caller's organization.
 }
 ```
 
-`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`.
+`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`. The `query_shape` operand (#940) — `{"type": "query_shape", "any_of": ["JOIN", "SUBQUERY"]}` — matches a query that has any listed shape (`JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`) anywhere in the statement; an empty `any_of` is rejected with **422** `ROUTING_POLICY_INVALID`, and the leaf fails closed when the SQL cannot be parsed for its shape. Routing re-parses the stored SQL text with JSqlParser whatever the engine, so on a plugin datasource the leaf matches only when that text happens to be standard SQL JSqlParser can read (often true for a warehouse, never for a MongoDB or Redis command). Pair it with `ESCALATE` or `REQUIRE_APPROVALS` to send, say, every joined query to a second reviewer, or with `AUTO_REJECT` to refuse it outright; a grant's `denied_shapes` refuses at submission instead.
 
 **Response 201:** Full routing-policy object (see the list shape below). `Location` header points to `/api/v1/admin/routing-policies/{id}`.
 **Response 400:** Bean Validation failure on the request body. `error: VALIDATION_ERROR`.
@@ -4513,7 +4526,7 @@ follow up with one simulation per user of interest. It is deliberately not an N-
       "step": "SQL_PARSE",
       "outcome": "ALLOW",
       "reason": "Statement parsed as UPDATE",
-      "details": { "query_type": "UPDATE", "referenced_tables": ["payments"], "transactional": false, "has_where_clause": true, "has_limit_clause": false }
+      "details": { "query_type": "UPDATE", "referenced_tables": ["payments"], "transactional": false, "has_where_clause": true, "has_limit_clause": false, "query_shapes": [], "shapes_analyzed": true }
     },
     {
       "step": "EFFECTIVE_PERMISSION",
@@ -4592,7 +4605,9 @@ follow up with one simulation per user of interest. It is deliberately not an N-
     "minutes_since_last_approval": 47,
     "anomaly_active": false,
     "estimated_rows": null,
-    "scan_type": null
+    "scan_type": null,
+    "query_shapes": [],
+    "shapes_analyzed": true
   },
   "caveats": ["CLIENT_CONTEXT_ABSENT", "COST_ESTIMATE_ABSENT"]
 }
@@ -4619,8 +4634,8 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 |---|---|---|
 | `DATASOURCE_GATES` | `db_type`, `active`, `ai_analysis_enabled`, `visible_to_user` | always |
 | `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
-| `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause` | whenever the statement parsed; `{}` when it did not |
-| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause`, `query_shapes` (#940 — the statement's shapes in declaration order), `shapes_analyzed` (`false` for every engine plugin — warehouses included, since only the in-process JSqlParser path reads shapes — and for a statement the walker cannot traverse) | whenever the statement parsed; `{}` when it did not |
+| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
 | | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed` | `MATCH` only |

@@ -77,6 +77,10 @@ public class DatasourceGroupPermissionEntity {
     @Column(name = "denied_tables", columnDefinition = "text[]")
     private String[] deniedTables;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "denied_shapes", columnDefinition = "text[]")
+    private String[] deniedShapes;
+
     @Column(name = "expires_at")
     private Instant expiresAt;
 

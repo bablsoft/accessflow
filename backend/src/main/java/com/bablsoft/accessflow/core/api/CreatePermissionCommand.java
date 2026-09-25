@@ -21,6 +21,7 @@ public record CreatePermissionCommand(
         List<String> deniedColumns,
         List<String> deniedSchemas,
         List<String> deniedTables,
+        List<QueryShape> deniedShapes,
         Instant expiresAt,
         UUID accessGrantRequestId
 ) {}

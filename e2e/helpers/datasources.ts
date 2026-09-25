@@ -523,6 +523,8 @@ export async function grantPermissionViaApi(
     allowedSchemas?: string[];
     deniedSchemas?: string[];
     deniedTables?: string[];
+    // #940 — QueryShape names the grantee may never use (JOIN, UNION, SUBQUERY, …).
+    deniedShapes?: string[];
   } = {},
 ): Promise<GrantedPermission> {
   const res = await request.post(
@@ -539,6 +541,7 @@ export async function grantPermissionViaApi(
         allowed_schemas: opts.allowedSchemas ?? null,
         denied_schemas: opts.deniedSchemas ?? null,
         denied_tables: opts.deniedTables ?? null,
+        denied_shapes: opts.deniedShapes ?? null,
       },
     },
   );

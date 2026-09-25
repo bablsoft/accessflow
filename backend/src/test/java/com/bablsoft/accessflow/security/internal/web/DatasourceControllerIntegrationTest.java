@@ -820,6 +820,65 @@ class DatasourceControllerIntegrationTest {
         assertThat(oversize).hasStatus(400);
     }
 
+    @Test
+    void grantPermissionRoundTripsDeniedShapesInDeclarationOrder() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"denied_shapes":["SUBQUERY","JOIN","JOIN"]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.denied_shapes").asArray()
+                .containsExactly("JOIN", "SUBQUERY");
+        var listed = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(listed).bodyJson().extractingPath("$.content[0].denied_shapes").asArray()
+                .containsExactly("JOIN", "SUBQUERY");
+    }
+
+    @Test
+    void grantPermissionRejectsUnknownNullOrTooManyDeniedShapes() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        for (var shapes : List.of("[\"CROSS_APPLY\"]", "[null]",
+                "[\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\",\"JOIN\"]")) {
+            var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"user_id\":\"%s\",\"can_read\":true,\"denied_shapes\":%s}"
+                            .formatted(analyst.getId(), shapes))
+                    .exchange();
+
+            assertThat(result).hasStatus(400);
+        }
+        assertThat(permissionRepository.existsByUser_IdAndDatasource_Id(analyst.getId(),
+                ds.getId())).isFalse();
+    }
+
+    @Test
+    void grantGroupPermissionRoundTripsDeniedShapes() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true,"denied_shapes":["WINDOW_FUNCTION","CTE"]}
+                        """.formatted(group.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.denied_shapes").asArray()
+                .containsExactly("CTE", "WINDOW_FUNCTION");
+    }
+
     private static String jsonNames(String prefix, int count) {
         var names = new java.util.ArrayList<String>();
         for (int i = 0; i < count; i++) {

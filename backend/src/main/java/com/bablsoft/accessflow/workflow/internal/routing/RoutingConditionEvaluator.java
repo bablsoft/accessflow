@@ -39,6 +39,8 @@ public class RoutingConditionEvaluator {
                     c.anyOf().contains(ctx.evaluatedAt().getDayOfWeek());
             case ConditionNode.HasWhereClause c -> ctx.hasWhereClause() == c.expected();
             case ConditionNode.HasLimitClause c -> ctx.hasLimitClause() == c.expected();
+            case ConditionNode.QueryShapeIn c -> ctx.shapesAnalyzed()
+                    && !Collections.disjoint(c.anyOf(), ctx.queryShapes());
             case ConditionNode.Transactional c -> ctx.transactional() == c.expected();
             case ConditionNode.SourceIpMatches c ->
                     ctx.requesterIpAddress() != null

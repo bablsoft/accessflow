@@ -1074,3 +1074,114 @@ describe('DatasourceSettingsPage — denied tables (#939)', () => {
     expect(within(row).getByText('1 entry')).toBeInTheDocument();
   });
 });
+
+describe('DatasourceSettingsPage — denied query shapes (#940)', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    getDatasource.mockResolvedValue(baseDs);
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+    grantPermission.mockReset();
+    grantPermission.mockResolvedValue(basePermission({ can_read: true }));
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({ schemas: [] });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+  });
+
+  it('sends the denied shapes picked in the grant form', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    fireEvent.mouseDown(within(dialog).getByLabelText('Denied query shapes'));
+    fireEvent.click(await screen.findByText('Subquery'));
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_shapes).toEqual(['SUBQUERY']);
+  });
+
+  it('sends null when no shape is denied', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.denied_shapes).toBeNull();
+  });
+
+  it('hides the field for engine-managed datasources', async () => {
+    getDatasource.mockResolvedValue({ ...baseDs, db_type: 'MONGODB' });
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    expect(within(dialog).getByText('Denied tables')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Denied query shapes')).not.toBeInTheDocument();
+  });
+
+  it('shows the denied-shape count with labelled shapes on the permission row', async () => {
+    listPermissions.mockResolvedValue([
+      basePermission({ can_read: true, denied_shapes: ['JOIN', 'GROUP_BY'] }),
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const emailCell = await screen.findByText('analyst@example.com');
+    const row = emailCell.closest('tr')!;
+    const tag = within(row).getByText('2 shapes');
+    fireEvent.mouseEnter(tag);
+    expect(await screen.findByText('Join, GROUP BY')).toBeInTheDocument();
+  });
+
+  it('shows the denied-shape count on a group permission row', async () => {
+    listGroupPermissions.mockResolvedValue([
+      {
+        id: 'gp-1',
+        datasource_id: 'ds-1',
+        group_id: 'g-1',
+        group_name: 'Analysts',
+        member_count: 3,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: null,
+        allowed_schemas: null,
+        allowed_tables: null,
+        restricted_columns: null,
+        denied_columns: null,
+        denied_schemas: null,
+        denied_tables: null,
+        denied_shapes: ['WINDOW_FUNCTION'],
+        expires_at: null,
+        created_by: 'admin',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const groupCell = await screen.findByText('Analysts');
+    const row = groupCell.closest('tr')!;
+    expect(within(row).getByText('1 shape')).toBeInTheDocument();
+  });
+});

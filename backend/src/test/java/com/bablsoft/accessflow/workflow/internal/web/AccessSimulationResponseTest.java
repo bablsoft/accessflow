@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SimulationCaveat;
@@ -56,7 +57,8 @@ class AccessSimulationResponseTest {
         var evaluatedAt = LocalDateTime.parse("2026-09-10T11:04:00");
         var context = new ConditionContext(QueryType.UPDATE, Set.of("public.payments"),
                 RiskLevel.HIGH, 82, "ANALYST", Set.of(groupId), evaluatedAt, true, false, false,
-                null, null, false, 47, false, null, null);
+                null, null, false, 47, false, null, null,
+                Set.of(QueryShape.SUBQUERY, QueryShape.JOIN), true);
 
         var response = AccessSimulationResponse.from(
                 new AccessSimulationResult(List.of(), QueryStatus.PENDING_REVIEW, context,
@@ -74,5 +76,7 @@ class AccessSimulationResponseTest {
         // A hypothetical request carries no client context; the caveat says so, the field stays null.
         assertThat(echoed.requesterIpAddress()).isNull();
         assertThat(echoed.estimatedRows()).isNull();
+        assertThat(echoed.queryShapes()).containsExactly(QueryShape.JOIN, QueryShape.SUBQUERY);
+        assertThat(echoed.shapesAnalyzed()).isTrue();
     }
 }

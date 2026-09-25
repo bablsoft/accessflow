@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.ColumnReference;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -19,19 +20,25 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 class SqlParserServiceImpl implements SqlParserService {
+
+    private static final Logger log = LoggerFactory.getLogger(SqlParserServiceImpl.class);
 
     private static final String DDL_PACKAGE_PREFIX = "net.sf.jsqlparser.statement.";
 
@@ -69,8 +76,10 @@ class SqlParserServiceImpl implements SqlParserService {
         var statement = statements.get(0);
         var type = classify(statement);
         var analysis = analyze(statement, type);
+        var shapes = detectShapes(statement);
         return new SqlParseResult(type, false, List.of(sql), analysis.tables(),
-                hasWhere(statement), hasLimit(statement), analysis.columns(), analysis.columnsAnalyzed());
+                hasWhere(statement), hasLimit(statement), analysis.columns(), analysis.columnsAnalyzed(),
+                shapes.orElse(Set.of()), shapes.isPresent());
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -114,18 +123,24 @@ class SqlParserServiceImpl implements SqlParserService {
         var statementSlices = sliceStatements(statements);
         var referencedTables = new HashSet<String>();
         var referencedColumns = new HashSet<ColumnReference>();
+        var shapes = EnumSet.noneOf(QueryShape.class);
         boolean anyWhere = false;
         boolean anyLimit = false;
+        boolean shapesAnalyzed = true;
         for (Statement statement : statements) {
             var analysis = analyze(statement, classify(statement));
             referencedTables.addAll(analysis.tables());
             referencedColumns.addAll(analysis.columns());
             anyWhere = anyWhere || hasWhere(statement);
             anyLimit = anyLimit || hasLimit(statement);
+            var statementShapes = detectShapes(statement);
+            statementShapes.ifPresent(shapes::addAll);
+            shapesAnalyzed = shapesAnalyzed && statementShapes.isPresent();
         }
         // Every inner statement is INSERT / UPDATE / DELETE here, so each was fully analyzed.
         return new SqlParseResult(representativeType, true, statementSlices, referencedTables,
-                anyWhere, anyLimit, referencedColumns, true);
+                anyWhere, anyLimit, referencedColumns, true, shapesAnalyzed ? shapes : Set.of(),
+                shapesAnalyzed);
     }
 
     private List<Statement> parseStatementsOrThrow(String sql) {
@@ -186,6 +201,20 @@ class SqlParserServiceImpl implements SqlParserService {
         // OTHER is never column-analysed; DDL is, so CREATE TABLE … AS SELECT and CREATE VIEW … AS
         // SELECT answer for the columns their query reads (#935).
         return new Analysis(out, inspection.columns(), type != QueryType.OTHER);
+    }
+
+    /**
+     * The statement's shapes (#940), or empty when the detector could not walk it — never fatal to
+     * parsing, but the result is then reported as not analyzed so a shape deny-list fails closed.
+     */
+    private static Optional<Set<QueryShape>> detectShapes(Statement statement) {
+        try {
+            return Optional.of(QueryShapeDetector.detect(statement));
+        } catch (RuntimeException ex) {
+            log.debug("Query shape detection failed for a {} statement: {}",
+                    statement.getClass().getSimpleName(), ex.toString());
+            return Optional.empty();
+        }
     }
 
     private record Analysis(Set<String> tables, Set<ColumnReference> columns,

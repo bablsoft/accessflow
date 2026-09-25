@@ -9,9 +9,11 @@ import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.ReplicaEndpointInput;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
@@ -1075,7 +1077,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, List.of(), null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1087,7 +1089,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, List.of(), null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1106,7 +1108,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, List.of(), null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(DatasourcePermissionAlreadyExistsException.class);
     }
@@ -1133,7 +1135,7 @@ class DatasourceAdminServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new CreatePermissionCommand(userId, true, true, false, true, 500,
-                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null, null, null, null, null);
+                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null, null, null, List.of(), null, null);
         var view = service.grantPermission(datasourceId, orgId, adminId, command);
 
         // An admin-created row has no originating JIT request (#969).
@@ -1173,6 +1175,7 @@ class DatasourceAdminServiceImplTest {
 
         service.grantPermission(datasourceId, orgId, adminId, new CreatePermissionCommand(userId,
                 true, false, false, false, null, null, null, null, null, null, null,
+                List.of(),
                 Instant.now().plusSeconds(3600), accessGrantRequestId));
 
         assertThat(saved.getValue().getAccessGrantRequestId()).isEqualTo(accessGrantRequestId);
@@ -1238,7 +1241,7 @@ class DatasourceAdminServiceImplTest {
         var view = service.grantPermission(datasourceId, orgId, adminId,
                 new CreatePermissionCommand(userId, true, false, false, false, null,
                         List.of("crm"), null, null, null, List.of(" \"HR\" ", "hr"),
-                        List.of("CRM.Salary", "`crm`.`salary`", "bonus"), null, null));
+                        List.of("CRM.Salary", "`crm`.`salary`", "bonus"), List.of(), null, null));
 
         assertThat(saved.getValue().getDeniedSchemas()).containsExactly("hr");
         assertThat(saved.getValue().getDeniedTables()).containsExactly("crm.salary", "bonus");
@@ -1252,12 +1255,12 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
                 new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
-                        null, null, List.of("analytics.hr"), null, null, null)))
+                        null, null, List.of("analytics.hr"), null, List.of(), null, null)))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
                 .hasMessageContaining("denied_schemas");
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
                 new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
-                        null, null, null, List.of("sal*"), null, null)))
+                        null, null, null, List.of("sal*"), List.of(), null, null)))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
                 .hasMessageContaining("denied_tables");
         verify(permissionRepository, never()).save(any());
@@ -1271,12 +1274,55 @@ class DatasourceAdminServiceImplTest {
 
         var view = service.grantPermission(datasourceId, orgId, adminId,
                 new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
-                        null, null, List.of(), List.of(" "), null, null));
+                        null, null, List.of(), List.of(" "), List.of(), null, null));
 
         assertThat(saved.getValue().getDeniedSchemas()).isNull();
         assertThat(saved.getValue().getDeniedTables()).isNull();
         assertThat(view.deniedSchemas()).isNullOrEmpty();
         assertThat(view.deniedTables()).isNullOrEmpty();
+    }
+
+    @Test
+    void grantPermissionPersistsDeniedShapesInDeclarationOrder() {
+        stubGrantableUser(DbType.POSTGRESQL);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.grantPermission(datasourceId, orgId, adminId,
+                shapesCommand(List.of(QueryShape.SUBQUERY, QueryShape.JOIN, QueryShape.JOIN)));
+
+        assertThat(saved.getValue().getDeniedShapes()).containsExactly("JOIN", "SUBQUERY");
+        assertThat(view.deniedShapes()).containsExactly(QueryShape.JOIN, QueryShape.SUBQUERY);
+    }
+
+    @Test
+    void grantPermissionStoresNoDeniedShapesWhenEmpty() {
+        stubGrantableUser(DbType.MONGODB);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.grantPermission(datasourceId, orgId, adminId, shapesCommand(List.of()));
+
+        assertThat(saved.getValue().getDeniedShapes()).isNull();
+        assertThat(view.deniedShapes()).isEmpty();
+    }
+
+    @Test
+    void grantPermissionRejectsDeniedShapesOnAnEngineManagedDatasource() {
+        stubGrantableUser(DbType.MONGODB);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
+                shapesCommand(List.of(QueryShape.JOIN))))
+                .isInstanceOf(DeniedShapesNotSupportedException.class)
+                .satisfies(ex -> assertThat(((DeniedShapesNotSupportedException) ex).dbType())
+                        .isEqualTo(DbType.MONGODB));
+        verify(permissionRepository, never()).save(any());
+    }
+
+    private CreatePermissionCommand shapesCommand(List<QueryShape> deniedShapes) {
+        return new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
+                null, null, null, null, deniedShapes, null, null);
     }
 
     private void stubGrantableUser(DbType dbType) {
@@ -1295,7 +1341,7 @@ class DatasourceAdminServiceImplTest {
 
     private CreatePermissionCommand deniedCommand(List<String> deniedColumns) {
         return new CreatePermissionCommand(userId, true, false, false, false, null, null, null,
-                null, deniedColumns, null, null, null, null);
+                null, deniedColumns, null, null, List.of(), null, null);
     }
 
     @Test
@@ -1362,7 +1408,7 @@ class DatasourceAdminServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, true, false, false, null, List.of("public"), null, null, null, null, null, null);
+                groupId, true, true, false, false, null, List.of("public"), null, null, null, null, null, List.of(), null);
         var view = service.grantGroupPermission(datasourceId, orgId, adminId, command);
 
         assertThat(view.groupId()).isEqualTo(groupId);
@@ -1394,12 +1440,42 @@ class DatasourceAdminServiceImplTest {
         var view = service.grantGroupPermission(datasourceId, orgId, adminId,
                 new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
                         groupId, true, false, false, false, null, null, null, null, null,
-                        List.of("Audit"), List.of("CRM.Salary", " "), null));
+                        List.of("Audit"), List.of("CRM.Salary", " "), List.of(), null));
 
         assertThat(saved.getValue().getDeniedSchemas()).containsExactly("audit");
         assertThat(saved.getValue().getDeniedTables()).containsExactly("crm.salary");
         assertThat(view.deniedSchemas()).containsExactly("audit");
         assertThat(view.deniedTables()).containsExactly("crm.salary");
+    }
+
+    @Test
+    void grantGroupPermissionPersistsDeniedShapesAndRefusesThemOnAnEngineManagedDatasource() {
+        var groupId = UUID.randomUUID();
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 4, java.time.Instant.now(), java.time.Instant.now()));
+        when(groupPermissionRepository.existsByGroup_IdAndDatasource_Id(groupId, datasourceId))
+                .thenReturn(false);
+        var group = new com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity();
+        group.setId(groupId);
+        when(userGroupRepository.getReferenceById(groupId)).thenReturn(group);
+        var saved = ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity.class);
+        when(groupPermissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+        var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
+                groupId, true, false, false, false, null, null, null, null, null, null, null,
+                List.of(QueryShape.HAVING, QueryShape.GROUP_BY), null);
+
+        var view = service.grantGroupPermission(datasourceId, orgId, adminId, command);
+
+        assertThat(saved.getValue().getDeniedShapes()).containsExactly("GROUP_BY", "HAVING");
+        assertThat(view.deniedShapes()).containsExactly(QueryShape.GROUP_BY, QueryShape.HAVING);
+
+        entity.setDbType(DbType.REDIS);
+        when(engineCatalog.isEngineManaged(DbType.REDIS)).thenReturn(true);
+        assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
+                .isInstanceOf(DeniedShapesNotSupportedException.class);
     }
 
     @Test
@@ -1421,7 +1497,7 @@ class DatasourceAdminServiceImplTest {
         var view = service.grantGroupPermission(datasourceId, orgId, adminId,
                 new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
                         groupId, true, false, false, false, null, null, null, null, null,
-                        List.of(), null, null));
+                        List.of(), null, List.of(), null));
 
         assertThat(saved.getValue().getDeniedSchemas()).isNull();
         assertThat(saved.getValue().getDeniedTables()).isNull();
@@ -1440,7 +1516,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, false, false, false, null, null, null, null, null, null, null, null);
+                groupId, true, false, false, false, null, null, null, null, null, null, null, List.of(), null);
         assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException.class);
     }
@@ -1454,7 +1530,7 @@ class DatasourceAdminServiceImplTest {
                 .thenThrow(new com.bablsoft.accessflow.core.api.UserGroupNotFoundException(groupId));
 
         var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
-                groupId, true, false, false, false, null, null, null, null, null, null, null, null);
+                groupId, true, false, false, false, null, null, null, null, null, null, null, List.of(), null);
         assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.UserGroupNotFoundException.class);
     }
@@ -1641,7 +1717,7 @@ class DatasourceAdminServiceImplTest {
     private com.bablsoft.accessflow.core.api.DatasourceUserPermissionView permission(
             java.util.List<String> tables) {
         return new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(UUID.randomUUID(),
-                userId, datasourceId, true, false, false, false, null, tables, null, null, List.of(), List.of(), null,
+                userId, datasourceId, true, false, false, false, null, tables, null, null, List.of(), List.of(), List.of(), null,
                 null);
     }
 

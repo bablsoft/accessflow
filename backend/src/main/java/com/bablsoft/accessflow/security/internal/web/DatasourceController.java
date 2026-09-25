@@ -49,12 +49,18 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -66,6 +72,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +93,7 @@ class DatasourceController {
     private final DatasourceReviewerService datasourceReviewerService;
     private final SampleDataService sampleDataService;
     private final SecretResolutionService secretResolutionService;
+    private final MessageSource messageSource;
 
     @GetMapping("/types")
     @Operation(summary = "List supported database types with driver resolution status")
@@ -326,8 +334,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "404", description = "Datasource not found")
     @ApiResponse(responseCode = "409", description = "Permission already exists for this user")
     @ApiResponse(responseCode = "422",
-            description = "Target user is not in the organization, or denied_columns is not "
-                    + "supported by the datasource engine")
+            description = "Target user is not in the organization, or denied_columns / "
+                    + "denied_shapes is not supported by the datasource engine")
     ResponseEntity<PermissionResponse> grantPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreatePermissionRequest request,
@@ -345,6 +353,7 @@ class DatasourceController {
                 request.allowedTables(),
                 request.restrictedColumns(),
                 request.deniedColumns(), request.deniedSchemas(), request.deniedTables(),
+                request.deniedShapes(),
                 request.expiresAt(),
                 // Admin-created: no originating JIT request (#969).
                 null);
@@ -365,6 +374,9 @@ class DatasourceController {
         }
         if (view.deniedTables() != null && !view.deniedTables().isEmpty()) {
             metadata.put("denied_tables", view.deniedTables());
+        }
+        if (view.deniedShapes() != null && !view.deniedShapes().isEmpty()) {
+            metadata.put("denied_shapes", view.deniedShapes().stream().map(Enum::name).toList());
         }
         recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
@@ -413,7 +425,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "404", description = "Datasource or group not found")
     @ApiResponse(responseCode = "409", description = "Permission already exists for this group")
     @ApiResponse(responseCode = "422",
-            description = "denied_columns is not supported by the datasource engine")
+            description = "denied_columns or denied_shapes is not supported by the datasource "
+                    + "engine")
     ResponseEntity<GroupPermissionResponse> grantGroupPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreateGroupPermissionRequest request,
@@ -431,6 +444,7 @@ class DatasourceController {
                 request.allowedTables(),
                 request.restrictedColumns(),
                 request.deniedColumns(), request.deniedSchemas(), request.deniedTables(),
+                request.deniedShapes(),
                 request.expiresAt());
         var view = datasourceAdminService.grantGroupPermission(id, caller.organizationId(),
                 caller.userId(), command);
@@ -449,6 +463,9 @@ class DatasourceController {
         }
         if (view.deniedTables() != null && !view.deniedTables().isEmpty()) {
             metadata.put("denied_tables", view.deniedTables());
+        }
+        if (view.deniedShapes() != null && !view.deniedShapes().isEmpty()) {
+            metadata.put("denied_shapes", view.deniedShapes().stream().map(Enum::name).toList());
         }
         recordAudit(AuditAction.PERMISSION_GROUP_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
@@ -578,5 +595,20 @@ class DatasourceController {
             log.error("Audit write failed for {} on {} {}", action, resourceType.dbValue(),
                     resourceId, ex);
         }
+    }
+
+    /**
+     * A body that will not deserialize — most often an unknown {@code db_type} or
+     * {@code denied_shapes} literal — is a client error. Nothing maps the parse failure globally, so
+     * without this the security module's {@code Exception} catch-all turns it into a 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
+        var detail = messageSource.getMessage("error.datasource_body_unreadable", null,
+                LocaleContextHolder.getLocale());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setProperty("error", "VALIDATION_ERROR");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return problem;
     }
 }

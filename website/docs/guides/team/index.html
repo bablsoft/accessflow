@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-24",
+      "dateModified": "2026-09-25",
       "url": "https://accessflow.io/docs/guides/team/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/team/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Invite your team and assign roles.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -437,15 +437,21 @@
             <li><strong>Restricted columns</strong> — masked in this person's results.</li>
             <li><strong>Denied columns</strong> — stricter than restricted: a query that touches one
               at all, including through <code>SELECT *</code>, is refused before it runs. Relational
-              datasources only. Administrators are not bound by it, and it holds only while every
-              grant this person has on the datasource denies the column.</li>
+              datasources only. Administrators are not bound by it, and a column denied by any of
+              this person's grants stays denied.</li>
+            <li><strong>Denied query shapes</strong> — refuse queries written a certain way, such as
+              joins, subqueries, <code>GROUP BY</code> or aggregate functions like <code>COUNT</code>,
+              wherever they appear in the query. Deny them all and only single-table
+              queries remain; it does not stop writes, so leave <em>can write</em> off for a
+              read-only grant. Relational datasources only.</li>
             <li><strong>Expires at</strong> — optional, and the single most useful field on the
               form. Access that removes itself is access nobody has to remember to remove.</li>
           </ul>
           <p>
             Where someone has both a direct grant and one through a group, the effective result is
             the most permissive combination of the two, with two exceptions: the row limit, where
-            the smallest override wins, and denied schemas and tables, which add up across grants.
+            the smallest override wins, and anything denied — schemas, tables, columns and query shapes —
+            which adds up across grants.
           </p>
           <div class="docs-callout warn">
             <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>

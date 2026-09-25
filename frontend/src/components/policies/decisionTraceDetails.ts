@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
   MaskingStrategy,
+  QueryShape,
   QueryStatus,
   QueryType,
   RiskLevel,
@@ -10,10 +11,12 @@ import type {
 import { fmtDate } from '@/utils/dateFormat';
 import {
   MASKING_STRATEGIES,
+  QUERY_SHAPES,
   QUERY_TYPES,
   RISK_LEVELS,
   ROUTING_ACTIONS,
   maskingStrategyLabel,
+  queryShapeLabel,
   queryStatusLabel,
   queryTypeLabel,
   riskLevelLabel,
@@ -55,6 +58,7 @@ export const KNOWN_DETAIL_KEYS = [
   'contributing_grants',
   'current',
   'db_type',
+  'denied_shapes',
   'denied_tables',
   'effective_min_approvals',
   'engine_id',
@@ -84,6 +88,7 @@ export const KNOWN_DETAIL_KEYS = [
   'protocol',
   'provider',
   'query_admin_short_circuit',
+  'query_shapes',
   'query_type',
   'quota_type',
   'reason_text',
@@ -108,6 +113,7 @@ export const KNOWN_DETAIL_KEYS = [
   'scan_type',
   'scheduled_for',
   'scope',
+  'shapes_analyzed',
   'sql_review_suppressed',
   'status',
   'submitter_excluded',
@@ -221,6 +227,9 @@ function maskLine(mask: Record<string, unknown>, t: TFunction): string | null {
 function listValue(key: string, items: unknown[], t: TFunction): string[] {
   if (items.length === 0) return [t('decisionTrace.none')];
   return items.map((item) => {
+    if ((key === 'query_shapes' || key === 'denied_shapes') && includes<QueryShape>(QUERY_SHAPES, item)) {
+      return queryShapeLabel(t, item);
+    }
     if (!isRecord(item)) return scalar(item, t);
     switch (key) {
       case 'contributing_grants':

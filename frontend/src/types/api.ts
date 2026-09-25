@@ -62,6 +62,16 @@ export type RoutingAction =
   | 'REQUIRE_APPROVALS'
   | 'ESCALATE';
 export type ComparisonOperator = 'LT' | 'LTE' | 'GT' | 'GTE' | 'EQ';
+/** Structural feature of a parsed SQL statement (#940). */
+export type QueryShape =
+  | 'JOIN'
+  | 'UNION'
+  | 'SUBQUERY'
+  | 'CTE'
+  | 'GROUP_BY'
+  | 'HAVING'
+  | 'AGGREGATE'
+  | 'WINDOW_FUNCTION';
 /** Leaf condition operands the guided routing-policy builder exposes. */
 export type RoutingConditionOperand =
   | 'query_type'
@@ -74,6 +84,7 @@ export type RoutingConditionOperand =
   | 'day_of_week'
   | 'has_where'
   | 'has_limit'
+  | 'query_shape'
   | 'transactional'
   | 'source_ip'
   | 'user_agent'
@@ -843,6 +854,7 @@ export interface CreatePermissionInput {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at?: string | null;
 }
 
@@ -859,6 +871,7 @@ export interface CreateGroupPermissionInput {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at?: string | null;
 }
 
@@ -1522,6 +1535,7 @@ export type RoutingCondition =
   | { type: 'day_of_week'; any_of: Weekday[] }
   | { type: 'has_where'; expected: boolean }
   | { type: 'has_limit'; expected: boolean }
+  | { type: 'query_shape'; any_of: QueryShape[] }
   | { type: 'transactional'; expected: boolean }
   | { type: 'source_ip'; cidrs: string[] }
   | { type: 'user_agent'; patterns: string[] }
@@ -1976,6 +1990,7 @@ export interface DatasourcePermission {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
@@ -1998,6 +2013,7 @@ export interface DatasourceGroupPermission {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;

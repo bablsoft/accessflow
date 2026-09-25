@@ -313,6 +313,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `denied_columns` | TEXT[] nullable (#935, Flyway V186) — `table.column` / `schema.table.column` entries, stored normalised (unquoted, lowercase). A query that references one (including through `*`, `t.*` or a column-list-less `INSERT` on its table) is rejected with 403 before it is persisted. Relational engines only: a non-empty list is refused at grant time for an engine-managed datasource. Deny beats mask when a column is in both lists. Null/empty means nothing denied. |
 | `denied_schemas` | TEXT[] nullable (#939, Flyway V190) — schemas the grantee may not touch, stored normalised (unquoted, lowercase). A reference qualified with a denied schema (as any non-final segment) is rejected with 403, and so is **every unqualified reference** while any schema is denied, because the gate cannot know which schema the database resolves it to — grantees must schema-qualify table names. A denial always beats `allowed_schemas` / `allowed_tables`. Null/empty means nothing denied. |
 | `denied_tables` | TEXT[] nullable (#939, Flyway V190) — `table` or `schema.table` entries, stored normalised. An entry denies a reference when either name is a dot-aligned suffix of the other: bare `salary` denies `salary` in every schema; `crm.salary` denies `crm.salary`, `db.crm.salary` and an unqualified `salary`. Evaluated after the allow-list, so `allowed_schemas=[crm]` + `denied_tables=[crm.salary]` means "all of `crm` except `crm.salary`", including tables created later. Null/empty means nothing denied. |
+| `denied_shapes` | TEXT[] nullable (#940, Flyway V191) — query shapes the grantee may not use, stored as `QueryShape` names in declaration order: `JOIN`, `UNION` (every set operation — `UNION` / `INTERSECT` / `EXCEPT` / `MINUS`), `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE` (the standard aggregate set by name, plus any ordered-set `WITHIN GROUP` or `FILTER`ed call — user-defined aggregates are not detected) and `WINDOW_FUNCTION`. The shape is detected from the JSqlParser AST anywhere in the statement — subqueries, CTE bodies, `INSERT … SELECT` and every statement of a `BEGIN … COMMIT` batch — and a query with a denied shape is rejected with 403 before it is persisted. **Fails closed**: a statement whose shape could not be analysed has every denied shape. Relational engines only: a non-empty list is refused at grant time (422 `DENIED_SHAPES_NOT_SUPPORTED`) for an engine-managed datasource. Null/empty means nothing denied. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
 | `access_grant_request_id` | UUID nullable, FK → `access_grant_request` `ON DELETE SET NULL` (#969, Flyway V169) — the JIT request this row materialises; null on an admin-created row. Read by the effective-access report (#859) to label a source `JIT_GRANT`. Partial index on `(access_grant_request_id) WHERE access_grant_request_id IS NOT NULL`. Backfilled once by V169 from `access_grant_request.granted_permission_id` (datasource requests only) |
 | `created_by` | FK → `users` |
@@ -330,8 +331,8 @@ grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupServi
 allow-lists unioned; `restricted_columns` intersected so a column is masked only when every
 contributing grant masks it; each grant's `expires_at` honoured independently). Two deliberate inversions:
 `row_limit_override` merges to the **smallest** non-null value so a wide group grant can never
-raise a tight per-user cap (#933), and the deny-lists — `denied_schemas` / `denied_tables` (#939) and
-`denied_columns` (#1099) — merge to their **union**, so a permissive grant can never lift another
+raise a tight per-user cap (#933), and the deny-lists — `denied_schemas` / `denied_tables` (#939),
+`denied_columns` (#1099) and `denied_shapes` (#940) — merge to their **union**, so a permissive grant can never lift another
 grant's denial and a group grant's denial binds every member. A denial
 lives on its row, so revoking or expiring that row (including an attestation revoke) drops the denial
 and can widen the user's effective access through their remaining grants. Mirrors how groups already drive
@@ -345,7 +346,7 @@ masking-reveal and row-security.
 | `group_id` | FK → `user_groups` ON DELETE CASCADE |
 | `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false — same semantics as the per-user table |
 | `row_limit_override` | INTEGER nullable — same semantics as the per-user table; merged most-restrictive (smallest non-null wins) |
-| `allowed_schemas` / `allowed_tables` / `restricted_columns` / `denied_columns` / `denied_schemas` / `denied_tables` | TEXT[] nullable — same semantics as the per-user table (`denied_columns` added by V186, #935; `denied_schemas` / `denied_tables` by V190, #939 — merged as a union across a user's grants) |
+| `allowed_schemas` / `allowed_tables` / `restricted_columns` / `denied_columns` / `denied_schemas` / `denied_tables` / `denied_shapes` | TEXT[] nullable — same semantics as the per-user table (`denied_columns` added by V186, #935; `denied_schemas` / `denied_tables` by V190, #939; `denied_shapes` by V191, #940 — deny-lists merge as a union across a user's grants) |
 | `expires_at` | TIMESTAMPTZ nullable — honoured per grant (an expired grant contributes nothing) |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |
@@ -819,6 +820,7 @@ The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no exte
 | `day_of_week` | `any_of: [DayOfWeek]` | the submission day is in the set |
 | `has_where` | `expected: bool` | presence of a WHERE clause equals `expected` |
 | `has_limit` | `expected: bool` | presence of a LIMIT clause equals `expected` |
+| `query_shape` (#940) | `any_of: [QueryShape]` | the query has **any** of the listed shapes — `JOIN`, `UNION` (any set operation), `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`, `AGGREGATE`, `WINDOW_FUNCTION` — anywhere in the statement, unioned across a `BEGIN…COMMIT` batch (the same detection as a grant's `denied_shapes`). Re-derived from the SQL text at routing time like `has_where`, so nothing is persisted on the query. `any_of` must be non-empty (422). **Fails closed**: false when the shape could not be analysed — routing re-parses the stored SQL with JSqlParser for every engine, so this is a statement JSqlParser cannot parse (any MongoDB / Redis command, a warehouse-specific construct) or one its walker cannot traverse |
 | `transactional` | `expected: bool` | the `BEGIN…COMMIT` transactional flag equals `expected` |
 | `source_ip` (AF-446) | `cidrs: [string]` | the submission source IP falls within any CIDR (IPv4 or IPv6). CIDR syntax is validated on create / update (422 on a malformed block). **Fails closed**: false when no source IP was captured |
 | `user_agent` (AF-446) | `patterns: [string]` | the submission user-agent matches any glob (`*` wildcard, case-insensitive). **Fails closed**: false when no user-agent was captured |

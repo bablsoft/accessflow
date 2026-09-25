@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
@@ -43,6 +44,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -215,6 +217,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("transactional", parsed.transactional());
         details.put("has_where_clause", parsed.hasWhereClause());
         details.put("has_limit_clause", parsed.hasLimitClause());
+        details.put("query_shapes", sortedShapeNames(parsed.shapes()));
+        details.put("shapes_analyzed", parsed.shapesAnalyzed());
         if (parsed.type() == QueryType.OTHER) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.SQL_PARSE, StepOutcome.DENY,
                     "workflow.access_simulation.parse.unsupported_type", details));
@@ -223,6 +227,10 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.SQL_PARSE, StepOutcome.ALLOW,
                 "workflow.access_simulation.parse.ok", details));
         return parsed;
+    }
+
+    private static List<String> sortedShapeNames(Collection<QueryShape> shapes) {
+        return shapes.stream().sorted().map(QueryShape::name).toList();
     }
 
     // ── 4. Effective permission ───────────────────────────────────────────────
@@ -247,6 +255,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             details.put("rejected_tables", List.of());
             details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
+            details.put("denied_shapes", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
                     "workflow.access_simulation.permission.query_admin_bypass", details));
@@ -259,6 +268,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             details.put("rejected_tables", List.of());
             details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
+            details.put("denied_shapes", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.none", details));
@@ -274,6 +284,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("denied_tables", List.copyOf(deniedTables));
         var rejectedColumns = DatasourcePermissionChecker.rejectedColumns(permission, parsed);
         details.put("rejected_columns", List.copyOf(rejectedColumns));
+        var deniedShapes = DatasourcePermissionChecker.rejectedShapes(permission, parsed);
+        details.put("denied_shapes", DatasourcePermissionChecker.shapeNames(deniedShapes));
         if (!capable) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.capability_missing", details));
@@ -292,6 +304,11 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         if (!rejectedColumns.isEmpty()) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.column_denied", details));
+            return false;
+        }
+        if (!deniedShapes.isEmpty()) {
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+                    "workflow.access_simulation.permission.shape_denied", details));
             return false;
         }
         // An allow-list check over an empty table set passes vacuously — the enforcement gate has the

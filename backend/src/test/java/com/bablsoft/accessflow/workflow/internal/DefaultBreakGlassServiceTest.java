@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QuotaService;
@@ -226,7 +227,7 @@ class DefaultBreakGlassServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId, true, false, false, true,
-                        List.of(), List.of(), List.of(), List.of("customer.ssn"), List.of(), List.of(), null, null)));
+                        List.of(), List.of(), List.of(), List.of("customer.ssn"), List.of(), List.of(), List.of(), null, null)));
 
         assertThatThrownBy(() -> service.breakGlassExecute(
                 input("SELECT ssn FROM customer", false)))
@@ -245,7 +246,7 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId, true, false, false, true,
                         List.of("crm"), List.of(), List.of(), List.of(), List.of(),
-                        List.of("crm.salary"), null, null)));
+                        List.of("crm.salary"), List.of(), null, null)));
 
         assertThatThrownBy(() -> service.breakGlassExecute(
                 input("SELECT * FROM crm.salary", false)))
@@ -264,10 +265,30 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId, true, false, false, true,
                         List.of(), List.of(), List.of(), List.of(), List.of("hr"), List.of(),
+                        List.of(),
                         null, null)));
 
         assertThatThrownBy(() -> service.breakGlassExecute(
                 input("SELECT * FROM hr.payroll", false)))
+                .isInstanceOf(BreakGlassNotPermittedException.class);
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void deniesWhenTheQueryHasADeniedShape() {
+        stubDatasourceForUser(true);
+        when(queryParser.parse(eq("SELECT * FROM a JOIN b ON a.id = b.id"), any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                        List.of("SELECT * FROM a JOIN b ON a.id = b.id"), Set.of("a", "b"), false,
+                        false, Set.of(), true, Set.of(QueryShape.JOIN), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(
+                        UUID.randomUUID(), userId, datasourceId, true, false, false, true,
+                        List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                        List.of(QueryShape.JOIN), null, null)));
+
+        assertThatThrownBy(() -> service.breakGlassExecute(
+                input("SELECT * FROM a JOIN b ON a.id = b.id", false)))
                 .isInstanceOf(BreakGlassNotPermittedException.class);
         verify(queryRequestPersistenceService, never()).submit(any());
     }
@@ -363,7 +384,7 @@ class DefaultBreakGlassServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl, canBreakGlass,
-                        allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), null, expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), List.of(), null, expiresAt)));
     }
 
     private DatasourceView datasourceView(boolean active) {

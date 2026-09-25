@@ -763,6 +763,57 @@ it applies equally with no allow-list at all.
     grant the user still holds may then expose the table. Review the remaining grants before revoking one
     that carries a denial.
 
+### Query-shape deny-lists (#940)
+
+`denied_shapes` (`TEXT[]` on both permission tables, V191) refuses a query by its **structure** rather
+than its type or tables — "this analyst may read these tables, but never with a join". The values are
+the `core.api.QueryShape` names: `JOIN`, `UNION` (every set operation), `SUBQUERY`, `CTE`, `GROUP_BY`,
+`HAVING`, `AGGREGATE`, `WINDOW_FUNCTION`.
+
+- **Detection.** `proxy.internal.QueryShapeDetector` (a `TablesNamesFinder` subclass) walks the whole
+  JSqlParser AST — select list, FROM / JOIN, WHERE, GROUP BY, HAVING, ORDER BY, CTE bodies,
+  `INSERT … SELECT`, `UPDATE … FROM`, `DELETE … USING` and every nested subquery — and
+  `SqlParserServiceImpl` puts the result on `SqlParseResult.shapes`, unioned across a `BEGIN … COMMIT`
+  batch the way `hasWhereClause` is OR-ed. `JOIN` covers explicit and comma joins and the multi-table
+  `UPDATE` / `DELETE` forms. A parenthesised select that is the statement's own query — the root, a
+  set-operation branch, a CTE body, the rows of `INSERT` / `CREATE TABLE … AS` / `CREATE VIEW … AS` —
+  is not a `SUBQUERY`; `EXISTS`, `IN (SELECT …)`, `ANY` / `ALL`, scalar and derived subqueries and
+  `LATERAL` are. `WINDOW_FUNCTION` is any `OVER` clause or named `WINDOW`. `AGGREGATE` is a fixed
+  standard set matched by unqualified, case-insensitive name (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`,
+  `STRING_AGG`, `ARRAY_AGG`, `GROUP_CONCAT`, `LISTAGG`, `XMLAGG`, `COLLECT`, `JSON[B]_AGG`, the
+  `STDDEV*` / `STD` / `STDEV*` / `VAR*` family, `CORR`, `COVAR_*`, `REGR_*`, `BOOL_AND` / `BOOL_OR` /
+  `EVERY`, `BIT_*`, `CHECKSUM_AGG`, `APPROX_COUNT_DISTINCT`, `ANY_VALUE`, `MEDIAN`, `MODE`,
+  `PERCENTILE_*`) plus any `WITHIN GROUP` or `FILTER`ed call; `JSON_ARRAYAGG` / `JSON_OBJECTAGG` are
+  their own AST node (`JsonAggregateFunction`) and always count. A user-defined aggregate is **not**
+  detected and the name list is best-effort — say so when an admin relies on it. A select the walk
+  reaches that is not a statement's own query, the body of a parenthesised select or a set-operation
+  branch is a `SUBQUERY` — that is how `ARRAY(SELECT …)` / `CURSOR(SELECT …)` arguments are caught.
+  `FROM (a JOIN b …)` (a `ParenthesedFromItem` carrying the joins) and every `MERGE` are `JOIN`.
+  `DeniedShapes.rejected` checks `OTHER` statements too, since a request-group member may be one; a
+  stored name the enum no longer has makes `fromNames` deny every shape.
+- **Third state.** `SqlParseResult.shapesAnalyzed` is `true` only on the JSqlParser path when the
+  walk succeeded. Engine plugins build the result through the pre-#940 constructors and report
+  `false` (the plugins' pinned JARs stay binary-compatible — no re-pin), and a statement the detector
+  cannot walk (JSqlParser raises on e.g. `CREATE SCHEMA`) reports `false` too; parsing itself never
+  fails on it. `core.api.DeniedShapes.rejected` **fails closed**: an unanalysed parse has every denied
+  shape.
+- **Where it is enforced.** The same matcher backs every gate that checks tables: submission and the
+  recurring recheck (`DatasourcePermissionVerifier`, 403 `error.permission.shape_denied`), break-glass
+  (`DefaultBreakGlassService`), dry-run (`DefaultQueryDryRunService`), request-group members
+  (`DefaultRequestGroupService.verifyTableAndColumnScope`) and the access simulator (a `DENY` on the
+  permission step with `denied_shapes` in the details). It runs after the table and column checks, so
+  a query that also reaches a denied table reports the table.
+- **Grant time.** Relational engines only: `DatasourceAdminServiceImpl` refuses a non-empty list on an
+  engine-managed datasource with `DeniedShapesNotSupportedException` (422 `DENIED_SHAPES_NOT_SUPPORTED`),
+  like `denied_columns`. Values are stored as names in declaration order, duplicates dropped; the web
+  layer caps the list at 8 and rejects an unknown name (400).
+- **Merge.** Union across a user's grants (`DeniedShapes.union`), and a JIT approval that replaces an
+  expiring direct row carries the row's `denied_shapes` over (`AccessGrantMaterializer`). Attestation
+  snapshots include it.
+
+The softer sibling is the `query_shape` routing condition (see "Policy-as-code routing engine"),
+which escalates or rejects by shape through a policy instead of refusing at the grant.
+
 ### Group-based access grants (AF-530)
 
 `DatasourceUserPermissionLookupService.findFor(userId, datasourceId)` returns the caller's **effective**
@@ -771,8 +822,8 @@ unexpired `datasource_group_permissions` grant for a group they belong to (group
 `UserGroupMembershipRepository.findGroupIdsForUser`). Booleans OR; `allowed_schemas`/`allowed_tables`
 merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` merge to
 the **intersection** (a column is masked only when every contributing grant masks it); the deny-lists —
-`denied_schemas` / `denied_tables` (#939) and `denied_columns` (#935/#1099, compared normalised) — merge
-to their **union**, so no contributor can lift another's denial; expired grants
+`denied_schemas` / `denied_tables` (#939), `denied_columns` (#935/#1099, compared normalised) and
+`denied_shapes` (#940) — merge to their **union**, so no contributor can lift another's denial; expired grants
 contribute nothing. Because `findFor` is the single choke-point every enforcement path already reads
 through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-SQL, workflow
 submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
@@ -1112,7 +1163,7 @@ The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET 
 
 `proxy.api.QueryDryRunService` returns a **non-committing execution plan + best-effort estimated row impact** for a query — the playground/sandbox a user reaches for before formal submission (`POST /api/v1/queries/dry-run`). Like the sample path it is an **ad-hoc read that bypasses review but not governance**, creates no `query_request`, and never mutates data — every engine plans the statement (relational `EXPLAIN`, Mongo `explain`, …) but never executes it.
 
-1. **Authorization + allow-list.** `DefaultQueryDryRunService` resolves the datasource via `DatasourceAdminService.getForUser`/`getForAdmin` (org + permission-row access; 404 on miss), parses the query through `QueryParser` (`InvalidSqlException` → 422) for the `QueryType` + `referencedTables`, and — for non-ADMINs — verifies the matching capability (`can_read`/`can_write`/`can_ddl`) and that every referenced table is inside the caller's allow-list (`core.api.AllowedTables.coveringEntry`, the query gate's matcher; a miss raises Spring Security `AccessDeniedException` → 403) and outside their `denied_schemas` / `denied_tables` (#939, `core.api.DeniedTables`; 403 `error.permission.table_denied`), then that no denied column is referenced (#935).
+1. **Authorization + allow-list.** `DefaultQueryDryRunService` resolves the datasource via `DatasourceAdminService.getForUser`/`getForAdmin` (org + permission-row access; 404 on miss), parses the query through `QueryParser` (`InvalidSqlException` → 422) for the `QueryType` + `referencedTables`, and — for non-ADMINs — verifies the matching capability (`can_read`/`can_write`/`can_ddl`) and that every referenced table is inside the caller's allow-list (`core.api.AllowedTables.coveringEntry`, the query gate's matcher; a miss raises Spring Security `AccessDeniedException` → 403) and outside their `denied_schemas` / `denied_tables` (#939, `core.api.DeniedTables`; 403 `error.permission.table_denied`), then that no denied column is referenced (#935) and the query has no shape on `denied_shapes` (#940, 403 `error.permission.shape_denied`).
 2. **Directive resolution.** The caller's `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved so the plan reflects the **governed** query. Column masks are irrelevant to a plan (no rows are returned) and are omitted.
 3. **Planning.** `QueryExecutor.dryRun(QueryExecutionRequest)` applies the `RowSecurityRewriter`, acquires a connection via `RoutingDataSourceResolver` (SELECT dry-runs prefer the read replica; writes plan on the primary — e.g. Oracle writes its scratch `PLAN_TABLE` there), and:
    - **Relational** datasources: a per-`DbType` `DryRunPlanner` (`proxy/internal/dryrun/`) runs the dialect's non-executing EXPLAIN — PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE` (rows deleted in a `finally`), SQL Server `SET SHOWPLAN_ALL ON` — and maps it to a `QueryPlanNode` tree. `CUSTOM` JDBC has no planner and degrades gracefully.
@@ -1765,7 +1816,7 @@ recommendation, nothing consumes the report, and nothing revokes on its strength
 
 Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:
 
-1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, transactional flag, the pre-flight cost estimate — estimated/affected rows and root scan type, read live from `query_estimates` and fail-closed when absent (AF-624) — and the client context captured at submission — source IP / CIDR, user-agent, time-since-last-approval, CI/CD origin) via `RoutingConditionEvaluator`.
+1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, query shape (#940 — joins, set operations, subqueries, CTEs, GROUP BY, HAVING, aggregates, window functions, fail-closed when the SQL could not be walked), transactional flag, the pre-flight cost estimate — estimated/affected rows and root scan type, read live from `query_estimates` and fail-closed when absent (AF-624) — and the client context captured at submission — source IP / CIDR, user-agent, time-since-last-approval, CI/CD origin) via `RoutingConditionEvaluator`.
 2. **First match wins.** The first enabled policy whose condition matches decides the action; evaluation stops there. On **no match** the grant-covered auto-approval fast-path (#582, see the [JIT section](#grant-covered-query-auto-approval-582)) is consulted next, and only then does the query fall through to the datasource's review plan exactly as before — so **any** matching policy (AUTO_REJECT, REQUIRE_APPROVALS, ESCALATE — including anomaly-driven ones) always wins over the grant fast-path.
 3. The outcome (matched policy id, action, resolved `effective_min_approvals`, reason) is persisted as a single `routing_decision` row (`RoutingDecisionService`), and surfaced on `GET /queries/{id}` as `matched_policy`.
 
@@ -2566,7 +2617,7 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 **Grant materialisation.** On final-stage approval, `approve()` runs `AccessGrantMaterializer` inside the same transaction so approval + grant commit atomically. The materializer computes `expires_at = now + Duration.parse(requested_duration)` and branches on the resource kind: datasource requests call `core.api.DatasourceAdminService.grantPermission(...)`; connector requests call `apigov.api.ApiConnectorAdminService.grantPermission(...)` with `canRead`/`canWrite`, the request's `allowed_operations`, and **never** break-glass or response-field restrictions. The new permission id is stored on the request, and the datasource path also stamps the request id on the permission row (`datasource_user_permissions.access_grant_request_id`, V169 — FK `ON DELETE SET NULL`, backfilled once from `granted_permission_id`; #969), which is what the effective-access report (#859) reads to label a source `JIT_GRANT` instead of correlating on `(requester, datasource)`.
 
-**Pre-existing-permission policy.** If the requester already holds a **direct** permission on the resource (group grants are never considered or touched): a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409; the datasource path uses `core.api.DatasourceUserPermissionLookupService.findDirectFor`, the connector path `apigov.api.ApiConnectorPermissionLookupService.findDirectFor`). Any other **time-boxed** direct permission — a JIT grant or an admin-created row with an `expires_at` alike — is replaced so the new grant's capabilities/expiry take effect (extend/widen) — revoke-then-grant on the datasource path, where the replaced row's `denied_columns` / `denied_schemas` / `denied_tables` carry over onto the new grant so a JIT approval never lifts a denial (#939), the `(connector_id, user_id)` upsert of `grantPermission` on the connector path. This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
+**Pre-existing-permission policy.** If the requester already holds a **direct** permission on the resource (group grants are never considered or touched): a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409; the datasource path uses `core.api.DatasourceUserPermissionLookupService.findDirectFor`, the connector path `apigov.api.ApiConnectorPermissionLookupService.findDirectFor`). Any other **time-boxed** direct permission — a JIT grant or an admin-created row with an `expires_at` alike — is replaced so the new grant's capabilities/expiry take effect (extend/widen) — revoke-then-grant on the datasource path, where the replaced row's `denied_columns` / `denied_schemas` / `denied_tables` / `denied_shapes` carry over onto the new grant so a JIT approval never lifts a denial (#939), the `(connector_id, user_id)` upsert of `grantPermission` on the connector path. This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
 
 **Expiry & revoke.** `AccessGrantExpiryJob` (see "Scheduled jobs" above) revokes grants past `expires_at` → `EXPIRED`. An admin may early-revoke an active grant (`POST /admin/access-requests/{id}/revoke`) → `REVOKED`. Both paths revoke the materialised permission — deleting the `datasource_user_permissions` or `api_connector_user_permissions` row by kind (tolerating an already-deleted row) — and publish events consumed by the notifications + realtime modules. Effective-permission resolution needs no special handling: `EffectiveApiConnectorPermissionResolver` already excludes rows past `expires_at`, so a connector JIT grant stops resolving the moment it expires even before the job deletes it.
 

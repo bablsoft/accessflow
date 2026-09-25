@@ -110,6 +110,7 @@ class DefaultGrantUsageAggregationServiceTest {
         when(datasourceAdminService.listPermissions(DATASOURCE, ORG)).thenReturn(List.of(
                 new DatasourcePermissionView(PERMISSION, DATASOURCE, USER, "dev@example.test",
                         "Dev", true, false, false, false, null, List.of(), allowedTables, List.of(), null, List.of(), List.of(),
+                        List.of(),
                         null, UUID.randomUUID(), grantedAt)));
     }
 

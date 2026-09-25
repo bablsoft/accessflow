@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.ColumnReference;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +53,7 @@ class DatasourcePermissionVerifierTest {
                                                     List<String> allowedTables,
                                                     Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                canRead, canWrite, false, false, null, allowedTables, null, null, List.of(), List.of(), null, expiresAt);
+                canRead, canWrite, false, false, null, allowedTables, null, null, List.of(), List.of(), List.of(), null, expiresAt);
     }
 
     @Test
@@ -257,17 +258,71 @@ class DatasourcePermissionVerifierTest {
                 .hasMessage("TABLE_NOT_ALLOWED_MARKER");
     }
 
+    @Test
+    void verifyRejectsAQueryWithADeniedShape() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingShapes(List.of(QueryShape.JOIN, QueryShape.CTE))));
+        when(messageSource.getMessage(eq("error.permission.shape_denied"), any(), any(Locale.class)))
+                .thenAnswer(inv -> "SHAPE_DENIED " + ((Object[]) inv.getArgument(1))[0]);
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                shaped(Set.of(QueryShape.CTE, QueryShape.JOIN, QueryShape.AGGREGATE), true)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("SHAPE_DENIED JOIN, CTE");
+    }
+
+    @Test
+    void verifyLetsAQueryWithoutADeniedShapeThrough() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingShapes(List.of(QueryShape.JOIN))));
+
+        assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                shaped(Set.of(QueryShape.AGGREGATE), true)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void verifyFailsClosedWhenTheShapeWasNotAnalyzed() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingShapes(List.of(QueryShape.JOIN))));
+
+        assertThatThrownBy(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                shaped(Set.of(), false)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void anUnanalyzedShapeIsIrrelevantWithoutADenyList() {
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(denyingShapes(List.of())));
+
+        assertThatCode(() -> verifier.verify(userId, datasourceId, QueryType.SELECT,
+                shaped(Set.of(), false)))
+                .doesNotThrowAnyException();
+    }
+
+    private DatasourceUserPermissionView denyingShapes(List<QueryShape> deniedShapes) {
+        return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
+                true, false, false, false, null, null, null, null, List.of(), List.of(),
+                deniedShapes, null, null);
+    }
+
+    private static SqlParseResult shaped(Set<QueryShape> shapes, boolean analyzed) {
+        return new SqlParseResult(QueryType.SELECT, false, List.of("sql"), Set.of("public.users"),
+                false, false, Set.of(), true, shapes, analyzed);
+    }
+
     private DatasourceUserPermissionView denyingTables(List<String> allowedSchemas,
                                                        List<String> deniedSchemas,
                                                        List<String> deniedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
                 true, false, false, false, allowedSchemas, null, null, null, deniedSchemas,
-                deniedTables, null, null);
+                deniedTables, List.of(), null, null);
     }
 
     private DatasourceUserPermissionView denying(List<String> deniedColumns) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, false, null, null, null, deniedColumns, List.of(), List.of(), null, null);
+                true, false, false, false, null, null, null, deniedColumns, List.of(), List.of(), List.of(), null, null);
     }
 
     private static SqlParseResult parsed(Set<String> tables) {

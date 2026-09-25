@@ -5,7 +5,9 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedShapes;
 import com.bablsoft.accessflow.core.api.DeniedTables;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository;
@@ -175,7 +177,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
      * allow-lists union (null wins = all allowed); restricted-columns intersect (empty wins =
      * nothing masked); expiry is the latest among contributors (null wins = never expires). The
      * row limit is the inversion: the smallest non-null override wins (#933). Deny-lists — denied
-     * schemas, tables (#939) and columns (#1099) — are the other inversion: they union, so no
+     * schemas, tables (#939), columns (#1099) and query shapes (#940) — are the other inversion: they union, so no
      * contributing grant can lift another's denial.
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
@@ -211,6 +213,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 unionDeniedColumns(parts),
                 unionDenied(parts, DatasourcePermissionContribution::deniedSchemas),
                 unionDenied(parts, DatasourcePermissionContribution::deniedTables),
+                unionDeniedShapes(parts),
                 minRowLimit(parts),
                 anyNeverExpires ? null : expiresAt);
     }
@@ -228,6 +231,15 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
             union.addAll(DeniedTables.normalize(field.apply(p)));
         }
         return List.copyOf(union);
+    }
+
+    /** Like {@link #unionDenied}: a query shape stays denied when any contribution denies it (#940). */
+    private static List<QueryShape> unionDeniedShapes(List<DatasourcePermissionContribution> parts) {
+        List<QueryShape> denied = List.of();
+        for (var p : parts) {
+            denied = DeniedShapes.union(denied, p.deniedShapes());
+        }
+        return denied;
     }
 
     /** Most restrictive non-null override; {@code null} when no contribution sets one. */
@@ -304,6 +316,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 DeniedColumns.normalize(toList(entity.getDeniedColumns())),
                 DeniedTables.normalize(toList(entity.getDeniedSchemas())),
                 DeniedTables.normalize(toList(entity.getDeniedTables())),
+                DeniedShapes.fromNames(toList(entity.getDeniedShapes())),
                 entity.getRowLimitOverride(),
                 entity.getExpiresAt());
     }
@@ -316,6 +329,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
+                DeniedShapes.fromNames(toList(e.getDeniedShapes())),
                 e.getRowLimitOverride(), e.getExpiresAt(), e.getAccessGrantRequestId());
     }
 
@@ -327,6 +341,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.isCanBreakGlass(), toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
+                DeniedShapes.fromNames(toList(e.getDeniedShapes())),
                 e.getRowLimitOverride(), e.getExpiresAt(), null);
     }
 

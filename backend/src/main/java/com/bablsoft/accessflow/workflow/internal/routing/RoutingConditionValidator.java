@@ -31,6 +31,10 @@ public class RoutingConditionValidator {
             case ConditionNode.Or or -> or.children().forEach(this::validate);
             case ConditionNode.Not not -> validate(not.child());
             case ConditionNode.SourceIpMatches sourceIp -> validateCidrs(sourceIp);
+            case ConditionNode.QueryShapeIn shape when shape.anyOf().isEmpty() ->
+                    throw new IllegalRoutingPolicyException(messageSource.getMessage(
+                            "error.routing_policy_query_shape_empty", null,
+                            LocaleContextHolder.getLocale()));
             default -> { /* no additional validation for other leaves */ }
         }
     }

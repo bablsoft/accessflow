@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-24",
+      "dateModified": "2026-09-25",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -576,8 +576,9 @@
             access a given database — it controls <em>read</em> / <em>write</em> / <em>DDL</em> per
             datasource, row caps, allowed schemas / tables, denied schemas / tables (everything
             except these — a denial always beats the allowed list), restricted columns (which are masked
-            as <code>***</code> in <code>SELECT</code> results), and denied columns (a query that
-            references one is refused before it runs). See
+            as <code>***</code> in <code>SELECT</code> results), denied columns (a query that
+            references one is refused before it runs), and denied query shapes (for example no joins
+            or aggregate functions). See
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
             for the full authorization matrix.
           </p>
@@ -590,7 +591,7 @@
             union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
             only where every grant restricts them, and each grant's expiry is honoured independently. Two
             things work the other way. The row limit override: the smallest one wins, and it can only lower the
-            datasource's cap, never raise it. And denied schemas, tables and columns add up: anything denied by
+            datasource's cap, never raise it. And denied schemas, tables, columns and query shapes add up: anything denied by
             any one grant stays denied, so a wider group grant can never undo a denial, and a group's denial
             applies to every member. The flip side: revoking or expiring the grant that carries a denial removes it,
             and the user's other grants may then reach the table.

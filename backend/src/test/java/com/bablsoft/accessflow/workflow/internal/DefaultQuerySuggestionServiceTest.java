@@ -164,7 +164,7 @@ class DefaultQuerySuggestionServiceTest {
         when(permissionLookupService.findFor(eq(USER), eq(DATASOURCE)))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), USER,
                         DATASOURCE, true, false, false, false, List.of(), List.of(), List.of(),
-                        null, List.of("hr"), List.of("crm.salary"), null, null)));
+                        null, List.of("hr"), List.of("crm.salary"), List.of(), null, null)));
 
         var railed = service.findForViewer(DATASOURCE, ORG, USER, false, 10);
 
@@ -291,6 +291,6 @@ class DefaultQuerySuggestionServiceTest {
                                                            boolean ddl, List<String> schemas,
                                                            List<String> tables, Instant expiresAt) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), USER, DATASOURCE, read, write,
-                ddl, false, schemas, tables, List.of(), null, List.of(), List.of(), null, expiresAt);
+                ddl, false, schemas, tables, List.of(), null, List.of(), List.of(), List.of(), null, expiresAt);
     }
 }

@@ -69,6 +69,7 @@ class AccessGrantMaterializer {
                 replaced.map(DatasourceUserPermissionView::deniedColumns).orElse(null),
                 replaced.map(DatasourceUserPermissionView::deniedSchemas).orElse(null),
                 replaced.map(DatasourceUserPermissionView::deniedTables).orElse(null),
+                replaced.map(DatasourceUserPermissionView::deniedShapes).orElse(null),
                 expiresAt,
                 entity.getId());
         var granted = datasourceAdminService.grantPermission(entity.getDatasourceId(),

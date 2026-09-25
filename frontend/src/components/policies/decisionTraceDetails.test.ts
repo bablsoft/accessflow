@@ -39,6 +39,16 @@ describe('formatStepDetails', () => {
     expect(rows[3]?.label).toBe('Extra thing');
   });
 
+  it('labels query shapes and denied shapes, and passes an unknown shape through', () => {
+    const rows = formatStepDetails(
+      { query_shapes: ['JOIN', 'GROUP_BY'], shapes_analyzed: true, denied_shapes: ['JOIN', 'MYSTERY'] },
+      t,
+    );
+    expect(rows[0]?.value).toEqual(['Join', 'GROUP BY']);
+    expect(rows[1]?.value).toBe('Yes');
+    expect(rows[2]?.value).toEqual(['Join', 'MYSTERY']);
+  });
+
   it('renders the EFFECTIVE_PERMISSION contributing grants, one line each', () => {
     const rows = formatStepDetails(
       {

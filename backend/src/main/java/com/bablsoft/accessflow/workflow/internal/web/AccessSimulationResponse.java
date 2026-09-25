@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SimulationCaveat;
@@ -66,7 +67,8 @@ record AccessSimulationResponse(List<Step> steps, QueryStatus resultingStatus,
                             boolean hasLimitClause, boolean transactional,
                             String requesterIpAddress, String requesterUserAgent,
                             boolean ciCdOrigin, Integer minutesSinceLastApproval,
-                            boolean anomalyActive, Long estimatedRows, String scanType) {
+                            boolean anomalyActive, Long estimatedRows, String scanType,
+                            List<QueryShape> queryShapes, boolean shapesAnalyzed) {
 
         static EvaluatedContext from(ConditionContext context) {
             if (context == null) {
@@ -79,7 +81,8 @@ record AccessSimulationResponse(List<Step> steps, QueryStatus resultingStatus,
                     context.hasWhereClause(), context.hasLimitClause(), context.transactional(),
                     context.requesterIpAddress(), context.requesterUserAgent(),
                     context.ciCdOrigin(), context.minutesSinceLastApproval(),
-                    context.anomalyActive(), context.estimatedRows(), context.scanType());
+                    context.anomalyActive(), context.estimatedRows(), context.scanType(),
+                    context.queryShapes().stream().sorted().toList(), context.shapesAnalyzed());
         }
     }
 }

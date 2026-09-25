@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -93,13 +95,26 @@ class DatasourcePermissionCheckerTest {
     private DatasourceUserPermissionView perm(boolean canRead, boolean canWrite, boolean canDdl) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), canRead, canWrite, canDdl, false,
-                List.of(), List.of(), List.of(), null, List.of(), List.of(), null, null);
+                List.of(), List.of(), List.of(), null, List.of(), List.of(), List.of(), null, null);
     }
 
     private DatasourceUserPermissionView perm(List<String> allowedSchemas, List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, true, true, true,
-                allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), null, null);
+                allowedSchemas, allowedTables, List.of(), null, List.of(), List.of(), List.of(), null, null);
+    }
+
+    @Test
+    void rejectedShapesReadsTheMergedDenyListAndShapeNamesAreOrdered() {
+        var permission = new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), true, false, false, false, List.of(), List.of(), List.of(), null,
+                List.of(), List.of(), List.of(QueryShape.SUBQUERY, QueryShape.JOIN), null, null);
+        var parsed = new SqlParseResult(QueryType.SELECT, false, List.of("sql"), Set.of(), false,
+                false, Set.of(), true, Set.of(QueryShape.SUBQUERY, QueryShape.JOIN, QueryShape.CTE), true);
+
+        var rejected = DatasourcePermissionChecker.rejectedShapes(permission, parsed);
+
+        assertThat(DatasourcePermissionChecker.shapeNames(rejected)).containsExactly("JOIN", "SUBQUERY");
     }
 
     @Test
@@ -144,7 +159,7 @@ class DatasourcePermissionCheckerTest {
         var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                 java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
                 java.util.UUID.randomUUID(), true, false, false, false, null, null, null,
-                List.of("users.ssn"), List.of(), List.of(), null, null);
+                List.of("users.ssn"), List.of(), List.of(), List.of(), null, null);
         var parsed = new com.bablsoft.accessflow.core.api.SqlParseResult(
                 com.bablsoft.accessflow.core.api.QueryType.SELECT, false, List.of("sql"),
                 Set.of("users"), false, false, Set.of(
@@ -218,6 +233,6 @@ class DatasourcePermissionCheckerTest {
                                                  List<String> deniedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, true, true, false, allowedSchemas, allowedTables,
-                List.of(), null, deniedSchemas, deniedTables, null, null);
+                List.of(), null, deniedSchemas, deniedTables, List.of(), null, null);
     }
 }

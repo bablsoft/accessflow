@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 
@@ -17,7 +18,7 @@ import java.util.UUID;
  *
  * <p>Combinators ({@link And}, {@link Or}, {@link Not}) compose leaf comparators, one per signal:
  * query type, referenced tables (glob), AI risk level / score, requester role / group membership,
- * time-of-day / day-of-week, presence of WHERE / LIMIT, the transactional flag, and the client
+ * time-of-day / day-of-week, presence of WHERE / LIMIT, query shape, the transactional flag, and the client
  * context captured at submission — source IP (CIDR), user-agent (glob), time-since-last-approval,
  * and CI/CD origin. The client-context leaves <strong>fail closed</strong>: when the required
  * signal is absent (no IP / user-agent / prior approval) the leaf evaluates to {@code false}, so a
@@ -128,6 +129,17 @@ public sealed interface ConditionNode {
 
     /** Matches when presence of a LIMIT clause equals {@code expected}. */
     record HasLimitClause(boolean expected) implements ConditionNode {
+    }
+
+    /**
+     * Matches when the query has any of the {@code anyOf} structural shapes (#940) — a join, set
+     * operation, subquery, CTE, GROUP BY, HAVING, aggregate or window function anywhere in the
+     * statement. <strong>Fails closed</strong>: {@code false} when the shape could not be analyzed.
+     */
+    record QueryShapeIn(Set<QueryShape> anyOf) implements ConditionNode {
+        public QueryShapeIn {
+            anyOf = Set.copyOf(anyOf == null ? Set.of() : anyOf);
+        }
     }
 
     /** Matches when the transactional ({@code BEGIN…COMMIT}) flag equals {@code expected}. */
