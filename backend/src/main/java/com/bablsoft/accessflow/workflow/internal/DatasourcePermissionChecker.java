@@ -3,7 +3,9 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.AllowedTables;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedShapes;
 import com.bablsoft.accessflow.core.api.DeniedTables;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
@@ -96,6 +98,20 @@ final class DatasourcePermissionChecker {
     static Set<String> rejectedColumns(DatasourceUserPermissionView permission,
                                        SqlParseResult parsed) {
         return DeniedColumns.rejected(permission.deniedColumns(), parsed);
+    }
+
+    /**
+     * @return the permission's {@code denied_shapes} the parsed query has (#940), in declaration
+     *         order; empty when it has none. Fails closed over a parse whose shape was not analyzed.
+     */
+    static Set<QueryShape> rejectedShapes(DatasourceUserPermissionView permission,
+                                          SqlParseResult parsed) {
+        return DeniedShapes.rejected(permission.deniedShapes(), parsed);
+    }
+
+    /** The shape names for a message or trace detail, in declaration order. */
+    static List<String> shapeNames(Set<QueryShape> shapes) {
+        return shapes.stream().sorted().map(QueryShape::name).toList();
     }
 
     /**

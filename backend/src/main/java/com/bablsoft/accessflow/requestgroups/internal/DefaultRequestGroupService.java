@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedShapes;
 import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
@@ -307,7 +308,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
 
     /**
      * A member may not reach a table outside its submitter's allow-list, a table or schema they
-     * are denied (#939), nor a column they are denied (#935) — break-glass included, as for a
+     * are denied (#939), a column they are denied (#935), nor a query shape they are denied (#940) — break-glass included, as for a
      * standalone break-glass query. The allow-list rule is
      * {@code DatasourcePermissionChecker.rejectedTables}: both lists empty means no restriction,
      * and a bare entry covers only an unqualified reference.
@@ -320,7 +321,8 @@ public class DefaultRequestGroupService implements RequestGroupService {
         var tablesDenied = !DeniedTables.normalize(permission.deniedSchemas()).isEmpty()
                 || !DeniedTables.normalize(permission.deniedTables()).isEmpty();
         var columnsDenied = !DeniedColumns.normalize(permission.deniedColumns()).isEmpty();
-        if (!restrictsTables && !tablesDenied && !columnsDenied) {
+        var shapesDenied = !DeniedShapes.normalize(permission.deniedShapes()).isEmpty();
+        if (!restrictsTables && !tablesDenied && !columnsDenied && !shapesDenied) {
             return;
         }
         var parsed = parseQuery(item.getDatasourceId(), item.getSqlText());
@@ -347,6 +349,11 @@ public class DefaultRequestGroupService implements RequestGroupService {
         if (!rejected.isEmpty()) {
             throw new RequestGroupPermissionException(
                     "Denied columns referenced: " + String.join(", ", rejected));
+        }
+        var rejectedShapes = DeniedShapes.rejected(permission.deniedShapes(), parsed);
+        if (!rejectedShapes.isEmpty()) {
+            throw new RequestGroupPermissionException("Denied query shapes: "
+                    + String.join(", ", rejectedShapes.stream().map(Enum::name).toList()));
         }
     }
 

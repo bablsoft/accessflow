@@ -30,6 +30,25 @@ public final class DeniedShapes {
         return List.copyOf(out);
     }
 
+    /** Reads stored shape names (the {@code denied_shapes} TEXT[] column) back into shapes. */
+    public static List<QueryShape> fromNames(Collection<String> names) {
+        if (names == null || names.isEmpty()) {
+            return List.of();
+        }
+        var out = EnumSet.noneOf(QueryShape.class);
+        for (String name : names) {
+            out.add(QueryShape.valueOf(name));
+        }
+        return List.copyOf(out);
+    }
+
+    /** The shape names to store, in declaration order; {@code null} when nothing is denied. */
+    public static String[] toNames(Collection<QueryShape> shapes) {
+        var normalized = normalize(shapes);
+        return normalized.isEmpty() ? null
+                : normalized.stream().map(QueryShape::name).toArray(String[]::new);
+    }
+
     /** Union of two deny-lists: a denial from either side survives. */
     public static List<QueryShape> union(Collection<QueryShape> left, Collection<QueryShape> right) {
         var out = EnumSet.noneOf(QueryShape.class);

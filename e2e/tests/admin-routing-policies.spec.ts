@@ -18,6 +18,7 @@ const UNIQUE_SUFFIX = `af379-${Date.now()}`;
 const BUILDER_POLICY_NAME = `Builder policy ${UNIQUE_SUFFIX}`;
 const AUTO_REJECT_POLICY_NAME = `Auto-reject deletes ${UNIQUE_SUFFIX}`;
 const CICD_REJECT_POLICY_NAME = `Block CI/CD ${UNIQUE_SUFFIX}`;
+const JOIN_REJECT_POLICY_NAME = `Block joins ${UNIQUE_SUFFIX}`;
 const ROUTED_DS_NAME = `Routed DS ${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
@@ -159,5 +160,46 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
     expect(ciRes.ok()).toBeTruthy();
     const ciQuery = (await ciRes.json()) as { id: string };
     await waitForQueryStatus(request, adminAccessToken, ciQuery.id, 'REJECTED', 20_000);
+  });
+
+  // #940 — a query_shape condition matches a joined query and leaves a single-table one alone.
+  test('matches the query_shape condition on a joined query only', async ({ request }) => {
+    const policy = await createRoutingPolicyViaApi(request, adminAccessToken, {
+      name: JOIN_REJECT_POLICY_NAME,
+      priority: 3,
+      enabled: true,
+      action: 'AUTO_REJECT',
+      reason: 'joins are blocked',
+      condition: { type: 'query_shape', any_of: ['JOIN'] },
+    });
+    createdPolicyIds.push(policy.id);
+
+    const joined = await submitQueryViaApi(
+      request,
+      adminAccessToken,
+      datasourceId as string,
+      'SELECT a.id FROM accounts a JOIN orders o ON o.account_id = a.id',
+      'e2e: query-shape routing',
+    );
+    await waitForQueryStatus(request, adminAccessToken, joined.id, 'REJECTED', 20_000);
+
+    const simple = await submitQueryViaApi(
+      request,
+      adminAccessToken,
+      datasourceId as string,
+      'SELECT id FROM accounts WHERE id = 1',
+      'e2e: query-shape routing',
+    );
+    await expect
+      .poll(
+        async () => {
+          const res = await request.get(`${apiBase()}/api/v1/queries/${simple.id}`, {
+            headers: { Authorization: `Bearer ${adminAccessToken}` },
+          });
+          return ((await res.json()) as { status: string }).status;
+        },
+        { timeout: 20_000 },
+      )
+      .not.toMatch(/^(PENDING_AI|REJECTED)$/);
   });
 });

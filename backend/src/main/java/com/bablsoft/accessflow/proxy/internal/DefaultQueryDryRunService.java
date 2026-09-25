@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
+import com.bablsoft.accessflow.core.api.DeniedShapes;
 import com.bablsoft.accessflow.core.api.DeniedTables;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
@@ -109,6 +110,13 @@ class DefaultQueryDryRunService implements QueryDryRunService {
                     datasourceId, permission.userId(), deniedColumns);
             throw new AccessDeniedException(msg("error.permission.column_not_allowed",
                     new Object[]{String.join(", ", deniedColumns)}));
+        }
+        var deniedShapes = DeniedShapes.rejected(permission.deniedShapes(), parsed);
+        if (!deniedShapes.isEmpty()) {
+            log.warn("Dry-run query shape rejection on datasource {} for user {}: shapes {}",
+                    datasourceId, permission.userId(), deniedShapes);
+            throw new AccessDeniedException(msg("error.permission.shape_denied",
+                    new Object[]{String.join(", ", deniedShapes.stream().map(Enum::name).toList())}));
         }
     }
 

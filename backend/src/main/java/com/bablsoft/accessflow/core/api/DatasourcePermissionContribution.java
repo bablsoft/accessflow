@@ -39,6 +39,7 @@ public record DatasourcePermissionContribution(
         List<String> deniedColumns,
         List<String> deniedSchemas,
         List<String> deniedTables,
+        List<QueryShape> deniedShapes,
         Integer rowLimitOverride,
         Instant expiresAt,
         UUID accessGrantRequestId) {
@@ -50,5 +51,6 @@ public record DatasourcePermissionContribution(
         deniedColumns = deniedColumns == null ? List.of() : List.copyOf(deniedColumns);
         deniedSchemas = deniedSchemas == null ? List.of() : List.copyOf(deniedSchemas);
         deniedTables = deniedTables == null ? List.of() : List.copyOf(deniedTables);
+        deniedShapes = deniedShapes == null ? List.of() : List.copyOf(deniedShapes);
     }
 }

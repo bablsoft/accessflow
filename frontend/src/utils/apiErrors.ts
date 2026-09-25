@@ -252,6 +252,7 @@ export function datasourceGrantErrorMessage(err: unknown): string {
     }
     // The server's localized detail names the engine (#935); the title is a bare "422".
     if (code === 'DENIED_COLUMNS_NOT_SUPPORTED' && body?.detail) return body.detail;
+    if (code === 'DENIED_SHAPES_NOT_SUPPORTED' && body?.detail) return body.detail;
     if (body?.title) return body.title;
     if (body?.detail) return body.detail;
     if (ax.message) return ax.message;

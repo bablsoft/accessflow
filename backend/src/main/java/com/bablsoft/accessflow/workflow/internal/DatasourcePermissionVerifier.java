@@ -39,7 +39,8 @@ class DatasourcePermissionVerifier {
     /**
      * @throws AccessDeniedException when the user has no active permission on the datasource, the
      *         permission is expired, lacks the capability for {@code queryType}, any referenced
-     *         table falls outside the allow-list or is denied, or any referenced column is denied.
+     *         table falls outside the allow-list or is denied, any referenced column is denied, or
+     *         the query has a denied shape.
      */
     void verify(UUID userId, UUID datasourceId, QueryType queryType, SqlParseResult parsed) {
         var permission = permissionLookupService.findFor(userId, datasourceId)
@@ -55,6 +56,18 @@ class DatasourcePermissionVerifier {
         verifyAllowedTables(permission, datasourceId, parsed.referencedTables());
         verifyDeniedTables(permission, datasourceId, parsed.referencedTables());
         verifyDeniedColumns(permission, datasourceId, parsed);
+        verifyDeniedShapes(permission, datasourceId, parsed);
+    }
+
+    private void verifyDeniedShapes(DatasourceUserPermissionView permission, UUID datasourceId,
+                                    SqlParseResult parsed) {
+        var rejected = DatasourcePermissionChecker.rejectedShapes(permission, parsed);
+        if (!rejected.isEmpty()) {
+            log.warn("Query shape rejection on datasource {} for user {}: shapes {} denied",
+                    datasourceId, permission.userId(), rejected);
+            throw new AccessDeniedException(msg("error.permission.shape_denied",
+                    new Object[]{String.join(", ", DatasourcePermissionChecker.shapeNames(rejected))}));
+        }
     }
 
     private void verifyDeniedTables(DatasourceUserPermissionView permission, UUID datasourceId,

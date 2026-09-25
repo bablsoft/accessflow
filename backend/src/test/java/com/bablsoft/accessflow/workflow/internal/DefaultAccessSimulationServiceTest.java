@@ -377,7 +377,7 @@ class DefaultAccessSimulationServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of("public"), List.of(),
-                        List.of(), List.of(), List.of(), List.of("public.payments"), null, null)));
+                        List.of(), List.of(), List.of(), List.of("public.payments"), List.of(), null, null)));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
@@ -391,11 +391,31 @@ class DefaultAccessSimulationServiceTest {
     }
 
     @Test
+    void aDeniedQueryShapeStopsTheRequestAndNamesIt() {
+        when(queryParser.parse(any(), any())).thenReturn(
+                new SqlParseResult(QueryType.SELECT, false, List.of("SELECT 1"), Set.of("public.payments"),
+                        false, false, Set.of(), true, Set.of(QueryShape.JOIN, QueryShape.UNION), true));
+        when(permissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        List.of(), List.of(), List.of(), List.of(QueryShape.UNION, QueryShape.CTE),
+                        null, null)));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        assertThat(permission.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(permission.reasonKey())
+                .isEqualTo("workflow.access_simulation.permission.shape_denied");
+        assertThat(permission.details()).containsEntry("denied_shapes", List.of("UNION"));
+    }
+
+    @Test
     void aTableOutsideTheAllowListIsReportedBeforeADenial() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of("reporting"), List.of(),
-                        List.of(), List.of(), List.of("public"), List.of(), null, null)));
+                        List.of(), List.of(), List.of("public"), List.of(), List.of(), null, null)));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
@@ -411,7 +431,7 @@ class DefaultAccessSimulationServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of("public"), List.of(),
-                        List.of(), List.of(), List.of(), List.of("public.salary"), null, null)));
+                        List.of(), List.of(), List.of(), List.of("public.salary"), List.of(), null, null)));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
@@ -429,7 +449,7 @@ class DefaultAccessSimulationServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
-                        List.of("public.payments.card"), List.of(), List.of(), null, null)));
+                        List.of("public.payments.card"), List.of(), List.of(), List.of(), null, null)));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
@@ -767,13 +787,13 @@ class DefaultAccessSimulationServiceTest {
     private DatasourcePermissionContribution contribution() {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), "payments-oncall",
-                true, false, false, false, List.of("public"), List.of(), List.of(), null, List.of(), List.of(), null, null, null);
+                true, false, false, false, List.of("public"), List.of(), List.of(), null, List.of(), List.of(), List.of(), null, null, null);
     }
 
     private DatasourceUserPermissionView permission(boolean canRead, boolean canWrite,
                                                     boolean canDdl, List<String> allowedSchemas) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null, List.of(), List.of(), null, null);
+                canWrite, canDdl, false, allowedSchemas, List.of(), List.of(), null, List.of(), List.of(), List.of(), null, null);
     }
 
     private ReviewPlanSnapshot plan() {

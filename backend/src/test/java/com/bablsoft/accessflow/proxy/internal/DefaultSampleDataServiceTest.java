@@ -87,7 +87,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                         false, false, false, List.of(), List.of(), List.of(),
-                        List.of("users.ssn"), List.of(), List.of(), null, null)));
+                        List.of("users.ssn"), List.of(), List.of(), List.of(), null, null)));
         when(messageSource.getMessage(eq("error.permission.column_not_allowed"), any(), any()))
                 .thenReturn("column denied");
 
@@ -103,7 +103,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                         false, false, false, List.of(), List.of(), List.of(),
-                        List.of("public.orders.card"), List.of(), List.of(), null, null)));
+                        List.of("public.orders.card"), List.of(), List.of(), List.of(), null, null)));
 
         assertThat(service.sample(datasourceId, organizationId, userId, false, "public", "users",
                 10)).isSameAs(result);
@@ -286,6 +286,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
+                        List.of(),
                         5, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -300,6 +301,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
+                        List.of(),
                         500, null)));
 
         service.sample(datasourceId, organizationId, userId, false, "public", "users", 50);
@@ -314,6 +316,7 @@ class DefaultSampleDataServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
                         datasourceId, true, false, false, false, List.of(), List.of(), List.of(), null, List.of(), List.of(),
+                        List.of(),
                         20, null)));
         when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
                 java.util.Set.of("public.users")))
@@ -462,7 +465,7 @@ class DefaultSampleDataServiceTest {
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, List.of(), List.of(), null, null);
+                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null, List.of(), List.of(), List.of(), null, null);
     }
 
     private DatasourceUserPermissionView denying(List<String> allowedSchemas,
@@ -470,6 +473,6 @@ class DefaultSampleDataServiceTest {
                                                  List<String> deniedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                 false, false, false, allowedSchemas, List.of(), List.of(), null, deniedSchemas,
-                deniedTables, null, null);
+                deniedTables, List.of(), null, null);
     }
 }

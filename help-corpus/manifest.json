@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "ee4dcdb21c05",
-  "generatedAt": "2026-09-24T15:47:40.882Z",
-  "sourceCommit": "9fc3865e3a86beca9d1ceb6ca262ef4ba2cf13b3",
-  "chunkCount": 588,
-  "sha256": "ee4dcdb21c05e710f16d609534cee78c1fd779df1964d0e7faabc12a66e5abde",
+  "corpusVersion": "45a0913ffe08",
+  "generatedAt": "2026-09-25T07:19:45.600Z",
+  "sourceCommit": "ef197619924ca6c15ad2b7045ee0354429fe4341",
+  "chunkCount": 590,
+  "sha256": "45a0913ffe0846a4f50353f3c5fcafab21444e7dc6477f3318e4cfcc7f737256",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 16,
-      "sha256": "ffb7497560178f7174e00fc268d7ed163ffbf599fa94a761d143ee615237c986"
+      "chunks": 17,
+      "sha256": "d88f04744fb44d7933f98e54eb1b158f4782c5c71c8d31f42fb39748bc47cfe0"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -220,8 +220,8 @@
       "title": "Review workflows",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
-      "chunks": 17,
-      "sha256": "d4035212311b9ca60953da56bcab5254111e4c5fc6de66b8e708b8b75355affd"
+      "chunks": 18,
+      "sha256": "71962f656fdddfbad48d7f73401b0397d74236772133932372ab35efb225ba00"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "79ee7f19ff2c40988442d5ee22f16633ce00c35b5fb020b6c362eeafb20fa39a"
+      "sha256": "efc03f2a03fd58694b4a00f5811c89c9c47c57516a11452492813bd533108a5e"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -309,7 +309,7 @@
       "url": "https://accessflow.io/docs/guides/team/",
       "section": "Guides",
       "chunks": 8,
-      "sha256": "ef3539a408cfee958283c77a304fdfd4052a42e19f82f4efb71adbbaa9db2f71"
+      "sha256": "3b144bd38fff8a84348de6f8f57ba21d8422ca515cd679d94988dad7715793e1"
     },
     {
       "path": "website/docs/guides/terraform/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "2d01ffc289a92b778c0babebe093e292b72d481b9a849da0a12436bd8165bd2d"
+      "sha256": "680ff0667f49d5dad67d0373e71bd93113b0b65719ad0c10107df310513a1615"
     }
   ]
 }

@@ -255,6 +255,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             details.put("rejected_tables", List.of());
             details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
+            details.put("denied_shapes", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
                     "workflow.access_simulation.permission.query_admin_bypass", details));
@@ -267,6 +268,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             details.put("rejected_tables", List.of());
             details.put("denied_tables", List.of());
             details.put("rejected_columns", List.of());
+            details.put("denied_shapes", List.of());
             details.put("expires_at", null);
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.none", details));
@@ -282,6 +284,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("denied_tables", List.copyOf(deniedTables));
         var rejectedColumns = DatasourcePermissionChecker.rejectedColumns(permission, parsed);
         details.put("rejected_columns", List.copyOf(rejectedColumns));
+        var deniedShapes = DatasourcePermissionChecker.rejectedShapes(permission, parsed);
+        details.put("denied_shapes", DatasourcePermissionChecker.shapeNames(deniedShapes));
         if (!capable) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.capability_missing", details));
@@ -300,6 +304,11 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         if (!rejectedColumns.isEmpty()) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.column_denied", details));
+            return false;
+        }
+        if (!deniedShapes.isEmpty()) {
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+                    "workflow.access_simulation.permission.shape_denied", details));
             return false;
         }
         // An allow-list check over an empty table set passes vacuously — the enforcement gate has the

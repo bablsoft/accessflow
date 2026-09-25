@@ -36,7 +36,7 @@ class SchemaViewPermissionFilterTest {
                                                            List<String> tables,
                                                            List<String> denied) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
-                UUID.randomUUID(), true, false, false, false, schemas, tables, null, denied, List.of(), List.of(), null,
+                UUID.randomUUID(), true, false, false, false, schemas, tables, null, denied, List.of(), List.of(), List.of(), null,
                 null);
     }
 
@@ -167,7 +167,7 @@ class SchemaViewPermissionFilterTest {
                                                         List<String> deniedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), true, false, false, false, allowedSchemas, null, null, null,
-                deniedSchemas, deniedTables, null, null);
+                deniedSchemas, deniedTables, List.of(), null, null);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.DeniedTables;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +34,8 @@ public record CreateGroupPermissionRequest(
         List<@NotBlank(message = "{validation.denied_tables.item_blank}")
              @Pattern(regexp = DeniedTables.TABLE_ENTRY_PATTERN,
                       message = "{validation.denied_tables.item_invalid}") String> deniedTables,
+        @Size(max = 8, message = "{validation.denied_shapes.too_many}")
+        List<@NotNull(message = "{validation.denied_shapes.item_blank}") QueryShape> deniedShapes,
         Instant expiresAt
 ) {
 }

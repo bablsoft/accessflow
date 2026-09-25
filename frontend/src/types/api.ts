@@ -854,6 +854,7 @@ export interface CreatePermissionInput {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at?: string | null;
 }
 
@@ -870,6 +871,7 @@ export interface CreateGroupPermissionInput {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at?: string | null;
 }
 
@@ -1988,6 +1990,7 @@ export interface DatasourcePermission {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
@@ -2010,6 +2013,7 @@ export interface DatasourceGroupPermission {
   denied_columns?: string[] | null;
   denied_schemas?: string[] | null;
   denied_tables?: string[] | null;
+  denied_shapes?: QueryShape[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;
