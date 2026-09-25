@@ -101,6 +101,12 @@ describe('routingPolicyForm', () => {
         bytes_operator: 'GTE',
         bytes_value: 5_000_000_000,
       },
+      {
+        operand: 'data_budget_used_percent',
+        negate: false,
+        budget_operator: 'GTE',
+        budget_percent: 80,
+      },
       { operand: 'scan_type', negate: true, scan_patterns: ['Seq*'] },
     ];
     const condition = rowsToCondition('ALL', rows);
@@ -265,5 +271,32 @@ describe('routingPolicyForm', () => {
       ]),
     );
     expect(summary).toContain('2 TB');
+  });
+
+  it('defaultRow and conditionSummary cover data_budget_used_percent (#942)', () => {
+    expect(defaultRow('data_budget_used_percent')).toEqual({
+      operand: 'data_budget_used_percent',
+      negate: false,
+      budget_operator: 'GTE',
+      budget_percent: 80,
+    });
+    expect(
+      rowsToCondition('ALL', [{ operand: 'data_budget_used_percent', negate: false }]),
+    ).toEqual({
+      type: 'and',
+      children: [{ type: 'data_budget_used_percent', operator: 'GTE', value: 0 }],
+    });
+    const summary = conditionSummary(
+      t,
+      rowsToCondition('ALL', [
+        {
+          operand: 'data_budget_used_percent',
+          negate: false,
+          budget_operator: 'GT',
+          budget_percent: 90,
+        },
+      ]),
+    );
+    expect(summary).toContain('90%');
   });
 });

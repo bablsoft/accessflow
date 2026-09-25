@@ -1,3 +1,4 @@
+import { dataBudgetKeys } from '@/api/dataBudgets';
 import { useMemo, useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
 import {
@@ -120,6 +121,8 @@ export function QueryDetailPage() {
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.detail(id!) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      // #942: a read spends the data budget; the editor's remaining allowance is now stale.
+      void queryClient.invalidateQueries({ queryKey: dataBudgetKeys.all });
       if (data.status === 'EXECUTED') {
         message.success(t('queries.detail.on_execute_success'));
       } else {

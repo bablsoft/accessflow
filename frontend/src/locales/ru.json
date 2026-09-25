@@ -868,7 +868,8 @@
         "diff_effective_label": "Фактический SQL"
       },
       "bytes_cap_body": "Оценка сканирования: {{estimate}} · Лимит: {{limit}} ({{source}})",
-      "bytes_cap_no_estimate": "нет оценки"
+      "bytes_cap_no_estimate": "нет оценки",
+      "results_truncated_budget": "Возвращено строк: {{count}} (ограничено оставшимся бюджетом данных)"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "Лимит сканируемых байтов",
       "grant_bytes_cap_help": "Более низкий лимит для этой выдачи доступа. Применяется самый строгий из лимита источника данных и всех выдач.",
       "grant_bytes_cap_min": "Лимит сканируемых байтов должен быть не менее 1 байта.",
-      "grant_bytes_cap_placeholder": "По умолчанию источника данных"
+      "grant_bytes_cap_placeholder": "По умолчанию источника данных",
+      "tab_data_budgets": "Бюджеты данных · {{count}}",
+      "sample_truncated_budget": "Строк: {{count}} (ограничено оставшимся бюджетом данных)"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "мин",
       "cicd_present_label": "Источник CI/CD",
       "scan_type_placeholder": "напр. Seq Scan, COLLSCAN, Index*",
-      "bytes_value_label": "Сканируемые байты"
+      "bytes_value_label": "Сканируемые байты",
+      "budget_percent_label": "Доля использованного бюджета данных"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ваше изменение схемы {{changeSet}} не выполнено в {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Ваше изменение схемы {{changeSet}} применено в {{environment}} лишь частично",
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} новая находка дрейфа схемы в {{pipeline}} / {{environment}}",
-      "SCHEMA_DRIFT_DETECTED_other": "Новых находок дрейфа схемы в {{pipeline}} / {{environment}}: {{count}}"
+      "SCHEMA_DRIFT_DETECTED_other": "Новых находок дрейфа схемы в {{pipeline}} / {{environment}}: {{count}}",
+      "DATA_BUDGET_THRESHOLD_REACHED": "Вы использовали {{percent}}% бюджета данных {{budget}} в {{datasource}}",
+      "DATA_BUDGET_EXHAUSTED": "Бюджет данных {{budget}} пользователя {{user}} в {{datasource}} исчерпан"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "Источник CI/CD",
       "estimated_rows": "Оценка строк",
       "scan_type": "Тип сканирования",
-      "estimated_bytes_scanned": "Оценка сканируемых байтов"
+      "estimated_bytes_scanned": "Оценка сканируемых байтов",
+      "data_budget_used_percent": "Использовано бюджета данных (%)"
     },
     "query_shape": {
       "JOIN": "Соединение (JOIN)",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "Управлять политиками экспорта",
       "ROW_LIMIT_POLICY_MANAGE": "Управление политиками лимита строк",
       "DEPLOYMENT_PIPELINE_MANAGE": "Управлять пайплайнами развертываний",
-      "DEPLOYMENT_REVIEW": "Проверять развертывания"
+      "DEPLOYMENT_REVIEW": "Проверять развертывания",
+      "DATA_BUDGET_MANAGE": "Управление бюджетами данных"
     },
     "api_variable_kind": {
       "CONSTANT": "Константа",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "Построчная безопасность",
       "MASKING": "Маскирование",
       "BREAK_GLASS": "Экстренный доступ",
-      "BYTES_SCANNED_CAP": "Лимит сканируемых байтов"
+      "BYTES_SCANNED_CAP": "Лимит сканируемых байтов",
+      "DATA_BUDGET": "Бюджет данных"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Проверки коннектора",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "Отклонено: оценка превышает лимит сканируемых байтов",
       "NO_ESTIMATE_REVIEW": "Отправлено на проверку: нет оценки в байтах при лимите",
       "NO_ESTIMATE_REJECTED": "Отклонено: нет оценки в байтах при лимите"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "Отправить на проверку",
+      "REJECT": "Отклонить"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "Лимит сканируемых байтов",
       "bytes_scanned_cap_outcome": "Результат лимита",
       "bytes_scanned_cap_source": "Источник лимита",
-      "estimated_bytes_scanned": "Оценка сканируемых байтов"
+      "estimated_bytes_scanned": "Оценка сканируемых байтов",
+      "data_budget_action": "Действие при исчерпании бюджета",
+      "data_budget_id": "Бюджет данных",
+      "data_budget_name": "Название бюджета данных",
+      "data_budget_remaining_bytes": "Осталось байтов бюджета",
+      "data_budget_remaining_rows": "Осталось строк бюджета",
+      "data_budget_suppressed": "Подавлено бюджетом данных",
+      "data_budget_used_percent": "Использовано бюджета данных"
     },
     "use_id": "Использовать ID {{id}}",
     "user_id_placeholder": "Вставьте ID пользователя",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "Имя приложения не должно содержать управляющих символов.",
     "rotate_help": "Оставьте пустым, чтобы сохранить имя приложения текущего ключа.",
     "column": "Приложение"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} час",
+    "window_hours_other": "{{count}} ч",
+    "window_days_one": "{{count}} день",
+    "window_days_other": "{{count}} дн.",
+    "indicator": {
+      "title": "Ваш бюджет данных",
+      "exhausted_title": "Бюджет данных исчерпан",
+      "exhausted_reject": "Новые чтения из этого источника данных отклоняются, пока предыдущие чтения не выйдут за пределы окна.",
+      "exhausted_review": "Новые чтения из этого источника данных требуют одобрения проверяющего, пока предыдущие чтения не выйдут за пределы окна.",
+      "nearly_used": "Вы израсходовали большую часть бюджета данных для этого источника.",
+      "rows_left": "Осталось {{remaining}} из {{limit}} строк",
+      "bytes_left": "Осталось {{remaining}} из {{limit}}",
+      "per_window": "за {{window}}",
+      "used_aria": "{{name}}: использовано {{percent}}%"
+    },
+    "tab": {
+      "title": "Бюджеты данных",
+      "description": "Ограничьте, сколько строк и байтов результата каждый пользователь может прочитать из этого источника в скользящем окне. Запрос ограничивается оставшимся объёмом; когда бюджет исчерпан, новые чтения отклоняются или отправляются на проверку.",
+      "add": "Добавить бюджет",
+      "empty_title": "Нет бюджетов данных",
+      "empty_description": "Чтения из этого источника ограничены только на уровне запроса.",
+      "col_name": "Название",
+      "col_limits": "Лимиты",
+      "col_window": "Окно",
+      "col_action": "При исчерпании",
+      "col_applies_to": "Применяется к",
+      "col_enabled": "Включён",
+      "col_actions": "Действия",
+      "state_disabled": "Выключен",
+      "edit": "Изменить бюджет",
+      "delete": "Удалить бюджет",
+      "delete_confirm_title": "Удалить этот бюджет данных?",
+      "delete_confirm_body": "Пользователи больше не будут им ограничены. Учтённое использование хранится, пока не устареет.",
+      "delete_success": "Бюджет данных удалён",
+      "delete_error": "Не удалось удалить бюджет данных",
+      "save_success": "Бюджет данных сохранён",
+      "save_error": "Не удалось сохранить бюджет данных",
+      "create_title": "Новый бюджет данных",
+      "edit_title": "Изменить бюджет данных",
+      "label_name": "Название",
+      "name_required": "Введите название",
+      "name_max": "Не более 120 символов",
+      "label_max_rows": "Лимит строк",
+      "label_max_bytes": "Лимит объёма результата",
+      "limits_hint": "Задайте лимит строк, объёма или оба. У каждого пользователя свой объём.",
+      "limit_required": "Задайте лимит строк или объёма",
+      "rows_min": "Лимит строк должен быть не меньше 1",
+      "bytes_min": "Лимит объёма должен быть не меньше 1 байта",
+      "label_window": "Скользящее окно",
+      "window_hint": "Использование считается за прошедшее окно, отсчитанное от текущего момента.",
+      "window_range": "Окно должно быть от 1 часа до 31 дня",
+      "window_unit": "Единица окна",
+      "unit_hours": "часов",
+      "unit_days": "дней",
+      "label_breach_action": "Когда бюджет исчерпан",
+      "breach_action_hint": "Проверка человеком позволяет добросовестному аналитику завершить загруженный день; отклонение сразу останавливает чтения. Экстренный доступ не блокируется, но учитывается.",
+      "label_warn_threshold": "Предупреждать при (% использовано)",
+      "warn_threshold_hint": "Пользователь получит уведомление один раз при превышении этой доли. Оставьте пустым, чтобы не предупреждать.",
+      "threshold_range": "Порог должен быть от 1 до 99",
+      "label_applies_roles": "Применяется к ролям",
+      "applies_hint": "Оставьте все три поля пустыми, чтобы бюджет применялся ко всем пользователям источника.",
+      "label_applies_groups": "Применяется к группам",
+      "label_applies_users": "Применяется к пользователям",
+      "label_enabled": "Включён",
+      "applies_everyone": "Все",
+      "applies_roles_one": "{{count}} роль",
+      "applies_roles_other": "{{count}} ролей",
+      "applies_groups_one": "{{count}} группа",
+      "applies_groups_other": "{{count}} групп",
+      "applies_users_one": "{{count}} пользователь",
+      "applies_users_other": "{{count}} пользователей",
+      "rows_value": "{{value}} строк",
+      "unit_minutes": "минут"
+    },
+    "usage": {
+      "action": "Использование данных",
+      "title": "Использование данных — {{name}}",
+      "description": "Строки и байты результата, прочитанные пользователем в окне каждого применимого к нему бюджета.",
+      "empty": "К этому пользователю не применяется ни один бюджет данных.",
+      "load_error": "Не удалось загрузить использование данных пользователя",
+      "exhausted": "Исчерпан",
+      "rows_used": "{{used}} из {{limit}} строк",
+      "bytes_used": "{{used}} из {{limit}}"
+    },
+    "window_minutes_one": "{{count}} минута",
+    "window_minutes_other": "{{count}} мин"
   }
 }

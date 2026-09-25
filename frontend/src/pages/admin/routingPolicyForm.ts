@@ -53,6 +53,9 @@ export interface RoutingConditionRow {
   /** Raw bytes (#941); the editor offers MB/GB/TB but the wire value is always bytes. */
   bytes_operator?: ComparisonOperator;
   bytes_value?: number;
+  /** Whole percentage of the submitter's data budget used (#942); may exceed 100. */
+  budget_operator?: ComparisonOperator;
+  budget_percent?: number;
   scan_patterns?: string[];
 }
 
@@ -107,6 +110,8 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
       return { ...base, est_operator: 'GT', est_value: 100000 };
     case 'estimated_bytes_scanned':
       return { ...base, bytes_operator: 'GT', bytes_value: 1_000_000_000_000 };
+    case 'data_budget_used_percent':
+      return { ...base, budget_operator: 'GTE', budget_percent: 80 };
     case 'scan_type':
       return { ...base, scan_patterns: [] };
     default:
@@ -198,6 +203,12 @@ function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
         operator: row.bytes_operator ?? 'GT',
         value: row.bytes_value ?? 0,
       };
+    case 'data_budget_used_percent':
+      return {
+        type: 'data_budget_used_percent',
+        operator: row.budget_operator ?? 'GTE',
+        value: row.budget_percent ?? 0,
+      };
     case 'scan_type':
       return { type: 'scan_type', patterns: row.scan_patterns ?? [] };
   }
@@ -276,6 +287,13 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
         negate,
         bytes_operator: node.operator,
         bytes_value: node.value,
+      };
+    case 'data_budget_used_percent':
+      return {
+        operand: 'data_budget_used_percent',
+        negate,
+        budget_operator: node.operator,
+        budget_percent: node.value,
       };
     case 'scan_type':
       return { operand: 'scan_type', negate, scan_patterns: node.patterns };
@@ -404,6 +422,9 @@ function rowSummary(t: TFunction, row: RoutingConditionRow): string {
     case 'estimated_bytes_scanned':
       value = `${comparisonOperatorLabel(t, row.bytes_operator ?? 'GT')} `
         + `${formatBytes(row.bytes_value ?? 0) ?? ''}`;
+      break;
+    case 'data_budget_used_percent':
+      value = `${comparisonOperatorLabel(t, row.budget_operator ?? 'GTE')} ${row.budget_percent ?? 0}%`;
       break;
     case 'scan_type':
       value = (row.scan_patterns ?? []).join(', ');

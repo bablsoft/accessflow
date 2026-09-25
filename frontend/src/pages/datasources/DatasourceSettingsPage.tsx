@@ -112,6 +112,8 @@ import { exportPolicyKeys, listExportPolicies } from '@/api/exportPolicies';
 import { RowSecurityTab } from '@/components/datasources/RowSecurityTab';
 import { RowLimitTab } from '@/components/datasources/RowLimitTab';
 import { listRowLimitPolicies, rowLimitPolicyKeys } from '@/api/rowLimitPolicies';
+import { DataBudgetTab } from '@/components/datasources/DataBudgetTab';
+import { dataBudgetKeys, listDataBudgets } from '@/api/dataBudgets';
 import {
   listRowSecurityPolicies,
   rowSecurityPolicyKeys,
@@ -180,6 +182,12 @@ export function DatasourceSettingsPage() {
   const rowLimitPoliciesQuery = useQuery({
     queryKey: id ? rowLimitPolicyKeys.list(id) : ['row-limit-policies', 'list', 'idle'],
     queryFn: () => listRowLimitPolicies(id!),
+    enabled: !!id,
+  });
+
+  const dataBudgetsQuery = useQuery({
+    queryKey: id ? dataBudgetKeys.list(id) : ['data-budgets', 'list', 'idle'],
+    queryFn: () => listDataBudgets(id!),
     enabled: !!id,
   });
 
@@ -268,6 +276,7 @@ export function DatasourceSettingsPage() {
   const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
   const exportPolicyCount = exportPoliciesQuery.data?.length ?? 0;
   const rowLimitCount = rowLimitPoliciesQuery.data?.length ?? 0;
+  const dataBudgetCount = dataBudgetsQuery.data?.length ?? 0;
   const classificationCount = classificationTagsQuery.data?.length ?? 0;
   const discoveryPendingCount = discoveryPendingQuery.data?.total_elements ?? 0;
   const testIcon =
@@ -328,6 +337,10 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_row_limits', { count: rowLimitCount }),
           },
           {
+            key: 'data-budgets',
+            label: t('datasources.settings.tab_data_budgets', { count: dataBudgetCount }),
+          },
+          {
             key: 'export-policy',
             label: t('datasources.settings.tab_export_policy', { count: exportPolicyCount }),
           },
@@ -350,6 +363,7 @@ export function DatasourceSettingsPage() {
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
         {tab === 'row-limits' && <RowLimitTab dsId={ds.id} />}
+        {tab === 'data-budgets' && <DataBudgetTab dsId={ds.id} />}
         {tab === 'export-policy' && <ExportPolicyTab dsId={ds.id} />}
         {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
         {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}

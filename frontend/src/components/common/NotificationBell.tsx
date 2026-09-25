@@ -308,6 +308,19 @@ function renderMessage(
         pipeline: datasource,
         environment: payload.environment ?? '—',
       });
+    // #942 — the budget's user rides in `submitter` (the admin copy of an exhaustion names them).
+    case 'DATA_BUDGET_THRESHOLD_REACHED':
+      return t('notifications.events.DATA_BUDGET_THRESHOLD_REACHED', {
+        percent: payload.used_percent ?? '—',
+        budget: payload.budget ?? '—',
+        datasource,
+      });
+    case 'DATA_BUDGET_EXHAUSTED':
+      return t('notifications.events.DATA_BUDGET_EXHAUSTED', {
+        budget: payload.budget ?? '—',
+        user: payload.submitter_name ?? payload.submitter ?? '—',
+        datasource,
+      });
     default:
       return t('notifications.events.fallback');
   }
@@ -385,6 +398,14 @@ export function routeForNotification(item: UserNotification): string | null {
   }
   if (item.event_type === 'SCHEMA_DRIFT_DETECTED') {
     return '/schema-drift';
+  }
+  // #942: a data budget constrains reads, so the recipient lands where reads are written. The
+  // editor takes its datasource from router state, not the URL, so the route carries no id.
+  if (
+    item.event_type === 'DATA_BUDGET_THRESHOLD_REACHED' ||
+    item.event_type === 'DATA_BUDGET_EXHAUSTED'
+  ) {
+    return '/editor';
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

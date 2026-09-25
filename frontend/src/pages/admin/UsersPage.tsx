@@ -12,6 +12,7 @@ import {
   Table,
 } from 'antd';
 import {
+  DashboardOutlined,
   DeleteOutlined,
   EditOutlined,
   RobotOutlined,
@@ -29,6 +30,7 @@ import { Avatar } from '@/components/common/Avatar';
 import { RolePill } from '@/components/common/RolePill';
 import { Pill } from '@/components/common/Pill';
 import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
+import { UserDataBudgetDrawer } from '@/components/admin/UserDataBudgetDrawer';
 import {
   createInvitation,
   createUser,
@@ -114,6 +116,7 @@ export function UsersPage() {
   const [inviting, setInviting] = useState(false);
   const [invitingByEmail, setInvitingByEmail] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
+  const [usageOf, setUsageOf] = useState<User | null>(null);
 
   const filters = useMemo(
     () => ({
@@ -442,6 +445,12 @@ export function UsersPage() {
                               },
                             ]),
                         {
+                          key: 'data-usage',
+                          icon: <DashboardOutlined />,
+                          label: t('dataBudgets.usage.action'),
+                          onClick: () => setUsageOf(u),
+                        },
+                        {
                           key: 'deactivate',
                           icon: <DeleteOutlined />,
                           danger: true,
@@ -461,6 +470,8 @@ export function UsersPage() {
           />
         )}
       </div>
+
+      <UserDataBudgetDrawer user={usageOf} onClose={() => setUsageOf(null)} />
 
       <PendingInvitationsSection
         invitations={invitationsQuery.data?.content ?? []}

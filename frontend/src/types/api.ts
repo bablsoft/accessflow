@@ -102,6 +102,7 @@ export type RoutingConditionOperand =
   | 'cicd_origin'
   | 'estimated_rows'
   | 'estimated_bytes_scanned'
+  | 'data_budget_used_percent'
   | 'scan_type';
 export type Weekday =
   | 'MONDAY'
@@ -1576,6 +1577,7 @@ export type RoutingCondition =
   | { type: 'cicd_origin'; expected: boolean }
   | { type: 'estimated_rows'; operator: ComparisonOperator; value: number }
   | { type: 'estimated_bytes_scanned'; operator: ComparisonOperator; value: number }
+  | { type: 'data_budget_used_percent'; operator: ComparisonOperator; value: number }
   | { type: 'scan_type'; patterns: string[] };
 
 export interface RoutingPolicy {
@@ -1921,7 +1923,7 @@ export interface QueryResultColumn {
   restricted?: boolean;
 }
 
-export type TruncatedReason = 'ROW_LIMIT' | 'BYTE_LIMIT';
+export type TruncatedReason = 'ROW_LIMIT' | 'BYTE_LIMIT' | 'DATA_BUDGET';
 
 export interface QueryResultsPage {
   columns: QueryResultColumn[];
@@ -2151,6 +2153,70 @@ export interface CreateRowLimitPolicyInput {
 }
 
 export type UpdateRowLimitPolicyInput = CreateRowLimitPolicyInput;
+
+// --- #942: per-user data-volume budgets ---
+
+export type DataBudgetBreachAction = 'REJECT' | 'REQUIRE_REVIEW';
+
+export interface DataBudget {
+  id: string;
+  datasource_id: string;
+  name: string;
+  /** Omitted when the budget does not bound rows. */
+  max_rows?: number | null;
+  /** Omitted when the budget does not bound result bytes. */
+  max_bytes?: number | null;
+  window_minutes: number;
+  breach_action: DataBudgetBreachAction;
+  warn_threshold_percent?: number | null;
+  applies_to_roles: string[];
+  applies_to_group_ids: string[];
+  applies_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataBudgetInput {
+  name: string;
+  max_rows?: number | null;
+  max_bytes?: number | null;
+  window_minutes: number;
+  breach_action: DataBudgetBreachAction;
+  warn_threshold_percent?: number | null;
+  applies_to_roles?: string[];
+  applies_to_group_ids?: string[];
+  applies_to_user_ids?: string[];
+  enabled: boolean;
+}
+
+export interface DataBudgetConsumption {
+  id: string;
+  name: string;
+  max_rows?: number | null;
+  max_bytes?: number | null;
+  window_minutes: number;
+  breach_action: DataBudgetBreachAction;
+  warn_threshold_percent?: number | null;
+  used_rows: number;
+  used_bytes: number;
+  remaining_rows?: number | null;
+  remaining_bytes?: number | null;
+  used_percent: number;
+  exhausted: boolean;
+}
+
+/** A user's standing on one datasource; `budgets` is empty when none applies. */
+export interface DataBudgetStatus {
+  datasource_id: string;
+  datasource_name?: string | null;
+  exhausted: boolean;
+  breach_action?: DataBudgetBreachAction | null;
+  remaining_rows?: number | null;
+  remaining_bytes?: number | null;
+  used_percent?: number | null;
+  budgets: DataBudgetConsumption[];
+}
 
 // --- AF-626: result-export governance & DLP ---
 
@@ -2552,7 +2618,9 @@ export type UserNotificationEventType =
   | 'SCHEMA_CHANGE_PROMOTION_SUBMITTED'
   | 'SCHEMA_CHANGE_PROMOTION_APPLIED'
   | 'SCHEMA_CHANGE_PROMOTION_FAILED'
-  | 'SCHEMA_DRIFT_DETECTED';
+  | 'SCHEMA_DRIFT_DETECTED'
+  | 'DATA_BUDGET_THRESHOLD_REACHED'
+  | 'DATA_BUDGET_EXHAUSTED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2580,6 +2648,10 @@ export interface UserNotificationPayload {
   change_set?: string;
   promotion_status?: 'APPLIED' | 'FAILED' | 'PARTIALLY_APPLIED' | 'IN_REVIEW';
   new_finding_count?: number;
+  /** #942 — data-budget events: the budgeted datasource, the budget name and its usage. */
+  datasource_id?: string;
+  budget?: string;
+  used_percent?: number;
 }
 
 export interface UserNotification {
@@ -4432,6 +4504,7 @@ export type QueryDecisionStepKind =
   | 'EFFECTIVE_PERMISSION'
   | 'SQL_REVIEW'
   | 'BYTES_SCANNED_CAP'
+  | 'DATA_BUDGET'
   | 'ROUTING_POLICIES'
   | 'GRANT_FAST_PATH'
   | 'REVIEW_PLAN'

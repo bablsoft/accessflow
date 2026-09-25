@@ -958,6 +958,27 @@ function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionV
           </Form.Item>
         </div>
       );
+    case 'data_budget_used_percent':
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <Form.Item name={[name, 'budget_operator']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+            <Select options={enumOptions(COMPARISON_OPERATORS, comparisonOperatorLabel, t)} />
+          </Form.Item>
+          <Form.Item
+            name={[name, 'budget_percent']}
+            rules={[{ required: true, type: 'number', min: 0 }]}
+            style={{ marginBottom: 0 }}
+          >
+            <InputNumber
+              min={0}
+              precision={0}
+              suffix="%"
+              aria-label={t('admin.routing_policies.budget_percent_label')}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </div>
+      );
     case 'scan_type':
       return (
         <Form.Item name={[name, 'scan_patterns']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>

@@ -868,7 +868,8 @@
         "diff_effective_label": "Effektives SQL"
       },
       "bytes_cap_body": "Geschätzter Scan: {{estimate}} · Limit: {{limit}} ({{source}})",
-      "bytes_cap_no_estimate": "keine Schätzung"
+      "bytes_cap_no_estimate": "keine Schätzung",
+      "results_truncated_budget": "{{count}} Zeilen zurückgegeben (auf Ihr verbleibendes Datenbudget begrenzt)"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "Limit für gescannte Bytes",
       "grant_bytes_cap_help": "Ein niedrigeres Limit für diesen Grant. Es gilt das strengste aus Datenquellen-Limit und allen Grants.",
       "grant_bytes_cap_min": "Das Limit für gescannte Bytes muss mindestens 1 Byte betragen.",
-      "grant_bytes_cap_placeholder": "Standard der Datenquelle"
+      "grant_bytes_cap_placeholder": "Standard der Datenquelle",
+      "tab_data_budgets": "Datenbudgets · {{count}}",
+      "sample_truncated_budget": "{{count}} Zeilen (auf Ihr verbleibendes Datenbudget begrenzt)"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "Min.",
       "cicd_present_label": "Ist CI/CD-Herkunft",
       "scan_type_placeholder": "z. B. Seq Scan, COLLSCAN, Index*",
-      "bytes_value_label": "Gescannte Bytes"
+      "bytes_value_label": "Gescannte Bytes",
+      "budget_percent_label": "Verbrauchter Anteil des Datenbudgets"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ihre Schemaänderung {{changeSet}} ist auf {{environment}} fehlgeschlagen",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Ihre Schemaänderung {{changeSet}} wurde auf {{environment}} nur teilweise angewendet",
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} neuer Schema-Drift-Befund in {{pipeline}} / {{environment}}",
-      "SCHEMA_DRIFT_DETECTED_other": "{{count}} neue Schema-Drift-Befunde in {{pipeline}} / {{environment}}"
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} neue Schema-Drift-Befunde in {{pipeline}} / {{environment}}",
+      "DATA_BUDGET_THRESHOLD_REACHED": "Sie haben {{percent}} % Ihres Datenbudgets {{budget}} auf {{datasource}} verbraucht",
+      "DATA_BUDGET_EXHAUSTED": "Datenbudget {{budget}} für {{user}} auf {{datasource}} ist aufgebraucht"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "CI/CD-Herkunft",
       "estimated_rows": "Geschätzte Zeilen",
       "scan_type": "Scan-Typ",
-      "estimated_bytes_scanned": "Geschätzte gescannte Bytes"
+      "estimated_bytes_scanned": "Geschätzte gescannte Bytes",
+      "data_budget_used_percent": "Datenbudget verbraucht (%)"
     },
     "query_shape": {
       "JOIN": "Join",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "Exportrichtlinien verwalten",
       "ROW_LIMIT_POLICY_MANAGE": "Zeilenlimit-Richtlinien verwalten",
       "DEPLOYMENT_PIPELINE_MANAGE": "Deployment-Pipelines verwalten",
-      "DEPLOYMENT_REVIEW": "Deployments prüfen"
+      "DEPLOYMENT_REVIEW": "Deployments prüfen",
+      "DATA_BUDGET_MANAGE": "Datenbudgets verwalten"
     },
     "api_variable_kind": {
       "CONSTANT": "Konstante",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "Zeilensicherheit",
       "MASKING": "Maskierung",
       "BREAK_GLASS": "Break-Glass",
-      "BYTES_SCANNED_CAP": "Limit für gescannte Bytes"
+      "BYTES_SCANNED_CAP": "Limit für gescannte Bytes",
+      "DATA_BUDGET": "Datenbudget"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Konnektor-Prüfungen",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "Abgelehnt: die Schätzung überschreitet das Limit für gescannte Bytes",
       "NO_ESTIMATE_REVIEW": "Zur Prüfung zurückgehalten: keine Byte-Schätzung unter dem Limit",
       "NO_ESTIMATE_REJECTED": "Abgelehnt: keine Byte-Schätzung unter dem Limit"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "Zur Prüfung senden",
+      "REJECT": "Ablehnen"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "Limit für gescannte Bytes",
       "bytes_scanned_cap_outcome": "Ergebnis des Limits",
       "bytes_scanned_cap_source": "Quelle des Limits",
-      "estimated_bytes_scanned": "Geschätzte gescannte Bytes"
+      "estimated_bytes_scanned": "Geschätzte gescannte Bytes",
+      "data_budget_action": "Aktion bei Budgetüberschreitung",
+      "data_budget_id": "Datenbudget",
+      "data_budget_name": "Name des Datenbudgets",
+      "data_budget_remaining_bytes": "Verbleibende Budget-Bytes",
+      "data_budget_remaining_rows": "Verbleibende Budget-Zeilen",
+      "data_budget_suppressed": "Durch das Datenbudget unterdrückt",
+      "data_budget_used_percent": "Datenbudget verbraucht"
     },
     "use_id": "ID {{id}} verwenden",
     "user_id_placeholder": "Benutzer-ID einfügen",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "Der Anwendungsname darf keine Steuerzeichen enthalten.",
     "rotate_help": "Leer lassen, um den Anwendungsnamen des aktuellen Schlüssels beizubehalten.",
     "column": "Anwendung"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} Stunde",
+    "window_hours_other": "{{count}} Stunden",
+    "window_days_one": "{{count}} Tag",
+    "window_days_other": "{{count}} Tage",
+    "indicator": {
+      "title": "Ihr Datenbudget",
+      "exhausted_title": "Datenbudget aufgebraucht",
+      "exhausted_reject": "Neue Lesezugriffe auf diese Datenquelle werden abgelehnt, bis frühere Lesezugriffe aus dem Zeitfenster fallen.",
+      "exhausted_review": "Neue Lesezugriffe auf diese Datenquelle benötigen eine Genehmigung, bis frühere Lesezugriffe aus dem Zeitfenster fallen.",
+      "nearly_used": "Sie haben den Großteil Ihres Datenbudgets für diese Datenquelle verbraucht.",
+      "rows_left": "{{remaining}} von {{limit}} Zeilen übrig",
+      "bytes_left": "{{remaining}} von {{limit}} übrig",
+      "per_window": "pro {{window}}",
+      "used_aria": "{{name}}: {{percent}} % verbraucht"
+    },
+    "tab": {
+      "title": "Datenbudgets",
+      "description": "Begrenzen Sie, wie viele Zeilen und Ergebnis-Bytes jeder Benutzer in einem gleitenden Zeitfenster aus dieser Datenquelle lesen darf. Eine Abfrage wird auf das verbleibende Kontingent begrenzt; ist ein Budget aufgebraucht, werden neue Lesezugriffe abgelehnt oder zur Prüfung geschickt.",
+      "add": "Budget hinzufügen",
+      "empty_title": "Keine Datenbudgets",
+      "empty_description": "Lesezugriffe auf diese Datenquelle sind nur pro Abfrage begrenzt.",
+      "col_name": "Name",
+      "col_limits": "Limits",
+      "col_window": "Zeitfenster",
+      "col_action": "Bei Erschöpfung",
+      "col_applies_to": "Gilt für",
+      "col_enabled": "Aktiviert",
+      "col_actions": "Aktionen",
+      "state_disabled": "Deaktiviert",
+      "edit": "Budget bearbeiten",
+      "delete": "Budget löschen",
+      "delete_confirm_title": "Dieses Datenbudget löschen?",
+      "delete_confirm_body": "Betroffene Benutzer sind nicht mehr daran gebunden. Erfasste Nutzung bleibt erhalten, bis sie aus dem Zeitfenster fällt.",
+      "delete_success": "Datenbudget gelöscht",
+      "delete_error": "Das Datenbudget konnte nicht gelöscht werden",
+      "save_success": "Datenbudget gespeichert",
+      "save_error": "Das Datenbudget konnte nicht gespeichert werden",
+      "create_title": "Neues Datenbudget",
+      "edit_title": "Datenbudget bearbeiten",
+      "label_name": "Name",
+      "name_required": "Geben Sie einen Namen ein",
+      "name_max": "Höchstens 120 Zeichen",
+      "label_max_rows": "Zeilenlimit",
+      "label_max_bytes": "Limit für Ergebnisgröße",
+      "limits_hint": "Legen Sie ein Zeilenlimit, ein Größenlimit oder beides fest. Jeder Benutzer erhält ein eigenes Kontingent.",
+      "limit_required": "Legen Sie ein Zeilen- oder Größenlimit fest",
+      "rows_min": "Das Zeilenlimit muss mindestens 1 betragen",
+      "bytes_min": "Das Größenlimit muss mindestens 1 Byte betragen",
+      "label_window": "Gleitendes Zeitfenster",
+      "window_hint": "Die Nutzung zählt über das zurückliegende Zeitfenster, von jetzt aus gemessen.",
+      "window_range": "Das Zeitfenster muss zwischen 1 Stunde und 31 Tagen liegen",
+      "window_unit": "Einheit des Zeitfensters",
+      "unit_hours": "Stunden",
+      "unit_days": "Tage",
+      "label_breach_action": "Wenn das Budget aufgebraucht ist",
+      "breach_action_hint": "Eine Prüfung lässt legitime Analysten einen intensiven Tag abschließen; Ablehnen stoppt Lesezugriffe sofort. Break-Glass-Zugriff wird nie blockiert, zählt aber mit.",
+      "label_warn_threshold": "Warnen bei (% verbraucht)",
+      "warn_threshold_hint": "Der Benutzer wird einmal benachrichtigt, wenn er diesen Anteil überschreitet. Leer lassen für keine Warnung.",
+      "threshold_range": "Die Schwelle muss zwischen 1 und 99 liegen",
+      "label_applies_roles": "Gilt für Rollen",
+      "applies_hint": "Lassen Sie alle drei leer, damit das Budget für jeden Benutzer dieser Datenquelle gilt.",
+      "label_applies_groups": "Gilt für Gruppen",
+      "label_applies_users": "Gilt für Benutzer",
+      "label_enabled": "Aktiviert",
+      "applies_everyone": "Alle",
+      "applies_roles_one": "{{count}} Rolle",
+      "applies_roles_other": "{{count}} Rollen",
+      "applies_groups_one": "{{count}} Gruppe",
+      "applies_groups_other": "{{count}} Gruppen",
+      "applies_users_one": "{{count}} Benutzer",
+      "applies_users_other": "{{count}} Benutzer",
+      "rows_value": "{{value}} Zeilen",
+      "unit_minutes": "Minuten"
+    },
+    "usage": {
+      "action": "Datennutzung",
+      "title": "Datennutzung — {{name}}",
+      "description": "Zeilen und Ergebnis-Bytes, die dieser Benutzer im Zeitfenster jedes für ihn geltenden Datenbudgets gelesen hat.",
+      "empty": "Für diesen Benutzer gilt kein Datenbudget.",
+      "load_error": "Die Datennutzung dieses Benutzers konnte nicht geladen werden",
+      "exhausted": "Aufgebraucht",
+      "rows_used": "{{used}} von {{limit}} Zeilen",
+      "bytes_used": "{{used}} von {{limit}}"
+    },
+    "window_minutes_one": "{{count}} Minute",
+    "window_minutes_other": "{{count}} Minuten"
   }
 }

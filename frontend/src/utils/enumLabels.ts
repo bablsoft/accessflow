@@ -3,6 +3,7 @@ import type {
   AccessGrantStatus,
   BytesCapMissingEstimateAction,
   BytesScannedCapOutcome,
+  DataBudgetBreachAction,
   BytesScannedCapSource,
   SchemaChangePromotionStatus,
   SchemaChangeSetStatus,
@@ -408,6 +409,7 @@ export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
   'cicd_origin',
   'estimated_rows',
   'estimated_bytes_scanned',
+  'data_budget_used_percent',
   'scan_type',
 ] as const;
 
@@ -465,6 +467,15 @@ export const bytesScannedCapSourceLabel = (t: TFunction, v: BytesScannedCapSourc
 
 export const bytesScannedCapOutcomeLabel = (t: TFunction, v: BytesScannedCapOutcome): string =>
   t(`enums.bytes_scanned_cap_outcome.${v}` as const);
+
+// ── Data-volume budgets (#942) ───────────────────────────────────────────────
+export const DATA_BUDGET_BREACH_ACTIONS: readonly DataBudgetBreachAction[] = [
+  'REQUIRE_REVIEW',
+  'REJECT',
+] as const;
+
+export const dataBudgetBreachActionLabel = (t: TFunction, v: DataBudgetBreachAction): string =>
+  t(`enums.data_budget_breach_action.${v}` as const);
 
 // ── Attestation campaigns (AF-384) ─────────────────────────────────────────────
 export const ATTESTATION_CAMPAIGN_STATUSES: readonly AttestationCampaignStatus[] = [
@@ -556,6 +567,7 @@ export const QUERY_DECISION_STEP_KINDS: readonly QueryDecisionStepKind[] = [
   'EFFECTIVE_PERMISSION',
   'SQL_REVIEW',
   'BYTES_SCANNED_CAP',
+  'DATA_BUDGET',
   'ROUTING_POLICIES',
   'GRANT_FAST_PATH',
   'REVIEW_PLAN',

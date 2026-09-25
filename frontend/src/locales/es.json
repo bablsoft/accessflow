@@ -868,7 +868,8 @@
         "diff_effective_label": "SQL efectivo"
       },
       "bytes_cap_body": "Escaneo estimado: {{estimate}} · Límite: {{limit}} ({{source}})",
-      "bytes_cap_no_estimate": "sin estimación"
+      "bytes_cap_no_estimate": "sin estimación",
+      "results_truncated_budget": "{{count}} filas devueltas (limitadas a tu presupuesto de datos restante)"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "Límite de bytes escaneados",
       "grant_bytes_cap_help": "Un límite menor para este permiso. Se aplica el más estricto entre el límite de la fuente de datos y todos los permisos.",
       "grant_bytes_cap_min": "El límite de bytes escaneados debe ser al menos 1 byte.",
-      "grant_bytes_cap_placeholder": "Predeterminado de la fuente de datos"
+      "grant_bytes_cap_placeholder": "Predeterminado de la fuente de datos",
+      "tab_data_budgets": "Presupuestos de datos · {{count}}",
+      "sample_truncated_budget": "{{count}} filas (limitadas a tu presupuesto de datos restante)"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "min",
       "cicd_present_label": "Es origen CI/CD",
       "scan_type_placeholder": "p. ej. Seq Scan, COLLSCAN, Index*",
-      "bytes_value_label": "Bytes escaneados"
+      "bytes_value_label": "Bytes escaneados",
+      "budget_percent_label": "Porcentaje del presupuesto de datos usado"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Su cambio de esquema {{changeSet}} falló en {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Su cambio de esquema {{changeSet}} solo se aplicó parcialmente en {{environment}}",
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} hallazgo nuevo de deriva de esquema en {{pipeline}} / {{environment}}",
-      "SCHEMA_DRIFT_DETECTED_other": "{{count}} hallazgos nuevos de deriva de esquema en {{pipeline}} / {{environment}}"
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} hallazgos nuevos de deriva de esquema en {{pipeline}} / {{environment}}",
+      "DATA_BUDGET_THRESHOLD_REACHED": "Ha usado el {{percent}} % de su presupuesto de datos {{budget}} en {{datasource}}",
+      "DATA_BUDGET_EXHAUSTED": "El presupuesto de datos {{budget}} de {{user}} en {{datasource}} está agotado"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "Origen CI/CD",
       "estimated_rows": "Filas estimadas",
       "scan_type": "Tipo de escaneo",
-      "estimated_bytes_scanned": "Bytes escaneados estimados"
+      "estimated_bytes_scanned": "Bytes escaneados estimados",
+      "data_budget_used_percent": "Presupuesto de datos usado (%)"
     },
     "query_shape": {
       "JOIN": "Join",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "Gestionar políticas de exportación",
       "ROW_LIMIT_POLICY_MANAGE": "Gestionar políticas de límite de filas",
       "DEPLOYMENT_PIPELINE_MANAGE": "Gestionar pipelines de despliegue",
-      "DEPLOYMENT_REVIEW": "Revisar despliegues"
+      "DEPLOYMENT_REVIEW": "Revisar despliegues",
+      "DATA_BUDGET_MANAGE": "Gestionar presupuestos de datos"
     },
     "api_variable_kind": {
       "CONSTANT": "Constante",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "Seguridad por filas",
       "MASKING": "Enmascaramiento",
       "BREAK_GLASS": "Acceso de emergencia",
-      "BYTES_SCANNED_CAP": "Límite de bytes escaneados"
+      "BYTES_SCANNED_CAP": "Límite de bytes escaneados",
+      "DATA_BUDGET": "Presupuesto de datos"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Controles del conector",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "Rechazada: la estimación supera el límite de bytes escaneados",
       "NO_ESTIMATE_REVIEW": "Retenida para revisión: sin estimación de bytes bajo el límite",
       "NO_ESTIMATE_REJECTED": "Rechazada: sin estimación de bytes bajo el límite"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "Enviar a revisión humana",
+      "REJECT": "Rechazar"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "Límite de bytes escaneados",
       "bytes_scanned_cap_outcome": "Resultado del límite",
       "bytes_scanned_cap_source": "Origen del límite",
-      "estimated_bytes_scanned": "Bytes escaneados estimados"
+      "estimated_bytes_scanned": "Bytes escaneados estimados",
+      "data_budget_action": "Acción al agotar el presupuesto",
+      "data_budget_id": "Presupuesto de datos",
+      "data_budget_name": "Nombre del presupuesto de datos",
+      "data_budget_remaining_bytes": "Bytes restantes del presupuesto",
+      "data_budget_remaining_rows": "Filas restantes del presupuesto",
+      "data_budget_suppressed": "Suprimido por el presupuesto de datos",
+      "data_budget_used_percent": "Presupuesto de datos usado"
     },
     "use_id": "Usar el ID {{id}}",
     "user_id_placeholder": "Pegue un ID de usuario",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "El nombre de la aplicación no debe contener caracteres de control.",
     "rotate_help": "Déjalo vacío para conservar el nombre de aplicación de la clave actual.",
     "column": "Aplicación"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} hora",
+    "window_hours_other": "{{count}} horas",
+    "window_days_one": "{{count}} día",
+    "window_days_other": "{{count}} días",
+    "indicator": {
+      "title": "Tu presupuesto de datos",
+      "exhausted_title": "Presupuesto de datos agotado",
+      "exhausted_reject": "Las nuevas lecturas en esta fuente de datos se rechazan hasta que las lecturas anteriores salgan de la ventana.",
+      "exhausted_review": "Las nuevas lecturas en esta fuente de datos necesitan la aprobación de un revisor hasta que las lecturas anteriores salgan de la ventana.",
+      "nearly_used": "Has usado la mayor parte de tu presupuesto de datos en esta fuente de datos.",
+      "rows_left": "Quedan {{remaining}} de {{limit}} filas",
+      "bytes_left": "Quedan {{remaining}} de {{limit}}",
+      "per_window": "por {{window}}",
+      "used_aria": "{{name}}: {{percent}} % usado"
+    },
+    "tab": {
+      "title": "Presupuestos de datos",
+      "description": "Limita cuántas filas y bytes de resultado puede leer cada usuario de esta fuente de datos en una ventana móvil. Una consulta se limita a la cuota restante; cuando un presupuesto se agota, las nuevas lecturas se rechazan o pasan a revisión humana.",
+      "add": "Añadir presupuesto",
+      "empty_title": "Sin presupuestos de datos",
+      "empty_description": "Las lecturas en esta fuente de datos solo se limitan por consulta.",
+      "col_name": "Nombre",
+      "col_limits": "Límites",
+      "col_window": "Ventana",
+      "col_action": "Al agotarse",
+      "col_applies_to": "Se aplica a",
+      "col_enabled": "Activado",
+      "col_actions": "Acciones",
+      "state_disabled": "Desactivado",
+      "edit": "Editar presupuesto",
+      "delete": "Eliminar presupuesto",
+      "delete_confirm_title": "¿Eliminar este presupuesto de datos?",
+      "delete_confirm_body": "Los usuarios afectados dejan de estar limitados por él. El uso registrado se conserva hasta que caduca.",
+      "delete_success": "Presupuesto de datos eliminado",
+      "delete_error": "No se pudo eliminar el presupuesto de datos",
+      "save_success": "Presupuesto de datos guardado",
+      "save_error": "No se pudo guardar el presupuesto de datos",
+      "create_title": "Nuevo presupuesto de datos",
+      "edit_title": "Editar presupuesto de datos",
+      "label_name": "Nombre",
+      "name_required": "Introduce un nombre",
+      "name_max": "Usa como máximo 120 caracteres",
+      "label_max_rows": "Límite de filas",
+      "label_max_bytes": "Límite de tamaño de resultado",
+      "limits_hint": "Define un límite de filas, de tamaño o ambos. Cada usuario tiene su propia cuota.",
+      "limit_required": "Define un límite de filas o de tamaño",
+      "rows_min": "El límite de filas debe ser al menos 1",
+      "bytes_min": "El límite de tamaño debe ser al menos 1 byte",
+      "label_window": "Ventana móvil",
+      "window_hint": "El uso se cuenta en la ventana anterior, medida desde ahora.",
+      "window_range": "La ventana debe estar entre 1 hora y 31 días",
+      "window_unit": "Unidad de la ventana",
+      "unit_hours": "horas",
+      "unit_days": "días",
+      "label_breach_action": "Cuando se agota el presupuesto",
+      "breach_action_hint": "La revisión humana permite a un analista legítimo terminar un día intenso; rechazar detiene las lecturas. El acceso de emergencia nunca se bloquea, pero cuenta.",
+      "label_warn_threshold": "Avisar al (% usado)",
+      "warn_threshold_hint": "El usuario recibe un aviso al superar este porcentaje. Déjalo vacío para no avisar.",
+      "threshold_range": "El umbral debe estar entre 1 y 99",
+      "label_applies_roles": "Se aplica a roles",
+      "applies_hint": "Deja los tres vacíos para aplicar el presupuesto a todos los usuarios de esta fuente de datos.",
+      "label_applies_groups": "Se aplica a grupos",
+      "label_applies_users": "Se aplica a usuarios",
+      "label_enabled": "Activado",
+      "applies_everyone": "Todos",
+      "applies_roles_one": "{{count}} rol",
+      "applies_roles_other": "{{count}} roles",
+      "applies_groups_one": "{{count}} grupo",
+      "applies_groups_other": "{{count}} grupos",
+      "applies_users_one": "{{count}} usuario",
+      "applies_users_other": "{{count}} usuarios",
+      "rows_value": "{{value}} filas",
+      "unit_minutes": "minutos"
+    },
+    "usage": {
+      "action": "Uso de datos",
+      "title": "Uso de datos — {{name}}",
+      "description": "Filas y bytes de resultado que este usuario leyó frente a cada presupuesto que le aplica, en la ventana de cada presupuesto.",
+      "empty": "No se aplica ningún presupuesto de datos a este usuario.",
+      "load_error": "No se pudo cargar el uso de datos de este usuario",
+      "exhausted": "Agotado",
+      "rows_used": "{{used}} de {{limit}} filas",
+      "bytes_used": "{{used}} de {{limit}}"
+    },
+    "window_minutes_one": "{{count}} minuto",
+    "window_minutes_other": "{{count}} minutos"
   }
 }

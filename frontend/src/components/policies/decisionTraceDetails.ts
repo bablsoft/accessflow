@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type {
   BytesScannedCapOutcome,
   BytesScannedCapSource,
+  DataBudgetBreachAction,
   MaskingStrategy,
   QueryShape,
   QueryStatus,
@@ -15,6 +16,7 @@ import { formatBytes } from '@/utils/queryPlan';
 import {
   BYTES_SCANNED_CAP_OUTCOMES,
   BYTES_SCANNED_CAP_SOURCES,
+  DATA_BUDGET_BREACH_ACTIONS,
   MASKING_STRATEGIES,
   QUERY_SHAPES,
   QUERY_TYPES,
@@ -22,6 +24,7 @@ import {
   ROUTING_ACTIONS,
   bytesScannedCapOutcomeLabel,
   bytesScannedCapSourceLabel,
+  dataBudgetBreachActionLabel,
   maskingStrategyLabel,
   queryShapeLabel,
   queryStatusLabel,
@@ -68,6 +71,13 @@ export const KNOWN_DETAIL_KEYS = [
   'considered_grant_ids',
   'contributing_grants',
   'current',
+  'data_budget_action',
+  'data_budget_id',
+  'data_budget_name',
+  'data_budget_remaining_bytes',
+  'data_budget_remaining_rows',
+  'data_budget_suppressed',
+  'data_budget_used_percent',
   'db_type',
   'denied_shapes',
   'denied_tables',
@@ -172,8 +182,16 @@ function enumValue(key: string, value: unknown, t: TFunction): string | null {
       && includes<BytesScannedCapOutcome>(BYTES_SCANNED_CAP_OUTCOMES, value)) {
     return bytesScannedCapOutcomeLabel(t, value);
   }
-  if ((key === 'bytes_scanned_cap' || key === 'estimated_bytes_scanned') && typeof value === 'number') {
+  if ((key === 'bytes_scanned_cap' || key === 'estimated_bytes_scanned'
+      || key === 'data_budget_remaining_bytes') && typeof value === 'number') {
     return formatBytes(value);
+  }
+  if (key === 'data_budget_action'
+      && includes<DataBudgetBreachAction>(DATA_BUDGET_BREACH_ACTIONS, value)) {
+    return dataBudgetBreachActionLabel(t, value);
+  }
+  if (key === 'data_budget_used_percent' && typeof value === 'number') {
+    return `${value}%`;
   }
   return null;
 }
