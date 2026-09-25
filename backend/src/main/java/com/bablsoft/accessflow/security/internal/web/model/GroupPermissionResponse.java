@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.DatasourceGroupPermissionView;
+import com.bablsoft.accessflow.core.api.QueryShape;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +24,7 @@ public record GroupPermissionResponse(
         List<String> deniedColumns,
         List<String> deniedSchemas,
         List<String> deniedTables,
+        List<QueryShape> deniedShapes,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt
@@ -45,6 +47,7 @@ public record GroupPermissionResponse(
                 view.deniedColumns(),
                 view.deniedSchemas(),
                 view.deniedTables(),
+                view.deniedShapes(),
                 view.expiresAt(),
                 view.createdBy(),
                 view.createdAt());

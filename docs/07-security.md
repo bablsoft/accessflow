@@ -716,8 +716,8 @@ capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned
 intersected (a column is masked only when **every** contributing grant masks it), each grant's `expires_at`
 honoured independently. Two fields are deliberate inversions. `row_limit_override`: the **smallest** non-null value
 wins, so a wide group grant can never raise a tight per-user cap, and the proxy clamps it to the datasource
-cap and the global ceiling (#933). The deny-lists — `denied_schemas` / `denied_tables` (#939) and
-`denied_columns` (#935, #1099) — are **unioned**: a table or column stays denied when **any** contributing
+cap and the global ceiling (#933). The deny-lists — `denied_schemas` / `denied_tables` (#939),
+`denied_columns` (#935, #1099) and `denied_shapes` (#940) — are **unioned**: a table, column or query shape stays denied when **any** contributing
 grant — direct, group or JIT — denies it, so a permissive group grant can never lift a denial from a direct
 grant, and a group grant's denial binds every member. The merge is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
 the single choke-point every enforcement path (proxy, JIT/break-glass gates, masking/row-security scoping,
@@ -766,6 +766,13 @@ Are denied_columns set? (#935, relational engines only)
         names counts as a reference; an unanalysed parse and an OTHER statement (MERGE, CALL — a
         request-group member) reach every entry; reject (403, `error.permission.column_not_allowed`)
         on any hit.
+  Violation → 403
+         ↓
+Are denied_shapes set? (#940, relational engines only)
+  YES → read the statement's shapes from the JSqlParser AST (JOIN, UNION / set operation, SUBQUERY,
+        CTE, GROUP_BY, HAVING, AGGREGATE, WINDOW_FUNCTION — anywhere in the statement, unioned
+        across a BEGIN…COMMIT batch); reject (403, `error.permission.shape_denied`) on any hit.
+        A statement whose shape could not be analysed has every denied shape (fail closed).
   Violation → 403
          ↓
 Are restricted_columns set?
@@ -841,7 +848,7 @@ A user can self-request temporary, scoped access — to a datasource or an API c
 - **A requester can never approve their own request.** Enforced in `DefaultAccessReviewService.prepareDecision()` at the service layer (not just the UI) — `requesterId == reviewerId` raises `AccessDeniedException` (403), exactly as the query-review self-approval block does.
 - **Eligibility is identical to query review.** The reviewer must be an approver at the request's current stage in the resource's review plan (the datasource's plan, or the connector's `review_plan_id`) *and* — for datasource requests — within the datasource's scoped-reviewer set (`datasource_reviewers`) when one is configured (reviewer scoping is a datasource-only concept). `REVIEWER`/`ADMIN` role is necessary but not sufficient.
 - **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` or `api_connector_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard access checks return 403 — and the connector-side effective-permission resolver already excludes rows past `expires_at` even before deletion.
-- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) direct permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* direct permission — JIT or admin-created with an expiry — is revoked and replaced (extend/widen), and its `denied_columns` / `denied_schemas` / `denied_tables` carry over onto the new grant, so a JIT approval never lifts a denial (#939); group grants are never considered or touched. This preserves standing access as the source of truth while letting JIT grants stack predictably.
+- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) direct permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* direct permission — JIT or admin-created with an expiry — is revoked and replaced (extend/widen), and its `denied_columns` / `denied_schemas` / `denied_tables` / `denied_shapes` carry over onto the new grant, so a JIT approval never lifts a denial (#939); group grants are never considered or touched. This preserves standing access as the source of truth while letting JIT grants stack predictably.
 - **Privilege ceiling on connector requests (AF-567).** A connector access request can only convey `can_read`/`can_write` plus an operation allow-list validated against the connector's catalog — `can_break_glass` and response-field-restriction changes are never self-requestable, and the materialised grant always carries `can_break_glass = false`.
 
 ### Break-glass / emergency access (AF-385)
@@ -985,6 +992,36 @@ allow-list and **always wins**; it also works with no allow-list at all. All gat
   labels and relationship types (`MATCH (n) RETURN n` reports nothing), and Redis `KEYS` with a glob
   reports no prefix. Pair a deny-list with database-side grants on the pool account where the table
   must be unreachable even through those.
+
+### Query-shape deny-lists (#940)
+
+`denied_shapes` (`TEXT[]` on both permission tables) restricts the **grammar** a grantee may use, not
+just the statement type and the tables: an analyst can be limited to single-table
+`SELECT … WHERE … ORDER BY` by denying `JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`,
+`AGGREGATE` and `WINDOW_FUNCTION`. Shapes do not restrict the statement type — a grant with `can_write`
+still admits a single-table `UPDATE … WHERE` — so pair them with the read/write/DDL flags.
+
+- **Detection.** One walker, `proxy.internal.QueryShapeDetector`, reads the JSqlParser AST of every
+  statement — subqueries, CTE bodies and `INSERT … SELECT` included — and a `BEGIN … COMMIT` batch
+  carries the union of its statements' shapes. All gates share one matcher, `core.api.DeniedShapes`.
+- **Fail closed.** A parse whose shape was not analysed — any engine plugin, or a statement the walker
+  cannot traverse — counts as having every denied shape, so a deny-list is never silently skipped. A
+  non-empty list is refused at grant time for an engine-managed datasource (422
+  `DENIED_SHAPES_NOT_SUPPORTED`), so in practice it only ever binds relational datasources.
+- **Aggregate scope.** `AGGREGATE` is the engines' built-in aggregate set matched by name (a
+  best-effort list), `JSON_ARRAYAGG` / `JSON_OBJECTAGG`, and any `WITHIN GROUP` / `FILTER`ed call. A
+  user-defined aggregate, a built-in missing from the list, or an aggregate wrapped in a view or
+  function is not detected — pair the deny-list with database-side privileges where that matters.
+- **Where it is enforced.** Submission (REST and MCP) and the recurring per-occurrence recheck (403
+  `error.permission.shape_denied`), break-glass (for everyone), dry-run (403), request-group `QUERY`
+  members, and the access simulator (`denied_shapes` detail,
+  `workflow.access_simulation.permission.shape_denied`). `QUERY_ADMIN` holders skip it at submission,
+  like the rest of the per-datasource gate.
+- **Merge.** Denials union across direct, group and JIT grants; a JIT approval that replaces an
+  expiring direct row carries its `denied_shapes` over, and a JIT request cannot ask for them.
+- **Softer alternative.** The `query_shape` routing condition escalates, requires extra approvals for,
+  or auto-rejects a shape through a routing policy instead of refusing it at the grant. It fails closed
+  the other way — an unanalysed shape does not match — so prefer the grant when the rule must hold.
 
 ### Dynamic data masking policies (AF-381)
 

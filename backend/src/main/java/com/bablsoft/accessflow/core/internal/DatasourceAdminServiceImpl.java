@@ -21,7 +21,10 @@ import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
+import com.bablsoft.accessflow.core.api.DeniedShapes;
+import com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException;
 import com.bablsoft.accessflow.core.api.DeniedTables;
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
@@ -659,6 +662,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 DeniedTables::isValidSchemaEntry, "denied_schemas")));
         entity.setDeniedTables(toArray(deniedTables(command.deniedTables(),
                 DeniedTables::isValidTableEntry, "denied_tables")));
+        entity.setDeniedShapes(deniedShapes(datasource, command.deniedShapes()));
         entity.setExpiresAt(command.expiresAt());
         entity.setAccessGrantRequestId(command.accessGrantRequestId());
         entity.setCreatedBy(grantedBy);
@@ -718,6 +722,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 DeniedTables::isValidSchemaEntry, "denied_schemas")));
         entity.setDeniedTables(toArray(deniedTables(command.deniedTables(),
                 DeniedTables::isValidTableEntry, "denied_tables")));
+        entity.setDeniedShapes(deniedShapes(datasource, command.deniedShapes()));
         entity.setExpiresAt(command.expiresAt());
         entity.setCreatedBy(grantedBy);
         return toGroupPermissionView(groupPermissionRepository.save(entity));
@@ -1133,6 +1138,18 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         return denied;
     }
 
+    /**
+     * Stores a grant's {@code denied_shapes} (#940), refusing them on an engine whose queries are
+     * not parsed into a SQL AST — there the shape can never be verified.
+     */
+    private String[] deniedShapes(DatasourceEntity datasource, List<QueryShape> raw) {
+        var names = DeniedShapes.toNames(raw);
+        if (names != null && engineCatalog.isEngineManaged(datasource.getDbType())) {
+            throw new DeniedShapesNotSupportedException(datasource.getDbType());
+        }
+        return names;
+    }
+
     private DatasourcePermissionView toPermissionView(DatasourceUserPermissionEntity entity) {
         UserEntity user = entity.getUser();
         return new DatasourcePermissionView(
@@ -1152,6 +1169,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getDeniedColumns()),
                 toList(entity.getDeniedSchemas()),
                 toList(entity.getDeniedTables()),
+                DeniedShapes.fromNames(toList(entity.getDeniedShapes())),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());
@@ -1177,6 +1195,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 toList(entity.getDeniedColumns()),
                 toList(entity.getDeniedSchemas()),
                 toList(entity.getDeniedTables()),
+                DeniedShapes.fromNames(toList(entity.getDeniedShapes())),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());

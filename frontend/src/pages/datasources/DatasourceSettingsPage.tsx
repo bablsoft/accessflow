@@ -40,7 +40,13 @@ import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors';
-import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
+import {
+  QUERY_SHAPES,
+  aiProviderLabel,
+  dbTypeLabel,
+  enumOptions,
+  queryShapeLabel,
+} from '@/utils/enumLabels';
 import {
   datasourceEnvironmentOptions,
   toEnvironmentFormValue,
@@ -65,6 +71,11 @@ import {
   isValidDeniedSchema,
   isValidDeniedTable,
 } from '@/utils/deniedTables';
+import {
+  DENIED_SHAPES_MAX,
+  deniedShapesPayload,
+  supportsDeniedShapes,
+} from '@/utils/deniedShapes';
 import { userDisplay } from '@/utils/userDisplay';
 import {
   datasourceKeys,
@@ -115,6 +126,7 @@ import type {
   DbType,
   DatasourceGroupPermission,
   DatasourcePermission,
+  QueryShape,
   UpdateDatasourceInput,
   User,
 } from '@/types/api';
@@ -1111,6 +1123,10 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
             ),
           },
           {
+            title: t('datasources.settings.perm_col_denied_shapes'),
+            render: (_v, p) => <DeniedShapesCell shapes={p.denied_shapes} />,
+          },
+          {
             title: t('datasources.settings.perm_col_expires'),
             width: 170,
             render: (_v, p) => {
@@ -1233,6 +1249,10 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
                 ),
               },
               {
+                title: t('datasources.settings.perm_col_denied_shapes'),
+                render: (_v, p) => <DeniedShapesCell shapes={p.denied_shapes} />,
+              },
+              {
                 title: t('datasources.settings.perm_col_expires'),
                 width: 170,
                 render: (_v, p) =>
@@ -1305,6 +1325,21 @@ function DeniedTablesCell({
   );
 }
 
+function DeniedShapesCell({ shapes }: { shapes: QueryShape[] | null | undefined }) {
+  const { t } = useTranslation();
+  const entries = shapes ?? [];
+  if (entries.length === 0) {
+    return <span className="muted">{t('datasources.settings.perm_no_denied')}</span>;
+  }
+  return (
+    <Tooltip title={entries.map((shape) => queryShapeLabel(t, shape)).join(', ')}>
+      <Tag color="red" style={{ fontSize: 12 }}>
+        {t('datasources.settings.perm_denied_shapes_count', { count: entries.length })}
+      </Tag>
+    </Tooltip>
+  );
+}
+
 type GrantTarget = 'user' | 'group';
 
 interface GrantFormValues {
@@ -1322,6 +1357,7 @@ interface GrantFormValues {
   denied_columns?: string[];
   denied_schemas?: string[];
   denied_tables?: string[];
+  denied_shapes?: QueryShape[];
   expires_at?: Dayjs | null;
 }
 
@@ -1488,6 +1524,7 @@ function GrantAccessModal({
             : null,
         denied_tables:
           values.denied_tables && values.denied_tables.length > 0 ? values.denied_tables : null,
+        denied_shapes: deniedShapesPayload(values.denied_shapes),
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
       };
       if (values.target === 'group') {
@@ -1768,6 +1805,27 @@ function GrantAccessModal({
               loading={schemaQuery.isLoading}
               options={restrictedColumnOptions}
               showSearch={{ optionFilterProp: 'label' }}
+              allowClear
+            />
+          </Form.Item>
+        )}
+        {supportsDeniedShapes(dbType) && (
+          <Form.Item
+            name="denied_shapes"
+            label={t('datasources.settings.grant_denied_shapes_label')}
+            extra={t('datasources.settings.grant_denied_shapes_help')}
+            rules={[
+              {
+                type: 'array',
+                max: DENIED_SHAPES_MAX,
+                message: t('datasources.settings.grant_denied_shapes_too_many'),
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder={t('datasources.settings.grant_denied_shapes_placeholder')}
+              options={enumOptions(QUERY_SHAPES, queryShapeLabel, t)}
               allowClear
             />
           </Form.Item>

@@ -53,6 +53,7 @@ import type {
   OptimizationType,
   QueryStatus,
   QueryTemplateChangeType,
+  QueryShape,
   QueryType,
   RagStoreType,
   RequestGroupItemStatus,
@@ -396,6 +397,7 @@ export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
   'day_of_week',
   'has_where',
   'has_limit',
+  'query_shape',
   'transactional',
   'source_ip',
   'user_agent',
@@ -404,6 +406,20 @@ export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
   'estimated_rows',
   'scan_type',
 ] as const;
+
+export const QUERY_SHAPES: readonly QueryShape[] = [
+  'JOIN',
+  'UNION',
+  'SUBQUERY',
+  'CTE',
+  'GROUP_BY',
+  'HAVING',
+  'AGGREGATE',
+  'WINDOW_FUNCTION',
+] as const;
+
+export const queryShapeLabel = (t: TFunction, v: QueryShape): string =>
+  t(`enums.query_shape.${v}` as const);
 
 export const routingActionLabel = (t: TFunction, v: RoutingAction): string =>
   t(`enums.routing_action.${v}` as const);

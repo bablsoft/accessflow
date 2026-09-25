@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.routing;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
 import com.bablsoft.accessflow.workflow.api.IllegalRoutingPolicyException;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,8 @@ class RoutingConditionValidatorTest {
         var messages = new StaticMessageSource();
         messages.addMessage("error.routing_policy_cidr_invalid", Locale.getDefault(),
                 "Not a valid CIDR block: {0}");
+        messages.addMessage("error.routing_policy_query_shape_empty", Locale.getDefault(),
+                "A query shape condition must name at least one shape");
         validator = new RoutingConditionValidator(messages);
     }
 
@@ -36,6 +39,19 @@ class RoutingConditionValidatorTest {
     void rejectsInvalidSourceIpCidr() {
         assertThatExceptionOfType(IllegalRoutingPolicyException.class).isThrownBy(() ->
                 validator.validate(new ConditionNode.SourceIpMatches(List.of("10.0.0.0/8", "nope"))));
+    }
+
+    @Test
+    void rejectsAQueryShapeConditionWithNoShapes() {
+        assertThatExceptionOfType(IllegalRoutingPolicyException.class)
+                .isThrownBy(() -> validator.validate(new ConditionNode.Not(new ConditionNode.QueryShapeIn(Set.of()))))
+                .withMessage("A query shape condition must name at least one shape");
+    }
+
+    @Test
+    void acceptsAQueryShapeConditionWithShapes() {
+        assertThatCode(() -> validator.validate(new ConditionNode.QueryShapeIn(Set.of(QueryShape.JOIN))))
+                .doesNotThrowAnyException();
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 
@@ -34,6 +35,10 @@ import java.util.UUID;
  * the exact affected-row count for UPDATE/DELETE when available, otherwise the EXPLAIN estimate;
  * {@code scanType} is the plan's root operation (e.g. {@code Seq Scan}). Both are {@code null}
  * when the estimate is absent, unsupported, or failed — the matching conditions fail closed.
+ *
+ * <p>{@code queryShapes} are the structural features re-derived from the SQL with the WHERE / LIMIT
+ * signals (#940). {@code shapesAnalyzed} is {@code false} when the SQL could not be parsed or walked
+ * (typically a non-SQL engine); the {@code query_shape} condition then fails closed.
  */
 public record ConditionContext(
         QueryType queryType,
@@ -52,11 +57,28 @@ public record ConditionContext(
         Integer minutesSinceLastApproval,
         boolean anomalyActive,
         Long estimatedRows,
-        String scanType) {
+        String scanType,
+        Set<QueryShape> queryShapes,
+        boolean shapesAnalyzed) {
 
     public ConditionContext {
         referencedTables = Set.copyOf(referencedTables == null ? Set.of() : referencedTables);
         requesterGroupIds = Set.copyOf(requesterGroupIds == null ? Set.of() : requesterGroupIds);
+        queryShapes = Set.copyOf(queryShapes == null ? Set.of() : queryShapes);
+    }
+
+    /** Backward-compatible constructor without the #940 shape signals (defaults to not analyzed). */
+    public ConditionContext(QueryType queryType, Set<String> referencedTables, RiskLevel riskLevel,
+                            int riskScore, String requesterRoleName, Set<UUID> requesterGroupIds,
+                            LocalDateTime evaluatedAt, boolean hasWhereClause,
+                            boolean hasLimitClause, boolean transactional,
+                            String requesterIpAddress, String requesterUserAgent,
+                            boolean ciCdOrigin, Integer minutesSinceLastApproval,
+                            boolean anomalyActive, Long estimatedRows, String scanType) {
+        this(queryType, referencedTables, riskLevel, riskScore, requesterRoleName,
+                requesterGroupIds, evaluatedAt, hasWhereClause, hasLimitClause, transactional,
+                requesterIpAddress, requesterUserAgent, ciCdOrigin, minutesSinceLastApproval,
+                anomalyActive, estimatedRows, scanType, Set.of(), false);
     }
 
     /** Backward-compatible constructor without the AF-624 estimate signals (defaults to absent). */
@@ -70,7 +92,7 @@ public record ConditionContext(
         this(queryType, referencedTables, riskLevel, riskScore, requesterRoleName,
                 requesterGroupIds, evaluatedAt, hasWhereClause, hasLimitClause, transactional,
                 requesterIpAddress, requesterUserAgent, ciCdOrigin, minutesSinceLastApproval,
-                anomalyActive, null, null);
+                anomalyActive, null, null, Set.of(), false);
     }
 
     /** @return {@code true} when an AI risk level / score signal is present. */

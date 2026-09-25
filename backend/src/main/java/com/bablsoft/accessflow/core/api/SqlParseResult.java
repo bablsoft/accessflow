@@ -28,11 +28,16 @@ import java.util.Set;
  * candidate tables (#935). It is populated only by the JSqlParser path, which then sets
  * {@code columnsAnalyzed}; engine plugins leave both empty/{@code false}, and a column-level gate
  * must fail closed over an unanalyzed parse rather than read the empty set as "no columns".
+ *
+ * <p>{@code shapes} lists the structural features of the query (#940), unioned across a
+ * transactional batch. Like the columns it is populated only by the JSqlParser path, which then sets
+ * {@code shapesAnalyzed}; an unanalyzed parse must never be read as "no join".
  */
 public record SqlParseResult(QueryType type, boolean transactional, List<String> statements,
                              Set<String> referencedTables, boolean hasWhereClause,
                              boolean hasLimitClause, Set<ColumnReference> referencedColumns,
-                             boolean columnsAnalyzed) {
+                             boolean columnsAnalyzed, Set<QueryShape> shapes,
+                             boolean shapesAnalyzed) {
 
     public SqlParseResult {
         if (statements == null || statements.isEmpty()) {
@@ -41,6 +46,15 @@ public record SqlParseResult(QueryType type, boolean transactional, List<String>
         statements = List.copyOf(statements);
         referencedTables = referencedTables == null ? Set.of() : Set.copyOf(referencedTables);
         referencedColumns = referencedColumns == null ? Set.of() : Set.copyOf(referencedColumns);
+        shapes = shapes == null ? Set.of() : Set.copyOf(shapes);
+    }
+
+    public SqlParseResult(QueryType type, boolean transactional, List<String> statements,
+                          Set<String> referencedTables, boolean hasWhereClause,
+                          boolean hasLimitClause, Set<ColumnReference> referencedColumns,
+                          boolean columnsAnalyzed) {
+        this(type, transactional, statements, referencedTables, hasWhereClause, hasLimitClause,
+                referencedColumns, columnsAnalyzed, Set.of(), false);
     }
 
     public SqlParseResult(QueryType type, boolean transactional, List<String> statements,

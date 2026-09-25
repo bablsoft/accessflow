@@ -292,6 +292,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void deniedShapesNotSupportedReturns422() {
+        var pd = handler.handleDeniedShapesNotSupported(
+                new com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException(
+                        com.bablsoft.accessflow.core.api.DbType.REDIS));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DENIED_SHAPES_NOT_SUPPORTED")
+                .containsEntry("dbType", "REDIS");
+    }
+
+    @Test
     void invalidSqlReturns422() {
         var pd = handler.handleInvalidSql(new InvalidSqlException("nope"));
 

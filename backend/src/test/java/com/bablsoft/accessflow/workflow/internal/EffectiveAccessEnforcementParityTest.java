@@ -108,14 +108,14 @@ class EffectiveAccessEnforcementParityTest {
         var schemas = split(allowedSchemas);
         var tables = split(allowedTables);
         var permission = new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, false, schemas, tables, List.of(), null, List.of(), List.of(), null, null);
+                true, false, false, false, schemas, tables, List.of(), null, List.of(), List.of(), List.of(), null, null);
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(permission));
         when(permissionLookupService.findContributionsForDatasource(datasourceId))
                 .thenReturn(List.of(new DatasourcePermissionContribution(
                         DatasourcePermissionSourceKind.DIRECT, permission.id(), userId,
                         datasourceId, null, null, true, false, false, false, schemas, tables,
-                        List.of(), null, List.of(), List.of(), null, null, null)));
+                        List.of(), null, List.of(), List.of(), List.of(), null, null, null)));
         when(permissionLookupService.mergeContributions(any()))
                 .thenReturn(Optional.of(permission));
 

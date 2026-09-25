@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,14 @@ class ConditionNodeTest {
         assertThat(new ConditionNode.HasWhereClause(true).expected()).isTrue();
         assertThat(new ConditionNode.HasLimitClause(false).expected()).isFalse();
         assertThat(new ConditionNode.Transactional(true).expected()).isTrue();
+    }
+
+    @Test
+    void queryShapeInNullBecomesEmptyImmutableSet() {
+        var node = new ConditionNode.QueryShapeIn(null);
+        assertThat(node.anyOf()).isEmpty();
+        assertThatThrownBy(() -> node.anyOf().add(QueryShape.JOIN))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

@@ -185,6 +185,9 @@ class DefaultBreakGlassService implements BreakGlassService {
         if (!DatasourcePermissionChecker.rejectedColumns(permission, parsed).isEmpty()) {
             throw denied(datasourceId, userId, "denied columns referenced");
         }
+        if (!DatasourcePermissionChecker.rejectedShapes(permission, parsed).isEmpty()) {
+            throw denied(datasourceId, userId, "denied query shape");
+        }
     }
 
     private static BreakGlassNotPermittedException denied(UUID datasourceId, UUID userId,

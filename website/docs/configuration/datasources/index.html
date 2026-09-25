@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-24",
+      "dateModified": "2026-09-25",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -348,7 +348,7 @@
             deployment-wide.
           </p>
           <p>
-            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, restricted columns (masked as <code>***</code> in <code>SELECT</code> results), denied schemas and tables, and denied columns. Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, restricted columns (masked as <code>***</code> in <code>SELECT</code> results), denied schemas and tables, denied columns, and denied query shapes. Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
           </p>
           <p>
             <strong>Denied schemas and tables — everything except.</strong> Sometimes it is easier to say what a user may <em>not</em> touch. Allow the schema <code>crm</code> and deny the table <code>crm.salary</code>, and the user can query every table in <code>crm</code> — including tables created later — except <code>crm.salary</code>. A query that touches a denied table is refused before it runs:
@@ -375,6 +375,18 @@
             <li><strong>Deny beats mask.</strong> A query that uses a column that is both restricted and denied is refused.</li>
             <li><strong>Who it does not bind.</strong> Administrators (any role with query-admin rights) skip per-datasource permission checks, so a denied column does not stop them. If a user holds several grants on the datasource — their own and their groups' — a column denied by any one of them stays denied. A wider grant that denies nothing cannot undo it, and a group's denied columns apply to every member. A temporary just-in-time grant that replaces a user's own expiring grant keeps that grant's denied columns.</li>
             <li><strong>Supported datasources.</strong> PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC. The field is not offered for NoSQL or cloud data-warehouse datasources.</li>
+          </ul>
+          <p>
+            <strong>Denied query shapes — limit how a query is written.</strong> Some grants should allow a table but not every way of querying it — for example, simple lookups but no joins or totals. Pick the query shapes to refuse under <em>Denied query shapes</em>: joins, set operations (<code>UNION</code>, <code>INTERSECT</code>, <code>EXCEPT</code>), subqueries, <code>WITH</code> clauses, <code>GROUP BY</code>, <code>HAVING</code>, aggregate functions and window functions. Denying all of them leaves plain single-table queries such as <code>SELECT … FROM … WHERE … ORDER BY</code>; shapes don't change whether the grant can write, so keep <em>can write</em> off for a read-only grant. A query that uses a denied shape is refused before it runs:
+          </p>
+          <ul>
+            <li><strong>Anywhere in the query.</strong> A join inside a subquery or a <code>WITH</code> clause counts, and in a <code>BEGIN; …; COMMIT;</code> batch every statement is checked.</li>
+            <li><strong>Aggregate functions.</strong> The built-in ones — <code>COUNT</code>, <code>SUM</code>, <code>AVG</code>, <code>MIN</code>, <code>MAX</code>, <code>JSON_ARRAYAGG</code>, the statistics functions and similar. A custom aggregate function defined in your database, or a rarely used built-in, may not be recognised, so pair this setting with database permissions where it must hold.</li>
+            <li><strong>When in doubt, refuse.</strong> If AccessFlow cannot work out a query's shape, it treats the query as using every shape the grant denies.</li>
+            <li><strong>Who it does not bind.</strong> Administrators with query-admin rights skip per-datasource permission checks when they submit a query. Emergency (break-glass) queries are still checked, for everyone.</li>
+            <li><strong>Several grants add up.</strong> A shape denied by any of a user's grants stays denied, and a just-in-time grant that replaces a user's own expiring grant keeps its denied shapes.</li>
+            <li><strong>Supported datasources.</strong> PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom JDBC. The field is not offered for NoSQL or cloud data-warehouse datasources.</li>
+            <li><strong>Rather review than refuse?</strong> Use the <em>Query shape</em> condition in a <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing policy</a> instead, for example to send every joined query to a second reviewer.</li>
           </ul>
           <p>
             <strong>Users only see the tables they are granted.</strong> The same lists decide what a user can browse. The schema tree in the query editor, autocomplete, AI query drafting and the AI agent tools show a user only the tables their allowed schemas and tables cover, leave out their denied schemas and tables, and leave out their denied columns. Administrators still see every table. If the same table name exists in more than one schema, write the entry as <code>schema.table</code>; an entry with just the name then shows neither table. Two places still list every table name on purpose: the just-in-time access request form, because asking for access to a table you cannot see yet is its whole purpose, and the automatic AI review of a submitted query, which reads the whole schema, so its comments may mention other tables.

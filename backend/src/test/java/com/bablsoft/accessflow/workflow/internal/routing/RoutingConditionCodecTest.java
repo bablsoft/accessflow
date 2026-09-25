@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.routing;
 
+import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.workflow.api.ComparisonOperator;
@@ -45,6 +46,7 @@ class RoutingConditionCodecTest {
                 new ConditionNode.DayOfWeekIn(Set.of(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)),
                 new ConditionNode.HasLimitClause(false),
                 new ConditionNode.Transactional(true),
+                new ConditionNode.QueryShapeIn(Set.of(QueryShape.JOIN, QueryShape.WINDOW_FUNCTION)),
                 new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24", "2001:db8::/32")),
                 new ConditionNode.UserAgentMatches(List.of("*curl*", "*GitHubActions*")),
                 new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 1440),
@@ -66,6 +68,15 @@ class RoutingConditionCodecTest {
 
         assertThat(json).contains("\"type\":\"estimated_rows\"")
                 .contains("\"type\":\"scan_type\"");
+    }
+
+    @Test
+    void queryShapeUsesItsDiscriminatorAndUpperCaseShapeNames() {
+        var json = codec.encode(new ConditionNode.QueryShapeIn(Set.of(QueryShape.GROUP_BY)));
+
+        assertThat(json).contains("\"type\":\"query_shape\"").contains("\"any_of\":[\"GROUP_BY\"]");
+        assertThat(codec.decode("{\"type\":\"query_shape\",\"any_of\":[\"JOIN\",\"CTE\"]}"))
+                .isEqualTo(new ConditionNode.QueryShapeIn(Set.of(QueryShape.JOIN, QueryShape.CTE)));
     }
 
     @Test

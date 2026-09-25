@@ -104,7 +104,7 @@ class DefaultRequestGroupServiceCrudTest {
 
     private DatasourceUserPermissionView dsPerm(boolean read, boolean write, boolean bg) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read, write,
-                false, bg, List.of(), List.of(), List.of(), null, List.of(), List.of(), null, null);
+                false, bg, List.of(), List.of(), List.of(), null, List.of(), List.of(), List.of(), null, null);
     }
 
     private ApiConnectorPermissionLookupView apiPerm(boolean read, boolean write, boolean bg) {
@@ -286,6 +286,30 @@ class DefaultRequestGroupServiceCrudTest {
     }
 
     @Test
+    void submitRejectsAMemberWithADeniedQueryShape() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(deniedTableItem()));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of(), List.of(), List.of(),
+                        List.of(), List.of(), List.of(),
+                        List.of(com.bablsoft.accessflow.core.api.QueryShape.SUBQUERY), null, null)));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
+        when(queryParser.parse(any(), any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT * FROM crm.salary"), java.util.Set.of("crm.salary"), false, false,
+                java.util.Set.of(), true,
+                java.util.Set.of(com.bablsoft.accessflow.core.api.QueryShape.SUBQUERY), true));
+
+        assertThatThrownBy(() -> service.submit(new SubmitRequestGroupCommand(group.getId(), orgId,
+                userId, false, false, null, "1.2.3.4", "ua")))
+                .isInstanceOf(RequestGroupPermissionException.class)
+                .hasMessageContaining("SUBQUERY");
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    @Test
     void submitRejectsAnOtherMemberWhenTheSubmitterIsDeniedAColumn() {
         var group = draftGroup();
         when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
@@ -334,7 +358,7 @@ class DefaultRequestGroupServiceCrudTest {
     private DatasourceUserPermissionView writerDenyingSsn(boolean breakGlass) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, false, true,
                 false, breakGlass, List.of(), List.of(), List.of(), List.of("users.ssn"), List.of(),
-                List.of(), null, null);
+                List.of(), List.of(), null, null);
     }
 
     private void stubMergeParse() {
@@ -356,7 +380,7 @@ class DefaultRequestGroupServiceCrudTest {
     private DatasourceUserPermissionView denyingTablePerm(boolean breakGlass) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true, false,
                 false, breakGlass, List.of("crm"), List.of(), List.of(), List.of(), List.of(),
-                List.of("crm.salary"), null, null);
+                List.of("crm.salary"), List.of(), null, null);
     }
 
     private void stubDeniedTableParse() {
@@ -378,7 +402,7 @@ class DefaultRequestGroupServiceCrudTest {
 
     private DatasourceUserPermissionView denyingPerm(boolean breakGlass) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true, false,
-                false, breakGlass, List.of(), List.of(), List.of(), List.of("customer.ssn"), List.of(), List.of(), null, null);
+                false, breakGlass, List.of(), List.of(), List.of(), List.of("customer.ssn"), List.of(), List.of(), List.of(), null, null);
     }
 
     private void stubDeniedColumnParse() {
@@ -493,7 +517,7 @@ class DefaultRequestGroupServiceCrudTest {
     private DatasourceUserPermissionView allowListPerm(List<String> schemas, List<String> tables,
                                                        boolean breakGlass) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true, false,
-                false, breakGlass, schemas, tables, List.of(), List.of(), List.of(), List.of(), null, null);
+                false, breakGlass, schemas, tables, List.of(), List.of(), List.of(), List.of(), List.of(), null, null);
     }
 
     @Test
