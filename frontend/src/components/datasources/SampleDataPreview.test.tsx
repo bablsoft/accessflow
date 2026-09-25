@@ -84,4 +84,19 @@ describe('SampleDataPreview', () => {
     renderPreview();
     expect(screen.getByText(/capped by the result size limit/i)).toBeInTheDocument();
   });
+
+  it('renders the data-budget footer when truncated_reason is DATA_BUDGET', () => {
+    useTableSampleMock.mockReturnValue({
+      data: {
+        columns: [{ name: 'id', type: 'uuid', restricted: false }],
+        rows: [['1']],
+        row_count: 1,
+        truncated: true,
+        truncated_reason: 'DATA_BUDGET',
+        duration_ms: 4,
+      },
+    });
+    renderPreview();
+    expect(screen.getByText(/capped at your remaining data budget/i)).toBeInTheDocument();
+  });
 });

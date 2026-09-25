@@ -59,6 +59,9 @@ import java.util.UUID;
  * promoter. {@code schemaChangeStatus} is the promotion status name, so a
  * {@code PARTIALLY_APPLIED} run can be told apart from a {@code FAILED} one, and
  * {@code schemaChangeErrorMessage} is the first failed statement's error.
+ *
+ * <p>{@code dataBudget} is only populated for the {@code DATA_BUDGET_*} events (#942) — see
+ * {@link #isDataBudgetEvent()}.
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -114,7 +117,89 @@ public record NotificationContext(
         String schemaChangeSetName,
         String schemaChangeStatus,
         String schemaChangeErrorMessage,
-        Integer driftNewFindingCount) {
+        Integer driftNewFindingCount,
+        DataBudgetNotice dataBudget) {
+
+    /**
+     * True for the #942 data-budget events. They reuse {@code datasourceId}/{@code datasourceName}
+     * for the budgeted datasource and the {@code submitter*} fields for the user whose budget it
+     * is; everything budget-specific rides in {@code dataBudget}.
+     */
+    public boolean isDataBudgetEvent() {
+        return eventType == NotificationEventType.DATA_BUDGET_THRESHOLD_REACHED
+                || eventType == NotificationEventType.DATA_BUDGET_EXHAUSTED;
+    }
+
+    /** Compatibility constructor without the #942 data-budget notice — every other path. */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest,
+            UUID attestationCampaignId,
+            String attestationCampaignName,
+            Instant attestationDueAt,
+            UUID apiRequestId,
+            QueryStatus executionStatus,
+            Long executionRowsAffected,
+            Long executionDurationMs,
+            GrantResourceKind grantResourceKind,
+            Long grantDaysSinceLastUse,
+            GrantUsageRecommendation grantRecommendation,
+            String exportFormat,
+            String exportClassifications,
+            String exportTrigger,
+            UUID deploymentRequestId,
+            String environmentName,
+            String deploymentVersion,
+            DeploymentOutcome deploymentOutcome,
+            String deploymentDecisionReason,
+            UUID schemaChangePromotionId,
+            String schemaChangeSetName,
+            String schemaChangeStatus,
+            String schemaChangeErrorMessage,
+            Integer driftNewFindingCount) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                attestationCampaignId, attestationCampaignName, attestationDueAt, apiRequestId,
+                executionStatus, executionRowsAffected, executionDurationMs, grantResourceKind,
+                grantDaysSinceLastUse, grantRecommendation, exportFormat, exportClassifications,
+                exportTrigger, deploymentRequestId, environmentName, deploymentVersion,
+                deploymentOutcome, deploymentDecisionReason, schemaChangePromotionId,
+                schemaChangeSetName, schemaChangeStatus, schemaChangeErrorMessage,
+                driftNewFindingCount, null);
+    }
 
     /**
      * True for the #882 schema-change events, which render their own field set — "Datasource"

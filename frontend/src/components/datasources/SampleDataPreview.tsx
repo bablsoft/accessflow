@@ -3,6 +3,7 @@ import type { TableColumnsType } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useTableSample } from '@/hooks/useTableSample';
+import type { TruncatedReason } from '@/types/api';
 
 interface SampleDataPreviewProps {
   datasourceId: string;
@@ -81,12 +82,7 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
         footer={() =>
           data.truncated ? (
             <span className="muted" style={{ fontSize: 11 }}>
-              {t(
-                data.truncated_reason === 'BYTE_LIMIT'
-                  ? 'datasources.settings.sample_truncated_bytes'
-                  : 'datasources.settings.sample_truncated',
-                { count: data.row_count },
-              )}
+              {t(sampleTruncatedKey(data.truncated_reason), { count: data.row_count })}
             </span>
           ) : (
             <span className="muted" style={{ fontSize: 11 }}>
@@ -103,4 +99,10 @@ function formatCell(value: unknown): string {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+function sampleTruncatedKey(reason: TruncatedReason | null | undefined) {
+  if (reason === 'BYTE_LIMIT') return 'datasources.settings.sample_truncated_bytes' as const;
+  if (reason === 'DATA_BUDGET') return 'datasources.settings.sample_truncated_budget' as const;
+  return 'datasources.settings.sample_truncated' as const;
 }

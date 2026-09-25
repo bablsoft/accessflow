@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.ByteSizeFormat;
 import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
 import com.bablsoft.accessflow.core.api.AppliedBytesCap;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -92,6 +94,7 @@ class QueryReviewStateMachine {
     private final QueryCostEstimateService queryCostEstimateService;
     private final QueryEstimateLookupService queryEstimateLookupService;
     private final PlatformTransactionManager transactionManager;
+    private final DataBudgetStatusService dataBudgetStatusService;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone. A field
     // (not an injected bean) so it can be overridden in tests without colliding with the proxy's
@@ -180,8 +183,15 @@ class QueryReviewStateMachine {
     private void decide(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
                         int riskScore, AppliedBytesCap cap) {
         var bytesCap = cap == null ? null : BytesCapCheck.of(cap, estimatedBytes(query));
+        var budget = dataBudget(query);
         var decision = queryDecisionEvaluator.evaluate(query, aiOutcome, riskLevel, riskScore,
-                blockingRuleIds(query), bytesCap, clock);
+                blockingRuleIds(query), bytesCap, budget, clock);
+        // #942: the reviewer is deciding on a submitter whose budget is used up — only an approval
+        // given here may later run the query past the exhausted budget.
+        if (budget != null && budget.forcesReview()
+                && decision.nextStatus() == QueryStatus.PENDING_REVIEW) {
+            queryRequestStateService.recordDataBudgetReviewForced(query.id());
+        }
         if (bytesCap != null) {
             queryRequestStateService.recordBytesScannedCap(query.id(), bytesCap.limit(),
                     bytesCap.source(), bytesCap.outcome());
@@ -195,6 +205,15 @@ class QueryReviewStateMachine {
                 .filter(e -> !e.failed())
                 .map(QueryEstimateSnapshot::estimatedBytesScanned)
                 .orElse(null);
+    }
+
+    /** The submitter's data-budget standing (#942); reads are the only thing a budget bounds. */
+    private DataBudgetCheck dataBudget(QueryRequestSnapshot query) {
+        if (query.queryType() != QueryType.SELECT) {
+            return null;
+        }
+        return DataBudgetCheck.of(dataBudgetStatusService.statusFor(query.datasourceId(),
+                query.submittedByUserId()));
     }
 
     private List<String> blockingRuleIds(QueryRequestSnapshot query) {
@@ -266,6 +285,12 @@ class QueryReviewStateMachine {
                 eventPublisher.publishEvent(new QueryAutoRejectedEvent(query.id(), null,
                         bytesCapReason(decision.bytesCap())));
             }
+            case DATA_BUDGET_REJECTED -> {
+                queryRequestStateService.transitionTo(query.id(), QueryStatus.PENDING_AI,
+                        QueryStatus.REJECTED);
+                eventPublisher.publishEvent(new QueryAutoRejectedEvent(query.id(), null,
+                        dataBudgetReason(decision.dataBudget())));
+            }
             // A switch STATEMENT over an enum is not exhaustiveness-checked, so a new kind would
             // otherwise fall through silently and strand the query in PENDING_AI forever.
             default -> throw new IllegalStateException("Unhandled decision kind " + decision.kind());
@@ -275,6 +300,9 @@ class QueryReviewStateMachine {
         }
         if (decision.bytesCapChangedOutcome()) {
             auditBytesCapEnforced(query, decision);
+        }
+        if (decision.dataBudgetChangedOutcome()) {
+            auditDataBudgetEnforced(query, decision);
         }
         // Logged after the fact: a line claiming a query was auto-approved must not outlive a
         // persistence call that then failed.
@@ -342,6 +370,42 @@ class QueryReviewStateMachine {
             log.error("Audit write failed for QUERY_BYTES_SCANNED_CAP_ENFORCED on query {}",
                     query.id(), ex);
         }
+    }
+
+    /**
+     * One row per query whose outcome an exhausted data budget changed (#942) — a refusal, or an
+     * automatic approval turned into review. Swallow-and-log, like the rows above.
+     */
+    private void auditDataBudgetEnforced(QueryRequestSnapshot query, QueryDecision decision) {
+        var budget = decision.dataBudget();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "data_budget");
+        metadata.put("stage", "decision");
+        metadata.put("action", budget.action().name());
+        if (budget.deciding() != null) {
+            metadata.put("data_budget_id", budget.deciding().budgetId());
+            metadata.put("used_rows", budget.deciding().usedRows());
+            metadata.put("used_bytes", budget.deciding().usedBytes());
+            metadata.put("window_minutes", budget.deciding().windowMinutes());
+        }
+        if (decision.routingMatch() != null) {
+            metadata.put("matched_policy_id", decision.routingMatch().policyId());
+        }
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.QUERY_DATA_BUDGET_ENFORCED,
+                    AuditResourceType.QUERY_REQUEST, query.id(), query.organizationId(), null,
+                    metadata, null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_DATA_BUDGET_ENFORCED on query {}", query.id(),
+                    ex);
+        }
+    }
+
+    /** Server-default locale for the same reason as {@link #grantReason}. */
+    private String dataBudgetReason(DataBudgetCheck budget) {
+        var name = budget.deciding() == null ? "-" : budget.deciding().name();
+        return messageSource.getMessage("workflow.data_budget.rejected", new Object[]{name},
+                Locale.getDefault());
     }
 
     /** Server-default locale for the same reason as {@link #grantReason}. */

@@ -119,7 +119,7 @@ class AdminAccessSimulationControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(200);
-        assertThat(result).bodyJson().extractingPath("$.steps.length()").asNumber().isEqualTo(13);
+        assertThat(result).bodyJson().extractingPath("$.steps.length()").asNumber().isEqualTo(14);
         assertThat(result).bodyJson().extractingPath("$.steps[0].step").asString()
                 .isEqualTo("DATASOURCE_GATES");
         // #864: the SQL review verdict sits between the permission gate and routing.
@@ -130,7 +130,12 @@ class AdminAccessSimulationControllerIntegrationTest {
         // #941: the bytes-scanned cap follows it; no cap configured here.
         assertThat(result).bodyJson().extractingPath("$.steps[5].step").asString()
                 .isEqualTo("BYTES_SCANNED_CAP");
-        assertThat(result).bodyJson().extractingPath("$.steps[12].step").asString()
+        // #942: the data budget follows the cap; no budget configured here.
+        assertThat(result).bodyJson().extractingPath("$.steps[6].step").asString()
+                .isEqualTo("DATA_BUDGET");
+        assertThat(result).bodyJson().extractingPath("$.steps[6].outcome").asString()
+                .isEqualTo("NO_MATCH");
+        assertThat(result).bodyJson().extractingPath("$.steps[13].step").asString()
                 .isEqualTo("BREAK_GLASS");
         assertThat(result).bodyJson().extractingPath("$.resulting_status").asString()
                 .isEqualTo("PENDING_REVIEW");
@@ -295,11 +300,11 @@ class AdminAccessSimulationControllerIntegrationTest {
                 .content(body(analyst.getId(), datasource.getId(), "SELECT id FROM orders"))
                 .exchange();
 
-        assertThat(result).bodyJson().extractingPath("$.steps[8].step").asString()
+        assertThat(result).bodyJson().extractingPath("$.steps[9].step").asString()
                 .isEqualTo("REVIEW_PLAN");
-        assertThat(result).bodyJson().doesNotHavePath("$.steps[8].details.review_plan_id");
-        assertThat(result).bodyJson().doesNotHavePath("$.steps[8].details.min_approvals_required");
-        assertThat(result).bodyJson().extractingPath("$.steps[8].details.requires_human_approval")
+        assertThat(result).bodyJson().doesNotHavePath("$.steps[9].details.review_plan_id");
+        assertThat(result).bodyJson().doesNotHavePath("$.steps[9].details.min_approvals_required");
+        assertThat(result).bodyJson().extractingPath("$.steps[9].details.requires_human_approval")
                 .asBoolean().isFalse();
     }
 

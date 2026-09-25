@@ -65,6 +65,8 @@ public enum Permission {
     EXPORT_POLICY_MANAGE(PermissionGroup.DATA_POLICIES),
     /** Manage per-table row-limit policies (#934). */
     ROW_LIMIT_POLICY_MANAGE(PermissionGroup.DATA_POLICIES),
+    /** Manage per-user data-volume budgets (#942). */
+    DATA_BUDGET_MANAGE(PermissionGroup.DATA_POLICIES),
 
     /** Manage review plans. */
     REVIEW_PLAN_MANAGE(PermissionGroup.WORKFLOW_ADMIN),

@@ -534,6 +534,50 @@
               condition in a <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing
               policy</a> to send expensive queries to an extra reviewer instead.</li>
           </ul>
+          <p id="cfg-data-budgets">
+            <strong>Data budgets — limit how much one person reads over time.</strong> Row limits and
+            the bytes-scanned cap stop one big query. They cannot stop someone copying a table out a few
+            thousand rows at a time over a week. A data budget can: on the datasource <em>Data
+            budgets</em> tab, set how many rows, how much result data (entered in MB, GB, TB or PB), or both, a
+            person may read from this datasource over a rolling window, from one hour up to 31 days:
+          </p>
+          <ul>
+            <li><strong>Everyone gets their own allowance.</strong> Choose the roles, groups or people
+              the budget applies to, or leave all three empty for everyone who uses the datasource.
+              A budget for a group gives <em>each member</em> the full allowance; it is never shared
+              between them.</li>
+            <li><strong>What counts.</strong> Everything a person actually receives from a read: rows
+              after row-level rules and every other cap (masked rows still count), and the size of
+              the result. That includes their own queries, scheduled and recurring runs, grouped
+              requests, table previews and emergency (break-glass) runs. Writes never count. Usage is
+              counted from the moment a budget exists.</li>
+            <li><strong>A rolling window.</strong> The budget looks back over the last hour, day or
+              week you chose, measured from now, so older reads drop out gradually. There is no
+              midnight reset.</li>
+            <li><strong>While allowance is left,</strong> a query's result is cut short at the rows
+              and data the person has left, and the result says the data budget was the reason.</li>
+            <li><strong>Once it is used up,</strong> the budget does what you chose under <em>When the
+              budget is used up</em>. <em>Send to human review</em> (the default) sends every new
+              <code>SELECT</code> to a reviewer, even one that would otherwise be approved
+              automatically, and runs it once a reviewer approves. An approval given earlier, while
+              allowance was left, does not count. <em>Reject</em> refuses new reads outright. Table
+              previews and grouped requests are refused either way. Emergency (break-glass) runs
+              are counted but never cut short or refused by a budget; they are reviewed afterwards
+              as usual.</li>
+            <li><strong>Several budgets.</strong> When more than one applies to a person, the one with
+              the least left wins, and <em>Reject</em> wins over review.</li>
+            <li><strong>Warnings.</strong> Set <em>Warn at (% used)</em> and the person is notified once
+              when they pass it. When a budget is used up, they and the administrators who manage data
+              budgets are notified. People see what they have left beside the query editor, and admins
+              can open <em>Data usage</em> on any user's row on the <a
+              href="/docs/configuration/users-roles/#cfg-users">Users</a> page.</li>
+            <li><strong>Approximate, by design.</strong> Result size is AccessFlow's estimate of the
+              result in memory, not network bytes, and two queries that run at the same moment can go
+              over the limit by at most one query's worth.</li>
+            <li><strong>Rather review than refuse early?</strong> Use the <em>Data budget used
+              (%)</em> condition in a <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing
+              policy</a> to send a heavy reader's queries to an extra reviewer before they run out.</li>
+          </ul>
           <p>
             <strong>Export policies.</strong> Masking and row security govern what a user
             <em>sees</em>; the datasource <em>Export policy</em> tab governs what <em>leaves</em>.
@@ -648,6 +692,12 @@
               <code>ACCESSFLOW_PROXY_CACHE_ENABLED</code> (<code>true</code>),
               <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code> (<code>PT60S</code>),
               <code>ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES</code> (<code>1000000</code>).</li>
+            <li><strong>Data-budget usage history:</strong>
+              <code>ACCESSFLOW_CORE_DATA_BUDGET_USAGE_RETENTION</code> (<code>P32D</code> — how long
+              read usage is kept; never less than 31 days and an hour, so the longest window is always
+              covered),
+              <code>ACCESSFLOW_CORE_DATA_BUDGET_PRUNE_INTERVAL</code> (<code>PT1H</code> — how often
+              older usage is cleaned up).</li>
             <li><strong>Read-replica health checks:</strong>
               <code>ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL</code> (<code>PT30S</code>),
               <code>ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT</code> (<code>PT5S</code>),

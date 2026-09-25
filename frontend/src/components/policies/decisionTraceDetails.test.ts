@@ -205,4 +205,22 @@ describe('formatStepDetails — masking, omission and enum values (#1066 review)
       'Rejected: the estimate exceeds the bytes-scanned cap',
     );
   });
+
+  it('formats the data-budget step with labels, sizes and percentages (#942)', () => {
+    const rows = formatStepDetails(
+      {
+        data_budget_name: 'Analysts daily',
+        data_budget_action: 'REQUIRE_REVIEW',
+        data_budget_used_percent: 105,
+        data_budget_remaining_rows: 0,
+        data_budget_remaining_bytes: 2_000_000_000,
+      },
+      t,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    expect(byKey.data_budget_action).toBe('Send to human review');
+    expect(byKey.data_budget_used_percent).toBe('105%');
+    expect(byKey.data_budget_remaining_bytes).toBe('2 GB');
+    expect(rows.find((r) => r.key === 'data_budget_name')?.label).toBe('Data budget name');
+  });
 });

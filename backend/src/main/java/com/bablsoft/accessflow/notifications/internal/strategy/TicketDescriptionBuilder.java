@@ -31,6 +31,10 @@ final class TicketDescriptionBuilder {
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "Schema change applied on pipeline " + datasource;
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "Schema change failed on pipeline " + datasource;
             case SCHEMA_DRIFT_DETECTED -> "Schema drift detected on pipeline " + datasource;
+            // #942: no TicketingTrigger maps these either — spelled out for the same reason.
+            case DATA_BUDGET_THRESHOLD_REACHED ->
+                    "Data budget warning threshold reached on " + datasource;
+            case DATA_BUDGET_EXHAUSTED -> "Data budget exhausted on " + datasource;
             default -> ctx.eventType().name() + " on " + datasource;
         };
         var summary = "[AccessFlow] " + headline;

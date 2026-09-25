@@ -349,6 +349,13 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
   PENDING_AI → PENDING_REVIEW (bytes-scanned cap, no estimate, bytes_cap_missing_estimate=
                           REQUIRE_REVIEW — #941; suppresses the same auto-approve paths as a SQL
                           review BLOCK, never softens AUTO_REJECT)
+  PENDING_AI → REJECTED  (data budget — #942; a SELECT whose submitter has used up an applying
+                          per-user data budget with breach_action=REJECT. Decided right after the
+                          bytes-scanned cap, no routing_decision row, QueryAutoRejectedEvent with a
+                          null policy id; audited as QUERY_DATA_BUDGET_ENFORCED)
+  PENDING_AI → PENDING_REVIEW (data budget used up, breach_action=REQUIRE_REVIEW — #942; suppresses
+                          the same auto-approve paths as a SQL review BLOCK, never softens
+                          AUTO_REJECT)
   PENDING_REVIEW → APPROVED or REJECTED (external ticket resolution — AF-453; a channel with
                           bidirectional_sync=true maps a ServiceNow/Jira ticket resolution onto a
                           decision via workflow.api.ExternalDecisionService. System-attributed:
@@ -373,7 +380,10 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
   APPROVED       → EXECUTED  (break-glass run — audit action QUERY_BREAK_GLASS_EXECUTED — AF-385)
   APPROVED       → FAILED    (execution error; also the bytes-scanned cap re-checked just before
                               execution refusing the run — #941, scheduled / recurring /
-                              break-glass included)
+                              break-glass included; an exhausted data budget re-checked there —
+                              #942, REJECT always, REQUIRE_REVIEW unless the exhausted budget
+                              itself forced the review (data_budget_review_forced); break-glass
+                              is counted but never capped or refused by a budget)
   ```
 
   Illegal transitions must throw a domain exception, not silently succeed. **Break-glass /

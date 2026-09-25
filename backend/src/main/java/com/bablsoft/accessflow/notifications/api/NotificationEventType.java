@@ -82,5 +82,17 @@ public enum NotificationEventType {
      */
     SCHEMA_DRIFT_DETECTED,
 
+    /**
+     * A user's reads on a datasource crossed their data budget's warning threshold (#942).
+     * Advisory — notifies that user only; never pages, never opens a ticket.
+     */
+    DATA_BUDGET_THRESHOLD_REACHED,
+    /**
+     * A user used up a data budget on a datasource (#942); further SELECTs are rejected or sent
+     * to review per the budget's breach action. Notifies the user and every
+     * {@code DATA_BUDGET_MANAGE} holder; never pages, never opens a ticket.
+     */
+    DATA_BUDGET_EXHAUSTED,
+
     TEST
 }

@@ -406,6 +406,56 @@ class NotificationDispatcherTest {
                 any(), any(), any());
     }
 
+    /** #942: budgets are per user, not per plan — both events fan out org-wide and record in-app. */
+    @Test
+    void dataBudgetEventsUseAllActiveChannelsAndCarryTheDatasourceInThePayload() {
+        var userId = UUID.randomUUID();
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of(emailCh));
+        for (var exhausted : List.of(false, true)) {
+            var event = new com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent(orgId, userId,
+                    datasourceId, UUID.randomUUID(), "daily-reads", exhausted, 80, exhausted ? 100 : 85,
+                    1000L, null, 850L, 0L, 60,
+                    com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW);
+            var type = exhausted ? NotificationEventType.DATA_BUDGET_EXHAUSTED
+                    : NotificationEventType.DATA_BUDGET_THRESHOLD_REACHED;
+            when(contextBuilder.buildDataBudget(event)).thenReturn(Optional.of(sampleDataBudgetContext(type,
+                    userId, List.of(new RecipientView(userId, "u@x", "U")))));
+            dispatcher.dispatchDataBudget(event);
+        }
+
+        verify(emailStrategy, org.mockito.Mockito.times(2)).deliver(any(), eq(emailCh));
+        verify(contextBuilder, never()).lookupPlanChannelIds(any());
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.DATA_BUDGET_EXHAUSTED),
+                eq(Set.of(userId)),
+                eq(orgId),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"datasource_id\":\"" + datasourceId + "\"")
+                .contains("\"datasource\":\"warehouse\"")
+                .contains("\"budget\":\"daily-reads\"")
+                .contains("\"used_percent\":100");
+    }
+
+    @Test
+    void dataBudgetWithNoRecipientShortCircuits() {
+        when(contextBuilder.buildDataBudget(any())).thenReturn(Optional.empty());
+
+        dispatcher.dispatchDataBudget(new com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent(
+                orgId, UUID.randomUUID(), datasourceId, UUID.randomUUID(), "b", false, 80, 80, 10L, null,
+                8L, 0L, 60, com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT));
+
+        verify(channelRepository, never()).findAllByOrganizationIdAndActiveTrue(any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(),
+                any(), any(), any());
+    }
+
     @Test
     void unknownDeploymentRequestShortCircuits() {
         when(contextBuilder.buildDeployment(any(), any(), any(), any()))
@@ -596,6 +646,34 @@ class NotificationDispatcherTest {
                 promotionId == null ? null : "PARTIALLY_APPLIED",
                 null,
                 newFindingCount);
+    }
+
+    private NotificationContext sampleDataBudgetContext(NotificationEventType type, UUID userId,
+                                                        List<RecipientView> recipients) {
+        var exhausted = type == NotificationEventType.DATA_BUDGET_EXHAUSTED;
+        return new NotificationContext(
+                type, orgId, null,
+                null, null, null, null,
+                null, null, null,
+                datasourceId, "warehouse",
+                userId, "u@x", "U",
+                null,
+                null, null, null,
+                null,
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                null, null, null, null, null,
+                null, null, null, null,
+                null,
+                new DataBudgetNotice(UUID.randomUUID(), "daily-reads", exhausted, 80, exhausted ? 100 : 85,
+                        1000L, null, 850L, 0L, 60,
+                        com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW));
     }
 
     private NotificationContext sampleExecutedContext(List<RecipientView> recipients) {

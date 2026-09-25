@@ -86,6 +86,22 @@ class MsTeamsPayloadFactory {
             }
             return card;
         }
+        // #942: data budgets — shared field set with the other chat channels.
+        if (ctx.isDataBudgetEvent()) {
+            for (var field : DataBudgetText.fields(ctx)) {
+                facts.add(fact(field.getKey(), field.getValue()));
+            }
+            body.add(factSet(facts));
+            card.put("body", body);
+            if (ctx.reviewUrl() != null) {
+                var action = new LinkedHashMap<String, Object>();
+                action.put("type", "Action.OpenUrl");
+                action.put("title", "Open the query editor");
+                action.put("url", ctx.reviewUrl().toString());
+                card.put("actions", List.of(action));
+            }
+            return card;
+        }
         // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
         if (ctx.isSchemaChangeEvent()) {
             if (ctx.schemaChangeSetName() != null) {
@@ -263,6 +279,8 @@ class MsTeamsPayloadFactory {
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";
             case SCHEMA_DRIFT_DETECTED -> "⚠️ Schema Drift Detected";
+            case DATA_BUDGET_THRESHOLD_REACHED -> "📊 Data Budget Warning Threshold Reached";
+            case DATA_BUDGET_EXHAUSTED -> "🛑 Data Budget Exhausted";
         };
     }
 

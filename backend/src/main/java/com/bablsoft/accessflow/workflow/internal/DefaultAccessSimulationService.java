@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryShape;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
@@ -89,6 +90,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final BreakGlassEligibilityService breakGlassEligibilityService;
     private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    private final DataBudgetStatusService dataBudgetStatusService;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone, so the
     // simulator has to use the same zone the live listener does. Deliberately NOT the injected
@@ -149,9 +151,15 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                 .resolve(input.datasourceId(), input.userId())
                 .map(BytesCapCheck::unevaluated)
                 .orElse(null);
+        // Budget usage is a live, persisted fact about the user, so it is read as it stands (#942).
+        var dataBudget = parsed.type() == QueryType.SELECT
+                ? DataBudgetCheck.of(dataBudgetStatusService.statusFor(input.datasourceId(),
+                        input.userId()))
+                : null;
         var decision = queryDecisionEvaluator.evaluate(
                 syntheticSnapshot(organizationId, input, parsed), input.aiOutcome(),
-                input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, bytesCap, clock);
+                input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, bytesCap, dataBudget,
+                clock);
         steps.addAll(withFullPolicyList(decision, organizationId, input.datasourceId()));
 
         steps.add(reviewerStep(input, decision.nextStatus()));

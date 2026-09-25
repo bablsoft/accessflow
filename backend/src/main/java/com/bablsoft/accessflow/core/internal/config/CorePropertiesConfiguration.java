@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties({EncryptionProperties.class, SecretsProperties.class,
-        ReviewDelegationProperties.class, PolicySimulationProperties.class})
+        ReviewDelegationProperties.class, PolicySimulationProperties.class,
+        DataBudgetProperties.class})
 class CorePropertiesConfiguration {
 }

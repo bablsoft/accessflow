@@ -677,6 +677,54 @@ describe('NotificationBell', () => {
     expect(navigateMock).toHaveBeenCalledWith('/schema-drift');
   });
 
+  it.each([
+    [
+      'DATA_BUDGET_THRESHOLD_REACHED' as const,
+      { datasource: 'warehouse', datasource_id: 'ds-1', budget: 'daily-reads', used_percent: 80 },
+      'You have used 80% of your data budget daily-reads on warehouse',
+    ],
+    [
+      'DATA_BUDGET_EXHAUSTED' as const,
+      {
+        datasource: 'warehouse',
+        datasource_id: 'ds-1',
+        budget: 'daily-reads',
+        used_percent: 100,
+        submitter: 'ana@example.com',
+        submitter_name: 'Ana',
+      },
+      'Data budget daily-reads for Ana on warehouse is used up',
+    ],
+  ])('renders %s and opens the query editor (#942)', async (eventType, payload, expected) => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'budget1',
+          event_type: eventType,
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: null,
+          payload,
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(expected);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('budget1'));
+    expect(navigateMock).toHaveBeenCalledWith('/editor');
+  });
+
   it('routes a plain FAILED outcome to the deployment, not the rollback worklist', async () => {
     // A rollback review only exists for ROLLED_BACK; a FAILED deploy would never appear there.
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });

@@ -131,6 +131,12 @@ class PagerDutyPayloadFactory {
                 details.put("new_finding_count", ctx.driftNewFindingCount());
             }
         }
+        if (ctx.dataBudget() != null) {
+            var budget = ctx.dataBudget();
+            details.put("budget_name", budget.budgetName());
+            details.put("used_percent", budget.usedPercent());
+            details.put("window_minutes", budget.windowMinutes());
+        }
         if (ctx.anomalyId() != null) {
             details.put("anomaly_id", ctx.anomalyId().toString());
             if (ctx.anomalyFeature() != null) {
@@ -199,6 +205,11 @@ class PagerDutyPayloadFactory {
             case SCHEMA_CHANGE_PROMOTION_FAILED ->
                     "AccessFlow: schema change failed on pipeline " + datasource;
             case SCHEMA_DRIFT_DETECTED -> "AccessFlow: schema drift detected on pipeline " + datasource;
+            // #942: no PagerDutyTrigger maps the data-budget events, so neither pages — spelled
+            // out so one added later never falls into "for a query" below.
+            case DATA_BUDGET_THRESHOLD_REACHED ->
+                    "AccessFlow: data budget warning threshold reached on " + datasource;
+            case DATA_BUDGET_EXHAUSTED -> "AccessFlow: data budget exhausted on " + datasource;
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "AccessFlow: OAuth2 token fetch repeatedly failing for connector " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;

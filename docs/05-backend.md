@@ -320,7 +320,7 @@ Inside a `BEGIN…COMMIT` envelope, `BatchInsertPlanner` (`proxy/internal/`) gro
 Implemented in `proxy/internal/`:
 
 - `QueryExecutor` (public API in `proxy/api/`) — single method `QueryExecutionResult execute(QueryExecutionRequest)`. Pure execution primitive: input is `(datasourceId, sql, queryType, maxRowsOverride?, statementTimeoutOverride?)`; output is a sealed `QueryExecutionResult` (`SelectExecutionResult` | `UpdateExecutionResult`). Status transitions and `query_requests` writes live in the workflow orchestrator that consumes this service.
-- `DefaultQueryExecutor` — `@Service`. Resolves the datasource descriptor, computes `effectiveMaxRows = min(override ?? datasource.maxRowsPerQuery, datasource.maxRowsPerQuery, accessflow.proxy.execution.max-rows)` (an override only ever lowers the cap — #933) and `effectiveTimeout = override ?? accessflow.proxy.execution.statement-timeout`, then branches on the request's `transactional` flag (below). The row override comes from the submitter's effective `row_limit_override`: `DefaultQueryLifecycleService.doExecute` (direct, scheduled, recurring and break-glass runs) and `GroupExecutionService` (grouped members) read it from the same `DatasourceUserPermissionLookupService.findFor` call that supplies `restrictedColumns`, where the merge takes the smallest non-null override across the direct and group grants. Both callers then lower it further by the per-table row-limit policies (#934): `core.api.RowLimitPolicyResolutionService.resolve(org, datasource, submitter, parsed.referencedTables())` returns the lowest `max_rows` among the enabled policies that apply to the submitter and name a referenced table (lenient, case-insensitive suffix matching — an unqualified reference or a schema-less policy matches the table in any schema, and a database-prefixed `db.schema.table` still matches a `schema.table` policy; an empty `referencedTables` matches nothing), folded in as `min(grantOverride, policyCap)`. The executor itself is unchanged: `clampMaxRows` still clamps to the datasource and global caps, so a policy can only lower the limit. `doExecute` records the lowest-cap policy ids as `applied_row_limit_policy_ids` on the success audit row, for SELECTs only and only when that cap is at or below both the grant override and the descriptor's `maxRowsPerQuery`; `GroupExecutionService` enforces but does not audit per member.
+- `DefaultQueryExecutor` — `@Service`. Resolves the datasource descriptor, computes `effectiveMaxRows = min(override ?? datasource.maxRowsPerQuery, datasource.maxRowsPerQuery, accessflow.proxy.execution.max-rows)` (an override only ever lowers the cap — #933) and `effectiveTimeout = override ?? accessflow.proxy.execution.statement-timeout`, then branches on the request's `transactional` flag (below). The row override comes from the submitter's effective `row_limit_override`: `DefaultQueryLifecycleService.doExecute` (direct, scheduled, recurring and break-glass runs) and `GroupExecutionService` (grouped members) read it from the same `DatasourceUserPermissionLookupService.findFor` call that supplies `restrictedColumns`, where the merge takes the smallest non-null override across the direct and group grants. Both callers then lower it further by the per-table row-limit policies (#934): `core.api.RowLimitPolicyResolutionService.resolve(org, datasource, submitter, parsed.referencedTables())` returns the lowest `max_rows` among the enabled policies that apply to the submitter and name a referenced table (lenient, case-insensitive suffix matching — an unqualified reference or a schema-less policy matches the table in any schema, and a database-prefixed `db.schema.table` still matches a `schema.table` policy; an empty `referencedTables` matches nothing), folded in as `min(grantOverride, policyCap)`. The executor itself is unchanged: `clampMaxRows` still clamps to the datasource and global caps, so a policy can only lower the limit. `doExecute` records the lowest-cap policy ids as `applied_row_limit_policy_ids` on the success audit row, for SELECTs only and only when that cap is at or below both the grant override and the descriptor's `maxRowsPerQuery`; `GroupExecutionService` enforces but does not audit per member. Both callers lower the row cap once more to the submitter's remaining **data-budget** allowance (#942) and pass the remaining bytes as `QueryExecutionRequest.maxResultBytesOverride`; after every SELECT the executor's `measureBytes` stamps `SelectExecutionResult.resultBytes` (the `ResultByteEstimator` sum over the delivered rows — JDBC, engine-plugin and cache-hit results alike) and, under a byte override, trims the rows past it with `truncated_reason=DATA_BUDGET` (the first row is always kept). See [Per-user data-volume budgets](#per-user-data-volume-budgets-942).
   - Non-transactional (default):
     ```
     Connection.setReadOnly(queryType == SELECT)
@@ -1153,11 +1153,13 @@ The result is returned via `DatabaseSchemaView` (immutable nested records: `Sche
 
 1. **Authorization + allow-list.** `DefaultSampleDataService` calls `DatasourceAdminService.introspectSchema(...)` (which enforces org + permission-row access) and validates the requested `schema`/`table` against the returned `DatabaseSchemaView`. Non-ADMINs additionally need `can_read` and the target inside their `allowed_schemas`/`allowed_tables`, matched by `core.api.AllowedTables` (`normalize` + `coveringEntry`) — the query gate's matcher (`DatasourcePermissionChecker.rejectedTables`), so a `schema.table` or `allowed_schemas` grant covers the preview exactly as it covers a `SELECT` (#1089). A **bare** `allowed_tables` entry is the one place the two differ: the gate applies it to an *unqualified* reference, which the database resolves, while the preview reads a concrete `schema.table`. The preview admits it only when no other schema in the database has a table of that name — counted over the unfiltered catalog (`introspectSchemaForSystem`, fetched only for this fallback), since the caller's #936-filtered view may already hide the twin — and otherwise fails closed, matching `core.internal.SchemaViewPermissionFilter`. So `allowed_tables=[orders]` with both `public.orders` and `archive.orders` previews neither until the admin qualifies the entry, and a target whose schema reports no name is covered by a bare entry only. The fallback is deliberately looser than the gate in one case: with `orders` only in `archive` and `archive` off the search path, the preview reads `archive.orders` while an unqualified `SELECT * FROM orders` fails to resolve — the same table the schema tree already shows. The view's catalog-suffix rule (`mydb.dbo.orders` showing `dbo.orders`) is not honoured here, so such a table is listed but its preview returns 404. A target on the caller's `denied_schemas` / `denied_tables` (#939, `DeniedTables.deniesTable`) is refused before the allow-list is consulted. A miss raises `TableNotFoundException` (HTTP 404) — existence is never leaked.
 2. **Directive resolution.** Restricted columns (from the permission), `ColumnMaskDirective`s (`MaskingPolicyResolutionService`), and `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved for the caller.
-3. **Execution.** `QueryExecutor.sampleTable(SampleTableRequest)` enforces the row cap (`maxRowsOverride` — the requested limit, lowered to the caller's effective `row_limit_override` when one applies (#933) and to any row-limit policy on the sampled table (#934) — clamped to the datasource + global `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`) and statement timeout, then:
+3. **Execution.** `QueryExecutor.sampleTable(SampleTableRequest)` enforces the row cap (`maxRowsOverride` — the requested limit, lowered to the caller's effective `row_limit_override` when one applies (#933), to any row-limit policy on the sampled table (#934) and to the caller's remaining data-budget rows (#942) — clamped to the datasource + global `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`) and statement timeout, then:
    - **Relational** datasources: builds `SELECT * FROM <dialect-quoted, allow-listed identifier>` (via `IdentifierQuoter`, never raw input) and runs the existing JDBC path — `RowSecurityRewriter` injects RLS, `JdbcResultRowMapper` + `ColumnMasker` mask post-fetch, JDBC `setMaxRows` caps without a dialect-specific `LIMIT`.
    - **Engine-managed** (NoSQL) datasources: delegates to the engine's `QueryEngine.sampleTable(QueryEngineSampleRequest)` (see [Engine SDK](15-engine-sdk.md)), which issues its native "read all rows from this table, capped at N" and funnels it through the same parse → row-security → mask pipeline as `execute`. Mongo `find({}).limit(N)`, Couchbase/Cassandra/DynamoDB `SELECT * FROM <keyspace/table>`, Elasticsearch `match_all`, Neo4j `MATCH (n:Label) RETURN n`. **Redis fails closed** — a key-value prefix has no per-row security meaning, so any matching `RowSecurityDirective` denies with an empty result; otherwise it SCANs the prefix and fetches values, with field masking still applied.
 
 The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET /api/v1/datasources/{id}/sample-rows` — masked columns carry the masked value only.
+
+**Data budget (#942).** A preview reads real rows, so it spends the caller's data budget. `DefaultSampleDataService` reads the standing first: an exhausted budget throws `DataBudgetExhaustedException` (409 `DATA_BUDGET_EXHAUSTED`) whatever its breach action — a preview has no review to escalate to; otherwise the row limit is lowered to the remaining rows (a cut at that allowance reports `truncated_reason=DATA_BUDGET`), the result is measured and trimmed to the remaining bytes (`DefaultQueryExecutor.measureBytes`), and a `SAMPLE_DATA` ledger row is written. A refused preview writes a `QUERY_DATA_BUDGET_ENFORCED` audit row against the datasource (`stage=sample`, actor = the caller). The MCP sample tool goes through the same service.
 
 ### Dry-run / EXPLAIN path (AF-445)
 
@@ -1246,6 +1248,91 @@ It is not billing, chargeback or reconciliation against actual spend: estimates 
 - **Simulation.** The access explainer has no submitted query and so no estimate: it names the cap
   (`BYTES_SCANNED_CAP` → `SKIP`) and never compares it, under the `COST_ESTIMATE_ABSENT` caveat.
 - No configuration knob: everything is per datasource and per grant.
+
+### Per-user data-volume budgets (#942)
+
+Every other cap bounds **one** read: `max_rows_per_query`, row-limit policies, the result byte cap.
+A user who stays under all of them can still pull a table out a few thousand rows at a time. A **data
+budget** bounds the sum — rows and/or result bytes per user, per datasource, over a rolling window —
+which makes it the slow-exfiltration control. It is a consumption guardrail, not an access boundary:
+it never widens anything, and no budget configured leaves behaviour unchanged.
+
+- **Model.** `data_budgets` (`core`, admin CRUD through `core.api.DataBudgetAdminService` /
+  `DefaultDataBudgetAdminService`, controller `security.internal.web.DataBudgetController`,
+  `DATA_BUDGET_MANAGE`): `max_rows` and/or `max_bytes`, `window_minutes` (60–44,640, default 1,440),
+  `breach_action` `REJECT` | `REQUIRE_REVIEW` (default), optional `warn_threshold_percent`, and the
+  row-limit-policy `applies_to_*` scope (all empty ⇒ every user of the datasource, matched by the
+  shared `core.internal.AppliesToMatcher`). Each targeted user has their own allowance — a group
+  target is never a shared pool.
+- **Accounting.** `core.api.DataBudgetUsageService` appends one `data_budget_usage` row per delivered
+  SELECT result — `QUERY` (`DefaultQueryLifecycleService.doExecute`: interactive, scheduled,
+  recurring occurrence, break-glass), `REQUEST_GROUP` (`GroupExecutionService`, per `QUERY` member)
+  or `SAMPLE_DATA` (`DefaultSampleDataService`, which also serves the MCP sample tool). Rows are what
+  the user received — after row security, with masked rows counted, after every cap and truncation;
+  bytes are `SelectExecutionResult.resultBytes`, the proxy's `ResultByteEstimator` sum measured
+  host-side for every engine, an estimate of the in-memory result rather than wire bytes. Writes are
+  never charged, and a read on a datasource where no budget applies to the user writes nothing, so
+  usage counts from the moment a budget exists. A ledger write failure is logged and swallowed: the
+  rows were already delivered.
+- **Standing.** `core.api.DataBudgetStatusService.statusFor(datasource, user)` sums each applying
+  budget's own trailing window (`idx_data_budget_usage_user_ds_time`) — no counter, no reset job, no
+  calendar day or timezone. The effective standing (`DataBudgetStatus`) is the most constrained:
+  smallest remaining rows / bytes per metric, exhausted when any budget is, and the strictest action
+  among exhausted budgets (`REJECT` beats `REQUIRE_REVIEW`).
+- **At the decision.** For a SELECT, `QueryReviewStateMachine` reads the standing at every entry point
+  and hands a `DataBudgetCheck` to `QueryDecisionEvaluator` — the explicit-input idiom of the SQL
+  review block and the bytes-scanned cap. Exhausted under `REJECT` decides right after the cap and
+  before routing and the AI-failed path: `PENDING_AI → REJECTED` (`QueryDecisionKind.DATA_BUDGET_REJECTED`,
+  no `routing_decision` row), published as `QueryAutoRejectedEvent` with a null policy id and a reason
+  (`workflow.data_budget.rejected`) naming the budget, so the existing notification fan-out applies.
+  Exhausted under `REQUIRE_REVIEW` joins the review guard: it suppresses a routing `AUTO_APPROVE`
+  (`ROUTING_AUTO_APPROVE_SUPPRESSED`, the policy still recorded), the grant fast path and the plan's
+  own approvals, and never softens an `AUTO_REJECT`. The decision trace gains a `DATA_BUDGET` step
+  between `BYTES_SCANNED_CAP` and `ROUTING_POLICIES`. The access explainer reads the same live standing.
+- **At execution.** `doExecute` resolves the standing next to the bytes-cap re-check. With allowance
+  left, the row cap is lowered to the remaining rows (`maxRowsOverride`) and
+  `QueryExecutionRequest.maxResultBytesOverride` is set to the remaining bytes; when the budget was the
+  binding cap the result's `truncated_reason` is `DATA_BUDGET` (`attributeBudgetTruncation` for rows,
+  the executor's byte trim for bytes). Exhausted under `REJECT` ⇒ `APPROVED → FAILED`
+  (`DataBudgetExhaustedException`, localized `error_message` naming the budget). Exhausted under
+  `REQUIRE_REVIEW` ⇒ the run goes ahead, uncapped by the budget, only when **the exhausted budget
+  itself forced the review** — `query_requests.data_budget_review_forced`, stamped by the state
+  machine when a `REQUIRE_REVIEW` budget was exhausted as the query left `PENDING_AI` and it went to
+  `PENDING_REVIEW` (for a recurring occurrence, the series parent's stamp). Whoever approved it —
+  a reviewer or a synced external ticket (AF-453, which writes no `review_decisions` row) — did so
+  knowing the budget was spent. An approval obtained while allowance remained never lifts the
+  budget, so spending the rest on small reads cannot unlock an earlier-approved large one; such a
+  run, and an auto-approved scheduled run whose submitter ran out meanwhile, fails.
+  `GroupExecutionService` refuses a `QUERY` member under an exhausted budget **whatever its action**:
+  group review never evaluates the budget, so a group approval is not a budget escalation (fail
+  closed); `continue_on_error` decides the rest. **Break-glass is counted but never capped or
+  refused by a budget** (per-query caps still apply) — its compensating control is the mandatory
+  retro-review.
+- **Concurrency.** Standing is read before a run and charged after it, so concurrent reads by one
+  user can each overshoot the remaining allowance — up to one query's worth per concurrent read.
+  Accepted: the next read sees the overshoot. Charging itself is serialized per (user, datasource)
+  by a transaction-scoped `pg_advisory_xact_lock` in `DefaultDataBudgetUsageService.record`, so the
+  before/after crossing check never misses or double-counts a threshold.
+- **Notifications.** `DefaultDataBudgetUsageService` compares the standing before and after each
+  charge and publishes `core.events.DataBudgetThresholdCrossedEvent` on a crossing — stateless, once
+  per crossing. `notifications` turns it into `DATA_BUDGET_THRESHOLD_REACHED` (the user) or
+  `DATA_BUDGET_EXHAUSTED` (the user and every `DATA_BUDGET_MANAGE` holder); neither pages nor tickets.
+  See [08-notifications.md](08-notifications.md).
+- **Audit.** One `QUERY_DATA_BUDGET_ENFORCED` row (null actor, `trigger=data_budget`,
+  `stage=decision|execution`, `action`, `data_budget_id`, `used_rows`, `used_bytes`, `window_minutes`)
+  whenever the budget changed the outcome; a successful `QUERY_EXECUTED` under a budget carries
+  `data_budget_rows_charged` and `data_budget_bytes_charged`.
+- **The advisory half.** The `data_budget_used_percent` routing condition escalates on the same
+  standing without refusing anything — the submitter's most-used applying budget as a whole percent,
+  possibly above 100. It fails closed (null) when no budget applies, for a non-SELECT, and on the
+  policy simulator's historical replay, where past usage is not reconstructed.
+- **Retention.** `DataBudgetUsagePruneJob` (`core/internal/scheduled/`) deletes ledger rows older than
+  `accessflow.core.data-budget.usage-retention` (default `P32D`; raised to 31 days + 1 hour when set
+  lower, so a row always outlives the longest window) every `accessflow.core.data-budget.prune-interval`
+  (default `PT1H`).
+- **Read surfaces.** `GET /datasources/{id}/data-budgets/me` (the editor indicator, 404-never-403) and
+  `GET /admin/users/{id}/data-budget-usage` (`DATA_BUDGET_MANAGE` or `USER_MANAGE`), both in
+  `security.internal.web.DataBudgetStatusController`.
 
 ### Data classification & derivation (AF-447)
 
@@ -1690,6 +1777,8 @@ Decision rules:
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
 | **Bytes-scanned cap refuses the query (#941)** — the estimate exceeds the cap, or there is none and the datasource says `REJECT`. Decided first, before routing and the AI-failed path | `REJECTED` — see [Bytes-scanned cost caps](#bytes-scanned-cost-caps-941) |
 | **Bytes-scanned cap with no estimate under `REQUIRE_REVIEW` (#941)** | `PENDING_REVIEW` — suppresses the same three `APPROVED` rows as a SQL review `BLOCK` |
+| **Data budget used up under `REJECT` (#942)** — a SELECT whose submitter has exhausted an applying budget. Decided right after the bytes-scanned cap, before routing and the AI-failed path | `REJECTED` — see [Per-user data-volume budgets](#per-user-data-volume-budgets-942) |
+| **Data budget used up under `REQUIRE_REVIEW` (#942)** | `PENDING_REVIEW` — suppresses the same three `APPROVED` rows as a SQL review `BLOCK` |
 | **Any `BLOCK` SQL review finding recorded at submission (#864)** — checked at every entry point, before all three rows above can approve | `PENDING_REVIEW` — each of the three `APPROVED` rows is suppressed (a routing `AUTO_APPROVE` too; `AUTO_REJECT` is untouched). Audited once as `SQL_REVIEW_BLOCKED` when it changed the outcome. See the "Submission enforcement (#864)" paragraph of [Deterministic SQL review rules](#deterministic-sql-review-rules-sqlreview-862) |
 
 `AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.
@@ -1762,7 +1851,7 @@ caller's language.
 #### The simulation
 
 `workflow.internal.DefaultAccessSimulationService` reconstructs the whole journey of a hypothetical
-request as twelve ordered steps, delegating stages 5–8 (`SQL_REVIEW` through `REVIEW_PLAN`) to the
+request as fourteen ordered steps, delegating stages 5–10 (`SQL_REVIEW` through `REVIEW_PLAN`) to the
 evaluator wholesale and owning the rest.
 A stage that did not apply is reported as `SKIP`, never omitted, so a client renders a stable checklist
 and a missing stage is always a bug.
@@ -2275,6 +2364,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `QuerySuggestionAggregationJob` | workflow | `querySuggestionAggregationJob` | `accessflow.workflow.query-suggestions.aggregation-poll-interval` | `PT6H` |
 | `SchemaDriftJob` | schemachange | `schemaDriftJob` | `accessflow.schemachange.drift-poll-interval` | `PT6H` |
 | `JobExecutionRetentionJob` | scheduling | `jobExecutionRetentionJob` | `accessflow.scheduling.executions.retention-poll-interval` | `PT6H` |
+| `DataBudgetUsagePruneJob` | core | `dataBudgetUsagePruneJob` | `accessflow.core.data-budget.prune-interval` | `PT1H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 

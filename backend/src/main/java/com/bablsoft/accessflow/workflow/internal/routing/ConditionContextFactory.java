@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.workflow.internal.routing;
 
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
 import com.bablsoft.accessflow.core.api.QueryCorpusRow;
 import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryShape;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserGroupService;
@@ -50,6 +52,7 @@ public class ConditionContextFactory {
     private final UserGroupService userGroupService;
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final QueryEstimateLookupService queryEstimateLookupService;
+    private final DataBudgetStatusService dataBudgetStatusService;
 
     /** The live routing path: signals as they stand right now, which is also when routing runs. */
     public ConditionContext forLiveQuery(QueryRequestSnapshot query, RiskLevel riskLevel,
@@ -65,7 +68,17 @@ public class ConditionContextFactory {
                 behaviorAnomalyLookupService.hasActiveAnomaly(query.organizationId(),
                         query.submittedByUserId(), query.datasourceId()),
                 estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed(),
-                estimate.bytesScanned());
+                estimate.bytesScanned(), dataBudgetUsedPercent(query));
+    }
+
+    /** Whole percentage of the submitter's most-used data budget (#942); SELECTs only. */
+    private Integer dataBudgetUsedPercent(QueryRequestSnapshot query) {
+        if (query.queryType() != QueryType.SELECT) {
+            return null;
+        }
+        var used = dataBudgetStatusService.statusFor(query.datasourceId(), query.submittedByUserId())
+                .usedPercent();
+        return used == null ? null : (int) Math.min(Integer.MAX_VALUE, Math.floor(used));
     }
 
     /**

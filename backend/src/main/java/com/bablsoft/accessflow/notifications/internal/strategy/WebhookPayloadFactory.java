@@ -74,6 +74,25 @@ class WebhookPayloadFactory {
             schemaChange.put("new_finding_count", ctx.driftNewFindingCount());
             envelope.put("schema_change", schemaChange);
         }
+        // #942: data budgets — additive for the same reason.
+        if (ctx.dataBudget() != null) {
+            var budget = ctx.dataBudget();
+            var dataBudget = new LinkedHashMap<String, Object>();
+            dataBudget.put("budget_id", budget.budgetId());
+            dataBudget.put("budget_name", budget.budgetName());
+            dataBudget.put("datasource_id", ctx.datasourceId());
+            dataBudget.put("user_id", ctx.submittedByUserId());
+            dataBudget.put("exhausted", budget.exhausted());
+            dataBudget.put("warn_threshold_percent", budget.warnThresholdPercent());
+            dataBudget.put("used_percent", budget.usedPercent());
+            dataBudget.put("max_rows", budget.maxRows());
+            dataBudget.put("used_rows", budget.usedRows());
+            dataBudget.put("max_bytes", budget.maxBytes());
+            dataBudget.put("used_bytes", budget.usedBytes());
+            dataBudget.put("window_minutes", budget.windowMinutes());
+            dataBudget.put("breach_action", budget.breachAction());
+            envelope.put("data_budget", dataBudget);
+        }
         return objectMapper.writeValueAsString(envelope);
     }
 

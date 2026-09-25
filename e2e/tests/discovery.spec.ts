@@ -18,7 +18,7 @@ import {
   type CreatedReviewPlan,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
-import { findRowAcrossPages } from '../helpers/ui';
+import { clickTab, findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -155,7 +155,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
-    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await clickTab(page, /Discovery/);
 
     // Enable scheduled discovery and save.
     await expect(page.getByText('Discovery settings')).toBeVisible({ timeout: 15_000 });
@@ -172,7 +172,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
 
     // The worklist shows the finding after a reload.
     await page.goto(`/datasources/${datasource.id}/settings`);
-    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await clickTab(page, /Discovery/);
     await expect(
       page.getByText(`public.${TABLE}.customer_email`).first(),
     ).toBeVisible({ timeout: 15_000 });
@@ -186,7 +186,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
-    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await clickTab(page, /Discovery/);
 
     const row = page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.customer_email`) });
     await expect(row).toBeVisible({ timeout: 15_000 });
@@ -201,7 +201,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
     ).toHaveCount(0);
 
     // Confirming applied the AF-447 tag…
-    await page.getByRole('tab', { name: /Classification/ }).click();
+    await clickTab(page, /Classification/);
     await expect(
       page.getByText(`public.${TABLE}.customer_email`).first(),
     ).toBeVisible({ timeout: 15_000 });
@@ -244,7 +244,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
-    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await clickTab(page, /Discovery/);
     await page.getByRole('button', { name: 'Scan now' }).click();
     await expect(page.getByText('Discovery scan started')).toBeVisible({ timeout: 15_000 });
 
@@ -277,7 +277,7 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
     // In the UI it is reachable under the Stale filter, where it stays selectable so an admin can
     // bulk-dismiss it — the behaviour the whole change exists to provide.
     await page.reload();
-    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await clickTab(page, /Discovery/);
     await page.getByTitle('Stale', { exact: true }).click();
     const row = page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) });
     // The scan covers every table in the shared e2e database, so this datasource's Stale list can

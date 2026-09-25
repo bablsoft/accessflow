@@ -97,6 +97,8 @@ class DefaultQueryLifecycleServiceTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
     @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
+    @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
+    @Mock com.bablsoft.accessflow.core.api.DataBudgetUsageService dataBudgetUsageService;
 
     DefaultQueryLifecycleService service;
 
@@ -136,7 +138,12 @@ class DefaultQueryLifecycleServiceTest {
                 messageSource,
                 eventPublisher,
                 bytesScannedCapResolutionService,
-                queryCostEstimateService);
+                queryCostEstimateService,
+                dataBudgetStatusService,
+                dataBudgetUsageService);
+        when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
+
         when(queryParser.parse(anyString(), any())).thenAnswer(inv -> {
             String sql = inv.getArgument(0);
             return new SqlParseResult(QueryType.SELECT, sql);
@@ -1424,5 +1431,214 @@ class DefaultQueryLifecycleServiceTest {
 
         verify(queryRequestPersistenceService).clearRecurrenceNextRun(eq(queryId), anyString());
         verify(queryExecutor, never()).execute(any());
+    }
+
+    // ── Data budget (#942) ────────────────────────────────────────────────────
+
+    private final UUID budgetId = UUID.randomUUID();
+
+    private void givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction action,
+                             long usedRows) {
+        when(dataBudgetStatusService.statusFor(datasourceId, submitterId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds", List.of(
+                        new com.bablsoft.accessflow.core.api.DataBudgetConsumption(budgetId,
+                                "Daily", 100L, 10_000L, 1440, action, 80, usedRows, 0))));
+    }
+
+    private SelectExecutionResult tenRows(boolean truncated, String reason) {
+        List<List<Object>> rows = java.util.stream.IntStream.range(0, 10)
+                .<List<Object>>mapToObj(List::of).toList();
+        return new SelectExecutionResult(List.of(new ResultColumn("id", 4, "int4")), rows, 10L,
+                truncated, Duration.ofMillis(5), java.util.Set.of(), java.util.Set.of(), reason,
+                null, 480L);
+    }
+
+    @Test
+    void executeCapsTheResultToTheRemainingAllowanceAndChargesIt() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 90);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(true,
+                SelectExecutionResult.TRUNCATED_ROW_LIMIT));
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId,
+                false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        var request = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(request.capture());
+        assertThat(request.getValue().maxRowsOverride()).isEqualTo(10);
+        assertThat(request.getValue().maxResultBytesOverride()).isEqualTo(10_000L);
+        var usage = ArgumentCaptor.forClass(com.bablsoft.accessflow.core.api.DataBudgetUsageRecord.class);
+        verify(dataBudgetUsageService).record(usage.capture());
+        assertThat(usage.getValue().rowsRead()).isEqualTo(10);
+        assertThat(usage.getValue().bytesRead()).isEqualTo(480);
+        assertThat(usage.getValue().queryRequestId()).isEqualTo(queryId);
+        assertThat(usage.getValue().source())
+                .isEqualTo(com.bablsoft.accessflow.core.api.DataBudgetUsageSource.QUERY);
+        var audit = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().metadata()).containsEntry("data_budget_rows_charged", 10L)
+                .containsEntry("data_budget_bytes_charged", 480L);
+    }
+
+    @Test
+    void executeFailsBeforeTheExecutorWhenARejectBudgetIsExhausted() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100);
+        when(messageSource.getMessage(eq("error.data_budget.exhausted"), any(), any()))
+                .thenReturn("budget used up");
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId,
+                false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+        verify(queryExecutor, never()).execute(any());
+        var exec = ArgumentCaptor.forClass(RecordExecutionCommand.class);
+        verify(queryRequestStateService).recordExecutionOutcome(exec.capture());
+        assertThat(exec.getValue().errorMessage()).isEqualTo("budget used up");
+        var audit = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.times(2)).record(audit.capture());
+        assertThat(audit.getAllValues()).extracting(AuditEntry::action).containsExactly(
+                AuditAction.QUERY_DATA_BUDGET_ENFORCED, AuditAction.QUERY_FAILED);
+        assertThat(audit.getAllValues().get(0).metadata())
+                .containsEntry("stage", "execution")
+                .containsEntry("action", "REJECT")
+                .containsEntry("data_budget_id", budgetId);
+        verify(dataBudgetUsageService, never()).record(any());
+    }
+
+    @Test
+    void executeFailsAnUnreviewedQueryWhenAReviewBudgetIsExhausted() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100);
+        // Approved while allowance remained: the approval was never a budget escalation.
+        when(queryRequestStateService.isDataBudgetReviewForced(queryId)).thenReturn(false);
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId,
+                false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeRunsABudgetEscalatedQueryUncappedWhenAReviewBudgetIsExhausted() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100);
+        when(queryRequestStateService.isDataBudgetReviewForced(queryId)).thenReturn(true);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(false, null));
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId,
+                false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        var request = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(request.capture());
+        assertThat(request.getValue().maxRowsOverride()).isNull();
+        assertThat(request.getValue().maxResultBytesOverride()).isNull();
+        verify(dataBudgetUsageService).record(any());
+    }
+
+    @Test
+    void aRecurringOccurrenceInheritsItsSeriesApproval() {
+        var parentId = UUID.randomUUID();
+        var occurrence = new QueryRequestSnapshot(queryId, datasourceId, organizationId,
+                submitterId, "SELECT 1", QueryType.SELECT, false, QueryStatus.APPROVED,
+                java.time.Instant.EPOCH, null, null, false, null, null, null, parentId);
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(occurrence));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100);
+        when(queryRequestStateService.isDataBudgetReviewForced(queryId)).thenReturn(false);
+        when(queryRequestStateService.isDataBudgetReviewForced(parentId)).thenReturn(true);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(false, null));
+
+        service.executeScheduled(queryId);
+
+        verify(queryExecutor).execute(any());
+        verify(dataBudgetUsageService).record(any());
+    }
+
+    @Test
+    void breakGlassRunsDespiteAnExhaustedRejectBudgetAndStillCharges() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(false, null));
+
+        var outcome = service.executeBreakGlass(queryId, submitterId);
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        verify(dataBudgetUsageService).record(any());
+    }
+
+    @Test
+    void breakGlassIsNeverCappedByARemainingAllowance() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 99);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(false, null));
+
+        service.executeBreakGlass(queryId, submitterId);
+
+        var request = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(request.capture());
+        assertThat(request.getValue().maxRowsOverride()).isNull();
+        assertThat(request.getValue().maxResultBytesOverride()).isNull();
+        verify(dataBudgetUsageService).record(any());
+    }
+
+    @Test
+    void aFailedUsageWriteNeverFailsTheExecution() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        givenBudget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 0);
+        when(queryExecutor.execute(any())).thenReturn(tenRows(false, null));
+        org.mockito.Mockito.doThrow(new IllegalStateException("ledger down"))
+                .when(dataBudgetUsageService).record(any());
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId,
+                false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void aWriteNeverConsultsTheBudget() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.UPDATE)));
+        when(queryParser.parse(anyString(), any())).thenReturn(
+                new SqlParseResult(QueryType.UPDATE, "UPDATE t SET a = 1"));
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.UpdateExecutionResult(3, Duration.ofMillis(5)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        verify(dataBudgetStatusService, never()).statusFor(any(), any());
+        verify(dataBudgetUsageService, never()).record(any());
+    }
+
+    @Test
+    void budgetTruncationIsAttributedOnlyWhenTheAllowanceWasTheBindingRowCap() {
+        var cut = tenRows(true, SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(cut, 10L, null, 1_000)
+                .truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_DATA_BUDGET);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(cut, 10L, 10, null)
+                .truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(cut, 10L, null, 10)
+                .truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(cut, 50L, null, null)
+                .truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(cut, null, null, null))
+                .isSameAs(cut);
+        var notCut = tenRows(false, null);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(notCut, 10L, null, null))
+                .isSameAs(notCut);
+        var byteCut = tenRows(true, SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+        assertThat(DefaultQueryLifecycleService.attributeBudgetTruncation(byteCut, 10L, null, null))
+                .isSameAs(byteCut);
     }
 }

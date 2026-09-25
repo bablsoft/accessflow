@@ -842,6 +842,52 @@ export async function createRowLimitPolicyViaApi(
   return (await res.json()) as CreatedRowLimitPolicy;
 }
 
+export interface CreatedDataBudget {
+  id: string;
+  name: string;
+  max_rows?: number | null;
+  max_bytes?: number | null;
+  window_minutes: number;
+  breach_action: 'REJECT' | 'REQUIRE_REVIEW';
+}
+
+// POST /api/v1/datasources/{id}/data-budgets (#942) — bounds the rows / result bytes each
+// targeted user may read from the datasource over a rolling window. Requires an ADMIN token.
+// Empty applies-to lists apply the budget to every user of the datasource.
+export async function createDataBudgetViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    name: string;
+    maxRows?: number;
+    maxBytes?: number;
+    windowMinutes?: number;
+    breachAction?: 'REJECT' | 'REQUIRE_REVIEW';
+    appliesToUserIds?: string[];
+  },
+): Promise<CreatedDataBudget> {
+  const res = await request.post(`${apiBase()}/api/v1/datasources/${datasourceId}/data-budgets`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: {
+      name: opts.name,
+      max_rows: opts.maxRows ?? null,
+      max_bytes: opts.maxBytes ?? null,
+      window_minutes: opts.windowMinutes ?? 1440,
+      breach_action: opts.breachAction ?? 'REQUIRE_REVIEW',
+      warn_threshold_percent: null,
+      applies_to_roles: [],
+      applies_to_group_ids: [],
+      applies_to_user_ids: opts.appliesToUserIds ?? [],
+      enabled: true,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Create data budget failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedDataBudget;
+}
+
 // PUT /api/v1/admin/users/{id} (AF-380) — sets the admin-editable attribute map
 // resolvable in row-security predicates as `:user.<key>`. Requires an ADMIN token.
 export async function setUserAttributesViaApi(

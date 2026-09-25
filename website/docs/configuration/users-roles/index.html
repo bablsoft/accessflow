@@ -461,6 +461,7 @@
             <li><strong>Invite via email (default).</strong> From <code>/admin/users</code>, click <em>Invite via email</em>, fill in the recipient's email, optional display name, and role, then submit. AccessFlow generates a signup token and emails it; the link expires after <code>ACCESSFLOW_SECURITY_INVITATION_TTL</code> (default 7 days).</li>
             <li><strong>Create with a password.</strong> Use the dropdown next to the invite button → <em>Create with password</em> to provision a user directly. Useful when SMTP isn't configured yet, or when you want to seed an account synchronously.</li>
             <li><strong>Edit or deactivate.</strong> Click any row to change the role or flip the active toggle. Deactivated users can't sign in but their audit trail is preserved.</li>
+            <li><strong>Data usage.</strong> A user's row menu has <em>Data usage</em>: how much of each <a href="/docs/configuration/datasources/#cfg-data-budgets">data budget</a> that applies to them they have read, per datasource. Visible to admins who can manage users.</li>
             <li><strong>Pending invitations</strong> are listed below the user table; resend or revoke them from there.</li>
           </ol>
           <p>
@@ -532,6 +533,7 @@
                 <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage user groups</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage data budgets</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage review plans</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage deployment pipelines</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>View audit log</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>

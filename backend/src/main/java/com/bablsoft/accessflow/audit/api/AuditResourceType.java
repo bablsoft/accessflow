@@ -37,6 +37,7 @@ public enum AuditResourceType {
     SERVICE_ACCOUNT("service_account"),
     ROW_SECURITY_POLICY("row_security_policy"),
     ROW_LIMIT_POLICY("row_limit_policy"),
+    DATA_BUDGET("data_budget"),
     CONNECTOR("connector"),
     QUERY_COMMENT("query_comment"),
     DATA_CLASSIFICATION_TAG("data_classification_tag"),

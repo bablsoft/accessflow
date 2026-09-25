@@ -28,12 +28,27 @@ import java.util.UUID;
  * @param bytesCap            the bytes-scanned cap that applied (#941), or {@code null} when none
  * @param bytesCapChangedOutcome whether the cap refused the query or turned an automatic approval
  *                            into human review — the condition for its audit row
+ * @param dataBudget          the submitter's data-budget standing (#942), or {@code null} when no
+ *                            budget applies
+ * @param dataBudgetChangedOutcome whether the exhausted budget refused the query or turned an
+ *                            automatic approval into human review — the condition for its audit row
  */
 record QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
                      Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
                      ConditionContext context, DecisionTrace trace,
                      SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
-                     boolean bytesCapChangedOutcome) {
+                     boolean bytesCapChangedOutcome, DataBudgetCheck dataBudget,
+                     boolean dataBudgetChangedOutcome) {
+
+    /** A decision no data budget took part in. */
+    QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
+                  Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
+                  ConditionContext context, DecisionTrace trace,
+                  SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
+                  boolean bytesCapChangedOutcome) {
+        this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
+                trace, sqlReviewSuppression, bytesCap, bytesCapChangedOutcome, null, false);
+    }
 
     /** A decision no bytes-scanned cap took part in. */
     QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,

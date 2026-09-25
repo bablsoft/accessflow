@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.data_budget_exhausted.title}">Data budget</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #c53030; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.data_budget_exhausted.heading}">Data budget</h2>
+    <p th:text="#{notification.email.data_budget_exhausted.body}">Data budget notice.</p>
+    <p class="meta">
+        <strong th:text="#{notification.email.common.datasource_label}">Datasource:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.data_budget.user_label}">User:</strong>
+        <span th:text="${submitterDisplayName} ?: (${submitterEmail} ?: '—')">—</span>
+        <span th:if="${submitterDisplayName != null and submitterEmail != null}"
+              th:text="'(' + ${submitterEmail} + ')'"></span><br>
+        <strong th:text="#{notification.email.data_budget.budget_label}">Budget:</strong>
+        <span th:text="${dataBudgetName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.data_budget.used_label}">Used:</strong>
+        <span th:text="${dataBudgetUsedPercent} + '%'">—</span><br>
+        <th:block th:if="${dataBudgetMaxRows != null}">
+            <strong th:text="#{notification.email.data_budget.rows_label}">Rows:</strong>
+            <span th:text="${dataBudgetUsedRows} + ' / ' + ${dataBudgetMaxRows}">—</span><br>
+        </th:block>
+        <th:block th:if="${dataBudgetBytesUsage != null}">
+            <strong th:text="#{notification.email.data_budget.bytes_label}">Bytes:</strong>
+            <span th:text="${dataBudgetBytesUsage}">—</span><br>
+        </th:block>
+        <th:block th:if="${dataBudgetWindowUnit != null}">
+            <strong th:text="#{notification.email.data_budget.window_label}">Window:</strong>
+            <span th:text="#{${'notification.email.data_budget.window.' + dataBudgetWindowUnit}(${dataBudgetWindowValue})}">—</span><br>
+        </th:block>
+        <th:block th:if="${dataBudgetBreachAction != null}">
+            <strong th:text="#{notification.email.data_budget.breach_action_label}">When used up:</strong>
+            <span th:text="#{${'notification.email.data_budget.breach_action.' + dataBudgetBreachAction}}">—</span>
+        </th:block>
+    </p>
+    <p th:if="${reviewUrl}">
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.data_budget.cta}">Open the query editor</a>
+    </p>
+</body>
+</html>

@@ -87,6 +87,18 @@ class DiscordPayloadFactory {
             embed.put("fields", fields);
             return embed;
         }
+        // #942: data budgets — shared field set with the other chat channels.
+        if (ctx.isDataBudgetEvent()) {
+            for (var field : DataBudgetText.fields(ctx)) {
+                addField(fields, field.getKey(), field.getValue());
+            }
+            if (ctx.reviewUrl() != null) {
+                addField(fields, "Open", ctx.reviewUrl().toString());
+                embed.put("url", ctx.reviewUrl().toString());
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
         if (ctx.isSchemaChangeEvent()) {
             if (ctx.schemaChangeSetName() != null) {
@@ -213,6 +225,8 @@ class DiscordPayloadFactory {
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";
             case SCHEMA_DRIFT_DETECTED -> "⚠️ Schema Drift Detected";
+            case DATA_BUDGET_THRESHOLD_REACHED -> "📊 Data Budget Warning Threshold Reached";
+            case DATA_BUDGET_EXHAUSTED -> "🛑 Data Budget Exhausted";
         };
     }
 

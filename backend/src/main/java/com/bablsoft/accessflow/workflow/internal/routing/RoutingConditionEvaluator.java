@@ -55,6 +55,8 @@ public class RoutingConditionEvaluator {
                     ctx.hasEstimateSignal() && c.operator().test(ctx.estimatedRows(), c.value());
             case ConditionNode.EstimatedBytesScanned c -> ctx.estimatedBytesScanned() != null
                     && c.operator().test(ctx.estimatedBytesScanned(), c.value());
+            case ConditionNode.DataBudgetUsedPercent c -> ctx.dataBudgetUsedPercent() != null
+                    && c.operator().test(ctx.dataBudgetUsedPercent(), c.value());
             case ConditionNode.ScanTypeMatches c -> matchesScanType(c, ctx);
         };
     }

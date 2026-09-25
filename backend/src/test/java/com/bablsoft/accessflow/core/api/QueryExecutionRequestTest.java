@@ -138,4 +138,41 @@ class QueryExecutionRequestTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("statementTimeoutOverride must be positive");
     }
+
+    @Test
+    void nonPositiveResultByteOverrideIsRejected() {
+        assertThatThrownBy(() -> new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, null, null, null, null, null, false, null, null, null, 0L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxResultBytesOverride must be positive");
+    }
+
+    @Test
+    void withAllowanceOnlyEverLowersTheCaps() {
+        var base = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, 50,
+                null);
+
+        var lowered = base.withAllowance(10L, 2_048L);
+        assertThat(lowered.maxRowsOverride()).isEqualTo(10);
+        assertThat(lowered.maxResultBytesOverride()).isEqualTo(2_048L);
+
+        var kept = base.withAllowance(500L, null);
+        assertThat(kept.maxRowsOverride()).isEqualTo(50);
+        assertThat(kept.maxResultBytesOverride()).isNull();
+
+        var tighterBytes = lowered.withAllowance(null, 4_096L);
+        assertThat(tighterBytes.maxResultBytesOverride()).isEqualTo(2_048L);
+    }
+
+    @Test
+    void withAllowanceFloorsAtOneAndSetsAnAbsentRowCap() {
+        var base = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, null,
+                null);
+
+        var floored = base.withAllowance(0L, 0L);
+        assertThat(floored.maxRowsOverride()).isEqualTo(1);
+        assertThat(floored.maxResultBytesOverride()).isEqualTo(1L);
+        assertThat(base.withAllowance(Long.MAX_VALUE, null).maxRowsOverride())
+                .isEqualTo(Integer.MAX_VALUE);
+    }
 }

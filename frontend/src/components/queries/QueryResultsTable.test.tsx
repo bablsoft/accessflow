@@ -103,6 +103,16 @@ describe('QueryResultsTable', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders the data-budget footer when truncated_reason is DATA_BUDGET', async () => {
+    getQueryResultsMock.mockResolvedValue(
+      page({ truncated: true, truncated_reason: 'DATA_BUDGET' }),
+    );
+    renderTable();
+    expect(
+      await screen.findByText(/capped at your remaining data budget/i),
+    ).toBeInTheDocument();
+  });
+
   it('hides the export button while the decision is unavailable', async () => {
     getQueryResultsMock.mockResolvedValue(page({}));
     renderTable();

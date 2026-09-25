@@ -868,7 +868,8 @@
         "diff_effective_label": "SQL effectif"
       },
       "bytes_cap_body": "Analyse estimée : {{estimate}} · Limite : {{limit}} ({{source}})",
-      "bytes_cap_no_estimate": "aucune estimation"
+      "bytes_cap_no_estimate": "aucune estimation",
+      "results_truncated_budget": "{{count}} lignes renvoyées (plafonnées à votre budget de données restant)"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "Limite d’octets analysés",
       "grant_bytes_cap_help": "Une limite plus basse pour cette autorisation. La plus stricte entre la limite de la source de données et toutes les autorisations s’applique.",
       "grant_bytes_cap_min": "La limite d’octets analysés doit être d’au moins 1 octet.",
-      "grant_bytes_cap_placeholder": "Valeur par défaut de la source de données"
+      "grant_bytes_cap_placeholder": "Valeur par défaut de la source de données",
+      "tab_data_budgets": "Budgets de données · {{count}}",
+      "sample_truncated_budget": "{{count}} lignes (plafonnées à votre budget de données restant)"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "min",
       "cicd_present_label": "Provenance CI/CD",
       "scan_type_placeholder": "p. ex. Seq Scan, COLLSCAN, Index*",
-      "bytes_value_label": "Octets analysés"
+      "bytes_value_label": "Octets analysés",
+      "budget_percent_label": "Part du budget de données consommée"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Votre modification de schéma {{changeSet}} a échoué sur {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Votre modification de schéma {{changeSet}} n'a été que partiellement appliquée sur {{environment}}",
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} nouvelle constatation de dérive de schéma sur {{pipeline}} / {{environment}}",
-      "SCHEMA_DRIFT_DETECTED_other": "{{count}} nouvelles constatations de dérive de schéma sur {{pipeline}} / {{environment}}"
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} nouvelles constatations de dérive de schéma sur {{pipeline}} / {{environment}}",
+      "DATA_BUDGET_THRESHOLD_REACHED": "Vous avez utilisé {{percent}} % de votre budget de données {{budget}} sur {{datasource}}",
+      "DATA_BUDGET_EXHAUSTED": "Le budget de données {{budget}} de {{user}} sur {{datasource}} est épuisé"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "Provenance CI/CD",
       "estimated_rows": "Lignes estimées",
       "scan_type": "Type de scan",
-      "estimated_bytes_scanned": "Octets analysés estimés"
+      "estimated_bytes_scanned": "Octets analysés estimés",
+      "data_budget_used_percent": "Budget de données consommé (%)"
     },
     "query_shape": {
       "JOIN": "Jointure",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "Gérer les politiques d'export",
       "ROW_LIMIT_POLICY_MANAGE": "Gérer les politiques de limite de lignes",
       "DEPLOYMENT_PIPELINE_MANAGE": "Gérer les pipelines de déploiement",
-      "DEPLOYMENT_REVIEW": "Réviser les déploiements"
+      "DEPLOYMENT_REVIEW": "Réviser les déploiements",
+      "DATA_BUDGET_MANAGE": "Gérer les budgets de données"
     },
     "api_variable_kind": {
       "CONSTANT": "Constante",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "Sécurité par ligne",
       "MASKING": "Masquage",
       "BREAK_GLASS": "Accès d'urgence",
-      "BYTES_SCANNED_CAP": "Limite d’octets analysés"
+      "BYTES_SCANNED_CAP": "Limite d’octets analysés",
+      "DATA_BUDGET": "Budget de données"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Contrôles du connecteur",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "Rejetée : l’estimation dépasse la limite d’octets analysés",
       "NO_ESTIMATE_REVIEW": "Mise en revue : aucune estimation en octets sous la limite",
       "NO_ESTIMATE_REJECTED": "Rejetée : aucune estimation en octets sous la limite"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "Envoyer en revue humaine",
+      "REJECT": "Refuser"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "Limite d’octets analysés",
       "bytes_scanned_cap_outcome": "Résultat de la limite",
       "bytes_scanned_cap_source": "Origine de la limite",
-      "estimated_bytes_scanned": "Octets analysés estimés"
+      "estimated_bytes_scanned": "Octets analysés estimés",
+      "data_budget_action": "Action à l’épuisement du budget",
+      "data_budget_id": "Budget de données",
+      "data_budget_name": "Nom du budget de données",
+      "data_budget_remaining_bytes": "Octets restants du budget",
+      "data_budget_remaining_rows": "Lignes restantes du budget",
+      "data_budget_suppressed": "Suspendu par le budget de données",
+      "data_budget_used_percent": "Budget de données consommé"
     },
     "use_id": "Utiliser l'ID {{id}}",
     "user_id_placeholder": "Collez un ID d'utilisateur",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "Le nom de l'application ne doit pas contenir de caractères de contrôle.",
     "rotate_help": "Laissez vide pour conserver le nom d'application de la clé actuelle.",
     "column": "Application"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} heure",
+    "window_hours_other": "{{count}} heures",
+    "window_days_one": "{{count}} jour",
+    "window_days_other": "{{count}} jours",
+    "indicator": {
+      "title": "Votre budget de données",
+      "exhausted_title": "Budget de données épuisé",
+      "exhausted_reject": "Les nouvelles lectures sur cette source de données sont refusées jusqu’à ce que les lectures précédentes sortent de la fenêtre.",
+      "exhausted_review": "Les nouvelles lectures sur cette source de données nécessitent l’approbation d’un réviseur jusqu’à ce que les lectures précédentes sortent de la fenêtre.",
+      "nearly_used": "Vous avez consommé la majeure partie de votre budget de données sur cette source.",
+      "rows_left": "{{remaining}} lignes restantes sur {{limit}}",
+      "bytes_left": "{{remaining}} restants sur {{limit}}",
+      "per_window": "par {{window}}",
+      "used_aria": "{{name}} : {{percent}} % consommé"
+    },
+    "tab": {
+      "title": "Budgets de données",
+      "description": "Limitez le nombre de lignes et d’octets de résultat que chaque utilisateur peut lire depuis cette source sur une fenêtre glissante. Une requête est plafonnée au quota restant ; une fois un budget épuisé, les nouvelles lectures sont refusées ou envoyées en revue humaine.",
+      "add": "Ajouter un budget",
+      "empty_title": "Aucun budget de données",
+      "empty_description": "Les lectures sur cette source ne sont limitées que par requête.",
+      "col_name": "Nom",
+      "col_limits": "Limites",
+      "col_window": "Fenêtre",
+      "col_action": "Une fois épuisé",
+      "col_applies_to": "S’applique à",
+      "col_enabled": "Activé",
+      "col_actions": "Actions",
+      "state_disabled": "Désactivé",
+      "edit": "Modifier le budget",
+      "delete": "Supprimer le budget",
+      "delete_confirm_title": "Supprimer ce budget de données ?",
+      "delete_confirm_body": "Les utilisateurs concernés n’y sont plus soumis. L’usage enregistré est conservé jusqu’à son expiration.",
+      "delete_success": "Budget de données supprimé",
+      "delete_error": "Impossible de supprimer le budget de données",
+      "save_success": "Budget de données enregistré",
+      "save_error": "Impossible d’enregistrer le budget de données",
+      "create_title": "Nouveau budget de données",
+      "edit_title": "Modifier le budget de données",
+      "label_name": "Nom",
+      "name_required": "Saisissez un nom",
+      "name_max": "120 caractères maximum",
+      "label_max_rows": "Limite de lignes",
+      "label_max_bytes": "Limite de taille de résultat",
+      "limits_hint": "Définissez une limite de lignes, de taille, ou les deux. Chaque utilisateur dispose de son propre quota.",
+      "limit_required": "Définissez une limite de lignes ou de taille",
+      "rows_min": "La limite de lignes doit être d’au moins 1",
+      "bytes_min": "La limite de taille doit être d’au moins 1 octet",
+      "label_window": "Fenêtre glissante",
+      "window_hint": "L’usage est compté sur la fenêtre écoulée, mesurée à partir de maintenant.",
+      "window_range": "La fenêtre doit être comprise entre 1 heure et 31 jours",
+      "window_unit": "Unité de la fenêtre",
+      "unit_hours": "heures",
+      "unit_days": "jours",
+      "label_breach_action": "Quand le budget est épuisé",
+      "breach_action_hint": "La revue humaine permet à un analyste légitime de finir une journée chargée ; le refus arrête les lectures. L’accès d’urgence n’est jamais bloqué mais reste comptabilisé.",
+      "label_warn_threshold": "Avertir à (% consommé)",
+      "warn_threshold_hint": "L’utilisateur est prévenu une fois ce seuil franchi. Laissez vide pour ne pas avertir.",
+      "threshold_range": "Le seuil doit être compris entre 1 et 99",
+      "label_applies_roles": "S’applique aux rôles",
+      "applies_hint": "Laissez les trois vides pour appliquer le budget à tous les utilisateurs de cette source.",
+      "label_applies_groups": "S’applique aux groupes",
+      "label_applies_users": "S’applique aux utilisateurs",
+      "label_enabled": "Activé",
+      "applies_everyone": "Tout le monde",
+      "applies_roles_one": "{{count}} rôle",
+      "applies_roles_other": "{{count}} rôles",
+      "applies_groups_one": "{{count}} groupe",
+      "applies_groups_other": "{{count}} groupes",
+      "applies_users_one": "{{count}} utilisateur",
+      "applies_users_other": "{{count}} utilisateurs",
+      "rows_value": "{{value}} lignes",
+      "unit_minutes": "minutes"
+    },
+    "usage": {
+      "action": "Usage des données",
+      "title": "Usage des données — {{name}}",
+      "description": "Lignes et octets de résultat lus par cet utilisateur pour chaque budget qui le concerne, sur la fenêtre de chaque budget.",
+      "empty": "Aucun budget de données ne s’applique à cet utilisateur.",
+      "load_error": "Impossible de charger l’usage des données de cet utilisateur",
+      "exhausted": "Épuisé",
+      "rows_used": "{{used}} lignes sur {{limit}}",
+      "bytes_used": "{{used}} sur {{limit}}"
+    },
+    "window_minutes_one": "{{count}} minute",
+    "window_minutes_other": "{{count}} minutes"
   }
 }

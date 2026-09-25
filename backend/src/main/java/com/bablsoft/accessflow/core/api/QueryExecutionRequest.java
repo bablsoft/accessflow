@@ -12,6 +12,10 @@ import java.util.UUID;
  * {@code schema.table} or bare {@code table}) so the proxy can index cached SELECT results for
  * write-invalidation. An empty set means "tables unknown": SELECTs are then never cached and
  * writes purge the whole datasource cache (fail-safe).
+ *
+ * <p>{@code maxResultBytesOverride} (#942) is the reader's remaining data-budget byte allowance:
+ * the proxy trims a SELECT result past it (the first row is always kept) and marks it truncated
+ * with {@link SelectExecutionResult#TRUNCATED_DATA_BUDGET}. {@code null} leaves only the global cap.
  */
 public record QueryExecutionRequest(
         UUID datasourceId,
@@ -25,7 +29,8 @@ public record QueryExecutionRequest(
         boolean transactional,
         List<String> statements,
         List<SoftDeleteDirective> softDeleteDirectives,
-        Set<String> referencedTables) {
+        Set<String> referencedTables,
+        Long maxResultBytesOverride) {
 
     public QueryExecutionRequest {
         Objects.requireNonNull(datasourceId, "datasourceId");
@@ -35,6 +40,9 @@ public record QueryExecutionRequest(
         }
         if (maxRowsOverride != null && maxRowsOverride <= 0) {
             throw new IllegalArgumentException("maxRowsOverride must be positive");
+        }
+        if (maxResultBytesOverride != null && maxResultBytesOverride <= 0) {
+            throw new IllegalArgumentException("maxResultBytesOverride must be positive");
         }
         if (statementTimeoutOverride != null
                 && (statementTimeoutOverride.isNegative() || statementTimeoutOverride.isZero())) {
@@ -66,6 +74,39 @@ public record QueryExecutionRequest(
         }
     }
 
+    /** Backward-compatible constructor without a result-byte override (#942). */
+    public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
+                                 Integer maxRowsOverride, Duration statementTimeoutOverride,
+                                 List<String> restrictedColumns, List<ColumnMaskDirective> columnMasks,
+                                 List<RowSecurityDirective> rowSecurityPredicates,
+                                 boolean transactional, List<String> statements,
+                                 List<SoftDeleteDirective> softDeleteDirectives,
+                                 Set<String> referencedTables) {
+        this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
+                restrictedColumns, columnMasks, rowSecurityPredicates, transactional, statements,
+                softDeleteDirectives, referencedTables, null);
+    }
+
+    /**
+     * Returns a copy whose row and result-byte caps are lowered to the given allowance (#942);
+     * a null argument leaves that cap unchanged, and neither can ever raise an existing cap.
+     */
+    public QueryExecutionRequest withAllowance(Long maxRows, Long maxBytes) {
+        Integer rows = maxRowsOverride;
+        if (maxRows != null) {
+            int allowance = (int) Math.min(Integer.MAX_VALUE, Math.max(1, maxRows));
+            rows = rows == null ? allowance : Math.min(rows, allowance);
+        }
+        Long bytes = maxResultBytesOverride;
+        if (maxBytes != null) {
+            long allowance = Math.max(1, maxBytes);
+            bytes = bytes == null ? allowance : Math.min(bytes, allowance);
+        }
+        return new QueryExecutionRequest(datasourceId, sql, queryType, rows, statementTimeoutOverride,
+                restrictedColumns, columnMasks, rowSecurityPredicates, transactional, statements,
+                softDeleteDirectives, referencedTables, bytes);
+    }
+
     /** Backward-compatible constructor without referenced tables (defaults to unknown). */
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride,
@@ -75,7 +116,7 @@ public record QueryExecutionRequest(
                                  List<SoftDeleteDirective> softDeleteDirectives) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
                 restrictedColumns, columnMasks, rowSecurityPredicates, transactional, statements,
-                softDeleteDirectives, Set.of());
+                softDeleteDirectives, Set.of(), null);
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,

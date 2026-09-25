@@ -65,6 +65,7 @@ class QueryDecisionEvaluatorTest {
     @Mock BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     @Mock AccessGrantLookupService accessGrantLookupService;
     @Mock QueryEstimateLookupService queryEstimateLookupService;
+    @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
 
     private QueryDecisionEvaluator evaluator;
 
@@ -80,7 +81,9 @@ class QueryDecisionEvaluatorTest {
     void buildEvaluator() {
         var contextFactory = new ConditionContextFactory(queryRequestLookupService,
                 sqlParserService, userQueryService, userGroupService, behaviorAnomalyLookupService,
-                queryEstimateLookupService);
+                queryEstimateLookupService, dataBudgetStatusService);
+        lenient().when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
         evaluator = new QueryDecisionEvaluator(reviewPlanLookupService, contextFactory,
                 sqlParserService, routingPolicyEngine, accessGrantLookupService);
     }
@@ -115,6 +118,8 @@ class QueryDecisionEvaluatorTest {
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.SQL_REVIEW,
                         StepOutcome.NO_MATCH),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                        StepOutcome.NO_MATCH),
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.DATA_BUDGET,
                         StepOutcome.NO_MATCH),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.ROUTING_POLICIES,
                         StepOutcome.SKIP),
@@ -435,6 +440,7 @@ class QueryDecisionEvaluatorTest {
 
         assertThat(trace.steps()).extracting("step").containsExactly(
                 QueryDecisionStepKind.SQL_REVIEW, QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                QueryDecisionStepKind.DATA_BUDGET,
                 QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.GRANT_FAST_PATH,
                 QueryDecisionStepKind.REVIEW_PLAN);
         assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
@@ -786,6 +792,165 @@ class QueryDecisionEvaluatorTest {
         assertThat(decision.bytesCapChangedOutcome()).isTrue();
         assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
                 .isEqualTo("workflow.decision.plan.suppressed_sql_review");
+    }
+
+    // ── Data budget (#942) ────────────────────────────────────────────────────
+
+    private static DataBudgetCheck budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction action,
+                                          long usedRows) {
+        var consumption = new com.bablsoft.accessflow.core.api.DataBudgetConsumption(
+                UUID.randomUUID(), "Daily", 100L, null, 1440,
+                action == null ? com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT : action,
+                80, usedRows, 0);
+        return DataBudgetCheck.of(new com.bablsoft.accessflow.core.api.DataBudgetStatus(
+                UUID.randomUUID(), "ds", List.of(consumption)));
+    }
+
+    @Test
+    void anExhaustedRejectBudgetRejectsBeforeRoutingIsConsulted() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), null,
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.DATA_BUDGET_REJECTED);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(decision.dataBudgetChangedOutcome()).isTrue();
+        assertThat(decision.bytesCapChangedOutcome()).isFalse();
+        var budgetStep = step(decision.trace(), QueryDecisionStepKind.DATA_BUDGET);
+        assertThat(budgetStep.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(budgetStep.reasonKey()).isEqualTo("workflow.decision.data_budget.exhausted_rejected");
+        assertThat(budgetStep.reasonArgs()).containsExactly("Daily");
+        assertThat(budgetStep.details()).containsEntry("data_budget_name", "Daily")
+                .containsEntry("data_budget_action", "REJECT");
+        assertThat(step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES).reasonKey())
+                .isEqualTo("workflow.decision.routing.skipped_data_budget");
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
+                .isEqualTo("workflow.decision.grant.skipped_data_budget");
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
+                .isEqualTo("workflow.decision.plan.skipped_data_budget");
+        verify(routingPolicyEngine, never()).evaluate(any(), any(), any());
+    }
+
+    @Test
+    void theBytesCapRefusalWinsOverAnExhaustedBudget() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(),
+                cap(2_000_000_000_000L, BytesScannedCapOutcome.EXCEEDED),
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.BYTES_CAP_REJECTED);
+        assertThat(decision.dataBudget()).isNotNull();
+        assertThat(decision.dataBudgetChangedOutcome()).isFalse();
+    }
+
+    @Test
+    void anExhaustedRejectBudgetRejectsEvenWhenAiFailed() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1,
+                List.of(), null,
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.DATA_BUDGET_REJECTED);
+    }
+
+    @Test
+    void theAiFailedPathRecordsTheBudgetStanding() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1,
+                List.of(), null, budget(null, 10), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.AI_FAILED_PENDING_REVIEW);
+        assertThat(decision.dataBudget()).isNotNull();
+        var budgetStep = step(decision.trace(), QueryDecisionStepKind.DATA_BUDGET);
+        assertThat(budgetStep.outcome()).isEqualTo(StepOutcome.ALLOW);
+        assertThat(budgetStep.reasonKey()).isEqualTo("workflow.decision.data_budget.within");
+        assertThat(budgetStep.reasonArgs()).containsExactly("10");
+    }
+
+    @Test
+    void anExhaustedReviewBudgetSuppressesRoutingAutoApprove() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), null,
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100),
+                clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.dataBudgetChangedOutcome()).isTrue();
+        assertThat(decision.bytesCapChangedOutcome()).isFalse();
+        var routing = step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES);
+        assertThat(routing.reasonKey()).isEqualTo(
+                "workflow.decision.routing.matched_auto_approve_suppressed_data_budget");
+        assertThat(routing.details()).containsEntry("data_budget_suppressed", true)
+                .containsEntry("bytes_cap_suppressed", false);
+        var budgetStep = step(decision.trace(), QueryDecisionStepKind.DATA_BUDGET);
+        assertThat(budgetStep.outcome()).isEqualTo(StepOutcome.MATCH);
+        assertThat(budgetStep.reasonKey()).isEqualTo("workflow.decision.data_budget.exhausted_review");
+    }
+
+    @Test
+    void anExhaustedReviewBudgetSuppressesTheGrantAndThePlan() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenActiveGrant(grant(true, false, false, List.of(), List.of()));
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), null,
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100),
+                clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.dataBudgetChangedOutcome()).isTrue();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
+                .isEqualTo("workflow.decision.grant.suppressed_data_budget");
+        var plan = step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN);
+        assertThat(plan.reasonKey()).isEqualTo("workflow.decision.plan.suppressed_data_budget");
+        assertThat(plan.details()).containsEntry("data_budget_suppressed", true);
+    }
+
+    @Test
+    void aBudgetWithAllowanceLeftChangesNothing() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), null, budget(null, 30), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
+        assertThat(decision.dataBudgetChangedOutcome()).isFalse();
+    }
+
+    @Test
+    void anExhaustedReviewBudgetNeverSoftensAnAutoReject() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), null,
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100),
+                clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_REJECT);
+        assertThat(decision.dataBudgetChangedOutcome()).isFalse();
+    }
+
+    @Test
+    void theBytesCapNamesTheSuppressionAheadOfTheBudget() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW),
+                budget(com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100),
+                clock);
+
+        assertThat(decision.bytesCapChangedOutcome()).isTrue();
+        assertThat(decision.dataBudgetChangedOutcome()).isTrue();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
+                .isEqualTo("workflow.decision.plan.suppressed_bytes_cap");
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────

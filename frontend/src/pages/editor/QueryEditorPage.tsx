@@ -22,6 +22,7 @@ import {
   type RecurrenceMode,
 } from '@/components/editor/RecurrencePicker';
 import { useQueryAuthoring } from '@/components/editor/useQueryAuthoring';
+import { DataBudgetIndicator } from '@/components/editor/DataBudgetIndicator';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { breakGlassSubmit, queryKeys, submitQuery } from '@/api/queries';
@@ -307,6 +308,7 @@ export function QueryEditorPage() {
               until={recurrenceUntil}
               onUntilChange={setRecurrenceUntil}
             />
+            <DataBudgetIndicator dsId={ds.id} />
             <ReviewPlanPreview ds={ds} />
           </>
         }

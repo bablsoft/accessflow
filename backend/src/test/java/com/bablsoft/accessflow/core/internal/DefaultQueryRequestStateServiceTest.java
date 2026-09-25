@@ -151,6 +151,29 @@ class DefaultQueryRequestStateServiceTest {
     }
 
     @Test
+    void recordDataBudgetReviewForcedStampsWithoutTransitioning() {
+        query.setStatus(QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.recordDataBudgetReviewForced(queryId);
+
+        assertThat(query.isDataBudgetReviewForced()).isTrue();
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.PENDING_AI);
+        verify(queryRequestRepository).save(query);
+    }
+
+    @Test
+    void isDataBudgetReviewForcedReadsTheStamp() {
+        query.setDataBudgetReviewForced(true);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(query));
+        var other = UUID.randomUUID();
+        when(queryRequestRepository.findById(other)).thenReturn(Optional.empty());
+
+        assertThat(service.isDataBudgetReviewForced(queryId)).isTrue();
+        assertThat(service.isDataBudgetReviewForced(other)).isFalse();
+    }
+
+    @Test
     void recordApprovalAndAdvancePromotesToApprovedAtLastStage() {
         query.setStatus(QueryStatus.PENDING_REVIEW);
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));

@@ -31,6 +31,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +44,7 @@ class ConditionContextFactoryTest {
     @Mock UserGroupService userGroupService;
     @Mock BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     @Mock QueryEstimateLookupService queryEstimateLookupService;
+    @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
 
     private ConditionContextFactory factory;
 
@@ -56,7 +58,9 @@ class ConditionContextFactoryTest {
     void setUp() {
         factory = new ConditionContextFactory(queryRequestLookupService, sqlParserService,
                 userQueryService, userGroupService, behaviorAnomalyLookupService,
-                queryEstimateLookupService);
+                queryEstimateLookupService, dataBudgetStatusService);
+        lenient().when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
         when(sqlParserService.parse(any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
                 List.of("SELECT 1"), Set.of("public.orders"), true, false));
         when(userQueryService.findById(submitterId)).thenReturn(Optional.empty());
@@ -236,5 +240,51 @@ class ConditionContextFactoryTest {
 
         assertThat(context.queryShapes()).containsExactlyInAnyOrder(QueryShape.JOIN, QueryShape.AGGREGATE);
         assertThat(context.shapesAnalyzed()).isTrue();
+    }
+
+    private com.bablsoft.accessflow.core.api.QueryRequestSnapshot live(QueryType type) {
+        return new com.bablsoft.accessflow.core.api.QueryRequestSnapshot(queryId, datasourceId,
+                orgId, submitterId, "SELECT 1", type, false,
+                com.bablsoft.accessflow.core.api.QueryStatus.PENDING_AI, null, null, null, false);
+    }
+
+    @Test
+    void aLiveSelectCarriesTheSubmittersMostUsedBudgetShare() {
+        when(dataBudgetStatusService.statusFor(datasourceId, submitterId)).thenReturn(
+                new com.bablsoft.accessflow.core.api.DataBudgetStatus(datasourceId, "ds", List.of(
+                        new com.bablsoft.accessflow.core.api.DataBudgetConsumption(
+                                java.util.UUID.randomUUID(), "b", 200L, null, 60,
+                                com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT,
+                                null, 171, 0))));
+
+        var context = factory.forLiveQuery(live(QueryType.SELECT), RiskLevel.LOW, 10,
+                java.time.Clock.systemUTC());
+
+        assertThat(context.dataBudgetUsedPercent()).isEqualTo(85);
+    }
+
+    @Test
+    void aLiveSelectWithoutABudgetHasNoBudgetSignal() {
+        var context = factory.forLiveQuery(live(QueryType.SELECT), RiskLevel.LOW, 10,
+                java.time.Clock.systemUTC());
+
+        assertThat(context.dataBudgetUsedPercent()).isNull();
+    }
+
+    @Test
+    void aLiveWriteNeverReadsTheBudget() {
+        var context = factory.forLiveQuery(live(QueryType.UPDATE), RiskLevel.LOW, 10,
+                java.time.Clock.systemUTC());
+
+        assertThat(context.dataBudgetUsedPercent()).isNull();
+        org.mockito.Mockito.verify(dataBudgetStatusService, org.mockito.Mockito.never())
+                .statusFor(any(), any());
+    }
+
+    @Test
+    void theHistoricalReplayNeverCarriesTheBudgetSignal() {
+        var context = factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"));
+
+        assertThat(context.dataBudgetUsedPercent()).isNull();
     }
 }

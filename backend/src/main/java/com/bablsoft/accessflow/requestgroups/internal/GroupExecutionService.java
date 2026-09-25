@@ -12,6 +12,13 @@ import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.DataBudgetExhaustedException;
+import com.bablsoft.accessflow.core.api.DataBudgetStatus;
+import com.bablsoft.accessflow.core.api.DataBudgetStatusService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageRecord;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageService;
+import com.bablsoft.accessflow.core.api.DataBudgetUsageSource;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -80,6 +87,8 @@ public class GroupExecutionService {
     private final MessageSource messageSource;
     private final QueryCostEstimateService queryCostEstimateService;
     private final GroupReviewDecisionRepository decisionRepository;
+    private final DataBudgetStatusService dataBudgetStatusService;
+    private final DataBudgetUsageService dataBudgetUsageService;
 
     /** Execute an APPROVED group. Idempotent: silently returns if it is not APPROVED (or not yet due). */
     public void execute(UUID groupId, UUID actorUserId, String trigger) {
@@ -191,7 +200,14 @@ public class GroupExecutionService {
                 null, restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),
                 parsed.statements(), List.of(), parsed.referencedTables());
         enforceBytesScannedCap(group, item, request);
+        var budget = enforceDataBudget(group, item);
+        if (budget != null) {
+            request = request.withAllowance(budget.remainingRows(), budget.remainingBytes());
+        }
         var result = queryExecutor.execute(request);
+        if (budget != null && result instanceof SelectExecutionResult select) {
+            chargeDataBudget(group, item, select);
+        }
         long rows = switch (result) {
             case SelectExecutionResult select -> select.rowCount();
             case UpdateExecutionResult update -> update.rowsAffected();
@@ -287,6 +303,49 @@ public class GroupExecutionService {
         metadata.put("outcome", outcome.name());
         audit(AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED, group, null, metadata);
         throw new BytesScannedCapExceededException(message, cap, estimated, outcome);
+    }
+
+    /**
+     * The submitter's data budget (#942) for a SELECT member: {@code null} when none applies,
+     * otherwise the standing to cap the member to. An exhausted budget refuses the member whatever
+     * its action: a group's review never evaluates the budget, so an approval given while allowance
+     * remained must not lift it (fail closed).
+     */
+    private DataBudgetStatus enforceDataBudget(RequestGroupEntity group, RequestGroupItemEntity item) {
+        if (item.getQueryType() != QueryType.SELECT) {
+            return null;
+        }
+        var status = dataBudgetStatusService.statusFor(item.getDatasourceId(), group.getSubmittedBy());
+        if (status.isEmpty() || !status.exhausted()) {
+            return status.isEmpty() ? null : status;
+        }
+        var deciding = status.decidingBudget();
+        var metadata = new HashMap<String, Object>();
+        metadata.put("trigger", "data_budget");
+        metadata.put("stage", "execution");
+        metadata.put("item_id", item.getId().toString());
+        metadata.put("action", status.breachAction().name());
+        metadata.put("data_budget_id", deciding.budgetId());
+        metadata.put("used_rows", deciding.usedRows());
+        metadata.put("used_bytes", deciding.usedBytes());
+        metadata.put("window_minutes", deciding.windowMinutes());
+        audit(AuditAction.QUERY_DATA_BUDGET_ENFORCED, group, null, metadata);
+        throw new DataBudgetExhaustedException(messageSource.getMessage(
+                "error.data_budget.exhausted", new Object[]{deciding.name()},
+                LocaleContextHolder.getLocale()), deciding);
+    }
+
+    /** Never fails the member: the rows were already delivered. */
+    private void chargeDataBudget(RequestGroupEntity group, RequestGroupItemEntity item,
+                                  SelectExecutionResult select) {
+        try {
+            dataBudgetUsageService.record(new DataBudgetUsageRecord(group.getSubmittedBy(),
+                    item.getDatasourceId(), select.rowCount(), select.resultBytes(),
+                    DataBudgetUsageSource.REQUEST_GROUP, null, group.getId()));
+        } catch (RuntimeException ex) {
+            log.error("Data-budget usage write failed for group {} member {}", group.getId(),
+                    item.getId(), ex);
+        }
     }
 
     private void audit(AuditAction action, RequestGroupEntity group, UUID actorId,

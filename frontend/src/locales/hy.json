@@ -868,7 +868,8 @@
         "diff_effective_label": "Փաստացի SQL"
       },
       "bytes_cap_body": "Գնահատված սկանավորում՝ {{estimate}} · Սահմանաչափ՝ {{limit}} ({{source}})",
-      "bytes_cap_no_estimate": "գնահատական չկա"
+      "bytes_cap_no_estimate": "գնահատական չկա",
+      "results_truncated_budget": "Վերադարձվել է {{count}} տող (սահմանափակված ձեր մնացած տվյալների բյուջեով)"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "Սկանավորված բայթերի սահմանաչափ",
       "grant_bytes_cap_help": "Ավելի ցածր սահմանաչափ այս թույլտվության համար։ Կիրառվում է տվյալների աղբյուրի և բոլոր թույլտվությունների սահմանաչափերից ամենախիստը։",
       "grant_bytes_cap_min": "Սկանավորված բայթերի սահմանաչափը պետք է լինի առնվազն 1 բայթ։",
-      "grant_bytes_cap_placeholder": "Տվյալների աղբյուրի լռելյայնը"
+      "grant_bytes_cap_placeholder": "Տվյալների աղբյուրի լռելյայնը",
+      "tab_data_budgets": "Տվյալների բյուջեներ · {{count}}",
+      "sample_truncated_budget": "{{count}} տող (սահմանափակված ձեր մնացած տվյալների բյուջեով)"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "ր",
       "cicd_present_label": "CI/CD ծագում",
       "scan_type_placeholder": "օր.՝ Seq Scan, COLLSCAN, Index*",
-      "bytes_value_label": "Սկանավորված բայթեր"
+      "bytes_value_label": "Սկանավորված բայթեր",
+      "budget_percent_label": "Տվյալների բյուջեի օգտագործված մասը"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ձեր սխեմայի փոփոխությունը {{changeSet}} ձախողվեց {{environment}}-ում",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "Ձեր սխեմայի փոփոխությունը {{changeSet}} միայն մասնակիորեն կիրառվեց {{environment}}-ում",
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} նոր սխեմայի շեղում {{pipeline}} / {{environment}}-ում",
-      "SCHEMA_DRIFT_DETECTED_other": "{{count}} նոր սխեմայի շեղում {{pipeline}} / {{environment}}-ում"
+      "SCHEMA_DRIFT_DETECTED_other": "{{count}} նոր սխեմայի շեղում {{pipeline}} / {{environment}}-ում",
+      "DATA_BUDGET_THRESHOLD_REACHED": "Դուք օգտագործել եք {{datasource}}-ում ձեր {{budget}} տվյալների բյուջեի {{percent}}%-ը",
+      "DATA_BUDGET_EXHAUSTED": "{{user}}-ի {{budget}} տվյալների բյուջեն {{datasource}}-ում սպառված է"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "CI/CD ծագում",
       "estimated_rows": "Գնահատված տողեր",
       "scan_type": "Սկանավորման տեսակ",
-      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական"
+      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական",
+      "data_budget_used_percent": "Տվյալների բյուջեի օգտագործում (%)"
     },
     "query_shape": {
       "JOIN": "Միացում (JOIN)",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "Կառավարել արտահանման քաղաքականությունները",
       "ROW_LIMIT_POLICY_MANAGE": "Կառավարել տողերի սահմանաչափի քաղաքականությունները",
       "DEPLOYMENT_PIPELINE_MANAGE": "Կառավարել տեղակայման փիփլայնները",
-      "DEPLOYMENT_REVIEW": "Վերանայել տեղակայումները"
+      "DEPLOYMENT_REVIEW": "Վերանայել տեղակայումները",
+      "DATA_BUDGET_MANAGE": "Կառավարել տվյալների բյուջեները"
     },
     "api_variable_kind": {
       "CONSTANT": "Հաստատուն",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "Տողային անվտանգություն",
       "MASKING": "Քողարկում",
       "BREAK_GLASS": "Արտակարգ մուտք",
-      "BYTES_SCANNED_CAP": "Սկանավորված բայթերի սահմանաչափ"
+      "BYTES_SCANNED_CAP": "Սկանավորված բայթերի սահմանաչափ",
+      "DATA_BUDGET": "Տվյալների բյուջե"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Միակցիչի ստուգումներ",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "Մերժված է. գնահատականը գերազանցում է սկանավորված բայթերի սահմանաչափը",
       "NO_ESTIMATE_REVIEW": "Պահված է ստուգման համար. սահմանաչափի ներքո բայթերի գնահատական չկա",
       "NO_ESTIMATE_REJECTED": "Մերժված է. սահմանաչափի ներքո բայթերի գնահատական չկա"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "Ուղարկել մարդկային վերանայման",
+      "REJECT": "Մերժել"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "Սկանավորված բայթերի սահմանաչափ",
       "bytes_scanned_cap_outcome": "Սահմանաչափի արդյունք",
       "bytes_scanned_cap_source": "Սահմանաչափի աղբյուր",
-      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական"
+      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական",
+      "data_budget_action": "Բյուջեի սպառման գործողություն",
+      "data_budget_id": "Տվյալների բյուջե",
+      "data_budget_name": "Տվյալների բյուջեի անուն",
+      "data_budget_remaining_bytes": "Բյուջեի մնացած բայթեր",
+      "data_budget_remaining_rows": "Բյուջեի մնացած տողեր",
+      "data_budget_suppressed": "Կասեցված է տվյալների բյուջեով",
+      "data_budget_used_percent": "Տվյալների բյուջեի օգտագործում"
     },
     "use_id": "Օգտագործել ID {{id}}",
     "user_id_placeholder": "Տեղադրեք օգտատիրոջ ID",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "Հավելվածի անունը չպետք է պարունակի կառավարման նիշեր։",
     "rotate_help": "Թողեք դատարկ՝ ընթացիկ բանալու հավելվածի անունը պահպանելու համար։",
     "column": "Հավելված"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} ժամ",
+    "window_hours_other": "{{count}} ժամ",
+    "window_days_one": "{{count}} օր",
+    "window_days_other": "{{count}} օր",
+    "indicator": {
+      "title": "Ձեր տվյալների բյուջեն",
+      "exhausted_title": "Տվյալների բյուջեն սպառված է",
+      "exhausted_reject": "Այս տվյալների աղբյուրի նոր ընթերցումները մերժվում են, մինչև նախորդ ընթերցումները դուրս գան պատուհանից։",
+      "exhausted_review": "Այս տվյալների աղբյուրի նոր ընթերցումները պահանջում են վերանայողի հաստատում, մինչև նախորդ ընթերցումները դուրս գան պատուհանից։",
+      "nearly_used": "Դուք օգտագործել եք այս տվյալների աղբյուրի ձեր բյուջեի մեծ մասը։",
+      "rows_left": "Մնացել է {{remaining}} տող {{limit}}-ից",
+      "bytes_left": "Մնացել է {{remaining}} {{limit}}-ից",
+      "per_window": "յուրաքանչյուր {{window}}",
+      "used_aria": "{{name}}՝ օգտագործված է {{percent}}%"
+    },
+    "tab": {
+      "title": "Տվյալների բյուջեներ",
+      "description": "Սահմանափակեք, թե քանի տող և արդյունքի բայթ կարող է յուրաքանչյուր օգտատեր կարդալ այս աղբյուրից սահող պատուհանում։ Հարցումը սահմանափակվում է մնացած ծավալով. բյուջեի սպառումից հետո նոր ընթերցումները մերժվում են կամ ուղարկվում մարդկային վերանայման։",
+      "add": "Ավելացնել բյուջե",
+      "empty_title": "Տվյալների բյուջեներ չկան",
+      "empty_description": "Այս աղբյուրի ընթերցումները սահմանափակված են միայն ըստ հարցման։",
+      "col_name": "Անուն",
+      "col_limits": "Սահմանաչափեր",
+      "col_window": "Պատուհան",
+      "col_action": "Սպառվելիս",
+      "col_applies_to": "Կիրառվում է",
+      "col_enabled": "Միացված",
+      "col_actions": "Գործողություններ",
+      "state_disabled": "Անջատված",
+      "edit": "Խմբագրել բյուջեն",
+      "delete": "Ջնջել բյուջեն",
+      "delete_confirm_title": "Ջնջե՞լ այս տվյալների բյուջեն",
+      "delete_confirm_body": "Այն օգտատերերը, որոնց վրա կիրառվում էր, այլևս չեն սահմանափակվի։ Գրանցված օգտագործումը պահպանվում է մինչև ժամկետի ավարտը։",
+      "delete_success": "Տվյալների բյուջեն ջնջվեց",
+      "delete_error": "Չհաջողվեց ջնջել տվյալների բյուջեն",
+      "save_success": "Տվյալների բյուջեն պահպանվեց",
+      "save_error": "Չհաջողվեց պահպանել տվյալների բյուջեն",
+      "create_title": "Նոր տվյալների բյուջե",
+      "edit_title": "Խմբագրել տվյալների բյուջեն",
+      "label_name": "Անուն",
+      "name_required": "Մուտքագրեք անուն",
+      "name_max": "Առավելագույնը 120 նիշ",
+      "label_max_rows": "Տողերի սահմանաչափ",
+      "label_max_bytes": "Արդյունքի չափի սահմանաչափ",
+      "limits_hint": "Սահմանեք տողերի, չափի սահմանաչափ կամ երկուսը։ Յուրաքանչյուր օգտատեր ունի իր սեփական ծավալը։",
+      "limit_required": "Սահմանեք տողերի կամ չափի սահմանաչափ",
+      "rows_min": "Տողերի սահմանաչափը պետք է լինի առնվազն 1",
+      "bytes_min": "Չափի սահմանաչափը պետք է լինի առնվազն 1 բայթ",
+      "label_window": "Սահող պատուհան",
+      "window_hint": "Օգտագործումը հաշվվում է անցած պատուհանում՝ հիմա պահից։",
+      "window_range": "Պատուհանը պետք է լինի 1 ժամից մինչև 31 օր",
+      "window_unit": "Պատուհանի միավոր",
+      "unit_hours": "ժամ",
+      "unit_days": "օր",
+      "label_breach_action": "Երբ բյուջեն սպառվում է",
+      "breach_action_hint": "Մարդկային վերանայումը թույլ է տալիս օրինական վերլուծաբանին ավարտել ծանր օրը, մերժումը անմիջապես կանգնեցնում է ընթերցումները։ Արտակարգ մուտքը երբեք չի արգելափակվում, բայց հաշվվում է։",
+      "label_warn_threshold": "Զգուշացնել (% օգտագործված)",
+      "warn_threshold_hint": "Օգտատերը ծանուցվում է մեկ անգամ, երբ անցնում է այս մասը։ Թողեք դատարկ՝ առանց զգուշացման։",
+      "threshold_range": "Շեմը պետք է լինի 1-ից 99",
+      "label_applies_roles": "Կիրառվում է դերերի վրա",
+      "applies_hint": "Թողեք երեքն էլ դատարկ՝ բյուջեն այս աղբյուրի բոլոր օգտատերերի վրա կիրառելու համար։",
+      "label_applies_groups": "Կիրառվում է խմբերի վրա",
+      "label_applies_users": "Կիրառվում է օգտատերերի վրա",
+      "label_enabled": "Միացված",
+      "applies_everyone": "Բոլորը",
+      "applies_roles_one": "{{count}} դեր",
+      "applies_roles_other": "{{count}} դեր",
+      "applies_groups_one": "{{count}} խումբ",
+      "applies_groups_other": "{{count}} խումբ",
+      "applies_users_one": "{{count}} օգտատեր",
+      "applies_users_other": "{{count}} օգտատեր",
+      "rows_value": "{{value}} տող",
+      "unit_minutes": "րոպե"
+    },
+    "usage": {
+      "action": "Տվյալների օգտագործում",
+      "title": "Տվյալների օգտագործում — {{name}}",
+      "description": "Տողեր և արդյունքի բայթեր, որոնք այս օգտատերը կարդացել է իր վրա կիրառվող յուրաքանչյուր բյուջեի պատուհանում։",
+      "empty": "Այս օգտատիրոջ վրա տվյալների բյուջե չի կիրառվում։",
+      "load_error": "Չհաջողվեց բեռնել այս օգտատիրոջ տվյալների օգտագործումը",
+      "exhausted": "Սպառված",
+      "rows_used": "{{used}} տող {{limit}}-ից",
+      "bytes_used": "{{used}} {{limit}}-ից"
+    },
+    "window_minutes_one": "{{count}} րոպե",
+    "window_minutes_other": "{{count}} րոպե"
   }
 }

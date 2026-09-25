@@ -99,7 +99,7 @@ roles these rows are display/catalog data only (runtime resolution answers from
 Catalog values added after `V114` are seeded for the system roles that hold them by their own
 one-file migration (`V134`, `V146`, `V148`, `V151`, `V171`, `V174`, `V179` — the last three seed
 `SQL_REVIEW_MANAGE` (#861), `SERVICE_ACCOUNT_MANAGE` (#868) and `SCHEMA_CHANGE_MANAGE` (#878)
-for `ADMIN`);
+for `ADMIN`; later additions follow the same pattern, e.g. `V194` seeds `DATA_BUDGET_MANAGE`, #942);
 `SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
 
 ---
@@ -489,6 +489,71 @@ row. The table preview (`GET /datasources/{id}/sample-rows`) is capped the same 
 
 ---
 
+## data_budgets
+
+Per-user **data-volume budgets** (#942, `V193__create_data_budgets.sql`). A budget bounds how many
+result rows and/or result bytes **each** targeted user may read from one datasource over a rolling
+window. Per-query caps (`max_rows_per_query`, `row_limit_policy`, the byte cap) bound one read; a
+budget bounds the sum of many — the slow-exfiltration control. Owned by `core`; see
+[05-backend.md → Per-user data-volume budgets](05-backend.md#per-user-data-volume-budgets-942).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `datasource_id` | FK → `datasources` `ON DELETE CASCADE` |
+| `name` | VARCHAR(120) NOT NULL — shown to the user in the editor, the notifications and the refusal message |
+| `max_rows` | BIGINT nullable, `CHECK (max_rows > 0)` — rows the user may read in the window |
+| `max_bytes` | BIGINT nullable, `CHECK (max_bytes > 0)` — result bytes the user may read in the window (the proxy's estimated in-memory result size, not wire bytes) |
+| `window_minutes` | INTEGER NOT NULL DEFAULT `1440`, `CHECK BETWEEN 60 AND 44640` — the **rolling** window, trailing back from now: 1 hour to 31 days. No calendar day, no timezone, no reset job |
+| `breach_action` | ENUM `data_budget_breach_action`: `REJECT` \| `REQUIRE_REVIEW`, NOT NULL DEFAULT `REQUIRE_REVIEW` — what happens to a SELECT once the budget is used up |
+| `warn_threshold_percent` | SMALLINT nullable, `CHECK BETWEEN 1 AND 99` — crossing it sends `DATA_BUDGET_THRESHOLD_REACHED` to the user; NULL = no warning |
+| `applies_to_roles` | TEXT[] nullable — role names the budget applies to |
+| `applies_to_group_ids` | UUID[] nullable — user-group ids |
+| `applies_to_user_ids` | UUID[] nullable — individual user ids |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true — a disabled budget neither counts nor bounds |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+`CONSTRAINT chk_data_budgets_has_limit CHECK (max_rows IS NOT NULL OR max_bytes IS NOT NULL)` — a
+budget sets at least one limit. Indexed by `(organization_id, datasource_id, enabled)`.
+
+**Scope** follows `row_limit_policy`: all three `applies_to_*` empty ⇒ every user of the datasource,
+admins included; otherwise users whose role / group / id matches. **Each targeted user gets their own
+allowance** — a group target is not a shared pool. When several budgets apply to one user, each is
+evaluated on its own window and the most constrained wins: the smallest remaining rows and remaining
+bytes, exhausted when any one is, and `REJECT` beats `REQUIRE_REVIEW` among exhausted budgets.
+
+---
+
+## data_budget_usage
+
+Append-only **usage ledger** behind data budgets (#942, V193). One row per delivered SELECT result for
+a user on a datasource where at least one budget applies to them; a read with no applying budget writes
+nothing. Usage is therefore charged from the moment a budget exists — reads before it are not counted.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL |
+| `user_id` | UUID NOT NULL — the reader (a query's submitter, a group's submitter, the previewing user) |
+| `datasource_id` | UUID NOT NULL |
+| `rows_read` | BIGINT NOT NULL, `CHECK >= 0` — rows actually delivered: after row security, with masked rows still counted, after every cap and truncation |
+| `bytes_read` | BIGINT NOT NULL, `CHECK >= 0` — the delivered result's estimated in-memory size, measured host-side for JDBC and engine-plugin results alike |
+| `source` | ENUM `data_budget_usage_source`: `QUERY` \| `REQUEST_GROUP` \| `SAMPLE_DATA` |
+| `query_request_id` | UUID nullable — provenance for `QUERY` rows (no FK) |
+| `request_group_id` | UUID nullable — provenance for `REQUEST_GROUP` rows (no FK) |
+| `occurred_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+Deliberately no foreign keys: the provenance ids are bare UUIDs so an erasure or retention delete of
+the source never blocks on the ledger. `idx_data_budget_usage_user_ds_time (user_id, datasource_id,
+occurred_at)` backs the trailing-window `SUM`; `idx_data_budget_usage_occurred_at` backs
+`DataBudgetUsagePruneJob`, which deletes rows older than `accessflow.core.data-budget.usage-retention`
+(default `P32D`, never below 31 days + 1 hour, so a row always outlives the longest window). Writes are
+never charged.
+
+---
+
 ## export_policy
 
 Per-datasource **result-export governance / DLP** policies (#626). Each row governs how a query's
@@ -832,6 +897,7 @@ The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no exte
 | `cicd_origin` (AF-446) | `expected: bool` | whether the request came from a CI/CD pipeline (submitted via an API key or with the `X-AccessFlow-CI` header) equals `expected`. Deterministic — the flag defaults to `false` |
 | `anomaly_detected` (AF-383) | `expected: bool` | whether the submitter currently has an `OPEN` `behavior_anomaly` on the target datasource equals `expected`. The UBA detector is a periodic batch over **past** data, so this signal escalates the flagged user's **next** query — pair it with `ESCALATE`. Deterministic — false when the user has no open anomaly there |
 | `estimated_rows` (AF-624) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `value` | the query's pre-flight estimated row impact (the exact affected-row count for UPDATE/DELETE when available, else the EXPLAIN estimate) satisfies the comparison. Read live from `query_estimates` at routing time. **Fails closed**: false when no estimate signal exists (not yet computed, unsupported engine, or failed) |
+| `data_budget_used_percent` (#942) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `value` (whole percent, ≥ 0) | the share of the submitter's most-used applying data budget on the datasource, floored to a whole percent (may exceed 100), satisfies the comparison. An advisory escalation trigger — the hard limit is the budget itself. **Fails closed**: false when no budget applies, for a non-SELECT, and on the policy simulator's historical replay |
 | `estimated_bytes_scanned` (#941) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `value` (raw bytes) | the warehouse's pre-flight bytes-scanned estimate (`query_estimates.estimated_bytes_scanned`) satisfies the comparison. An advisory escalation trigger — the hard cap is `datasources.max_bytes_scanned_per_query`. **Fails closed**: false when no bytes estimate exists (every engine other than BigQuery / Snowflake / Databricks, and a failed or unsupported estimate) |
 | `scan_type` (AF-624) | `patterns: [string]` | the pre-flight plan's root operation (e.g. `Seq Scan`, `COLLSCAN`) matches any glob (`*` wildcard, case-insensitive). **Fails closed**: false when no plan was captured |
 
@@ -1064,6 +1130,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `bytes_scanned_cap` | BIGINT nullable (#941, V192) — the bytes-scanned cap that bound the submitter when the query left `PENDING_AI`: the smaller of the datasource cap and the merged grant override. Stamped by `QueryReviewStateMachine` before the decision is applied, whatever the outcome; NULL when no cap applied. Surfaced as `bytes_scanned_cap` on `GET /queries/{id}` |
 | `bytes_scanned_cap_source` | ENUM `bytes_scanned_cap_source`: `DATASOURCE` \| `GRANT`, nullable (#941) — which setting supplied the cap; on a tie the datasource. NULL exactly when `bytes_scanned_cap` is NULL |
 | `bytes_scanned_cap_outcome` | ENUM `bytes_scanned_cap_outcome`: `WITHIN` \| `EXCEEDED` \| `NO_ESTIMATE_REVIEW` \| `NO_ESTIMATE_REJECTED`, nullable (#941) — how the persisted estimate compared. `EXCEEDED` and `NO_ESTIMATE_REJECTED` accompany a `PENDING_AI → REJECTED` transition. The re-check just before execution does not update it: a refusal there is recorded as the `FAILED` row's `error_message` |
+| `data_budget_review_forced` | BOOLEAN NOT NULL DEFAULT FALSE (#942, V195) — set when an exhausted `REQUIRE_REVIEW` data budget sent the query to `PENDING_REVIEW` as it left `PENDING_AI`. Only a query carrying it (or, for a recurring occurrence, whose series parent carries it) may run past an exhausted budget once approved |
 | `approved_by_grant_id` | UUID nullable (#582, `V112`) — id of the `access_grant_request` whose pre-approval fast-path auto-approved this query. Bare UUID (no FK, mirroring `granted_permission_id`): the grant's lifecycle (expiry, revocation) is independent of the query's audit trail. Stamped atomically with the `PENDING_AI → APPROVED` transition by `QueryRequestStateService.approveByAccessGrant`; surfaced as `approved_by_grant` on `GET /queries/{id}`. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
@@ -1081,6 +1148,10 @@ PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
                              bytes_cap_missing_estimate=REJECT; decided before routing)
            ↘ PENDING_REVIEW (bytes-scanned cap with no estimate under REQUIRE_REVIEW — every
                              auto-approve path is held for a person, like a SQL review BLOCK)
+           ↘ REJECTED       (data budget, #942 — a SELECT whose submitter has used up a budget
+                             with breach_action=REJECT; decided right after the bytes-scanned cap)
+           ↘ PENDING_REVIEW (data budget used up under REQUIRE_REVIEW — every auto-approve path
+                             is held for a person, like a SQL review BLOCK)
 PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet;
                             for a recurring series — recurrence_rule set, #627 — also any
@@ -1089,7 +1160,8 @@ APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now())
 APPROVED       → EXECUTED / FAILED (recurring occurrence rows — created directly in APPROVED
                             by RecurringQueryRunJob with submission_reason=RECURRING and
                             executed in the same tick; the series parent stays APPROVED)
-APPROVED       → FAILED    (on execution error)
+APPROVED       → FAILED    (on execution error; also a bytes-scanned cap or an exhausted data
+                            budget re-checked just before execution — #941, #942)
 ```
 
 **Recurring occurrence rows (#627)** are *inserted* in `APPROVED` (an insert, not a transition — no
@@ -1113,7 +1185,7 @@ JSONB snapshot of the **last** SELECT execution for a query request (migration `
 | `rows` | JSONB NOT NULL — array of row arrays |
 | `row_count` | BIGINT NOT NULL |
 | `truncated` | BOOLEAN NOT NULL DEFAULT FALSE — result was cut short by a cap |
-| `truncated_reason` | TEXT NULL (`V116`, #49) — `ROW_LIMIT` \| `BYTE_LIMIT`; NULL when not truncated or persisted pre-V116 |
+| `truncated_reason` | TEXT NULL (`V116`, #49) — `ROW_LIMIT` \| `BYTE_LIMIT` \| `DATA_BUDGET` (#942 — the reader's remaining data-budget allowance was the binding cap); NULL when not truncated or persisted pre-V116 |
 | `duration_ms` | INTEGER NOT NULL |
 | `recorded_at` | TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP |
 
@@ -1776,10 +1848,12 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `SERVICE_ACCOUNT_DELEGATION_GRANTED` / `SERVICE_ACCOUNT_DELEGATION_REVOKED` | A human (`channel=self_service`, via `/me/service-account-delegations`) or an admin (`channel=admin`) let a service account act on a human's behalf, or revoked that grant (#874). Resource: `service_account`. Metadata: `delegation_id`, `principal_user_id`, `expires_at` (when set), `channel`. |
 | `SERVICE_ACCOUNT_KEY_ISSUED` / `SERVICE_ACCOUNT_KEY_ROTATED` / `SERVICE_ACCOUNT_KEY_REVOKED` | Admin issues / rotates / revokes an API key on behalf of a service account (#871). Resource: `service_account`. Metadata: `api_key_id`, `name` (issue); `api_key_id`, `superseded_key_id`, `name`, `superseded_expires_at` (rotate — the old key's new expiry, i.e. the end of the grace window); `api_key_id` (revoke). The raw key is never logged. |
 | `SQL_REVIEW_BLOCKED` | A `BLOCK` SQL review finding suppressed an auto-approve path and forced the request to human review (#864). System-attributed: `actor_id` is NULL. Resource: `query_request` (written by `QueryReviewStateMachine` after the transition) or `request_group` (written by `GroupAiAnalysisListener`). Metadata: `trigger: "sql_review"`, `blocking_rule_ids` (distinct, sorted), `suppressed_paths` — one or more of `ROUTING_AUTO_APPROVE`, `GRANT_FAST_PATH`, `REVIEW_PLAN` for a query, `GROUP_REVIEW_PLAN` for a group — plus `matched_policy_id` when routing was the suppressed path and `blocking_item_ids` for a group. Written **only when the guard changed the outcome**: never for `WARN`, never on a routing `AUTO_REJECT` (the rejection stands), never on the AI-failed path or a plan that already required review (the findings are still on the detail), and never for break-glass, which records findings but is not gated. |
-| `QUERY_BYTES_SCANNED_CAP_ENFORCED` | The bytes-scanned cap (#941) changed a query's outcome. System-attributed: `actor_id` is NULL. Resource: `query_request` — or `request_group` when a group member was refused at execution (metadata then carries `item_id`). Metadata: `trigger: "bytes_scanned_cap"`, `stage` (`decision` — the query left `PENDING_AI` rejected, or an automatic approval was held for review; `execution` — refused just before running, the query is then `FAILED`), `limit`, `source` (`DATASOURCE` \| `GRANT`), `outcome`, and `estimated_bytes` when an estimate existed. Never written when the estimate was within the cap; a successful `QUERY_EXECUTED` row under a cap instead carries `bytes_scanned_cap`, `bytes_scanned_cap_source` and `bytes_scanned_estimate` |
+| `QUERY_BYTES_SCANNED_CAP_ENFORCED` | The bytes-scanned cap (#941) changed a query's outcome. System-attributed: `actor_id` is NULL. Resource: `query_request` — or `request_group` when a group member was refused at execution (metadata then carries `item_id`), or `datasource` when a table preview was refused (`stage: "sample"`, actor = the caller, metadata adds `table`). Metadata: `trigger: "bytes_scanned_cap"`, `stage` (`decision` — the query left `PENDING_AI` rejected, or an automatic approval was held for review; `execution` — refused just before running, the query is then `FAILED`), `limit`, `source` (`DATASOURCE` \| `GRANT`), `outcome`, and `estimated_bytes` when an estimate existed. Never written when the estimate was within the cap; a successful `QUERY_EXECUTED` row under a cap instead carries `bytes_scanned_cap`, `bytes_scanned_cap_source` and `bytes_scanned_estimate` |
+| `QUERY_DATA_BUDGET_ENFORCED` | An exhausted data budget (#942) changed a query's outcome. System-attributed: `actor_id` is NULL. Resource: `query_request` — or `request_group` when a group member was refused at execution (metadata then carries `item_id`). Metadata: `trigger: "data_budget"`, `stage` (`decision` — the query left `PENDING_AI` rejected, or an automatic approval was held for review; `execution` — refused just before running, the query is then `FAILED`), `action` (`REJECT` \| `REQUIRE_REVIEW`), `data_budget_id`, `used_rows`, `used_bytes`, `window_minutes`, and `matched_policy_id` when a routing `AUTO_APPROVE` was suppressed. Never written when allowance remained; a successful `QUERY_EXECUTED` row under a budget instead carries `data_budget_rows_charged` and `data_budget_bytes_charged` |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 | `ROW_LIMIT_POLICY_CREATED` / `ROW_LIMIT_POLICY_UPDATED` / `ROW_LIMIT_POLICY_DELETED` | Admin creates / updates / deletes a per-table row-limit policy via the `/datasources/{id}/row-limit-policies` CRUD endpoints (#934). Resource: `row_limit_policy`. Metadata carries `datasource_id`, `schema_name`, `table_name`, `max_rows`, `enabled`. The lowest-cap matching policies of a SELECT ride on `QUERY_EXECUTED` metadata (`applied_row_limit_policy_ids`) when their cap was the binding one. |
+| `DATA_BUDGET_CREATED` / `DATA_BUDGET_UPDATED` / `DATA_BUDGET_DELETED` | Admin creates / updates / deletes a data budget via the `/datasources/{id}/data-budgets` CRUD endpoints (#942). Resource: `data_budget`. Metadata carries `datasource_id`, and on create/update `name`, `max_rows` / `max_bytes` (whichever is set), `window_minutes`, `breach_action`, `enabled`. |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
 | `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed/revived/aged/expired, `expiredAuditTruncated`, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
 | `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED` | Admin confirms (tag applied via the AF-447 service, masking derived) or dismisses (permanently suppressed) a discovery finding via `/datasources/{id}/discovery/findings/bulk-decision`. Resource: `discovery_finding`. Metadata: table, column, classification, detector, confidence, and `tagConflict` when the tag already existed. |
@@ -1815,7 +1889,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `row_limit_policy`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `row_limit_policy`, `data_budget`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -2043,7 +2117,8 @@ notifications module dispatches also writes one row per recipient here so the be
 inbox can show history, unread counts, and act on individual entries. The
 `event_type` mirrors the backend `NotificationEventType` enum — query, review, access,
 anomaly, API-request (`API_REQUEST_*`, AF-500), deployment (`DEPLOYMENT_*`, #695) and
-schema-change (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882) events; `TEST`
+schema-change (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882) and data-budget
+(`DATA_BUDGET_THRESHOLD_REACHED`, `DATA_BUDGET_EXHAUSTED`, #942) events; `TEST`
 events are skipped.
 
 | Column | Type / Notes |
@@ -2056,7 +2131,7 @@ events are skipped.
 | `api_request_id` | FK → `api_requests` ON DELETE CASCADE, nullable (V109, AF-529) |
 | `deployment_request_id` | FK → `deployment_requests` ON DELETE CASCADE, nullable (V155, #695) |
 | `schema_change_promotion_id` | FK → `schema_change_set_promotions` ON DELETE CASCADE, nullable (V182, #882). Set on the `SCHEMA_CHANGE_PROMOTION_*` rows; a `SCHEMA_DRIFT_DETECTED` row names no target |
-| `payload` | JSONB — denormalised render context (datasource/pipeline name, submitter, risk_level, reviewer comment; deployment rows add `deployment_id`, `environment`, `version`, `outcome`; schema-change rows add `schema_change_promotion_id`, `change_set`, `environment`, `promotion_status`, and `new_finding_count` for drift) |
+| `payload` | JSONB — denormalised render context (datasource/pipeline name, submitter, risk_level, reviewer comment; deployment rows add `deployment_id`, `environment`, `version`, `outcome`; schema-change rows add `schema_change_promotion_id`, `change_set`, `environment`, `promotion_status`, and `new_finding_count` for drift; data-budget rows add `datasource_id`, `budget`, `used_percent` and name no target column) |
 | `is_read` | BOOLEAN DEFAULT false |
 | `created_at` | TIMESTAMPTZ DEFAULT now() |
 | `read_at` | TIMESTAMPTZ, nullable |

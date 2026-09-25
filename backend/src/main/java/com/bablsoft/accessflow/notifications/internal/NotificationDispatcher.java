@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
+import com.bablsoft.accessflow.core.events.DataBudgetThresholdCrossedEvent;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.schemachange.events.SchemaDriftDetectedEvent;
@@ -216,6 +217,18 @@ class NotificationDispatcher {
         deliver(NotificationEventType.SCHEMA_DRIFT_DETECTED, contextOpt.get());
     }
 
+    /** Dispatch a {@code DATA_BUDGET_THRESHOLD_REACHED} / {@code DATA_BUDGET_EXHAUSTED}
+     *  notification (#942) over all active org channels. */
+    void dispatchDataBudget(DataBudgetThresholdCrossedEvent event) {
+        var contextOpt = contextBuilder.buildDataBudget(event);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping data-budget notification for budget {} — no active recipient",
+                    event.budgetId());
+            return;
+        }
+        deliver(contextOpt.get().eventType(), contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -326,6 +339,15 @@ class NotificationDispatcher {
         if (ctx.datasourceName() != null) {
             payload.put("datasource", ctx.datasourceName());
         }
+        if (ctx.dataBudget() != null) {
+            var budget = ctx.dataBudget();
+            // #942: user_notifications has no datasource column — the bell reads it from here.
+            if (ctx.datasourceId() != null) {
+                payload.put("datasource_id", ctx.datasourceId().toString());
+            }
+            payload.put("budget", budget.budgetName());
+            payload.put("used_percent", budget.usedPercent());
+        }
         if (ctx.submitterEmail() != null) {
             payload.put("submitter", ctx.submitterEmail());
         }
@@ -379,7 +401,10 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED
                 || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_APPLIED
                 || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_FAILED
-                || eventType == NotificationEventType.SCHEMA_DRIFT_DETECTED) {
+                || eventType == NotificationEventType.SCHEMA_DRIFT_DETECTED
+                // #942: budgets are per user, not per review plan — advisory, org-wide.
+                || eventType == NotificationEventType.DATA_BUDGET_THRESHOLD_REACHED
+                || eventType == NotificationEventType.DATA_BUDGET_EXHAUSTED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

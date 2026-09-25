@@ -69,6 +69,10 @@ class GroupExecutionServiceTest {
     private com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
     @Mock
     private com.bablsoft.accessflow.requestgroups.internal.persistence.repo.GroupReviewDecisionRepository decisionRepository;
+    @Mock
+    private com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
+    @Mock
+    private com.bablsoft.accessflow.core.api.DataBudgetUsageService dataBudgetUsageService;
     @InjectMocks
     private GroupExecutionService service;
 
@@ -76,6 +80,9 @@ class GroupExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(dataBudgetStatusService.statusFor(any(), any()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(
+                        inv.getArgument(0)));
         group = new RequestGroupEntity();
         group.setId(UUID.randomUUID());
         group.setOrganizationId(UUID.randomUUID());
@@ -257,6 +264,94 @@ class GroupExecutionServiceTest {
         assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
         assertThat(item.getErrorMessage()).isEqualTo("never reviewed");
         verify(queryExecutor, org.mockito.Mockito.never()).execute(any());
+    }
+
+    private void givenBudget(RequestGroupItemEntity item,
+                             com.bablsoft.accessflow.core.api.DataBudgetBreachAction action,
+                             long usedRows) {
+        when(dataBudgetStatusService.statusFor(item.getDatasourceId(), group.getSubmittedBy()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.DataBudgetStatus(
+                        item.getDatasourceId(), "ds", List.of(
+                                new com.bablsoft.accessflow.core.api.DataBudgetConsumption(
+                                        UUID.randomUUID(), "Daily", 100L, null, 60, action, null,
+                                        usedRows, 0))));
+    }
+
+    @Test
+    void aQueryMemberIsCappedToTheRemainingAllowanceAndCharged() {
+        var item = queryItem();
+        givenBudget(item, com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 95);
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 5L, true, java.time.Duration.ofMillis(3)));
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.EXECUTED);
+        var request = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryExecutionRequest.class);
+        verify(queryExecutor).execute(request.capture());
+        assertThat(request.getValue().maxRowsOverride()).isEqualTo(5);
+        var usage = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.DataBudgetUsageRecord.class);
+        verify(dataBudgetUsageService).record(usage.capture());
+        assertThat(usage.getValue().requestGroupId()).isEqualTo(group.getId());
+        assertThat(usage.getValue().source())
+                .isEqualTo(com.bablsoft.accessflow.core.api.DataBudgetUsageSource.REQUEST_GROUP);
+    }
+
+    @Test
+    void anExhaustedRejectBudgetFailsTheMemberWithoutRunning() {
+        var item = queryItem();
+        givenBudget(item, com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 100);
+        when(messageSource.getMessage(org.mockito.ArgumentMatchers.eq("error.data_budget.exhausted"),
+                any(), any())).thenReturn("used up");
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
+        assertThat(item.getErrorMessage()).isEqualTo("used up");
+        verify(queryExecutor, org.mockito.Mockito.never()).execute(any());
+        var audit = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.audit.api.AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.atLeastOnce()).record(audit.capture());
+        assertThat(audit.getAllValues()).anySatisfy(entry -> {
+            assertThat(entry.action())
+                    .isEqualTo(com.bablsoft.accessflow.audit.api.AuditAction.QUERY_DATA_BUDGET_ENFORCED);
+            assertThat(entry.metadata()).containsEntry("item_id", item.getId().toString())
+                    .containsEntry("window_minutes", 60);
+        });
+    }
+
+    @Test
+    void anExhaustedReviewBudgetFailsTheMemberEvenOnceAPersonApprovedTheGroup() {
+        var item = queryItem();
+        givenBudget(item, com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REQUIRE_REVIEW, 100);
+        // A person approved the group — which, fail-closed, must not lift an exhausted budget.
+        org.mockito.Mockito.lenient().when(decisionRepository.existsByRequestGroupIdAndDecision(group.getId(),
+                com.bablsoft.accessflow.core.api.DecisionType.APPROVED)).thenReturn(true);
+        when(messageSource.getMessage(org.mockito.ArgumentMatchers.eq("error.data_budget.exhausted"),
+                any(), any())).thenReturn("used up");
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
+        verify(queryExecutor, org.mockito.Mockito.never()).execute(any());
+    }
+
+    @Test
+    void aFailedUsageWriteNeverFailsTheMember() {
+        var item = queryItem();
+        givenBudget(item, com.bablsoft.accessflow.core.api.DataBudgetBreachAction.REJECT, 0);
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 1L, false, java.time.Duration.ofMillis(3)));
+        org.mockito.Mockito.doThrow(new IllegalStateException("ledger down"))
+                .when(dataBudgetUsageService).record(any());
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.EXECUTED);
     }
 
     @Test

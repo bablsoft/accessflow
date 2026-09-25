@@ -234,9 +234,9 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
 }
 
 function truncatedMessageKey(reason: TruncatedReason | null | undefined) {
-  return reason === 'BYTE_LIMIT'
-    ? ('queries.detail.results_truncated_bytes' as const)
-    : ('queries.detail.results_truncated' as const);
+  if (reason === 'BYTE_LIMIT') return 'queries.detail.results_truncated_bytes' as const;
+  if (reason === 'DATA_BUDGET') return 'queries.detail.results_truncated_budget' as const;
+  return 'queries.detail.results_truncated' as const;
 }
 
 function formatCell(value: unknown): string {

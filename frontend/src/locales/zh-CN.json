@@ -868,7 +868,8 @@
         "diff_effective_label": "实际执行的 SQL"
       },
       "bytes_cap_body": "预计扫描：{{estimate}} · 上限：{{limit}}（{{source}}）",
-      "bytes_cap_no_estimate": "无估算"
+      "bytes_cap_no_estimate": "无估算",
+      "results_truncated_budget": "返回 {{count}} 行（受剩余数据预算限制）"
     }
   },
   "reviews": {
@@ -1590,7 +1591,9 @@
       "grant_bytes_cap_label": "扫描字节上限",
       "grant_bytes_cap_help": "为此授权设置更低的上限。取数据源上限与所有授权中最严格的一个。",
       "grant_bytes_cap_min": "扫描字节上限至少为 1 字节。",
-      "grant_bytes_cap_placeholder": "数据源默认值"
+      "grant_bytes_cap_placeholder": "数据源默认值",
+      "tab_data_budgets": "数据预算 · {{count}}",
+      "sample_truncated_budget": "{{count}} 行（受剩余数据预算限制）"
     }
   },
   "admin": {
@@ -2471,7 +2474,8 @@
       "minutes_suffix": "分钟",
       "cicd_present_label": "来自 CI/CD",
       "scan_type_placeholder": "例如 Seq Scan、COLLSCAN、Index*",
-      "bytes_value_label": "扫描字节数"
+      "bytes_value_label": "扫描字节数",
+      "budget_percent_label": "数据预算已用比例"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2912,7 +2916,9 @@
       "SCHEMA_CHANGE_PROMOTION_FAILED": "您的架构变更 {{changeSet}} 在 {{environment}} 上失败",
       "SCHEMA_CHANGE_PROMOTION_FAILED_partial": "您的架构变更 {{changeSet}} 仅部分应用到 {{environment}}",
       "SCHEMA_DRIFT_DETECTED_one": "{{pipeline}} / {{environment}} 上有 {{count}} 项新的架构漂移发现",
-      "SCHEMA_DRIFT_DETECTED_other": "{{pipeline}} / {{environment}} 上有 {{count}} 项新的架构漂移发现"
+      "SCHEMA_DRIFT_DETECTED_other": "{{pipeline}} / {{environment}} 上有 {{count}} 项新的架构漂移发现",
+      "DATA_BUDGET_THRESHOLD_REACHED": "您已使用 {{datasource}} 上数据预算 {{budget}} 的 {{percent}}%",
+      "DATA_BUDGET_EXHAUSTED": "{{user}} 在 {{datasource}} 上的数据预算 {{budget}} 已用尽"
     }
   },
   "profile": {
@@ -3287,7 +3293,8 @@
       "cicd_origin": "CI/CD 来源",
       "estimated_rows": "预估行数",
       "scan_type": "扫描类型",
-      "estimated_bytes_scanned": "预计扫描字节数"
+      "estimated_bytes_scanned": "预计扫描字节数",
+      "data_budget_used_percent": "数据预算已用（%）"
     },
     "query_shape": {
       "JOIN": "连接（JOIN）",
@@ -3562,7 +3569,8 @@
       "EXPORT_POLICY_MANAGE": "管理导出策略",
       "ROW_LIMIT_POLICY_MANAGE": "管理行数限制策略",
       "DEPLOYMENT_PIPELINE_MANAGE": "管理部署流水线",
-      "DEPLOYMENT_REVIEW": "审核部署"
+      "DEPLOYMENT_REVIEW": "审核部署",
+      "DATA_BUDGET_MANAGE": "管理数据预算"
     },
     "api_variable_kind": {
       "CONSTANT": "常量",
@@ -3733,7 +3741,8 @@
       "ROW_SECURITY": "行级安全",
       "MASKING": "脱敏",
       "BREAK_GLASS": "紧急访问",
-      "BYTES_SCANNED_CAP": "扫描字节上限"
+      "BYTES_SCANNED_CAP": "扫描字节上限",
+      "DATA_BUDGET": "数据预算"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "连接器检查",
@@ -3802,6 +3811,10 @@
       "EXCEEDED": "已拒绝：估算超过扫描字节上限",
       "NO_ESTIMATE_REVIEW": "已转人工审查：上限下没有字节估算",
       "NO_ESTIMATE_REJECTED": "已拒绝：上限下没有字节估算"
+    },
+    "data_budget_breach_action": {
+      "REQUIRE_REVIEW": "转交人工审核",
+      "REJECT": "拒绝"
     }
   },
   "access": {
@@ -5812,7 +5825,14 @@
       "bytes_scanned_cap": "扫描字节上限",
       "bytes_scanned_cap_outcome": "上限结果",
       "bytes_scanned_cap_source": "上限来源",
-      "estimated_bytes_scanned": "预计扫描字节数"
+      "estimated_bytes_scanned": "预计扫描字节数",
+      "data_budget_action": "预算用尽时的操作",
+      "data_budget_id": "数据预算",
+      "data_budget_name": "数据预算名称",
+      "data_budget_remaining_bytes": "预算剩余字节",
+      "data_budget_remaining_rows": "预算剩余行数",
+      "data_budget_suppressed": "被数据预算抑制",
+      "data_budget_used_percent": "数据预算已用"
     },
     "use_id": "使用 ID {{id}}",
     "user_id_placeholder": "粘贴用户 ID",
@@ -5832,5 +5852,93 @@
     "key_control_chars": "应用名称不能包含控制字符。",
     "rotate_help": "留空则沿用当前密钥的应用名称。",
     "column": "应用"
+  },
+  "dataBudgets": {
+    "window_hours_one": "{{count}} 小时",
+    "window_hours_other": "{{count}} 小时",
+    "window_days_one": "{{count}} 天",
+    "window_days_other": "{{count}} 天",
+    "indicator": {
+      "title": "你的数据预算",
+      "exhausted_title": "数据预算已用尽",
+      "exhausted_reject": "在之前的读取移出窗口之前，此数据源上的新读取将被拒绝。",
+      "exhausted_review": "在之前的读取移出窗口之前，此数据源上的新读取需要审核人批准。",
+      "nearly_used": "你已用掉此数据源上的大部分数据预算。",
+      "rows_left": "剩余 {{remaining}} / {{limit}} 行",
+      "bytes_left": "剩余 {{remaining}} / {{limit}}",
+      "per_window": "每 {{window}}",
+      "used_aria": "{{name}}：已使用 {{percent}}%"
+    },
+    "tab": {
+      "title": "数据预算",
+      "description": "限制每个用户在滚动窗口内可从此数据源读取的行数和结果字节数。查询会被限制在剩余额度内；预算用尽后，新的读取将被拒绝或转交人工审核。",
+      "add": "添加预算",
+      "empty_title": "没有数据预算",
+      "empty_description": "此数据源上的读取仅按单个查询限制。",
+      "col_name": "名称",
+      "col_limits": "上限",
+      "col_window": "窗口",
+      "col_action": "用尽时",
+      "col_applies_to": "适用于",
+      "col_enabled": "已启用",
+      "col_actions": "操作",
+      "state_disabled": "已停用",
+      "edit": "编辑预算",
+      "delete": "删除预算",
+      "delete_confirm_title": "删除此数据预算？",
+      "delete_confirm_body": "受其约束的用户将不再受限。已记录的用量会保留至过期。",
+      "delete_success": "数据预算已删除",
+      "delete_error": "无法删除数据预算",
+      "save_success": "数据预算已保存",
+      "save_error": "无法保存数据预算",
+      "create_title": "新建数据预算",
+      "edit_title": "编辑数据预算",
+      "label_name": "名称",
+      "name_required": "请输入名称",
+      "name_max": "最多 120 个字符",
+      "label_max_rows": "行数上限",
+      "label_max_bytes": "结果大小上限",
+      "limits_hint": "设置行数上限、结果大小上限或两者。每个用户拥有各自的额度。",
+      "limit_required": "请设置行数或结果大小上限",
+      "rows_min": "行数上限至少为 1",
+      "bytes_min": "结果大小上限至少为 1 字节",
+      "label_window": "滚动窗口",
+      "window_hint": "用量按从现在往回推算的窗口统计。",
+      "window_range": "窗口必须介于 1 小时到 31 天之间",
+      "window_unit": "窗口单位",
+      "unit_hours": "小时",
+      "unit_days": "天",
+      "label_breach_action": "预算用尽时",
+      "breach_action_hint": "人工审核可让正常工作的分析师完成繁忙的一天；拒绝则直接停止读取。紧急访问永不被阻止，但仍计入用量。",
+      "label_warn_threshold": "预警阈值（已用 %）",
+      "warn_threshold_hint": "用户超过此比例时会收到一次通知。留空表示不预警。",
+      "threshold_range": "阈值必须介于 1 到 99 之间",
+      "label_applies_roles": "适用角色",
+      "applies_hint": "三项都留空则预算适用于此数据源的所有用户。",
+      "label_applies_groups": "适用组",
+      "label_applies_users": "适用用户",
+      "label_enabled": "已启用",
+      "applies_everyone": "所有人",
+      "applies_roles_one": "{{count}} 个角色",
+      "applies_roles_other": "{{count}} 个角色",
+      "applies_groups_one": "{{count}} 个组",
+      "applies_groups_other": "{{count}} 个组",
+      "applies_users_one": "{{count}} 个用户",
+      "applies_users_other": "{{count}} 个用户",
+      "rows_value": "{{value}} 行",
+      "unit_minutes": "分钟"
+    },
+    "usage": {
+      "action": "数据用量",
+      "title": "数据用量 — {{name}}",
+      "description": "此用户在每个适用预算窗口内读取的行数和结果字节数。",
+      "empty": "没有适用于此用户的数据预算。",
+      "load_error": "无法加载此用户的数据用量",
+      "exhausted": "已用尽",
+      "rows_used": "{{used}} / {{limit}} 行",
+      "bytes_used": "{{used}} / {{limit}}"
+    },
+    "window_minutes_one": "{{count}} 分钟",
+    "window_minutes_other": "{{count}} 分钟"
   }
 }

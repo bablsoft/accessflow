@@ -258,6 +258,18 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("schemaChangeStatus", ctx.schemaChangeStatus());
         context.setVariable("schemaChangeErrorMessage", ctx.schemaChangeErrorMessage());
         context.setVariable("driftNewFindingCount", ctx.driftNewFindingCount());
+        var budget = ctx.dataBudget();
+        context.setVariable("dataBudgetName", budget != null ? budget.budgetName() : null);
+        context.setVariable("dataBudgetUsedPercent", budget != null ? budget.usedPercent() : null);
+        context.setVariable("dataBudgetWarnThresholdPercent",
+                budget != null ? budget.warnThresholdPercent() : null);
+        context.setVariable("dataBudgetUsedRows", budget != null ? budget.usedRows() : null);
+        context.setVariable("dataBudgetMaxRows", budget != null ? budget.maxRows() : null);
+        context.setVariable("dataBudgetBytesUsage", budget != null ? budget.bytesUsage() : null);
+        context.setVariable("dataBudgetWindowUnit", budget != null ? budget.windowUnit() : null);
+        context.setVariable("dataBudgetWindowValue", budget != null ? budget.windowValue() : null);
+        context.setVariable("dataBudgetBreachAction",
+                budget != null && budget.breachAction() != null ? budget.breachAction().name() : null);
         return templateEngine.process(template, context);
     }
 
@@ -294,6 +306,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "email/schema-change-promotion-applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "email/schema-change-promotion-failed";
             case SCHEMA_DRIFT_DETECTED -> "email/schema-drift-detected";
+            // #942: data budgets — the user, and on exhaustion the budget managers.
+            case DATA_BUDGET_THRESHOLD_REACHED -> "email/data-budget-threshold-reached";
+            case DATA_BUDGET_EXHAUSTED -> "email/data-budget-exhausted";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             // API-request events (AF-500) deliver as in-app + chat notifications, not email.
@@ -332,6 +347,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // #882: pipeline, environment, and how many findings the scan opened.
             case SCHEMA_DRIFT_DETECTED -> new Object[]{ctx.datasourceName(), ctx.environmentName(),
                     ctx.driftNewFindingCount()};
+            // #942: "{0} on {1}" is the budget and the datasource; the warning adds the percent.
+            case DATA_BUDGET_THRESHOLD_REACHED, DATA_BUDGET_EXHAUSTED -> new Object[]{
+                    ctx.dataBudget() != null ? ctx.dataBudget().budgetName() : null,
+                    ctx.datasourceName(),
+                    ctx.dataBudget() != null ? ctx.dataBudget().usedPercent() : null};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -372,6 +392,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case SCHEMA_CHANGE_PROMOTION_FAILED ->
                     "notification.email.subject.schema_change_promotion_failed";
             case SCHEMA_DRIFT_DETECTED -> "notification.email.subject.schema_drift_detected";
+            case DATA_BUDGET_THRESHOLD_REACHED ->
+                    "notification.email.subject.data_budget_threshold_reached";
+            case DATA_BUDGET_EXHAUSTED -> "notification.email.subject.data_budget_exhausted";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
