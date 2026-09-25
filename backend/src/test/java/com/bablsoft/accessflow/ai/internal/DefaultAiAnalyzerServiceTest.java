@@ -252,6 +252,28 @@ class DefaultAiAnalyzerServiceTest {
     }
 
     @Test
+    void theCostEstimateContextCarriesTheWarehouseBytesEstimate() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        when(queryCostEstimateService.estimateSubmittedQuery(queryRequestId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(UUID.randomUUID(),
+                        queryRequestId, "bigquery", QueryType.SELECT, true, null, null, null, null,
+                        2_500_000_000L, null, null, null, false, null, 5, java.time.Instant.now())));
+        var costContext = ArgumentCaptor.forClass(String.class);
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), costContext.capture(), any(),
+                eq(aiConfigId))).thenReturn(sampleResult());
+        when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        assertThat(costContext.getValue())
+                .isEqualTo("The warehouse estimates this query will scan 2.5 GB (2500000000 B).");
+    }
+
+    @Test
     void analyzeSubmittedQueryPersistsPerModelBreakdown() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
                 "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);

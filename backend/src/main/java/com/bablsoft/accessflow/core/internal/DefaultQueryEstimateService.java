@@ -43,6 +43,7 @@ class DefaultQueryEstimateService implements QueryEstimatePersistenceService,
         entity.setAffectedRowCount(command.affectedRowCount());
         entity.setScanType(command.scanType());
         entity.setEstimatedCost(command.estimatedCost());
+        entity.setEstimatedBytesScanned(command.estimatedBytesScanned());
         entity.setPlan(command.planJson());
         entity.setRawPlan(command.rawPlan());
         entity.setUnsupportedReason(command.unsupportedReason());
@@ -72,6 +73,7 @@ class DefaultQueryEstimateService implements QueryEstimatePersistenceService,
                 entity.getAffectedRowCount(),
                 entity.getScanType(),
                 entity.getEstimatedCost(),
+                entity.getEstimatedBytesScanned(),
                 entity.getPlan(),
                 entity.getRawPlan(),
                 entity.getUnsupportedReason(),

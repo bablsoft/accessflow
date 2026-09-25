@@ -48,7 +48,13 @@ import { OptimizationCard } from '@/components/editor/OptimizationCard';
 import { QueryCollaboration } from '@/components/editor/QueryCollaboration';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
-import { channelTypeLabel, routingActionLabel } from '@/utils/enumLabels';
+import {
+  bytesScannedCapOutcomeLabel,
+  bytesScannedCapSourceLabel,
+  channelTypeLabel,
+  routingActionLabel,
+} from '@/utils/enumLabels';
+import { formatBytes } from '@/utils/queryPlan';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { engineMode } from '@/utils/engineModes';
 import {
@@ -553,6 +559,28 @@ export function QueryDetailPage() {
                   t('queries.detail.matched_policy_deleted'),
                 reason:
                   query.matched_policy.reason ?? t('queries.detail.matched_policy_no_reason'),
+              })}
+            />
+          )}
+          {query.bytes_scanned_cap && (
+            <Alert
+              type={
+                query.bytes_scanned_cap.outcome === 'EXCEEDED' ||
+                query.bytes_scanned_cap.outcome === 'NO_ESTIMATE_REJECTED'
+                  ? 'error'
+                  : query.bytes_scanned_cap.outcome === 'NO_ESTIMATE_REVIEW'
+                    ? 'warning'
+                    : 'info'
+              }
+              showIcon
+              data-testid="bytes-cap-banner"
+              title={bytesScannedCapOutcomeLabel(t, query.bytes_scanned_cap.outcome)}
+              description={t('queries.detail.bytes_cap_body', {
+                estimate:
+                  formatBytes(query.cost_estimate?.estimated_bytes_scanned) ??
+                  t('queries.detail.bytes_cap_no_estimate'),
+                limit: formatBytes(query.bytes_scanned_cap.limit),
+                source: bytesScannedCapSourceLabel(t, query.bytes_scanned_cap.source),
               })}
             />
           )}

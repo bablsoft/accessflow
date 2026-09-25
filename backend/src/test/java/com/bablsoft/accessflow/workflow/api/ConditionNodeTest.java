@@ -169,4 +169,24 @@ class ConditionNodeTest {
         assertThat(new ConditionNode.CiCdOrigin(true).expected()).isTrue();
         assertThat(new ConditionNode.CiCdOrigin(false).expected()).isFalse();
     }
+
+    @Test
+    void estimatedBytesScannedRejectsANullOperatorAndANegativeValue() {
+        assertThatThrownBy(() -> new ConditionNode.EstimatedBytesScanned(null, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+        var node = new ConditionNode.EstimatedBytesScanned(ComparisonOperator.GT, 1_000_000L);
+        assertThat(node.operator()).isEqualTo(ComparisonOperator.GT);
+        assertThat(node.value()).isEqualTo(1_000_000L);
+    }
+
+    @Test
+    void theShapeCompatibleContextConstructorLeavesTheBytesEstimateAbsent() {
+        var context = new ConditionContext(QueryType.SELECT, Set.of(), RiskLevel.LOW, 1, "ANALYST",
+                Set.of(), java.time.LocalDateTime.now(), false, false, false, null, null, false,
+                null, false, 10L, "Seq Scan", Set.of(QueryShape.JOIN), true);
+        assertThat(context.estimatedBytesScanned()).isNull();
+        assertThat(context.shapesAnalyzed()).isTrue();
+    }
 }

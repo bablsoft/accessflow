@@ -544,6 +544,51 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
                 .isEqualTo(75);
     }
 
+    @Test
+    void findForTakesTheSmallestBytesScannedCapAcrossGrants() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setBytesScannedLimitOverride(5_000L);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setBytesScannedLimitOverride(2_000L);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().bytesScannedLimitOverride())
+                .isEqualTo(2_000L);
+        assertThat(service.findDirectFor(userId, datasourceId).orElseThrow()
+                .bytesScannedLimitOverride()).isEqualTo(5_000L);
+        assertThat(service.findContributions(userId, datasourceId))
+                .extracting(c -> c.bytesScannedLimitOverride()).containsExactly(5_000L, 2_000L);
+    }
+
+    @Test
+    void findForBytesScannedCapIsNullWhenNoGrantSetsOneAndOneSetOneWins() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setCanRead(true);
+        group.setBytesScannedLimitOverride(700L);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findFor(userId, datasourceId).orElseThrow().bytesScannedLimitOverride())
+                .isEqualTo(700L);
+    }
+
     private DatasourceUserPermissionView mergeRowLimits(
             Integer directLimit, Integer groupLimit) {
         var userId = UUID.randomUUID();

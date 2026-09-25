@@ -505,6 +505,35 @@
             the limit are marked as truncated, the table preview obeys the same limit, and when a
             policy's limit is the one that applied it is recorded in the query's audit entry.
           </p>
+          <p id="cfg-bytes-scanned-cap">
+            <strong>Bytes-scanned cap — limit what a warehouse query can cost.</strong> On BigQuery,
+            Snowflake and Databricks you pay for the data a query reads, not the rows it returns, so a
+            query that returns ten rows can still read a terabyte. Before every query runs, AccessFlow
+            asks the warehouse how much data it expects to read. Set <em>Max bytes scanned per query</em>
+            in the datasource's <em>Limits &amp; policies</em> section (entered in MB, GB, TB or PB) and a query expected to read more is
+            refused, with a message that names the estimate and the cap:
+          </p>
+          <ul>
+            <li><strong>Checked twice.</strong> Once when the query is submitted, before anyone reviews it,
+              and again just before it runs. That covers scheduled, recurring and grouped queries,
+              emergency (break-glass) runs, and a cap you lowered after the query was approved.</li>
+            <li><strong>When there is no estimate.</strong> Sometimes the warehouse cannot give one, for
+              example for a <code>CREATE TABLE</code>. Choose what happens under <em>When no bytes estimate
+              is available</em>: <em>Require human review</em> (the default) sends the query to a
+              reviewer even if it would otherwise be approved automatically, and <em>Reject the query</em>
+              refuses it. With <em>Require human review</em>, the check just before a query runs lets it through once it has been approved, and an emergency (break-glass) run, which has no reviewer, also goes ahead and is reviewed afterwards.</li>
+            <li><strong>Tighter for some people.</strong> An access grant can set its own, lower
+              <em>Bytes-scanned cap</em>. The smallest cap that applies wins, across the datasource and
+              all of a user's own and group grants, and administrators are bound by it too.</li>
+            <li><strong>An estimate, not a bill.</strong> The warehouse's estimate can be higher or lower
+              than what a query really reads. Leave the field empty for no cap.</li>
+            <li><strong>Supported datasources.</strong> BigQuery, Snowflake and Databricks — the
+              warehouses that report how much a query will read. The fields are not offered for other
+              datasources.</li>
+            <li><strong>Rather review than refuse?</strong> Use the <em>Estimated bytes scanned</em>
+              condition in a <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing
+              policy</a> to send expensive queries to an extra reviewer instead.</li>
+          </ul>
           <p>
             <strong>Export policies.</strong> Masking and row security govern what a user
             <em>sees</em>; the datasource <em>Export policy</em> tab governs what <em>leaves</em>.

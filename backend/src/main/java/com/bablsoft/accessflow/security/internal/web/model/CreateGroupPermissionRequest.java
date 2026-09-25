@@ -19,6 +19,8 @@ public record CreateGroupPermissionRequest(
         Boolean canDdl,
         Boolean canBreakGlass,
         @Min(value = 1, message = "{validation.row_limit.min}") Integer rowLimitOverride,
+        // #941: bytes-scanned cap for this grant; only accepted on bytes-reporting engines.
+        @Min(value = 1, message = "{validation.bytes_cap.min}") Long bytesScannedLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<@NotBlank(message = "{validation.restricted_columns.item_blank}") String> restrictedColumns,

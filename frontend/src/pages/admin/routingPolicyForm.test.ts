@@ -95,6 +95,12 @@ describe('routingPolicyForm', () => {
       },
       { operand: 'cicd_origin', negate: false, bool_value: true },
       { operand: 'estimated_rows', negate: false, est_operator: 'GT', est_value: 100000 },
+      {
+        operand: 'estimated_bytes_scanned',
+        negate: false,
+        bytes_operator: 'GTE',
+        bytes_value: 5_000_000_000,
+      },
       { operand: 'scan_type', negate: true, scan_patterns: ['Seq*'] },
     ];
     const condition = rowsToCondition('ALL', rows);
@@ -232,5 +238,32 @@ describe('routingPolicyForm', () => {
     );
     expect(summary).toContain('100000');
     expect(summary).toContain('Seq Scan, COLLSCAN');
+  });
+
+  it('defaultRow and conditionSummary cover estimated_bytes_scanned (#941)', () => {
+    expect(defaultRow('estimated_bytes_scanned')).toEqual({
+      operand: 'estimated_bytes_scanned',
+      negate: false,
+      bytes_operator: 'GT',
+      bytes_value: 1_000_000_000_000,
+    });
+    expect(
+      rowsToCondition('ALL', [{ operand: 'estimated_bytes_scanned', negate: false }]),
+    ).toEqual({
+      type: 'and',
+      children: [{ type: 'estimated_bytes_scanned', operator: 'GT', value: 0 }],
+    });
+    const summary = conditionSummary(
+      t,
+      rowsToCondition('ALL', [
+        {
+          operand: 'estimated_bytes_scanned',
+          negate: false,
+          bytes_operator: 'GT',
+          bytes_value: 2_000_000_000_000,
+        },
+      ]),
+    );
+    expect(summary).toContain('2 TB');
   });
 });

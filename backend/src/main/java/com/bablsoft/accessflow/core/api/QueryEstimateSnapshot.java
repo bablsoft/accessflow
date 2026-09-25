@@ -10,7 +10,8 @@ import java.util.UUID;
  * is {@code false} when the engine has no plan concept; {@code failed} marks an unexpected
  * computation error. {@code estimatedRows}, {@code affectedRowCount}, {@code scanType} and
  * {@code estimatedCost} are individually nullable — best-effort signals filled from what the
- * engine's plan exposes.
+ * engine's plan exposes. {@code estimatedBytesScanned} (#941) is the warehouse engines' native
+ * pre-flight scan estimate in raw bytes, null for every engine that does not report one.
  */
 public record QueryEstimateSnapshot(
         UUID id,
@@ -22,6 +23,7 @@ public record QueryEstimateSnapshot(
         Long affectedRowCount,
         String scanType,
         Double estimatedCost,
+        Long estimatedBytesScanned,
         String planJson,
         String rawPlan,
         String unsupportedReason,

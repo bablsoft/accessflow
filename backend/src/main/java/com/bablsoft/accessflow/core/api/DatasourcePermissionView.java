@@ -15,6 +15,7 @@ public record DatasourcePermissionView(
         boolean canDdl,
         boolean canBreakGlass,
         Integer rowLimitOverride,
+        Long bytesScannedLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,

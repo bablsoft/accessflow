@@ -18,5 +18,8 @@ public interface GroupReviewDecisionRepository extends JpaRepository<GroupReview
     Optional<GroupReviewDecisionEntity> findByRequestGroupIdAndReviewerIdAndStage(
             UUID requestGroupId, UUID reviewerId, int stage);
 
+    /** Whether any person approved the group — the review a missing bytes estimate demands (#941). */
+    boolean existsByRequestGroupIdAndDecision(UUID requestGroupId, DecisionType decision);
+
     long countByRequestGroupIdAndStageAndDecision(UUID requestGroupId, int stage, DecisionType decision);
 }

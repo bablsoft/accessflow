@@ -53,6 +53,10 @@ public class DatasourceGroupPermissionEntity {
     @Column(name = "row_limit_override")
     private Integer rowLimitOverride;
 
+    /** #941: this grant's bytes-scanned cap; null = none. Most restrictive across grants wins. */
+    @Column(name = "bytes_scanned_limit_override")
+    private Long bytesScannedLimitOverride;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "allowed_schemas", columnDefinition = "text[]")
     private String[] allowedSchemas;

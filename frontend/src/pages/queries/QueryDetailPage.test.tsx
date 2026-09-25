@@ -272,6 +272,57 @@ describe('QueryDetailPage — AI failure surface (AF-249)', () => {
     expect(screen.getByTestId('query-application-untrusted')).toBeInTheDocument();
   });
 
+  it('explains a bytes-scanned cap refusal with the estimate, the limit and its source (#941)', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      status: 'REJECTED',
+      db_type: 'BIGQUERY',
+      cost_estimate: {
+        id: 'est-1',
+        engine_id: 'bigquery',
+        query_type: 'SELECT',
+        supported: true,
+        estimated_rows: null,
+        affected_row_count: null,
+        scan_type: null,
+        estimated_cost: null,
+        plan: null,
+        raw_plan: null,
+        unsupported_reason: null,
+        failed: false,
+        error_message: null,
+        duration_ms: 4,
+        estimated_bytes_scanned: 2_000_000_000_000,
+      },
+      bytes_scanned_cap: { limit: 1_000_000_000_000, source: 'GRANT', outcome: 'EXCEEDED' },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const banner = await screen.findByTestId('bytes-cap-banner');
+    expect(banner).toHaveTextContent('Rejected: the estimate exceeds the bytes-scanned cap');
+    expect(banner).toHaveTextContent('Estimated scan: 2 TB · Cap: 1 TB (Grant override)');
+  });
+
+  it('says no estimate existed when a cap held the query for review', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      bytes_scanned_cap: {
+        limit: 5_000_000_000,
+        source: 'DATASOURCE',
+        outcome: 'NO_ESTIMATE_REVIEW',
+      },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const banner = await screen.findByTestId('bytes-cap-banner');
+    expect(banner).toHaveTextContent('Held for review: no bytes estimate under the cap');
+    expect(banner).toHaveTextContent('no estimate');
+  });
+
   it('does not render the failure banner when analysis succeeded', async () => {
     setUser('REVIEWER');
     const ok = failedQuery();

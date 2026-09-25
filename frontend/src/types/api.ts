@@ -44,6 +44,16 @@ export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 
 // Optional per-datasource environment (#861); null resolves to the org-wide SQL review ruleset.
 export type DatasourceEnvironment = 'DEVELOPMENT' | 'TEST' | 'STAGING' | 'PRODUCTION';
+/** What a bytes-scanned cap does when a query has no bytes estimate (#941). */
+export type BytesCapMissingEstimateAction = 'REQUIRE_REVIEW' | 'REJECT';
+/** Which configuration supplied the binding bytes-scanned cap (#941). */
+export type BytesScannedCapSource = 'DATASOURCE' | 'GRANT';
+/** How a query's bytes estimate compared against its cap (#941). */
+export type BytesScannedCapOutcome =
+  | 'WITHIN'
+  | 'EXCEEDED'
+  | 'NO_ESTIMATE_REVIEW'
+  | 'NO_ESTIMATE_REJECTED';
 export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
 export type QueryStatus =
   | 'PENDING_AI'
@@ -91,6 +101,7 @@ export type RoutingConditionOperand =
   | 'time_since_last_approval'
   | 'cicd_origin'
   | 'estimated_rows'
+  | 'estimated_bytes_scanned'
   | 'scan_type';
 export type Weekday =
   | 'MONDAY'
@@ -753,6 +764,9 @@ export interface Datasource {
   result_cache_ttl_seconds: number | null;
   // Omitted by the API when unset (null values are not serialised).
   environment?: DatasourceEnvironment | null;
+  /** Pre-flight bytes-scanned cap (#941); omitted when unset. Warehouse engines only. */
+  max_bytes_scanned_per_query?: number | null;
+  bytes_cap_missing_estimate?: BytesCapMissingEstimateAction;
 }
 
 // One read-replica endpoint of a datasource (AF-457); the password never round-trips.
@@ -806,6 +820,8 @@ export interface CreateDatasourceInput {
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;
   environment?: DatasourceEnvironment | null;
+  max_bytes_scanned_per_query?: number | null;
+  bytes_cap_missing_estimate?: BytesCapMissingEstimateAction;
 }
 
 export interface UpdateDatasourceInput {
@@ -839,6 +855,10 @@ export interface UpdateDatasourceInput {
   // Omitted or null leaves the environment unchanged; clear_environment unsets it (#861).
   environment?: DatasourceEnvironment | null;
   clear_environment?: boolean;
+  /** #941: null/undefined leaves the cap unchanged; clear_max_bytes_scanned_per_query removes it. */
+  max_bytes_scanned_per_query?: number | null;
+  clear_max_bytes_scanned_per_query?: boolean;
+  bytes_cap_missing_estimate?: BytesCapMissingEstimateAction;
 }
 
 export interface CreatePermissionInput {
@@ -848,6 +868,7 @@ export interface CreatePermissionInput {
   can_ddl?: boolean;
   can_break_glass?: boolean;
   row_limit_override?: number | null;
+  bytes_scanned_limit_override?: number | null;
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
   restricted_columns?: string[] | null;
@@ -865,6 +886,7 @@ export interface CreateGroupPermissionInput {
   can_ddl?: boolean;
   can_break_glass?: boolean;
   row_limit_override?: number | null;
+  bytes_scanned_limit_override?: number | null;
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
   restricted_columns?: string[] | null;
@@ -1384,6 +1406,15 @@ export interface CostEstimateDetail {
   failed: boolean;
   error_message: string | null;
   duration_ms: number | null;
+  /** Warehouse engines' pre-flight scan estimate in raw bytes (#941); omitted when none. */
+  estimated_bytes_scanned?: number | null;
+}
+
+/** The bytes-scanned cap that applied when a query left PENDING_AI (#941). */
+export interface BytesScannedCapDetail {
+  limit: number;
+  source: BytesScannedCapSource;
+  outcome: BytesScannedCapOutcome;
 }
 
 /**
@@ -1466,6 +1497,8 @@ export interface QueryDetail {
   recurring_parent_id: string | null;
   created_at: string;
   updated_at: string;
+  /** The bytes-scanned cap that applied (#941); omitted when none did. */
+  bytes_scanned_cap?: BytesScannedCapDetail | null;
 }
 
 /** One executed (or failed) occurrence of a recurring query series (#627). */
@@ -1542,6 +1575,7 @@ export type RoutingCondition =
   | { type: 'time_since_last_approval'; operator: ComparisonOperator; minutes: number }
   | { type: 'cicd_origin'; expected: boolean }
   | { type: 'estimated_rows'; operator: ComparisonOperator; value: number }
+  | { type: 'estimated_bytes_scanned'; operator: ComparisonOperator; value: number }
   | { type: 'scan_type'; patterns: string[] };
 
 export interface RoutingPolicy {
@@ -1984,6 +2018,7 @@ export interface DatasourcePermission {
   can_ddl: boolean;
   can_break_glass: boolean;
   row_limit_override: number | null;
+  bytes_scanned_limit_override?: number | null;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
   restricted_columns: string[] | null;
@@ -2007,6 +2042,7 @@ export interface DatasourceGroupPermission {
   can_ddl: boolean;
   can_break_glass: boolean;
   row_limit_override: number | null;
+  bytes_scanned_limit_override?: number | null;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
   restricted_columns: string[] | null;
@@ -4395,6 +4431,7 @@ export type QueryDecisionStepKind =
   | 'SQL_PARSE'
   | 'EFFECTIVE_PERMISSION'
   | 'SQL_REVIEW'
+  | 'BYTES_SCANNED_CAP'
   | 'ROUTING_POLICIES'
   | 'GRANT_FAST_PATH'
   | 'REVIEW_PLAN'

@@ -1,5 +1,7 @@
 import type { TFunction } from 'i18next';
 import type {
+  BytesScannedCapOutcome,
+  BytesScannedCapSource,
   MaskingStrategy,
   QueryShape,
   QueryStatus,
@@ -9,12 +11,17 @@ import type {
   RoutingPolicyTraceEntry,
 } from '@/types/api';
 import { fmtDate } from '@/utils/dateFormat';
+import { formatBytes } from '@/utils/queryPlan';
 import {
+  BYTES_SCANNED_CAP_OUTCOMES,
+  BYTES_SCANNED_CAP_SOURCES,
   MASKING_STRATEGIES,
   QUERY_SHAPES,
   QUERY_TYPES,
   RISK_LEVELS,
   ROUTING_ACTIONS,
+  bytesScannedCapOutcomeLabel,
+  bytesScannedCapSourceLabel,
   maskingStrategyLabel,
   queryShapeLabel,
   queryStatusLabel,
@@ -47,6 +54,10 @@ export const KNOWN_DETAIL_KEYS = [
   'behavior',
   'blocking_count',
   'blocking_rule_ids',
+  'bytes_cap_suppressed',
+  'bytes_scanned_cap',
+  'bytes_scanned_cap_outcome',
+  'bytes_scanned_cap_source',
   'can_break_glass',
   'can_read',
   'can_trigger',
@@ -65,6 +76,7 @@ export const KNOWN_DETAIL_KEYS = [
   'environment_allows_break_glass',
   'environment_name',
   'environment_required_approvals',
+  'estimated_bytes_scanned',
   'estimated_rows',
   'evaluated_at',
   'expires_at',
@@ -152,6 +164,17 @@ function enumValue(key: string, value: unknown, t: TFunction): string | null {
   }
   if (key === 'status' && includes<QueryStatus>(QUERY_STATUSES, value)) return queryStatusLabel(t, value);
   if (key === 'risk_level' && includes<RiskLevel>(RISK_LEVELS, value)) return riskLevelLabel(t, value);
+  if (key === 'bytes_scanned_cap_source'
+      && includes<BytesScannedCapSource>(BYTES_SCANNED_CAP_SOURCES, value)) {
+    return bytesScannedCapSourceLabel(t, value);
+  }
+  if (key === 'bytes_scanned_cap_outcome'
+      && includes<BytesScannedCapOutcome>(BYTES_SCANNED_CAP_OUTCOMES, value)) {
+    return bytesScannedCapOutcomeLabel(t, value);
+  }
+  if ((key === 'bytes_scanned_cap' || key === 'estimated_bytes_scanned') && typeof value === 'number') {
+    return formatBytes(value);
+  }
   return null;
 }
 

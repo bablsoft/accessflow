@@ -211,6 +211,11 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         } else {
             node.putNull("row_limit_override");
         }
+        if (view.bytesScannedLimitOverride() != null) {
+            node.put("bytes_scanned_limit_override", view.bytesScannedLimitOverride());
+        } else {
+            node.putNull("bytes_scanned_limit_override");
+        }
         putStringArray(node, "allowed_schemas", view.allowedSchemas());
         putStringArray(node, "allowed_tables", view.allowedTables());
         putStringArray(node, "restricted_columns", view.restrictedColumns());

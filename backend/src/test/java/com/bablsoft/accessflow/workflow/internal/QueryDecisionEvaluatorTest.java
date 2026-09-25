@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
+import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
+import com.bablsoft.accessflow.core.api.BytesScannedCapSource;
 import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -111,6 +113,8 @@ class QueryDecisionEvaluatorTest {
         assertThat(trace.resultingStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
         assertThat(trace.steps()).extracting("step", "outcome").containsExactly(
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.SQL_REVIEW,
+                        StepOutcome.NO_MATCH),
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.BYTES_SCANNED_CAP,
                         StepOutcome.NO_MATCH),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.ROUTING_POLICIES,
                         StepOutcome.SKIP),
@@ -430,8 +434,9 @@ class QueryDecisionEvaluatorTest {
                 5, List.of(), clock).trace();
 
         assertThat(trace.steps()).extracting("step").containsExactly(
-                QueryDecisionStepKind.SQL_REVIEW, QueryDecisionStepKind.ROUTING_POLICIES,
-                QueryDecisionStepKind.GRANT_FAST_PATH, QueryDecisionStepKind.REVIEW_PLAN);
+                QueryDecisionStepKind.SQL_REVIEW, QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.GRANT_FAST_PATH,
+                QueryDecisionStepKind.REVIEW_PLAN);
         assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.NO_MATCH);
         assertThat(step(trace, QueryDecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.DENY);
@@ -628,6 +633,159 @@ class QueryDecisionEvaluatorTest {
         var sqlReview = step(decision.trace(), QueryDecisionStepKind.SQL_REVIEW);
         assertThat(sqlReview.outcome()).isEqualTo(StepOutcome.MATCH);
         assertThat(sqlReview.details()).containsEntry("blocking_rule_ids", List.of("select_star"));
+    }
+
+    // ── Bytes-scanned cap (#941) ──────────────────────────────────────────────
+
+    private static BytesCapCheck cap(Long estimated, BytesScannedCapOutcome outcome) {
+        return new BytesCapCheck(1_000_000_000_000L, BytesScannedCapSource.DATASOURCE, estimated,
+                outcome);
+    }
+
+    @Test
+    void anExceededCapRejectsBeforeRoutingIsConsulted() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(),
+                cap(2_000_000_000_000L, BytesScannedCapOutcome.EXCEEDED), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.BYTES_CAP_REJECTED);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(decision.bytesCapChangedOutcome()).isTrue();
+        assertThat(decision.context()).isNull();
+        var capStep = step(decision.trace(), QueryDecisionStepKind.BYTES_SCANNED_CAP);
+        assertThat(capStep.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(capStep.reasonKey()).isEqualTo("workflow.decision.bytes_cap.exceeded");
+        assertThat(capStep.reasonArgs()).containsExactly(
+                "2 TB (2000000000000 B)", "1 TB (1000000000000 B)");
+        assertThat(capStep.details()).containsEntry("bytes_scanned_cap_source", "DATASOURCE");
+        assertThat(step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES).reasonKey())
+                .isEqualTo("workflow.decision.routing.skipped_bytes_cap");
+        verify(routingPolicyEngine, never()).evaluate(any(), any(), any());
+        verify(reviewPlanLookupService, never()).findForDatasource(any());
+    }
+
+    @Test
+    void aMissingEstimateUnderRejectRejectsEvenWhenAiFailed() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1,
+                List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REJECTED), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.BYTES_CAP_REJECTED);
+        assertThat(step(decision.trace(), QueryDecisionStepKind.BYTES_SCANNED_CAP).reasonKey())
+                .isEqualTo("workflow.decision.bytes_cap.no_estimate_rejected");
+    }
+
+    @Test
+    void anEstimateWithinTheCapChangesNothing() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), cap(5L, BytesScannedCapOutcome.WITHIN), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
+        assertThat(decision.bytesCap()).isNotNull();
+        assertThat(decision.bytesCapChangedOutcome()).isFalse();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.BYTES_SCANNED_CAP).outcome())
+                .isEqualTo(StepOutcome.ALLOW);
+    }
+
+    @Test
+    void aMissingEstimateUnderRequireReviewSuppressesRoutingAutoApprove() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW),
+                clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        assertThat(decision.bytesCapChangedOutcome()).isTrue();
+        var routing = step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES);
+        assertThat(routing.reasonKey()).isEqualTo(
+                "workflow.decision.routing.matched_auto_approve_suppressed_bytes_cap");
+        assertThat(routing.details()).containsEntry("bytes_cap_suppressed", true)
+                .containsEntry("sql_review_suppressed", false);
+        assertThat(step(decision.trace(), QueryDecisionStepKind.BYTES_SCANNED_CAP).outcome())
+                .isEqualTo(StepOutcome.MATCH);
+    }
+
+    @Test
+    void aMissingEstimateUnderRequireReviewSuppressesTheGrantAndThePlan() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenActiveGrant(grant(true, false, false, List.of(), List.of()));
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW), clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        assertThat(decision.bytesCapChangedOutcome()).isTrue();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
+                .isEqualTo("workflow.decision.grant.suppressed_bytes_cap");
+        var plan = step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN);
+        assertThat(plan.reasonKey()).isEqualTo("workflow.decision.plan.suppressed_bytes_cap");
+        assertThat(plan.details()).containsEntry("bytes_cap_suppressed", true);
+    }
+
+    @Test
+    void aMissingEstimateOnARequestAlreadyHeadedToReviewChangesNothing() {
+        givenPlan(false, true);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW),
+                clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.bytesCapChangedOutcome()).isFalse();
+    }
+
+    @Test
+    void aMissingEstimateNeverSoftensAnAutoReject() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of(), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW),
+                clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_REJECT);
+        assertThat(decision.bytesCapChangedOutcome()).isFalse();
+    }
+
+    @Test
+    void anUnevaluatedCapIsReportedWithoutDecidingAnything() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of(), cap(null, null), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
+        var capStep = step(decision.trace(), QueryDecisionStepKind.BYTES_SCANNED_CAP);
+        assertThat(capStep.outcome()).isEqualTo(StepOutcome.SKIP);
+        assertThat(capStep.reasonKey()).isEqualTo("workflow.decision.bytes_cap.unevaluated");
+    }
+
+    @Test
+    void theSqlReviewNamesTheSuppressionWhenBothGuardsApply() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of("select_star"), cap(null, BytesScannedCapOutcome.NO_ESTIMATE_REVIEW), clock);
+
+        assertThat(decision.sqlReviewSuppression()).isNotNull();
+        assertThat(decision.bytesCapChangedOutcome()).isTrue();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
+                .isEqualTo("workflow.decision.plan.suppressed_sql_review");
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────

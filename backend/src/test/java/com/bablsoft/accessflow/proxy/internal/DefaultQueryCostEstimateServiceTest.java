@@ -84,7 +84,7 @@ class DefaultQueryCostEstimateServiceTest {
 
     private QueryEstimateSnapshot persistedSnapshot() {
         return new QueryEstimateSnapshot(estimateId, queryRequestId, "postgresql",
-                QueryType.DELETE, true, 100L, 90L, "Seq Scan", 12.5, null, "raw", null,
+                QueryType.DELETE, true, 100L, 90L, "Seq Scan", 12.5, null, null, "raw", null,
                 false, null, 3, Instant.now());
     }
 
@@ -163,6 +163,56 @@ class DefaultQueryCostEstimateServiceTest {
         verify(queryExecutor).dryRun(requestCaptor.capture());
         assertThat(requestCaptor.getValue().statementTimeoutOverride())
                 .isEqualTo(Duration.ofSeconds(5));
+    }
+
+    @Test
+    void aWarehouseBytesEstimateIsPersistedWithTheRow() {
+        when(lookupService.findByQueryRequestId(queryRequestId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(persistedSnapshot()));
+        when(queryRequestLookupService.findById(queryRequestId))
+                .thenReturn(Optional.of(snapshot(QueryType.SELECT, false)));
+        when(rowSecurityResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(List.of());
+        when(queryExecutor.dryRun(any())).thenReturn(QueryDryRunResult.of(
+                "bigquery", QueryType.SELECT, null, null, null, Set.of(), Duration.ofMillis(4))
+                .withEstimatedBytesScanned(3_000_000_000L));
+        when(persistenceService.persist(eq(queryRequestId), any())).thenReturn(estimateId);
+
+        service.estimateSubmittedQuery(queryRequestId);
+
+        var captor = ArgumentCaptor.forClass(PersistQueryEstimateCommand.class);
+        verify(persistenceService).persist(eq(queryRequestId), captor.capture());
+        assertThat(captor.getValue().estimatedBytesScanned()).isEqualTo(3_000_000_000L);
+    }
+
+    @Test
+    void estimateBytesScannedDryRunsUnderTheEstimateTimeoutAndPersistsNothing() {
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, 50,
+                null, List.of(), List.of(), List.of(), false, null, List.of());
+        when(queryExecutor.dryRun(any())).thenReturn(QueryDryRunResult.of("bigquery",
+                QueryType.SELECT, null, null, null, Set.of(), Duration.ofMillis(3))
+                .withEstimatedBytesScanned(42L));
+
+        assertThat(service.estimateBytesScanned(request)).contains(42L);
+
+        var captor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).dryRun(captor.capture());
+        assertThat(captor.getValue().statementTimeoutOverride()).isEqualTo(Duration.ofSeconds(5));
+        assertThat(captor.getValue().maxRowsOverride()).isEqualTo(50);
+        verifyNoInteractions(persistenceService, eventPublisher);
+    }
+
+    @Test
+    void estimateBytesScannedIsEmptyWhenUnsupportedOrFailing() {
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, null,
+                null, List.of(), List.of(), List.of(), false, null, List.of());
+        when(queryExecutor.dryRun(any()))
+                .thenReturn(QueryDryRunResult.unsupported("redis"))
+                .thenThrow(new IllegalStateException("down"));
+
+        assertThat(service.estimateBytesScanned(request)).isEmpty();
+        assertThat(service.estimateBytesScanned(request)).isEmpty();
     }
 
     @Test

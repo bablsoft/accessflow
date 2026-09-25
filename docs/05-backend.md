@@ -1182,7 +1182,70 @@ The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET 
 - **Bounded.** Both calls run under the dedicated `accessflow.proxy.estimate-timeout` (`ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT`, default `PT5S`) instead of the full execution statement timeout — an estimate is a best-effort signal, never worth a long lock.
 - **Every path persists a row.** Success stores the full estimate; engines with no plan concept store `supported=false` + a localized `unsupported_reason` (a transactional `BEGIN…COMMIT` envelope and a SQL Server dry-run under row security short-circuit the same way); an unexpected error stores a `failed=true` sentinel with the message — mirroring the AI module's sentinel convention, so the frontend can always render a definitive state. Completion publishes `QueryEstimateCompletedEvent` (or `QueryEstimateFailedEvent`), which the realtime module fans out as the `query.estimate_complete` WebSocket event.
 - **Row-security values are redacted from the plan.** The dry-run binds the submitter's resolved row-security values, and engines inline bound values into predicate text (PostgreSQL `Index Cond` / `Filter`, MySQL `attached_condition`, MongoDB stage filters). So whenever a row-security directive was resolved for the submitter, or the engine reports an applied policy, the service persists the plan tree with every node's `detail` set to null and `raw_plan` null (#1092). Operation, target, row and cost figures, and therefore routing and the AI prompt summary, are unaffected. Keeping predicate text safely is tracked in #1093 (generic-plan EXPLAIN) and #1094 (bound-value redaction).
-- **Consumers.** `GET /queries/{id}` embeds the row as `cost_estimate`; `QueryReviewStateMachine.buildContext` reads it live (fail-closed) for the `estimated_rows` / `scan_type` routing conditions; `DefaultAiAnalyzerService` renders it into the `{{cost_estimate}}` prompt placeholder.
+- **Warehouse bytes are persisted (#941).** The dry-run's `estimatedBytesScanned` (AF-634 — BigQuery, Snowflake, Databricks) is stored as `query_estimates.estimated_bytes_scanned`; it is null for every other engine.
+- **Consumers.** `GET /queries/{id}` embeds the row as `cost_estimate`; `workflow.internal.routing.ConditionContextFactory` reads it live (fail-closed) for the `estimated_rows` / `estimated_bytes_scanned` / `scan_type` routing conditions; the bytes-scanned cap compares against it (see [Bytes-scanned cost caps](#bytes-scanned-cost-caps-941)); `DefaultAiAnalyzerService` renders it into the `{{cost_estimate}}` prompt placeholder, including a "will scan …" line when a bytes estimate exists.
+- **No race on the AI-skipped path (#941).** When `ai_analysis_enabled = false`, nothing waits for the listener, so routing used to race it and an `estimated_rows` policy could silently fail closed on an estimate that was about to exist. `QueryReviewStateMachine.onAiSkipped` now calls `estimateSubmittedQuery(id)` before deciding — insert-once, so it returns the listener's row when that already landed and computes it otherwise — in a separate `REQUIRES_NEW` transaction, so losing the insert race to the listener never rolls back the decision (see [Bytes-scanned cost caps](#bytes-scanned-cost-caps-941)). The AI-failed path computes it only when a bytes-scanned cap applies.
+
+### Bytes-scanned cost caps (#941)
+
+On a bytes-billed warehouse, rows are the wrong unit: a query that returns ten rows can scan a
+terabyte, and a row cap only truncates the result after the work is done and paid for. The
+bytes-scanned cap refuses such a query **before** it runs, using the persisted pre-flight estimate.
+It is not billing, chargeback or reconciliation against actual spend: estimates are estimates.
+
+- **Where it is set.** `datasources.max_bytes_scanned_per_query` (NULL = off) and a per-grant
+  `bytes_scanned_limit_override` on direct and group grants. `core.api.BytesScannedCapResolutionService`
+  (`DefaultBytesScannedCapResolutionService`) resolves the binding cap as the smaller of the
+  datasource cap and the user's merged grant override (smallest across grants, like
+  `row_limit_override`), naming the source — the datasource on a tie — and carrying the
+  datasource's `bytes_cap_missing_estimate` policy (`core.api.AppliedBytesCap`).
+- **Only where an estimate can exist.** Both fields are refused at config time with 422
+  `BYTES_SCANNED_CAP_NOT_SUPPORTED` on any engine outside `core.api.BytesScannedCapSupport`
+  (BigQuery, Snowflake, Databricks). On any other engine every query would lack an estimate, so a cap
+  there could only refuse everything or nothing.
+- **Missing estimate is an explicit choice, never a silent pass.** A query can still lack a bytes
+  estimate on a supported engine (the estimate failed, DDL, a shape the engine cannot plan). The
+  datasource's `bytes_cap_missing_estimate` decides: `REQUIRE_REVIEW` (default) holds every automatic
+  approval for a person, `REJECT` refuses the query.
+- **At the decision.** `QueryReviewStateMachine` resolves the cap at every entry point — together
+  with computing a missing estimate (AI skipped, or a cap applies) — in its own `REQUIRES_NEW`
+  transaction before the decision transaction reads the query. The estimate write is a
+  check-then-insert racing the estimate listener on a unique key, and it bumps the version of the
+  `query_requests` row; inside the decision transaction a lost race would roll back the transition
+  and strand the query in `PENDING_AI`. Isolated, a lost race only fails the inner transaction and
+  the winner's row is read. It then compares
+  the persisted estimate, stamps `query_requests.bytes_scanned_cap` / `_source` / `_outcome`, and
+  hands a `BytesCapCheck` to `QueryDecisionEvaluator` — the same explicit-input idiom as the SQL
+  review block. `EXCEEDED` and `NO_ESTIMATE_REJECTED` decide **first**, before routing and the
+  AI-failed path: `PENDING_AI → REJECTED` (`QueryDecisionKind.BYTES_CAP_REJECTED`, no
+  `routing_decision` row), published as `QueryAutoRejectedEvent` with a reason naming the estimate
+  and the cap, so the existing notification fan-out applies. `NO_ESTIMATE_REVIEW` joins the SQL
+  review guard: it suppresses a routing `AUTO_APPROVE`, the grant fast path and the plan's own
+  approvals, and never softens an `AUTO_REJECT`. The decision trace gains a `BYTES_SCANNED_CAP` step.
+- **Again just before execution.** `DefaultQueryLifecycleService.doExecute` — the path of direct,
+  scheduled, recurring-occurrence and break-glass runs — re-resolves the cap and re-reads (or computes)
+  the estimate before anything else: a scheduled or recurring run executes long after its decision,
+  break-glass skips the decision entirely, and the cap may have been lowered since approval. A refusal
+  records `APPROVED → FAILED` with a localized `error_message` naming the estimate and the cap.
+  `GroupExecutionService` does the same per `QUERY` member, dry-running the member (only when a cap
+  applies, bounded by `accessflow.proxy.estimate-timeout` through
+  `QueryCostEstimateService.estimateBytesScanned`) since a member has no persisted estimate; a
+  refused member fails and `continue_on_error` decides the rest. At execution a missing estimate
+  under `REQUIRE_REVIEW` passes for a single query — the review it demands happened before approval
+  (break-glass relies on its mandatory retro-review; a scheduled or recurring query approved
+  *before* the cap was configured is the one gap, since nobody reviewed it against a cap). A group is
+  never checked against the cap when its plans auto-approve it, so a member with no estimate passes
+  only when a person approved the group (`error.bytes_cap.no_estimate_unreviewed` otherwise).
+  **Break-glass is capped**: a cost ceiling is a guardrail like the row cap, not a review step.
+- **Audit.** One `QUERY_BYTES_SCANNED_CAP_ENFORCED` row (null actor, `trigger=bytes_scanned_cap`,
+  `stage=decision|execution`, `limit`, `source`, `outcome`, `estimated_bytes` when known) whenever the
+  cap changed the outcome; a successful `QUERY_EXECUTED` under a cap carries `bytes_scanned_cap`,
+  `bytes_scanned_cap_source` and `bytes_scanned_estimate`.
+- **The advisory half.** The `estimated_bytes_scanned` routing condition escalates on the same
+  estimate without refusing anything, and fails closed when no estimate exists.
+- **Simulation.** The access explainer has no submitted query and so no estimate: it names the cap
+  (`BYTES_SCANNED_CAP` → `SKIP`) and never compares it, under the `COST_ESTIMATE_ABSENT` caveat.
+- No configuration knob: everything is per datasource and per grant.
 
 ### Data classification & derivation (AF-447)
 
@@ -1625,6 +1688,8 @@ Decision rules:
 | `auto_approve_reads=true` AND `query_type=SELECT` AND AI risk ∈ {LOW, MEDIUM} | `APPROVED` (fast path) |
 | (default) | `PENDING_REVIEW` |
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
+| **Bytes-scanned cap refuses the query (#941)** — the estimate exceeds the cap, or there is none and the datasource says `REJECT`. Decided first, before routing and the AI-failed path | `REJECTED` — see [Bytes-scanned cost caps](#bytes-scanned-cost-caps-941) |
+| **Bytes-scanned cap with no estimate under `REQUIRE_REVIEW` (#941)** | `PENDING_REVIEW` — suppresses the same three `APPROVED` rows as a SQL review `BLOCK` |
 | **Any `BLOCK` SQL review finding recorded at submission (#864)** — checked at every entry point, before all three rows above can approve | `PENDING_REVIEW` — each of the three `APPROVED` rows is suppressed (a routing `AUTO_APPROVE` too; `AUTO_REJECT` is untouched). Audited once as `SQL_REVIEW_BLOCKED` when it changed the outcome. See the "Submission enforcement (#864)" paragraph of [Deterministic SQL review rules](#deterministic-sql-review-rules-sqlreview-862) |
 
 `AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.

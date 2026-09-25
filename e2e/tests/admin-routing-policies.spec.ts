@@ -19,6 +19,8 @@ const BUILDER_POLICY_NAME = `Builder policy ${UNIQUE_SUFFIX}`;
 const AUTO_REJECT_POLICY_NAME = `Auto-reject deletes ${UNIQUE_SUFFIX}`;
 const CICD_REJECT_POLICY_NAME = `Block CI/CD ${UNIQUE_SUFFIX}`;
 const JOIN_REJECT_POLICY_NAME = `Block joins ${UNIQUE_SUFFIX}`;
+const BYTES_BUILDER_POLICY_NAME = `Escalate big scans ${UNIQUE_SUFFIX}`;
+const BYTES_REJECT_POLICY_NAME = `Block big scans ${UNIQUE_SUFFIX}`;
 const ROUTED_DS_NAME = `Routed DS ${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
@@ -197,6 +199,88 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
       .poll(
         async () => {
           const res = await request.get(`${apiBase()}/api/v1/queries/${simple.id}`, {
+            headers: { Authorization: `Bearer ${adminAccessToken}` },
+          });
+          return ((await res.json()) as { status: string }).status;
+        },
+        { timeout: 20_000 },
+      )
+      .not.toMatch(/^(PENDING_AI|REJECTED)$/);
+  });
+
+  // #941 — the builder offers the estimated_bytes_scanned operand and sends raw bytes.
+  test('builds an estimated-bytes-scanned condition entered in TB', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/routing-policies');
+    await waitForRoutingPoliciesListReady(page);
+
+    await page.getByRole('button', { name: 'Add policy' }).first().click();
+    const modal = page.getByRole('dialog').filter({ hasText: 'Add routing policy' }).first();
+    await expect(modal).toBeVisible({ timeout: 10_000 });
+    await modal.getByLabel('Name').fill(BYTES_BUILDER_POLICY_NAME);
+    await modal.getByLabel('Priority').fill(String(100_000 + Math.floor(Math.random() * 800_000)));
+
+    // The seeded row is "Query type"; switch its operand.
+    await modal.locator('.ant-select').filter({ hasText: 'Query type' }).first().click();
+    // The operand list is virtualised — off-screen options are not in the DOM — so walk it with
+    // the keyboard until the active option is the one we want.
+    const active = page.locator('.ant-select-item-option-active');
+    for (let i = 0; i < 30; i += 1) {
+      if ((await active.textContent()) === 'Estimated bytes scanned') break;
+      await page.keyboard.press('ArrowDown');
+    }
+    await expect(active).toHaveText('Estimated bytes scanned');
+    await page.keyboard.press('Enter');
+    const bytes = modal.getByLabel('Bytes scanned');
+    await expect(bytes).toHaveValue('1');
+    await bytes.fill('2');
+
+    const createResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/routing-policies$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await modal.getByRole('button', { name: 'Create policy' }).click();
+    const response = await createResponse;
+    expect(response.status()).toBe(201);
+    const created = (await response.json()) as CreatedRoutingPolicy & {
+      condition: { children?: { type: string; operator: string; value: number }[] };
+    };
+    createdPolicyIds.push(created.id);
+    expect(created.condition.children?.[0]).toEqual({
+      type: 'estimated_bytes_scanned',
+      operator: 'GT',
+      value: 2_000_000_000_000,
+    });
+  });
+
+  // #941 — PostgreSQL reports no bytes estimate, so the condition fails closed and never fires.
+  test('an estimated_bytes_scanned condition never fires without a bytes estimate', async ({
+    request,
+  }) => {
+    const policy = await createRoutingPolicyViaApi(request, adminAccessToken, {
+      name: BYTES_REJECT_POLICY_NAME,
+      datasource_id: datasourceId as string,
+      priority: 100_000 + Math.floor(Math.random() * 800_000),
+      enabled: true,
+      action: 'AUTO_REJECT',
+      reason: 'scans are too large',
+      condition: { type: 'estimated_bytes_scanned', operator: 'GTE', value: 0 },
+    });
+    createdPolicyIds.push(policy.id);
+
+    const query = await submitQueryViaApi(
+      request,
+      adminAccessToken,
+      datasourceId as string,
+      'SELECT id FROM accounts WHERE id = 2',
+      'e2e: bytes-scanned routing',
+    );
+    await expect
+      .poll(
+        async () => {
+          const res = await request.get(`${apiBase()}/api/v1/queries/${query.id}`, {
             headers: { Authorization: `Bearer ${adminAccessToken}` },
           });
           return ((await res.json()) as { status: string }).status;

@@ -84,12 +84,31 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
         } catch (RuntimeException ex) {
             log.warn("Cost estimate failed for query {}: {}", queryRequestId, ex.getMessage());
             var command = new PersistQueryEstimateCommand(null, snapshot.queryType(), false, null,
-                    null, null, null, null, null, null, true, truncate(ex.getMessage()),
+                    null, null, null, null, null, null, null, true, truncate(ex.getMessage()),
                     durationMs(start));
             var result = persistAndPublish(queryRequestId, command, false);
             eventPublisher.publishEvent(
                     new QueryEstimateFailedEvent(queryRequestId, truncate(ex.getMessage())));
             return result;
+        }
+    }
+
+    @Override
+    public Optional<Long> estimateBytesScanned(QueryExecutionRequest request) {
+        var bounded = new QueryExecutionRequest(request.datasourceId(), request.sql(),
+                request.queryType(), request.maxRowsOverride(), properties.estimateTimeout(),
+                request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), request.transactional(), request.statements(),
+                request.softDeleteDirectives(), request.referencedTables());
+        try {
+            var dryRun = queryExecutor.dryRun(bounded);
+            return dryRun.supported()
+                    ? Optional.ofNullable(dryRun.estimatedBytesScanned())
+                    : Optional.empty();
+        } catch (RuntimeException ex) {
+            log.debug("Bytes estimate failed for datasource {}: {}", request.datasourceId(),
+                    ex.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -144,6 +163,7 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
                 affectedRows,
                 access != null ? truncateTo(access.operation(), 128) : null,
                 root != null ? root.estimatedCost() : null,
+                dryRun.estimatedBytesScanned(),
                 planJson(root, redactPredicates),
                 redactPredicates ? null : dryRun.rawPlan(), null, false, null, durationMs);
     }
@@ -167,14 +187,14 @@ class DefaultQueryCostEstimateService implements QueryCostEstimateService {
     private PersistQueryEstimateCommand unsupportedCommand(QueryRequestSnapshot snapshot,
                                                            String engineId, String reason) {
         return new PersistQueryEstimateCommand(engineId, snapshot.queryType(), false, null, null,
-                null, null, null, null, truncate(reason), false, null, null);
+                null, null, null, null, null, truncate(reason), false, null, null);
     }
 
     private static PersistQueryEstimateCommand withAffectedRows(PersistQueryEstimateCommand command,
                                                                 Long affectedRows, int durationMs) {
         return new PersistQueryEstimateCommand(command.engineId(), command.queryType(),
                 command.supported(), command.estimatedRows(), affectedRows, command.scanType(),
-                command.estimatedCost(), command.planJson(), command.rawPlan(),
+                command.estimatedCost(), command.estimatedBytesScanned(), command.planJson(), command.rawPlan(),
                 command.unsupportedReason(), command.failed(), command.errorMessage(), durationMs);
     }
 

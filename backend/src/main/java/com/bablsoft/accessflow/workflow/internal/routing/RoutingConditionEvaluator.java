@@ -53,6 +53,8 @@ public class RoutingConditionEvaluator {
             case ConditionNode.AnomalyDetected c -> ctx.anomalyActive() == c.expected();
             case ConditionNode.EstimatedRows c ->
                     ctx.hasEstimateSignal() && c.operator().test(ctx.estimatedRows(), c.value());
+            case ConditionNode.EstimatedBytesScanned c -> ctx.estimatedBytesScanned() != null
+                    && c.operator().test(ctx.estimatedBytesScanned(), c.value());
             case ConditionNode.ScanTypeMatches c -> matchesScanType(c, ctx);
         };
     }

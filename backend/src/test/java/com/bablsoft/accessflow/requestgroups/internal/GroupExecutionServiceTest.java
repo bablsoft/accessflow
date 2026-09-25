@@ -61,6 +61,14 @@ class GroupExecutionServiceTest {
     private AuditLogService auditLogService;
     @Mock
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    @Mock
+    private com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
+    @Mock
+    private org.springframework.context.MessageSource messageSource;
+    @Mock
+    private com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
+    @Mock
+    private com.bablsoft.accessflow.requestgroups.internal.persistence.repo.GroupReviewDecisionRepository decisionRepository;
     @InjectMocks
     private GroupExecutionService service;
 
@@ -146,6 +154,121 @@ class GroupExecutionServiceTest {
         group.setStatus(RequestGroupStatus.DRAFT);
         service.execute(group.getId(), null, "manual");
         verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    private RequestGroupItemEntity queryItem() {
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setGroupId(group.getId());
+        item.setSequenceOrder(0);
+        item.setTargetKind(RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(UUID.randomUUID());
+        item.setSqlText("SELECT 1");
+        item.setQueryType(com.bablsoft.accessflow.core.api.QueryType.SELECT);
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(new ArrayList<>(List.of(item)));
+        when(permissionLookupService.findFor(any(), any())).thenReturn(java.util.Optional.empty());
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(rowSecurityResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(datasourceLookupService.findById(any())).thenReturn(java.util.Optional.empty());
+        when(queryParser.parse(any(), any()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.SqlParseResult(
+                        com.bablsoft.accessflow.core.api.QueryType.SELECT, "SELECT 1"));
+        return item;
+    }
+
+    private void givenBytesCap(RequestGroupItemEntity item,
+                               com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction missing) {
+        when(bytesScannedCapResolutionService.resolve(item.getDatasourceId(), group.getSubmittedBy()))
+                .thenReturn(java.util.Optional.of(new com.bablsoft.accessflow.core.api.AppliedBytesCap(
+                        1_000L, com.bablsoft.accessflow.core.api.BytesScannedCapSource.DATASOURCE,
+                        missing)));
+    }
+
+    @Test
+    void aQueryMemberOverTheBytesCapFailsWithoutRunning() {
+        var item = queryItem();
+        givenBytesCap(item, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        when(queryCostEstimateService.estimateBytesScanned(any()))
+                .thenReturn(java.util.Optional.of(5_000L));
+        when(messageSource.getMessage(org.mockito.ArgumentMatchers.eq("error.bytes_cap.exceeded"),
+                any(), any())).thenReturn("over the cap");
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
+        assertThat(item.getErrorMessage()).isEqualTo("over the cap");
+        verify(queryExecutor, org.mockito.Mockito.never()).execute(any());
+        var audit = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.audit.api.AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.atLeastOnce()).record(audit.capture());
+        assertThat(audit.getAllValues()).anySatisfy(entry -> {
+            assertThat(entry.action())
+                    .isEqualTo(com.bablsoft.accessflow.audit.api.AuditAction.QUERY_BYTES_SCANNED_CAP_ENFORCED);
+            assertThat(entry.metadata()).containsEntry("estimated_bytes", 5_000L)
+                    .containsEntry("item_id", item.getId().toString());
+        });
+    }
+
+    @Test
+    void aQueryMemberWithoutAnEstimateFailsUnderReject() {
+        var item = queryItem();
+        givenBytesCap(item, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REJECT);
+        when(queryCostEstimateService.estimateBytesScanned(any()))
+                .thenReturn(java.util.Optional.empty());
+        when(messageSource.getMessage(org.mockito.ArgumentMatchers.eq("error.bytes_cap.no_estimate"),
+                any(), any())).thenReturn("no estimate");
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
+        assertThat(item.getErrorMessage()).isEqualTo("no estimate");
+    }
+
+    @Test
+    void aQueryMemberWithoutAnEstimateRunsUnderRequireReviewOnceAPersonApproved() {
+        var item = queryItem();
+        givenBytesCap(item, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        when(queryCostEstimateService.estimateBytesScanned(any()))
+                .thenReturn(java.util.Optional.empty());
+        when(decisionRepository.existsByRequestGroupIdAndDecision(group.getId(),
+                com.bablsoft.accessflow.core.api.DecisionType.APPROVED)).thenReturn(true);
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 1L, false, java.time.Duration.ofMillis(3)));
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.EXECUTED);
+    }
+
+    @Test
+    void aQueryMemberWithoutAnEstimateIsRefusedWhenNoPersonApprovedTheGroup() {
+        var item = queryItem();
+        givenBytesCap(item, com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction.REQUIRE_REVIEW);
+        when(queryCostEstimateService.estimateBytesScanned(any()))
+                .thenReturn(java.util.Optional.empty());
+        when(messageSource.getMessage(
+                org.mockito.ArgumentMatchers.eq("error.bytes_cap.no_estimate_unreviewed"), any(),
+                any())).thenReturn("never reviewed");
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.FAILED);
+        assertThat(item.getErrorMessage()).isEqualTo("never reviewed");
+        verify(queryExecutor, org.mockito.Mockito.never()).execute(any());
+    }
+
+    @Test
+    void anUncappedQueryMemberIsNeverDryRun() {
+        queryItem();
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 1L, false, java.time.Duration.ofMillis(3)));
+
+        service.execute(group.getId(), null, "manual");
+
+        verify(queryCostEstimateService, org.mockito.Mockito.never()).estimateBytesScanned(any());
     }
 
     @Test

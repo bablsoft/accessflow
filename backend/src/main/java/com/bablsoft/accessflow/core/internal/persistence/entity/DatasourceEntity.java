@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -123,6 +124,17 @@ public class DatasourceEntity {
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "environment", columnDefinition = "datasource_environment")
     private DatasourceEnvironment environment;
+
+    /** #941: pre-flight bytes-scanned cap; null = no cap. Only set on bytes-reporting engines. */
+    @Column(name = "max_bytes_scanned_per_query")
+    private Long maxBytesScannedPerQuery;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "bytes_cap_missing_estimate", nullable = false,
+            columnDefinition = "bytes_cap_missing_estimate_action")
+    private BytesCapMissingEstimateAction bytesCapMissingEstimate =
+            BytesCapMissingEstimateAction.REQUIRE_REVIEW;
 
     @JsonIgnore
     @Column(name = "api_key_encrypted", columnDefinition = "TEXT")

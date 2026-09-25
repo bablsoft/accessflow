@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.bablsoft.accessflow.core.api.ByteSizeFormat;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DataClassification;
@@ -295,6 +296,14 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                 sb.append(' ');
             }
             sb.append("Plan root operation: ").append(estimate.scanType()).append('.');
+        }
+        if (estimate.estimatedBytesScanned() != null) {
+            if (!sb.isEmpty()) {
+                sb.append(' ');
+            }
+            sb.append("The warehouse estimates this query will scan ")
+                    .append(ByteSizeFormat.format(estimate.estimatedBytesScanned()))
+                    .append('.');
         }
         return sb.isEmpty() ? null : sb.toString();
     }

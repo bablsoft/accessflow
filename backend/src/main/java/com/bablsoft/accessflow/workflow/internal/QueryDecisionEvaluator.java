@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
+import com.bablsoft.accessflow.core.api.ByteSizeFormat;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -68,17 +69,31 @@ class QueryDecisionEvaluator {
     private final RoutingPolicyEngine routingPolicyEngine;
     private final AccessGrantLookupService accessGrantLookupService;
 
+    /** {@link #evaluate(QueryRequestSnapshot, AiOutcome, RiskLevel, int, List, BytesCapCheck, Clock)} with no bytes cap. */
+    QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
+                           int riskScore, List<String> blockingRuleIds, Clock clock) {
+        return evaluate(query, aiOutcome, riskLevel, riskScore, blockingRuleIds, null, clock);
+    }
+
     /**
      * @param riskScore       the AI's numeric score, or {@code -1} when there is none — the same
      *                        "absent" sentinel the live completion event uses
      * @param blockingRuleIds the distinct SQL review rule ids that fired at {@code BLOCK} for this
      *                        request, empty when none did (#864)
+     * @param bytesCap        the bytes-scanned cap that applies (#941), {@code null} when none does
      */
     QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
-                           int riskScore, List<String> blockingRuleIds, Clock clock) {
+                           int riskScore, List<String> blockingRuleIds, BytesCapCheck bytesCap,
+                           Clock clock) {
         var block = blockingRuleIds == null ? List.<String>of() : List.copyOf(blockingRuleIds);
+        var guard = new Guard(block, bytesCap);
+        // A hard cap is a refusal, not a routing signal: it decides before routing and before the
+        // AI-failure fallback, so no policy or plan can approve a query the cap has refused.
+        if (bytesCap != null && bytesCap.rejects()) {
+            return bytesCapRejected(block, bytesCap);
+        }
         if (aiOutcome == AiOutcome.FAILED) {
-            return aiFailed(block);
+            return aiFailed(block, bytesCap);
         }
         // Only a COMPLETED analysis carries a risk signal. Normalising here rather than trusting the
         // caller keeps the SKIPPED branch identical to production, where the listener passes no risk
@@ -88,28 +103,100 @@ class QueryDecisionEvaluator {
         var plan = reviewPlanLookupService.findForDatasource(query.datasourceId()).orElse(null);
         var context = conditionContextFactory.forLiveQuery(query, effectiveRisk, effectiveScore,
                 clock);
-        var steps = new ArrayList<DecisionTraceStep>(4);
+        var steps = new ArrayList<DecisionTraceStep>(5);
         steps.add(sqlReviewStep(block));
+        steps.add(bytesCapStep(bytesCap));
 
         var match = routingPolicyEngine.evaluate(query.organizationId(), query.datasourceId(),
                 context).orElse(null);
         if (match != null) {
-            return routed(match, plan, context, steps, block);
+            return routed(match, plan, context, steps, guard);
         }
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH,
                 "workflow.decision.routing.no_match"));
 
         var suppressed = new ArrayList<SuppressedAutoApproval>(2);
-        var grant = findCoveringGrant(query, context, steps, block, suppressed);
+        var grant = findCoveringGrant(query, context, steps, guard, suppressed);
         if (grant != null) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                     "workflow.decision.plan.skipped_grant_covered", planDetails(plan)));
             return new QueryDecision(QueryDecisionKind.GRANT_FAST_PATH, QueryStatus.APPROVED, null,
                     null, grant.id(), grant.approverEmail(), context,
-                    new DecisionTrace(steps, QueryStatus.APPROVED));
+                    new DecisionTrace(steps, QueryStatus.APPROVED), null, bytesCap, false);
         }
 
-        return planned(query, plan, effectiveRisk, context, steps, block, suppressed);
+        return planned(query, plan, effectiveRisk, context, steps, guard, suppressed);
+    }
+
+    /**
+     * What may turn an automatic approval into human review: a {@code BLOCK} SQL review finding
+     * (#864) and a bytes-scanned cap with no estimate to compare against (#941). The trace names
+     * the SQL review first when both apply.
+     */
+    private record Guard(List<String> block, BytesCapCheck bytesCap) {
+
+        boolean suppresses() {
+            return !block.isEmpty() || (bytesCap != null && bytesCap.forcesReview());
+        }
+
+        boolean capForcesReview() {
+            return bytesCap != null && bytesCap.forcesReview();
+        }
+
+        String reasonSuffix() {
+            return block.isEmpty() ? "bytes_cap" : "sql_review";
+        }
+    }
+
+    /** The cap step is always present so the trace keeps one entry per stage. */
+    private static DecisionTraceStep bytesCapStep(BytesCapCheck cap) {
+        if (cap == null) {
+            return DecisionTraceStep.of(QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                    StepOutcome.NO_MATCH, "workflow.decision.bytes_cap.none");
+        }
+        var details = new LinkedHashMap<String, Object>();
+        details.put("bytes_scanned_cap", cap.limit());
+        details.put("bytes_scanned_cap_source", cap.source().name());
+        details.put("estimated_bytes_scanned", cap.estimatedBytes());
+        details.put("bytes_scanned_cap_outcome", cap.outcome() == null ? null : cap.outcome().name());
+        var limit = ByteSizeFormat.format(cap.limit());
+        if (cap.outcome() == null) {
+            return new DecisionTraceStep(QueryDecisionStepKind.BYTES_SCANNED_CAP, StepOutcome.SKIP,
+                    "workflow.decision.bytes_cap.unevaluated", List.of(limit), details);
+        }
+        return switch (cap.outcome()) {
+            case WITHIN -> new DecisionTraceStep(QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                    StepOutcome.ALLOW, "workflow.decision.bytes_cap.within",
+                    List.of(ByteSizeFormat.format(cap.estimatedBytes()), limit), details);
+            case EXCEEDED -> new DecisionTraceStep(QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                    StepOutcome.DENY, "workflow.decision.bytes_cap.exceeded",
+                    List.of(ByteSizeFormat.format(cap.estimatedBytes()), limit), details);
+            case NO_ESTIMATE_REVIEW -> new DecisionTraceStep(QueryDecisionStepKind.BYTES_SCANNED_CAP,
+                    StepOutcome.MATCH, "workflow.decision.bytes_cap.no_estimate_review",
+                    List.of(limit), details);
+            case NO_ESTIMATE_REJECTED -> new DecisionTraceStep(
+                    QueryDecisionStepKind.BYTES_SCANNED_CAP, StepOutcome.DENY,
+                    "workflow.decision.bytes_cap.no_estimate_rejected", List.of(limit), details);
+        };
+    }
+
+    /**
+     * The cap refused the query (#941). Nothing downstream runs — there is no routing decision to
+     * record and no plan to consult — which is why the context is not even built.
+     */
+    private static QueryDecision bytesCapRejected(List<String> block, BytesCapCheck cap) {
+        var steps = List.of(
+                sqlReviewStep(block),
+                bytesCapStep(cap),
+                DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
+                        "workflow.decision.routing.skipped_bytes_cap"),
+                DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
+                        "workflow.decision.grant.skipped_bytes_cap"),
+                DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+                        "workflow.decision.plan.skipped_bytes_cap"));
+        return new QueryDecision(QueryDecisionKind.BYTES_CAP_REJECTED, QueryStatus.REJECTED, null,
+                null, null, null, null, new DecisionTrace(steps, QueryStatus.REJECTED), null, cap,
+                true);
     }
 
     /**
@@ -131,7 +218,7 @@ class QueryDecisionEvaluator {
 
     private static SqlReviewSuppression suppression(List<String> block,
                                                     List<SuppressedAutoApproval> paths) {
-        return paths.isEmpty() ? null : new SqlReviewSuppression(block, paths);
+        return paths.isEmpty() || block.isEmpty() ? null : new SqlReviewSuppression(block, paths);
     }
 
     /**
@@ -140,9 +227,10 @@ class QueryDecisionEvaluator {
      * auto-decision signal — and neither does the grant fast path or the review plan. Decided before
      * any lookup, mirroring the live listener, which builds no context at all.
      */
-    private static QueryDecision aiFailed(List<String> block) {
+    private static QueryDecision aiFailed(List<String> block, BytesCapCheck bytesCap) {
         var steps = List.of(
                 sqlReviewStep(block),
+                bytesCapStep(bytesCap),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_ai_failed"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
@@ -151,7 +239,7 @@ class QueryDecisionEvaluator {
                         "workflow.decision.plan.skipped_ai_failed"));
         return new QueryDecision(QueryDecisionKind.AI_FAILED_PENDING_REVIEW,
                 QueryStatus.PENDING_REVIEW, null, null, null, null, null,
-                new DecisionTrace(steps, QueryStatus.PENDING_REVIEW));
+                new DecisionTrace(steps, QueryStatus.PENDING_REVIEW), null, bytesCap, false);
     }
 
     /**
@@ -161,8 +249,10 @@ class QueryDecisionEvaluator {
      */
     private QueryDecision routed(RoutingMatch match, ReviewPlanSnapshot plan,
                                  ConditionContext context, List<DecisionTraceStep> steps,
-                                 List<String> block) {
-        boolean suppressedApprove = match.action() == RoutingAction.AUTO_APPROVE && !block.isEmpty();
+                                 Guard guard) {
+        var block = guard.block();
+        boolean suppressedApprove = match.action() == RoutingAction.AUTO_APPROVE
+                && guard.suppresses();
         var effect = switch (match.action()) {
             case AUTO_APPROVE -> suppressedApprove
                     ? new RoutedEffect(QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED,
@@ -184,10 +274,13 @@ class QueryDecisionEvaluator {
         details.put("matched_policy_name", match.policyName());
         details.put("action", match.action().name());
         details.put("effective_min_approvals", effective);
-        details.put("sql_review_suppressed", suppressedApprove);
+        details.put("sql_review_suppressed", suppressedApprove && !block.isEmpty());
+        details.put("bytes_cap_suppressed", suppressedApprove && guard.capForcesReview());
         steps.add(suppressedApprove
                 ? new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
-                        "workflow.decision.routing.matched_auto_approve_suppressed",
+                        block.isEmpty()
+                                ? "workflow.decision.routing.matched_auto_approve_suppressed_bytes_cap"
+                                : "workflow.decision.routing.matched_auto_approve_suppressed",
                         List.of(String.valueOf(match.policyName())), details)
                 : new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
                         "workflow.decision.routing.matched",
@@ -198,9 +291,10 @@ class QueryDecisionEvaluator {
                 "workflow.decision.plan.skipped_routing_decided", planDetails(plan)));
         return new QueryDecision(kind, nextStatus, match, effective, null, null, context,
                 new DecisionTrace(steps, nextStatus),
-                suppressedApprove
+                suppressedApprove && !block.isEmpty()
                         ? new SqlReviewSuppression(block, List.of(SuppressedAutoApproval.ROUTING_AUTO_APPROVE))
-                        : null);
+                        : null,
+                guard.bytesCap(), suppressedApprove && guard.capForcesReview());
     }
 
     /**
@@ -217,7 +311,7 @@ class QueryDecisionEvaluator {
      * @return the first covering grant, or {@code null} to fall through to the review plan
      */
     private AccessGrantView findCoveringGrant(QueryRequestSnapshot query, ConditionContext context,
-                                              List<DecisionTraceStep> steps, List<String> block,
+                                              List<DecisionTraceStep> steps, Guard guard,
                                               List<SuppressedAutoApproval> suppressed) {
         if (context.anomalyActive()) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
@@ -256,10 +350,11 @@ class QueryDecisionEvaluator {
                 var details = consideredGrants(grants);
                 details.put("grant_id", grant.id());
                 details.put("approver_email", grant.approverEmail());
-                if (!block.isEmpty()) {
+                if (guard.suppresses()) {
                     suppressed.add(SuppressedAutoApproval.GRANT_FAST_PATH);
                     steps.add(new DecisionTraceStep(QueryDecisionStepKind.GRANT_FAST_PATH,
-                            StepOutcome.NO_MATCH, "workflow.decision.grant.suppressed_sql_review",
+                            StepOutcome.NO_MATCH,
+                            "workflow.decision.grant.suppressed_" + guard.reasonSuffix(),
                             List.of(String.valueOf(grant.id())), details));
                     return null;
                 }
@@ -281,8 +376,9 @@ class QueryDecisionEvaluator {
 
     private QueryDecision planned(QueryRequestSnapshot query, ReviewPlanSnapshot plan,
                                   RiskLevel riskLevel, ConditionContext context,
-                                  List<DecisionTraceStep> steps, List<String> block,
+                                  List<DecisionTraceStep> steps, Guard guard,
                                   List<SuppressedAutoApproval> suppressed) {
+        var block = guard.block();
         var details = planDetails(plan);
         QueryStatus nextStatus;
         String reasonKey;
@@ -302,12 +398,14 @@ class QueryDecisionEvaluator {
         }
         // Decided un-guarded first so the trace says which plan rule WOULD have approved; the block
         // then overrides the status alone (#864).
-        if (nextStatus == QueryStatus.APPROVED && !block.isEmpty()) {
+        if (nextStatus == QueryStatus.APPROVED && guard.suppresses()) {
             suppressed.add(SuppressedAutoApproval.REVIEW_PLAN);
             nextStatus = QueryStatus.PENDING_REVIEW;
-            reasonKey = "workflow.decision.plan.suppressed_sql_review";
+            reasonKey = "workflow.decision.plan.suppressed_" + guard.reasonSuffix();
         }
-        details.put("sql_review_suppressed", suppressed.contains(SuppressedAutoApproval.REVIEW_PLAN));
+        boolean planSuppressed = suppressed.contains(SuppressedAutoApproval.REVIEW_PLAN);
+        details.put("sql_review_suppressed", planSuppressed && !block.isEmpty());
+        details.put("bytes_cap_suppressed", planSuppressed && guard.capForcesReview());
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN,
                 nextStatus == QueryStatus.APPROVED ? StepOutcome.ALLOW : StepOutcome.DENY,
                 reasonKey, details));
@@ -315,7 +413,8 @@ class QueryDecisionEvaluator {
                 ? QueryDecisionKind.PLAN_APPROVED
                 : QueryDecisionKind.PLAN_PENDING_REVIEW;
         return new QueryDecision(kind, nextStatus, null, null, null, null, context,
-                new DecisionTrace(steps, nextStatus), suppression(block, suppressed));
+                new DecisionTrace(steps, nextStatus), suppression(block, suppressed),
+                guard.bytesCap(), guard.capForcesReview() && !suppressed.isEmpty());
     }
 
     private static LinkedHashMap<String, Object> consideredGrants(List<AccessGrantView> grants) {

@@ -30,6 +30,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -39,6 +41,7 @@ import { SchemaObjectTree } from '@/components/datasources/SchemaObjectTree';
 import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
+import { formatBytes } from '@/utils/queryPlan';
 import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import {
   QUERY_SHAPES,
@@ -46,6 +49,8 @@ import {
   dbTypeLabel,
   enumOptions,
   queryShapeLabel,
+  BYTES_CAP_MISSING_ESTIMATE_ACTIONS,
+  bytesCapMissingEstimateLabel,
 } from '@/utils/enumLabels';
 import {
   datasourceEnvironmentOptions,
@@ -54,6 +59,7 @@ import {
   type DatasourceEnvironmentFormValue,
 } from '@/utils/datasourceEnvironment';
 import { showApiError } from '@/utils/showApiError';
+import { BYTES_CAP_MIN, supportsBytesCap, toBytesCapUpdate } from '@/utils/bytesCap';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
 import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
@@ -434,8 +440,11 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     result_cache_enabled: ds.result_cache_enabled,
     result_cache_ttl_seconds: ds.result_cache_ttl_seconds ?? undefined,
     environment: toEnvironmentFormValue(ds.environment),
+    max_bytes_scanned_per_query: ds.max_bytes_scanned_per_query ?? null,
+    bytes_cap_missing_estimate: ds.bytes_cap_missing_estimate ?? 'REQUIRE_REVIEW',
     active: ds.active,
   };
+  const bytesCapSupported = supportsBytesCap(ds.db_type);
 
   const [replicaResults, setReplicaResults] = useState<
     Record<number, { result?: ConnectionTestResult; error?: string }>
@@ -499,9 +508,21 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   });
 
   const onFinish = (values: SettingsFormValues) => {
-    const { read_replicas: replicaRows, environment, ...rest } = values;
+    const {
+      read_replicas: replicaRows,
+      environment,
+      max_bytes_scanned_per_query: bytesCap,
+      bytes_cap_missing_estimate: bytesCapMissingEstimate,
+      ...rest
+    } = values;
     // "Not set" must clear explicitly: a null environment means "unchanged" to the API (#861).
     const body: UpdateDatasourceInput = { ...rest, ...toEnvironmentUpdate(environment) };
+    // The cap fields exist only on bytes-reporting engines; anywhere else they are never sent (#941).
+    if (bytesCapSupported) {
+      Object.assign(body, toBytesCapUpdate(bytesCap, ds.max_bytes_scanned_per_query), {
+        bytes_cap_missing_estimate: bytesCapMissingEstimate,
+      });
+    }
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
@@ -803,6 +824,37 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 }))}
               />
             </Form.Item>
+            {bytesCapSupported && (
+              <>
+                {/* Optional; mirrors the backend @Min(1) (#941). Empty = no cap. */}
+                <Form.Item
+                  label={t('datasources.settings.label_max_bytes_scanned')}
+                  name="max_bytes_scanned_per_query"
+                  extra={t('datasources.settings.max_bytes_scanned_help')}
+                  rules={[
+                    {
+                      type: 'number',
+                      min: BYTES_CAP_MIN,
+                      message: t('datasources.settings.grant_bytes_cap_min'),
+                    },
+                  ]}
+                >
+                  <BytesInput placeholder={t('datasources.settings.max_bytes_scanned_placeholder')} />
+                </Form.Item>
+                <Form.Item
+                  label={t('datasources.settings.label_bytes_cap_missing_estimate')}
+                  name="bytes_cap_missing_estimate"
+                  extra={t('datasources.settings.bytes_cap_missing_estimate_help')}
+                >
+                  <Select
+                    options={BYTES_CAP_MISSING_ESTIMATE_ACTIONS.map((v) => ({
+                      value: v,
+                      label: bytesCapMissingEstimateLabel(t, v),
+                    }))}
+                  />
+                </Form.Item>
+              </>
+            )}
             {/* Optional; no backend Bean Validation on the enum, so no client rule either (#865). */}
             <Form.Item
               label={t('datasources.settings.label_environment')}
@@ -935,6 +987,30 @@ function Grid({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>{children}</div>
   );
 }
+
+/** The bytes-scanned cap column (#941), shared by the user and group grant tables. */
+function bytesCapColumns(
+  dbType: DbType,
+  t: TFunction,
+): { title: string; width: number; render: (v: unknown, p: GrantCapRow) => React.ReactNode }[] {
+  if (!supportsBytesCap(dbType)) {
+    return [];
+  }
+  return [
+    {
+      title: t('datasources.settings.perm_col_bytes_cap'),
+      width: 130,
+      render: (_v, p) =>
+        p.bytes_scanned_limit_override != null ? (
+          <span className="mono">{formatBytes(p.bytes_scanned_limit_override)}</span>
+        ) : (
+          <span className="muted">{t('datasources.settings.perm_bytes_cap_none')}</span>
+        ),
+    },
+  ];
+}
+
+type GrantCapRow = Pick<DatasourcePermission, 'bytes_scanned_limit_override'>;
 
 function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
   const { t } = useTranslation();
@@ -1088,6 +1164,7 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
                 <span className="muted">default</span>
               ),
           },
+          ...bytesCapColumns(dbType, t),
           {
             title: t('datasources.settings.perm_col_schemas'),
             render: (_v, p) => (
@@ -1226,6 +1303,7 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
                 align: 'center',
                 render: (_v, p) => <PermCell on={p.can_break_glass} />,
               },
+              ...bytesCapColumns(dbType, t),
               {
                 title: t('datasources.settings.perm_col_schemas'),
                 render: (_v, p) => (
@@ -1351,6 +1429,7 @@ interface GrantFormValues {
   can_ddl: boolean;
   can_break_glass: boolean;
   row_limit_override?: number | null;
+  bytes_scanned_limit_override?: number | null;
   allowed_schemas?: string[];
   allowed_tables?: string[];
   restricted_columns?: string[];
@@ -1502,6 +1581,10 @@ function GrantAccessModal({
         can_break_glass: values.can_break_glass,
         row_limit_override:
           typeof values.row_limit_override === 'number' ? values.row_limit_override : null,
+        bytes_scanned_limit_override:
+          supportsBytesCap(dbType) && typeof values.bytes_scanned_limit_override === 'number'
+            ? values.bytes_scanned_limit_override
+            : null,
         allowed_schemas:
           values.allowed_schemas && values.allowed_schemas.length > 0
             ? values.allowed_schemas
@@ -1687,6 +1770,22 @@ function GrantAccessModal({
             placeholder={t('datasources.settings.grant_row_limit_placeholder')}
           />
         </Form.Item>
+        {supportsBytesCap(dbType) && (
+          <Form.Item
+            name="bytes_scanned_limit_override"
+            label={t('datasources.settings.grant_bytes_cap_label')}
+            extra={t('datasources.settings.grant_bytes_cap_help')}
+            rules={[
+              {
+                type: 'number',
+                min: BYTES_CAP_MIN,
+                message: t('datasources.settings.grant_bytes_cap_min'),
+              },
+            ]}
+          >
+            <BytesInput placeholder={t('datasources.settings.grant_bytes_cap_placeholder')} />
+          </Form.Item>
+        )}
         <Form.Item
           name="allowed_schemas"
           label={t('datasources.settings.grant_schemas_label')}

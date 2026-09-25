@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
 import com.bablsoft.accessflow.core.api.ApplicationNameSource;
+import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
+import com.bablsoft.accessflow.core.api.BytesScannedCapSource;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
@@ -151,6 +153,21 @@ public class QueryRequestEntity {
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "application_name_source", columnDefinition = "application_name_source")
     private ApplicationNameSource applicationNameSource;
+
+    // The bytes-scanned cap (#941) that applied when the query left PENDING_AI — stamped by the
+    // workflow so the detail view can say why a query was refused or forced to review.
+    @Column(name = "bytes_scanned_cap")
+    private Long bytesScannedCap;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "bytes_scanned_cap_source", columnDefinition = "bytes_scanned_cap_source")
+    private BytesScannedCapSource bytesScannedCapSource;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "bytes_scanned_cap_outcome", columnDefinition = "bytes_scanned_cap_outcome")
+    private BytesScannedCapOutcome bytesScannedCapOutcome;
 
     @Version
     @Column(name = "updated_at", nullable = false)

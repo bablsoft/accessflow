@@ -36,7 +36,8 @@
     "view_docs_aria": "View docs (opens in a new tab)",
     "on_behalf_of": "on behalf of {{name}}",
     "on_behalf_of_tooltip": "An API-key caller acted for this person (X-AccessFlow-On-Behalf-Of). The named person is treated as a submitter for the self-approval ban.",
-    "principal_service_account_tooltip": "A non-human identity: it authenticates with an API key only and can never sign in interactively."
+    "principal_service_account_tooltip": "A non-human identity: it authenticates with an API key only and can never sign in interactively.",
+    "bytes_unit": "Unit"
   },
   "nav": {
     "editor": "Query editor",
@@ -654,7 +655,8 @@
     "affected_rows_label": "Affected rows (exact)",
     "est_rows_label": "Estimated rows",
     "scan_type_label": "Scan type",
-    "cost_label": "Estimated cost"
+    "cost_label": "Estimated cost",
+    "est_bytes_label": "Estimated bytes scanned"
   },
   "approval_prediction": {
     "value_label": "Historical approval likelihood",
@@ -864,7 +866,9 @@
         "hint": "Effective SQL is the statement as it actually ran, with row-security filters and soft-delete rewrites applied. Bound values are shown as ? and never stored.",
         "diff_submitted_label": "Submitted SQL",
         "diff_effective_label": "Effective SQL"
-      }
+      },
+      "bytes_cap_body": "Estimated scan: {{estimate}} · Cap: {{limit}} ({{source}})",
+      "bytes_cap_no_estimate": "no estimate"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "Environment",
       "environment_not_set": "Not set (organization default rules)",
-      "environment_help": "Picks which SQL review ruleset applies to queries on this datasource."
+      "environment_help": "Picks which SQL review ruleset applies to queries on this datasource.",
+      "label_max_bytes_scanned": "Max bytes scanned per query",
+      "max_bytes_scanned_help": "Refuse queries whose pre-flight scan estimate is larger than this. Leave empty for no cap.",
+      "max_bytes_scanned_placeholder": "No cap",
+      "label_bytes_cap_missing_estimate": "When no bytes estimate is available",
+      "bytes_cap_missing_estimate_help": "Applies only while a cap is set. Require human review holds automatic approvals for a person; Reject refuses the query.",
+      "perm_col_bytes_cap": "Bytes cap",
+      "perm_bytes_cap_none": "default",
+      "grant_bytes_cap_label": "Bytes-scanned cap",
+      "grant_bytes_cap_help": "A lower cap for this grant. The strictest of the datasource cap and every grant applies.",
+      "grant_bytes_cap_min": "Bytes-scanned cap must be at least 1 byte.",
+      "grant_bytes_cap_placeholder": "Datasource default"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "e.g. *curl*, *GitHubActions*",
       "minutes_suffix": "min",
       "cicd_present_label": "Is CI/CD origin",
-      "scan_type_placeholder": "e.g. Seq Scan, COLLSCAN, Index*"
+      "scan_type_placeholder": "e.g. Seq Scan, COLLSCAN, Index*",
+      "bytes_value_label": "Bytes scanned"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3300,7 +3316,8 @@
       "time_since_last_approval": "Time since last approval",
       "cicd_origin": "CI/CD origin",
       "estimated_rows": "Estimated rows",
-      "scan_type": "Scan type"
+      "scan_type": "Scan type",
+      "estimated_bytes_scanned": "Estimated bytes scanned"
     },
     "query_shape": {
       "JOIN": "Join",
@@ -3740,7 +3757,8 @@
       "ELIGIBLE_REVIEWERS": "Eligible reviewers",
       "ROW_SECURITY": "Row security",
       "MASKING": "Masking",
-      "BREAK_GLASS": "Break-glass"
+      "BREAK_GLASS": "Break-glass",
+      "BYTES_SCANNED_CAP": "Bytes-scanned cap"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Connector gates",
@@ -3795,6 +3813,20 @@
       "FIXED_RATE": "Fixed rate",
       "CRON": "Cron",
       "ONE_TIME": "One time"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "Require human review",
+      "REJECT": "Reject the query"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "Datasource cap",
+      "GRANT": "Grant override"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "Within the bytes-scanned cap",
+      "EXCEEDED": "Rejected: the estimate exceeds the bytes-scanned cap",
+      "NO_ESTIMATE_REVIEW": "Held for review: no bytes estimate under the cap",
+      "NO_ESTIMATE_REJECTED": "Rejected: no bytes estimate under the cap"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "Requester user agent",
       "risk_level": "Risk level",
       "risk_score": "Risk score",
-      "scan_type": "Scan type"
+      "scan_type": "Scan type",
+      "bytes_cap_suppressed": "Suppressed by the bytes cap",
+      "bytes_scanned_cap": "Bytes-scanned cap",
+      "bytes_scanned_cap_outcome": "Cap outcome",
+      "bytes_scanned_cap_source": "Cap source",
+      "estimated_bytes_scanned": "Estimated bytes scanned"
     },
     "use_id": "Use ID {{id}}",
     "user_id_placeholder": "Paste a user ID",

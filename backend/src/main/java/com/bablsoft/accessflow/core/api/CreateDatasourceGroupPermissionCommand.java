@@ -11,6 +11,7 @@ public record CreateDatasourceGroupPermissionCommand(
         Boolean canDdl,
         Boolean canBreakGlass,
         Integer rowLimitOverride,
+        Long bytesScannedLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,

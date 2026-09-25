@@ -525,6 +525,69 @@ describe('DatasourceCreateWizardPage', () => {
     );
   });
 
+  async function reachSettingsStep() {
+    const testBtn = await screen.findByRole('button', { name: /Test connection/ });
+    fireEvent.click(testBtn);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByLabelText('Connection pool size');
+  }
+
+  it('offers the bytes-scanned cap on a warehouse and sends it in bytes (#941)', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    const bigQuery = { ...baseDatasource, db_type: 'BIGQUERY' as const };
+    createDatasource.mockResolvedValueOnce(bigQuery);
+    testConnection.mockResolvedValueOnce({ ok: true, latency_ms: 5, message: null });
+    updateDatasource.mockResolvedValueOnce(bigQuery);
+
+    render(wrap(<DatasourceCreateWizardPage />));
+    const cards = await screen.findAllByText('Google BigQuery');
+    fireEvent.click(cards[0]!);
+    await screen.findByLabelText('GCP project');
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bq' } });
+    fireEvent.change(screen.getByLabelText('GCP project'), { target: { value: 'p.a' } });
+    fireEvent.change(screen.getByLabelText('Service account key (JSON)'), {
+      target: { value: '{"type":"service_account"}' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+    await reachSettingsStep();
+
+    fireEvent.change(screen.getByLabelText('Max bytes scanned per query'), {
+      target: { value: '3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and finish' }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalledTimes(1));
+    expect(updateDatasource).toHaveBeenCalledWith(
+      'ds-1',
+      expect.objectContaining({
+        max_bytes_scanned_per_query: 3_000_000_000,
+        bytes_cap_missing_estimate: 'REQUIRE_REVIEW',
+      }),
+    );
+  });
+
+  it('never offers or sends the bytes-scanned cap on a relational datasource', async () => {
+    createDatasource.mockResolvedValueOnce(baseDatasource);
+    testConnection.mockResolvedValueOnce({ ok: true, latency_ms: 5, message: null });
+    updateDatasource.mockResolvedValueOnce(baseDatasource);
+
+    render(wrap(<DatasourceCreateWizardPage />));
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+    await screen.findByLabelText('Name');
+    await fillConnectionAndSubmit('Save and test');
+    await reachSettingsStep();
+
+    expect(screen.queryByLabelText('Max bytes scanned per query')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save and finish' }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalledTimes(1));
+    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('max_bytes_scanned_per_query');
+    expect(body).not.toHaveProperty('bytes_cap_missing_estimate');
+  });
+
   it('disables the Next button until the test passes', async () => {
     createDatasource.mockResolvedValueOnce(baseDatasource);
     testConnection.mockResolvedValueOnce({

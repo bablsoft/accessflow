@@ -1023,6 +1023,31 @@ still admits a single-table `UPDATE … WHERE` — so pair them with the read/wr
   or auto-rejects a shape through a routing policy instead of refusing it at the grant. It fails closed
   the other way — an unanalysed shape does not match — so prefer the grant when the rule must hold.
 
+### Bytes-scanned cost caps (#941)
+
+A pre-execution **cost guardrail** for bytes-billed warehouses (BigQuery, Snowflake, Databricks),
+where a row cap does nothing about cost: `datasources.max_bytes_scanned_per_query` and a per-grant
+`bytes_scanned_limit_override` refuse a query whose pre-flight bytes-scanned estimate exceeds the
+cap. It is a resource guardrail on an **estimate**, not an access boundary and not a billing control:
+an over-estimate refuses a legitimate query, an under-estimate lets an expensive one through.
+
+- **Merge — most restrictive wins.** The datasource cap and every contributing grant's override
+  combine to the smallest value, so a permissive group grant can never raise a tight cap, and a JIT
+  approval that replaces a time-boxed row carries the replaced row's override over — an approval
+  never widens cost.
+- **Configurable only where it can hold.** The engines that report no bytes estimate refuse the
+  fields at config time (422 `BYTES_SCANNED_CAP_NOT_SUPPORTED`); a cap there would silently never
+  fire, or refuse everything.
+- **Fails closed, explicitly.** A capped query with no estimate is never silently allowed: the
+  datasource's `bytes_cap_missing_estimate` either holds every automatic approval for a person
+  (`REQUIRE_REVIEW`, the default) or refuses the query (`REJECT`).
+- **Enforced twice, for everyone.** When the query leaves `PENDING_AI` (rejected before routing, so
+  no policy and no plan can approve it) and again just before execution — which covers scheduled,
+  recurring, grouped and **break-glass** runs and a cap lowered after approval. `QUERY_ADMIN` holders
+  are not exempt: the cap binds the datasource, not the reviewer.
+- **Audited.** `QUERY_BYTES_SCANNED_CAP_ENFORCED` (null actor) records the limit, its source, the
+  estimate and the outcome whenever the cap changed an outcome.
+
 ### Dynamic data masking policies (AF-381)
 
 `masking_policy` rows extend the static masking above with **per-column strategies** and a

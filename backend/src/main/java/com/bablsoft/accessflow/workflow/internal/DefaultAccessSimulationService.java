@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.ColumnRefKeys;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -87,6 +88,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final RowSecurityClassificationService rowSecurityClassificationService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final BreakGlassEligibilityService breakGlassEligibilityService;
+    private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone, so the
     // simulator has to use the same zone the live listener does. Deliberately NOT the injected
@@ -140,9 +142,16 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                 .distinct()
                 .sorted()
                 .toList();
+        // A hypothetical request has no pre-flight estimate (COST_ESTIMATE_ABSENT), so a bytes cap
+        // is reported but not compared: guessing "no estimate" would show a refusal or forced
+        // review that a real submission with an estimate would not get (#941).
+        var bytesCap = bytesScannedCapResolutionService
+                .resolve(input.datasourceId(), input.userId())
+                .map(BytesCapCheck::unevaluated)
+                .orElse(null);
         var decision = queryDecisionEvaluator.evaluate(
                 syntheticSnapshot(organizationId, input, parsed), input.aiOutcome(),
-                input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, clock);
+                input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, bytesCap, clock);
         steps.addAll(withFullPolicyList(decision, organizationId, input.datasourceId()));
 
         steps.add(reviewerStep(input, decision.nextStatus()));

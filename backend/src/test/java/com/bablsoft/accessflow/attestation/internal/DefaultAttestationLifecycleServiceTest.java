@@ -79,7 +79,7 @@ class DefaultAttestationLifecycleServiceTest {
     private DatasourcePermissionView permission(UUID userId) {
         return new DatasourcePermissionView(UUID.randomUUID(), datasourceId, userId,
                 userId + "@example.com", "User", true, false, false, false, null,
-                List.of("public"), List.of(), List.of(), null, List.of(), List.of(), List.of(), null, UUID.randomUUID(), Instant.now());
+                null, List.of("public"), List.of(), List.of(), null, List.of(), List.of(), List.of(), null, UUID.randomUUID(), Instant.now());
     }
 
     @Test
@@ -113,7 +113,7 @@ class DefaultAttestationLifecycleServiceTest {
         when(datasourceAdminService.listPermissions(datasourceId, orgId))
                 .thenReturn(List.of(new DatasourcePermissionView(UUID.randomUUID(), datasourceId,
                         userId, "u@example.com", "User", true, false, false, false, null,
-                        List.of("crm"), List.of(), List.of(), List.of(), List.of("hr"),
+                        8_000L, List.of("crm"), List.of(), List.of(), List.of(), List.of("hr"),
                         List.of("crm.salary"),
                         List.of(com.bablsoft.accessflow.core.api.QueryShape.GROUP_BY), null,
                         UUID.randomUUID(), Instant.now())));
@@ -129,6 +129,7 @@ class DefaultAttestationLifecycleServiceTest {
         assertThat(snapshot.get("denied_tables").get(0).asString()).isEqualTo("crm.salary");
         assertThat(snapshot.get("denied_tables")).hasSize(1);
         assertThat(snapshot.get("denied_shapes").get(0).asString()).isEqualTo("GROUP_BY");
+        assertThat(snapshot.get("bytes_scanned_limit_override").asLong()).isEqualTo(8_000L);
     }
 
     @Test
@@ -138,7 +139,7 @@ class DefaultAttestationLifecycleServiceTest {
         when(datasourceLookupService.findRef(datasourceId))
                 .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
         var view = new DatasourcePermissionView(UUID.randomUUID(), datasourceId, UUID.randomUUID(),
-                "u@example.com", "User", true, false, false, false, null, null, null, null, null,
+                "u@example.com", "User", true, false, false, false, null, null, null, null, null, null,
                 null, null, null, null, null, null);
         when(datasourceAdminService.listPermissions(datasourceId, orgId)).thenReturn(List.of(view));
         when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
@@ -152,6 +153,7 @@ class DefaultAttestationLifecycleServiceTest {
         assertThat(snapshot.get("denied_schemas")).isEmpty();
         assertThat(snapshot.get("denied_tables")).isEmpty();
         assertThat(snapshot.get("denied_shapes")).isEmpty();
+        assertThat(snapshot.get("bytes_scanned_limit_override").isNull()).isTrue();
     }
 
     /**

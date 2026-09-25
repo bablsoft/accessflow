@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.core.api.SecretResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
 import com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapNotSupportedException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
@@ -428,6 +429,16 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.denied_shapes_not_supported", ex.dbType().name()));
         pd.setProperty("error", "DENIED_SHAPES_NOT_SUPPORTED");
+        pd.setProperty("dbType", ex.dbType().name());
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(BytesScannedCapNotSupportedException.class)
+    ProblemDetail handleBytesScannedCapNotSupported(BytesScannedCapNotSupportedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
+                msg("error.bytes_scanned_cap_not_supported", ex.dbType().name()));
+        pd.setProperty("error", "BYTES_SCANNED_CAP_NOT_SUPPORTED");
         pd.setProperty("dbType", ex.dbType().name());
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

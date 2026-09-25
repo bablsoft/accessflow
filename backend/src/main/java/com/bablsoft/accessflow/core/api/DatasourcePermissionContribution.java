@@ -17,6 +17,8 @@ import java.util.UUID;
  *                  row id
  * @param groupId   the granting group, or {@code null} for a direct grant
  * @param rowLimitOverride this grant's row cap, or {@code null} when it sets none (#933)
+ * @param bytesScannedLimitOverride this grant's bytes-scanned cap, or {@code null} when it sets
+ *                                  none (#941)
  * @param expiresAt {@code null} means this contribution never expires
  * @param accessGrantRequestId the JIT {@code access_grant_request} a direct row materialises
  *                             (#969); {@code null} on an admin-created row and always on a
@@ -41,8 +43,23 @@ public record DatasourcePermissionContribution(
         List<String> deniedTables,
         List<QueryShape> deniedShapes,
         Integer rowLimitOverride,
+        Long bytesScannedLimitOverride,
         Instant expiresAt,
         UUID accessGrantRequestId) {
+
+    /** Backward-compatible constructor without the #941 bytes-scanned cap override. */
+    public DatasourcePermissionContribution(
+            DatasourcePermissionSourceKind sourceKind, UUID sourceId, UUID userId,
+            UUID datasourceId, UUID groupId, String groupName, boolean canRead, boolean canWrite,
+            boolean canDdl, boolean canBreakGlass, List<String> allowedSchemas,
+            List<String> allowedTables, List<String> restrictedColumns, List<String> deniedColumns,
+            List<String> deniedSchemas, List<String> deniedTables, List<QueryShape> deniedShapes,
+            Integer rowLimitOverride, Instant expiresAt, UUID accessGrantRequestId) {
+        this(sourceKind, sourceId, userId, datasourceId, groupId, groupName, canRead, canWrite,
+                canDdl, canBreakGlass, allowedSchemas, allowedTables, restrictedColumns,
+                deniedColumns, deniedSchemas, deniedTables, deniedShapes, rowLimitOverride, null,
+                expiresAt, accessGrantRequestId);
+    }
 
     public DatasourcePermissionContribution {
         allowedSchemas = allowedSchemas == null ? List.of() : List.copyOf(allowedSchemas);

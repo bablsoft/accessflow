@@ -304,6 +304,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void bytesScannedCapNotSupportedReturns422() {
+        var pd = handler.handleBytesScannedCapNotSupported(
+                new com.bablsoft.accessflow.core.api.BytesScannedCapNotSupportedException(
+                        com.bablsoft.accessflow.core.api.DbType.POSTGRESQL));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "BYTES_SCANNED_CAP_NOT_SUPPORTED")
+                .containsEntry("dbType", "POSTGRESQL");
+    }
+
+    @Test
     void invalidSqlReturns422() {
         var pd = handler.handleInvalidSql(new InvalidSqlException("nope"));
 

@@ -341,6 +341,14 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
                           once as SQL_REVIEW_BLOCKED when it changed the outcome)
   PENDING_AI → REJECTED  (routing-policy AUTO_REJECT — AF-379; no review_decisions row,
                           audited via QueryAutoRejectedEvent)
+  PENDING_AI → REJECTED  (bytes-scanned cap — #941; the warehouse's pre-flight bytes estimate
+                          exceeds the datasource/grant cap, or there is none and the datasource's
+                          bytes_cap_missing_estimate=REJECT. Decided before routing and the
+                          AI-failed path, no routing_decision row, QueryAutoRejectedEvent with a
+                          null policy id; audited as QUERY_BYTES_SCANNED_CAP_ENFORCED)
+  PENDING_AI → PENDING_REVIEW (bytes-scanned cap, no estimate, bytes_cap_missing_estimate=
+                          REQUIRE_REVIEW — #941; suppresses the same auto-approve paths as a SQL
+                          review BLOCK, never softens AUTO_REJECT)
   PENDING_REVIEW → APPROVED or REJECTED (external ticket resolution — AF-453; a channel with
                           bidirectional_sync=true maps a ServiceNow/Jira ticket resolution onto a
                           decision via workflow.api.ExternalDecisionService. System-attributed:
@@ -363,7 +371,9 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
                               recurrence_next_run_at, records recurrence_halted_reason, and
                               audits RECURRING_SERIES_HALTED)
   APPROVED       → EXECUTED  (break-glass run — audit action QUERY_BREAK_GLASS_EXECUTED — AF-385)
-  APPROVED       → FAILED    (execution error)
+  APPROVED       → FAILED    (execution error; also the bytes-scanned cap re-checked just before
+                              execution refusing the run — #941, scheduled / recurring /
+                              break-glass included)
   ```
 
   Illegal transitions must throw a domain exception, not silently succeed. **Break-glass /

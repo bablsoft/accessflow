@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "db82ce629b4c",
-  "generatedAt": "2026-09-25T07:39:58.431Z",
-  "sourceCommit": "289c67dd6084830c338a941dfd4523a35eee817e",
-  "chunkCount": 591,
-  "sha256": "db82ce629b4c8478f46c001f7aaad553305b9c9ab6f1ddd0947f78f58ddd38df",
+  "corpusVersion": "19176ed3eedd",
+  "generatedAt": "2026-09-25T09:06:48.480Z",
+  "sourceCommit": "4d2867004fa3f030ee9039f3542086a75d81d188",
+  "chunkCount": 592,
+  "sha256": "19176ed3eedd4d242d6f404fb80789b3a65a7e605351e8fd60df1b58b3f87ab3",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 17,
-      "sha256": "a05d3d761de46fe17853402ce2a9e720c3342b31fe6b26c677aac36e25739361"
+      "chunks": 18,
+      "sha256": "4f15107b53dba38908a9f1852a06fff3e415932365d11a240a237b1a861642c9"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 18,
-      "sha256": "d4d47000785893d03aba9a55aba7598ebd90fb015bde3602ed810e94680ba64c"
+      "sha256": "e50e4f312e3a712643ba58bcbed6ddb23aae0a37de49d33539728bee745f52dd"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "efc03f2a03fd58694b4a00f5811c89c9c47c57516a11452492813bd533108a5e"
+      "sha256": "abd1825d923c708d556f08062b0f487d8c923db15d7c1fed5ebbde5975d59a77"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "f994012656b4b281b744b19226fba52562ca91b9aa1245ac2fad4c8be7e60d08"
+      "sha256": "6bbf96f18dae0340f8498e7daa4e2212b903abc44f624ec79dabd455d7bd2a4b"
     }
   ]
 }

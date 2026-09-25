@@ -31,7 +31,9 @@ public record DatasourceView(
         String localDatacenter,
         boolean resultCacheEnabled,
         Integer resultCacheTtlSeconds,
-        DatasourceEnvironment environment
+        DatasourceEnvironment environment,
+        Long maxBytesScannedPerQuery,
+        BytesCapMissingEstimateAction bytesCapMissingEstimate
 ) {
     /** One read-replica endpoint as exposed to admins — never carries the password. */
     public record ReadReplicaView(UUID id, String jdbcUrl, String username) {
@@ -39,6 +41,28 @@ public record DatasourceView(
 
     public DatasourceView {
         readReplicas = readReplicas == null ? List.of() : List.copyOf(readReplicas);
+        bytesCapMissingEstimate = bytesCapMissingEstimate == null
+                ? BytesCapMissingEstimateAction.REQUIRE_REVIEW : bytesCapMissingEstimate;
+    }
+
+    /**
+     * Backward-compatible constructor for the pre-#941 canonical shape (no bytes-scanned cap);
+     * delegates with no cap and the default missing-estimate policy.
+     */
+    public DatasourceView(
+            UUID id, UUID organizationId, String name, DbType dbType, String host, Integer port,
+            String databaseName, String username, SslMode sslMode, int connectionPoolSize,
+            int maxRowsPerQuery, boolean requireReviewReads, boolean requireReviewWrites,
+            UUID reviewPlanId, boolean aiAnalysisEnabled, UUID aiConfigId, boolean textToSqlEnabled,
+            UUID customDriverId, String connectorId, String jdbcUrlOverride,
+            List<ReadReplicaView> readReplicas, boolean active, Instant createdAt,
+            String localDatacenter, boolean resultCacheEnabled, Integer resultCacheTtlSeconds,
+            DatasourceEnvironment environment) {
+        this(id, organizationId, name, dbType, host, port, databaseName, username, sslMode,
+                connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
+                reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
+                connectorId, jdbcUrlOverride, readReplicas, active, createdAt, localDatacenter,
+                resultCacheEnabled, resultCacheTtlSeconds, environment, null, null);
     }
 
     /**
@@ -57,7 +81,7 @@ public record DatasourceView(
                 connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
                 reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
                 connectorId, jdbcUrlOverride, readReplicas, active, createdAt, localDatacenter,
-                resultCacheEnabled, resultCacheTtlSeconds, null);
+                resultCacheEnabled, resultCacheTtlSeconds, (DatasourceEnvironment) null);
     }
 
     /**

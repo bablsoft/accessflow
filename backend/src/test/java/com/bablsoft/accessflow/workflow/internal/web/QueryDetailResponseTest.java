@@ -459,4 +459,34 @@ class QueryDetailResponseTest {
                 null,
                 Instant.now(), Instant.now());
     }
+
+    @Test
+    void fromCarriesTheBytesScannedCapAndTheBytesEstimate() {
+        var estimate = new QueryDetailView.CostEstimateDetail(UUID.randomUUID(), "bigquery",
+                QueryType.SELECT, true, null, null, null, null, null, null, null, false, null, 4,
+                7_000L);
+        var base = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "Wh", DbType.BIGQUERY,
+                UUID.randomUUID(), UUID.randomUUID(), "a@x.io", "A", "SELECT 1", QueryType.SELECT,
+                QueryStatus.REJECTED, null, null, estimate, null, null, null, null, null, null,
+                null, null, null, null, List.of(), null, null, null, null, null, null,
+                Instant.now(), Instant.now(), null, null, null, null,
+                new QueryDetailView.BytesScannedCapDetail(1_000L,
+                        com.bablsoft.accessflow.core.api.BytesScannedCapSource.GRANT,
+                        com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED));
+
+        var response = QueryDetailResponse.from(base);
+
+        assertThat(response.costEstimate().estimatedBytesScanned()).isEqualTo(7_000L);
+        assertThat(response.bytesScannedCap()).isEqualTo(new QueryDetailResponse.BytesScannedCapDetail(
+                1_000L, com.bablsoft.accessflow.core.api.BytesScannedCapSource.GRANT,
+                com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED));
+    }
+
+    @Test
+    void theCompatibleCostEstimateConstructorLeavesTheBytesEstimateAbsent() {
+        var estimate = new QueryDetailView.CostEstimateDetail(UUID.randomUUID(), "postgresql",
+                QueryType.SELECT, true, 1L, null, null, null, null, null, null, false, null, 4);
+
+        assertThat(estimate.estimatedBytesScanned()).isNull();
+    }
 }

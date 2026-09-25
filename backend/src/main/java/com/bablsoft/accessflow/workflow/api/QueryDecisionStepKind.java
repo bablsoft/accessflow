@@ -12,7 +12,8 @@ import com.bablsoft.accessflow.core.api.StepOutcome;
  * missing stage is always a bug rather than a normal outcome.
  *
  * <p>Only {@link #ROUTING_POLICIES}, {@link #GRANT_FAST_PATH} and {@link #REVIEW_PLAN} are decided
- * on the live asynchronous path; {@link #SQL_REVIEW} is evaluated synchronously at submission and
+ * on the live asynchronous path, with {@link #BYTES_SCANNED_CAP} decided just before them;
+ * {@link #SQL_REVIEW} is evaluated synchronously at submission and
  * read back there. The rest happen elsewhere in production — the first four in the
  * synchronous submission gate, {@link #ROW_SECURITY} and {@link #MASKING} at execution time,
  * {@link #ELIGIBLE_REVIEWERS} in notification fan-out, and {@link #BREAK_GLASS} in a separate
@@ -39,6 +40,14 @@ public enum QueryDecisionStepKind implements DecisionStepKind {
      * {@code NO_MATCH}.
      */
     SQL_REVIEW,
+
+    /**
+     * The bytes-scanned cap (#941): {@code DENY} when the pre-flight estimate exceeds the cap, or
+     * no estimate exists and the datasource rejects on a missing one; {@code MATCH} when a missing
+     * estimate forces human review (every auto-approve stage below is then suppressed);
+     * {@code ALLOW} when the estimate is within the cap; {@code NO_MATCH} when no cap applies.
+     */
+    BYTES_SCANNED_CAP,
 
     /** Every enabled routing policy in ascending priority order, matched and unmatched. */
     ROUTING_POLICIES,

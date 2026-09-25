@@ -21,6 +21,8 @@ import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DeniedColumns;
 import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapNotSupportedException;
+import com.bablsoft.accessflow.core.api.BytesScannedCapSupport;
 import com.bablsoft.accessflow.core.api.DeniedShapes;
 import com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException;
 import com.bablsoft.accessflow.core.api.DeniedTables;
@@ -249,6 +251,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             entity.setResultCacheTtlSeconds(command.resultCacheTtlSeconds());
         }
         entity.setEnvironment(command.environment());
+        entity.setMaxBytesScannedPerQuery(bytesCap(entity.getDbType(),
+                command.maxBytesScannedPerQuery()));
+        if (command.bytesCapMissingEstimate() != null) {
+            entity.setBytesCapMissingEstimate(command.bytesCapMissingEstimate());
+        }
         entity.setActive(true);
         return toView(datasourceRepository.save(entity));
     }
@@ -359,6 +366,17 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
         if (command.environment() != null) {
             entity.setEnvironment(command.environment());
+        }
+        // #941: same null / clear / value shape as the environment.
+        if (Boolean.TRUE.equals(command.clearMaxBytesScannedPerQuery())) {
+            entity.setMaxBytesScannedPerQuery(null);
+        }
+        if (command.maxBytesScannedPerQuery() != null) {
+            entity.setMaxBytesScannedPerQuery(bytesCap(entity.getDbType(),
+                    command.maxBytesScannedPerQuery()));
+        }
+        if (command.bytesCapMissingEstimate() != null) {
+            entity.setBytesCapMissingEstimate(command.bytesCapMissingEstimate());
         }
         if (command.active() != null) {
             entity.setActive(command.active());
@@ -654,6 +672,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
         entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
+                command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
@@ -714,6 +734,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
         entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
+                command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
@@ -780,7 +802,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getLocalDatacenter(),
                 entity.isResultCacheEnabled(),
                 entity.getResultCacheTtlSeconds(),
-                entity.getEnvironment());
+                entity.getEnvironment(),
+                entity.getMaxBytesScannedPerQuery(),
+                entity.getBytesCapMissingEstimate());
     }
 
     private CustomJdbcDriverEntity resolveCustomDriverForCreate(CreateDatasourceCommand command) {
@@ -1150,6 +1174,17 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         return names;
     }
 
+    /**
+     * A bytes-scanned cap (#941) is refused on an engine that reports no bytes estimate — there it
+     * could only reject everything or nothing. Null passes through (no cap).
+     */
+    private static Long bytesCap(DbType dbType, Long cap) {
+        if (cap != null && !BytesScannedCapSupport.supports(dbType)) {
+            throw new BytesScannedCapNotSupportedException(dbType);
+        }
+        return cap;
+    }
+
     private DatasourcePermissionView toPermissionView(DatasourceUserPermissionEntity entity) {
         UserEntity user = entity.getUser();
         return new DatasourcePermissionView(
@@ -1163,6 +1198,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.isCanDdl(),
                 entity.isCanBreakGlass(),
                 entity.getRowLimitOverride(),
+                entity.getBytesScannedLimitOverride(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),
@@ -1189,6 +1225,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.isCanDdl(),
                 entity.isCanBreakGlass(),
                 entity.getRowLimitOverride(),
+                entity.getBytesScannedLimitOverride(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),

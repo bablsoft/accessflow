@@ -64,7 +64,8 @@ public class ConditionContextFactory {
                         query.datasourceId(), query.id(), clock.instant()),
                 behaviorAnomalyLookupService.hasActiveAnomaly(query.organizationId(),
                         query.submittedByUserId(), query.datasourceId()),
-                estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed());
+                estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed(),
+                estimate.bytesScanned());
     }
 
     /**
@@ -87,13 +88,14 @@ public class ConditionContextFactory {
                 parsed.transactional(), row.submittedIp(), row.submittedUserAgent(), row.ciCdOrigin(),
                 minutesSinceLastApproval(row.organizationId(), row.submittedByUserId(),
                         row.datasourceId(), row.id(), row.createdAt()),
-                false, estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed());
+                false, estimate.rows(), estimate.scanType(), parsed.shapes(), parsed.shapesAnalyzed(),
+                estimate.bytesScanned());
     }
 
     /**
      * AF-624 pre-flight estimate signals. The estimate pipeline runs independently of AI analysis,
      * so whatever is persisted for the query is the signal; absent / unsupported / failed rows
-     * leave both fields null and the matching conditions fail closed.
+     * leave every field null and the matching conditions fail closed.
      *
      * <p>The replay arm reads it too: unlike membership or the anomaly flag, the estimate is a
      * persisted per-query fact, so dropping it would make an {@code estimated_rows} policy simulate
@@ -102,15 +104,15 @@ public class ConditionContextFactory {
     private EstimateSignals estimateSignals(UUID queryRequestId) {
         var estimate = queryEstimateLookupService.findByQueryRequestId(queryRequestId).orElse(null);
         if (estimate == null || estimate.failed()) {
-            return new EstimateSignals(null, null);
+            return new EstimateSignals(null, null, null);
         }
         var rows = estimate.affectedRowCount() != null
                 ? estimate.affectedRowCount()
                 : estimate.estimatedRows();
-        return new EstimateSignals(rows, estimate.scanType());
+        return new EstimateSignals(rows, estimate.scanType(), estimate.estimatedBytesScanned());
     }
 
-    private record EstimateSignals(Long rows, String scanType) {
+    private record EstimateSignals(Long rows, String scanType, Long bytesScanned) {
     }
 
     private String roleName(UUID userId) {

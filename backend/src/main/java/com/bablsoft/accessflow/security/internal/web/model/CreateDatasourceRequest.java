@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.BytesCapMissingEstimateAction;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -59,5 +60,8 @@ public record CreateDatasourceRequest(
         @Size(max = 1024, message = "{validation.private_key_passphrase.max}")
         String privateKeyPassphrase,
         // #861: optional; an unset environment resolves to the org-wide default SQL review ruleset.
-        DatasourceEnvironment environment
+        DatasourceEnvironment environment,
+        // #941: optional bytes-scanned cap; only accepted on BigQuery / Snowflake / Databricks.
+        @Min(value = 1, message = "{validation.bytes_cap.min}") Long maxBytesScannedPerQuery,
+        BytesCapMissingEstimateAction bytesCapMissingEstimate
 ) {}

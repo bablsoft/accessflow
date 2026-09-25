@@ -36,7 +36,8 @@
     "view_docs_aria": "查看文档（在新标签页中打开）",
     "on_behalf_of": "代表 {{name}}",
     "on_behalf_of_tooltip": "某个 API 密钥调用方代表此人执行了操作（X-AccessFlow-On-Behalf-Of）。在禁止自行审批的规则中，被指名的人视为提交者。",
-    "principal_service_account_tooltip": "非人类身份：仅通过 API 密钥认证，永远无法交互式登录。"
+    "principal_service_account_tooltip": "非人类身份：仅通过 API 密钥认证，永远无法交互式登录。",
+    "bytes_unit": "单位"
   },
   "nav": {
     "editor": "SQL 编辑器",
@@ -654,7 +655,8 @@
     "affected_rows_label": "受影响行数（精确）",
     "est_rows_label": "预估行数",
     "scan_type_label": "扫描类型",
-    "cost_label": "预估成本"
+    "cost_label": "预估成本",
+    "est_bytes_label": "预计扫描字节数"
   },
   "approval_prediction": {
     "value_label": "历史批准可能性",
@@ -864,7 +866,9 @@
         "hint": "实际执行的 SQL 是语句真正运行时的形式，已应用行级安全过滤和软删除改写。绑定值显示为 ?，且从不存储。",
         "diff_submitted_label": "提交的 SQL",
         "diff_effective_label": "实际执行的 SQL"
-      }
+      },
+      "bytes_cap_body": "预计扫描：{{estimate}} · 上限：{{limit}}（{{source}}）",
+      "bytes_cap_no_estimate": "无估算"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "环境",
       "environment_not_set": "未设置（使用组织默认规则）",
-      "environment_help": "决定对此数据源的查询应用哪个 SQL 审查规则集。"
+      "environment_help": "决定对此数据源的查询应用哪个 SQL 审查规则集。",
+      "label_max_bytes_scanned": "每次查询最大扫描字节数",
+      "max_bytes_scanned_help": "拒绝预检扫描估算大于此值的查询。留空表示不设上限。",
+      "max_bytes_scanned_placeholder": "无上限",
+      "label_bytes_cap_missing_estimate": "没有字节估算时",
+      "bytes_cap_missing_estimate_help": "仅在设置了上限时生效。“要求人工审查”会把自动批准交给人工处理；“拒绝”会拒绝查询。",
+      "perm_col_bytes_cap": "字节上限",
+      "perm_bytes_cap_none": "默认",
+      "grant_bytes_cap_label": "扫描字节上限",
+      "grant_bytes_cap_help": "为此授权设置更低的上限。取数据源上限与所有授权中最严格的一个。",
+      "grant_bytes_cap_min": "扫描字节上限至少为 1 字节。",
+      "grant_bytes_cap_placeholder": "数据源默认值"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "例如 *curl*、*GitHubActions*",
       "minutes_suffix": "分钟",
       "cicd_present_label": "来自 CI/CD",
-      "scan_type_placeholder": "例如 Seq Scan、COLLSCAN、Index*"
+      "scan_type_placeholder": "例如 Seq Scan、COLLSCAN、Index*",
+      "bytes_value_label": "扫描字节数"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3270,7 +3286,8 @@
       "time_since_last_approval": "距上次批准时长",
       "cicd_origin": "CI/CD 来源",
       "estimated_rows": "预估行数",
-      "scan_type": "扫描类型"
+      "scan_type": "扫描类型",
+      "estimated_bytes_scanned": "预计扫描字节数"
     },
     "query_shape": {
       "JOIN": "连接（JOIN）",
@@ -3715,7 +3732,8 @@
       "ELIGIBLE_REVIEWERS": "合格审查人",
       "ROW_SECURITY": "行级安全",
       "MASKING": "脱敏",
-      "BREAK_GLASS": "紧急访问"
+      "BREAK_GLASS": "紧急访问",
+      "BYTES_SCANNED_CAP": "扫描字节上限"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "连接器检查",
@@ -3770,6 +3788,20 @@
       "FIXED_RATE": "固定频率",
       "CRON": "Cron",
       "ONE_TIME": "一次性"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "要求人工审查",
+      "REJECT": "拒绝查询"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "数据源上限",
+      "GRANT": "授权覆盖"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "在扫描字节上限之内",
+      "EXCEEDED": "已拒绝：估算超过扫描字节上限",
+      "NO_ESTIMATE_REVIEW": "已转人工审查：上限下没有字节估算",
+      "NO_ESTIMATE_REJECTED": "已拒绝：上限下没有字节估算"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "请求者 User-Agent",
       "risk_level": "风险等级",
       "risk_score": "风险分数",
-      "scan_type": "扫描类型"
+      "scan_type": "扫描类型",
+      "bytes_cap_suppressed": "被字节上限抑制",
+      "bytes_scanned_cap": "扫描字节上限",
+      "bytes_scanned_cap_outcome": "上限结果",
+      "bytes_scanned_cap_source": "上限来源",
+      "estimated_bytes_scanned": "预计扫描字节数"
     },
     "use_id": "使用 ID {{id}}",
     "user_id_placeholder": "粘贴用户 ID",

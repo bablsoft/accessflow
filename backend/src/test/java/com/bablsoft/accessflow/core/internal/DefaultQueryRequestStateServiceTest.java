@@ -132,6 +132,25 @@ class DefaultQueryRequestStateServiceTest {
     }
 
     @Test
+    void recordBytesScannedCapStampsTheCapWithoutTransitioning() {
+        query.setStatus(QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.recordBytesScannedCap(queryId, 1_000L,
+                com.bablsoft.accessflow.core.api.BytesScannedCapSource.GRANT,
+                com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED);
+
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.PENDING_AI);
+        assertThat(query.getBytesScannedCap()).isEqualTo(1_000L);
+        assertThat(query.getBytesScannedCapSource())
+                .isEqualTo(com.bablsoft.accessflow.core.api.BytesScannedCapSource.GRANT);
+        assertThat(query.getBytesScannedCapOutcome())
+                .isEqualTo(com.bablsoft.accessflow.core.api.BytesScannedCapOutcome.EXCEEDED);
+        verify(queryRequestRepository).save(query);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
     void recordApprovalAndAdvancePromotesToApprovedAtLastStage() {
         query.setStatus(QueryStatus.PENDING_REVIEW);
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));

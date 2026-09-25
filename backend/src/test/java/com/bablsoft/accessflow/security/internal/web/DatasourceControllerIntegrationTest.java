@@ -521,6 +521,101 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void updateDatasourceSetsKeepsAndClearsTheBytesScannedCapOnAWarehouse() {
+        var ds = saveDatasource(primaryOrg, "WH");
+        ds.setDbType(com.bablsoft.accessflow.core.api.DbType.BIGQUERY);
+        datasourceRepository.save(ds);
+
+        var set = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"max_bytes_scanned_per_query":1000000000000,"bytes_cap_missing_estimate":"REJECT"}
+                        """)
+                .exchange();
+        assertThat(set).hasStatus(200);
+        assertThat(set).bodyJson().extractingPath("$.max_bytes_scanned_per_query").asNumber()
+                .isEqualTo(1_000_000_000_000L);
+        assertThat(set).bodyJson().extractingPath("$.bytes_cap_missing_estimate").asString()
+                .isEqualTo("REJECT");
+
+        var keep = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"host":"other-host"}
+                        """)
+                .exchange();
+        assertThat(keep).bodyJson().extractingPath("$.max_bytes_scanned_per_query").asNumber()
+                .isEqualTo(1_000_000_000_000L);
+
+        var clear = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"clear_max_bytes_scanned_per_query":true}
+                        """)
+                .exchange();
+        assertThat(clear).hasStatus(200);
+        assertThat(clear).bodyJson().doesNotHavePath("$.max_bytes_scanned_per_query");
+    }
+
+    @Test
+    void aBytesScannedCapIsRefusedOnAnEngineWithoutABytesEstimateAndBelowOne() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var unsupported = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"max_bytes_scanned_per_query":5}
+                        """)
+                .exchange();
+        assertThat(unsupported).hasStatus(422);
+        assertThat(unsupported).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("BYTES_SCANNED_CAP_NOT_SUPPORTED");
+
+        var zero = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"max_bytes_scanned_per_query":0}
+                        """)
+                .exchange();
+        assertThat(zero).hasStatus(400);
+
+        var grant = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"bytes_scanned_limit_override":5}
+                        """.formatted(analyst.getId()))
+                .exchange();
+        assertThat(grant).hasStatus(422);
+        assertThat(permissionRepository.existsByUser_IdAndDatasource_Id(analyst.getId(),
+                ds.getId())).isFalse();
+    }
+
+    @Test
+    void grantPermissionRoundTripsTheBytesScannedOverrideOnAWarehouse() {
+        var ds = saveDatasource(primaryOrg, "WH");
+        ds.setDbType(com.bablsoft.accessflow.core.api.DbType.SNOWFLAKE);
+        datasourceRepository.save(ds);
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,"bytes_scanned_limit_override":500000000000}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.bytes_scanned_limit_override").asNumber()
+                .isEqualTo(500_000_000_000L);
+    }
+
+    @Test
     void updateDatasourcePasswordReencryptsIt() {
         var ds = saveDatasource(primaryOrg, "DS");
         var oldEncrypted = ds.getPasswordEncrypted();

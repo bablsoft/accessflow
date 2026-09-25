@@ -33,6 +33,7 @@ import {
 } from '@/components/policies/policyImpact';
 import { simulateRoutingPolicy } from '@/api/policySimulation';
 import { routingSimulationSummary } from './routingSimulationSummary';
+import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -939,6 +940,21 @@ function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionV
             style={{ marginBottom: 0 }}
           >
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+        </div>
+      );
+    case 'estimated_bytes_scanned':
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+          <Form.Item name={[name, 'bytes_operator']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+            <Select options={enumOptions(COMPARISON_OPERATORS, comparisonOperatorLabel, t)} />
+          </Form.Item>
+          <Form.Item
+            name={[name, 'bytes_value']}
+            rules={[{ required: true, type: 'number', min: 0 }]}
+            style={{ marginBottom: 0 }}
+          >
+            <BytesInput aria-label={t('admin.routing_policies.bytes_value_label')} />
           </Form.Item>
         </div>
       );

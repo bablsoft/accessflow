@@ -3,7 +3,8 @@ package com.bablsoft.accessflow.core.api;
 /**
  * Everything needed to persist one {@code query_estimates} row (issue AF-624). Mirrors
  * {@link PersistAiAnalysisCommand}: the proxy module computes the estimate and hands the values to
- * {@link QueryEstimatePersistenceService}. All value fields are nullable best-effort signals.
+ * {@link QueryEstimatePersistenceService}. All value fields are nullable best-effort signals;
+ * {@code estimatedBytesScanned} is the warehouse engines' native scan estimate in raw bytes (#941).
  */
 public record PersistQueryEstimateCommand(
         String engineId,
@@ -13,6 +14,7 @@ public record PersistQueryEstimateCommand(
         Long affectedRowCount,
         String scanType,
         Double estimatedCost,
+        Long estimatedBytesScanned,
         String planJson,
         String rawPlan,
         String unsupportedReason,

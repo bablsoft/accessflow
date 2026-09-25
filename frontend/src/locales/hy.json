@@ -36,7 +36,8 @@
     "view_docs_aria": "Դիտել փաստաթղթերը (բացվում է նոր ներդիրում)",
     "on_behalf_of": "{{name}}-ի անունից",
     "on_behalf_of_tooltip": "API բանալիով զանգողը գործել է այս անձի անունից (X-AccessFlow-On-Behalf-Of)։ Նշված անձը ինքնահաստատման արգելքի համար համարվում է ներկայացնող։",
-    "principal_service_account_tooltip": "Ոչ մարդկային ինքնություն. նույնականանում է միայն API բանալիով և երբեք չի կարող ինտերակտիվ մուտք գործել։"
+    "principal_service_account_tooltip": "Ոչ մարդկային ինքնություն. նույնականանում է միայն API բանալիով և երբեք չի կարող ինտերակտիվ մուտք գործել։",
+    "bytes_unit": "Միավոր"
   },
   "nav": {
     "editor": "SQL խմբագիր",
@@ -654,7 +655,8 @@
     "affected_rows_label": "Ազդված տողեր (ճշգրիտ)",
     "est_rows_label": "Գնահատված տողեր",
     "scan_type_label": "Սկանավորման տեսակ",
-    "cost_label": "Գնահատված արժեք"
+    "cost_label": "Գնահատված արժեք",
+    "est_bytes_label": "Սկանավորվող բայթերի գնահատական"
   },
   "approval_prediction": {
     "value_label": "Հաստատման պատմական հավանականություն",
@@ -864,7 +866,9 @@
         "hint": "Փաստացի SQL-ը հրահանգն է այնպես, ինչպես այն իրականում կատարվել է՝ տողերի անվտանգության զտիչներով և փափուկ ջնջման վերաշարադրումներով։ Կապված արժեքները ցուցադրվում են որպես ? և երբեք չեն պահպանվում։",
         "diff_submitted_label": "Ներկայացված SQL",
         "diff_effective_label": "Փաստացի SQL"
-      }
+      },
+      "bytes_cap_body": "Գնահատված սկանավորում՝ {{estimate}} · Սահմանաչափ՝ {{limit}} ({{source}})",
+      "bytes_cap_no_estimate": "գնահատական չկա"
     }
   },
   "reviews": {
@@ -1575,7 +1579,18 @@
       },
       "label_environment": "Միջավայր",
       "environment_not_set": "Սահմանված չէ (կազմակերպության լռելյայն կանոններ)",
-      "environment_help": "Որոշում է, թե որ SQL ստուգման կանոնակարգն է կիրառվում այս տվյալների աղբյուրի հարցումների վրա։"
+      "environment_help": "Որոշում է, թե որ SQL ստուգման կանոնակարգն է կիրառվում այս տվյալների աղբյուրի հարցումների վրա։",
+      "label_max_bytes_scanned": "Սկանավորված բայթերի առավելագույնը մեկ հարցման համար",
+      "max_bytes_scanned_help": "Մերժել հարցումները, որոնց նախնական սկանավորման գնահատականն ավելի մեծ է։ Թողեք դատարկ՝ առանց սահմանաչափի։",
+      "max_bytes_scanned_placeholder": "Առանց սահմանաչափի",
+      "label_bytes_cap_missing_estimate": "Երբ բայթերի գնահատական չկա",
+      "bytes_cap_missing_estimate_help": "Կիրառվում է միայն սահմանաչափ սահմանված լինելու դեպքում։ «Պահանջել մարդկային ստուգում»-ը ավտոմատ հաստատումները թողնում է մարդուն, «Մերժել»-ը մերժում է հարցումը։",
+      "perm_col_bytes_cap": "Բայթերի սահմանաչափ",
+      "perm_bytes_cap_none": "լռելյայն",
+      "grant_bytes_cap_label": "Սկանավորված բայթերի սահմանաչափ",
+      "grant_bytes_cap_help": "Ավելի ցածր սահմանաչափ այս թույլտվության համար։ Կիրառվում է տվյալների աղբյուրի և բոլոր թույլտվությունների սահմանաչափերից ամենախիստը։",
+      "grant_bytes_cap_min": "Սկանավորված բայթերի սահմանաչափը պետք է լինի առնվազն 1 բայթ։",
+      "grant_bytes_cap_placeholder": "Տվյալների աղբյուրի լռելյայնը"
     }
   },
   "admin": {
@@ -2455,7 +2470,8 @@
       "user_agent_placeholder": "օր. *curl*, *GitHubActions*",
       "minutes_suffix": "ր",
       "cicd_present_label": "CI/CD ծագում",
-      "scan_type_placeholder": "օր.՝ Seq Scan, COLLSCAN, Index*"
+      "scan_type_placeholder": "օր.՝ Seq Scan, COLLSCAN, Index*",
+      "bytes_value_label": "Սկանավորված բայթեր"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -3270,7 +3286,8 @@
       "time_since_last_approval": "Ժամանակ վերջին հաստատումից",
       "cicd_origin": "CI/CD ծագում",
       "estimated_rows": "Գնահատված տողեր",
-      "scan_type": "Սկանավորման տեսակ"
+      "scan_type": "Սկանավորման տեսակ",
+      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական"
     },
     "query_shape": {
       "JOIN": "Միացում (JOIN)",
@@ -3715,7 +3732,8 @@
       "ELIGIBLE_REVIEWERS": "Իրավասու վերանայողներ",
       "ROW_SECURITY": "Տողային անվտանգություն",
       "MASKING": "Քողարկում",
-      "BREAK_GLASS": "Արտակարգ մուտք"
+      "BREAK_GLASS": "Արտակարգ մուտք",
+      "BYTES_SCANNED_CAP": "Սկանավորված բայթերի սահմանաչափ"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Միակցիչի ստուգումներ",
@@ -3770,6 +3788,20 @@
       "FIXED_RATE": "Ֆիքսված հաճախականություն",
       "CRON": "Cron",
       "ONE_TIME": "Միանվագ"
+    },
+    "bytes_cap_missing_estimate": {
+      "REQUIRE_REVIEW": "Պահանջել մարդկային ստուգում",
+      "REJECT": "Մերժել հարցումը"
+    },
+    "bytes_scanned_cap_source": {
+      "DATASOURCE": "Տվյալների աղբյուրի սահմանաչափ",
+      "GRANT": "Թույլտվության վերասահմանում"
+    },
+    "bytes_scanned_cap_outcome": {
+      "WITHIN": "Սկանավորված բայթերի սահմանաչափի մեջ է",
+      "EXCEEDED": "Մերժված է. գնահատականը գերազանցում է սկանավորված բայթերի սահմանաչափը",
+      "NO_ESTIMATE_REVIEW": "Պահված է ստուգման համար. սահմանաչափի ներքո բայթերի գնահատական չկա",
+      "NO_ESTIMATE_REJECTED": "Մերժված է. սահմանաչափի ներքո բայթերի գնահատական չկա"
     }
   },
   "access": {
@@ -5775,7 +5807,12 @@
       "requester_user_agent": "Հայցողի user agent",
       "risk_level": "Ռիսկի մակարդակ",
       "risk_score": "Ռիսկի միավոր",
-      "scan_type": "Սկանավորման տեսակ"
+      "scan_type": "Սկանավորման տեսակ",
+      "bytes_cap_suppressed": "Ճնշված է բայթերի սահմանաչափով",
+      "bytes_scanned_cap": "Սկանավորված բայթերի սահմանաչափ",
+      "bytes_scanned_cap_outcome": "Սահմանաչափի արդյունք",
+      "bytes_scanned_cap_source": "Սահմանաչափի աղբյուր",
+      "estimated_bytes_scanned": "Սկանավորվող բայթերի գնահատական"
     },
     "use_id": "Օգտագործել ID {{id}}",
     "user_id_placeholder": "Տեղադրեք օգտատիրոջ ID",

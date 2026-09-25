@@ -30,5 +30,11 @@ enum QueryDecisionKind {
     PLAN_PENDING_REVIEW,
 
     /** AI analysis failed; the query goes to human review unconditionally. */
-    AI_FAILED_PENDING_REVIEW
+    AI_FAILED_PENDING_REVIEW,
+
+    /**
+     * The bytes-scanned cap (#941) refused the query: its estimate exceeds the cap, or it has none
+     * and the datasource rejects on a missing estimate. Decided before routing and AI failure.
+     */
+    BYTES_CAP_REJECTED
 }
