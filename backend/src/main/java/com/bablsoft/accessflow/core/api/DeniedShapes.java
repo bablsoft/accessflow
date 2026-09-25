@@ -30,14 +30,21 @@ public final class DeniedShapes {
         return List.copyOf(out);
     }
 
-    /** Reads stored shape names (the {@code denied_shapes} TEXT[] column) back into shapes. */
+    /**
+     * Reads stored shape names (the {@code denied_shapes} TEXT[] column) back into shapes. A name this
+     * version does not know denies every shape: a deny-list never silently loosens.
+     */
     public static List<QueryShape> fromNames(Collection<String> names) {
         if (names == null || names.isEmpty()) {
             return List.of();
         }
         var out = EnumSet.noneOf(QueryShape.class);
         for (String name : names) {
-            out.add(QueryShape.valueOf(name));
+            try {
+                out.add(QueryShape.valueOf(name));
+            } catch (IllegalArgumentException unknown) {
+                return List.copyOf(EnumSet.allOf(QueryShape.class));
+            }
         }
         return List.copyOf(out);
     }
@@ -61,12 +68,12 @@ public final class DeniedShapes {
      * @return the denied shapes the parsed query has, in declaration order; empty when it has none.
      *         A query whose shape was not analyzed (a non-JSqlParser engine, or an AST the detector
      *         could not walk) has every denied shape, so a deny-list can never be silently skipped.
-     *         {@code OTHER} is never checked, since no permission grants it.
+     *         {@code OTHER} statements are checked too — a request-group member may be one.
      */
     public static SortedSet<QueryShape> rejected(Collection<QueryShape> rawDenied, SqlParseResult parsed) {
         var denied = normalize(rawDenied);
         var out = new TreeSet<QueryShape>();
-        if (denied.isEmpty() || parsed == null || parsed.type() == QueryType.OTHER) {
+        if (denied.isEmpty() || parsed == null) {
             return out;
         }
         if (!parsed.shapesAnalyzed()) {

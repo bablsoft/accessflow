@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DeniedShapesTest {
 
@@ -46,8 +45,8 @@ class DeniedShapesTest {
         assertThat(DeniedShapes.toNames(List.of())).isNull();
         assertThat(DeniedShapes.toNames(null)).isNull();
         assertThat(DeniedShapes.fromNames(null)).isEmpty();
-        assertThatThrownBy(() -> DeniedShapes.fromNames(List.of("NOPE")))
-                .isInstanceOf(IllegalArgumentException.class);
+        // A name this version does not know denies every shape rather than none.
+        assertThat(DeniedShapes.fromNames(List.of("JOIN", "NOPE"))).containsExactly(QueryShape.values());
     }
 
     @Test
@@ -68,11 +67,19 @@ class DeniedShapesTest {
     }
 
     @Test
-    void rejectedIgnoresAnEmptyDenyListOtherStatementsAndANullParse() {
+    void rejectedIgnoresAnEmptyDenyListAndANullParse() {
         assertThat(DeniedShapes.rejected(List.of(), parsed(QueryType.SELECT, Set.of(), false))).isEmpty();
-        assertThat(DeniedShapes.rejected(List.of(QueryShape.JOIN), parsed(QueryType.OTHER, Set.of(), false)))
-                .isEmpty();
         assertThat(DeniedShapes.rejected(List.of(QueryShape.JOIN), null)).isEmpty();
+    }
+
+    @Test
+    void otherStatementsAreCheckedTooBecauseARequestGroupMemberMayBeOne() {
+        assertThat(DeniedShapes.rejected(List.of(QueryShape.JOIN), parsed(QueryType.OTHER, Set.of(QueryShape.JOIN), true)))
+                .containsExactly(QueryShape.JOIN);
+        assertThat(DeniedShapes.rejected(List.of(QueryShape.JOIN), parsed(QueryType.OTHER, Set.of(), false)))
+                .containsExactly(QueryShape.JOIN);
+        assertThat(DeniedShapes.rejected(List.of(QueryShape.JOIN), parsed(QueryType.OTHER, Set.of(), true)))
+                .isEmpty();
     }
 
     @Test

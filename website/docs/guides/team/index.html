@@ -441,8 +441,9 @@
               this person's grants stays denied.</li>
             <li><strong>Denied query shapes</strong> — refuse queries written a certain way, such as
               joins, subqueries, <code>GROUP BY</code> or aggregate functions like <code>COUNT</code>,
-              wherever they appear in the query. Deny them all and only simple
-              <code>SELECT … WHERE</code> lookups remain. Relational datasources only.</li>
+              wherever they appear in the query. Deny them all and only single-table
+              queries remain; it does not stop writes, so leave <em>can write</em> off for a
+              read-only grant. Relational datasources only.</li>
             <li><strong>Expires at</strong> — optional, and the single most useful field on the
               form. Access that removes itself is access nobody has to remember to remove.</li>
           </ul>

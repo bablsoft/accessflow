@@ -780,10 +780,17 @@ the `core.api.QueryShape` names: `JOIN`, `UNION` (every set operation), `SUBQUER
   is not a `SUBQUERY`; `EXISTS`, `IN (SELECT …)`, `ANY` / `ALL`, scalar and derived subqueries and
   `LATERAL` are. `WINDOW_FUNCTION` is any `OVER` clause or named `WINDOW`. `AGGREGATE` is a fixed
   standard set matched by unqualified, case-insensitive name (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`,
-  `STRING_AGG`, `ARRAY_AGG`, `GROUP_CONCAT`, `LISTAGG`, `JSON[B]_AGG`, the `STDDEV*` / `VAR*` family,
-  `BOOL_AND` / `BOOL_OR` / `EVERY`, `BIT_*`, `ANY_VALUE`, `MEDIAN`, `MODE`, `PERCENTILE_*`) plus any
-  `WITHIN GROUP` or `FILTER`ed call; a user-defined aggregate is **not** detected — say so when an
-  admin relies on it.
+  `STRING_AGG`, `ARRAY_AGG`, `GROUP_CONCAT`, `LISTAGG`, `XMLAGG`, `COLLECT`, `JSON[B]_AGG`, the
+  `STDDEV*` / `STD` / `STDEV*` / `VAR*` family, `CORR`, `COVAR_*`, `REGR_*`, `BOOL_AND` / `BOOL_OR` /
+  `EVERY`, `BIT_*`, `CHECKSUM_AGG`, `APPROX_COUNT_DISTINCT`, `ANY_VALUE`, `MEDIAN`, `MODE`,
+  `PERCENTILE_*`) plus any `WITHIN GROUP` or `FILTER`ed call; `JSON_ARRAYAGG` / `JSON_OBJECTAGG` are
+  their own AST node (`JsonAggregateFunction`) and always count. A user-defined aggregate is **not**
+  detected and the name list is best-effort — say so when an admin relies on it. A select the walk
+  reaches that is not a statement's own query, the body of a parenthesised select or a set-operation
+  branch is a `SUBQUERY` — that is how `ARRAY(SELECT …)` / `CURSOR(SELECT …)` arguments are caught.
+  `FROM (a JOIN b …)` (a `ParenthesedFromItem` carrying the joins) and every `MERGE` are `JOIN`.
+  `DeniedShapes.rejected` checks `OTHER` statements too, since a request-group member may be one; a
+  stored name the enum no longer has makes `fromNames` deny every shape.
 - **Third state.** `SqlParseResult.shapesAnalyzed` is `true` only on the JSqlParser path when the
   walk succeeded. Engine plugins build the result through the pre-#940 constructors and report
   `false` (the plugins' pinned JARs stay binary-compatible — no re-pin), and a statement the detector

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "45a0913ffe08",
-  "generatedAt": "2026-09-25T07:19:45.600Z",
-  "sourceCommit": "ef197619924ca6c15ad2b7045ee0354429fe4341",
-  "chunkCount": 590,
-  "sha256": "45a0913ffe0846a4f50353f3c5fcafab21444e7dc6477f3318e4cfcc7f737256",
+  "corpusVersion": "db82ce629b4c",
+  "generatedAt": "2026-09-25T07:39:58.431Z",
+  "sourceCommit": "289c67dd6084830c338a941dfd4523a35eee817e",
+  "chunkCount": 591,
+  "sha256": "db82ce629b4c8478f46c001f7aaad553305b9c9ab6f1ddd0947f78f58ddd38df",
   "quickReferenceSha256": "44221c19498905ac000898669ae79b5db00daf813cf0c9e48be04e706f00ed66",
   "sources": [
     {
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 17,
-      "sha256": "d88f04744fb44d7933f98e54eb1b158f4782c5c71c8d31f42fb39748bc47cfe0"
+      "sha256": "a05d3d761de46fe17853402ce2a9e720c3342b31fe6b26c677aac36e25739361"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 18,
-      "sha256": "71962f656fdddfbad48d7f73401b0397d74236772133932372ab35efb225ba00"
+      "sha256": "d4d47000785893d03aba9a55aba7598ebd90fb015bde3602ed810e94680ba64c"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -308,8 +308,8 @@
       "title": "Invite your team and assign roles",
       "url": "https://accessflow.io/docs/guides/team/",
       "section": "Guides",
-      "chunks": 8,
-      "sha256": "3b144bd38fff8a84348de6f8f57ba21d8422ca515cd679d94988dad7715793e1"
+      "chunks": 9,
+      "sha256": "408b7c7b922debc5a346afd21975d8ac86faa7b67600732b0029dc2e6557e663"
     },
     {
       "path": "website/docs/guides/terraform/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "680ff0667f49d5dad67d0373e71bd93113b0b65719ad0c10107df310513a1615"
+      "sha256": "f994012656b4b281b744b19226fba52562ca91b9aa1245ac2fad4c8be7e60d08"
     }
   ]
 }

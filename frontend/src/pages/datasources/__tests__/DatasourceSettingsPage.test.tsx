@@ -1149,4 +1149,39 @@ describe('DatasourceSettingsPage — denied query shapes (#940)', () => {
     fireEvent.mouseEnter(tag);
     expect(await screen.findByText('Join, GROUP BY')).toBeInTheDocument();
   });
+
+  it('shows the denied-shape count on a group permission row', async () => {
+    listGroupPermissions.mockResolvedValue([
+      {
+        id: 'gp-1',
+        datasource_id: 'ds-1',
+        group_id: 'g-1',
+        group_name: 'Analysts',
+        member_count: 3,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: null,
+        allowed_schemas: null,
+        allowed_tables: null,
+        restricted_columns: null,
+        denied_columns: null,
+        denied_schemas: null,
+        denied_tables: null,
+        denied_shapes: ['WINDOW_FUNCTION'],
+        expires_at: null,
+        created_by: 'admin',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    const groupCell = await screen.findByText('Analysts');
+    const row = groupCell.closest('tr')!;
+    expect(within(row).getByText('1 shape')).toBeInTheDocument();
+  });
 });

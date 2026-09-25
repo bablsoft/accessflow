@@ -5,13 +5,16 @@ import net.sf.jsqlparser.expression.AnalyticExpression;
 import net.sf.jsqlparser.expression.AnalyticType;
 import net.sf.jsqlparser.expression.AnyComparisonExpression;
 import net.sf.jsqlparser.expression.Function;
+import net.sf.jsqlparser.expression.JsonAggregateFunction;
 import net.sf.jsqlparser.expression.operators.relational.ExistsExpression;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.create.view.CreateView;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.merge.Merge;
 import net.sf.jsqlparser.statement.select.LateralSubSelect;
+import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -39,15 +42,25 @@ import java.util.Set;
  */
 final class QueryShapeDetector extends TablesNamesFinder<Void> {
 
-    /** The standard aggregates, matched by unqualified, case-insensitive name. */
+    /**
+     * The built-in aggregates of the in-process engines, matched by unqualified, case-insensitive
+     * name, plus every {@code regr_*} function. {@code JSON_ARRAYAGG} / {@code JSON_OBJECTAGG} are
+     * their own AST node and handled separately.
+     */
     static final Set<String> AGGREGATE_FUNCTIONS = Set.of("count", "count_big", "sum", "avg", "min",
             "max", "string_agg", "array_agg", "group_concat", "listagg", "json_agg", "jsonb_agg",
-            "json_object_agg", "jsonb_object_agg", "stddev", "stddev_pop", "stddev_samp", "variance",
-            "var_pop", "var_samp", "bool_and", "bool_or", "every", "bit_and", "bit_or", "bit_xor",
-            "any_value", "median", "mode", "percentile_cont", "percentile_disc");
+            "json_object_agg", "jsonb_object_agg", "json_arrayagg", "json_objectagg", "xmlagg",
+            "stddev", "stddev_pop", "stddev_samp", "std", "stdev", "stdevp", "variance", "var_pop",
+            "var_samp", "var", "varp", "corr", "covar_pop", "covar_samp", "bool_and", "bool_or",
+            "every", "bit_and", "bit_or", "bit_xor", "checksum_agg", "approx_count_distinct",
+            "any_value", "collect", "median", "mode", "percentile_cont", "percentile_disc");
 
     private final Set<QueryShape> shapes = EnumSet.noneOf(QueryShape.class);
     private final Set<Select> ownQueries = Collections.newSetFromMap(new IdentityHashMap<>());
+    // Selects already accounted for: the statement's own queries, the body of a parenthesised select
+    // and the branches of a set operation. Any other select the walk reaches is a subquery — a bare
+    // one appears as a function argument, e.g. ARRAY(SELECT …) or CURSOR(SELECT …).
+    private final Set<Select> covered = Collections.newSetFromMap(new IdentityHashMap<>());
 
     private QueryShapeDetector() {
     }
@@ -73,6 +86,7 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
             return;
         }
         ownQueries.add(select);
+        covered.add(select);
         switch (select) {
             case ParenthesedSelect parenthesed -> ownQuery(parenthesed.getSelect());
             case SetOperationList list -> list.getSelects().forEach(this::ownQuery);
@@ -89,6 +103,7 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(PlainSelect plainSelect, S context) {
+        flagIfUncovered(plainSelect);
         if (notEmpty(plainSelect.getJoins())) {
             shapes.add(QueryShape.JOIN);
         }
@@ -106,6 +121,8 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
 
     @Override
     public <S> Void visit(SetOperationList list, S context) {
+        flagIfUncovered(list);
+        covered.addAll(list.getSelects());
         shapes.add(QueryShape.UNION);
         return super.visit(list, context);
     }
@@ -115,6 +132,8 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
         if (!ownQueries.contains(select)) {
             shapes.add(QueryShape.SUBQUERY);
         }
+        covered.add(select);
+        covered.add(select.getSelect());
         return super.visit(select, context);
     }
 
@@ -134,6 +153,32 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
     public <S> Void visit(AnyComparisonExpression any, S context) {
         shapes.add(QueryShape.SUBQUERY);
         return super.visit(any, context);
+    }
+
+    /** {@code FROM (a JOIN b ON …)}: the joins live on the parenthesised item, not the select. */
+    @Override
+    public <S> Void visit(ParenthesedFromItem item, S context) {
+        if (notEmpty(item.getJoins())) {
+            shapes.add(QueryShape.JOIN);
+        }
+        return super.visit(item, context);
+    }
+
+    /** A MERGE always joins its target to its {@code USING} source. */
+    @Override
+    public <S> Void visit(Merge merge, S context) {
+        shapes.add(QueryShape.JOIN);
+        return super.visit(merge, context);
+    }
+
+    @Override
+    public <S> Void visit(JsonAggregateFunction aggregate, S context) {
+        shapes.add(QueryShape.AGGREGATE);
+        if (aggregate.getAnalyticType() == AnalyticType.OVER
+                || aggregate.getAnalyticType() == AnalyticType.WITHIN_GROUP_OVER) {
+            shapes.add(QueryShape.WINDOW_FUNCTION);
+        }
+        return super.visit(aggregate, context);
     }
 
     @Override
@@ -181,9 +226,16 @@ final class QueryShapeDetector extends TablesNamesFinder<Void> {
         if (name == null) {
             return false;
         }
-        var bare = name.substring(name.lastIndexOf('.') + 1);
-        return AGGREGATE_FUNCTIONS.contains(SqlParserServiceImpl.normalizeIdentifier(bare).strip()
-                .toLowerCase(Locale.ROOT));
+        var bare = SqlParserServiceImpl.normalizeIdentifier(name.substring(name.lastIndexOf('.') + 1))
+                .strip().toLowerCase(Locale.ROOT);
+        return AGGREGATE_FUNCTIONS.contains(bare) || bare.startsWith("regr_");
+    }
+
+    private void flagIfUncovered(Select select) {
+        if (!covered.contains(select)) {
+            shapes.add(QueryShape.SUBQUERY);
+            covered.add(select);
+        }
     }
 
     private static boolean notEmpty(Collection<?> items) {

@@ -166,7 +166,10 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
   test('matches the query_shape condition on a joined query only', async ({ request }) => {
     const policy = await createRoutingPolicyViaApi(request, adminAccessToken, {
       name: JOIN_REJECT_POLICY_NAME,
-      priority: 3,
+      // Scoped to this spec's datasource with a run-unique priority: an org-wide AUTO_REJECT on
+      // every JOIN would reject the joins other specs run concurrently.
+      datasource_id: datasourceId as string,
+      priority: 100_000 + Math.floor(Math.random() * 800_000),
       enabled: true,
       action: 'AUTO_REJECT',
       reason: 'joins are blocked',

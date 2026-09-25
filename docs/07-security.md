@@ -991,8 +991,9 @@ allow-list and **always wins**; it also works with no allow-list at all. All gat
 
 `denied_shapes` (`TEXT[]` on both permission tables) restricts the **grammar** a grantee may use, not
 just the statement type and the tables: an analyst can be limited to single-table
-`SELECT … WHERE … ORDER BY` by denying `JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING` and
-`AGGREGATE`.
+`SELECT … WHERE … ORDER BY` by denying `JOIN`, `UNION`, `SUBQUERY`, `CTE`, `GROUP_BY`, `HAVING`,
+`AGGREGATE` and `WINDOW_FUNCTION`. Shapes do not restrict the statement type — a grant with `can_write`
+still admits a single-table `UPDATE … WHERE` — so pair them with the read/write/DDL flags.
 
 - **Detection.** One walker, `proxy.internal.QueryShapeDetector`, reads the JSqlParser AST of every
   statement — subqueries, CTE bodies and `INSERT … SELECT` included — and a `BEGIN … COMMIT` batch
@@ -1001,9 +1002,10 @@ just the statement type and the tables: an analyst can be limited to single-tabl
   cannot traverse — counts as having every denied shape, so a deny-list is never silently skipped. A
   non-empty list is refused at grant time for an engine-managed datasource (422
   `DENIED_SHAPES_NOT_SUPPORTED`), so in practice it only ever binds relational datasources.
-- **Aggregate scope.** `AGGREGATE` is the standard aggregate set matched by name, plus any `WITHIN
-  GROUP` / `FILTER`ed call. A user-defined aggregate, or an aggregate wrapped in a view or function,
-  is not detected — pair the deny-list with database-side privileges where that matters.
+- **Aggregate scope.** `AGGREGATE` is the engines' built-in aggregate set matched by name (a
+  best-effort list), `JSON_ARRAYAGG` / `JSON_OBJECTAGG`, and any `WITHIN GROUP` / `FILTER`ed call. A
+  user-defined aggregate, a built-in missing from the list, or an aggregate wrapped in a view or
+  function is not detected — pair the deny-list with database-side privileges where that matters.
 - **Where it is enforced.** Submission (REST and MCP) and the recurring per-occurrence recheck (403
   `error.permission.shape_denied`), break-glass (for everyone), dry-run (403), request-group `QUERY`
   members, and the access simulator (`denied_shapes` detail,

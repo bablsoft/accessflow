@@ -45,6 +45,8 @@ class QueryShapeDetectorTest {
             "SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.a_id",
             "SELECT * FROM a, b WHERE a.id = b.a_id",
             "SELECT * FROM a CROSS JOIN b",
+            "SELECT * FROM (a JOIN b ON a.id = b.id)",
+            "SELECT * FROM (t1 LEFT JOIN t2 USING (id))",
             "UPDATE a SET x = b.x FROM b WHERE a.id = b.id",
             "DELETE FROM a USING b WHERE a.id = b.id"
     })
@@ -72,7 +74,9 @@ class QueryShapeDetectorTest {
             "SELECT * FROM (SELECT id FROM users) t",
             "SELECT * FROM users WHERE id = ANY (SELECT user_id FROM orders)",
             "UPDATE users SET name = 'x' WHERE id IN (SELECT user_id FROM orders)",
-            "DELETE FROM users WHERE id IN (SELECT user_id FROM orders)"
+            "DELETE FROM users WHERE id IN (SELECT user_id FROM orders)",
+            "SELECT * FROM t WHERE a = ANY(ARRAY(SELECT id FROM u WHERE u.x = t.x))",
+            "SELECT array(SELECT id FROM u)"
     })
     void detectsSubqueries(String sql) throws JSQLParserException {
         assertThat(shapes(sql)).containsExactly(SUBQUERY);
@@ -117,7 +121,14 @@ class QueryShapeDetectorTest {
             "SELECT string_agg(name, ',') FROM users",
             "SELECT pg_catalog.count(*) FROM users",
             "SELECT count(*) FILTER (WHERE active) FROM users",
-            "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) FROM orders"
+            "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) FROM orders",
+            "SELECT json_arrayagg(ssn) FROM users",
+            "SELECT JSON_OBJECTAGG(KEY k VALUE v) FROM t",
+            "SELECT stdev(x) FROM t",
+            "SELECT xmlagg(x) FROM t",
+            "SELECT corr(a, b) FROM t",
+            "SELECT regr_slope(a, b) FROM t",
+            "SELECT approx_count_distinct(a) FROM t"
     })
     void detectsAggregates(String sql) throws JSQLParserException {
         assertThat(shapes(sql)).containsExactly(AGGREGATE);
@@ -140,6 +151,24 @@ class QueryShapeDetectorTest {
     void detectsShapesInsideSubqueries() throws JSQLParserException {
         assertThat(shapes("SELECT * FROM users WHERE id IN (SELECT o.user_id FROM orders o JOIN items i ON i.order_id = o.id GROUP BY o.user_id)"))
                 .containsExactlyInAnyOrder(SUBQUERY, JOIN, GROUP_BY);
+    }
+
+    @Test
+    void aMergeJoinsItsTargetToItsSource() throws JSQLParserException {
+        assertThat(shapes("MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.v = s.v"))
+                .contains(JOIN);
+    }
+
+    @Test
+    void aSetOperationInsideAFunctionArgumentIsASubquery() throws JSQLParserException {
+        assertThat(shapes("SELECT array(SELECT id FROM a UNION SELECT id FROM b)"))
+                .contains(SUBQUERY, UNION);
+    }
+
+    @Test
+    void aWindowedJsonAggregateIsAlsoAWindowFunction() throws JSQLParserException {
+        assertThat(shapes("SELECT json_arrayagg(x) OVER (PARTITION BY y) FROM t"))
+                .contains(AGGREGATE, WINDOW_FUNCTION);
     }
 
     @Test

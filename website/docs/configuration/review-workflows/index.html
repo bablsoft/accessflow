@@ -537,7 +537,9 @@ APPROVED → FAILED (execution error)</pre>
             run when AI analysis fails — the query goes to a human instead. The cost-estimate conditions
             likewise never match while no estimate exists (engine without a plan concept, or the estimate
             failed) — they fail closed rather than auto-approving blind. A query-shape condition never
-            matches a query AccessFlow cannot read as SQL, such as a MongoDB or Redis command. To refuse a
+            matches a query AccessFlow cannot read as standard SQL — a MongoDB or Redis command, or a
+            warehouse query that uses syntax only that warehouse understands — so on NoSQL datasources
+            it never fires, and on a warehouse it fires only for queries written in standard SQL. To refuse a
             shape for one person or group outright, set <em>Denied query shapes</em> on their
             <a href="/docs/configuration/datasources/">datasource grant</a> instead. Every automated decision is
             recorded in the <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a> (<code>QUERY_APPROVED</code> /
