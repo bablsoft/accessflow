@@ -123,23 +123,111 @@ class ApiResponseMaskerTest {
     }
 
     @Test
-    void invalidRegexIsSkipped() {
-        var body = "{\"a\":\"1\"}";
+    void invalidRegexRedactsWholeBodyInsteadOfSkippingThePolicy() {
+        var body = "{\"a\":\"secret-1\",\"card\":\"4111111111111111\"}";
 
         var masked = masker.mask(body, "application/json", List.of(
+                mask(ApiMaskingMatcherType.REGEX, "\"card\":\"(\\d+)\"", MaskingStrategy.FULL, Map.of()),
                 mask(ApiMaskingMatcherType.REGEX, "[unclosed", MaskingStrategy.FULL, Map.of())));
 
-        assertThat(masked).contains("\"a\":\"1\"");
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY)
+                .doesNotContain("secret-1").doesNotContain("4111");
     }
 
     @Test
-    void unparseableXmlIsReturnedUnchanged() {
-        var body = "<broken><ssn>1</ssn>";
+    void unparseableXmlWithXmlMasksIsRedacted() {
+        var body = "<broken><ssn>111-22-3333</ssn>";
 
         var masked = masker.mask(body, "application/xml", List.of(
                 mask(ApiMaskingMatcherType.XML_PATH, "//ssn", MaskingStrategy.FULL, Map.of())));
 
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY).doesNotContain("111-22-3333");
+    }
+
+    @Test
+    void invalidXPathAlongsideValidOneRedactsWholeBody() {
+        var body = "<account><ssn>111-22-3333</ssn><card>4111111111111111</card></account>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "//ssn", MaskingStrategy.FULL, Map.of()),
+                mask(ApiMaskingMatcherType.XML_PATH, "//card[", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY)
+                .doesNotContain("111-22-3333").doesNotContain("4111");
+    }
+
+    @Test
+    void xPathNotSelectingNodesRedactsWholeBody() {
+        var body = "<account><ssn>111-22-3333</ssn></account>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "count(//ssn)", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY).doesNotContain("111-22-3333");
+    }
+
+    @Test
+    void validXPathsAreEachAppliedIndependently() {
+        var body = "<account><ssn>111-22-3333</ssn><card>4111111111111111</card><name>Ada</name></account>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "//ssn", MaskingStrategy.FULL, Map.of()),
+                mask(ApiMaskingMatcherType.XML_PATH, "//missing", MaskingStrategy.FULL, Map.of()),
+                mask(ApiMaskingMatcherType.XML_PATH, "//card", MaskingStrategy.PARTIAL,
+                        Map.of("visible_suffix", "4"))));
+
+        assertThat(masked).contains("<ssn>***</ssn>").contains("1111</card>").contains("<name>Ada</name>")
+                .doesNotContain("111-22-3333").doesNotContain("411111");
+    }
+
+    @Test
+    void xmlPathMasksAttributeValue() {
+        var body = "<account ssn=\"111-22-3333\"><name>Ada</name></account>";
+
+        var masked = masker.mask(body, "text/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "/account/@ssn", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).contains("ssn=\"***\"").doesNotContain("111-22-3333");
+    }
+
+    @Test
+    void xmlBodyWithoutXmlMasksIsReturnedUnchanged() {
+        var body = "<broken><ssn>1</ssn>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.JSON_PATH, "ssn", MaskingStrategy.FULL, Map.of())));
+
         assertThat(masked).isEqualTo(body);
+    }
+
+    @Test
+    void truncatedJsonWithJsonMasksIsRedacted() {
+        var body = "{\"user\":{\"email\":\"ada@example.com\",\"ssn\":\"1234";
+
+        var masked = masker.mask(body, "application/json", List.of(
+                mask(ApiMaskingMatcherType.JSON_PATH, "user.ssn", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY).doesNotContain("ada@example.com");
+    }
+
+    @Test
+    void malformedJsonDetectedByLeadingBraceWithoutContentTypeIsRedacted() {
+        var body = "[{\"ssn\":\"111\"},";
+
+        var masked = masker.mask(body, null, List.of(ResolvedApiMask.legacyRestrictedField("ssn")));
+
+        assertThat(masked).isEqualTo(ApiResponseMasker.REDACTED_BODY);
+    }
+
+    @Test
+    void plainTextBodyWithJsonMasksStillGetsRegexMasks() {
+        var body = "token=abc123 end";
+
+        var masked = masker.mask(body, "text/plain", List.of(
+                mask(ApiMaskingMatcherType.JSON_PATH, "token", MaskingStrategy.FULL, Map.of()),
+                mask(ApiMaskingMatcherType.REGEX, "token=(\\w+)", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).isEqualTo("token=*** end");
     }
 
     @Test
