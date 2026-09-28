@@ -13,6 +13,8 @@ import {
   invitationStatusLabel,
   maskingStrategyLabel,
   MASKING_STRATEGIES,
+  maskingDatePrecisionLabel,
+  MASKING_DATE_PRECISIONS,
   DIMENSION_CAPABLE_PROVIDERS,
   EMBEDDING_PROVIDERS,
   oauth2ProviderLabel,
@@ -146,6 +148,11 @@ describe('enumLabels (English text round-trip)', () => {
   it('returns a non-empty resolved string for every MaskingStrategy', () => {
     for (const v of maskingStrategies) {
       expect(maskingStrategyLabel(t, v)).not.toBe(`enums.masking_strategy.${v}`);
+    }
+  });
+  it('returns a non-empty resolved string for every masking date precision', () => {
+    for (const v of MASKING_DATE_PRECISIONS) {
+      expect(maskingDatePrecisionLabel(t, v)).not.toBe(`enums.masking_date_precision.${v}`);
     }
   });
   it('returns a non-empty resolved string for every DataClassification', () => {

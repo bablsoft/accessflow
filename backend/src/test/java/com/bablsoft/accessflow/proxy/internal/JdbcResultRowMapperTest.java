@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -648,6 +649,59 @@ class JdbcResultRowMapperTest {
         assertThat(result.rows().getFirst().getFirst()).isEqualTo("j***@example.com");
         assertThat(result.columns().getFirst().restricted()).isTrue();
         assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void constantAndNullifyDirectivesNeverReadTheRawValue() throws SQLException {
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(2);
+        when(metadata.getColumnLabel(1)).thenReturn("ssn");
+        when(metadata.getColumnLabel(2)).thenReturn("phone");
+        when(metadata.getColumnType(1)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnType(2)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("varchar");
+        when(metadata.getColumnTypeName(2)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getSchemaName(2)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+        when(metadata.getTableName(2)).thenReturn("users");
+
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getObject(1)).thenReturn("123-45-6789");
+        when(rs.getObject(2)).thenReturn("0912345678");
+        when(rs.wasNull()).thenReturn(false);
+
+        var constant = new ColumnMaskDirective("ssn", MaskingStrategy.CONSTANT,
+                java.util.Map.of("replacement", "REDACTED"), UUID.randomUUID());
+        var nullify = new ColumnMaskDirective("phone", MaskingStrategy.NULLIFY,
+                java.util.Map.of(), UUID.randomUUID());
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of(constant, nullify));
+
+        var row = result.rows().getFirst();
+        assertThat(row.get(0)).isEqualTo("REDACTED");
+        assertThat(row.get(1)).isNull();
+        verify(rs, never()).getString(1);
+        verify(rs, never()).getString(2);
+    }
+
+    @Test
+    void keepFirstDirectiveReadsAndMasksTheValue() throws SQLException {
+        var metadata = singleColumnMeta("phone", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getString(1)).thenReturn("0912345678");
+        when(rs.wasNull()).thenReturn(false);
+
+        var directive = new ColumnMaskDirective("phone", MaskingStrategy.KEEP_FIRST,
+                java.util.Map.of("visible_prefix", "4"), UUID.randomUUID());
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of(directive));
+
+        assertThat(result.rows().getFirst().getFirst()).isEqualTo("0912******");
     }
 
     @Test

@@ -196,6 +196,39 @@ class MaskingPolicyControllerIntegrationTest {
     }
 
     @Test
+    void createWithMalformedRegexReturns422() {
+        var result = mvc.post().uri(base())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"column_ref":"public.users.phone","strategy":"REGEX_REPLACE",
+                         "strategy_params":{"pattern":"(unclosed","replacement":"x"}}
+                        """)
+                .exchange();
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("ILLEGAL_MASKING_POLICY");
+    }
+
+    @Test
+    void createKeepFirstPolicyPersistsNewStrategy() {
+        var result = mvc.post().uri(base())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"column_ref":"public.users.phone","strategy":"KEEP_FIRST",
+                         "strategy_params":{"visible_prefix":"4"}}
+                        """)
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.strategy").asString().isEqualTo("KEEP_FIRST");
+        assertThat(result).bodyJson().extractingPath("$.strategy_params.visible_prefix").asString()
+                .isEqualTo("4");
+    }
+
+    @Test
     void createForUnknownDatasourceReturns404() {
         var result = mvc.post()
                 .uri("/api/v1/datasources/" + UUID.randomUUID() + "/masking-policies")

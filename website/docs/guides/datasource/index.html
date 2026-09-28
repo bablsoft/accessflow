@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-24",
+      "dateModified": "2026-09-28",
       "url": "https://accessflow.io/docs/guides/datasource/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/datasource/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Add your first datasource.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -460,7 +460,22 @@
               readable.</li>
             <li><strong>Email-preserving</strong> and <strong>format-preserving</strong> — keep the
               shape so downstream tools and eyeballs still recognise it.</li>
+            <li><strong>Keep first N</strong> — the mirror of partial: keeps the leading characters,
+              such as an area code or sort code.</li>
+            <li><strong>Constant</strong> and <strong>nullify</strong> — every value becomes the same
+              placeholder, or <code>NULL</code>, for tools that need one or the other.</li>
+            <li><strong>Regex replace</strong> — rewrites the value with a pattern and a replacement,
+              for shapes no other strategy covers. A value the pattern does not match is fully
+              masked.</li>
+            <li><strong>Numeric bucket</strong> and <strong>date generalization</strong> — keep a
+              value useful for analysis while dropping its precision: a salary rounded down to its 10,000 band,
+              an age to a band, a birth date to its year.</li>
           </ul>
+          <p>
+            Each strategy's settings sit under the strategy picker, and the preview under the form
+            shows the result on a sample value as you type. Settings are checked when you save, and a
+            value a strategy cannot handle is fully masked rather than shown.
+          </p>
           <p>
             <strong>Reveal to</strong> names the roles, groups or people who see the real value.
             Leave it empty and the column is masked for everyone, admins included — masking is

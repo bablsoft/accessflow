@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { maskingPreview } from './maskingPreview';
+import { javaReplacementToJs, maskingPreview, parseBoundaries } from './maskingPreview';
 
 describe('maskingPreview', () => {
   it('returns empty string for empty input', () => {
@@ -46,5 +46,89 @@ describe('maskingPreview', () => {
   it('FORMAT_PRESERVING keeps shape, masking digits and letters', () => {
     expect(maskingPreview('FORMAT_PRESERVING', '555-12-3456')).toBe('***-**-****');
     expect(maskingPreview('FORMAT_PRESERVING', 'AB-12 cd')).toBe('xx-** xx');
+  });
+
+  it('KEEP_FIRST keeps the first N characters', () => {
+    expect(maskingPreview('KEEP_FIRST', '0912345678', { visible_prefix: '4' })).toBe('0912******');
+    expect(maskingPreview('KEEP_FIRST', 'abcdef')).toBe('abcd**');
+    expect(maskingPreview('KEEP_FIRST', 'abc', { visible_prefix: '4' })).toBe('***');
+    expect(maskingPreview('KEEP_FIRST', 'abcdef', { visible_prefix: 'x' })).toBe('abcd**');
+  });
+
+  it('CONSTANT returns the replacement or the full mask', () => {
+    expect(maskingPreview('CONSTANT', 'secret', { replacement: 'REDACTED' })).toBe('REDACTED');
+    expect(maskingPreview('CONSTANT', 'secret')).toBe('***');
+  });
+
+  it('NULLIFY previews as null', () => {
+    expect(maskingPreview('NULLIFY', 'secret')).toBeNull();
+  });
+
+  it('REGEX_REPLACE applies Java-style templates and fails closed', () => {
+    expect(
+      maskingPreview('REGEX_REPLACE', '0912345678', {
+        pattern: '^(\\d{3})\\d+(\\d{2})$',
+        replacement: '$1-XXXXX-$2',
+      }),
+    ).toBe('091-XXXXX-78');
+    expect(
+      maskingPreview('REGEX_REPLACE', 'jane@example.com', {
+        pattern: '^[^@]+(?<domain>@.*)$',
+        replacement: 'user${domain}',
+      }),
+    ).toBe('user@example.com');
+    expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: '\\d', replacement: '#' })).toBe('***');
+    expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: '(', replacement: '#' })).toBe('***');
+    expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: 'a', replacement: '$' })).toBe('***');
+    expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: 'a' })).toBe('***');
+    expect(maskingPreview('REGEX_REPLACE', 'secret', { pattern: '\\d*', replacement: '#' })).toBe('***');
+    // Too long to evaluate safely in the browser: no preview rather than a frozen tab.
+    expect(
+      maskingPreview('REGEX_REPLACE', `${'a'.repeat(30)}!`, { pattern: '^(a+)+$', replacement: 'x' }),
+    ).toBe('');
+  });
+
+  it('NUMERIC_BUCKET floors to a size or labels a boundary band', () => {
+    expect(maskingPreview('NUMERIC_BUCKET', '54321.5', { bucket_size: '10000' })).toBe('50000');
+    expect(maskingPreview('NUMERIC_BUCKET', '7.3', { bucket_size: '0.5' })).toBe('7');
+    const bands = { boundaries: '18, 30, 65' };
+    expect(maskingPreview('NUMERIC_BUCKET', '12', bands)).toBe('<18');
+    expect(maskingPreview('NUMERIC_BUCKET', '42', bands)).toBe('[30, 65)');
+    expect(maskingPreview('NUMERIC_BUCKET', '70', bands)).toBe('>=65');
+    expect(maskingPreview('NUMERIC_BUCKET', 'n/a', bands)).toBe('***');
+    expect(maskingPreview('NUMERIC_BUCKET', '12', { boundaries: '30,18' })).toBe('***');
+    expect(maskingPreview('NUMERIC_BUCKET', '12')).toBe('***');
+    expect(maskingPreview('NUMERIC_BUCKET', '1E+999999999', { bucket_size: '10' })).toBe('***');
+  });
+
+  it('DATE_GENERALIZE truncates to the precision and fails closed', () => {
+    expect(maskingPreview('DATE_GENERALIZE', '1987-05-17', { precision: 'YEAR' })).toBe('1987');
+    expect(maskingPreview('DATE_GENERALIZE', '1987-05-17', { precision: 'QUARTER' })).toBe('1987-Q2');
+    expect(maskingPreview('DATE_GENERALIZE', '1987-05-17', { precision: 'MONTH' })).toBe('1987-05');
+    expect(maskingPreview('DATE_GENERALIZE', 'May 1987', { precision: 'YEAR' })).toBe('***');
+    expect(maskingPreview('DATE_GENERALIZE', '1987-13-01', { precision: 'YEAR' })).toBe('***');
+    expect(maskingPreview('DATE_GENERALIZE', '1987-05-17', { precision: 'DAY' })).toBe('***');
+    expect(maskingPreview('DATE_GENERALIZE', '1987-05-17')).toBe('***');
+  });
+});
+
+describe('javaReplacementToJs', () => {
+  it('translates escapes and named groups', () => {
+    expect(javaReplacementToJs('\\$1 ${name} $2 \\x')).toBe('$$1 $<name> $2 x');
+  });
+
+  it('returns null for templates Java would reject', () => {
+    expect(javaReplacementToJs('trailing\\')).toBeNull();
+    expect(javaReplacementToJs('${open')).toBeNull();
+    expect(javaReplacementToJs('$x')).toBeNull();
+  });
+});
+
+describe('parseBoundaries', () => {
+  it('parses ascending lists and rejects malformed ones', () => {
+    expect(parseBoundaries('1, 2.5 ,10')).toEqual([1, 2.5, 10]);
+    expect(parseBoundaries('')).toBeNull();
+    expect(parseBoundaries('2,1')).toBeNull();
+    expect(parseBoundaries('1,,2')).toBeNull();
   });
 });

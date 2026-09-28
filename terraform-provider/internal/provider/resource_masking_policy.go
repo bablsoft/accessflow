@@ -53,11 +53,11 @@ func (r *maskingPolicyResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"column_ref": schema.StringAttribute{Required: true, MarkdownDescription: "Fully-qualified column, e.g. `schema.table.column`."},
-			"strategy":   schema.StringAttribute{Required: true, MarkdownDescription: "`FULL`, `PARTIAL`, `HASH`, `EMAIL`, or `FORMAT_PRESERVING`."},
+			"strategy":   schema.StringAttribute{Required: true, MarkdownDescription: "`FULL`, `PARTIAL`, `HASH`, `EMAIL`, `FORMAT_PRESERVING`, `KEEP_FIRST`, `CONSTANT`, `NULLIFY`, `REGEX_REPLACE`, `NUMERIC_BUCKET`, or `DATE_GENERALIZE`."},
 			"strategy_params": schema.MapAttribute{
 				Optional:            true,
 				ElementType:         types.StringType,
-				MarkdownDescription: "Strategy-specific params, e.g. `{ visible_suffix = \"4\" }` for `PARTIAL`.",
+				MarkdownDescription: "Strategy-specific params (string values, validated when the policy is saved), e.g. `{ visible_suffix = \"4\" }` for `PARTIAL`, `{ visible_prefix = \"4\" }` for `KEEP_FIRST`, `{ replacement = \"REDACTED\" }` for `CONSTANT`, `{ pattern = ..., replacement = ... }` for `REGEX_REPLACE`, `{ bucket_size = \"10000\" }` or `{ boundaries = \"18,30,65\" }` for `NUMERIC_BUCKET`, `{ precision = \"YEAR\" }` for `DATE_GENERALIZE`.",
 			},
 			"reveal_to_roles":     schema.ListAttribute{Optional: true, ElementType: types.StringType},
 			"reveal_to_group_ids": schema.ListAttribute{Optional: true, ElementType: types.StringType},

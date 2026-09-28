@@ -54,7 +54,19 @@ export type BytesScannedCapOutcome =
   | 'EXCEEDED'
   | 'NO_ESTIMATE_REVIEW'
   | 'NO_ESTIMATE_REJECTED';
-export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
+export type MaskingStrategy =
+  | 'FULL'
+  | 'PARTIAL'
+  | 'HASH'
+  | 'EMAIL'
+  | 'FORMAT_PRESERVING'
+  | 'REGEX_REPLACE'
+  | 'CONSTANT'
+  | 'NULLIFY'
+  | 'KEEP_FIRST'
+  | 'NUMERIC_BUCKET'
+  | 'DATE_GENERALIZE';
+export type MaskingDatePrecision = 'YEAR' | 'QUARTER' | 'MONTH';
 export type QueryStatus =
   | 'PENDING_AI'
   | 'PENDING_REVIEW'
