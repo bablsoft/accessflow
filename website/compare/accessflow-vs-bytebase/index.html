@@ -62,7 +62,7 @@
         "description": "AccessFlow and Bytebase compared from Bytebase's own docs: every-statement review versus migrations as code, which edition each capability lives in, and where Bytebase wins.",
         "inLanguage": "en",
         "datePublished": "2026-09-16",
-        "dateModified": "2026-09-16",
+        "dateModified": "2026-09-28",
         "url": "https://accessflow.io/compare/accessflow-vs-bytebase/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": {
@@ -313,7 +313,7 @@
                 <tr><td>Just-in-time, time-bound access</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: self-service requests, automatic expiry, optional pre-approval of covered queries</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Yes: time-boxed roles from one week to a year, single-statement grants from one hour to seven days (Enterprise)</td></tr>
                 <tr><td>Break-glass with mandatory retro-review</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: per-user, per-datasource, admins included; every admin is paged; a different admin must sign off afterwards</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>Can requesters approve their own request</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Never, on any channel, for any role</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Setting, disabled by default</td></tr>
-                <tr><td>Written SQL review rules</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>14 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Over 200 lint rules (Community)</td></tr>
+                <tr><td>Written SQL review rules</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>18 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Over 200 lint rules (Community)</td></tr>
                 <tr><td>Column masking</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: full, partial, hash, email and format-preserving strategies; admins are masked too unless explicitly revealed</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Yes: semantic types and exemptions (Enterprise); not available on every engine</td></tr>
                 <tr><td>Row-level security</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: the statement is rewritten with a parameter-bound predicate, failing closed where an engine cannot</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>Result export controls</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: allow, watermark, row cap or deny per datasource, with the watermark baked in before signing</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: export permission and a watermark setting</td></tr>
@@ -356,7 +356,7 @@
           <h2>Where Bytebase is the better fit</h2>
           <ul class="compare-fit">
             <li><strong>Schema migrations as code.</strong> If DDL should live in a repository, be reviewed in a pull request and roll out through environments as a release with a plan and a rollback path, that is Bytebase's core product and AccessFlow has nothing comparable.</li>
-            <li><strong>Migration linting at scale.</strong> Bytebase's catalogue of over 200 review rules, available in the Community edition, is built for catching a bad <code>ALTER TABLE</code> before it reaches staging; AccessFlow's fourteen rules are aimed at ad-hoc statements.</li>
+            <li><strong>Migration linting at scale.</strong> Bytebase's catalogue of over 200 review rules, available in the Community edition, is built for catching a bad <code>ALTER TABLE</code> before it reaches staging; AccessFlow's eighteen rules are aimed mainly at ad-hoc statements, with four that catch the riskiest <code>ALTER TABLE</code> and index shapes.</li>
             <li><strong>Multi-environment schema management.</strong> Batch changes across databases that share a schema, state-based schema definitions, and synchronisation between environments are Bytebase features with no AccessFlow equivalent.</li>
             <li><strong>Engines AccessFlow does not connect to.</strong> TiDB, OceanBase, CockroachDB, Spanner, Redshift, Hive, StarRocks and Cosmos DB are on Bytebase's list and not on AccessFlow's, though any JDBC engine can be added to AccessFlow by uploading a driver.</li>
             <li><strong>One tool for change management and querying.</strong> If you want the migration pipeline and the day-to-day SQL editor from a single vendor with a single permission model, Bytebase covers both; AccessFlow only covers the second.</li>
@@ -376,7 +376,7 @@
 
         <section class="docs-section scroll-pad" id="sources">
           <h2>Sources</h2>
-          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <p>Checked on <time datetime="2026-09-28">28 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
           <ul class="docs-link-list">
             <li><a href="https://github.com/bytebase/bytebase/blob/main/LICENSE" rel="nofollow noopener">Bytebase LICENSE file</a> — the MIT licence and the separate enterprise licence for the enterprise directories</li>
             <li><a href="https://www.bytebase.com/pricing/" rel="nofollow noopener">Bytebase pricing</a> — which capabilities belong to the Community, Pro and Enterprise plans</li>

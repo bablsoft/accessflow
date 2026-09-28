@@ -668,7 +668,7 @@ APPROVED → FAILED (execution error)</pre>
             Authors see them <strong>in the editor as they type</strong>, before anything is submitted.
           </p>
           <p>
-            <strong>Fourteen built-in rules</strong> — missing <code>WHERE</code> on
+            <strong>Eighteen built-in rules</strong> — missing <code>WHERE</code> on
             <code>UPDATE</code> or <code>DELETE</code>, an always-true <code>WHERE</code> such as
             <code>1 = 1</code> that would otherwise defeat those two, <code>SELECT *</code>, a
             <code>SELECT</code> with no row limit, <code>ORDER BY</code> without a limit, cross joins,
@@ -676,7 +676,14 @@ APPROVED → FAILED (execution error)</pre>
             function (<code>pg_sleep</code>, <code>sleep</code>, <code>benchmark</code>,
             <code>load_file</code> out of the box), any statement touching a <strong>protected
             table</strong> you name by pattern (<code>payroll.*</code>, <code>*.audit_log</code>), and a
-            data change submitted outside a <code>BEGIN … COMMIT</code> transaction. Every rule is
+            data change submitted outside a <code>BEGIN … COMMIT</code> transaction, and four
+            that catch risky migrations: a <code>NOT NULL</code> column added without a
+            <code>DEFAULT</code> (it fails, or rewrites the table, once the table has rows), a
+            PostgreSQL <code>CREATE INDEX</code> without <code>CONCURRENTLY</code> (it blocks writes
+            until the index is built — this one is checked on PostgreSQL datasources only), an
+            in-place column type change (it can rewrite the table and cut or reject existing values),
+            and <code>SET NOT NULL</code> on an existing column (it scans the whole table under a
+            lock). Every rule is
             derived from the parsed statement alone — AccessFlow never connects to your database to
             evaluate one.
           </p>
@@ -688,7 +695,11 @@ APPROVED → FAILED (execution error)</pre>
             a person must look at it). Out of the box the dangerous ones block — missing
             <code>WHERE</code>, always-true <code>WHERE</code>, <code>DROP</code>,
             <code>TRUNCATE</code>, banned functions, protected tables — and the rest warn: the
-            performance hints, any other DDL, and a data change outside a transaction.
+            performance hints, any other DDL, a data change outside a transaction, and the four
+            migration checks, which are safe on an empty table and so start as warnings. Think twice
+            before blocking them: a schema change set is checked against the rules of every
+            environment its pipeline deploys to, and a blocking finding there stops the change set
+            from being saved at all, rather than sending it to a reviewer.
           </p>
           <div class="docs-callout info">
             <strong>Block means a person must look. It never rejects.</strong> A blocking finding

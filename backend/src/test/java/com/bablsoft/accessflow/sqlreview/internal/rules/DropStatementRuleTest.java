@@ -22,12 +22,14 @@ class DropStatementRuleTest {
     }
 
     @Test
-    void firesOnDropTableAndSchema() {
+    void firesOnDropTableSchemaAndDatabase() {
         var table = apply(rule, "DROP TABLE IF EXISTS \"HR\".Employees");
         assertThat(table).hasSize(1);
         assertThat(table.get(0).args()).isEqualTo(Map.of("object_type", "TABLE", "name", "hr.employees"));
         assertThat(table.get(0).lineNumber()).isEqualTo(1);
         var schema = apply(rule, "DROP SCHEMA hr CASCADE");
+        assertThat(apply(rule, "DROP DATABASE shop").get(0).args())
+                .isEqualTo(Map.of("object_type", "DATABASE", "name", "shop"));
         assertThat(schema.get(0).args()).isEqualTo(Map.of("object_type", "SCHEMA", "name", "hr"));
     }
 

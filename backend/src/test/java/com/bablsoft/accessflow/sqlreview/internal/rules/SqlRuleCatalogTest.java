@@ -18,13 +18,14 @@ class SqlRuleCatalogTest {
     private final SqlRuleCatalog catalog = new SqlRuleCatalog();
 
     @Test
-    void holdsTheFourteenBuiltInsInOrderWithUniqueIds() {
+    void holdsTheEighteenBuiltInsInOrderWithUniqueIds() {
         assertThat(catalog.rules()).extracting(SqlRule::ruleId).containsExactly(
                 "select_star", "missing_where_on_update", "missing_where_on_delete", "where_always_true",
                 "missing_limit_on_select", "order_by_without_limit", "cross_join", "leading_wildcard_like",
                 "drop_statement", "truncate_statement", "ddl_statement", "disallowed_function",
-                "protected_table", "dml_without_transaction");
-        assertThat(new HashSet<>(catalog.rules().stream().map(SqlRule::ruleId).toList())).hasSize(14);
+                "protected_table", "dml_without_transaction", "add_not_null_column_without_default",
+                "create_index_without_concurrently", "alter_column_type", "set_not_null_on_existing_column");
+        assertThat(new HashSet<>(catalog.rules().stream().map(SqlRule::ruleId).toList())).hasSize(18);
     }
 
     @Test
@@ -74,7 +75,11 @@ class SqlRuleCatalogTest {
                 Map.entry("ddl_statement", "DROP TABLE t"),
                 Map.entry("disallowed_function", "SELECT sleep(1)"),
                 Map.entry("protected_table", "SELECT a FROM t"),
-                Map.entry("dml_without_transaction", "DELETE FROM t"));
+                Map.entry("dml_without_transaction", "DELETE FROM t"),
+                Map.entry("add_not_null_column_without_default", "ALTER TABLE t ADD COLUMN c INT NOT NULL"),
+                Map.entry("create_index_without_concurrently", "CREATE INDEX ix ON t (c)"),
+                Map.entry("alter_column_type", "ALTER TABLE t ALTER COLUMN c TYPE BIGINT"),
+                Map.entry("set_not_null_on_existing_column", "ALTER TABLE t ALTER COLUMN c SET NOT NULL"));
         for (SqlRule rule : catalog.rules()) {
             var params = Map.of("globs", List.of("t"));
             var findings = rule.apply(RuleTestSupport.context(fixtures.get(rule.ruleId())), params);

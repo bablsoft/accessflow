@@ -287,6 +287,27 @@ class DefaultSqlReviewServiceTest {
     }
 
     @Test
+    void dialectSpecificRulesRunOnlyOnTheirEngine() {
+        var sql = "CREATE INDEX ix ON t (c)";
+        when(datasourceAdminService.getForAdmin(DATASOURCE, ORG))
+                .thenReturn(datasource(DbType.POSTGRESQL, null))
+                .thenReturn(datasource(DbType.MYSQL, null));
+        givenSingleStatement(sql);
+        var defaults = ruleset(null, true);
+        when(rulesetRepository.findByOrganizationIdAndEnvironmentIsNull(ORG)).thenReturn(Optional.of(defaults));
+        when(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(defaults.getId())).thenReturn(List.of());
+
+        var postgres = service.evaluate(ORG, DATASOURCE, sql);
+        var mysql = service.evaluate(ORG, DATASOURCE, sql);
+
+        assertThat(postgres.findings()).extracting(SqlReviewFinding::ruleId)
+                .contains("create_index_without_concurrently");
+        assertThat(mysql.findings()).extracting(SqlReviewFinding::ruleId)
+                .doesNotContain("create_index_without_concurrently")
+                .contains("ddl_statement");
+    }
+
+    @Test
     void evaluateForUserResolvesThroughOrganizationScopeForAdmins() {
         var user = UUID.randomUUID();
         when(datasourceAdminService.getForAdmin(DATASOURCE, ORG))

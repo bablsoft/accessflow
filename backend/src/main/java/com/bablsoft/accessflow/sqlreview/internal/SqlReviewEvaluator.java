@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.sqlreview.internal;
 
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
@@ -13,7 +14,8 @@ import java.util.List;
 
 /**
  * Pure evaluation of parsed statements against resolved rules (#862) — no Spring, no
- * repositories, no clock. {@code OFF} rules are never applied. A rule that throws on a statement
+ * repositories, no clock. {@code OFF} rules, and rules that do not apply to the datasource's
+ * {@link DbType} (#1079), are never applied. A rule that throws on a statement
  * is skipped for that statement and logged; the query is never made harder to approve by a rule
  * bug. Findings are re-stamped with the resolved severity and ordered by statement index, then
  * line (unknown lines last), then rule id, so the output is stable.
@@ -27,10 +29,10 @@ public final class SqlReviewEvaluator {
             .thenComparing(SqlReviewFinding::lineNumber, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(SqlReviewFinding::ruleId);
 
-    public SqlReviewResult evaluate(List<SqlRuleContext> statements, List<ResolvedRule> rules) {
+    public SqlReviewResult evaluate(DbType dbType, List<SqlRuleContext> statements, List<ResolvedRule> rules) {
         var findings = new ArrayList<SqlReviewFinding>();
         for (ResolvedRule resolved : rules) {
-            if (resolved.severity() == SqlReviewSeverity.OFF) {
+            if (resolved.severity() == SqlReviewSeverity.OFF || !resolved.rule().appliesTo(dbType)) {
                 continue;
             }
             for (SqlRuleContext statement : statements) {

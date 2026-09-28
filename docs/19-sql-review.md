@@ -19,7 +19,8 @@ tables, two PG enums, one permission and one datasource attribute.
 > `datasources.environment` attribute (#861), the rule engine and the fourteen built-in rules
 > (#862), ruleset administration, the localized rule catalog and the read-only evaluation
 > endpoint (#863), enforcement at the submission chokepoint with the reviewer surfaces (#864), the
-> live editor lint and the `/admin/sql-review` page (#865), and this chapter (#866).
+> live editor lint and the `/admin/sql-review` page (#865), and this chapter (#866). v2.7 adds four
+> structured-DDL rules and dialect-specific applicability, on JSqlParser 5.4 (#1079).
 
 > **The one sentence to remember.** A `BLOCK` finding means *a person must look*. It suppresses
 > every path that would have approved the query without a human and sends it to review. **It never
@@ -50,7 +51,7 @@ com.bablsoft.accessflow.sqlreview/
     ├── SqlReviewEvaluator               # pure: runs every resolved rule over every statement
     ├── SqlStatementParser               # re-parses statement slices with JSqlParser (api may not)
     ├── ResolvedRule / SqlRuleParamsCodec / SqlRuleParamsValidator / SqlReviewFindingArgsCodec
-    ├── rules/                           # SqlRule SPI, SqlRuleCatalog, the fourteen *Rule classes, shared walkers
+    ├── rules/                           # SqlRule SPI, SqlRuleCatalog, the eighteen *Rule classes, shared walkers
     ├── persistence/entity/              # SqlReviewRulesetEntity, SqlReviewRuleConfigEntity, QuerySqlReviewFindingEntity
     ├── persistence/repo/                # the three Spring Data repositories
     └── web/                             # AdminSqlReviewRulesetController, SqlReviewController, SqlReviewExceptionHandler, model/
@@ -141,11 +142,18 @@ off for those engines, and no finding rows are written for them.
 The gate is an explicit allow-list in `DefaultSqlReviewService`, not "is this engine managed by a
 plugin" — a `DbType` without a connector manifest would otherwise be misclassified.
 
+**Dialect-specific rules (#1079).** Inside the relational set a rule can narrow itself further
+through `SqlRule.appliesTo(DbType)` (default: every dialect). The evaluator skips a rule that does
+not apply to the datasource's engine exactly as if it were `OFF` — no finding, and the result is
+still `applicable: true`. Today only `create_index_without_concurrently` narrows itself, to
+`POSTGRESQL` (not `CUSTOM`, whose driver may be any engine). The
+catalog endpoint lists every rule regardless; the rule's description says which engine it covers.
+
 ---
 
 ## 4. The rule catalog
 
-Fourteen statement-safety rules, in catalog order. *Default* is the severity an unconfigured rule
+Eighteen rules, in catalog order. *Default* is the severity an unconfigured rule
 runs at; *Category* is descriptive only and never affects evaluation. The **Example** column is
 one statement that violates the rule and the English message it renders (`sqlreview.rule.<id>.message`;
 every locale file carries all three keys per rule, parity-checked by `MessagesParityTest`).
@@ -166,14 +174,29 @@ every locale file carries all three keys per rule, parity-checked by `MessagesPa
 | `disallowed_function` | STATEMENT_SAFETY | **BLOCK** | a call to a banned function anywhere in the statement, matched on the unqualified, case-insensitive name (`pg_catalog.PG_SLEEP(5)` is caught by `pg_sleep`). Param **`names`**; absent or empty falls back to the built-in `pg_sleep`, `sleep`, `benchmark`, `load_file` | `SELECT pg_sleep(30)` → *The statement calls the disallowed function pg_sleep* |
 | `protected_table` | DATA_PROTECTION | **BLOCK** | a referenced table matches a configured glob, tried against the normalised `schema.table` name **and** the bare table name (`audit_log` also matches `public.audit_log`); one finding per table. Param **`globs`**; absent or empty → no findings | with `globs: ["payroll.*"]`: `SELECT * FROM payroll.salaries LIMIT 5` → *The statement touches protected table payroll.salaries (matches payroll.\*)* |
 | `dml_without_transaction` | STATEMENT_SAFETY | WARN | `INSERT` / `UPDATE` / `DELETE` submitted outside a `BEGIN … COMMIT` envelope (the parser's `transactional` flag) | `UPDATE orders SET status = 'closed' WHERE id = 7` → *The data change is not wrapped in a BEGIN ... COMMIT transaction* |
+| `add_not_null_column_without_default` | SCHEMA_CHANGE | WARN | `ALTER TABLE … ADD [COLUMN] c <type> NOT NULL` with no `DEFAULT` — it fails on a table that already has rows, or rewrites it. Every dialect's `ADD` form (`ADD COLUMN`, bare `ADD`, Oracle `ADD (…)`); one finding per column. Identity, `AUTO_INCREMENT`, `IDENTITY(…)` and `serial` / `bigserial` / `smallserial` columns are exempt — they fill themselves | `ALTER TABLE orders ADD COLUMN note TEXT NOT NULL` → *Column orders.note is added as NOT NULL without a DEFAULT and fails or rewrites the table when it already has rows* |
+| `create_index_without_concurrently` | SCHEMA_CHANGE | WARN | **PostgreSQL only.** `CREATE [UNIQUE] INDEX` without `CONCURRENTLY` — the build blocks writes to the table until it finishes. Never evaluated on another engine (§3) | `CREATE INDEX ix_orders_created ON orders (created_at)` → *The index on orders is built without CONCURRENTLY and blocks writes to the table until it finishes* |
+| `alter_column_type` | SCHEMA_CHANGE | WARN | an in-place column redefinition that states a type — PostgreSQL `ALTER COLUMN c TYPE …`, SQL Server `ALTER COLUMN c <type>`, MySQL `MODIFY` / `CHANGE` (reported under the existing column name), Oracle `MODIFY (…)`; one finding per column. The statement carries only the *new* type, so a narrowing change is not distinguishable from a widening one without schema introspection — every redefinition is reported | `ALTER TABLE orders ALTER COLUMN note TYPE VARCHAR(20)` → *Column orders.note is redefined as VARCHAR (20), which can rewrite the table and truncate or reject existing values* |
+| `set_not_null_on_existing_column` | SCHEMA_CHANGE | WARN | `ALTER COLUMN c SET NOT NULL`, or Oracle's type-less `MODIFY c NOT NULL` — a full-table scan under an exclusive lock that fails if any row holds `NULL`; one finding per column. A `MODIFY` that restates the type — and SQL Server's `ALTER COLUMN c <type> NOT NULL`, which must — is `alter_column_type`'s | `ALTER TABLE orders ALTER COLUMN note SET NOT NULL` → *Making column orders.note NOT NULL scans the whole table under an exclusive lock and fails if any row holds NULL* |
 
 Things that follow from the table:
 
-- **Three schema-change rules overlap by design.** A bare `DROP TABLE` yields a `drop_statement`
-  `BLOCK` *and* a `ddl_statement` `WARN`. An admin who wants one signal per DDL keeps
-  `ddl_statement` and turns the two specific rules `OFF` — or the reverse.
-- **`DROP DATABASE` is listed for the spec but unreachable**: JSqlParser 5.3 does not parse it, so
-  the proxy rejects it with HTTP 422 before any rule runs.
+- **The schema-change rules overlap by design.** A bare `DROP TABLE` yields a `drop_statement`
+  `BLOCK` *and* a `ddl_statement` `WARN`; an `ALTER TABLE … ADD COLUMN c INT NOT NULL` yields an
+  `add_not_null_column_without_default` `WARN` *and* a `ddl_statement` `WARN`. An admin who wants
+  one signal per DDL keeps `ddl_statement` and turns the specific rules `OFF` — or the reverse.
+- **The four structured-DDL rules (#1079) default to `WARN`.** Each shape is legitimate on an
+  empty or brand-new table. Raising one to `BLOCK` is a sharper tool than it looks: a schema change
+  set is evaluated against the ruleset of **every** environment of its pipeline that binds a
+  datasource ([docs/20](20-schema-change-governance.md)), and a `BLOCK` there refuses the save
+  outright instead of sending it to a reviewer — so a `PRODUCTION` block on
+  `add_not_null_column_without_default` stops every change set with that shape on any pipeline
+  that reaches production. For ad-hoc queries it only forces review, as everywhere else.
+- **`ALTER COLUMN … SET DATA TYPE`** (the SQL-standard spelling) is not parsed by JSqlParser 5.4, so
+  the proxy rejects it with HTTP 422 before `alter_column_type` could see it; `ALTER COLUMN … TYPE`
+  is the parseable form.
+- **`DROP DATABASE`** was unreachable under JSqlParser 5.3, which did not parse it; 5.4 (#1077)
+  parses it, so it now reaches `drop_statement` like `DROP TABLE`.
 - **Findings carry a line number** (one-based, from the construct's AST node) for a single
   statement. Every member of a `BEGIN … COMMIT` envelope is re-parsed from a deparsed slice, so its
   findings carry `line_number = null` and are located by `statement_index` instead.
@@ -181,7 +204,7 @@ Things that follow from the table:
   block or fail a query.
 
 **Params.** `params` is a JSON object of string arrays keyed by the rule's declared param —
-`{"names": [...]}` for `disallowed_function`, `{"globs": [...]}` for `protected_table`; the twelve
+`{"names": [...]}` for `disallowed_function`, `{"globs": [...]}` for `protected_table`; the sixteen
 other rules take none. `SqlRuleParamsValidator` refuses a malformed ruleset **when it is saved**
 (422 `SQL_REVIEW_RULESET_INVALID`): an unknown or duplicated rule id, params on a parameterless
 rule, an undeclared key, a required list that is absent (unless the param has built-in defaults,
@@ -191,7 +214,7 @@ only). A row that slipped in by other means is degraded, not fatal: undecodable 
 their severity and run with no params, an unknown rule id is skipped, both logged.
 
 **Messages are never stored in English.** A finding is `rule_id` + `args` (`table`, `predicate`,
-`pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the text is resolved per
+`pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`, `column`, `type`); the text is resolved per
 reader through `MessageSource` in the reader's locale, so the same finding reads in French to a
 French reviewer. The evaluation endpoint renders in the request locale (`Accept-Language`).
 
@@ -346,6 +369,9 @@ normal datasource endpoints under `DATASOURCE_MANAGE`.
 - **Naming and schema-design conventions** (table/column naming regexes, banned column types,
   require-primary-key, index-count ceilings) — they need introspected schema and belong in a
   follow-up.
+- **True column-narrowing detection** (a shorter length, a lower precision or scale). The DDL
+  names only the new type; telling narrowing from widening needs the current type from
+  introspection, so `alter_column_type` reports every in-place redefinition instead.
 - **Non-relational engines** — rules are JSqlParser-derived; plugin engines report
   `applicable: false`.
 - **New `NotificationEventType` values.**

@@ -156,7 +156,10 @@ class SqlReviewControllerIntegrationTest extends SqlReviewIntegrationTestSupport
                 .header(HttpHeaders.ACCEPT_LANGUAGE, "de").exchange();
 
         assertThat(result).hasStatus(200);
-        assertThat(result).bodyJson().extractingPath("$.length()").asNumber().isEqualTo(14);
+        assertThat(result).bodyJson().extractingPath("$.length()").asNumber().isEqualTo(18);
+        assertThat(result).bodyJson()
+                .extractingPath("$[?(@.rule_id=='create_index_without_concurrently')].name").asArray()
+                .containsExactly("CREATE INDEX ohne CONCURRENTLY");
         assertThat(result).bodyJson().extractingPath("$[0].rule_id").asString().isEqualTo("select_star");
         assertThat(result).bodyJson().extractingPath("$[0].category").asString().isEqualTo("PERFORMANCE");
         assertThat(result).bodyJson().extractingPath("$[0].default_severity").asString().isEqualTo("WARN");

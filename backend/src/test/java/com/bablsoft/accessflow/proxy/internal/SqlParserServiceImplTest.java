@@ -258,6 +258,11 @@ class SqlParserServiceImplTest {
     }
 
     @Test
+    void parsesDropDatabaseAsDdl() {
+        assertThat(service.parse("DROP DATABASE shop").type()).isEqualTo(QueryType.DDL);
+    }
+
+    @Test
     void parsesTruncateAsDdl() {
         SqlParseResult result = service.parse("TRUNCATE TABLE users");
 

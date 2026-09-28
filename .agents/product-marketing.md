@@ -94,7 +94,7 @@ Sourced comparison pages live at `website/compare/` — every claim about anothe
 | JIT grant | Time-boxed access request that expires on its own; can pre-approve covered queries |
 | Deployment gate | Fail-closed endpoint a CI job blocks on until a release is approved |
 | Decision trace / simulator | Replays a hypothetical request through the real evaluators, writes nothing |
-| SQL review rules | Fourteen deterministic checks (no-WHERE DELETE, SELECT *, DDL…) at off/warn/block per environment |
+| SQL review rules | Eighteen deterministic checks (no-WHERE DELETE, SELECT *, DDL…) at off/warn/block per environment |
 
 ## Brand Voice
 **Tone:** Confident, concrete, engineer-to-engineer. Honest about limits (the compare pages name where competitors win).

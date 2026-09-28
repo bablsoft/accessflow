@@ -3120,7 +3120,7 @@ skip-on-malformed rule.
 
 Deterministic, named SQL review rules with per-environment severity. #861 lands the storage and
 type foundation (migration `V170` + the `V171` permission seed); #862 the rule engine and the
-fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
+fourteen built-in rules — eighteen since #1079 (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
 #863 the ruleset administration, rule catalog and read-only evaluation endpoints (see
 [docs/04-api-spec.md → SQL Review Rulesets](04-api-spec.md#sql-review-rulesets-adminsql-review-rulesets-sql_review_manage-863));
 #864 the submission enforcement — findings are written at submission (single queries **and**
@@ -3175,7 +3175,7 @@ ever written through any other path.
 | `ruleset_id` | UUID NOT NULL, FK → `sql_review_rulesets` ON DELETE CASCADE |
 | `rule_id` | VARCHAR(100) NOT NULL — e.g. `missing_where_on_delete` |
 | `severity` | `sql_review_severity` NOT NULL |
-| `params` | JSONB NULL — rule-specific parameters as a JSON object of **string arrays**, keyed by the rule's declared param key: `{"names": ["pg_sleep", "sleep"]}` for `disallowed_function`, `{"globs": ["payroll.*", "*.audit_log"]}` for `protected_table`; NULL for the twelve parameterless rules. Encoded/decoded only through `sqlreview/internal/SqlRuleParamsCodec` (a scalar is read as a one-element list; anything else is a malformed ruleset) |
+| `params` | JSONB NULL — rule-specific parameters as a JSON object of **string arrays**, keyed by the rule's declared param key: `{"names": ["pg_sleep", "sleep"]}` for `disallowed_function`, `{"globs": ["payroll.*", "*.audit_log"]}` for `protected_table`; NULL for the sixteen parameterless rules. Encoded/decoded only through `sqlreview/internal/SqlRuleParamsCodec` (a scalar is read as a one-element list; anything else is a malformed ruleset) |
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
 
 > **Constraint:** `UNIQUE (ruleset_id, rule_id)`. Index on `ruleset_id`.

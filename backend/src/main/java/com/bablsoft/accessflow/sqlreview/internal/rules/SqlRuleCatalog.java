@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The fourteen built-in rules in catalog order (#862). The rules are plain classes; this is the
+ * The eighteen built-in rules in catalog order (#862, #1079). The rules are plain classes; this is the
  * one Spring bean that knows them, so the evaluator, the params validator and — later — the
  * catalog endpoint all agree on the set.
  */
@@ -33,7 +33,11 @@ public class SqlRuleCatalog {
                 new DdlStatementRule(),
                 new DisallowedFunctionRule(),
                 new ProtectedTableRule(),
-                new DmlWithoutTransactionRule()));
+                new DmlWithoutTransactionRule(),
+                new AddNotNullColumnWithoutDefaultRule(),
+                new CreateIndexWithoutConcurrentlyRule(),
+                new AlterColumnTypeRule(),
+                new SetNotNullOnExistingColumnRule()));
     }
 
     /** Test seam: a catalog over an explicit rule list. Duplicate ids are a programming error. */

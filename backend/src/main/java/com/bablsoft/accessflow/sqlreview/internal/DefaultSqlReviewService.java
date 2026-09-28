@@ -110,7 +110,7 @@ public class DefaultSqlReviewService implements SqlReviewService {
         if (ruleset.isEmpty() || !ruleset.get().isEnabled()) {
             return SqlReviewResult.clean();
         }
-        return evaluator.evaluate(statements, resolveRules(ruleset.get()));
+        return evaluator.evaluate(datasource.dbType(), statements, resolveRules(ruleset.get()));
     }
 
     private Optional<SqlReviewRulesetEntity> resolveRuleset(UUID organizationId,
