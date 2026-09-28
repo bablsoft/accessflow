@@ -85,10 +85,11 @@ scenario "provision-429-without-retry-after-caps-at-the-deadline"
 resp 1 200 '{"content":[{"id":"ds-5","name":"ci-db"}]}'
 resp 2 429 '{"title":"Too Many Requests"}'
 resp 3 200 '{"id":"ds-5","name":"ci-db"}'
-AF_RETRY_TIMEOUT="1s" run "$provision_script"
+AF_RETRY_TIMEOUT="3s" run "$provision_script"
 assert_eq "exit code" 0 "$run_rc"
-# No header → the 5s fallback, capped at the 1s left before the retry-timeout deadline.
-assert_log_contains "rate limited (HTTP 429), retrying PUT in 1s"
+# No header → the 5s fallback, capped at the time left before the 3s retry-timeout deadline. A 1s
+# timeout raced SECONDS ticking over during the lookup, which left no time to retry at all.
+assert_log_contains "rate limited (HTTP 429), retrying PUT in"
 assert_log_not_contains "retrying PUT in 5s"
 assert_output "id=ds-5"
 

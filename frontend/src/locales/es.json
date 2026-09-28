@@ -4585,6 +4585,8 @@
         "field_hint_json_path": "Una ruta con puntos en el cuerpo de respuesta JSON (p. ej. user.email).",
         "field_hint_xml_path": "Un XPath en el cuerpo de respuesta XML/SOAP (p. ej. //ssn).",
         "field_hint_regex": "Una expresión regular sobre el cuerpo de respuesta; se enmascara el primer grupo de captura.",
+        "field_invalid_xpath": "Introduzca un XPath válido que seleccione elementos o atributos (p. ej., //ssn), sin prefijos de espacio de nombres ni variables.",
+        "field_invalid_regex": "Introduzca una expresión regular válida.",
         "label_strategy": "Estrategia de enmascaramiento",
         "strategy_required": "Se requiere una estrategia de enmascaramiento",
         "label_reveal_roles": "Revelar a roles",
