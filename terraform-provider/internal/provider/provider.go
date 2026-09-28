@@ -102,6 +102,7 @@ func (p *accessflowProvider) Resources(_ context.Context) []func() resource.Reso
 		NewRowSecurityPolicyResource,
 		NewMaskingPolicyResource,
 		NewSqlReviewRulesetResource,
+		NewDecisionHookResource,
 	}
 }
 
