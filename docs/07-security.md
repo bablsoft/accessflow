@@ -1172,6 +1172,14 @@ an access boundary.
 - **No unmasked persistence.** Resolved policies are merged with the legacy per-permission
   `restricted_response_fields` and applied by `ApiResponseMasker` (reusing `ColumnMasker`) **once**,
   before the immutable response snapshot is stored — the raw body never persists.
+- **Fails closed (#1108).** Each policy is evaluated on its own, and an error never lets a raw value
+  through. When a policy that applies cannot be evaluated — an invalid XPath or regex, an XPath that
+  does not select nodes — or the body cannot be parsed in the format its masks target (malformed XML
+  under `XML_PATH` masks; malformed JSON under `JSON_PATH`/`SCHEMA_FIELD` masks, which includes a
+  JSON body cut at the response-size cap), the **whole** snapshot is replaced with `***` and a WARN
+  names the policy id. The call itself is not failed: the upstream request has already run, so it
+  stays `EXECUTED` with the redacted snapshot. A body in a format no applicable mask targets (for
+  example an XML body with only JSON-path masks) is still returned as-is, regex masks aside.
 - **Audit.** The ids of the policies that applied are recorded in the `API_REQUEST_EXECUTED` audit
   metadata (`appliedMaskingPolicyIds`). Policy/tag mutations emit
   `API_CONNECTOR_MASKING_POLICY_CREATED/UPDATED/DELETED` and

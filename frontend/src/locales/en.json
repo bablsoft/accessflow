@@ -4654,6 +4654,8 @@
         "field_hint_json_path": "A dot-path into the JSON response body (e.g. user.email).",
         "field_hint_xml_path": "An XPath into the XML/SOAP response body (e.g. //ssn).",
         "field_hint_regex": "A regular expression over the response body; the first capture group is masked.",
+        "field_invalid_xpath": "Enter a valid XPath that selects elements or attributes (e.g. //ssn), without namespace prefixes or variables.",
+        "field_invalid_regex": "Enter a valid regular expression.",
         "label_strategy": "Masking strategy",
         "strategy_required": "A masking strategy is required",
         "label_reveal_roles": "Reveal to roles",

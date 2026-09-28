@@ -4654,6 +4654,8 @@
         "field_hint_json_path": "JSON 响应体中的点路径（例如 user.email）。",
         "field_hint_xml_path": "XML/SOAP 响应体中的 XPath（例如 //ssn）。",
         "field_hint_regex": "响应体上的正则表达式；将对第一个捕获组进行脱敏。",
+        "field_invalid_xpath": "请输入选择元素或属性的有效 XPath（例如 //ssn），不含命名空间前缀或变量。",
+        "field_invalid_regex": "请输入有效的正则表达式。",
         "label_strategy": "脱敏策略",
         "strategy_required": "需要脱敏策略",
         "label_reveal_roles": "揭示给角色",

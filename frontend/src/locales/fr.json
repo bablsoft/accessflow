@@ -4654,6 +4654,8 @@
         "field_hint_json_path": "Un chemin pointé dans le corps de réponse JSON (ex. user.email).",
         "field_hint_xml_path": "Un XPath dans le corps de réponse XML/SOAP (ex. //ssn).",
         "field_hint_regex": "Une expression régulière sur le corps de réponse ; le premier groupe capturé est masqué.",
+        "field_invalid_xpath": "Saisissez un XPath valide qui sélectionne des éléments ou des attributs (p. ex. //ssn), sans préfixe d’espace de noms ni variable.",
+        "field_invalid_regex": "Saisissez une expression régulière valide.",
         "label_strategy": "Stratégie de masquage",
         "strategy_required": "Une stratégie de masquage est requise",
         "label_reveal_roles": "Révéler aux rôles",

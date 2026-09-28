@@ -21,6 +21,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
+import { isValidMaskingFieldRef } from '@/utils/maskingFieldRef';
 import {
   apiConnectorMaskingPolicyKeys,
   createApiConnectorMaskingPolicy,
@@ -431,9 +432,27 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           name="field_ref"
           label={t('apiGov.settings.masking.label_field')}
           extra={t(`apiGov.settings.masking.field_hint_${(matcherType ?? 'JSON_PATH').toLowerCase()}`)}
+          dependencies={['matcher_type']}
           rules={[
             { required: true, message: t('apiGov.settings.masking.field_required') },
             { max: 2048, message: t('apiGov.settings.masking.field_required') },
+            ({ getFieldValue }) => ({
+              validator: (_, value: string | undefined) => {
+                const type = getFieldValue('matcher_type') as ApiMaskingMatcherType | undefined;
+                if (isValidMaskingFieldRef(type, value)) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(
+                  new Error(
+                    t(
+                      type === 'XML_PATH'
+                        ? 'apiGov.settings.masking.field_invalid_xpath'
+                        : 'apiGov.settings.masking.field_invalid_regex',
+                    ),
+                  ),
+                );
+              },
+            }),
           ]}
         >
           <Input placeholder={t('apiGov.settings.masking.placeholder_field')} />

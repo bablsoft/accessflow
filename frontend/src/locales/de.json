@@ -4654,6 +4654,8 @@
         "field_hint_json_path": "Ein Punktpfad in den JSON-Antworttext (z. B. user.email).",
         "field_hint_xml_path": "Ein XPath in den XML/SOAP-Antworttext (z. B. //ssn).",
         "field_hint_regex": "Ein regulärer Ausdruck über den Antworttext; die erste Erfassungsgruppe wird maskiert.",
+        "field_invalid_xpath": "Geben Sie einen gültigen XPath ein, der Elemente oder Attribute auswählt (z. B. //ssn), ohne Namespace-Präfixe oder Variablen.",
+        "field_invalid_regex": "Geben Sie einen gültigen regulären Ausdruck ein.",
         "label_strategy": "Maskierungsstrategie",
         "strategy_required": "Eine Maskierungsstrategie ist erforderlich",
         "label_reveal_roles": "Für Rollen freigeben",
