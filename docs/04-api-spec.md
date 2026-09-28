@@ -836,14 +836,32 @@ persist. Applied policy ids are recorded in the `QUERY_EXECUTED` audit metadata
 `column_ref` is required (non-blank, ≤ 512 chars) and matched against result columns with the same
 `schema.table.column` → `table.column` → bare-column precedence as `restricted_columns`. `strategy` is
 required: one of `FULL` (→ `***`), `PARTIAL` (keep last N via `strategy_params.visible_suffix`, default
-4), `HASH` (stable SHA-256 hex), `EMAIL` (`j***@domain`), `FORMAT_PRESERVING` (preserve length/shape).
+4), `HASH` (stable SHA-256 hex), `EMAIL` (`j***@domain`), `FORMAT_PRESERVING` (preserve length/shape),
+`KEEP_FIRST` (keep first N via `visible_prefix`, default 4), `CONSTANT` (`replacement`), `NULLIFY` (→
+`null`), `REGEX_REPLACE` (`pattern` + `replacement`, `$n` / `${name}` group references), `NUMERIC_BUCKET`
+(`bucket_size` **or** `boundaries`, e.g. `"18,30,65"`) or `DATE_GENERALIZE` (`precision`: `YEAR` \|
+`QUARTER` \| `MONTH`). `strategy_params` values are strings and are validated here, at save time — the
+accepted keys per strategy are in [03-data-model.md](03-data-model.md) → `masking_policy`, and an
+unaccepted key is rejected. Every strategy fails closed to `***` on a value it cannot apply to (an
+unmatched regex, a non-numeric value under `NUMERIC_BUCKET`, a non-date under `DATE_GENERALIZE`).
+
+```json
+{
+  "column_ref": "public.users.phone",
+  "strategy": "REGEX_REPLACE",
+  "strategy_params": { "pattern": "^(\\d{4})\\d+$", "replacement": "$1******" }
+}
+```
 The `reveal_to_*` lists are optional; reveal targets must belong to the caller's organization.
 
 **Response 201:** Masking policy object. `Location` header points to
 `/api/v1/datasources/{id}/masking-policies/{policyId}`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** Invalid strategy params, unknown reveal role, or a reveal user/group outside the
-organization. `error: ILLEGAL_MASKING_POLICY`.
+organization. `error: ILLEGAL_MASKING_POLICY`. For strategy params the `detail` names the problem —
+an unaccepted key, an out-of-range length, a regex that does not compile (with the error position), a
+replacement referencing an undefined group, a malformed `boundaries` list, or an unknown `precision`.
+The same rules apply on `PUT`.
 
 #### GET /datasources/{id}/masking-policies — Response 200
 

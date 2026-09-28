@@ -376,8 +376,8 @@ serialization and before the result snapshot is stored**, so unmasked values nev
 | `organization_id` | FK → `organizations` |
 | `datasource_id` | FK → `datasources` |
 | `column_ref` | TEXT — `schema.table.column` (matched with the same `schema.table.column` → `table.column` → bare-column precedence as `restricted_columns`) |
-| `strategy` | ENUM `masking_strategy`: `FULL` \| `PARTIAL` \| `HASH` \| `EMAIL` \| `FORMAT_PRESERVING` |
-| `strategy_params` | JSONB DEFAULT `'{}'` — strategy parameters, e.g. `{"visible_suffix": "4"}` for `PARTIAL` |
+| `strategy` | ENUM `masking_strategy`: `FULL` \| `PARTIAL` \| `HASH` \| `EMAIL` \| `FORMAT_PRESERVING` \| `REGEX_REPLACE` \| `CONSTANT` \| `NULLIFY` \| `KEEP_FIRST` \| `NUMERIC_BUCKET` \| `DATE_GENERALIZE` (the last six added by V196, #944) |
+| `strategy_params` | JSONB DEFAULT `'{}'` — string-valued strategy parameters, e.g. `{"visible_suffix": "4"}` for `PARTIAL`; the accepted keys per strategy are listed below and validated at save time |
 | `reveal_to_roles` | TEXT[] nullable — `user_role_type` values that see the unmasked value |
 | `reveal_to_group_ids` | UUID[] nullable — user-group ids that see the unmasked value |
 | `reveal_to_user_ids` | UUID[] nullable — individual user ids that see the unmasked value |
@@ -390,7 +390,23 @@ Indexed by `(organization_id, datasource_id, enabled)` to back the per-execution
 **`masking_strategy` values:** `FULL` (whole value → `***`, identical to legacy `restricted_columns`),
 `PARTIAL` (keep the last N characters per `visible_suffix`, default 4), `HASH` (stable SHA-256 hex of
 the value), `EMAIL` (`j***@domain` — preserve the first local-part character and the domain),
-`FORMAT_PRESERVING` (preserve length/shape: digits and letters replaced, separators kept).
+`FORMAT_PRESERVING` (preserve length/shape: digits and letters replaced, separators kept),
+`KEEP_FIRST` (keep the first N characters per `visible_prefix`, default 4), `CONSTANT` (the fixed
+`replacement`), `NULLIFY` (`null`), `REGEX_REPLACE` (`pattern` + `replacement` template; an unmatched
+value is fully masked), `NUMERIC_BUCKET` (`bucket_size` floor, or `boundaries` bands) and
+`DATE_GENERALIZE` (`precision` `YEAR` / `QUARTER` / `MONTH`). Every strategy fails closed to `***` on a
+value it cannot apply to. Accepted `strategy_params` keys — any other key is rejected at save time:
+
+| Strategy | Keys |
+|---|---|
+| `PARTIAL` | `visible_suffix` (1–256, optional) |
+| `KEEP_FIRST` | `visible_prefix` (1–256, optional) |
+| `HASH` | `salt` (optional; set by lifecycle pseudonymization) |
+| `CONSTANT` | `replacement` (1–256 chars, required) |
+| `REGEX_REPLACE` | `pattern` (≤ 512, required), `replacement` (≤ 256, required, may be empty) |
+| `NUMERIC_BUCKET` | exactly one of `bucket_size` (positive decimal) or `boundaries` (1–50 strictly ascending decimals, comma-separated) |
+| `DATE_GENERALIZE` | `precision` (`YEAR` \| `QUARTER` \| `MONTH`, required) |
+| `FULL`, `EMAIL`, `FORMAT_PRESERVING`, `NULLIFY` | none |
 
 ---
 
@@ -2689,8 +2705,8 @@ to non-tabular API responses. A submitter in any reveal list sees the unmasked v
 | `matcher_type` | ENUM `api_masking_matcher_type`: `SCHEMA_FIELD` \| `JSON_PATH` \| `XML_PATH` \| `REGEX` | How `field_ref` targets the field. |
 | `operation_id` | TEXT | Required for `SCHEMA_FIELD` (validated in the service); null otherwise. |
 | `field_ref` | TEXT | The schema field / JSON dot-path / XPath / regex. |
-| `strategy` | ENUM `masking_strategy` | Reused from AF-381. |
-| `strategy_params` | JSONB | Strategy tuning (e.g. `visible_suffix`). Default `{}`. |
+| `strategy` | ENUM `masking_strategy` | Reused from AF-381, including the configurable strategies of #944. |
+| `strategy_params` | JSONB | Strategy tuning (e.g. `visible_suffix`), same keys and save-time validation as `masking_policy.strategy_params`. Default `{}`. |
 | `reveal_to_roles` | TEXT[] | |
 | `reveal_to_group_ids` | UUID[] | |
 | `reveal_to_user_ids` | UUID[] | |
