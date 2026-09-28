@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import '@/i18n';
+import { useAuthStore } from '@/store/authStore';
 import type { Datasource, DatasourcePermission, User } from '@/types/api';
 
 const getDatasource = vi.fn();
@@ -1309,5 +1310,110 @@ describe('DatasourceSettingsPage — bytes-scanned cap (#941)', () => {
 
     expect(await screen.findByText('3 TB')).toBeInTheDocument();
     expect(screen.getAllByText('Bytes cap').length).toBeGreaterThan(0);
+  });
+});
+
+describe('DatasourceSettingsPage — row limits and the effective-access tab (#946)', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    getDatasource.mockResolvedValue(baseDs);
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({ schemas: [] });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('warns, without blocking, when the override is at or above the datasource cap', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+    const input = within(dialog).getByLabelText('Row limit override');
+
+    fireEvent.change(input, { target: { value: '5' } });
+    expect(within(dialog).queryByTestId('grant-row-limit-no-effect')).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '1000' } });
+    expect(await within(dialog).findByTestId('grant-row-limit-no-effect')).toHaveTextContent(
+      'Has no effect — the datasource cap (1,000) is lower.',
+    );
+    expect(within(dialog).getByText(/only lower the datasource cap/)).toBeInTheDocument();
+  });
+
+  it('marks an override above the datasource cap as clamped on both permission tables', async () => {
+    listPermissions.mockResolvedValue([
+      basePermission({ can_read: true, row_limit_override: 5000 }),
+      basePermission({ id: 'perm-2', user_id: 'u-2', user_email: 'b@example.com', row_limit_override: 20 }),
+      basePermission({ id: 'perm-3', user_id: 'u-3', user_email: 'c@example.com' }),
+    ]);
+    listGroupPermissions.mockResolvedValue([
+      {
+        id: 'gp-1',
+        datasource_id: 'ds-1',
+        group_id: 'grp-1',
+        group_name: 'analysts',
+        member_count: 2,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: 2000,
+        allowed_schemas: null,
+        allowed_tables: null,
+        restricted_columns: null,
+        denied_columns: null,
+        expires_at: null,
+        created_by: 'admin',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    // One on the user table (5000), one on the group table (2000); 20 is under the cap.
+    await waitFor(() => expect(screen.getAllByTestId('row-limit-clamped')).toHaveLength(2));
+    const markers = screen.getAllByTestId('row-limit-clamped');
+    expect(markers[0]).toHaveTextContent('clamped to 1,000');
+    expect(screen.getAllByText('default').length).toBeGreaterThan(0);
+  });
+
+  it('offers the effective-access tab only to a permission manager', async () => {
+    const { unmount } = render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    expect(screen.queryByRole('tab', { name: 'Effective access' })).not.toBeInTheDocument();
+    unmount();
+
+    useAuthStore.setState({
+      user: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'ADMIN',
+        role_id: null,
+        permissions: ['DATASOURCE_MANAGE', 'DATASOURCE_PERMISSION_MANAGE'],
+        auth_provider: 'LOCAL',
+        totp_enabled: false,
+        platform_admin: false,
+        preferred_language: null,
+      },
+      accessToken: 'token',
+    });
+    render(wrap(<DatasourceSettingsPage />));
+    const tab = await screen.findByRole('tab', { name: 'Effective access' });
+    fireEvent.click(tab);
+    expect(await screen.findByText(/Pick a user and a datasource/)).toBeInTheDocument();
   });
 });

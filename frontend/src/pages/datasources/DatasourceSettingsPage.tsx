@@ -39,6 +39,8 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { SchemaObjectTree } from '@/components/datasources/SchemaObjectTree';
 import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
+import { EffectivePermissionExplorer } from '@/components/access/EffectivePermissionExplorer';
+import { usePermission } from '@/utils/permissions';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { formatBytes } from '@/utils/queryPlan';
@@ -148,6 +150,7 @@ export function DatasourceSettingsPage() {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('config');
+  const canExplainAccess = usePermission('DATASOURCE_PERMISSION_MANAGE');
 
   const dsQuery = useQuery({
     queryKey: id ? datasourceKeys.detail(id) : ['datasources', 'detail', 'idle'],
@@ -353,12 +356,17 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_discovery', { count: discoveryPendingCount }),
           },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
+          ...(canExplainAccess
+            ? [{ key: 'effective-access', label: t('datasources.settings.tab_effective_access') }]
+            : []),
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
       />
       <div style={{ flex: 1, overflow: 'auto' }}>
         {tab === 'config' && <ConfigTab ds={ds} onDelete={onDelete} deletePending={deleteMutation.isPending} />}
-        {tab === 'permissions' && <PermissionMatrix dsId={ds.id} dbType={ds.db_type} />}
+        {tab === 'permissions' && (
+          <PermissionMatrix dsId={ds.id} dbType={ds.db_type} maxRowsPerQuery={ds.max_rows_per_query} />
+        )}
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
@@ -368,6 +376,11 @@ export function DatasourceSettingsPage() {
         {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
         {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
+        {tab === 'effective-access' && canExplainAccess && (
+          <div style={{ padding: 28 }}>
+            <EffectivePermissionExplorer datasourceId={ds.id} />
+          </div>
+        )}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>
     </div>
@@ -1026,7 +1039,44 @@ function bytesCapColumns(
 
 type GrantCapRow = Pick<DatasourcePermission, 'bytes_scanned_limit_override'>;
 
-function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
+/**
+ * The configured override, marked when the datasource cap is lower — an override can only ever
+ * lower the effective cap (#933), so a larger value is silently clamped at execution (#946).
+ */
+function rowLimitColumn(
+  maxRowsPerQuery: number,
+  t: TFunction,
+): { title: string; width: number; render: (v: unknown, p: GrantRowLimitRow) => React.ReactNode } {
+  return {
+    title: t('datasources.settings.perm_col_row_limit'),
+    width: 130,
+    render: (_v, p) =>
+      p.row_limit_override != null ? (
+        <span>
+          <span className="mono">{fmtNum(p.row_limit_override)}</span>
+          {p.row_limit_override > maxRowsPerQuery && (
+            <div className="muted" style={{ fontSize: 11 }} data-testid="row-limit-clamped">
+              {t('datasources.settings.perm_row_limit_clamped', { cap: fmtNum(maxRowsPerQuery) })}
+            </div>
+          )}
+        </span>
+      ) : (
+        <span className="muted">{t('datasources.settings.perm_row_limit_default')}</span>
+      ),
+  };
+}
+
+type GrantRowLimitRow = { row_limit_override?: number | null };
+
+function PermissionMatrix({
+  dsId,
+  dbType,
+  maxRowsPerQuery,
+}: {
+  dsId: string;
+  dbType: DbType;
+  maxRowsPerQuery: number;
+}) {
   const { t } = useTranslation();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
@@ -1116,6 +1166,7 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
         open={grantOpen}
         dsId={dsId}
         dbType={dbType}
+        maxRowsPerQuery={maxRowsPerQuery}
         existingUserIds={permissions.map((p) => p.user_id)}
         existingGroupIds={groupPermissions.map((p) => p.group_id)}
         onClose={() => setGrantOpen(false)}
@@ -1168,16 +1219,7 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
             align: 'center',
             render: (_v, p) => <PermCell on={p.can_break_glass} />,
           },
-          {
-            title: t('datasources.settings.perm_col_row_limit'),
-            width: 110,
-            render: (_v, p) =>
-              p.row_limit_override !== null ? (
-                <span className="mono">{fmtNum(p.row_limit_override)}</span>
-              ) : (
-                <span className="muted">default</span>
-              ),
-          },
+          rowLimitColumn(maxRowsPerQuery, t),
           ...bytesCapColumns(dbType, t),
           {
             title: t('datasources.settings.perm_col_schemas'),
@@ -1317,6 +1359,7 @@ function PermissionMatrix({ dsId, dbType }: { dsId: string; dbType: DbType }) {
                 align: 'center',
                 render: (_v, p) => <PermCell on={p.can_break_glass} />,
               },
+              rowLimitColumn(maxRowsPerQuery, t),
               ...bytesCapColumns(dbType, t),
               {
                 title: t('datasources.settings.perm_col_schemas'),
@@ -1458,6 +1501,7 @@ interface GrantAccessModalProps {
   open: boolean;
   dsId: string;
   dbType: DbType;
+  maxRowsPerQuery: number;
   existingUserIds: string[];
   existingGroupIds: string[];
   onClose: () => void;
@@ -1467,6 +1511,7 @@ function GrantAccessModal({
   open,
   dsId,
   dbType,
+  maxRowsPerQuery,
   existingUserIds,
   existingGroupIds,
   onClose,
@@ -1477,6 +1522,9 @@ function GrantAccessModal({
   const [form] = Form.useForm<GrantFormValues>();
   const selectedSchemas = Form.useWatch('allowed_schemas', form);
   const target: GrantTarget = Form.useWatch('target', form) ?? 'user';
+  const rowLimit = Form.useWatch('row_limit_override', form);
+  // Non-blocking: the value is valid, it just cannot take effect (#946).
+  const rowLimitHasNoEffect = typeof rowLimit === 'number' && rowLimit >= maxRowsPerQuery;
 
   const usersQuery = useQuery({
     queryKey: userKeys.list({ size: 100 }),
@@ -1770,6 +1818,16 @@ function GrantAccessModal({
           name="row_limit_override"
           label={t('datasources.settings.grant_row_limit_label')}
           extra={t('datasources.settings.grant_row_limit_help')}
+          validateStatus={rowLimitHasNoEffect ? 'warning' : undefined}
+          help={
+            rowLimitHasNoEffect ? (
+              <span data-testid="grant-row-limit-no-effect">
+                {t('datasources.settings.grant_row_limit_no_effect', {
+                  cap: fmtNum(maxRowsPerQuery),
+                })}
+              </span>
+            ) : undefined
+          }
           rules={[
             {
               type: 'number',

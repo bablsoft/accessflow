@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.AccessTargetMatchKind;
+import com.bablsoft.accessflow.core.api.AccessTargetMatch;
 import com.bablsoft.accessflow.core.api.MaskingPolicyDraft;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -234,5 +236,41 @@ class DefaultMaskingPolicyResolutionServiceTest {
 
         assertThat(service.resolveWithDraft(orgId, datasourceId, userId, null))
                 .isEqualTo(service.resolveApplicable(orgId, datasourceId, userId));
+    }
+
+    @Test
+    void explainSplitsAppliedAndRevealedWithReasons() {
+        var groupId = UUID.randomUUID();
+        var masked = policy("public.users.email", MaskingStrategy.PARTIAL, "{}");
+        masked.setRevealToRoles(new String[]{"ADMIN"});
+        var revealed = policy("public.users.ssn", MaskingStrategy.FULL, "{}");
+        revealed.setRevealToGroupIds(new UUID[]{groupId});
+        revealed.setRevealToUserIds(new UUID[]{userId});
+        stubPolicies(masked, revealed);
+        stubRole(UserRoleType.ANALYST);
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+
+        var explanation = service.explain(orgId, datasourceId, userId);
+
+        assertThat(explanation.applied()).extracting(m -> m.policyId())
+                .containsExactly(masked.getId());
+        assertThat(explanation.revealed()).hasSize(1);
+        var reveal = explanation.revealed().getFirst();
+        assertThat(reveal.policyId()).isEqualTo(revealed.getId());
+        assertThat(reveal.columnRef()).isEqualTo("public.users.ssn");
+        assertThat(reveal.strategy()).isEqualTo(MaskingStrategy.FULL);
+        assertThat(reveal.revealedBy()).containsExactly(
+                new AccessTargetMatch(AccessTargetMatchKind.USER, userId.toString()),
+                new AccessTargetMatch(AccessTargetMatchKind.GROUP, groupId.toString()));
+    }
+
+    @Test
+    void explainIsEmptyWithoutPolicies() {
+        stubPolicies();
+
+        var explanation = service.explain(orgId, datasourceId, userId);
+
+        assertThat(explanation.applied()).isEmpty();
+        assertThat(explanation.revealed()).isEmpty();
     }
 }

@@ -3,6 +3,7 @@ import type {
   AccessGrantStatus,
   BytesCapMissingEstimateAction,
   BytesScannedCapOutcome,
+  EffectiveCapabilityKind,
   DataBudgetBreachAction,
   BytesScannedCapSource,
   SchemaChangePromotionStatus,
@@ -68,6 +69,7 @@ import type {
   RiskLevel,
   RoutingAction,
   RoutingConditionOperand,
+  RowCapSource,
   RowSecurityOperator,
   RowSecurityValueType,
   DiscoveryDetector,
@@ -287,6 +289,18 @@ export const EXPORT_POLICY_MODES: readonly ExportPolicyMode[] = [
 
 export const exportPolicyModeLabel = (t: TFunction, v: ExportPolicyMode): string =>
   t(`enums.export_policy_mode.${v}` as const);
+
+export const ROW_CAP_SOURCES: readonly RowCapSource[] = [
+  'OVERRIDE',
+  'DATASOURCE_CAP',
+  'GLOBAL_CEILING',
+] as const;
+
+export const rowCapSourceLabel = (t: TFunction, v: RowCapSource): string =>
+  t(`enums.row_cap_source.${v}` as const);
+
+export const effectiveCapabilityLabel = (t: TFunction, v: EffectiveCapabilityKind): string =>
+  t(`enums.effective_capability.${v}` as const);
 
 export const ROW_SECURITY_OPERATORS: readonly RowSecurityOperator[] = [
   'EQUALS',

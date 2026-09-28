@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.proxy.api.EffectiveRowCap;
 import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
@@ -68,8 +69,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 .orElseThrow(() -> new DatasourceUnavailableException(
                         msg("error.datasource_unavailable_not_found")));
         var execProps = properties.execution();
-        int effectiveMaxRows = clampMaxRows(request.maxRowsOverride(),
-                descriptor.maxRowsPerQuery(), execProps.maxRows());
+        int effectiveMaxRows = EffectiveRowCap.of(request.maxRowsOverride(),
+                descriptor.maxRowsPerQuery(), execProps.maxRows()).value();
         Duration effectiveTimeout = request.statementTimeoutOverride() != null
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
@@ -172,8 +173,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 .orElseThrow(() -> new DatasourceUnavailableException(
                         msg("error.datasource_unavailable_not_found")));
         var execProps = properties.execution();
-        int effectiveMaxRows = clampMaxRows(request.maxRowsOverride(),
-                descriptor.maxRowsPerQuery(), execProps.maxRows());
+        int effectiveMaxRows = EffectiveRowCap.of(request.maxRowsOverride(),
+                descriptor.maxRowsPerQuery(), execProps.maxRows()).value();
         Duration effectiveTimeout = request.statementTimeoutOverride() != null
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
@@ -468,12 +469,6 @@ class DefaultQueryExecutor implements QueryExecutor {
             total = next;
         }
         return result.withResultBytes(total);
-    }
-
-    /** An override only ever lowers the cap — never above the datasource cap or global ceiling. */
-    private static int clampMaxRows(Integer override, int datasourceCap, int globalCap) {
-        int candidate = override != null ? Math.min(override, datasourceCap) : datasourceCap;
-        return Math.min(candidate, globalCap);
     }
 
     private static int toTimeoutSeconds(Duration timeout) {

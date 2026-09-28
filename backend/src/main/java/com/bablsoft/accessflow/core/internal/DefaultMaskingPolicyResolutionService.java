@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.MaskingExplanation;
 import com.bablsoft.accessflow.core.api.MaskingPolicyDraft;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.ResolvedColumnMask;
+import com.bablsoft.accessflow.core.api.RevealedColumnMask;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.MaskingPolicyRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
@@ -20,7 +22,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -69,24 +70,43 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
         return resolve(candidate, requesterUserId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public MaskingExplanation explain(UUID organizationId, UUID datasourceId,
+                                      UUID requesterUserId) {
+        return explain(maskingPolicyRepository
+                .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId),
+                requesterUserId);
+    }
+
     private List<ResolvedColumnMask> resolve(List<MaskingPolicyEntity> policies,
                                              UUID requesterUserId) {
+        return explain(policies, requesterUserId).applied();
+    }
+
+    private MaskingExplanation explain(List<MaskingPolicyEntity> policies, UUID requesterUserId) {
         if (policies.isEmpty()) {
-            return List.of();
+            return new MaskingExplanation(List.of(), List.of());
         }
         var roleName = userRepository.findById(requesterUserId)
                 .map(u -> u.roleName())
                 .orElse(null);
         var groupIds = new HashSet<>(membershipRepository.findGroupIdsForUser(requesterUserId));
-        var resolved = new ArrayList<ResolvedColumnMask>();
+        var applied = new ArrayList<ResolvedColumnMask>();
+        var revealed = new ArrayList<RevealedColumnMask>();
         for (var policy : policies) {
-            if (isRevealed(policy, requesterUserId, roleName, groupIds)) {
+            var reasons = AppliesToMatcher.revealReasons(policy.getRevealToRoles(),
+                    policy.getRevealToGroupIds(), policy.getRevealToUserIds(), requesterUserId,
+                    roleName, groupIds);
+            if (!reasons.isEmpty()) {
+                revealed.add(new RevealedColumnMask(policy.getId(), policy.getColumnRef(),
+                        policy.getStrategy(), reasons));
                 continue;
             }
-            resolved.add(new ResolvedColumnMask(policy.getId(), policy.getColumnRef(),
+            applied.add(new ResolvedColumnMask(policy.getId(), policy.getColumnRef(),
                     policy.getStrategy(), parseParams(policy.getStrategyParams())));
         }
-        return resolved;
+        return new MaskingExplanation(applied, revealed);
     }
 
     /**
@@ -104,32 +124,6 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
         entity.setRevealToUserIds(draft.revealToUserIds().toArray(UUID[]::new));
         entity.setEnabled(true);
         return entity;
-    }
-
-    private static boolean isRevealed(MaskingPolicyEntity policy, UUID userId, String roleName,
-                                      Set<UUID> groupIds) {
-        if (roleName != null && policy.getRevealToRoles() != null) {
-            for (var allowed : policy.getRevealToRoles()) {
-                if (allowed != null && roleName.equalsIgnoreCase(allowed.trim())) {
-                    return true;
-                }
-            }
-        }
-        if (policy.getRevealToUserIds() != null) {
-            for (var allowed : policy.getRevealToUserIds()) {
-                if (userId.equals(allowed)) {
-                    return true;
-                }
-            }
-        }
-        if (policy.getRevealToGroupIds() != null && !groupIds.isEmpty()) {
-            for (var allowed : policy.getRevealToGroupIds()) {
-                if (groupIds.contains(allowed)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private Map<String, String> parseParams(String json) {

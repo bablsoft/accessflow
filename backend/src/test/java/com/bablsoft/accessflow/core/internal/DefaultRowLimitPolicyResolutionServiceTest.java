@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.AccessTargetMatchKind;
+import com.bablsoft.accessflow.core.api.AccessTargetMatch;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowLimitPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -236,5 +238,34 @@ class DefaultRowLimitPolicyResolutionServiceTest {
         entity.setTableName(table);
         entity.setMaxRows(maxRows);
         return entity;
+    }
+
+    @Test
+    void findApplicableListsEveryTargetingPolicyRegardlessOfTable() {
+        var everyone = policy("crm", "customer", 50);
+        var forUser = policy(null, "orders", 10);
+        forUser.setAppliesToUserIds(new UUID[]{user1});
+        var forSomeoneElse = policy("crm", "invoice", 5);
+        forSomeoneElse.setAppliesToUserIds(new UUID[]{UUID.randomUUID()});
+        stubPolicies(everyone, forUser, forSomeoneElse);
+
+        var applicable = service.findApplicable(orgId, datasourceId, user1);
+
+        assertThat(applicable).extracting(p -> p.policyId())
+                .containsExactly(everyone.getId(), forUser.getId());
+        assertThat(applicable.getFirst().matchedBy()).containsExactly(AccessTargetMatch.EVERYONE);
+        assertThat(applicable.get(1).schemaName()).isNull();
+        assertThat(applicable.get(1).tableName()).isEqualTo("orders");
+        assertThat(applicable.get(1).maxRows()).isEqualTo(10);
+        assertThat(applicable.get(1).matchedBy()).containsExactly(
+                new AccessTargetMatch(AccessTargetMatchKind.USER, user1.toString()));
+    }
+
+    @Test
+    void findApplicableIsEmptyWithoutPolicies() {
+        stubPolicies();
+
+        assertThat(service.findApplicable(orgId, datasourceId, user1)).isEmpty();
+        verify(userRepository, never()).findById(any());
     }
 }

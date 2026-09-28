@@ -67,7 +67,7 @@ describe('SampleDataPreview', () => {
       },
     });
     renderPreview();
-    expect(screen.getByText(/capped by the proxy row limit/i)).toBeInTheDocument();
+    expect(screen.getByText(/truncated at the effective row limit/i)).toBeInTheDocument();
   });
 
   it('renders the byte-limit footer when truncated_reason is BYTE_LIMIT', () => {

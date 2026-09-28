@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.AccessTargetMatchKind;
+import com.bablsoft.accessflow.core.api.AccessTargetMatch;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyDraft;
 import com.bablsoft.accessflow.core.api.RowSecurityValueType;
@@ -306,5 +308,37 @@ class DefaultRowSecurityResolutionServiceTest {
 
         assertThat(service.resolveWithDraft(orgId, datasourceId, userId, null))
                 .isEqualTo(service.resolveApplicable(orgId, datasourceId, userId));
+    }
+
+    @Test
+    void explainApplicableCarriesValueSourceAndTargetingReasons() {
+        var groupId = UUID.randomUUID();
+        var scoped = varPolicy("user.region", RowSecurityOperator.EQUALS);
+        scoped.setAppliesToGroupIds(new UUID[]{groupId});
+        var other = policy("orders", "tenant", RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "t1");
+        other.setAppliesToRoles(new String[]{"REVIEWER"});
+        stubPolicies(scoped, other);
+        stubUser(UserRoleType.ANALYST, "a@x.io", "{\"region\":\"EU\"}");
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+
+        var explained = service.explainApplicable(orgId, datasourceId, userId);
+
+        assertThat(explained).hasSize(1);
+        var only = explained.getFirst();
+        assertThat(only.predicate().values()).containsExactly("EU");
+        assertThat(only.valueType()).isEqualTo(RowSecurityValueType.VARIABLE);
+        assertThat(only.valueExpression()).isEqualTo("user.region");
+        assertThat(only.matchedBy()).containsExactly(
+                new AccessTargetMatch(AccessTargetMatchKind.GROUP, groupId.toString()));
+        assertThat(service.resolveApplicable(orgId, datasourceId, userId))
+                .containsExactly(only.predicate());
+    }
+
+    @Test
+    void explainApplicableIsEmptyWithoutPolicies() {
+        stubPolicies();
+
+        assertThat(service.explainApplicable(orgId, datasourceId, userId)).isEmpty();
     }
 }

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.AccessTargetMatch;
+import com.bablsoft.accessflow.core.api.ExplainedRowSecurityPredicate;
 import com.bablsoft.accessflow.core.api.ResolvedRowSecurityPredicate;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyDraft;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
@@ -74,22 +76,42 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
         return resolve(candidate, requesterUserId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExplainedRowSecurityPredicate> explainApplicable(UUID organizationId,
+                                                                 UUID datasourceId,
+                                                                 UUID requesterUserId) {
+        return explain(rowSecurityPolicyRepository
+                .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId),
+                requesterUserId);
+    }
+
     private List<ResolvedRowSecurityPredicate> resolve(List<RowSecurityPolicyEntity> policies,
                                                        UUID requesterUserId) {
+        return explain(policies, requesterUserId).stream()
+                .map(ExplainedRowSecurityPredicate::predicate)
+                .toList();
+    }
+
+    private List<ExplainedRowSecurityPredicate> explain(List<RowSecurityPolicyEntity> policies,
+                                                        UUID requesterUserId) {
         if (policies.isEmpty()) {
             return List.of();
         }
         var user = userRepository.findById(requesterUserId).orElse(null);
         var roleName = user != null ? user.roleName() : null;
         var groupIds = new HashSet<>(membershipRepository.findGroupIdsForUser(requesterUserId));
-        var resolved = new ArrayList<ResolvedRowSecurityPredicate>();
+        var resolved = new ArrayList<ExplainedRowSecurityPredicate>();
         for (var policy : policies) {
-            if (!appliesTo(policy, requesterUserId, roleName, groupIds)) {
+            var matchedBy = targets(policy, requesterUserId, roleName, groupIds);
+            if (matchedBy.isEmpty()) {
                 continue;
             }
             var values = resolveValues(policy, requesterUserId, user, roleName);
-            resolved.add(new ResolvedRowSecurityPredicate(policy.getId(), policy.getTableName(),
-                    policy.getColumnName(), policy.getOperator(), values));
+            resolved.add(new ExplainedRowSecurityPredicate(
+                    new ResolvedRowSecurityPredicate(policy.getId(), policy.getTableName(),
+                            policy.getColumnName(), policy.getOperator(), values),
+                    policy.getValueType(), policy.getValueExpression(), matchedBy));
         }
         return resolved;
     }
@@ -115,38 +137,10 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
         return entity;
     }
 
-    private static boolean appliesTo(RowSecurityPolicyEntity policy, UUID userId, String roleName,
-                                     Set<UUID> groupIds) {
-        boolean hasRoles = policy.getAppliesToRoles() != null && policy.getAppliesToRoles().length > 0;
-        boolean hasGroups =
-                policy.getAppliesToGroupIds() != null && policy.getAppliesToGroupIds().length > 0;
-        boolean hasUsers =
-                policy.getAppliesToUserIds() != null && policy.getAppliesToUserIds().length > 0;
-        if (!hasRoles && !hasGroups && !hasUsers) {
-            return true; // empty scope = applies to every submitter (governance-safe default)
-        }
-        if (hasRoles && roleName != null) {
-            for (var allowed : policy.getAppliesToRoles()) {
-                if (allowed != null && roleName.equalsIgnoreCase(allowed.trim())) {
-                    return true;
-                }
-            }
-        }
-        if (hasUsers) {
-            for (var allowed : policy.getAppliesToUserIds()) {
-                if (userId.equals(allowed)) {
-                    return true;
-                }
-            }
-        }
-        if (hasGroups && !groupIds.isEmpty()) {
-            for (var allowed : policy.getAppliesToGroupIds()) {
-                if (groupIds.contains(allowed)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+    private static List<AccessTargetMatch> targets(RowSecurityPolicyEntity policy, UUID userId,
+                                                   String roleName, Set<UUID> groupIds) {
+        return AppliesToMatcher.explain(policy.getAppliesToRoles(), policy.getAppliesToGroupIds(),
+                policy.getAppliesToUserIds(), userId, roleName, groupIds);
     }
 
     /**

@@ -4699,6 +4699,100 @@ export interface DeploymentSimulationResult
 
 export type StatementCapability = 'READ' | 'WRITE' | 'DDL';
 
+// ── Effective-permission explorer (#946) ─────────────────────────────────────
+
+export type RowCapSource = 'OVERRIDE' | 'DATASOURCE_CAP' | 'GLOBAL_CEILING';
+
+export type EffectiveCapabilityKind = 'READ' | 'WRITE' | 'DDL' | 'BREAK_GLASS';
+
+export type AccessTargetMatchKind = 'EVERYONE' | 'ROLE' | 'GROUP' | 'USER';
+
+export type PermissionSourceKind = 'DIRECT' | 'GROUP';
+
+export interface EffectivePermissionGrant {
+  grant_id: string;
+  source_kind: PermissionSourceKind;
+  group_id?: string | null;
+  group_name?: string | null;
+  expires_at?: string | null;
+  row_limit_override?: number | null;
+  bytes_scanned_limit_override?: number | null;
+  access_grant_request_id?: string | null;
+}
+
+export interface EffectiveAttributedValue {
+  value: string;
+  grant_ids: string[];
+}
+
+export interface EffectivePermissionScope {
+  unrestricted: boolean;
+  entries: EffectiveAttributedValue[];
+}
+
+export interface EffectiveRowCap {
+  value: number;
+  source: RowCapSource;
+  override?: number | null;
+  datasource_cap: number;
+  global_ceiling: number;
+  grant_ids: string[];
+}
+
+export interface AccessTargetMatch {
+  kind: AccessTargetMatchKind;
+  ref?: string | null;
+  name?: string | null;
+}
+
+export interface EffectivePermission {
+  user: { id: string; email: string; display_name?: string | null };
+  datasource: { id: string; name: string; db_type: DbType };
+  has_grant: boolean;
+  query_admin: boolean;
+  expires_at?: string | null;
+  grants: EffectivePermissionGrant[];
+  capabilities: { capability: EffectiveCapabilityKind; granted: boolean; grant_ids: string[] }[];
+  allowed_schemas: EffectivePermissionScope;
+  allowed_tables: EffectivePermissionScope;
+  restricted_columns: EffectiveAttributedValue[];
+  denied_columns: EffectiveAttributedValue[];
+  denied_schemas: EffectiveAttributedValue[];
+  denied_tables: EffectiveAttributedValue[];
+  denied_shapes: EffectiveAttributedValue[];
+  row_cap: EffectiveRowCap;
+  bytes_scanned_limit?: { value: number; grant_ids: string[] } | null;
+  table_row_limits: {
+    policy_id: string;
+    schema_name?: string | null;
+    table_name: string;
+    max_rows: number;
+    matched_by: AccessTargetMatch[];
+  }[];
+  masked_columns: {
+    policy_id: string;
+    column_ref: string;
+    strategy: MaskingStrategy;
+    params?: Record<string, string>;
+  }[];
+  revealed_masks: {
+    policy_id: string;
+    column_ref: string;
+    strategy: MaskingStrategy;
+    revealed_by: AccessTargetMatch[];
+  }[];
+  row_security: {
+    policy_id: string;
+    table_ref: string;
+    column_name: string;
+    operator: RowSecurityOperator;
+    values: unknown[];
+    value_type: RowSecurityValueType;
+    value_expression: string;
+    matched_by: AccessTargetMatch[];
+  }[];
+}
+
 export type AccessSourceKind =
   | 'DIRECT_PERMISSION'
   | 'GROUP_PERMISSION'

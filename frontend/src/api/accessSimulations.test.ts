@@ -5,7 +5,8 @@ const { getMock, postMock } = vi.hoisted(() => ({ getMock: vi.fn(), postMock: vi
 
 vi.mock('./client', () => ({ apiClient: { get: getMock, post: postMock } }));
 
-const { simulateAccess, getEffectiveAccess, effectiveAccessKeys } = await import(
+const { simulateAccess, getEffectiveAccess, getEffectivePermission, effectiveAccessKeys } =
+  await import(
   './accessSimulations'
 );
 
@@ -44,5 +45,20 @@ describe('accessSimulations api', () => {
     expect(effectiveAccessKeys.all).toEqual(['effective-access']);
     expect(effectiveAccessKeys.lists()).toEqual(['effective-access', 'list']);
     expect(effectiveAccessKeys.list(filters)).toEqual(['effective-access', 'list', filters]);
+  });
+
+  it('reads one user\'s effective permission on one datasource (#946)', async () => {
+    getMock.mockResolvedValue({ data: { has_grant: true } });
+
+    await expect(getEffectivePermission('u 1', 'd-1')).resolves.toEqual({ has_grant: true });
+    expect(getMock).toHaveBeenCalledWith(
+      '/api/v1/admin/effective-access/users/u%201/datasources/d-1',
+    );
+    expect(effectiveAccessKeys.explanation('u-1', 'd-1')).toEqual([
+      'effective-access',
+      'explanation',
+      'u-1',
+      'd-1',
+    ]);
   });
 });

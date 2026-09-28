@@ -23,6 +23,7 @@ import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.RolePermissionHolderLookupService;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
+import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.SimulationCaveat;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -30,6 +31,7 @@ import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.proxy.api.RowCapResolver;
 import com.bablsoft.accessflow.proxy.api.RowSecurityClassificationService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
@@ -94,6 +96,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final BreakGlassEligibilityService breakGlassEligibilityService;
     private final BytesScannedCapResolutionService bytesScannedCapResolutionService;
     private final DataBudgetStatusService dataBudgetStatusService;
+    private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
+    private final RowCapResolver rowCapResolver;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone, so the
     // simulator has to use the same zone the live listener does. Deliberately NOT the injected
@@ -132,7 +136,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         if (parsed == null) {
             return blocked(steps, caveats);
         }
-        boolean permitted = permissionStep(organizationId, input, parsed, steps);
+        boolean permitted = permissionStep(organizationId, input, datasource, parsed, steps);
         if (!visible || !datasource.active() || !permitted || quotaExceeded(steps)) {
             return blocked(steps, caveats);
         }
@@ -256,7 +260,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     // ── 4. Effective permission ───────────────────────────────────────────────
 
     private boolean permissionStep(UUID organizationId, AccessSimulationInput input,
-                                   SqlParseResult parsed, List<DecisionTraceStep> steps) {
+                                   DatasourceView datasource, SqlParseResult parsed,
+                                   List<DecisionTraceStep> steps) {
         var details = new LinkedHashMap<String, Object>();
         boolean queryAdmin = rolePermissionHolderLookupService
                 .findUserIdsWithPermission(organizationId, Permission.QUERY_ADMIN)
@@ -268,6 +273,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("contributing_grants", contributions.stream()
                 .map(DefaultAccessSimulationService::describeContribution)
                 .toList());
+        putRowCap(organizationId, input, datasource, parsed, details);
 
         if (queryAdmin) {
             // QUERY_ADMIN holders skip the per-datasource gate outright, so they pass here with no
@@ -341,6 +347,32 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         return true;
     }
 
+    /**
+     * The row cap execution would apply (#946): the merged grant override tightened by every
+     * row-limit policy on a referenced table, clamped by the executor's own function — the same
+     * sequence {@code DefaultQueryLifecycleService} runs before it executes.
+     */
+    private void putRowCap(UUID organizationId, AccessSimulationInput input,
+                           DatasourceView datasource, SqlParseResult parsed,
+                           Map<String, Object> details) {
+        Integer override = permissionLookupService.findFor(input.userId(), input.datasourceId())
+                .map(p -> p.rowLimitOverride())
+                .orElse(null);
+        var applied = rowLimitPolicyResolutionService.resolve(organizationId,
+                input.datasourceId(), input.userId(), parsed.referencedTables());
+        if (applied.isPresent()) {
+            override = applied.get().tighten(override);
+        }
+        var cap = rowCapResolver.resolve(override, datasource.maxRowsPerQuery());
+        details.put("effective_row_cap", cap.value());
+        details.put("row_cap_source", cap.source().name());
+        details.put("row_limit_policy_ids", applied
+                .map(a -> a.policyIds().stream().map(UUID::toString).sorted().toList())
+                .orElse(List.of()));
+        details.put("datasource_cap", cap.datasourceCap());
+        details.put("global_ceiling", cap.globalCeiling());
+    }
+
     private static Map<String, Object> describeContribution(DatasourcePermissionContribution c) {
         var entry = new LinkedHashMap<String, Object>();
         entry.put("source_kind", c.sourceKind().name());
@@ -348,6 +380,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         entry.put("group_id", c.groupId());
         entry.put("group_name", c.groupName());
         entry.put("expires_at", c.expiresAt());
+        entry.put("row_limit_override", c.rowLimitOverride());
         return entry;
     }
 

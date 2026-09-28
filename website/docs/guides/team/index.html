@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-25",
+      "dateModified": "2026-09-28",
       "url": "https://accessflow.io/docs/guides/team/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/team/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Invite your team and assign roles.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -452,6 +452,21 @@
             the most permissive combination of the two, with two exceptions: the row limit, where
             the smallest override wins, and anything denied — schemas, tables, columns and query shapes —
             which adds up across grants.
+          </p>
+          <p>
+            You do not have to work that out in your head. The datasource's
+            <strong>Effective access</strong> tab, or <strong>Effective access</strong> in a
+            person's menu on the <strong>Users</strong> page, shows what one person can actually do
+            on one datasource right now, and where each part of it comes from. It shows the combined
+            permissions, the tables in and out of reach, the masked columns, the row filters in plain
+            text and the row cap. Each part names the grant or group it comes from and when that
+            grant expires. The row cap also says what set it: a grant or group override, the
+            datasource's own limit, or the system-wide ceiling. So you can see why an override of
+            5,000 still returns 1,000 rows: an override above the datasource's limit is shown as
+            <em>clamped</em> in the Permissions table. The grant form warns you, without blocking
+            the grant, when you type an override that would have no effect. Only administrators who
+            manage datasource permissions can open the view, and every look is recorded in the audit
+            log.
           </p>
           <div class="docs-callout warn">
             <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>

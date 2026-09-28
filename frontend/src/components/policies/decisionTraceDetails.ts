@@ -12,6 +12,7 @@ import type {
   RiskLevel,
   RoutingAction,
   RoutingPolicyTraceEntry,
+  RowCapSource,
 } from '@/types/api';
 import { fmtDate } from '@/utils/dateFormat';
 import { formatBytes } from '@/utils/queryPlan';
@@ -26,6 +27,7 @@ import {
   QUERY_TYPES,
   RISK_LEVELS,
   ROUTING_ACTIONS,
+  ROW_CAP_SOURCES,
   bytesScannedCapOutcomeLabel,
   bytesScannedCapSourceLabel,
   dataBudgetBreachActionLabel,
@@ -37,6 +39,7 @@ import {
   queryTypeLabel,
   riskLevelLabel,
   routingActionLabel,
+  rowCapSourceLabel,
 } from '@/utils/enumLabels';
 
 /** One formatted `details` entry of a decision-trace step. A list value renders one line each. */
@@ -84,6 +87,7 @@ export const KNOWN_DETAIL_KEYS = [
   'data_budget_remaining_rows',
   'data_budget_suppressed',
   'data_budget_used_percent',
+  'datasource_cap',
   'db_type',
   'decision_hook_id',
   'decision_hook_name',
@@ -91,6 +95,7 @@ export const KNOWN_DETAIL_KEYS = [
   'denied_shapes',
   'denied_tables',
   'effective_min_approvals',
+  'effective_row_cap',
   'engine_id',
   'environment_allows_break_glass',
   'environment_name',
@@ -102,6 +107,7 @@ export const KNOWN_DETAIL_KEYS = [
   'failure',
   'freeze_window_id',
   'frozen',
+  'global_ceiling',
   'grant_id',
   'has_limit_clause',
   'has_where_clause',
@@ -146,6 +152,8 @@ export const KNOWN_DETAIL_KEYS = [
   'reviewers',
   'risk_level',
   'risk_score',
+  'row_cap_source',
+  'row_limit_policy_ids',
   'row_security_outcome',
   'scan_type',
   'scheduled_for',
@@ -192,6 +200,9 @@ function enumValue(key: string, value: unknown, t: TFunction): string | null {
   if (key === 'bytes_scanned_cap_source'
       && includes<BytesScannedCapSource>(BYTES_SCANNED_CAP_SOURCES, value)) {
     return bytesScannedCapSourceLabel(t, value);
+  }
+  if (key === 'row_cap_source' && includes<RowCapSource>(ROW_CAP_SOURCES, value)) {
+    return rowCapSourceLabel(t, value);
   }
   if (key === 'bytes_scanned_cap_outcome'
       && includes<BytesScannedCapOutcome>(BYTES_SCANNED_CAP_OUTCOMES, value)) {
@@ -259,7 +270,10 @@ function grantLine(grant: Record<string, unknown>, t: TFunction): string {
       : grant.source_kind === 'GROUP'
         ? t('decisionTrace.source_group')
         : t('decisionTrace.source_direct');
-  return `${source} · ${expiry(grant.expires_at, t)}`;
+  const line = `${source} · ${expiry(grant.expires_at, t)}`;
+  return typeof grant.row_limit_override === 'number'
+    ? `${line} · ${t('decisionTrace.row_limit', { count: grant.row_limit_override })}`
+    : line;
 }
 
 function reviewerLine(reviewer: Record<string, unknown>): string {

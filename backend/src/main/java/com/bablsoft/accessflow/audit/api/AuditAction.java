@@ -197,6 +197,12 @@ public enum AuditAction {
      * audited like the other sensitive reads. Metadata: {@code row_count} and the filters applied.
      */
     PRIVILEGED_ACCESS_REPORT_VIEWED,
+    /**
+     * An admin read one user's effective access on one datasource (#946) — merged grants, masking,
+     * row security and the row cap. Read-only, but it discloses masking and row-security
+     * configuration, so it is audited. Metadata: {@code target_user_id}.
+     */
+    EFFECTIVE_PERMISSION_VIEWED,
     API_CONNECTOR_CREATED,
     API_CONNECTOR_UPDATED,
     API_CONNECTOR_DELETED,

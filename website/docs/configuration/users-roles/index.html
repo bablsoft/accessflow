@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-25",
+      "dateModified": "2026-09-28",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -597,6 +597,16 @@
             any one grant stays denied, so a wider group grant can never undo a denial, and a group's denial
             applies to every member. The flip side: revoking or expiring the grant that carries a denial removes it,
             and the user's other grants may then reach the table.
+          </p>
+          <p>
+            <strong>Checking the result.</strong> To see the merged answer for one person, open the
+            datasource's <strong>Effective access</strong> tab, or <strong>Effective access</strong> in
+            their menu on <strong>Users</strong>. It shows their capabilities, allowed and denied objects,
+            masked columns, row filters and effective row cap. Each part names the direct grant or group
+            it comes from and when that grant expires. The row cap says whether it was set by a grant,
+            the datasource's own limit or the system-wide ceiling. The view needs the
+            <em>manage datasource permissions</em> permission, and every look is recorded in the audit
+            log.
           </p>
           <h3 id="cfg-access-requests">Just-in-time (JIT) access requests</h3>
           <p>

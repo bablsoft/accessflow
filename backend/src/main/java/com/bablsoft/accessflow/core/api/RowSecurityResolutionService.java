@@ -33,4 +33,11 @@ public interface RowSecurityResolutionService {
     List<ResolvedRowSecurityPredicate> resolveWithDraft(UUID organizationId, UUID datasourceId,
                                                         UUID requesterUserId,
                                                         RowSecurityPolicyDraft draft);
+
+    /**
+     * Same resolution as {@link #resolveApplicable}, with each predicate's configured value source
+     * and the reasons it targets the user — the effective-permission explorer's view (#946).
+     */
+    List<ExplainedRowSecurityPredicate> explainApplicable(UUID organizationId, UUID datasourceId,
+                                                          UUID requesterUserId);
 }

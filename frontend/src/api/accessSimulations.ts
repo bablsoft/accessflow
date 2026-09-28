@@ -3,6 +3,7 @@ import type {
   AccessSimulationRequest,
   AccessSimulationResult,
   EffectiveAccessPage,
+  EffectivePermission,
   StatementCapability,
 } from '@/types/api';
 
@@ -19,6 +20,8 @@ export const effectiveAccessKeys = {
   all: ['effective-access'] as const,
   lists: () => ['effective-access', 'list'] as const,
   list: (filters: EffectiveAccessFilters) => ['effective-access', 'list', filters] as const,
+  explanation: (userId: string, datasourceId: string) =>
+    ['effective-access', 'explanation', userId, datasourceId] as const,
 };
 
 /**
@@ -43,5 +46,19 @@ export async function getEffectiveAccess(
   const { data } = await apiClient.get<EffectiveAccessPage>('/api/v1/admin/effective-access', {
     params: filters,
   });
+  return data;
+}
+
+/**
+ * Effective-permission explorer (#946): one user's merged access on one datasource, with the grant,
+ * group or policy each element came from. Admin-only and audited on every read.
+ */
+export async function getEffectivePermission(
+  userId: string,
+  datasourceId: string,
+): Promise<EffectivePermission> {
+  const { data } = await apiClient.get<EffectivePermission>(
+    `/api/v1/admin/effective-access/users/${encodeURIComponent(userId)}/datasources/${encodeURIComponent(datasourceId)}`,
+  );
   return data;
 }
