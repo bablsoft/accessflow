@@ -25,6 +25,7 @@ AccessFlow is an open-source **database access governance platform**. It acts as
 | [18-deployment-governance.md](./18-deployment-governance.md) | Deployment Approval Governance — gate CI/CD deployments: pipelines, environments, trigger grants, the fail-closed gate, freeze windows, break-glass, outcome reporting |
 | [19-sql-review.md](./19-sql-review.md) | Deterministic SQL Review Rules — the named rule catalog, per-environment `OFF` / `WARN` / `BLOCK` severity, ruleset resolution, the submission chokepoint (`BLOCK` escalates, never rejects), live editor lint, documented exemptions |
 | [20-schema-change-governance.md](./20-schema-change-governance.md) | Schema Change Governance — governed DDL change sets authored once under a deployment pipeline: the "not DML" validation gate and what it admits, deterministic-SQL-review `BLOCK` refusing the save, freeze-on-promotion, the statements checksum, the statement cap; promotion along the environment ladder — the fail-closed gate, `can_ddl` with no admin exemption, freeze windows, the request-group execution trigger and the post-apply snapshot; the opt-in schema drift job — baselines, the finding lifecycle, and what drift cannot see |
+| [21-aggregate-disclosure.md](./21-aggregate-disclosure.md) | Aggregate Disclosure Guard (design, #943) — why row caps and masking do not bound what an aggregate query discloses, the minimum-group-size property and where it would be enforced, its explicit non-goals (differencing, totals, extremal aggregates), and the detect-first recommendation for v1 |
 
 ## Tech Stack Summary
 

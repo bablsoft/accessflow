@@ -250,6 +250,8 @@
 
 - **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
 
+- **Aggregate disclosure guard** — constrain queries that return few rows but reveal a great deal about individuals (`COUNT(*) … WHERE national_id = …`, `GROUP BY` over a one-person group). Detection first: a `classification_referenced` routing condition that sends aggregates over classified data to a reviewer; minimum-group-size suppression deferred. Design, non-goals and open questions in [docs/21-aggregate-disclosure.md](21-aggregate-disclosure.md) (#943)
+
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
 
 ---

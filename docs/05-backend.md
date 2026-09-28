@@ -812,7 +812,9 @@ the `core.api.QueryShape` names: `JOIN`, `UNION` (every set operation), `SUBQUER
   snapshots include it.
 
 The softer sibling is the `query_shape` routing condition (see "Policy-as-code routing engine"),
-which escalates or rejects by shape through a policy instead of refusing at the grant.
+which escalates or rejects by shape through a policy instead of refusing at the grant. Neither bounds
+what an aggregate *discloses*; the proposed aggregate disclosure guard (#943, design only) is in
+[docs/21-aggregate-disclosure.md](21-aggregate-disclosure.md).
 
 ### Group-based access grants (AF-530)
 
