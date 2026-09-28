@@ -64,28 +64,14 @@ class DecisionHookClient {
     DecisionHookVerdict call(String endpointUrl, int timeoutMs, String secret, String event,
                              UUID requestId, byte[] body) {
         long started = System.nanoTime();
-        var target = urlGuard.resolve(endpointUrl);
-        if (target.blocked()) {
-            return DecisionHookVerdict.failed(DecisionHookFailure.SSRF_BLOCKED, null,
-                    elapsed(started));
-        }
-        if (target.uri() == null) {
-            return DecisionHookVerdict.failed(DecisionHookFailure.TRANSPORT_ERROR, null,
-                    elapsed(started));
-        }
-        var request = HttpRequest.newBuilder(target.uri())
-                .timeout(Duration.ofMillis(timeoutMs))
-                .header("Content-Type", "application/json")
-                .header(EVENT_HEADER, event)
-                .header(DELIVERY_HEADER, requestId.toString())
-                .header(DecisionHookSigner.HEADER, DecisionHookSigner.sign(body, secret))
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
         var stream = new AtomicReference<InputStream>();
-        Future<Exchange> future = executor.submit(() -> exchange(request, stream));
-        Exchange exchange;
+        // The DNS lookup of the address check runs inside the task too, so a black-holed resolver
+        // is cut off by the same deadline as a slow endpoint.
+        Future<Attempt> future = executor.submit(() ->
+                attempt(endpointUrl, timeoutMs, secret, event, requestId, body, stream));
+        Attempt attempt;
         try {
-            exchange = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            attempt = future.get(timeoutMs, TimeUnit.MILLISECONDS);
         } catch (TimeoutException ex) {
             future.cancel(true);
             closeQuietly(stream.get());
@@ -100,11 +86,35 @@ class DecisionHookClient {
             var failure = ex.getCause() instanceof HttpTimeoutException
                     ? DecisionHookFailure.TIMEOUT
                     : DecisionHookFailure.TRANSPORT_ERROR;
-            log.warn("Decision hook call to {} failed: {}", target.uri().getHost(),
+            log.warn("Decision hook call failed: {}",
                     ex.getCause() == null ? ex.getMessage() : ex.getCause().toString());
             return DecisionHookVerdict.failed(failure, null, elapsed(started));
         }
-        return interpret(exchange, secret, requestId, elapsed(started));
+        if (attempt.failure() != null) {
+            return DecisionHookVerdict.failed(attempt.failure(), null, elapsed(started));
+        }
+        return interpret(attempt.exchange(), secret, requestId, elapsed(started));
+    }
+
+    private Attempt attempt(String endpointUrl, int timeoutMs, String secret, String event,
+                            UUID requestId, byte[] body, AtomicReference<InputStream> stream)
+            throws IOException, InterruptedException {
+        var target = urlGuard.resolve(endpointUrl);
+        if (target.blocked()) {
+            return new Attempt(DecisionHookFailure.SSRF_BLOCKED, null);
+        }
+        if (target.uri() == null) {
+            return new Attempt(DecisionHookFailure.TRANSPORT_ERROR, null);
+        }
+        var request = HttpRequest.newBuilder(target.uri())
+                .timeout(Duration.ofMillis(timeoutMs))
+                .header("Content-Type", "application/json")
+                .header(EVENT_HEADER, event)
+                .header(DELIVERY_HEADER, requestId.toString())
+                .header(DecisionHookSigner.HEADER, DecisionHookSigner.sign(body, secret))
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+        return new Attempt(null, exchange(request, stream));
     }
 
     private Exchange exchange(HttpRequest request, AtomicReference<InputStream> stream)
@@ -210,5 +220,9 @@ class DecisionHookClient {
     }
 
     private record Exchange(int status, String signature, byte[] body) {
+    }
+
+    /** Either a refusal decided before any request was sent, or the exchange itself. */
+    private record Attempt(DecisionHookFailure failure, Exchange exchange) {
     }
 }

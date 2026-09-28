@@ -129,6 +129,10 @@ class DecisionHookUrlGuard {
                 || (first == 169 && second == 254)             // 169.254.0.0/16 link-local
                 || (first == 172 && second >= 16 && second <= 31) // 172.16.0.0/12
                 || (first == 192 && second == 0 && (b[2] & 0xff) == 0) // 192.0.0.0/24
+                || (first == 192 && second == 0 && (b[2] & 0xff) == 2) // 192.0.2.0/24 TEST-NET-1
+                || (first == 192 && second == 88 && (b[2] & 0xff) == 99) // 192.88.99.0/24
+                || (first == 198 && second == 51 && (b[2] & 0xff) == 100) // 198.51.100.0/24
+                || (first == 203 && second == 0 && (b[2] & 0xff) == 113) // 203.0.113.0/24
                 || (first == 192 && second == 168)             // 192.168.0.0/16
                 || (first == 198 && (second == 18 || second == 19)) // 198.18.0.0/15
                 || first >= 224;                               // multicast, reserved, broadcast
@@ -149,7 +153,11 @@ class DecisionHookUrlGuard {
                 && (b[3] & 0xff) == 0x9b && allZero(b, 4, 12)) {
             return isRestrictedIpv4(Arrays.copyOfRange(b, 12, 16)); // 64:ff9b::/96 NAT64
         }
-        if (first == 0x20 && (b[1] & 0xff) == 0x02) {
+        if ((b[0] & 0xff) == 0x00 && (b[1] & 0xff) == 0x64 && (b[2] & 0xff) == 0xff
+                && (b[3] & 0xff) == 0x9b && (b[4] & 0xff) == 0x00 && (b[5] & 0xff) == 0x01) {
+            return true;                                        // 64:ff9b:1::/48 local-use NAT64
+        }
+                if (first == 0x20 && (b[1] & 0xff) == 0x02) {
             return isRestrictedIpv4(Arrays.copyOfRange(b, 2, 6));   // 2002::/16 6to4
         }
         return false;

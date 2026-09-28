@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal.hook;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.workflow.api.CreateDecisionHookCommand;
+import com.bablsoft.accessflow.workflow.api.DecisionHookFailure;
 import com.bablsoft.accessflow.workflow.api.DecisionHookNotFoundException;
 import com.bablsoft.accessflow.workflow.api.DecisionHookScopeConflictException;
 import com.bablsoft.accessflow.workflow.api.DecisionHookService;
@@ -103,14 +104,24 @@ class DefaultDecisionHookService implements DecisionHookService {
         circuitBreaker.reset(id);
     }
 
+    /**
+     * Deliberately not transactional: the outbound call can take the hook's whole timeout, and a
+     * pooled connection must not be held across it. The lookup runs in the repository's own
+     * read transaction.
+     */
     @Override
-    @Transactional(readOnly = true)
     public DecisionHookTestResult test(UUID organizationId, UUID id) {
         var hook = find(organizationId, id);
+        String secret;
+        try {
+            secret = credentialEncryptionService.decrypt(hook.getSecretEncrypted());
+        } catch (IllegalStateException ex) {
+            return DecisionHookVerdict.failed(DecisionHookFailure.TRANSPORT_ERROR, null, 0L)
+                    .toTestResult();
+        }
         var requestId = UUID.randomUUID();
         var body = payloadFactory.forTest(requestId, organizationId, hook.getDatasourceId());
-        return client.call(hook.getEndpointUrl(), hook.getTimeoutMs(),
-                credentialEncryptionService.decrypt(hook.getSecretEncrypted()),
+        return client.call(hook.getEndpointUrl(), hook.getTimeoutMs(), secret,
                 DecisionHookPayloadFactory.EVENT_TEST, requestId, body).toTestResult();
     }
 

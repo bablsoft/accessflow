@@ -164,6 +164,9 @@ class AdminDecisionHookController {
         metadata.put("name", view.name());
         metadata.put("enabled", view.enabled());
         metadata.put("include_sql", view.includeSql());
+        if (view.endpointOrigin() != null) {
+            metadata.put("endpoint_origin", view.endpointOrigin());
+        }
         if (view.datasourceId() != null) {
             metadata.put("datasource_id", view.datasourceId().toString());
         }

@@ -45,7 +45,9 @@ class NotificationListener {
                 null, null, null);
         // A populated matched-policy pair means a routing policy (ESCALATE / REQUIRE_APPROVALS,
         // AF-446) raised the approval bar — surface it as a distinct escalation event (AF-453).
-        if (event.matchedPolicyId() != null && event.effectiveMinApprovals() != null) {
+        // The external decision hook (#945) raises it the same way, with a hook id instead.
+        if ((event.matchedPolicyId() != null || event.decisionHookId() != null)
+                && event.effectiveMinApprovals() != null) {
             safeDispatch(NotificationEventType.QUERY_ESCALATED, event.queryRequestId(),
                     null, null, null);
         }

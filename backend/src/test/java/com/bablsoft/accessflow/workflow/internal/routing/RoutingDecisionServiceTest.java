@@ -150,6 +150,18 @@ class RoutingDecisionServiceTest {
     }
 
     @Test
+    void aHookActionMustLeadToItsOwnStatus() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service().applyHookDecision(queryId,
+                        QueryStatus.APPROVED, RoutingAction.ESCALATE, 2, "x", UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service().applyHookDecision(queryId,
+                        QueryStatus.PENDING_REVIEW, RoutingAction.AUTO_REJECT, null, "x",
+                        UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.mockito.Mockito.verifyNoInteractions(routingDecisionRepository, queryRequestStateService);
+    }
+
+    @Test
     void findMatchedPolicyCarriesTheHookSource() {
         var hookId = UUID.randomUUID();
         var decision = new RoutingDecisionEntity();

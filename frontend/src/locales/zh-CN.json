@@ -2914,7 +2914,8 @@
       "include_sql_warning": "SQL 文本可能包含姓名或账号等字面值。仅在该端点可以接收这些数据时开启。",
       "test_button": "发送测试请求",
       "test_answered": "钩子在 {{latency}} 毫秒内回复了 {{outcome}}。",
-      "test_failed": "钩子失败：{{failure}}（{{latency}} 毫秒）。查询将转入人工审核。"
+      "test_failed": "钩子失败：{{failure}}（{{latency}} 毫秒）。查询将转入人工审核。",
+      "endpoint_scheme": "请输入 http:// 或 https:// 开头的 URL。"
     }
   },
   "notifications": {

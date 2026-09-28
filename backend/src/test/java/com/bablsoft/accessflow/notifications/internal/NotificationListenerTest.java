@@ -75,6 +75,15 @@ class NotificationListenerTest {
     }
 
     @Test
+    void aDecisionHookEscalationAlsoDispatchesEscalated() {
+        var id = UUID.randomUUID();
+        listener.onQueryReadyForReview(
+                new QueryReadyForReviewEvent(id, null, "pii", 3, UUID.randomUUID()));
+        verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_ESCALATED), eq(id),
+                isNull(), isNull(), isNull());
+    }
+
+    @Test
     void approvedDispatchesQueryApprovedWithReviewer() {
         var id = UUID.randomUUID();
         var reviewer = UUID.randomUUID();

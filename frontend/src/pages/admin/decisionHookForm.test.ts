@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DecisionHook } from '@/types/api';
 import {
+  ENDPOINT_SCHEME,
   ORG_DEFAULT,
   TIMEOUT_DEFAULT_MS,
   toFormValues,
@@ -70,5 +71,12 @@ describe('decisionHookForm', () => {
     const request = toggleEnabledRequest(hook, false);
     expect(request.enabled).toBe(false);
     expect(request).not.toHaveProperty('secret');
+  });
+
+  it('accepts in-cluster short names and refuses a missing scheme', () => {
+    expect(ENDPOINT_SCHEME.test('http://opa:8181/v1/data/accessflow/decision')).toBe(true);
+    expect(ENDPOINT_SCHEME.test('https://opa.example.com')).toBe(true);
+    expect(ENDPOINT_SCHEME.test('opa.example.com/decide')).toBe(false);
+    expect(ENDPOINT_SCHEME.test('ftp://opa.example.com')).toBe(false);
   });
 });

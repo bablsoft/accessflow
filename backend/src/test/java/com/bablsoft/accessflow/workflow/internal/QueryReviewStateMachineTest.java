@@ -983,6 +983,7 @@ class QueryReviewStateMachineTest {
 
     private void givenHook(com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation answer) {
         hookInvoker = (q, c, a) -> Optional.of(answer);
+        when(decisionHookGateway.appliesTo(organizationId, datasourceId)).thenReturn(true);
     }
 
     private AuditEntry hookAuditRow() {
@@ -1110,15 +1111,46 @@ class QueryReviewStateMachineTest {
     }
 
     @Test
-    void theLiveInvokerIsWhatTheStateMachineConsults() {
+    void noApplicableHookMeansNoCallAndNoPreEvaluation() {
         givenPendingAiQuery(QueryType.SELECT);
         givenPlan(false, true, RiskLevel.LOW);
 
         stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
                 RiskLevel.LOW));
 
-        verify(decisionHookGateway).live();
+        verify(decisionHookGateway).appliesTo(organizationId, datasourceId);
+        verify(decisionHookGateway, never()).live();
         verify(decisionHookResultService, never()).record(any(), any());
+        // One evaluation only — the pre-evaluation runs only when a hook applies.
+        verify(routingPolicyEngine).evaluate(eq(organizationId), eq(datasourceId), any());
+    }
+
+    @Test
+    void aMatchedPolicyMeansTheHookIsNeverCalledEvenWhenOneApplies() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+        when(decisionHookGateway.appliesTo(organizationId, datasourceId)).thenReturn(true);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(decisionHookGateway, never()).live();
+        verify(decisionHookResultService, never()).record(any(), any());
+        verify(queryRequestStateService, never()).recordDataBudgetReviewForced(any());
+    }
+
+    @Test
+    void theHookIsNotCalledForAQueryThatAlreadyLeftPendingAi() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(new QueryRequestSnapshot(queryId, datasourceId,
+                        organizationId, submitterId, "SELECT 1", QueryType.SELECT, false,
+                        QueryStatus.APPROVED, null, null, null, false)));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai off"));
+
+        verify(decisionHookGateway, never()).appliesTo(any(), any());
+        verify(decisionHookGateway, never()).live();
     }
 
     private void givenPendingAiQuery(QueryType type) {

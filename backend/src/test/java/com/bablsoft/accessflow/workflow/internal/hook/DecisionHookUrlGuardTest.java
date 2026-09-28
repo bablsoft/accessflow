@@ -24,7 +24,8 @@ class DecisionHookUrlGuardTest {
             "192.168.1.1", "169.254.169.254", "100.64.0.1", "100.127.255.254", "0.0.0.0",
             "192.0.0.8", "198.18.0.1", "224.0.0.1", "255.255.255.255", "::1", "::", "fe80::1",
             "fc00::1", "fd12:3456::1", "::ffff:10.0.0.1", "::ffff:169.254.169.254",
-            "64:ff9b::a00:1", "2002:a00:1::1", "::a00:1"})
+            "64:ff9b::a00:1", "2002:a00:1::1", "::a00:1", "64:ff9b:1::808:808", "192.0.2.1",
+            "198.51.100.7", "203.0.113.9", "192.88.99.1"})
     void restrictedAddressesAreRecognised(String literal) throws UnknownHostException {
         assertThat(DecisionHookUrlGuard.isRestricted(InetAddress.getByName(literal))).isTrue();
     }

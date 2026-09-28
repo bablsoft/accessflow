@@ -12,6 +12,8 @@ export const SECRET_MIN = 32;
 export const SECRET_MAX = 512;
 export const NAME_MAX = 255;
 export const URL_MAX = 2048;
+/** An absolute http(s) URL; the host and address rules are the server's. */
+export const ENDPOINT_SCHEME = /^https?:\/\/\S+$/i;
 
 export interface DecisionHookFormValues {
   name: string;

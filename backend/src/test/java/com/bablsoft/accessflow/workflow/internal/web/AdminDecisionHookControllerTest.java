@@ -108,6 +108,7 @@ class AdminDecisionHookControllerTest {
         assertThat(entry.action()).isEqualTo(AuditAction.DECISION_HOOK_CREATED);
         assertThat(entry.resourceType()).isEqualTo(AuditResourceType.DECISION_HOOK);
         assertThat(entry.metadata().toString()).doesNotContain(SECRET);
+        assertThat(entry.metadata()).containsEntry("endpoint_origin", "https://opa.example.com");
     }
 
     @Test

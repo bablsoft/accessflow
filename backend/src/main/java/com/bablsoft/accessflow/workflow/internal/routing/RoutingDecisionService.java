@@ -60,6 +60,13 @@ public class RoutingDecisionService {
         if (action == RoutingAction.AUTO_APPROVE) {
             throw new IllegalArgumentException("A decision hook can never approve");
         }
+        var expected = action == RoutingAction.AUTO_REJECT
+                ? QueryStatus.REJECTED
+                : QueryStatus.PENDING_REVIEW;
+        if (nextStatus != expected) {
+            throw new IllegalArgumentException(
+                    "A decision hook " + action + " must lead to " + expected + ", not " + nextStatus);
+        }
         var entity = new RoutingDecisionEntity();
         entity.setId(UUID.randomUUID());
         entity.setQueryRequestId(queryRequestId);

@@ -2914,7 +2914,8 @@
       "include_sql_warning": "The SQL text can contain literal values such as names or account numbers. Only turn this on if the endpoint may receive them.",
       "test_button": "Send a test request",
       "test_answered": "The hook answered {{outcome}} in {{latency}} ms.",
-      "test_failed": "The hook failed: {{failure}} ({{latency}} ms). Queries would go to human review."
+      "test_failed": "The hook failed: {{failure}} ({{latency}} ms). Queries would go to human review.",
+      "endpoint_scheme": "Enter an http:// or https:// URL."
     }
   },
   "notifications": {

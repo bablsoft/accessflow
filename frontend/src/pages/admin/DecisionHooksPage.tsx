@@ -32,7 +32,7 @@ import {
   testDecisionHook,
   updateDecisionHook,
 } from '@/api/decisionHooks';
-import { listDatasources } from '@/api/datasources';
+import { datasourceKeys, listDatasources } from '@/api/datasources';
 import type { DecisionHook, DecisionHookTestResult, DecisionHookWriteRequest } from '@/types/api';
 import { decisionHookErrorMessage } from '@/utils/apiErrors';
 import { decisionHookFailureLabel, decisionHookOutcomeLabel } from '@/utils/enumLabels';
@@ -45,6 +45,7 @@ import {
   TIMEOUT_MAX_MS,
   TIMEOUT_MIN_MS,
   URL_MAX,
+  ENDPOINT_SCHEME,
   toFormValues,
   toWriteRequest,
   toggleEnabledRequest,
@@ -67,7 +68,7 @@ export function DecisionHooksPage() {
 
   const hooksQuery = useQuery({ queryKey: decisionHookKeys.lists(), queryFn: listDecisionHooks });
   const datasourcesQuery = useQuery({
-    queryKey: ['datasources', 'list', { page: 0, size: 200 }],
+    queryKey: datasourceKeys.list({ page: 0, size: 200 }),
     queryFn: () => listDatasources({ page: 0, size: 200 }),
     staleTime: 60_000,
   });
@@ -363,7 +364,12 @@ export function DecisionHooksPage() {
             name="endpoint_url"
             label={t('admin.decision_hooks.label_endpoint_url')}
             extra={t('admin.decision_hooks.endpoint_help')}
-            rules={[{ required: true, whitespace: true, max: URL_MAX }, { type: 'url' }]}
+            // Only the scheme is checked here: an in-cluster short name such as http://opa:8181 is
+            // valid, and the address rules depend on the deployment, so the server decides those.
+            rules={[
+              { required: true, whitespace: true, max: URL_MAX },
+              { pattern: ENDPOINT_SCHEME, message: t('admin.decision_hooks.endpoint_scheme') },
+            ]}
           >
             <Input placeholder="https://opa.example.com/v1/data/accessflow/decision" />
           </Form.Item>

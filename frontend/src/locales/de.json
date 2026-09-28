@@ -2914,7 +2914,8 @@
       "include_sql_warning": "Der SQL-Text kann Literalwerte wie Namen oder Kontonummern enthalten. Nur aktivieren, wenn der Endpunkt sie erhalten darf.",
       "test_button": "Testanfrage senden",
       "test_answered": "Der Hook antwortete {{outcome}} in {{latency}} ms.",
-      "test_failed": "Der Hook ist fehlgeschlagen: {{failure}} ({{latency}} ms). Abfragen würden in die manuelle Prüfung gehen."
+      "test_failed": "Der Hook ist fehlgeschlagen: {{failure}} ({{latency}} ms). Abfragen würden in die manuelle Prüfung gehen.",
+      "endpoint_scheme": "Geben Sie eine http://- oder https://-URL ein."
     }
   },
   "notifications": {

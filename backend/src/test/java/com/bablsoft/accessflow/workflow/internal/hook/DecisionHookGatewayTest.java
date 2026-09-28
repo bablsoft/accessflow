@@ -152,6 +152,26 @@ class DecisionHookGatewayTest {
     }
 
     @Test
+    void anUnexpectedErrorFailsClosedAndReleasesTheBreaker() {
+        var hook = givenDefault();
+        when(payloadFactory.forQuery(any(), any(), any(), any(), anyBoolean()))
+                .thenThrow(new IllegalStateException("db blip"));
+
+        var consultation = gateway.live().consult(query(), context, AiOutcome.COMPLETED)
+                .orElseThrow();
+
+        assertThat(consultation.failure()).isEqualTo(DecisionHookFailure.TRANSPORT_ERROR);
+        verify(breaker).recordFailure(hook.getId());
+    }
+
+    @Test
+    void appliesToReflectsTheResolvedHook() {
+        assertThat(gateway.appliesTo(organizationId, datasourceId)).isFalse();
+        givenDefault();
+        assertThat(gateway.appliesTo(organizationId, datasourceId)).isTrue();
+    }
+
+    @Test
     void theSimulationInvokerNamesTheHookButNeverCalls() {
         var hook = givenDefault();
 

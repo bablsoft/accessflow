@@ -2914,7 +2914,8 @@
       "include_sql_warning": "Le texte SQL peut contenir des valeurs littérales comme des noms ou des numéros de compte. Ne l'activez que si le point de terminaison peut les recevoir.",
       "test_button": "Envoyer une requête de test",
       "test_answered": "Le hook a répondu {{outcome}} en {{latency}} ms.",
-      "test_failed": "Le hook a échoué : {{failure}} ({{latency}} ms). Les requêtes partiraient en revue humaine."
+      "test_failed": "Le hook a échoué : {{failure}} ({{latency}} ms). Les requêtes partiraient en revue humaine.",
+      "endpoint_scheme": "Saisissez une URL http:// ou https://."
     }
   },
   "notifications": {

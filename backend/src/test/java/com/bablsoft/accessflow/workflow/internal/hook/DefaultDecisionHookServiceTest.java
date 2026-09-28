@@ -243,6 +243,21 @@ class DefaultDecisionHookServiceTest {
         verify(breaker, never()).recordFailure(any());
     }
 
+    @Test
+    void testReportsAnUndecryptableSecretAsAFailureInsteadOfAnError() {
+        var hook = hook(null);
+        hook.setSecretEncrypted("broken");
+        when(repository.findByIdAndOrganizationId(hook.getId(), organizationId))
+                .thenReturn(Optional.of(hook));
+        when(encryption.decrypt("broken")).thenThrow(new IllegalStateException("bad key"));
+
+        var result = service.test(organizationId, hook.getId());
+
+        assertThat(result.outcome()).isEqualTo(DecisionHookOutcome.FAILED);
+        assertThat(result.failure()).isEqualTo(DecisionHookFailure.TRANSPORT_ERROR);
+        org.mockito.Mockito.verifyNoInteractions(client);
+    }
+
     private DecisionHookEntity hook(UUID scope) {
         var hook = new DecisionHookEntity();
         hook.setId(UUID.randomUUID());

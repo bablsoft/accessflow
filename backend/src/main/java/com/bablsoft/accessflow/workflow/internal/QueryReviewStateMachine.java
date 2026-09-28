@@ -29,6 +29,8 @@ import com.bablsoft.accessflow.workflow.api.RoutingAction;
 import com.bablsoft.accessflow.workflow.internal.SqlReviewSuppression.SuppressedAutoApproval;
 import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation;
 import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookGateway;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookInvoker;
+import com.bablsoft.accessflow.workflow.api.ConditionContext;
 import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultService;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.modulith.events.ApplicationModuleListener;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -46,7 +50,9 @@ import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Applies the {@code PENDING_AI → PENDING_REVIEW | APPROVED | REJECTED} transition on the AI module's
@@ -113,26 +119,86 @@ class QueryReviewStateMachine {
         this.clock = clock;
     }
 
-    @ApplicationModuleListener
+    // Not @ApplicationModuleListener: that would wrap the whole handler in one transaction, and the
+    // external decision hook (#945) must be called with no transaction — and so no pooled
+    // connection — open. The decision itself still commits in a transaction of its own.
+    @Async
+    @TransactionalEventListener
     void onAiCompleted(AiAnalysisCompletedEvent event) {
         // The AI analyzer computed the estimate before publishing, so it is only read here.
         var cap = prepare(event.queryRequestId(), false);
-        var query = load(event.queryRequestId(), "AiAnalysisCompletedEvent");
-        if (query != null) {
-            decide(query, AiOutcome.COMPLETED, event.riskLevel(), event.riskScore(), cap);
-        }
+        handle(event.queryRequestId(), "AiAnalysisCompletedEvent", AiOutcome.COMPLETED,
+                event.riskLevel(), event.riskScore(), cap);
     }
 
-    @ApplicationModuleListener
+    @Async
+    @TransactionalEventListener
     void onAiSkipped(AiAnalysisSkippedEvent event) {
         // With AI off nothing has waited for the pre-flight estimate: an independent listener
         // computes it, and routing would race it, so an estimated_rows / estimated_bytes_scanned
         // policy would silently fail closed on an estimate that was about to exist (#941).
         var cap = prepare(event.queryRequestId(), true);
-        var query = load(event.queryRequestId(), "AiAnalysisSkippedEvent");
-        if (query != null) {
-            decide(query, AiOutcome.SKIPPED, null, -1, cap);
+        handle(event.queryRequestId(), "AiAnalysisSkippedEvent", AiOutcome.SKIPPED, null, -1,
+                cap);
+    }
+
+    /**
+     * Consults the decision hook first, with no transaction open, then decides in a transaction of
+     * its own. The hook's answer is handed to the evaluator as a precomputed invoker, so the
+     * decision transaction never waits on the network.
+     */
+    private void handle(UUID queryRequestId, String eventName, AiOutcome aiOutcome,
+                        RiskLevel riskLevel, int riskScore, AppliedBytesCap cap) {
+        var hook = consultHook(queryRequestId, aiOutcome, riskLevel, riskScore, cap);
+        var template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        template.executeWithoutResult(status -> {
+            var query = load(queryRequestId, eventName);
+            if (query != null) {
+                decide(query, aiOutcome, riskLevel, riskScore, cap, hook);
+            }
+        });
+    }
+
+    /**
+     * Runs the decision once, read-only, in a short transaction of its own, with an invoker that
+     * only records whether the chain reached the hook — a matched policy, the cap or the budget
+     * all decide before it. Only then is the hook called, outside any transaction. Skipped
+     * entirely when no hook applies to the datasource.
+     */
+    private DecisionHookInvoker consultHook(UUID queryRequestId, AiOutcome aiOutcome,
+                                            RiskLevel riskLevel, int riskScore,
+                                            AppliedBytesCap cap) {
+        var template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        template.setReadOnly(true);
+        var pending = template.execute(status -> {
+            var query = queryRequestLookupService.findById(queryRequestId).orElse(null);
+            if (query == null || query.status() != QueryStatus.PENDING_AI
+                    || !decisionHookGateway.appliesTo(query.organizationId(),
+                            query.datasourceId())) {
+                return null;
+            }
+            var reached = new AtomicReference<PendingConsult>();
+            queryDecisionEvaluator.evaluate(query, aiOutcome, riskLevel, riskScore,
+                    blockingRuleIds(query), bytesCapCheck(query, cap), dataBudget(query),
+                    (q, context, outcome) -> {
+                        reached.set(new PendingConsult(q, context, outcome));
+                        return Optional.empty();
+                    }, clock);
+            return reached.get();
+        });
+        if (pending == null) {
+            return DecisionHookInvoker.NONE;
         }
+        var answer = decisionHookGateway.live()
+                .consult(pending.query(), pending.context(), pending.aiOutcome());
+        return (q, context, outcome) -> answer;
+    }
+
+    /** What the hook will be asked about, captured by the read-only pre-evaluation. */
+    private record PendingConsult(QueryRequestSnapshot query, ConditionContext context,
+                                  AiOutcome aiOutcome) {
     }
 
     @ApplicationModuleListener
@@ -190,10 +256,15 @@ class QueryReviewStateMachine {
 
     private void decide(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
                         int riskScore, AppliedBytesCap cap) {
-        var bytesCap = cap == null ? null : BytesCapCheck.of(cap, estimatedBytes(query));
+        decide(query, aiOutcome, riskLevel, riskScore, cap, DecisionHookInvoker.NONE);
+    }
+
+    private void decide(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
+                        int riskScore, AppliedBytesCap cap, DecisionHookInvoker hook) {
+        var bytesCap = bytesCapCheck(query, cap);
         var budget = dataBudget(query);
         var decision = queryDecisionEvaluator.evaluate(query, aiOutcome, riskLevel, riskScore,
-                blockingRuleIds(query), bytesCap, budget, decisionHookGateway.live(), clock);
+                blockingRuleIds(query), bytesCap, budget, hook, clock);
         // #942: the reviewer is deciding on a submitter whose budget is used up — only an approval
         // given here may later run the query past the exhausted budget.
         if (budget != null && budget.forcesReview()
@@ -205,6 +276,10 @@ class QueryReviewStateMachine {
                     bytesCap.source(), bytesCap.outcome());
         }
         apply(query, decision);
+    }
+
+    private BytesCapCheck bytesCapCheck(QueryRequestSnapshot query, AppliedBytesCap cap) {
+        return cap == null ? null : BytesCapCheck.of(cap, estimatedBytes(query));
     }
 
     /** The persisted bytes estimate; absent, failed or unsupported all read as "none". */
