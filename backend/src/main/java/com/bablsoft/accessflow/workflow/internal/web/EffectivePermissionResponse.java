@@ -36,7 +36,9 @@ record EffectivePermissionResponse(
         List<TableRowLimitResponse> tableRowLimits,
         List<MaskedColumnResponse> maskedColumns,
         List<RevealedMaskResponse> revealedMasks,
-        List<RowSecurityResponse> rowSecurity) {
+        List<RowSecurityResponse> rowSecurity,
+        List<RetentionMaskResponse> retentionMasks,
+        List<SoftDeleteFilterResponse> softDeleteFilters) {
 
     record UserRef(UUID id, String email, String displayName) {
     }
@@ -86,6 +88,12 @@ record EffectivePermissionResponse(
                                List<TargetMatchResponse> matchedBy) {
     }
 
+    record RetentionMaskResponse(UUID policyId, String columnRef, MaskingStrategy strategy) {
+    }
+
+    record SoftDeleteFilterResponse(UUID policyId, String tableRef, String columnName) {
+    }
+
     static EffectivePermissionResponse from(EffectivePermissionExplanation e) {
         var groupNames = e.groupNames();
         return new EffectivePermissionResponse(
@@ -120,7 +128,11 @@ record EffectivePermissionResponse(
                         r.predicate().policyId(), r.predicate().tableRef(),
                         r.predicate().columnName(), r.predicate().operator(),
                         r.predicate().values(), r.valueType(), r.valueExpression(),
-                        matches(r.matchedBy(), groupNames))).toList());
+                        matches(r.matchedBy(), groupNames))).toList(),
+                e.retentionMasks().stream().map(m -> new RetentionMaskResponse(m.policyId(),
+                        m.columnRef(), m.strategy())).toList(),
+                e.softDeleteFilters().stream().map(f -> new SoftDeleteFilterResponse(f.policyId(),
+                        f.tableRef(), f.columnName())).toList());
     }
 
     private static ScopeResponse scope(EffectivePermissionExplanation.Scope scope) {

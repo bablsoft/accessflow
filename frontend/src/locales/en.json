@@ -834,7 +834,7 @@
       "view_table": "Table",
       "view_json": "JSON",
       "results_unavailable": "Results not available yet",
-      "results_truncated": "{{count}} rows returned (truncated at the effective row limit for this user on this datasource)",
+      "results_truncated": "{{count}} rows returned (truncated at the submitter's effective row limit on this datasource)",
       "results_truncated_bytes": "{{count}} rows returned (truncated by the result size limit)",
       "column_masked_tooltip": "Column masked by access policy",
       "timeout_title": "Auto-rejected by approval timeout",
@@ -1603,7 +1603,7 @@
       "tab_effective_access": "Effective access",
       "perm_row_limit_default": "default",
       "perm_row_limit_clamped": "clamped to {{cap}}",
-      "grant_row_limit_no_effect": "Has no effect — the datasource cap ({{cap}}) is lower."
+      "grant_row_limit_no_effect": "Has no effect — the datasource already caps queries at {{cap}} rows."
     }
   },
   "admin": {
@@ -3926,7 +3926,8 @@
     "row_cap_source": {
       "OVERRIDE": "Grant override",
       "DATASOURCE_CAP": "Datasource cap",
-      "GLOBAL_CEILING": "Global ceiling"
+      "GLOBAL_CEILING": "Global ceiling",
+      "ROW_LIMIT_POLICY": "Row-limit policy"
     },
     "effective_capability": {
       "READ": "Read",
@@ -4124,7 +4125,10 @@
       "table_limit_rows": "at most {{count}} rows",
       "section_grants": "Contributing grants",
       "no_override": "no override",
-      "never": "Never"
+      "never": "Never",
+      "row_cap_budget_note": "A data budget can cut a result shorter still, once most of it is used up.",
+      "retention_masks": "Pseudonymized by a retention policy (applies to everyone)",
+      "soft_delete_filter": "Soft-deleted rows are hidden by a retention policy (applies to everyone)"
     }
   },
   "connectors": {

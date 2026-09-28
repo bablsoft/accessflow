@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserGroupView;
+import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.proxy.api.RowCapResolver;
 import com.bablsoft.accessflow.proxy.api.RowCapSource;
 import com.bablsoft.accessflow.workflow.api.EffectivePermissionExplanation;
@@ -56,6 +57,7 @@ class DefaultEffectivePermissionExplorerService implements EffectivePermissionEx
     private final RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     private final UserGroupService userGroupService;
     private final RowCapResolver rowCapResolver;
+    private final LifecycleDirectiveResolutionService lifecycleDirectiveResolutionService;
 
     // Not @Transactional, like the access simulator: independent transactional reads, and a handled
     // not-found from an inner call must not mark an outer transaction rollback-only.
@@ -104,6 +106,11 @@ class DefaultEffectivePermissionExplorerService implements EffectivePermissionEx
                 masking.applied(),
                 masking.revealed(),
                 rowSecurityResolutionService.explainApplicable(organizationId, datasourceId, userId),
+                // Enforcement concatenates these with the per-user masks / predicates
+                // (DefaultQueryLifecycleService), so a view without them would under-report.
+                lifecycleDirectiveResolutionService.resolveColumnMasks(organizationId, datasourceId),
+                lifecycleDirectiveResolutionService.resolveSoftDeleteFilters(organizationId,
+                        datasourceId),
                 groupNames);
     }
 

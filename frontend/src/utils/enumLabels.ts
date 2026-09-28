@@ -294,6 +294,7 @@ export const ROW_CAP_SOURCES: readonly RowCapSource[] = [
   'OVERRIDE',
   'DATASOURCE_CAP',
   'GLOBAL_CEILING',
+  'ROW_LIMIT_POLICY',
 ] as const;
 
 export const rowCapSourceLabel = (t: TFunction, v: RowCapSource): string =>

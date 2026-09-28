@@ -834,7 +834,7 @@
       "view_table": "Tabla",
       "view_json": "JSON",
       "results_unavailable": "Resultados aún no disponibles",
-      "results_truncated": "{{count}} filas devueltas (truncadas en el límite de filas efectivo de este usuario en esta fuente de datos)",
+      "results_truncated": "{{count}} filas devueltas (truncadas en el límite de filas efectivo del solicitante en esta fuente de datos)",
       "results_truncated_bytes": "{{count}} filas devueltas (truncadas por el límite de tamaño del resultado)",
       "column_masked_tooltip": "Columna enmascarada por la política de acceso",
       "timeout_title": "Auto-rechazada por tiempo de aprobación",
@@ -1603,7 +1603,7 @@
       "tab_effective_access": "Acceso efectivo",
       "perm_row_limit_default": "predeterminado",
       "perm_row_limit_clamped": "ajustado a {{cap}}",
-      "grant_row_limit_no_effect": "Sin efecto: el tope de la fuente de datos ({{cap}}) es menor."
+      "grant_row_limit_no_effect": "Sin efecto: la fuente de datos ya limita las consultas a {{cap}} filas."
     }
   },
   "admin": {
@@ -3901,7 +3901,8 @@
     "row_cap_source": {
       "OVERRIDE": "Límite de la concesión",
       "DATASOURCE_CAP": "Tope de la fuente de datos",
-      "GLOBAL_CEILING": "Techo global"
+      "GLOBAL_CEILING": "Techo global",
+      "ROW_LIMIT_POLICY": "Política de límite de filas"
     },
     "effective_capability": {
       "READ": "Lectura",
@@ -4099,7 +4100,10 @@
       "table_limit_rows": "como máximo {{count}} filas",
       "section_grants": "Concesiones que contribuyen",
       "no_override": "sin límite",
-      "never": "Nunca"
+      "never": "Nunca",
+      "row_cap_budget_note": "Un presupuesto de datos puede recortar aún más un resultado cuando está casi agotado.",
+      "retention_masks": "Seudonimizada por una política de retención (se aplica a todos)",
+      "soft_delete_filter": "Las filas con borrado lógico quedan ocultas por una política de retención (se aplica a todos)"
     }
   },
   "connectors": {

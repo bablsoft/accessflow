@@ -415,7 +415,7 @@ class DefaultAccessSimulationServiceTest {
 
     @Test
     void thePermissionStepCarriesTheRowCapExecutionWouldApply() {
-        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(
+        when(permissionLookupService.mergeContributions(any())).thenReturn(Optional.of(
                 new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
                         false, false, false, List.of("public"), List.of(), List.of(), List.of(),
                         List.of(), List.of(), List.of(), 500, null, null)));
@@ -427,12 +427,38 @@ class DefaultAccessSimulationServiceTest {
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
         var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        // The policy binds (40 < the grant's 500), so it — not the grant — is named as the source.
         assertThat(permission.details())
                 .containsEntry("effective_row_cap", 40)
-                .containsEntry("row_cap_source", "OVERRIDE")
+                .containsEntry("row_cap_source", "ROW_LIMIT_POLICY")
                 .containsEntry("row_limit_policy_ids", List.of(policyId.toString()))
                 .containsEntry("datasource_cap", 1000)
                 .containsEntry("global_ceiling", 10_000);
+    }
+
+    @Test
+    void aNonBindingRowLimitPolicyIsNeitherTheSourceNorListed() {
+        var grantContribution = new DatasourcePermissionContribution(
+                DatasourcePermissionSourceKind.DIRECT, UUID.randomUUID(), userId, datasourceId, null,
+                null, true, false, false, false, List.of("public"), List.of(), List.of(), null,
+                List.of(), List.of(), List.of(), 20, null, null);
+        when(permissionLookupService.findContributions(userId, datasourceId))
+                .thenReturn(List.of(grantContribution));
+        when(permissionLookupService.mergeContributions(List.of(grantContribution))).thenReturn(
+                Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of("public"), List.of(),
+                        List.of(), List.of(), List.of(), List.of(), List.of(), 20, null, null)));
+        when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
+                Set.of("public.payments"))).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.AppliedRowLimit(40, Set.of(UUID.randomUUID()))));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        assertThat(permission.details())
+                .containsEntry("effective_row_cap", 20)
+                .containsEntry("row_cap_source", "OVERRIDE")
+                .containsEntry("row_limit_policy_ids", List.of());
     }
 
     @Test

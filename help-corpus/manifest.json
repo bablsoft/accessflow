@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "109c1158e3c8",
-  "generatedAt": "2026-09-28T12:29:31.963Z",
-  "sourceCommit": "82249c11991269be25ac65381b07ae7a6b7ab1a0",
+  "corpusVersion": "4641dbcf0f09",
+  "generatedAt": "2026-09-28T12:54:26.922Z",
+  "sourceCommit": "d2461f74c448584cf81e8dd582b0b044482075b8",
   "chunkCount": 597,
-  "sha256": "109c1158e3c8a30f794fe36a9190c4e3bd62a7a9e0a50f84b85ba0c50a405d28",
+  "sha256": "4641dbcf0f09a3061867119a3f18049d767f286578769b31f406e0689c93c731",
   "quickReferenceSha256": "af9167770251a221bdce1414872ea3a194fdc57a6d8212f8945849cbfff50661",
   "sources": [
     {
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "dc56776bfbd326061527193a4a3f64fbbc6a417c009c9172e9e74522950f1327"
+      "sha256": "ef265c745d07d9309527279ef5ad161d7f587d4342a2c640e5a246baa8bd78b2"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -309,7 +309,7 @@
       "url": "https://accessflow.io/docs/guides/team/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "c35f765c0b2d1887879871d4ffbc826de5c66ae1e836b68e0794fa3c336dc346"
+      "sha256": "c03e1b6436fe2cb2082b78330e2e986a0c6608a051dd672ae701b2bfd7d88480"
     },
     {
       "path": "website/docs/guides/terraform/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "cc51684f07d54e30da077d147e8256c86e34d3750cf05a9653cf83dc859d24a7"
+      "sha256": "fe7f07a587547970a50559e00d193bf90e7d7e5a12edd0488eece5e276b0af80"
     }
   ]
 }

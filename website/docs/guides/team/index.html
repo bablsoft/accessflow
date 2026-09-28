@@ -454,20 +454,32 @@
             which adds up across grants.
           </p>
           <p>
-            You do not have to work that out in your head. The datasource's
-            <strong>Effective access</strong> tab, or <strong>Effective access</strong> in a
-            person's menu on the <strong>Users</strong> page, shows what one person can actually do
-            on one datasource right now, and where each part of it comes from. It shows the combined
-            permissions, the tables in and out of reach, the masked columns, the row filters in plain
-            text and the row cap. Each part names the grant or group it comes from and when that
-            grant expires. The row cap also says what set it: a grant or group override, the
-            datasource's own limit, or the system-wide ceiling. So you can see why an override of
-            5,000 still returns 1,000 rows: an override above the datasource's limit is shown as
-            <em>clamped</em> in the Permissions table. The grant form warns you, without blocking
-            the grant, when you type an override that would have no effect. Only administrators who
-            manage datasource permissions can open the view, and every look is recorded in the audit
-            log.
+            You do not have to work that out in your head. Only people who can manage datasource
+            permissions can open the view that does it for you: the datasource's
+            <strong>Effective access</strong> tab, or <strong>Effective access</strong> in a person's
+            menu on the <strong>Users</strong> page. It shows what one person can actually do on one
+            datasource right now: their permissions, the tables in and out of reach, the masked
+            columns, the row filters in plain text and the row cap. Anything that comes from a grant
+            names the direct grant or group behind it and when that grant expires. Masked columns and
+            row filters name the policy behind them. Each time someone opens the view, the audit log
+            records who looked at whom.
           </p>
+          <p>
+            The row cap also says what set it: a grant or group override, the datasource's own limit,
+            or the system-wide ceiling. Say the datasource allows 1,000 rows per query and you set an
+            override of 5,000: the view shows a cap of 1,000 set by the datasource, and the
+            Permissions table marks the override as <em>clamped to 1,000</em>. The grant form warns
+            you about this while you type, without stopping you from saving.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-effective-access-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-effective-access-dark.webp"
+                   alt="The Effective access tab of a datasource for one analyst: a row cap of 200 set by the analysts group's override, the direct grant's larger override of 5,000 listed beside it, and the datasource cap of 1,000."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Datasource → <strong>Effective access</strong>, with a person picked. The row cap names the group whose override set it.</figcaption>
+          </figure>
           <div class="docs-callout warn">
             <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>
             <strong>Can break-glass</strong> lets its holder bypass review entirely and execute

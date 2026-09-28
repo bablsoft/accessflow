@@ -1,11 +1,13 @@
 package com.bablsoft.accessflow.workflow.api;
 
 import com.bablsoft.accessflow.core.api.ApplicableRowLimitPolicy;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.ExplainedRowSecurityPredicate;
 import com.bablsoft.accessflow.core.api.ResolvedColumnMask;
 import com.bablsoft.accessflow.core.api.RevealedColumnMask;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.proxy.api.RowCapSource;
 
 import java.time.Instant;
@@ -17,6 +19,8 @@ import java.util.UUID;
  * The effective access of one user on one datasource (#946). Every attributed element names the
  * {@link Grant#grantId() grant ids} it came from; {@code grants} lists each active contribution
  * once. {@code groupNames} resolves the group ids a policy's {@code matched_by} may name.
+ * {@code retentionMasks} and {@code softDeleteFilters} are the lifecycle directives (AF-499) that
+ * enforcement applies to every user of the datasource alongside the per-user policies.
  *
  * @param hasGrant   at least one active direct or group grant contributes
  * @param queryAdmin the user holds {@code QUERY_ADMIN}, which bypasses the per-datasource grant
@@ -49,6 +53,8 @@ public record EffectivePermissionExplanation(
         List<ResolvedColumnMask> maskedColumns,
         List<RevealedColumnMask> revealedMasks,
         List<ExplainedRowSecurityPredicate> rowSecurity,
+        List<ColumnMaskDirective> retentionMasks,
+        List<RowSecurityDirective> softDeleteFilters,
         Map<UUID, String> groupNames) {
 
     public enum CapabilityKind { READ, WRITE, DDL, BREAK_GLASS }
@@ -81,7 +87,8 @@ public record EffectivePermissionExplanation(
     /**
      * The row cap the proxy enforces for a query touching no row-limit-policy table, and the bound
      * that set it. {@code grantIds} are the grants carrying the winning override, and only when
-     * {@code source} is {@link RowCapSource#OVERRIDE}.
+     * {@code source} is {@link RowCapSource#OVERRIDE}. A data-budget allowance (#942) can lower it
+     * further at execution time.
      */
     public record RowCap(int value, RowCapSource source, Integer override, int datasourceCap,
                          int globalCeiling, List<UUID> grantIds) {
@@ -108,6 +115,8 @@ public record EffectivePermissionExplanation(
         maskedColumns = List.copyOf(maskedColumns);
         revealedMasks = List.copyOf(revealedMasks);
         rowSecurity = List.copyOf(rowSecurity);
+        retentionMasks = List.copyOf(retentionMasks);
+        softDeleteFilters = List.copyOf(softDeleteFilters);
         groupNames = Map.copyOf(groupNames);
     }
 }

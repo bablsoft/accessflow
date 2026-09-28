@@ -5034,7 +5034,7 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `DATASOURCE_GATES` | `db_type`, `active`, `ai_analysis_enabled`, `visible_to_user` | always |
 | `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
 | `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause`, `query_shapes` (#940 — the statement's shapes in declaration order), `shapes_analyzed` (`false` for every engine plugin — warehouses included, since only the in-process JSqlParser path reads shapes — and for a statement the walker cannot traverse) | whenever the statement parsed; `{}` when it did not |
-| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at`; plus the row cap execution would apply (#946): `effective_row_cap`, `row_cap_source` (`OVERRIDE` / `DATASOURCE_CAP` / `GLOBAL_CEILING`), `row_limit_policy_ids` (the row-limit policies on a referenced table that set the lowest cap, sorted; `[]` when none applies), `datasource_cap`, `global_ceiling` — the merged grant override tightened by those policies and clamped by the executor's own `EffectiveRowCap.of`. Each `contributing_grants[]` entry also carries its `row_limit_override` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at`; plus the row cap execution would apply (#946): `effective_row_cap`, `row_cap_source` (`OVERRIDE` / `DATASOURCE_CAP` / `GLOBAL_CEILING`, or `ROW_LIMIT_POLICY` when a per-table row-limit policy on a referenced table is what binds), `row_limit_policy_ids` (sorted ids of the binding policies — only when `row_cap_source` is `ROW_LIMIT_POLICY`, `[]` otherwise; a policy at or above the grant-derived cap is not listed), `datasource_cap`, `global_ceiling` — the merged grant override tightened by those policies and clamped by the executor's own `EffectiveRowCap.of`. Each `contributing_grants[]` entry also carries its `row_limit_override` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `BYTES_SCANNED_CAP` | `bytes_scanned_cap`, `bytes_scanned_cap_source`, `estimated_bytes_scanned`, `bytes_scanned_cap_outcome` | whenever a cap applies (#941); `{}` on `NO_MATCH` (no cap). In a simulation the step is always `SKIP` with no estimate — the cap is named, never compared. On a live trace: `ALLOW` within the cap, `DENY` over it or with no estimate under `REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`), `MATCH` with no estimate under `REQUIRE_REVIEW` — every auto-approve stage below then reports `bytes_cap_suppressed: true` |
 | `DATA_BUDGET` | `data_budget_used_percent`, `data_budget_remaining_rows`, `data_budget_remaining_bytes`, `data_budget_action`, `data_budget_id`, `data_budget_name` | whenever a budget applies to the user on a SELECT (#942); `{}` on `NO_MATCH` (no budget, or not a SELECT). Read live in both a simulation and a real decision — usage is a persisted fact about the user. `ALLOW` while allowance remains; `DENY` when an exhausted budget has `breach_action: REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`); `MATCH` when it has `REQUIRE_REVIEW` — every auto-approve stage below then reports `data_budget_suppressed: true`. `data_budget_id` / `_name` name the exhausted budget that decided |
@@ -5249,6 +5249,12 @@ when either is missing or in another organization.
     { "policy_id": "r1…", "table_ref": "orders", "column_name": "region", "operator": "EQUALS",
       "values": ["EU"], "value_type": "VARIABLE", "value_expression": "user.region",
       "matched_by": [{ "kind": "GROUP", "ref": "0a41…", "name": "analysts" }] }
+  ],
+  "retention_masks": [
+    { "policy_id": "l1…", "column_ref": "public.users.ssn", "strategy": "HASH" }
+  ],
+  "soft_delete_filters": [
+    { "policy_id": "l2…", "table_ref": "public.orders", "column_name": "deleted_at" }
   ]
 }
 ```
@@ -5267,13 +5273,18 @@ when either is missing or in another organization.
   `source` is `OVERRIDE` (then `grant_ids` names the grant(s) holding the smallest override),
   `DATASOURCE_CAP` or `GLOBAL_CEILING`; `override` keeps the configured value even when it was clamped
   (an override of 5000 under a 1000 datasource cap reports `value: 1000`, `source: DATASOURCE_CAP`,
-  `override: 5000`). On a tie the most specific bound is named. `table_row_limits` lists the per-table
+  `override: 5000`). On a tie the most specific bound is named. A per-user data budget (#942) can cut
+  a result shorter still at execution time; that allowance is dynamic and is not part of `row_cap`. `table_row_limits` lists the per-table
   policies (#934) that target the user — each lowers the cap further for a query that references its
   table.
 - **`matched_by` / `revealed_by`** give every reason a policy targets (or, for masking, reveals to) the
   user: `EVERYONE` (the policy's scope lists are empty), `ROLE` (`ref` = the role name), `GROUP`
   (`ref` = the group id, `name` = its name) or `USER`. Row-security `values` are the resolved bind
   values; an empty list on a `VARIABLE` is the fail-closed signal (the predicate matches no rows).
+- **`retention_masks` / `soft_delete_filters`** are the lifecycle directives (AF-499) enforcement
+  applies to **every** user of the datasource alongside the per-user policies: `PSEUDONYMIZE`
+  retention masks and the `IS NULL` filter each `SOFT_DELETE` policy adds on its marker column. They
+  come from `LifecycleDirectiveResolutionService`, the same calls the execution path makes.
 
 **Audit.** Every 200 writes one `EFFECTIVE_PERMISSION_VIEWED` row against the datasource, metadata
 `target_user_id`; an audit-write failure is logged and never denies the read.

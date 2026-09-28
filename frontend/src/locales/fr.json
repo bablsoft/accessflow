@@ -834,7 +834,7 @@
       "view_table": "Tableau",
       "view_json": "JSON",
       "results_unavailable": "Résultats pas encore disponibles",
-      "results_truncated": "{{count}} lignes renvoyées (tronquées à la limite de lignes effective de cet utilisateur sur cette source de données)",
+      "results_truncated": "{{count}} lignes renvoyées (tronquées à la limite de lignes effective du demandeur sur cette source de données)",
       "results_truncated_bytes": "{{count}} lignes renvoyées (tronquées par la limite de taille du résultat)",
       "column_masked_tooltip": "Colonne masquée par la politique d'accès",
       "timeout_title": "Auto-rejetée par expiration de l'approbation",
@@ -1603,7 +1603,7 @@
       "tab_effective_access": "Accès effectif",
       "perm_row_limit_default": "par défaut",
       "perm_row_limit_clamped": "ramené à {{cap}}",
-      "grant_row_limit_no_effect": "Sans effet — le plafond de la source de données ({{cap}}) est plus bas."
+      "grant_row_limit_no_effect": "Sans effet — la source de données limite déjà les requêtes à {{cap}} lignes."
     }
   },
   "admin": {
@@ -3901,7 +3901,8 @@
     "row_cap_source": {
       "OVERRIDE": "Limite de l’autorisation",
       "DATASOURCE_CAP": "Plafond de la source",
-      "GLOBAL_CEILING": "Plafond global"
+      "GLOBAL_CEILING": "Plafond global",
+      "ROW_LIMIT_POLICY": "Politique de limite de lignes"
     },
     "effective_capability": {
       "READ": "Lecture",
@@ -4099,7 +4100,10 @@
       "table_limit_rows": "au plus {{count}} lignes",
       "section_grants": "Autorisations contributrices",
       "no_override": "aucune limite",
-      "never": "Jamais"
+      "never": "Jamais",
+      "row_cap_budget_note": "Un budget de données peut encore raccourcir un résultat lorsqu’il est presque épuisé.",
+      "retention_masks": "Pseudonymisée par une politique de rétention (s’applique à tous)",
+      "soft_delete_filter": "Les lignes supprimées logiquement sont masquées par une politique de rétention (s’applique à tous)"
     }
   },
   "connectors": {

@@ -602,11 +602,12 @@
             <strong>Checking the result.</strong> To see the merged answer for one person, open the
             datasource's <strong>Effective access</strong> tab, or <strong>Effective access</strong> in
             their menu on <strong>Users</strong>. It shows their capabilities, allowed and denied objects,
-            masked columns, row filters and effective row cap. Each part names the direct grant or group
-            it comes from and when that grant expires. The row cap says whether it was set by a grant,
-            the datasource's own limit or the system-wide ceiling. The view needs the
-            <em>manage datasource permissions</em> permission, and every look is recorded in the audit
-            log.
+            masked columns, row filters and effective row cap. Anything that comes from a grant names the
+            direct grant or group behind it and when that grant expires. Masked columns and row filters
+            name the policy behind them and whether it applies through the person's role, one of their
+            groups, or everyone. The row cap says whether it was set by a grant, the datasource's own
+            limit or the system-wide ceiling. The view needs the <em>manage datasource permissions</em>
+            permission, and each time someone opens it, the audit log records who looked at whom.
           </p>
           <h3 id="cfg-access-requests">Just-in-time (JIT) access requests</h3>
           <p>

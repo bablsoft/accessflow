@@ -1938,6 +1938,7 @@ explorer:
 | Table row limits | `RowLimitPolicyResolutionService.findApplicable` — every enabled policy targeting the user, regardless of table |
 | Masking | `MaskingPolicyResolutionService.explain` — `applied` is exactly `resolveApplicable`, now a projection of it; `revealed` carries each reveal reason |
 | Row security | `RowSecurityResolutionService.explainApplicable` — `resolveApplicable` is now a projection of it, so value resolution and fail-closed empty values are shared |
+| Lifecycle directives | `lifecycle.api.LifecycleDirectiveResolutionService.resolveColumnMasks` / `resolveSoftDeleteFilters` — the pseudonymization masks and soft-delete filters execution concatenates onto the per-user ones for every user |
 
 Targeting reasons come from `core.internal.AppliesToMatcher.explain` (row security, row-limit
 policies, data budgets — `matches` is `!explain(...).isEmpty()`, so there is one implementation) and its
@@ -1947,7 +1948,10 @@ through `RolePermissionHolderLookupService`, not hidden: they bypass the grant g
 one `EFFECTIVE_PERMISSION_VIEWED` audit row from the controller (swallowed on failure). The access
 simulator's `EFFECTIVE_PERMISSION` step gained the same row cap — the merged override tightened by
 `RowLimitPolicyResolutionService.resolve` over the parsed SQL's referenced tables, then
-`RowCapResolver` — mirroring `DefaultQueryLifecycleService.doExecute`.
+`RowCapResolver` — mirroring `DefaultQueryLifecycleService.doExecute`. When a policy is what binds (at
+or below the grant-derived cap) the step reports `row_cap_source=ROW_LIMIT_POLICY` and lists only the
+binding policy ids — the same test the lifecycle applies before auditing `applied_row_limit_policy_ids`.
+`RowCapSource.ROW_LIMIT_POLICY` exists for that caller alone; `EffectiveRowCap.of` never returns it.
 
 ### Privileged-access report (#968)
 

@@ -8,7 +8,9 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.AccessTargetMatch;
 import com.bablsoft.accessflow.core.api.AccessTargetMatchKind;
 import com.bablsoft.accessflow.core.api.ApplicableRowLimitPolicy;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.ExplainedRowSecurityPredicate;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
@@ -100,6 +102,10 @@ class AdminEffectivePermissionControllerTest {
                         .satisfies(m -> assertThat(m.name()).isNull()));
         assertThat(response.maskedColumns()).singleElement()
                 .satisfies(m -> assertThat(m.strategy()).isEqualTo(MaskingStrategy.HASH));
+        assertThat(response.retentionMasks()).singleElement()
+                .satisfies(m -> assertThat(m.columnRef()).isEqualTo("users.email"));
+        assertThat(response.softDeleteFilters()).singleElement()
+                .satisfies(f -> assertThat(f.columnName()).isEqualTo("deleted_at"));
     }
 
     @Test
@@ -149,6 +155,10 @@ class AdminEffectivePermissionControllerTest {
                         List.of("EU")), RowSecurityValueType.VARIABLE, "user.region",
                         List.of(new AccessTargetMatch(AccessTargetMatchKind.GROUP,
                                 groupId.toString())))),
+                List.of(new ColumnMaskDirective("users.email", MaskingStrategy.HASH, Map.of(),
+                        UUID.randomUUID())),
+                List.of(new RowSecurityDirective(UUID.randomUUID(), "orders", "deleted_at",
+                        RowSecurityOperator.IS_NULL, List.of())),
                 Map.of(groupId, "analysts"));
     }
 

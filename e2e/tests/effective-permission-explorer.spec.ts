@@ -7,7 +7,6 @@ import {
   createReviewPlanViaApi,
   deleteDatasource,
   executeQueryViaApi,
-  findUserByEmailViaApi,
   inviteUserViaApi,
   loginViaApi,
   submitQueryViaApi,
@@ -15,7 +14,6 @@ import {
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
-  type InvitedUser,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
 
@@ -35,7 +33,6 @@ test.describe.serial('effective-permission explorer and row-cap copy (#946)', ()
   let adminToken = '';
   let reviewPlan: CreatedReviewPlan | null = null;
   let datasource: CreatedDatasource | null = null;
-  let analyst: InvitedUser;
   let analystEmail = '';
   let analystToken = '';
 
@@ -46,7 +43,6 @@ test.describe.serial('effective-permission explorer and row-cap copy (#946)', ()
     const inviteToken = await waitForInviteToken(request, analystEmail);
     await acceptInvitationViaApi(request, inviteToken, ANALYST_PASSWORD, 'RowCap Analyst');
     analystToken = await loginViaApi(request, analystEmail, ANALYST_PASSWORD);
-    analyst = await findUserByEmailViaApi(request, adminToken, analystEmail);
 
     reviewPlan = await createReviewPlanViaApi(request, adminToken, {
       name: `E2E RowCap Plan ${Date.now()}`,
@@ -105,9 +101,9 @@ test.describe.serial('effective-permission explorer and row-cap copy (#946)', ()
     await page.getByRole('tab', { name: 'Effective access' }).click();
     const userPicker = page.getByRole('combobox', { name: 'User' });
     await userPicker.click();
-    // The picker accepts a pasted id, so the analyst is found however many users the stack holds.
-    await userPicker.fill(analyst.id);
-    await page.locator('.ant-select-item-option').filter({ hasText: analyst.id }).first().click();
+    // The picker lists the newest users first, so the just-invited analyst is always offered.
+    await userPicker.fill(analystEmail);
+    await page.locator('.ant-select-item-option').filter({ hasText: analystEmail }).first().click();
 
     const card = page.getByTestId('explorer-row-cap');
     await expect(card.getByTestId('explorer-row-cap-value')).toHaveText('5', { timeout: 15_000 });
@@ -144,7 +140,7 @@ test.describe.serial('effective-permission explorer and row-cap copy (#946)', ()
     });
     await expect(
       page.getByText(
-        '5 rows returned (truncated at the effective row limit for this user on this datasource)',
+        "5 rows returned (truncated at the submitter's effective row limit on this datasource)",
       ),
     ).toBeVisible();
   });

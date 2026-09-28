@@ -32,6 +32,7 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.RowCapResolver;
+import com.bablsoft.accessflow.proxy.api.RowCapSource;
 import com.bablsoft.accessflow.proxy.api.RowSecurityClassificationService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
@@ -273,7 +274,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("contributing_grants", contributions.stream()
                 .map(DefaultAccessSimulationService::describeContribution)
                 .toList());
-        putRowCap(organizationId, input, datasource, parsed, details);
+        putRowCap(organizationId, input, datasource, parsed, contributions, details);
 
         if (queryAdmin) {
             // QUERY_ADMIN holders skip the per-datasource gate outright, so they pass here with no
@@ -350,27 +351,35 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     /**
      * The row cap execution would apply (#946): the merged grant override tightened by every
      * row-limit policy on a referenced table, clamped by the executor's own function — the same
-     * sequence {@code DefaultQueryLifecycleService} runs before it executes.
+     * sequence {@code DefaultQueryLifecycleService} runs before it executes. A policy is named, and
+     * reported as the source, only when it is what binds: at or below both the grant override and
+     * the clamped cap — the same test the lifecycle applies before auditing it.
      */
     private void putRowCap(UUID organizationId, AccessSimulationInput input,
                            DatasourceView datasource, SqlParseResult parsed,
+                           List<DatasourcePermissionContribution> contributions,
                            Map<String, Object> details) {
-        Integer override = permissionLookupService.findFor(input.userId(), input.datasourceId())
+        Integer grantOverride = permissionLookupService.mergeContributions(contributions)
                 .map(p -> p.rowLimitOverride())
                 .orElse(null);
         var applied = rowLimitPolicyResolutionService.resolve(organizationId,
                 input.datasourceId(), input.userId(), parsed.referencedTables());
-        if (applied.isPresent()) {
-            override = applied.get().tighten(override);
+        var grantCap = rowCapResolver.resolve(grantOverride, datasource.maxRowsPerQuery());
+        int value = grantCap.value();
+        var source = grantCap.source();
+        List<String> bindingPolicyIds = List.of();
+        if (applied.isPresent() && applied.get().maxRows() <= grantCap.value()) {
+            value = rowCapResolver.resolve(applied.get().tighten(grantOverride),
+                    datasource.maxRowsPerQuery()).value();
+            source = RowCapSource.ROW_LIMIT_POLICY;
+            bindingPolicyIds = applied.get().policyIds().stream().map(UUID::toString).sorted()
+                    .toList();
         }
-        var cap = rowCapResolver.resolve(override, datasource.maxRowsPerQuery());
-        details.put("effective_row_cap", cap.value());
-        details.put("row_cap_source", cap.source().name());
-        details.put("row_limit_policy_ids", applied
-                .map(a -> a.policyIds().stream().map(UUID::toString).sorted().toList())
-                .orElse(List.of()));
-        details.put("datasource_cap", cap.datasourceCap());
-        details.put("global_ceiling", cap.globalCeiling());
+        details.put("effective_row_cap", value);
+        details.put("row_cap_source", source.name());
+        details.put("row_limit_policy_ids", bindingPolicyIds);
+        details.put("datasource_cap", grantCap.datasourceCap());
+        details.put("global_ceiling", grantCap.globalCeiling());
     }
 
     private static Map<String, Object> describeContribution(DatasourcePermissionContribution c) {

@@ -1346,7 +1346,7 @@ describe('DatasourceSettingsPage — row limits and the effective-access tab (#9
 
     fireEvent.change(input, { target: { value: '1000' } });
     expect(await within(dialog).findByTestId('grant-row-limit-no-effect')).toHaveTextContent(
-      'Has no effect — the datasource cap (1,000) is lower.',
+      'Has no effect — the datasource already caps queries at 1,000 rows.',
     );
     expect(within(dialog).getByText(/only lower the datasource cap/)).toBeInTheDocument();
   });

@@ -834,7 +834,7 @@
       "view_table": "表格",
       "view_json": "JSON",
       "results_unavailable": "结果尚不可用",
-      "results_truncated": "返回 {{count}} 行（已按该用户在此数据源上的有效行数限制截断）",
+      "results_truncated": "返回 {{count}} 行（已按提交者在此数据源上的有效行数限制截断）",
       "results_truncated_bytes": "已返回 {{count}} 行（被结果大小限制截断）",
       "column_masked_tooltip": "该列因访问策略被屏蔽",
       "timeout_title": "因审批超时被自动拒绝",
@@ -1603,7 +1603,7 @@
       "tab_effective_access": "有效访问权限",
       "perm_row_limit_default": "默认",
       "perm_row_limit_clamped": "截为 {{cap}}",
-      "grant_row_limit_no_effect": "不生效 — 数据源上限（{{cap}}）更低。"
+      "grant_row_limit_no_effect": "不生效 — 数据源已将查询限制为 {{cap}} 行。"
     }
   },
   "admin": {
@@ -3901,7 +3901,8 @@
     "row_cap_source": {
       "OVERRIDE": "授权限制",
       "DATASOURCE_CAP": "数据源上限",
-      "GLOBAL_CEILING": "全局上限"
+      "GLOBAL_CEILING": "全局上限",
+      "ROW_LIMIT_POLICY": "行数限制策略"
     },
     "effective_capability": {
       "READ": "读取",
@@ -4099,7 +4100,10 @@
       "table_limit_rows": "最多 {{count}} 行",
       "section_grants": "参与合并的授权",
       "no_override": "无限制",
-      "never": "从不"
+      "never": "从不",
+      "row_cap_budget_note": "数据预算即将用尽时，结果还可能被进一步截断。",
+      "retention_masks": "由保留策略进行假名化（适用于所有人）",
+      "soft_delete_filter": "已软删除的行由保留策略隐藏（适用于所有人）"
     }
   },
   "connectors": {

@@ -8,9 +8,10 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SimulationDatasourceSelect } from '@/components/policies/SimulationDatasourceSelect';
 import { SimulationUserSelect } from '@/components/policies/SimulationUserSelect';
 import { apiErrorMessage } from '@/utils/apiErrors';
-import { fmtDate } from '@/utils/dateFormat';
+import { fmtDate, fmtNum } from '@/utils/dateFormat';
 import { formatBytes } from '@/utils/queryPlan';
 import {
+  QUERY_SHAPES,
   effectiveCapabilityLabel,
   maskingStrategyLabel,
   queryShapeLabel,
@@ -196,7 +197,7 @@ function RowCapCard({
           style={{ fontSize: 28, fontWeight: 600 }}
           data-testid="explorer-row-cap-value"
         >
-          {cap.value.toLocaleString()}
+          {fmtNum(cap.value)}
         </span>
         <Tag data-testid="explorer-row-cap-source" data-source={cap.source}>
           {rowCapSourceLabel(t, cap.source)}
@@ -215,15 +216,15 @@ function RowCapCard({
       {clamped && (
         <div className="muted" style={{ marginTop: 6 }} data-testid="explorer-row-cap-clamped">
           {t('access.explorer.row_cap_clamped', {
-            override: cap.override?.toLocaleString(),
-            cap: cap.value.toLocaleString(),
+            override: fmtNum(cap.override),
+            cap: fmtNum(cap.value),
           })}
         </div>
       )}
       <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
         {t('access.explorer.row_cap_bounds', {
-          datasource: cap.datasource_cap.toLocaleString(),
-          global: cap.global_ceiling.toLocaleString(),
+          datasource: fmtNum(cap.datasource_cap),
+          global: fmtNum(cap.global_ceiling),
         })}
       </div>
       {overrides.length > 1 || clamped ? (
@@ -233,7 +234,7 @@ function RowCapCard({
           </div>
           {overrides.map((g) => (
             <div key={g.grant_id} style={{ fontSize: 12 }}>
-              {grantLabel(g, t)}: <span className="mono">{g.row_limit_override?.toLocaleString()}</span>
+              {grantLabel(g, t)}: <span className="mono">{fmtNum(g.row_limit_override)}</span>
             </div>
           ))}
         </div>
@@ -243,6 +244,9 @@ function RowCapCard({
           {t('access.explorer.row_cap_table_note')}
         </div>
       )}
+      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+        {t('access.explorer.row_cap_budget_note')}
+      </div>
     </Card>
   );
 }
@@ -337,7 +341,11 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
                 <AttributedValues
                   values={data.denied_shapes}
                   grants={grants}
-                  render={(v) => queryShapeLabel(t, v as QueryShape)}
+                    render={(v) =>
+                    (QUERY_SHAPES as readonly string[]).includes(v)
+                      ? queryShapeLabel(t, v as QueryShape)
+                      : v
+                  }
                 />
               ),
             },
@@ -377,6 +385,19 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
             ))}
           </Space>
         )}
+        {(data.retention_masks ?? []).length > 0 && (
+          <div style={{ marginTop: 10 }} data-testid="explorer-retention-masks">
+            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+              {t('access.explorer.retention_masks')}
+            </div>
+            {(data.retention_masks ?? []).map((m) => (
+              <div key={m.policy_id} style={{ fontSize: 12 }}>
+                <span className="mono">{m.column_ref}</span> ·{' '}
+                {maskingStrategyLabel(t, m.strategy)}
+              </div>
+            ))}
+          </div>
+        )}
         {data.revealed_masks.length > 0 && (
           <div style={{ marginTop: 10 }}>
             <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
@@ -393,7 +414,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
       </Card>
 
       <Card size="small" title={t('access.explorer.section_row_security')}>
-        {data.row_security.length === 0 ? (
+        {data.row_security.length === 0 && (data.soft_delete_filters ?? []).length === 0 ? (
           <span className="muted">{t('access.explorer.none_row_security')}</span>
         ) : (
           <Space orientation="vertical" size={8} data-testid="explorer-row-security">
@@ -416,6 +437,17 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
                       : t('access.explorer.value_from', { expression: r.value_expression }))}
                   {r.value_type === 'VARIABLE' ? ' · ' : ''}
                   {t('access.explorer.applies_via', { reasons: matchesText(r.matched_by, t) })}
+                </div>
+              </div>
+            ))}
+            {(data.soft_delete_filters ?? []).map((f) => (
+              <div key={f.policy_id} data-testid="explorer-soft-delete">
+                <div className="mono">
+                  <span className="muted">{f.table_ref}: </span>
+                  {`${f.column_name} IS NULL`}
+                </div>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {t('access.explorer.soft_delete_filter')}
                 </div>
               </div>
             ))}
@@ -458,7 +490,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
                 title: t('access.explorer.col_row_limit'),
                 render: (_v, g) =>
                   g.row_limit_override != null ? (
-                    <span className="mono">{g.row_limit_override.toLocaleString()}</span>
+                    <span className="mono">{fmtNum(g.row_limit_override)}</span>
                   ) : (
                     <span className="muted">{t('access.explorer.no_override')}</span>
                   ),

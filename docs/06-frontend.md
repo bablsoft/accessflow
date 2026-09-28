@@ -512,8 +512,10 @@ and **Who has access** (either permission, so an auditor lands on the reverse in
   capabilities with source tags (*Direct grant* / *Group: X* plus expiry); scopes and deny-lists;
   masked and revealed columns; row-security predicates rendered as SQL-like text by the pure
   `components/access/effectivePermission.ts` (`region = 'EU'`, `tenant_id IN ('a', 'b')`) with their
-  value source and targeting reasons; table row limits; and the contributing grants. Nothing is merged
-  or clamped client-side. Mounted in two places, both gated on `DATASOURCE_PERMISSION_MANAGE`: an
+  value source and targeting reasons; the lifecycle retention masks and soft-delete filters that apply to
+  everyone; table row limits; and the contributing grants, with a caveat that a data budget can cut a
+  result shorter at run time. Nothing is merged or clamped client-side. `AuditLogPage`'s filter list
+  gained `EFFECTIVE_PERMISSION_VIEWED`. Mounted in two places, both gated on `DATASOURCE_PERMISSION_MANAGE`: an
   **Effective access** tab on `DatasourceSettingsPage`, and an **Effective access** row action on
   `UsersPage` opening `components/admin/UserEffectiveAccessDrawer.tsx` (there is no user detail page).
 - **Enum values in details.** Enum-valued detail keys (`query_type`, `action`, `status`,

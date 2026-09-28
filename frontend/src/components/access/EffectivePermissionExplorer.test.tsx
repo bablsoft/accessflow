@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n';
 import type { EffectivePermission } from '@/types/api';
@@ -324,12 +324,41 @@ describe('EffectivePermissionExplorer', () => {
     expect(screen.getByText('Access never expires')).toBeInTheDocument();
   });
 
-  it('shows the server error', async () => {
+  it('shows the server error detail', async () => {
     getEffectivePermission.mockRejectedValue(new Error('boom'));
     renderExplorer({ userId: 'u-1', datasourceId: 'ds-1' });
 
-    await waitFor(() =>
-      expect(screen.getAllByText('Could not load effective access').length).toBeGreaterThan(0),
+    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(screen.getByText('Could not load effective access')).toBeInTheDocument();
+  });
+
+  it('shows the lifecycle directives that apply to everyone, and the budget caveat', async () => {
+    getEffectivePermission.mockResolvedValue(
+      explanation({
+        denied_shapes: [{ value: 'SOMETHING_NEW', grant_ids: [] }],
+        row_cap: {
+          value: 30,
+          source: 'ROW_LIMIT_POLICY',
+          datasource_cap: 1000,
+          global_ceiling: 10000,
+          grant_ids: [],
+        },
+        retention_masks: [{ policy_id: 'lm-1', column_ref: 'public.users.ssn', strategy: 'HASH' }],
+        soft_delete_filters: [
+          { policy_id: 'sd-1', table_ref: 'public.orders', column_name: 'deleted_at' },
+        ],
+        row_security: [],
+      }),
     );
+    renderExplorer({ userId: 'u-1', datasourceId: 'ds-1' });
+
+    expect(await screen.findByTestId('explorer-retention-masks')).toHaveTextContent(
+      'public.users.ssn',
+    );
+    expect(screen.getByTestId('explorer-soft-delete')).toHaveTextContent('deleted_at IS NULL');
+    expect(screen.getByText(/A data budget can cut a result shorter/)).toBeInTheDocument();
+    expect(screen.getByTestId('explorer-row-cap-source')).toHaveTextContent('Row-limit policy');
+    // An unknown shape from a newer server renders raw instead of a missing i18n key.
+    expect(screen.getByText('SOMETHING_NEW')).toBeInTheDocument();
   });
 });

@@ -175,6 +175,37 @@ async function seedData() {
   }
   console.log(`[seed] ${groupIds.length} groups`);
 
+  // 7b. Two grants for the reviewer with different row-limit overrides — direct 5000, and 200
+  //     through the first group — so the Effective access tab (#946) has a row cap to explain.
+  const directGrant = await api.post(`${apiB}/api/v1/datasources/${ds.id}/permissions`, {
+    headers: adminHeaders,
+    data: {
+      user_id: reviewerId,
+      can_read: true,
+      can_write: false,
+      can_ddl: false,
+      can_break_glass: false,
+      row_limit_override: 5000,
+    },
+  });
+  if (!directGrant.ok()) console.warn(`  [warn] reviewer grant failed: ${directGrant.status()}`);
+  if (groupIds[0]) {
+    const groupGrant = await api.post(`${apiB}/api/v1/datasources/${ds.id}/permissions/groups`, {
+      headers: adminHeaders,
+      data: {
+        group_id: groupIds[0],
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        can_break_glass: false,
+        row_limit_override: 200,
+        allowed_schemas: ['public'],
+        expires_at: new Date(Date.now() + 7 * 86400_000).toISOString(),
+      },
+    });
+    if (!groupGrant.ok()) console.warn(`  [warn] group grant failed: ${groupGrant.status()}`);
+  }
+
   // 8. Seed query templates (AF-364) so the editor Templates drawer lists rows.
   const templateSpecs = [
     {
@@ -853,6 +884,19 @@ async function prepDatasourcesRowSecurity(page: Page, datasourceId: string) {
   await page.waitForTimeout(800);
 }
 
+async function prepDatasourcesEffectiveAccess(page: Page, datasourceId: string) {
+  await gotoAndSettle(page, `/datasources/${datasourceId}/settings`);
+  await page.getByRole('tab', { name: 'Effective access' }).click();
+  const reviewerEmail = process.env.REVIEWER_EMAIL ?? REVIEWER_EMAIL;
+  const picker = page.getByRole('combobox', { name: 'User' });
+  await picker.click();
+  await picker.fill(reviewerEmail);
+  await page.locator('.ant-select-item-option').filter({ hasText: reviewerEmail }).first().click();
+  await page.getByTestId('explorer-row-cap').waitFor();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+}
+
 async function prepLangfuseConfig(page: Page) {
   // LangfuseConfigPage renders the editable form inline (Connection + Features
   // sections, Save / Test connection buttons) — no Edit gate to click.
@@ -1090,6 +1134,10 @@ async function main() {
     {
       name: 'datasources-row-security',
       prep: (p) => prepDatasourcesRowSecurity(p, seed.datasourceId),
+    },
+    {
+      name: 'datasources-effective-access',
+      prep: (p) => prepDatasourcesEffectiveAccess(p, seed.datasourceId),
     },
 
     // v1.4 admin (AF-333 Langfuse, AF-336 RAG knowledge base)

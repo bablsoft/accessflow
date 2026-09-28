@@ -31,6 +31,9 @@ import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.proxy.api.EffectiveRowCap;
 import com.bablsoft.accessflow.proxy.api.RowCapResolver;
 import com.bablsoft.accessflow.proxy.api.RowCapSource;
@@ -73,6 +76,7 @@ class DefaultEffectivePermissionExplorerServiceTest {
     @Mock RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
     @Mock UserGroupService userGroupService;
     @Mock RowCapResolver rowCapResolver;
+    @Mock LifecycleDirectiveResolutionService lifecycleDirectiveResolutionService;
 
     private DefaultEffectivePermissionExplorerService service;
 
@@ -89,7 +93,8 @@ class DefaultEffectivePermissionExplorerServiceTest {
         service = new DefaultEffectivePermissionExplorerService(userQueryService,
                 datasourceAdminService, permissionLookupService, rolePermissionHolderLookupService,
                 maskingPolicyResolutionService, rowSecurityResolutionService,
-                rowLimitPolicyResolutionService, userGroupService, rowCapResolver);
+                rowLimitPolicyResolutionService, userGroupService, rowCapResolver,
+                lifecycleDirectiveResolutionService);
         when(userQueryService.findById(userId)).thenReturn(Optional.of(user(organizationId)));
         when(datasourceAdminService.getForAdmin(datasourceId, organizationId))
                 .thenReturn(datasource(1000));
@@ -248,6 +253,24 @@ class DefaultEffectivePermissionExplorerServiceTest {
         assertThat(e.maskedColumns()).containsExactly(mask);
         assertThat(e.rowSecurity()).containsExactly(predicate);
         assertThat(e.tableRowLimits()).containsExactly(tableLimit);
+    }
+
+    @Test
+    void lifecycleDirectivesEnforcementAppliesToEveryoneAreIncluded() {
+        givenContributions(List.of(), null);
+        var retention = new ColumnMaskDirective("public.users.email", MaskingStrategy.HASH, Map.of(),
+                UUID.randomUUID());
+        var softDelete = new RowSecurityDirective(UUID.randomUUID(), "public.orders", "deleted_at",
+                RowSecurityOperator.IS_NULL, List.of());
+        when(lifecycleDirectiveResolutionService.resolveColumnMasks(organizationId, datasourceId))
+                .thenReturn(List.of(retention));
+        when(lifecycleDirectiveResolutionService.resolveSoftDeleteFilters(organizationId,
+                datasourceId)).thenReturn(List.of(softDelete));
+
+        var e = service.explain(organizationId, userId, datasourceId);
+
+        assertThat(e.retentionMasks()).containsExactly(retention);
+        assertThat(e.softDeleteFilters()).containsExactly(softDelete);
     }
 
     @Test

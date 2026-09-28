@@ -4701,7 +4701,7 @@ export type StatementCapability = 'READ' | 'WRITE' | 'DDL';
 
 // ── Effective-permission explorer (#946) ─────────────────────────────────────
 
-export type RowCapSource = 'OVERRIDE' | 'DATASOURCE_CAP' | 'GLOBAL_CEILING';
+export type RowCapSource = 'OVERRIDE' | 'DATASOURCE_CAP' | 'GLOBAL_CEILING' | 'ROW_LIMIT_POLICY';
 
 export type EffectiveCapabilityKind = 'READ' | 'WRITE' | 'DDL' | 'BREAK_GLASS';
 
@@ -4781,6 +4781,8 @@ export interface EffectivePermission {
     strategy: MaskingStrategy;
     revealed_by: AccessTargetMatch[];
   }[];
+  retention_masks?: { policy_id: string; column_ref: string; strategy: MaskingStrategy }[];
+  soft_delete_filters?: { policy_id: string; table_ref: string; column_name: string }[];
   row_security: {
     policy_id: string;
     table_ref: string;

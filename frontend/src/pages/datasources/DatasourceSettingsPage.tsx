@@ -326,6 +326,9 @@ export function DatasourceSettingsPage() {
             key: 'permissions',
             label: t('datasources.settings.tab_permissions', { count: permissionsCount }),
           },
+          ...(canExplainAccess
+            ? [{ key: 'effective-access', label: t('datasources.settings.tab_effective_access') }]
+            : []),
           { key: 'schema', label: t('datasources.settings.tab_schema') },
           {
             key: 'masking',
@@ -356,9 +359,6 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_discovery', { count: discoveryPendingCount }),
           },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
-          ...(canExplainAccess
-            ? [{ key: 'effective-access', label: t('datasources.settings.tab_effective_access') }]
-            : []),
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
       />

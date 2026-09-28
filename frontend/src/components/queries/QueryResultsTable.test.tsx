@@ -89,7 +89,7 @@ describe('QueryResultsTable', () => {
     getQueryResultsMock.mockResolvedValue(page({ truncated: true }));
     renderTable();
     expect(
-      await screen.findByText(/truncated at the effective row limit for this user/i),
+      await screen.findByText(/truncated at the submitter's effective row limit/i),
     ).toBeInTheDocument();
   });
 

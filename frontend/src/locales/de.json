@@ -834,7 +834,7 @@
       "view_table": "Tabelle",
       "view_json": "JSON",
       "results_unavailable": "Ergebnisse noch nicht verfügbar",
-      "results_truncated": "{{count}} Zeilen zurückgegeben (am effektiven Zeilenlimit dieses Benutzers für diese Datenquelle abgeschnitten)",
+      "results_truncated": "{{count}} Zeilen zurückgegeben (am effektiven Zeilenlimit des Einreichenden für diese Datenquelle abgeschnitten)",
       "results_truncated_bytes": "{{count}} Zeilen zurückgegeben (durch das Ergebnisgrößenlimit gekürzt)",
       "column_masked_tooltip": "Spalte durch Zugriffsrichtlinie maskiert",
       "timeout_title": "Auto-abgelehnt durch Genehmigungs-Timeout",
@@ -1603,7 +1603,7 @@
       "tab_effective_access": "Effektiver Zugriff",
       "perm_row_limit_default": "Standard",
       "perm_row_limit_clamped": "begrenzt auf {{cap}}",
-      "grant_row_limit_no_effect": "Keine Wirkung — die Datenquellen-Grenze ({{cap}}) ist niedriger."
+      "grant_row_limit_no_effect": "Keine Wirkung — die Datenquelle begrenzt Abfragen bereits auf {{cap}} Zeilen."
     }
   },
   "admin": {
@@ -3901,7 +3901,8 @@
     "row_cap_source": {
       "OVERRIDE": "Freigabe-Limit",
       "DATASOURCE_CAP": "Datenquellen-Grenze",
-      "GLOBAL_CEILING": "Globale Obergrenze"
+      "GLOBAL_CEILING": "Globale Obergrenze",
+      "ROW_LIMIT_POLICY": "Zeilenlimit-Richtlinie"
     },
     "effective_capability": {
       "READ": "Lesen",
@@ -4099,7 +4100,10 @@
       "table_limit_rows": "höchstens {{count}} Zeilen",
       "section_grants": "Beitragende Freigaben",
       "no_override": "kein Limit",
-      "never": "Nie"
+      "never": "Nie",
+      "row_cap_budget_note": "Ein Datenbudget kann ein Ergebnis zusätzlich kürzen, sobald es weitgehend aufgebraucht ist.",
+      "retention_masks": "Durch eine Aufbewahrungsrichtlinie pseudonymisiert (gilt für alle)",
+      "soft_delete_filter": "Weich gelöschte Zeilen werden durch eine Aufbewahrungsrichtlinie ausgeblendet (gilt für alle)"
     }
   },
   "connectors": {
