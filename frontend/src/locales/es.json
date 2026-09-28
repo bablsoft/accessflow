@@ -5974,6 +5974,8 @@
     "date_help": "Los valores que no empiezan por una fecha yyyy-MM se enmascaran por completo.",
     "nullify_help": "Cada valor se devuelve como NULL en lugar de un token de máscara.",
     "preview_null": "NULL",
-    "preview_regex_note": "Vista previa con el motor de regex del navegador; el motor Java del servidor es el que decide."
+    "preview_regex_note": "Vista previa con el motor de regex del navegador; el motor Java del servidor es el que decide.",
+    "preview_regex_too_long": "La vista previa solo se ejecuta con muestras de {{max}} caracteres o menos, para que el navegador siga respondiendo.",
+    "pattern_matches_empty": "Este patrón coincide con un valor vacío, por lo que no enmascararía nada"
   }
 }

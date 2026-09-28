@@ -193,6 +193,18 @@ class ApiResponseMaskerTest {
     }
 
     @Test
+    void extremeNumericValueInXmlKeepsEveryOtherFieldMasked() {
+        var body = "<user><ssn>123456789</ssn><salary>1E+999999999</salary></user>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "//salary", MaskingStrategy.NUMERIC_BUCKET,
+                        Map.of("bucket_size", "10000")),
+                mask(ApiMaskingMatcherType.XML_PATH, "//ssn", MaskingStrategy.FULL, Map.of())));
+
+        assertThat(masked).doesNotContain("123456789").doesNotContain("1E+999999999");
+    }
+
+    @Test
     void keepFirstAppliesToJsonLeaf() {
         var body = "{\"phone\":\"0912345678\"}";
 

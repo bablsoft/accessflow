@@ -161,6 +161,26 @@ class ColumnMaskerTest {
     }
 
     @Test
+    void regexReplaceFailsClosedWhenAMatchingEvaluationExceedsItsBudget() {
+        // The pattern matches, so only the budget can turn this into a full mask.
+        assertThat(ColumnMasker.regexReplace("aaaaaaaaaa", "a+", "b", 1_000)).isEqualTo("b");
+        assertThat(ColumnMasker.regexReplace("aaaaaaaaaa", "a+", "b", 5)).isEqualTo("***");
+    }
+
+    @Test
+    void regexReplaceMasksOutputThatExpandsPastTheCap() {
+        var value = "a".repeat(100);
+        assertThat(ColumnMasker.apply(MaskingStrategy.REGEX_REPLACE, value,
+                Map.of("pattern", "a", "replacement", "b".repeat(100)))).isEqualTo("***");
+    }
+
+    @Test
+    void regexReplaceMasksValuesMatchedOnlyByEmptyStrings() {
+        assertThat(ColumnMasker.apply(MaskingStrategy.REGEX_REPLACE, "secret",
+                Map.of("pattern", "\\d*", "replacement", "#"))).isEqualTo("***");
+    }
+
+    @Test
     void regexReplaceFailsClosedOnInvalidPatternOrReplacement() {
         assertThat(ColumnMasker.apply(MaskingStrategy.REGEX_REPLACE, "abc",
                 Map.of("pattern", "(unclosed", "replacement", "x"))).isEqualTo("***");
@@ -214,6 +234,19 @@ class ColumnMaskerTest {
                 Map.of("boundaries", "30,18"))).isEqualTo("***");
         assertThat(ColumnMasker.apply(MaskingStrategy.NUMERIC_BUCKET, "12",
                 Map.of("bucket_size", "-5"))).isEqualTo("***");
+    }
+
+    @Test
+    void numericBucketMasksExtremeExponentsInsteadOfComputingThem() {
+        var params = Map.of("bucket_size", "10");
+        assertThat(ColumnMasker.apply(MaskingStrategy.NUMERIC_BUCKET, "1E+999999999", params))
+                .isEqualTo("***");
+        assertThat(ColumnMasker.apply(MaskingStrategy.NUMERIC_BUCKET, "1E-999999999", params))
+                .isEqualTo("***");
+        assertThat(ColumnMasker.apply(MaskingStrategy.NUMERIC_BUCKET, "5",
+                Map.of("bucket_size", "1E-100000000"))).isEqualTo("***");
+        assertThat(ColumnMasker.apply(MaskingStrategy.NUMERIC_BUCKET, "1E+999999999",
+                Map.of("boundaries", "1,2"))).isEqualTo("***");
     }
 
     @Test

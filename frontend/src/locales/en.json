@@ -5974,6 +5974,8 @@
     "date_help": "Values that do not start with a yyyy-MM date are fully masked.",
     "nullify_help": "Every value is returned as NULL instead of a mask token.",
     "preview_null": "NULL",
-    "preview_regex_note": "Previewed with the browser's regex engine; the server's Java engine is authoritative."
+    "preview_regex_note": "Previewed with the browser's regex engine; the server's Java engine is authoritative.",
+    "preview_regex_too_long": "Preview runs on samples of {{max}} characters or fewer, to keep the browser responsive.",
+    "pattern_matches_empty": "This pattern matches an empty value, so it would not mask anything"
   }
 }

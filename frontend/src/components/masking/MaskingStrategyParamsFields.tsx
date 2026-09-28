@@ -12,6 +12,7 @@ import {
   MAX_REPLACEMENT_LENGTH,
   MAX_VISIBLE_LENGTH,
   isValidBoundaries,
+  matchesEmptyString,
   type BucketMode,
 } from '@/utils/maskingStrategyParams';
 
@@ -77,6 +78,12 @@ export function MaskingStrategyParamsFields({ strategy }: MaskingStrategyParamsF
               {
                 max: MAX_PATTERN_LENGTH,
                 message: t('maskingParams.pattern_max', { max: MAX_PATTERN_LENGTH }),
+              },
+              {
+                validator: (_, value: string | undefined) =>
+                  value && matchesEmptyString(value)
+                    ? Promise.reject(new Error(t('maskingParams.pattern_matches_empty')))
+                    : Promise.resolve(),
               },
             ]}
           >

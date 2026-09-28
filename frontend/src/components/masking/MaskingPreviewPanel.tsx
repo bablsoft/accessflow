@@ -1,7 +1,7 @@
 import { Input, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { MaskingStrategy } from '@/types/api';
-import { maskingPreview } from '@/utils/maskingPreview';
+import { MAX_REGEX_PREVIEW_LENGTH, maskingPreview } from '@/utils/maskingPreview';
 
 interface MaskingPreviewPanelProps {
   strategy: MaskingStrategy | undefined;
@@ -44,7 +44,9 @@ export function MaskingPreviewPanel({
       </Typography.Text>
       {strategy === 'REGEX_REPLACE' && (
         <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-          {t('maskingParams.preview_regex_note')}
+          {sample.length > MAX_REGEX_PREVIEW_LENGTH
+            ? t('maskingParams.preview_regex_too_long', { max: MAX_REGEX_PREVIEW_LENGTH })
+            : t('maskingParams.preview_regex_note')}
         </div>
       )}
     </div>

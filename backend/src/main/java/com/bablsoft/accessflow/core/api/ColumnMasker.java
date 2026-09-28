@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -41,8 +42,20 @@ public final class ColumnMasker {
     static final char MASK_CHAR = '*';
     /** Longest value a regex strategy is run against; longer values are fully masked. */
     static final int MAX_REGEX_INPUT_LENGTH = 4096;
-    /** Character reads one regex evaluation may perform before it is abandoned as runaway. */
-    static final long REGEX_CHAR_BUDGET = 1_000_000L;
+    /** Longest regex output kept; a template that expands past it is fully masked. */
+    static final int MAX_REGEX_OUTPUT_LENGTH = 8192;
+    /**
+     * Character reads one regex evaluation may perform before it is abandoned as runaway. Sized for
+     * a linear pattern over the longest accepted input with headroom, and small enough that a
+     * masked column costs at most a few milliseconds per cell even when every cell hits it.
+     */
+    static final long REGEX_CHAR_BUDGET = 250_000L;
+    /**
+     * Largest precision and absolute scale a bucketed number may have. {@code 1E+999999999} parses as
+     * a {@link BigDecimal} but rescaling it would allocate gigabytes or throw — such values are
+     * masked, never computed.
+     */
+    static final int MAX_DECIMAL_DIGITS = 1000;
     private static final int PATTERN_CACHE_LIMIT = 256;
     private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
     private static final Pattern DATE_PREFIX = Pattern.compile("^(\\d{4})-(\\d{2})");
@@ -197,14 +210,20 @@ public final class ColumnMasker {
                 || raw.length() > MAX_REGEX_INPUT_LENGTH) {
             return FULL_MASK;
         }
+        return regexReplace(raw, pattern, replacement, REGEX_CHAR_BUDGET);
+    }
+
+    static String regexReplace(String raw, String pattern, String replacement, long budget) {
         try {
-            var matcher = compile(pattern).matcher(new BudgetedCharSequence(raw, REGEX_CHAR_BUDGET));
-            if (!matcher.find()) {
-                // An unmatched value would pass through unchanged — mask it instead of leaking it.
+            var matcher = compile(pattern).matcher(new BudgetedCharSequence(raw, budget));
+            if (!hasNonEmptyMatch(matcher)) {
+                // An unmatched value would pass through unchanged — and one matched only by empty
+                // strings would pass through with insertions — so mask it instead of leaking it.
                 return FULL_MASK;
             }
             matcher.reset();
-            return matcher.replaceAll(replacement);
+            var result = matcher.replaceAll(replacement);
+            return result.length() > MAX_REGEX_OUTPUT_LENGTH ? FULL_MASK : result;
         } catch (IllegalArgumentException | IndexOutOfBoundsException
                  | RegexBudgetExceededException | StackOverflowError ex) {
             // Fail closed: an invalid pattern, a bad group reference, runaway backtracking or deep
@@ -213,17 +232,28 @@ public final class ColumnMasker {
         }
     }
 
+    private static boolean hasNonEmptyMatch(Matcher matcher) {
+        while (matcher.find()) {
+            if (matcher.end() > matcher.start()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String numericBucket(String raw, Map<String, String> params) {
-        BigDecimal value;
-        try {
-            value = new BigDecimal(raw.trim());
-        } catch (NumberFormatException ex) {
+        var value = parseDecimal(raw);
+        if (value == null) {
             return FULL_MASK;
         }
         var bucketSize = parseDecimal(param(params, PARAM_BUCKET_SIZE));
         if (bucketSize != null && bucketSize.signum() > 0) {
-            var floor = value.divide(bucketSize, 0, RoundingMode.FLOOR).multiply(bucketSize);
-            return plain(floor);
+            try {
+                var floor = value.divide(bucketSize, 0, RoundingMode.FLOOR).multiply(bucketSize);
+                return plain(floor);
+            } catch (ArithmeticException ex) {
+                return FULL_MASK;
+            }
         }
         var boundaries = parseBoundaries(param(params, PARAM_BOUNDARIES));
         if (boundaries == null || boundaries.isEmpty()) {
@@ -256,12 +286,17 @@ public final class ColumnMasker {
         return result;
     }
 
+    /** Parses a bounded decimal; {@code null} when malformed or outside {@link #MAX_DECIMAL_DIGITS}. */
     static BigDecimal parseDecimal(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
-            return new BigDecimal(raw.trim());
+            var value = new BigDecimal(raw.trim());
+            if (value.precision() > MAX_DECIMAL_DIGITS || Math.abs((long) value.scale()) > MAX_DECIMAL_DIGITS) {
+                return null;
+            }
+            return value;
         } catch (NumberFormatException ex) {
             return null;
         }

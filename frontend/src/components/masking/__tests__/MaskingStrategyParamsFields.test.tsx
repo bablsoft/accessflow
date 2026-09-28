@@ -23,7 +23,22 @@ describe('MaskingStrategyParamsFields', () => {
   it('renders nothing for parameterless strategies', () => {
     const { container } = renderFields('FULL');
     expect(container.querySelector('input')).toBeNull();
-    renderFields(undefined);
+    const { container: noStrategy } = renderFields(undefined);
+    expect(noStrategy.querySelector('input')).toBeNull();
+  });
+
+  it('rejects an out-of-range visible length', async () => {
+    let form: FormInstance | undefined;
+    renderFields('KEEP_FIRST', (f) => {
+      form = f;
+    });
+    act(() => {
+      form?.setFieldsValue({ visible_prefix: 257 });
+    });
+    await act(async () => {
+      await form?.validateFields().catch(() => undefined);
+    });
+    expect(await screen.findByText('Enter a whole number between 1 and 256')).toBeInTheDocument();
   });
 
   it('renders the suffix and prefix length inputs', () => {

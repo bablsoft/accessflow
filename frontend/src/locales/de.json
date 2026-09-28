@@ -5974,6 +5974,8 @@
     "date_help": "Werte, die nicht mit einem Datum im Format yyyy-MM beginnen, werden vollständig maskiert.",
     "nullify_help": "Jeder Wert wird statt eines Maskierungszeichens als NULL zurückgegeben.",
     "preview_null": "NULL",
-    "preview_regex_note": "Vorschau mit der Regex-Engine des Browsers; maßgeblich ist die Java-Engine des Servers."
+    "preview_regex_note": "Vorschau mit der Regex-Engine des Browsers; maßgeblich ist die Java-Engine des Servers.",
+    "preview_regex_too_long": "Die Vorschau läuft nur für Beispiele mit höchstens {{max}} Zeichen, damit der Browser reaktionsfähig bleibt.",
+    "pattern_matches_empty": "Dieses Muster passt auf einen leeren Wert und würde daher nichts maskieren"
   }
 }

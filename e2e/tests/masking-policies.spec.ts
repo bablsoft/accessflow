@@ -215,7 +215,15 @@ test.describe.serial('dynamic data masking policies (AF-381)', () => {
 
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Masking policy saved')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('public.demo.phone').first()).toBeVisible({ timeout: 10_000 });
+    const row = page.getByRole('row').filter({ hasText: 'public.demo.phone' });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(row.getByText('Keep first N')).toBeVisible();
+
+    // The stored visible_prefix loads back into the edit form.
+    await row.getByRole('button', { name: /edit/i }).click();
+    const editDialog = page.getByRole('dialog');
+    await expect(editDialog.getByLabel('Visible prefix length')).toHaveValue('4');
+    await expect(editDialog.getByTestId('masking-preview-output')).toBeVisible();
   });
 
   // ── 5. A malformed regex is rejected when the policy is saved (#944) ──────

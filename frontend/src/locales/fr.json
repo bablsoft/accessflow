@@ -5974,6 +5974,8 @@
     "date_help": "Les valeurs qui ne commencent pas par une date yyyy-MM sont entièrement masquées.",
     "nullify_help": "Chaque valeur est renvoyée comme NULL au lieu d’un jeton de masquage.",
     "preview_null": "NULL",
-    "preview_regex_note": "Aperçu avec le moteur regex du navigateur ; le moteur Java du serveur fait foi."
+    "preview_regex_note": "Aperçu avec le moteur regex du navigateur ; le moteur Java du serveur fait foi.",
+    "preview_regex_too_long": "L’aperçu ne s’exécute que sur des échantillons de {{max}} caractères au plus, pour que le navigateur reste réactif.",
+    "pattern_matches_empty": "Ce motif correspond à une valeur vide et ne masquerait donc rien"
   }
 }

@@ -77,3 +77,15 @@ export function isValidBoundaries(raw: string | undefined): boolean {
   const parsed = parseBoundaries(raw);
   return parsed != null && parsed.length <= MAX_BOUNDARIES;
 }
+
+/**
+ * Mirrors the backend's empty-match rejection for patterns the browser can compile; anything it
+ * cannot compile is left for the server's Java engine to judge.
+ */
+export function matchesEmptyString(pattern: string): boolean {
+  try {
+    return new RegExp(pattern).test('');
+  } catch {
+    return false;
+  }
+}

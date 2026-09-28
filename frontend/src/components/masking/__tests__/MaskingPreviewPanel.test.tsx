@@ -47,4 +47,14 @@ describe('MaskingPreviewPanel', () => {
     expect(screen.getByText(/browser's regex engine/)).toBeInTheDocument();
     expect(screen.getByTestId('masking-preview-output')).toHaveTextContent('##########');
   });
+
+  it('skips the regex preview for long samples instead of risking a frozen tab', () => {
+    renderPanel({
+      strategy: 'REGEX_REPLACE',
+      params: { pattern: '^(a+)+$', replacement: 'x' },
+      sample: `${'a'.repeat(30)}!`,
+    });
+    expect(screen.getByText(/20 characters or fewer/)).toBeInTheDocument();
+    expect(screen.getByTestId('masking-preview-output')).toHaveTextContent('—');
+  });
 });

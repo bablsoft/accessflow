@@ -118,8 +118,8 @@ class JdbcResultRowMapper {
     private Object maskValue(ResultSet rs, int index, ColumnMaskResolver.AppliedMask mask)
             throws SQLException {
         if (!ColumnMasker.readsRawValue(mask.strategy())) {
-            // Never materialize the raw value when the output does not depend on it — only
-            // check for NULL (FULL, CONSTANT, NULLIFY).
+            // The output does not depend on the value (FULL, CONSTANT, NULLIFY): only check for
+            // NULL, never render the value as text.
             return rs.getObject(index) == null && rs.wasNull()
                     ? null
                     : ColumnMasker.applyWithoutValue(mask.strategy(), mask.params());

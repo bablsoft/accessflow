@@ -76,6 +76,9 @@ class MaskingStrategyParamsValidatorTest {
                 Map.of("pattern", "(unclosed", "replacement", "x")).orElseThrow();
         assertThat(invalid.messageKey()).isEqualTo("error.masking_params.pattern_invalid");
         assertThat(invalid.args()).hasSize(1);
+        assertThat(violationKey(MaskingStrategy.REGEX_REPLACE,
+                Map.of("pattern", "\\d*", "replacement", "#")))
+                .isEqualTo("error.masking_params.pattern_matches_empty");
         assertThat(violationKey(MaskingStrategy.REGEX_REPLACE, Map.of("pattern", "a")))
                 .isEqualTo("error.masking_params.regex_replacement_invalid");
         assertThat(violationKey(MaskingStrategy.REGEX_REPLACE,
@@ -111,6 +114,10 @@ class MaskingStrategyParamsValidatorTest {
                 .isEqualTo("error.masking_params.bucket_mode_required");
         assertThat(violationKey(MaskingStrategy.NUMERIC_BUCKET, Map.of("bucket_size", "0")))
                 .isEqualTo("error.masking_params.bucket_size_invalid");
+        assertThat(violationKey(MaskingStrategy.NUMERIC_BUCKET, Map.of("bucket_size", "1E-100000000")))
+                .isEqualTo("error.masking_params.bucket_size_invalid");
+        assertThat(violationKey(MaskingStrategy.NUMERIC_BUCKET, Map.of("boundaries", "1,1E+999999")))
+                .isEqualTo("error.masking_params.boundaries_invalid");
         assertThat(violationKey(MaskingStrategy.NUMERIC_BUCKET, Map.of("bucket_size", "ten")))
                 .isEqualTo("error.masking_params.bucket_size_invalid");
         assertThat(violationKey(MaskingStrategy.NUMERIC_BUCKET, Map.of("boundaries", "30,18")))

@@ -2,16 +2,23 @@ import type { MaskingStrategy } from '@/types/api';
 
 /**
  * Client-side mirror of the backend `ColumnMasker` strategies, used to render a live preview of how
- * a value will look once masked. Every strategy reproduces the backend output and its fail-closed
- * fallbacks, with two exceptions: HASH is shown as an illustrative fixed SHA-256-shaped digest (the
- * real digest is computed server-side at result-read time), and REGEX_REPLACE runs on the browser's
- * regex engine, which differs from Java's in a few constructs — the server is authoritative.
- * NULLIFY previews as `null`.
+ * a value will look once masked. Strategies reproduce the backend output and its fail-closed
+ * fallbacks, with these approximations — the server is authoritative: HASH is shown as an
+ * illustrative fixed SHA-256-shaped digest; REGEX_REPLACE runs on the browser's regex engine (which
+ * differs from Java's in a few constructs, and has no backtracking budget, so it only evaluates
+ * samples up to {@link MAX_REGEX_PREVIEW_LENGTH} characters); NUMERIC_BUCKET uses floating point
+ * where the server uses exact decimals. NULLIFY previews as `null`.
  */
 export const FULL_MASK = '***';
 export const DEFAULT_VISIBLE_SUFFIX = 4;
 export const DEFAULT_VISIBLE_PREFIX = 4;
-const MAX_REGEX_INPUT_LENGTH = 4096;
+/** Returned instead of a preview when the sample is too long to evaluate a regex safely. */
+export const REGEX_PREVIEW_SKIPPED = '';
+/**
+ * The browser regex engine cannot be interrupted, so a catastrophic pattern would freeze the tab on
+ * every keystroke. Short samples keep even exponential backtracking to a few million steps.
+ */
+export const MAX_REGEX_PREVIEW_LENGTH = 20;
 
 // SHA-256 of the empty string — a real, fixed sample used only to illustrate the HASH output shape.
 const ILLUSTRATIVE_HASH =
@@ -144,8 +151,11 @@ export function javaReplacementToJs(replacement: string): string | null {
 function regexReplace(raw: string, params?: Record<string, string>): string {
   const pattern = params?.pattern;
   const replacement = params?.replacement;
-  if (!pattern || replacement == null || raw.length > MAX_REGEX_INPUT_LENGTH) {
+  if (!pattern || replacement == null) {
     return FULL_MASK;
+  }
+  if (raw.length > MAX_REGEX_PREVIEW_LENGTH) {
+    return REGEX_PREVIEW_SKIPPED;
   }
   const jsReplacement = javaReplacementToJs(replacement);
   if (jsReplacement == null) {
@@ -157,8 +167,9 @@ function regexReplace(raw: string, params?: Record<string, string>): string {
   } catch {
     return FULL_MASK;
   }
-  if (!new RegExp(pattern).test(raw)) {
-    // Mirrors the backend: a value the pattern does not match is masked, never passed through.
+  if (![...raw.matchAll(regex)].some((m) => m[0].length > 0)) {
+    // Mirrors the backend: a value the pattern does not match — or matches only with empty strings —
+    // is masked, never passed through.
     return FULL_MASK;
   }
   return raw.replace(regex, jsReplacement);
@@ -168,7 +179,8 @@ function parseDecimal(raw: string | undefined): number | null {
   if (raw == null || !DECIMAL.test(raw.trim())) {
     return null;
   }
-  return Number(raw.trim());
+  const value = Number(raw.trim());
+  return Number.isFinite(value) ? value : null;
 }
 
 /** Parses a strictly ascending comma-separated list; null when malformed. */

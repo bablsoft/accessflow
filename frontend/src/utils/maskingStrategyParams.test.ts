@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formValuesFromStrategyParams,
   isValidBoundaries,
+  matchesEmptyString,
   strategyParamsFromForm,
 } from './maskingStrategyParams';
 
@@ -70,5 +71,13 @@ describe('isValidBoundaries', () => {
     expect(isValidBoundaries('30,18')).toBe(false);
     expect(isValidBoundaries(undefined)).toBe(false);
     expect(isValidBoundaries(Array.from({ length: 51 }, (_, i) => i).join(','))).toBe(false);
+  });
+});
+
+describe('matchesEmptyString', () => {
+  it('flags patterns that match the empty string and ignores ones the browser cannot compile', () => {
+    expect(matchesEmptyString('\\d*')).toBe(true);
+    expect(matchesEmptyString('\\d+')).toBe(false);
+    expect(matchesEmptyString('(')).toBe(false);
   });
 });

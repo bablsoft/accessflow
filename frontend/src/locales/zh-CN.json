@@ -5974,6 +5974,8 @@
     "date_help": "不以 yyyy-MM 日期开头的值将被完全脱敏。",
     "nullify_help": "每个值都以 NULL 返回，而不是脱敏标记。",
     "preview_null": "NULL",
-    "preview_regex_note": "预览使用浏览器的正则引擎；以服务器的 Java 引擎结果为准。"
+    "preview_regex_note": "预览使用浏览器的正则引擎；以服务器的 Java 引擎结果为准。",
+    "preview_regex_too_long": "预览仅对不超过 {{max}} 个字符的示例运行，以保持浏览器响应。",
+    "pattern_matches_empty": "该模式可匹配空值，因此不会脱敏任何内容"
   }
 }

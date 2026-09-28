@@ -10,7 +10,8 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Save-time validation of a masking strategy's {@code strategy_params}, shared by every admin path
- * that persists or simulates a masking policy. Parameters are checked here so that a malformed
+ * that persists a masking policy (the simulator never reads cell values, so params cannot change
+ * its result). Parameters are checked here so that a malformed
  * policy is rejected when it is configured — never discovered during someone's query. Pure JDK.
  */
 public final class MaskingStrategyParamsValidator {
@@ -110,6 +111,11 @@ public final class MaskingStrategyParamsValidator {
             compiled = Pattern.compile(pattern);
         } catch (PatternSyntaxException ex) {
             return violation("error.masking_params.pattern_invalid", ex.getIndex());
+        }
+        if (compiled.matcher("").find()) {
+            // A pattern that matches the empty string matches every value, inserting the replacement
+            // between the raw characters instead of masking them.
+            return violation("error.masking_params.pattern_matches_empty");
         }
         if (replacement == null || replacement.length() > MAX_REPLACEMENT_LENGTH) {
             return violation("error.masking_params.regex_replacement_invalid");

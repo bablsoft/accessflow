@@ -81,9 +81,11 @@ describe('maskingPreview', () => {
     expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: '(', replacement: '#' })).toBe('***');
     expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: 'a', replacement: '$' })).toBe('***');
     expect(maskingPreview('REGEX_REPLACE', 'abc', { pattern: 'a' })).toBe('***');
-    expect(maskingPreview('REGEX_REPLACE', 'a'.repeat(4097), { pattern: 'a', replacement: 'b' })).toBe(
-      '***',
-    );
+    expect(maskingPreview('REGEX_REPLACE', 'secret', { pattern: '\\d*', replacement: '#' })).toBe('***');
+    // Too long to evaluate safely in the browser: no preview rather than a frozen tab.
+    expect(
+      maskingPreview('REGEX_REPLACE', `${'a'.repeat(30)}!`, { pattern: '^(a+)+$', replacement: 'x' }),
+    ).toBe('');
   });
 
   it('NUMERIC_BUCKET floors to a size or labels a boundary band', () => {
@@ -96,6 +98,7 @@ describe('maskingPreview', () => {
     expect(maskingPreview('NUMERIC_BUCKET', 'n/a', bands)).toBe('***');
     expect(maskingPreview('NUMERIC_BUCKET', '12', { boundaries: '30,18' })).toBe('***');
     expect(maskingPreview('NUMERIC_BUCKET', '12')).toBe('***');
+    expect(maskingPreview('NUMERIC_BUCKET', '1E+999999999', { bucket_size: '10' })).toBe('***');
   });
 
   it('DATE_GENERALIZE truncates to the precision and fails closed', () => {
