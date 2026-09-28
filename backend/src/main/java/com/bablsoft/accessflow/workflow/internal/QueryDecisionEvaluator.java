@@ -16,6 +16,9 @@ import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
 import com.bablsoft.accessflow.core.api.DecisionTrace;
 import com.bablsoft.accessflow.core.api.DecisionTraceStep;
 import com.bablsoft.accessflow.core.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.DecisionHookOutcome;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookInvoker;
 import com.bablsoft.accessflow.workflow.internal.routing.ConditionContextFactory;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
@@ -52,7 +55,9 @@ import java.util.Set;
  * touches {@code AUTO_REJECT}: a block escalates, it does not reject.
  *
  * <p>This class reads, and only reads: no transition, no persistence, no published event, no AI call,
- * and no connection to a customer database.
+ * and no connection to a customer database. The one outbound call — the external decision hook
+ * (#945) — goes through the {@link DecisionHookInvoker} the caller passes in, so the live state
+ * machine decides whether one is made and the simulators pass an invoker that never calls out.
  */
 @Component
 @RequiredArgsConstructor
@@ -95,8 +100,19 @@ class QueryDecisionEvaluator {
     QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
                            int riskScore, List<String> blockingRuleIds, BytesCapCheck bytesCap,
                            DataBudgetCheck dataBudget, Clock clock) {
+        return evaluate(query, aiOutcome, riskLevel, riskScore, blockingRuleIds, bytesCap,
+                dataBudget, DecisionHookInvoker.NONE, clock);
+    }
+
+    /**
+     * @param hook how to reach the external decision hook (#945): the live state machine passes one
+     *             that calls out, the simulators one that only reports which hook would apply
+     */
+    QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
+                           int riskScore, List<String> blockingRuleIds, BytesCapCheck bytesCap,
+                           DataBudgetCheck dataBudget, DecisionHookInvoker hook, Clock clock) {
         var block = blockingRuleIds == null ? List.<String>of() : List.copyOf(blockingRuleIds);
-        var guard = new Guard(block, bytesCap, dataBudget);
+        var guard = new Guard(block, bytesCap, dataBudget, false);
         // A hard cap is a refusal, not a routing signal: it decides before routing and before the
         // AI-failure fallback, so no policy or plan can approve a query the cap has refused.
         if (bytesCap != null && bytesCap.rejects()) {
@@ -130,6 +146,17 @@ class QueryDecisionEvaluator {
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH,
                 "workflow.decision.routing.no_match"));
 
+        // #945: the external hook runs only when no local policy matched, so it can never weaken an
+        // explicit policy, and before the grant fast path, so it can hold back a grant approval.
+        var consultation = hook.consult(query, context, aiOutcome).orElse(null);
+        if (consultation != null && isDecisive(consultation)) {
+            return hooked(consultation, plan, context, steps, guard);
+        }
+        steps.add(hookStep(consultation, null));
+        if (consultation != null && consultation.isFailure()) {
+            guard = guard.withHookFailed();
+        }
+
         var suppressed = new ArrayList<SuppressedAutoApproval>(2);
         var grant = findCoveringGrant(query, context, steps, guard, suppressed);
         if (grant != null) {
@@ -138,21 +165,115 @@ class QueryDecisionEvaluator {
             return new QueryDecision(QueryDecisionKind.GRANT_FAST_PATH, QueryStatus.APPROVED, null,
                     null, grant.id(), grant.approverEmail(), context,
                     new DecisionTrace(steps, QueryStatus.APPROVED), null, bytesCap, false,
-                    dataBudget, false);
+                    dataBudget, false, consultation);
         }
 
-        return planned(query, plan, effectiveRisk, context, steps, guard, suppressed);
+        return planned(query, plan, effectiveRisk, context, steps, guard, suppressed)
+                .withHook(consultation);
+    }
+
+    /** A hook answer that decides on its own: escalate, require approvals or reject. */
+    private static boolean isDecisive(DecisionHookConsultation consultation) {
+        var outcome = consultation.outcome();
+        return outcome == DecisionHookOutcome.REJECT
+                || outcome == DecisionHookOutcome.ESCALATE
+                || outcome == DecisionHookOutcome.REQUIRE_APPROVALS;
+    }
+
+    /**
+     * The hook escalated, required approvals or rejected (#945). It decides like a matched routing
+     * policy — the grant fast path and the plan's own approvals do not run — except that it can only
+     * ever add friction: {@code REQUIRE_APPROVALS} is clamped to the plan's minimum, so a hook can
+     * raise the bar but never lower it.
+     */
+    private QueryDecision hooked(DecisionHookConsultation consultation, ReviewPlanSnapshot plan,
+                                 ConditionContext context, List<DecisionTraceStep> steps,
+                                 Guard guard) {
+        int basis = plan != null ? plan.minApprovalsRequired() : 1;
+        int requested = consultation.requestedApprovals() != null
+                ? consultation.requestedApprovals() : 1;
+        var effect = switch (consultation.outcome()) {
+            case REJECT -> new RoutedEffect(QueryDecisionKind.DECISION_HOOK_REJECT,
+                    QueryStatus.REJECTED, null);
+            case ESCALATE -> new RoutedEffect(QueryDecisionKind.DECISION_HOOK_ESCALATE,
+                    QueryStatus.PENDING_REVIEW, basis + requested);
+            case REQUIRE_APPROVALS -> new RoutedEffect(
+                    QueryDecisionKind.DECISION_HOOK_REQUIRE_APPROVALS, QueryStatus.PENDING_REVIEW,
+                    Math.max(basis, requested));
+            case ALLOW, FAILED -> throw new IllegalStateException(
+                    "Not a deciding hook outcome: " + consultation.outcome());
+        };
+        steps.add(hookStep(consultation, effect.effectiveApprovals()));
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
+                "workflow.decision.grant.skipped_hook_decided"));
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+                "workflow.decision.plan.skipped_hook_decided", planDetails(plan)));
+        return new QueryDecision(effect.kind(), effect.nextStatus(), null,
+                effect.effectiveApprovals(), null, null, context,
+                new DecisionTrace(steps, effect.nextStatus()), null, guard.bytesCap(), false,
+                guard.dataBudget(), false, consultation);
+    }
+
+    /** The hook step when the chain reached it; {@link #hookSkipped()} when an earlier stage decided. */
+    private static DecisionTraceStep hookStep(DecisionHookConsultation consultation,
+                                              Integer effectiveApprovals) {
+        if (consultation == null) {
+            return DecisionTraceStep.of(QueryDecisionStepKind.DECISION_HOOK, StepOutcome.NO_MATCH,
+                    "workflow.decision.hook.none");
+        }
+        var name = String.valueOf(consultation.hookName());
+        var details = new LinkedHashMap<String, Object>();
+        details.put("decision_hook_id", consultation.hookId());
+        details.put("decision_hook_name", consultation.hookName());
+        if (consultation.isSimulated()) {
+            return new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK, StepOutcome.SKIP,
+                    "workflow.decision.hook.simulation", List.of(name), details);
+        }
+        details.put("outcome", consultation.outcome().name());
+        details.put("failure", consultation.failure() == null ? null : consultation.failure().name());
+        details.put("requested_approvals", consultation.requestedApprovals());
+        details.put("effective_min_approvals", effectiveApprovals);
+        details.put("reason", consultation.reason());
+        details.put("http_status", consultation.httpStatus());
+        details.put("latency_ms", consultation.latencyMs());
+        return switch (consultation.outcome()) {
+            case ALLOW -> new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK,
+                    StepOutcome.ALLOW, "workflow.decision.hook.allow", List.of(name), details);
+            case REJECT -> new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK,
+                    StepOutcome.DENY, "workflow.decision.hook.reject", List.of(name), details);
+            case ESCALATE -> new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK,
+                    StepOutcome.MATCH, "workflow.decision.hook.escalate",
+                    List.of(name, String.valueOf(effectiveApprovals)), details);
+            case REQUIRE_APPROVALS -> new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK,
+                    StepOutcome.MATCH, "workflow.decision.hook.require_approvals",
+                    List.of(name, String.valueOf(effectiveApprovals)), details);
+            case FAILED -> new DecisionTraceStep(QueryDecisionStepKind.DECISION_HOOK,
+                    StepOutcome.MATCH, "workflow.decision.hook.failed",
+                    List.of(name, consultation.failure().name()), details);
+        };
+    }
+
+    /** An earlier stage decided, so the hook was not consulted. */
+    private static DecisionTraceStep hookSkipped() {
+        return DecisionTraceStep.of(QueryDecisionStepKind.DECISION_HOOK, StepOutcome.SKIP,
+                "workflow.decision.hook.skipped");
     }
 
     /**
      * What may turn an automatic approval into human review: a {@code BLOCK} SQL review finding
      * (#864), a bytes-scanned cap with no estimate to compare against (#941), and an exhausted data
-     * budget under {@code REQUIRE_REVIEW} (#942). The trace names them in that order of precedence.
+     * budget under {@code REQUIRE_REVIEW} (#942), and a failed external decision hook (#945). The
+     * trace names them in that order of precedence.
      */
-    private record Guard(List<String> block, BytesCapCheck bytesCap, DataBudgetCheck dataBudget) {
+    private record Guard(List<String> block, BytesCapCheck bytesCap, DataBudgetCheck dataBudget,
+                         boolean hookFailed) {
 
         boolean suppresses() {
-            return !block.isEmpty() || capForcesReview() || budgetForcesReview();
+            return !block.isEmpty() || capForcesReview() || budgetForcesReview() || hookFailed;
+        }
+
+        Guard withHookFailed() {
+            return new Guard(block, bytesCap, dataBudget, true);
         }
 
         boolean capForcesReview() {
@@ -167,7 +288,10 @@ class QueryDecisionEvaluator {
             if (!block.isEmpty()) {
                 return "sql_review";
             }
-            return capForcesReview() ? "bytes_cap" : "data_budget";
+            if (capForcesReview()) {
+                return "bytes_cap";
+            }
+            return budgetForcesReview() ? "data_budget" : "decision_hook";
         }
     }
 
@@ -212,6 +336,7 @@ class QueryDecisionEvaluator {
                 dataBudgetStep(budget),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_data_budget"),
+                hookSkipped(),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                         "workflow.decision.grant.skipped_data_budget"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
@@ -265,6 +390,7 @@ class QueryDecisionEvaluator {
                 dataBudgetStep(budget),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_bytes_cap"),
+                hookSkipped(),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                         "workflow.decision.grant.skipped_bytes_cap"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
@@ -310,6 +436,7 @@ class QueryDecisionEvaluator {
                 dataBudgetStep(budget),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_ai_failed"),
+                hookSkipped(),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                         "workflow.decision.grant.skipped_ai_failed"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
@@ -365,6 +492,7 @@ class QueryDecisionEvaluator {
                 : new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
                         "workflow.decision.routing.matched",
                         List.of(String.valueOf(match.policyName()), match.action().name()), details));
+        steps.add(hookSkipped());
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                 "workflow.decision.grant.skipped_routing_decided"));
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
@@ -488,6 +616,7 @@ class QueryDecisionEvaluator {
         details.put("sql_review_suppressed", planSuppressed && !block.isEmpty());
         details.put("bytes_cap_suppressed", planSuppressed && guard.capForcesReview());
         details.put("data_budget_suppressed", planSuppressed && guard.budgetForcesReview());
+        details.put("decision_hook_suppressed", planSuppressed && guard.hookFailed());
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN,
                 nextStatus == QueryStatus.APPROVED ? StepOutcome.ALLOW : StepOutcome.DENY,
                 reasonKey, details));

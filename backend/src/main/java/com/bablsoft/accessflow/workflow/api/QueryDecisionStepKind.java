@@ -60,6 +60,15 @@ public enum QueryDecisionStepKind implements DecisionStepKind {
     /** Every enabled routing policy in ascending priority order, matched and unmatched. */
     ROUTING_POLICIES,
 
+    /**
+     * The external decision hook (#945), consulted only when no routing policy matched:
+     * {@code ALLOW} when it left the decision alone, {@code MATCH} when it escalated or failed (a
+     * failure suppresses every auto-approve stage below), {@code DENY} when it rejected,
+     * {@code NO_MATCH} when no hook applies, {@code SKIP} when an earlier stage decided or the
+     * trace is a simulation, which never calls out.
+     */
+    DECISION_HOOK,
+
     /** Grant-covered auto-approval (#582). */
     GRANT_FAST_PATH,
 

@@ -20,6 +20,15 @@ enum QueryDecisionKind {
     ROUTING_REQUIRE_APPROVALS,
     ROUTING_ESCALATE,
 
+    /** No policy matched and the external decision hook rejected (#945). */
+    DECISION_HOOK_REJECT,
+
+    /** No policy matched and the external decision hook required a number of approvals (#945). */
+    DECISION_HOOK_REQUIRE_APPROVALS,
+
+    /** No policy matched and the external decision hook escalated (#945). */
+    DECISION_HOOK_ESCALATE,
+
     /** Grant-covered auto-approval (#582). */
     GRANT_FAST_PATH,
 

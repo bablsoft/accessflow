@@ -25,7 +25,11 @@ import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.workflow.api.RoutingAction;
 import com.bablsoft.accessflow.workflow.internal.SqlReviewSuppression.SuppressedAutoApproval;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookGateway;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultService;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -58,7 +62,9 @@ import java.util.UUID;
  * {@code AUTO_REJECT} short-circuit, {@code REQUIRE_APPROVALS} / {@code ESCALATE} force human review
  * with an effective approval-count override persisted on {@code routing_decision}. On no match, the
  * grant-covered fast-path (#582) runs next, and only then does the query fall through to the
- * datasource's review plan.
+ * datasource's review plan. Between routing and the grant, the external decision hook (#945) is
+ * consulted through {@link DecisionHookGateway#live()}; every consult is recorded in
+ * {@code decision_hook_results} and audited as {@code QUERY_DECISION_HOOK_EVALUATED}.
  *
  * <p>Every entry point first reads the SQL review findings persisted at submission (#864) and hands
  * the {@code BLOCK} rule ids to the evaluator, which turns every auto-approve path into human review
@@ -95,6 +101,8 @@ class QueryReviewStateMachine {
     private final QueryEstimateLookupService queryEstimateLookupService;
     private final PlatformTransactionManager transactionManager;
     private final DataBudgetStatusService dataBudgetStatusService;
+    private final DecisionHookGateway decisionHookGateway;
+    private final DecisionHookResultService decisionHookResultService;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone. A field
     // (not an injected bean) so it can be overridden in tests without colliding with the proxy's
@@ -185,7 +193,7 @@ class QueryReviewStateMachine {
         var bytesCap = cap == null ? null : BytesCapCheck.of(cap, estimatedBytes(query));
         var budget = dataBudget(query);
         var decision = queryDecisionEvaluator.evaluate(query, aiOutcome, riskLevel, riskScore,
-                blockingRuleIds(query), bytesCap, budget, clock);
+                blockingRuleIds(query), bytesCap, budget, decisionHookGateway.live(), clock);
         // #942: the reviewer is deciding on a submitter whose budget is used up — only an approval
         // given here may later run the query past the exhausted budget.
         if (budget != null && budget.forcesReview()
@@ -267,6 +275,25 @@ class QueryReviewStateMachine {
                 eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(),
                         match.policyId(), match.reason(), decision.effectiveApprovals()));
             }
+            case DECISION_HOOK_REJECT -> {
+                var hook = decision.hook();
+                var reason = hookReason(hook);
+                routingDecisionService.applyHookDecision(query.id(), QueryStatus.REJECTED,
+                        RoutingAction.AUTO_REJECT, null, reason, hook.hookId());
+                eventPublisher.publishEvent(
+                        new QueryAutoRejectedEvent(query.id(), null, reason, hook.hookId()));
+            }
+            case DECISION_HOOK_REQUIRE_APPROVALS, DECISION_HOOK_ESCALATE -> {
+                var hook = decision.hook();
+                var reason = hookReason(hook);
+                var action = decision.kind() == QueryDecisionKind.DECISION_HOOK_ESCALATE
+                        ? RoutingAction.ESCALATE
+                        : RoutingAction.REQUIRE_APPROVALS;
+                routingDecisionService.applyHookDecision(query.id(), QueryStatus.PENDING_REVIEW,
+                        action, decision.effectiveApprovals(), reason, hook.hookId());
+                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(), null, reason,
+                        decision.effectiveApprovals(), hook.hookId()));
+            }
             case GRANT_FAST_PATH -> {
                 queryRequestStateService.approveByAccessGrant(query.id(), decision.grantId());
                 eventPublisher.publishEvent(new QueryAutoApprovedEvent(query.id(), null,
@@ -295,6 +322,10 @@ class QueryReviewStateMachine {
             // otherwise fall through silently and strand the query in PENDING_AI forever.
             default -> throw new IllegalStateException("Unhandled decision kind " + decision.kind());
         }
+        if (decision.hook() != null && !decision.hook().isSimulated()) {
+            decisionHookResultService.record(query.id(), decision.hook());
+            auditDecisionHook(query, decision);
+        }
         if (decision.sqlReviewSuppression() != null) {
             auditSqlReviewBlocked(query, decision);
         }
@@ -309,6 +340,9 @@ class QueryReviewStateMachine {
         if (match != null) {
             log.info("Query {} routed by policy {} -> {}", query.id(), match.policyId(),
                     match.action());
+        } else if (decision.hook() != null) {
+            log.info("Query {} consulted decision hook {} -> {}; {}", query.id(),
+                    decision.hook().hookId(), decision.hook().outcome(), decision.kind());
         } else if (decision.kind() == QueryDecisionKind.GRANT_FAST_PATH) {
             log.info("Query {} auto-approved under access grant {}", query.id(), decision.grantId());
         } else if (decision.kind() == QueryDecisionKind.PLAN_PENDING_REVIEW
@@ -399,6 +433,54 @@ class QueryReviewStateMachine {
             log.error("Audit write failed for QUERY_DATA_BUDGET_ENFORCED on query {}", query.id(),
                     ex);
         }
+    }
+
+    /**
+     * One row for every live consult (#945), whatever the hook answered — so a failure that sent a
+     * query to review, and an {@code ALLOW} that let it through, are both on record. System
+     * attributed, swallow-and-log like the rows above.
+     */
+    private void auditDecisionHook(QueryRequestSnapshot query, QueryDecision decision) {
+        var hook = decision.hook();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "decision_hook");
+        metadata.put("decision_hook_id", hook.hookId());
+        metadata.put("decision_hook_name", hook.hookName());
+        metadata.put("outcome", hook.outcome().name());
+        if (hook.failure() != null) {
+            metadata.put("failure", hook.failure().name());
+        }
+        if (hook.requestedApprovals() != null) {
+            metadata.put("requested_approvals", hook.requestedApprovals());
+        }
+        if (decision.effectiveApprovals() != null) {
+            metadata.put("effective_min_approvals", decision.effectiveApprovals());
+        }
+        if (hook.reason() != null) {
+            metadata.put("reason", hook.reason());
+        }
+        if (hook.httpStatus() != null) {
+            metadata.put("http_status", hook.httpStatus());
+        }
+        metadata.put("latency_ms", hook.latencyMs());
+        metadata.put("resulting_status", decision.nextStatus().name());
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.QUERY_DECISION_HOOK_EVALUATED,
+                    AuditResourceType.QUERY_REQUEST, query.id(), query.organizationId(), null,
+                    metadata, null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_DECISION_HOOK_EVALUATED on query {}",
+                    query.id(), ex);
+        }
+    }
+
+    /** The hook's own reason, else a server-default-locale line naming the hook. */
+    private String hookReason(DecisionHookConsultation hook) {
+        if (hook.reason() != null) {
+            return hook.reason();
+        }
+        return messageSource.getMessage("workflow.decision_hook.default_reason",
+                new Object[]{hook.hookName()}, Locale.getDefault());
     }
 
     /** Server-default locale for the same reason as {@link #grantReason}. */

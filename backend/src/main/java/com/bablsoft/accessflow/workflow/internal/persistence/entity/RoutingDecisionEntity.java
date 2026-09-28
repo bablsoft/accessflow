@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.persistence.entity;
 
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
+import com.bablsoft.accessflow.workflow.api.RoutingDecisionSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,7 +18,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * The routing decision recorded for one query when a {@code routing_policy} matched. Holds the
+ * The routing decision recorded for one query when a {@code routing_policy} matched, or when the
+ * external decision hook (#945) escalated, required approvals or rejected. Holds the
  * resolved effect ({@code effective_min_approvals} is the absolute approval count to enforce for
  * ESCALATE / REQUIRE_APPROVALS). Read by the review service to honour the override and by the query
  * detail read path to surface the matched policy.
@@ -48,6 +50,15 @@ public class RoutingDecisionEntity {
 
     @Column(length = 500)
     private String reason;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "source", nullable = false, columnDefinition = "routing_decision_source")
+    private RoutingDecisionSource source = RoutingDecisionSource.POLICY;
+
+    /** The external decision hook that decided (#945); {@code null} when a policy did. */
+    @Column(name = "decision_hook_id")
+    private UUID decisionHookId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

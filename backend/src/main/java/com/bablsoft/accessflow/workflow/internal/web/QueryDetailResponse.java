@@ -13,7 +13,11 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryTicketView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.workflow.api.DecisionHookFailure;
+import com.bablsoft.accessflow.workflow.api.DecisionHookOutcome;
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
+import com.bablsoft.accessflow.workflow.api.RoutingDecisionSource;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultView;
 import com.bablsoft.accessflow.workflow.internal.routing.MatchedRoutingPolicyView;
 
 import java.time.Instant;
@@ -67,7 +71,9 @@ public record QueryDetailResponse(
         /** {@code API_KEY} (trustworthy) or {@code HEADER} (client-controlled). */
         ApplicationNameSource applicationNameSource,
         /** The bytes-scanned cap (#941) that applied to this query; null when none did. */
-        BytesScannedCapDetail bytesScannedCap) {
+        BytesScannedCapDetail bytesScannedCap,
+        /** What the external decision hook answered (#945); null when none was consulted. */
+        DecisionHookDetail decisionHook) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
         return from(view, null, null);
@@ -123,6 +129,17 @@ public record QueryDetailResponse(
                                            boolean includeApprovalPrediction,
                                            List<SqlReviewFindingDetail> sqlReviewFindings,
                                            String effectiveSql) {
+        return from(view, matched, grant, tickets, includeApprovalPrediction, sqlReviewFindings,
+                effectiveSql, null);
+    }
+
+    /** @param decisionHook what the external decision hook answered (#945), or null */
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant, List<QueryTicketView> tickets,
+                                           boolean includeApprovalPrediction,
+                                           List<SqlReviewFindingDetail> sqlReviewFindings,
+                                           String effectiveSql,
+                                           DecisionHookResultView decisionHook) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -166,7 +183,28 @@ public record QueryDetailResponse(
                         : new OnBehalfOfRef(view.onBehalfOfUserId(), view.onBehalfOfEmail()),
                 view.applicationName(),
                 view.applicationNameSource(),
-                BytesScannedCapDetail.from(view.bytesScannedCap()));
+                BytesScannedCapDetail.from(view.bytesScannedCap()),
+                DecisionHookDetail.from(decisionHook));
+    }
+
+    /** The external decision hook's answer for this query (#945), failures included. */
+    public record DecisionHookDetail(
+            UUID decisionHookId,
+            String decisionHookName,
+            DecisionHookOutcome outcome,
+            DecisionHookFailure failure,
+            Integer requestedApprovals,
+            String reason,
+            Integer httpStatus,
+            long latencyMs,
+            Instant evaluatedAt) {
+
+        static DecisionHookDetail from(DecisionHookResultView src) {
+            return src == null ? null
+                    : new DecisionHookDetail(src.decisionHookId(), src.decisionHookName(),
+                            src.outcome(), src.failure(), src.requestedApprovals(), src.reason(),
+                            src.httpStatus(), src.latencyMs(), src.evaluatedAt());
+        }
     }
 
     /**
@@ -208,18 +246,25 @@ public record QueryDetailResponse(
         }
     }
 
+    /**
+     * @param source         {@code POLICY}, or {@code DECISION_HOOK} when the external hook decided
+     *                       (#945) — then the policy fields are null
+     * @param decisionHookId the hook that decided, when {@code source} is {@code DECISION_HOOK}
+     */
     public record MatchedPolicyDetail(
             UUID policyId,
             String policyName,
             RoutingAction action,
-            String reason) {
+            String reason,
+            RoutingDecisionSource source,
+            UUID decisionHookId) {
 
         static MatchedPolicyDetail from(MatchedRoutingPolicyView src) {
             if (src == null) {
                 return null;
             }
             return new MatchedPolicyDetail(src.policyId(), src.policyName(), src.action(),
-                    src.reason());
+                    src.reason(), src.source(), src.decisionHookId());
         }
     }
 
