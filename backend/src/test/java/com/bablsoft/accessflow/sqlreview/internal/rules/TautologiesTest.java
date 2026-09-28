@@ -21,6 +21,19 @@ class TautologiesTest {
     }
 
     @Test
+    void treatsBareDateUnitColumnsAsColumns() {
+        assertThat(Tautologies.isTautology(expression("year = year"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("month = month"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("day = day"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("hour = hour"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("(year) = (year)"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("year = month"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("year = t.year"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("year <> year"))).isFalse();
+        assertThat(Tautologies.isAlwaysTrue(expression("id = 1 OR year = year"))).isTrue();
+    }
+
+    @Test
     void evaluatesNumericLiteralComparisonsAndNotFalse() {
         assertThat(Tautologies.isTautology(expression("1 <> 0"))).isTrue();
         assertThat(Tautologies.isTautology(expression("1 != 0"))).isTrue();

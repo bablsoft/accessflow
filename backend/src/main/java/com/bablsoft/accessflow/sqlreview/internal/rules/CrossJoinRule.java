@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.sqlreview.api.SqlRuleCategory;
 import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ComparisonOperator;
-import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
@@ -107,9 +106,10 @@ public final class CrossJoinRule implements SqlRule {
     private static void collectPairs(Expression where, List<ColumnPair> pairs) {
         var expression = Tautologies.unwrap(where);
         if (expression instanceof ComparisonOperator comparison) {
-            if (Tautologies.unwrap(comparison.getLeftExpression()) instanceof Column a
-                    && Tautologies.unwrap(comparison.getRightExpression()) instanceof Column b) {
-                pairs.add(new ColumnPair(qualifier(a), qualifier(b)));
+            var a = Tautologies.unwrap(comparison.getLeftExpression());
+            var b = Tautologies.unwrap(comparison.getRightExpression());
+            if (ColumnLike.isColumn(a) && ColumnLike.isColumn(b)) {
+                pairs.add(new ColumnPair(ColumnLike.qualifier(a), ColumnLike.qualifier(b)));
             }
             return;
         }
@@ -140,10 +140,6 @@ public final class CrossJoinRule implements SqlRule {
             names.add(TableNames.normalize(item.getAlias().getName()));
         }
         return names;
-    }
-
-    private static String qualifier(Column column) {
-        return column.getTable() == null ? null : TableNames.normalize(column.getTable());
     }
 
     private static String describe(FromItem item) {
