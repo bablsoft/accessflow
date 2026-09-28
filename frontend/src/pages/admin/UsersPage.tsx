@@ -16,6 +16,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   RobotOutlined,
+  SafetyCertificateOutlined,
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -31,6 +32,8 @@ import { RolePill } from '@/components/common/RolePill';
 import { Pill } from '@/components/common/Pill';
 import { PrincipalTypeTag } from '@/components/common/PrincipalTypeTag';
 import { UserDataBudgetDrawer } from '@/components/admin/UserDataBudgetDrawer';
+import { UserEffectiveAccessDrawer } from '@/components/admin/UserEffectiveAccessDrawer';
+import { usePermission } from '@/utils/permissions';
 import {
   createInvitation,
   createUser,
@@ -117,6 +120,8 @@ export function UsersPage() {
   const [invitingByEmail, setInvitingByEmail] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [usageOf, setUsageOf] = useState<User | null>(null);
+  const [accessOf, setAccessOf] = useState<User | null>(null);
+  const canExplainAccess = usePermission('DATASOURCE_PERMISSION_MANAGE');
 
   const filters = useMemo(
     () => ({
@@ -450,6 +455,16 @@ export function UsersPage() {
                           label: t('dataBudgets.usage.action'),
                           onClick: () => setUsageOf(u),
                         },
+                        ...(canExplainAccess
+                          ? [
+                              {
+                                key: 'effective-access',
+                                icon: <SafetyCertificateOutlined />,
+                                label: t('access.explorer.action'),
+                                onClick: () => setAccessOf(u),
+                              },
+                            ]
+                          : []),
                         {
                           key: 'deactivate',
                           icon: <DeleteOutlined />,
@@ -472,6 +487,7 @@ export function UsersPage() {
       </div>
 
       <UserDataBudgetDrawer user={usageOf} onClose={() => setUsageOf(null)} />
+      <UserEffectiveAccessDrawer user={accessOf} onClose={() => setAccessOf(null)} />
 
       <PendingInvitationsSection
         invitations={invitationsQuery.data?.content ?? []}

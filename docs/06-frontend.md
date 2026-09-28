@@ -502,8 +502,25 @@ and **Who has access** (either permission, so an auditor lands on the reverse in
   `DATASOURCE_MANAGE`. The seeded `AUDITOR` holds neither. When the datasource list is scoped, the
   field says so (`access.simulation.datasource_scoped_hint`), so an auditor on the reverse index
   is never stuck with an empty dropdown.
+- **Effective-permission explorer (#946).** `components/access/EffectivePermissionExplorer.tsx`
+  reads `GET /admin/effective-access/users/{userId}/datasources/{datasourceId}` through
+  `effectiveAccessKeys.explanation(userId, datasourceId)` (`getEffectivePermission`). It takes a fixed
+  `userId` *or* `datasourceId` and picks the other side with `SimulationUserSelect` /
+  `SimulationDatasourceSelect`. It renders, read-only: a **row-cap card** (the number, the
+  `rowCapSourceLabel` tag, the grant or group that set it, a clamped note when the configured override
+  exceeds the cap, every contributing override when they differ, and the datasource/global bounds);
+  capabilities with source tags (*Direct grant* / *Group: X* plus expiry); scopes and deny-lists;
+  masked and revealed columns; row-security predicates rendered as SQL-like text by the pure
+  `components/access/effectivePermission.ts` (`region = 'EU'`, `tenant_id IN ('a', 'b')`) with their
+  value source and targeting reasons; the lifecycle retention masks and soft-delete filters that apply to
+  everyone; table row limits; and the contributing grants, with a caveat that a data budget can cut a
+  result shorter at run time. Nothing is merged or clamped client-side. `AuditLogPage`'s filter list
+  gained `EFFECTIVE_PERMISSION_VIEWED`. Mounted in two places, both gated on `DATASOURCE_PERMISSION_MANAGE`: an
+  **Effective access** tab on `DatasourceSettingsPage`, and an **Effective access** row action on
+  `UsersPage` opening `components/admin/UserEffectiveAccessDrawer.tsx` (there is no user detail page).
 - **Enum values in details.** Enum-valued detail keys (`query_type`, `action`, `status`,
-  `risk_level`) go through `enumLabels`. Masking entries (the MASKING step's `policies`, the API
+  `risk_level`, `row_cap_source`) go through `enumLabels`. Each contributing grant line also names
+  its row limit when it sets one (#946). Masking entries (the MASKING step's `policies`, the API
   step's `masks`) render as *field → strategy*. Only the routing step omits its `policies` key from
   the generic rows.
 
@@ -1515,6 +1532,16 @@ decision trace labels the `DATA_BUDGET` step and its `data_budget_*` details (in
 submitter's remaining allowance shows its own truncation notice — `QueryResultsTable` and the
 table-preview `SampleDataPreview` map `truncated_reason: "DATA_BUDGET"` to a dedicated message beside
 the `ROW_LIMIT` / `BYTE_LIMIT` ones.
+
+**Row-cap copy (#946).** Since #933 a `ROW_LIMIT` truncation can come from a personal or group
+override, not only the datasource, so `queries.detail.results_truncated` and
+`datasources.settings.sample_truncated` name *the effective row limit* rather than blaming the
+datasource's `max_rows` (a `ROW_LIMIT` result stops at exactly the applied cap, so `{{count}}` is that
+cap). On `DatasourceSettingsPage` → Permissions, `grant_row_limit_help` explains that an override can
+only lower the datasource cap and that the smallest override across grants wins; the grant form shows a
+non-blocking warning (`validateStatus="warning"`, `grant-row-limit-no-effect`) when the value is at or
+above the datasource's `max_rows_per_query` (the `min: 1` rule stays in parity with the backend); and
+the *Row limit* column — now on the group table too — marks an override above the cap *clamped to N*.
 
 ### Policy simulator (AF-630)
 

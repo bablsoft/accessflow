@@ -24,4 +24,10 @@ public interface MaskingPolicyResolutionService {
      */
     List<ResolvedColumnMask> resolveWithDraft(UUID organizationId, UUID datasourceId,
                                               UUID requesterUserId, MaskingPolicyDraft draft);
+
+    /**
+     * Every enabled policy split into the masks that apply (exactly {@link #resolveApplicable})
+     * and the ones that reveal to the user, with the reasons — the explorer's view (#946).
+     */
+    MaskingExplanation explain(UUID organizationId, UUID datasourceId, UUID requesterUserId);
 }

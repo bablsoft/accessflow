@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.ApplicableRowLimitPolicy;
 import com.bablsoft.accessflow.core.api.AppliedRowLimit;
 import com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowLimitPolicyEntity;
@@ -10,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -54,6 +57,30 @@ class DefaultRowLimitPolicyResolutionService implements RowLimitPolicyResolution
             }
         }
         return lowest == null ? Optional.empty() : Optional.of(new AppliedRowLimit(lowest, winners));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ApplicableRowLimitPolicy> findApplicable(UUID organizationId, UUID datasourceId,
+                                                         UUID requesterUserId) {
+        var policies = rowLimitPolicyRepository
+                .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId);
+        if (policies.isEmpty()) {
+            return List.of();
+        }
+        var roleName = userRepository.findById(requesterUserId).map(u -> u.roleName()).orElse(null);
+        var groupIds = new HashSet<>(membershipRepository.findGroupIdsForUser(requesterUserId));
+        var out = new ArrayList<ApplicableRowLimitPolicy>();
+        for (var policy : policies) {
+            var matchedBy = AppliesToMatcher.explain(policy.getAppliesToRoles(),
+                    policy.getAppliesToGroupIds(), policy.getAppliesToUserIds(), requesterUserId,
+                    roleName, groupIds);
+            if (!matchedBy.isEmpty()) {
+                out.add(new ApplicableRowLimitPolicy(policy.getId(), policy.getSchemaName(),
+                        policy.getTableName(), policy.getMaxRows(), matchedBy));
+            }
+        }
+        return out;
     }
 
     /**

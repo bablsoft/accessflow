@@ -1352,6 +1352,16 @@ against a *draft policy*; this one replays *current policy* against a *hypotheti
   precedent for sensitive reads. **Neither audit row carries the SQL**: `DATASOURCE_PERMISSION_MANAGE`
   does not otherwise grant read access to query text, and an audit row must not become a side channel.
 
+- **The effective-permission explorer is narrower still (#946).**
+  `GET /admin/effective-access/users/{userId}/datasources/{datasourceId}` returns one user's merged
+  access with the masking policies that apply to (or reveal to) them, their resolved row-security
+  predicates and their effective row cap. That discloses masking and row-security configuration and a
+  user's resolved attribute values, so it requires `DATASOURCE_PERMISSION_MANAGE` **alone** — not the
+  auditor's `ACCESS_USAGE_REPORT_VIEW` — is organization-scoped (a user or datasource elsewhere is a
+  404, never a 403), and writes an `EFFECTIVE_PERMISSION_VIEWED` audit row naming the target user on
+  every read. It computes nothing itself: every value comes from the resolution services enforcement
+  uses, including the executor's own row-cap clamp, so it cannot report access the proxy would refuse.
+
 The explainer's honesty rule is the same one the policy simulator follows. A hypothetical request
 carries no client context and no cost estimate, so conditions keyed on those evaluate to `false`; a
 policy that would fire on the real submission can therefore report as unmatched. Those approximations

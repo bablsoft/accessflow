@@ -3622,6 +3622,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `DELETE` | `/admin/sql-review-rulesets/{id}` | Delete a SQL review ruleset (`204`) *(`SQL_REVIEW_MANAGE`)* |
 | `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
+| `GET` | `/admin/effective-access/users/{userId}/datasources/{datasourceId}` | One user's merged effective access on one datasource, with the provenance of every element and the effective row cap (#946) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/privileged-access` | Org-wide: every identity that can reach data with no permission row — `QUERY_ADMIN` holders and break-glass grantees — with query evidence (#968) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
 | `POST` | `/admin/api-call-simulations` | Trace one hypothetical API call through the live apigov evaluator (AF-967) *(`API_CONNECTOR_MANAGE`)* |
 | `POST` | `/admin/deployment-simulations` | Trace one hypothetical deployment through the live deploygov evaluator and release gate (AF-967) *(`DEPLOYMENT_PIPELINE_MANAGE`)* |
@@ -4849,6 +4850,7 @@ disagrees with the gate is worse than none.
 |--------|------|------------|
 | `POST` | `/admin/access-simulations` | `DATASOURCE_PERMISSION_MANAGE` |
 | `GET` | `/admin/effective-access` | `DATASOURCE_PERMISSION_MANAGE` **or** `ACCESS_USAGE_REPORT_VIEW` |
+| `GET` | `/admin/effective-access/users/{userId}/datasources/{datasourceId}` | `DATASOURCE_PERMISSION_MANAGE` only (#946) |
 
 `effective-access` also admits `ACCESS_USAGE_REPORT_VIEW` so auditors — who already read exactly this
 class of data at [`/admin/over-provisioned-access`](#over-provisioned-access-endpoints-625) — can use it
@@ -5032,7 +5034,7 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `DATASOURCE_GATES` | `db_type`, `active`, `ai_analysis_enabled`, `visible_to_user` | always |
 | `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
 | `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause`, `query_shapes` (#940 — the statement's shapes in declaration order), `shapes_analyzed` (`false` for every engine plugin — warehouses included, since only the in-process JSqlParser path reads shapes — and for a statement the walker cannot traverse) | whenever the statement parsed; `{}` when it did not |
-| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `denied_tables` (#939 — the referenced tables a `denied_schemas` / `denied_tables` entry reaches; checked after the allow-list, a non-empty list denies with `workflow.access_simulation.permission.table_denied`), `rejected_columns` (#935 — the denied entries the query reaches; a non-empty list denies with `workflow.access_simulation.permission.column_denied`), `denied_shapes` (#940 — the grant's denied shapes the query has, in declaration order; checked last, a non-empty list denies with `workflow.access_simulation.permission.shape_denied`), `expires_at`; plus the row cap execution would apply (#946): `effective_row_cap`, `row_cap_source` (`OVERRIDE` / `DATASOURCE_CAP` / `GLOBAL_CEILING`, or `ROW_LIMIT_POLICY` when a per-table row-limit policy on a referenced table is what binds), `row_limit_policy_ids` (sorted ids of the binding policies — only when `row_cap_source` is `ROW_LIMIT_POLICY`, `[]` otherwise; a policy at or above the grant-derived cap is not listed), `datasource_cap`, `global_ceiling` — the merged grant override tightened by those policies and clamped by the executor's own `EffectiveRowCap.of`. Each `contributing_grants[]` entry also carries its `row_limit_override` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
 | `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `BYTES_SCANNED_CAP` | `bytes_scanned_cap`, `bytes_scanned_cap_source`, `estimated_bytes_scanned`, `bytes_scanned_cap_outcome` | whenever a cap applies (#941); `{}` on `NO_MATCH` (no cap). In a simulation the step is always `SKIP` with no estimate — the cap is named, never compared. On a live trace: `ALLOW` within the cap, `DENY` over it or with no estimate under `REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`), `MATCH` with no estimate under `REQUIRE_REVIEW` — every auto-approve stage below then reports `bytes_cap_suppressed: true` |
 | `DATA_BUDGET` | `data_budget_used_percent`, `data_budget_remaining_rows`, `data_budget_remaining_bytes`, `data_budget_action`, `data_budget_id`, `data_budget_name` | whenever a budget applies to the user on a SELECT (#942); `{}` on `NO_MATCH` (no budget, or not a SELECT). Read live in both a simulation and a real decision — usage is a persisted fact about the user. `ALLOW` while allowance remains; `DENY` when an exhausted budget has `breach_action: REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`); `MATCH` when it has `REQUIRE_REVIEW` — every auto-approve stage below then reports `data_budget_suppressed: true`. `data_budget_id` / `_name` name the exhausted budget that decided |
@@ -5189,6 +5191,103 @@ as its own source.
 **Audit.** Every call writes one `ACCESS_SIMULATION_RUN` audit row against the datasource, carrying the
 table and capability queried and `row_count` — the total number of matching users, not the size of the
 page returned.
+
+#### GET /admin/effective-access/users/{userId}/datasources/{datasourceId} — Effective-permission explorer (#946)
+
+*"What can this user actually do on this datasource right now?"* One read that returns the merged
+effective access, and for **every** element the grant or policy it came from. Read-only, and it never
+computes a merge of its own: the merged values come from
+`DatasourceUserPermissionLookupService.mergeContributions` (the enforcement merge), masking and row
+security from their resolution services, and the row cap from the same `EffectiveRowCap.of` clamp the
+executor applies — so the explorer cannot disagree with what the proxy enforces.
+
+**Permission.** `DATASOURCE_PERMISSION_MANAGE` only — narrower than the reverse index, because this read
+discloses masking and row-security configuration. **404** (`USER_NOT_FOUND` / `DATASOURCE_NOT_FOUND`)
+when either is missing or in another organization.
+
+```json
+{
+  "user": { "id": "8f14…", "email": "dana@example.com", "display_name": "Dana Okonkwo" },
+  "datasource": { "id": "3b1c…", "name": "prod-orders", "db_type": "POSTGRESQL" },
+  "has_grant": true,
+  "query_admin": false,
+  "expires_at": null,
+  "grants": [
+    { "grant_id": "a1…", "source_kind": "DIRECT", "row_limit_override": 5000 },
+    { "grant_id": "b2…", "source_kind": "GROUP", "group_id": "0a41…", "group_name": "analysts",
+      "expires_at": "2026-10-06T00:00:00Z", "row_limit_override": 50 }
+  ],
+  "capabilities": [
+    { "capability": "READ", "granted": true, "grant_ids": ["a1…", "b2…"] },
+    { "capability": "WRITE", "granted": false, "grant_ids": [] },
+    { "capability": "DDL", "granted": false, "grant_ids": [] },
+    { "capability": "BREAK_GLASS", "granted": false, "grant_ids": [] }
+  ],
+  "allowed_schemas": { "unrestricted": true, "entries": [] },
+  "allowed_tables": { "unrestricted": false,
+                      "entries": [{ "value": "public.orders", "grant_ids": ["b2…"] }] },
+  "restricted_columns": [],
+  "denied_columns": [{ "value": "public.users.ssn", "grant_ids": ["a1…"] }],
+  "denied_schemas": [],
+  "denied_tables": [],
+  "denied_shapes": [{ "value": "CTE", "grant_ids": ["b2…"] }],
+  "row_cap": { "value": 50, "source": "OVERRIDE", "override": 50, "datasource_cap": 1000,
+               "global_ceiling": 10000, "grant_ids": ["b2…"] },
+  "bytes_scanned_limit": null,
+  "table_row_limits": [
+    { "policy_id": "p1…", "schema_name": "public", "table_name": "orders", "max_rows": 10,
+      "matched_by": [{ "kind": "EVERYONE" }] }
+  ],
+  "masked_columns": [
+    { "policy_id": "m1…", "column_ref": "public.users.email", "strategy": "PARTIAL", "params": {} }
+  ],
+  "revealed_masks": [
+    { "policy_id": "m2…", "column_ref": "public.users.phone", "strategy": "FULL",
+      "revealed_by": [{ "kind": "ROLE", "ref": "ADMIN" }] }
+  ],
+  "row_security": [
+    { "policy_id": "r1…", "table_ref": "orders", "column_name": "region", "operator": "EQUALS",
+      "values": ["EU"], "value_type": "VARIABLE", "value_expression": "user.region",
+      "matched_by": [{ "kind": "GROUP", "ref": "0a41…", "name": "analysts" }] }
+  ],
+  "retention_masks": [
+    { "policy_id": "l1…", "column_ref": "public.users.ssn", "strategy": "HASH" }
+  ],
+  "soft_delete_filters": [
+    { "policy_id": "l2…", "table_ref": "public.orders", "column_name": "deleted_at" }
+  ]
+}
+```
+
+- **`grants`** lists each active contribution once (expired grants are excluded, as at enforcement);
+  every attributed element names contributions by `grant_id`. `has_grant: false` with an empty list is
+  an answer, not an error — the row cap, masking and row security that *would* apply are still returned.
+- **`query_admin: true`** means the user bypasses the per-datasource grant gate entirely (the
+  `QUERY_ADMIN_BYPASS` source above); the capabilities and scopes then describe grants that are not
+  consulted.
+- **Scopes.** `unrestricted: true` means the merged allow-list is empty — some contributing grant leaves
+  it open, so every schema/table is allowed. Denied lists are unions (#939); `restricted_columns` is the
+  intersection, so every surviving column is attributed to every grant.
+- **`row_cap`** is the cap for a query that touches no row-limit-policy table: `value` =
+  `min(smallest override, datasource max_rows_per_query, ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS)`.
+  `source` is `OVERRIDE` (then `grant_ids` names the grant(s) holding the smallest override),
+  `DATASOURCE_CAP` or `GLOBAL_CEILING`; `override` keeps the configured value even when it was clamped
+  (an override of 5000 under a 1000 datasource cap reports `value: 1000`, `source: DATASOURCE_CAP`,
+  `override: 5000`). On a tie the most specific bound is named. A per-user data budget (#942) can cut
+  a result shorter still at execution time; that allowance is dynamic and is not part of `row_cap`. `table_row_limits` lists the per-table
+  policies (#934) that target the user — each lowers the cap further for a query that references its
+  table.
+- **`matched_by` / `revealed_by`** give every reason a policy targets (or, for masking, reveals to) the
+  user: `EVERYONE` (the policy's scope lists are empty), `ROLE` (`ref` = the role name), `GROUP`
+  (`ref` = the group id, `name` = its name) or `USER`. Row-security `values` are the resolved bind
+  values; an empty list on a `VARIABLE` is the fail-closed signal (the predicate matches no rows).
+- **`retention_masks` / `soft_delete_filters`** are the lifecycle directives (AF-499) enforcement
+  applies to **every** user of the datasource alongside the per-user policies: `PSEUDONYMIZE`
+  retention masks and the `IS NULL` filter each `SOFT_DELETE` policy adds on its marker column. They
+  come from `LifecycleDirectiveResolutionService`, the same calls the execution path makes.
+
+**Audit.** Every 200 writes one `EFFECTIVE_PERMISSION_VIEWED` row against the datasource, metadata
+`target_user_id`; an audit-write failure is logged and never denies the read.
 
 #### Access-explainer Error Codes
 

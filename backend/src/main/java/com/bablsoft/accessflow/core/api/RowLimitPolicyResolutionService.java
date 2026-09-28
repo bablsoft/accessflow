@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.api;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -16,4 +17,12 @@ public interface RowLimitPolicyResolutionService {
 
     Optional<AppliedRowLimit> resolve(UUID organizationId, UUID datasourceId, UUID requesterUserId,
                                       Set<String> referencedTables);
+
+    /**
+     * Every enabled policy on the datasource that targets the user, regardless of table, with the
+     * reasons — the effective-permission explorer's view (#946). A listed policy lowers the cap
+     * only for a query that references its table.
+     */
+    List<ApplicableRowLimitPolicy> findApplicable(UUID organizationId, UUID datasourceId,
+                                                  UUID requesterUserId);
 }

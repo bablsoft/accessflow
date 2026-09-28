@@ -206,6 +206,30 @@ describe('formatStepDetails — masking, omission and enum values (#1066 review)
     );
   });
 
+  it('formats the effective row cap and each grant\'s row limit (#946)', () => {
+    const rows = formatStepDetails(
+      {
+        contributing_grants: [
+          { source_kind: 'DIRECT', expires_at: null, row_limit_override: 50 },
+          { source_kind: 'GROUP', group_name: 'analysts', expires_at: null },
+        ],
+        effective_row_cap: 50,
+        row_cap_source: 'OVERRIDE',
+        datasource_cap: 1000,
+        global_ceiling: 10000,
+      },
+      t,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    expect(byKey.contributing_grants).toEqual([
+      'Direct grant · never expires · row limit 50',
+      'via group analysts · never expires',
+    ]);
+    expect(byKey.effective_row_cap).toBe('50');
+    expect(byKey.row_cap_source).toBe('Grant override');
+    expect(rows.find((r) => r.key === 'row_cap_source')?.label).toBe('Row cap set by');
+  });
+
   it('formats the data-budget step with labels, sizes and percentages (#942)', () => {
     const rows = formatStepDetails(
       {

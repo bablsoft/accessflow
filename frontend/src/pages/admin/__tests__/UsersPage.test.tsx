@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import '@/i18n';
+import { useAuthStore } from '@/store/authStore';
 import type { User } from '@/types/api';
 
 const listUsers = vi.fn();
@@ -35,6 +36,11 @@ vi.mock('@/api/roles', () => ({
       },
     ]),
   roleKeys: { all: ['roles'] as const, lists: () => ['roles', 'list'] as const },
+}));
+
+vi.mock('@/components/admin/UserEffectiveAccessDrawer', () => ({
+  UserEffectiveAccessDrawer: ({ user }: { user: User | null }) =>
+    user ? <div data-testid="effective-access-drawer">{user.email}</div> : null,
 }));
 
 const { UsersPage } = await import('../UsersPage');
@@ -127,5 +133,56 @@ describe('UsersPage — service accounts (#875)', () => {
     fireEvent.click(await screen.findByText('Manage this identity from Service accounts.'));
 
     expect(await screen.findByText('service-account-route')).toBeInTheDocument();
+  });
+});
+
+describe('UsersPage — effective access (#946)', () => {
+  beforeEach(() => {
+    listUsers.mockReset();
+    listInvitations.mockReset();
+    listInvitations.mockResolvedValue({ content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 });
+    listUsers.mockResolvedValue(page([user({})]));
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  function signInWith(permissions: string[]) {
+    useAuthStore.setState({
+      user: {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        display_name: 'Admin',
+        role: 'ADMIN',
+        role_id: null,
+        permissions: permissions as never,
+        auth_provider: 'LOCAL',
+        totp_enabled: false,
+        platform_admin: false,
+        preferred_language: null,
+      },
+      accessToken: 'token',
+    });
+  }
+
+  it('opens the explorer drawer for a permission manager', async () => {
+    signInWith(['USER_MANAGE', 'DATASOURCE_PERMISSION_MANAGE']);
+    render(wrap(<UsersPage />));
+    const row = (await screen.findByText('Alice')).closest('tr');
+
+    fireEvent.click(within(row!).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByText('Effective access'));
+
+    expect(await screen.findByTestId('effective-access-drawer')).toHaveTextContent(
+      'alice@example.com',
+    );
+  });
+
+  it('hides the action without DATASOURCE_PERMISSION_MANAGE', async () => {
+    signInWith(['USER_MANAGE']);
+    render(wrap(<UsersPage />));
+    const row = (await screen.findByText('Alice')).closest('tr');
+
+    fireEvent.click(within(row!).getByRole('button', { name: 'Edit' }));
+    await screen.findByText('Deactivate');
+    expect(screen.queryByText('Effective access')).not.toBeInTheDocument();
   });
 });

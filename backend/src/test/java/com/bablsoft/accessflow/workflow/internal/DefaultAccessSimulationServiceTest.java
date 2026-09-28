@@ -102,6 +102,8 @@ class DefaultAccessSimulationServiceTest {
     @Mock BreakGlassEligibilityService breakGlassEligibilityService;
     @Mock com.bablsoft.accessflow.core.api.BytesScannedCapResolutionService bytesScannedCapResolutionService;
     @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
+    @Mock com.bablsoft.accessflow.core.api.RowLimitPolicyResolutionService rowLimitPolicyResolutionService;
+    @Mock com.bablsoft.accessflow.proxy.api.RowCapResolver rowCapResolver;
 
     private DefaultAccessSimulationService service;
 
@@ -120,8 +122,11 @@ class DefaultAccessSimulationServiceTest {
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
                 breakGlassEligibilityService, bytesScannedCapResolutionService,
-                dataBudgetStatusService);
+                dataBudgetStatusService, rowLimitPolicyResolutionService, rowCapResolver);
         service.setClock(clock);
+        lenient().when(rowCapResolver.resolve(any(), org.mockito.ArgumentMatchers.anyInt()))
+                .thenAnswer(inv -> com.bablsoft.accessflow.proxy.api.EffectiveRowCap.of(
+                        inv.getArgument(0), inv.getArgument(1), 10_000));
         lenient().when(dataBudgetStatusService.statusFor(any(), any()))
                 .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
     }
@@ -409,6 +414,68 @@ class DefaultAccessSimulationServiceTest {
     }
 
     @Test
+    void thePermissionStepCarriesTheRowCapExecutionWouldApply() {
+        when(permissionLookupService.mergeContributions(any())).thenReturn(Optional.of(
+                new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, true,
+                        false, false, false, List.of("public"), List.of(), List.of(), List.of(),
+                        List.of(), List.of(), List.of(), 500, null, null)));
+        var policyId = UUID.randomUUID();
+        when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
+                Set.of("public.payments"))).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.AppliedRowLimit(40, Set.of(policyId))));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        // The policy binds (40 < the grant's 500), so it — not the grant — is named as the source.
+        assertThat(permission.details())
+                .containsEntry("effective_row_cap", 40)
+                .containsEntry("row_cap_source", "ROW_LIMIT_POLICY")
+                .containsEntry("row_limit_policy_ids", List.of(policyId.toString()))
+                .containsEntry("datasource_cap", 1000)
+                .containsEntry("global_ceiling", 10_000);
+    }
+
+    @Test
+    void aNonBindingRowLimitPolicyIsNeitherTheSourceNorListed() {
+        var grantContribution = new DatasourcePermissionContribution(
+                DatasourcePermissionSourceKind.DIRECT, UUID.randomUUID(), userId, datasourceId, null,
+                null, true, false, false, false, List.of("public"), List.of(), List.of(), null,
+                List.of(), List.of(), List.of(), 20, null, null);
+        when(permissionLookupService.findContributions(userId, datasourceId))
+                .thenReturn(List.of(grantContribution));
+        when(permissionLookupService.mergeContributions(List.of(grantContribution))).thenReturn(
+                Optional.of(new DatasourceUserPermissionView(UUID.randomUUID(), userId,
+                        datasourceId, true, false, false, false, List.of("public"), List.of(),
+                        List.of(), List.of(), List.of(), List.of(), List.of(), 20, null, null)));
+        when(rowLimitPolicyResolutionService.resolve(organizationId, datasourceId, userId,
+                Set.of("public.payments"))).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.AppliedRowLimit(40, Set.of(UUID.randomUUID()))));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        assertThat(permission.details())
+                .containsEntry("effective_row_cap", 20)
+                .containsEntry("row_cap_source", "OVERRIDE")
+                .containsEntry("row_limit_policy_ids", List.of());
+    }
+
+    @Test
+    void withoutAnOverrideTheRowCapIsTheDatasourceCap() {
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
+        assertThat(permission.details())
+                .containsEntry("effective_row_cap", 1000)
+                .containsEntry("row_cap_source", "DATASOURCE_CAP")
+                .containsEntry("row_limit_policy_ids", List.of());
+        @SuppressWarnings("unchecked")
+        var grants = (List<Map<String, Object>>) permission.details().get("contributing_grants");
+        assertThat(grants.get(0)).containsKey("row_limit_override");
+    }
+
+    @Test
     void aMissingCapabilityStopsTheRequest() {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(permission(false, true, false, List.of("public"))));
@@ -595,7 +662,7 @@ class DefaultAccessSimulationServiceTest {
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
                 breakGlassEligibilityService, bytesScannedCapResolutionService,
-                dataBudgetStatusService);
+                dataBudgetStatusService, rowLimitPolicyResolutionService, rowCapResolver);
 
         fresh.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
