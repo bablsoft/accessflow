@@ -242,6 +242,19 @@ XPath masks to XML bodies, regex over whatever remains — reusing `core.api.Col
 body is masked **once**, before the snapshot is stored, so the raw value never persists. Applied
 policy ids are recorded on the `API_REQUEST_EXECUTED` audit metadata.
 
+**Masking fails closed (#1108).** Policies are evaluated one at a time, and no error path returns
+the raw body. If a policy that applies cannot be evaluated (an invalid XPath or regex, or an XPath
+that does not select nodes, e.g. `count(//ssn)`), or the body cannot be parsed in the format its
+masks target — malformed XML with `XML_PATH` masks, or malformed JSON with `JSON_PATH`/`SCHEMA_FIELD`
+masks (a JSON response cut at the response-size cap is malformed by construction) — the masker
+replaces the **whole** response snapshot with `***` and logs a WARN naming the policy id. A body
+"looks like" JSON when its content type contains `json` or it starts with `{`/`[`, and like XML when
+its content type contains `xml` or it starts with `<`. The request is not failed — the upstream call
+has already executed — so it stays `EXECUTED` with the redacted snapshot; fix the policy and resubmit
+the call to get a masked body. An `XML_PATH` or `REGEX` policy that cannot be evaluated is rejected
+when it is saved (see below). Policies saved before that check existed, and policies derived from
+classification tags, are not checked and can still reach this path.
+
 **Field references are validated on write (#1110).** Create and update reject, with `422
 ILLEGAL_API_MASKING_POLICY`, an `XML_PATH` or `REGEX` field reference the masker could not evaluate,
 so a typo is caught when the policy is saved rather than showing up as redacted responses.
