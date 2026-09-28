@@ -35,7 +35,7 @@
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <elasticsearch-rest-client.version>9.4.2</elasticsearch-rest-client.version>
         <opensearch-rest-client.version>3.7.0</opensearch-rest-client.version>
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.2</jackson.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
