@@ -859,7 +859,7 @@ The `reveal_to_*` lists are optional; reveal targets must belong to the caller's
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** Invalid strategy params, unknown reveal role, or a reveal user/group outside the
 organization. `error: ILLEGAL_MASKING_POLICY`. For strategy params the `detail` names the problem —
-an unaccepted key, an out-of-range length, a regex that does not compile (with the error position), a
+an unaccepted key, an out-of-range length, a regex that does not compile (with the error position) or matches the empty string, a
 replacement referencing an undefined group, a malformed `boundaries` list, or an unknown `precision`.
 The same rules apply on `PUT`.
 

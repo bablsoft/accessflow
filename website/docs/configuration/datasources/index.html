@@ -422,8 +422,8 @@
             <em>hash</em> (stable SHA-256), <em>email</em> (<code>j***@domain</code>),
             <em>format-preserving</em>, <em>keep first N</em> (<code>0912******</code>),
             <em>constant</em> (a fixed value such as <code>REDACTED</code>), <em>nullify</em>
-            (<code>NULL</code>), <em>regex replace</em>, <em>numeric bucket</em> (salary to the
-            nearest 10,000, age to a band) or <em>date generalization</em> (a birth date to its year,
+            (<code>NULL</code>), <em>regex replace</em>, <em>numeric bucket</em> (a salary
+            rounded down to its 10,000 band, an age to a band) or <em>date generalization</em> (a birth date to its year,
             quarter or month) — with an optional <em>reveal-to</em> condition. Strategy settings are
             checked when you save the policy, so a broken regular expression is rejected there rather
             than during someone's query, and a value a strategy cannot handle — text in a numeric

@@ -463,12 +463,12 @@
             <li><strong>Keep first N</strong> — the mirror of partial: keeps the leading characters,
               such as an area code or sort code.</li>
             <li><strong>Constant</strong> and <strong>nullify</strong> — every value becomes the same
-              placeholder, or an empty value, for tools that need one or the other.</li>
+              placeholder, or <code>NULL</code>, for tools that need one or the other.</li>
             <li><strong>Regex replace</strong> — rewrites the value with a pattern and a replacement,
               for shapes no other strategy covers. A value the pattern does not match is fully
               masked.</li>
             <li><strong>Numeric bucket</strong> and <strong>date generalization</strong> — keep a
-              value useful for analysis while dropping its precision: a salary to the nearest 10,000,
+              value useful for analysis while dropping its precision: a salary rounded down to its 10,000 band,
               an age to a band, a birth date to its year.</li>
           </ul>
           <p>
