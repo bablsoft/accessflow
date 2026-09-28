@@ -123,6 +123,8 @@ class QueryDecisionEvaluatorTest {
                         StepOutcome.NO_MATCH),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.ROUTING_POLICIES,
                         StepOutcome.SKIP),
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.DECISION_HOOK,
+                        StepOutcome.SKIP),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.GRANT_FAST_PATH,
                         StepOutcome.SKIP),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.REVIEW_PLAN,
@@ -441,8 +443,8 @@ class QueryDecisionEvaluatorTest {
         assertThat(trace.steps()).extracting("step").containsExactly(
                 QueryDecisionStepKind.SQL_REVIEW, QueryDecisionStepKind.BYTES_SCANNED_CAP,
                 QueryDecisionStepKind.DATA_BUDGET,
-                QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.GRANT_FAST_PATH,
-                QueryDecisionStepKind.REVIEW_PLAN);
+                QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.DECISION_HOOK,
+                QueryDecisionStepKind.GRANT_FAST_PATH, QueryDecisionStepKind.REVIEW_PLAN);
         assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.NO_MATCH);
         assertThat(step(trace, QueryDecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.DENY);

@@ -61,7 +61,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-23",
+        "dateModified": "2026-09-28",
         "url": "https://accessflow.io/features/database-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/database-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -277,6 +277,7 @@
           <h2>Who signs off — and what happens when nobody does</h2>
           <p>A review plan is attached per datasource and says who must approve what. Chains can be multi-stage, reads can be auto-approved while writes are not, decisions can be taken in bulk, and each queue is scoped to the right team by user or by group. One rule holds everywhere and is enforced in the workflow service rather than the UI: nobody approves their own query, regardless of role.</p>
           <p>Routing policies sit in front of the plan and decide where a request goes without anyone touching it — auto-approve, auto-reject, escalate, or demand extra approvals, keyed on query type, AI risk, who is asking, time of day, and where the request came from. Standing just-in-time grants can pre-approve queries within their capability and table scope, but they lose to any matching routing policy and are suppressed on high or critical risk, on an open anomaly, and whenever the SQL fails to re-parse.</p>
+          <p>For the rules that do not fit a form, point AccessFlow at your own policy service — an Open Policy Agent sidecar or an in-house API. It is asked about every request no routing policy matched and can allow it, escalate it, demand more approvals or reject it, but never approve it; if it is slow, down or answers with anything AccessFlow cannot verify, the request goes to a person. Requests and answers are signed both ways, and the SQL text is only sent if you switch that on.</p>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/routing-policies-light.webp" media="(prefers-color-scheme: light)" />

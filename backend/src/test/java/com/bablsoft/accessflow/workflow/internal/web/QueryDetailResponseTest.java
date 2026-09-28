@@ -197,6 +197,41 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void aHookDecisionIsSurfacedWithItsSourceAndResult() {
+        var hookId = UUID.randomUUID();
+        var matched = new com.bablsoft.accessflow.workflow.internal.routing.MatchedRoutingPolicyView(
+                null, null, com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE, "pii",
+                com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.DECISION_HOOK, hookId);
+        var result = new com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultView(hookId,
+                "OPA", com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.ESCALATE, null, 1,
+                "pii", 200, 14L, java.time.Instant.parse("2026-09-28T10:00:00Z"));
+
+        var response = QueryDetailResponse.from(minimalView(), matched, null, List.of(), false,
+                List.of(), null, result);
+
+        assertThat(response.matchedPolicy().source())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.DECISION_HOOK);
+        assertThat(response.matchedPolicy().decisionHookId()).isEqualTo(hookId);
+        assertThat(response.decisionHook().decisionHookName()).isEqualTo("OPA");
+        assertThat(response.decisionHook().outcome())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.ESCALATE);
+        assertThat(response.decisionHook().latencyMs()).isEqualTo(14L);
+    }
+
+    @Test
+    void aPolicyDecisionDefaultsToThePolicySourceAndNoHook() {
+        var matched = new com.bablsoft.accessflow.workflow.internal.routing.MatchedRoutingPolicyView(
+                UUID.randomUUID(), "P", com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE,
+                "r");
+
+        var response = QueryDetailResponse.from(minimalView(), matched);
+
+        assertThat(response.matchedPolicy().source())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.POLICY);
+        assertThat(response.decisionHook()).isNull();
+    }
+
+    @Test
     void sqlReviewFindingsAreEmptyUnlessSupplied() {
         assertThat(QueryDetailResponse.from(minimalView()).sqlReviewFindings()).isEmpty();
         assertThat(QueryDetailResponse.from(minimalView(), null, null, null, false)

@@ -549,6 +549,7 @@ const ROUTES = [
   ['/admin/break-glass', 'Break-glass grants and the mandatory retro-review of each use.'],
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],
   ['/admin/routing-policies', 'Typed conditions that auto-approve, auto-reject or route a request.'],
+  ['/admin/decision-hooks', 'An external policy service asked about requests no routing policy matched; it can escalate or reject, never approve.'],
   ['/admin/sql-review', 'Deterministic SQL review rulesets: the severity (off, warn, block) every built-in rule runs at, per environment or as the organization default.'],
   ['/admin/attestation', 'Scheduled attestation campaigns over standing grants.'],
   ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.', 'open a campaign from Attestation'],

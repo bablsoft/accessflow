@@ -24,6 +24,7 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCo
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ReanalyzeQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultService;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,6 +71,7 @@ class QueryReadController {
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryCsvExportService queryCsvExportService;
     private final RoutingDecisionService routingDecisionService;
+    private final DecisionHookResultService decisionHookResultService;
     private final AccessGrantLookupService accessGrantLookupService;
     private final QueryTicketService queryTicketService;
     private final SqlReviewFindingService sqlReviewFindingService;
@@ -216,8 +218,9 @@ class QueryReadController {
                 finding -> sqlReviewFindingRenderer.message(finding, locale));
         var effectiveSql = querySnapshotService.find(id, caller.organizationId())
                 .map(QuerySnapshotView::effectiveSql).orElse(null);
+        var decisionHook = decisionHookResultService.findForQuery(id).orElse(null);
         return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets,
-                includeApprovalPrediction, findings, effectiveSql);
+                includeApprovalPrediction, findings, effectiveSql, decisionHook);
     }
 
     @PostMapping("/{id}/cancel")

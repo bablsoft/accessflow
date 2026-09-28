@@ -76,10 +76,15 @@ class QueryReviewStateMachineTest {
     @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
     @Mock org.springframework.transaction.PlatformTransactionManager transactionManager;
     @Mock com.bablsoft.accessflow.core.api.DataBudgetStatusService dataBudgetStatusService;
+    @Mock com.bablsoft.accessflow.workflow.internal.hook.DecisionHookGateway decisionHookGateway;
+    @Mock com.bablsoft.accessflow.workflow.internal.hook.DecisionHookResultService decisionHookResultService;
 
     // A real ConditionContextFactory over the same mocks, not a mock of it: the context builder is
     // what turns these signals into routing input, and mocking it away would stop testing that.
     private QueryReviewStateMachine stateMachine;
+    // No decision hook unless a test installs one (#945).
+    private com.bablsoft.accessflow.workflow.internal.hook.DecisionHookInvoker hookInvoker =
+            com.bablsoft.accessflow.workflow.internal.hook.DecisionHookInvoker.NONE;
 
     private final UUID queryId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
@@ -88,6 +93,7 @@ class QueryReviewStateMachineTest {
     private final UUID aiAnalysisId = UUID.randomUUID();
     private final UUID policyId = UUID.randomUUID();
     private final UUID grantId = UUID.randomUUID();
+    private final UUID hookId = UUID.randomUUID();
 
     @BeforeEach
     void buildStateMachine() {
@@ -103,7 +109,8 @@ class QueryReviewStateMachineTest {
                 queryRequestStateService, routingDecisionService, sqlReviewFindingService,
                 auditLogService, messageSource, eventPublisher, bytesScannedCapResolutionService,
                 queryCostEstimateService, queryEstimateLookupService, transactionManager,
-                dataBudgetStatusService);
+                dataBudgetStatusService, decisionHookGateway, decisionHookResultService);
+        lenient().when(decisionHookGateway.live()).thenAnswer(inv -> hookInvoker);
         lenient().when(dataBudgetStatusService.statusFor(any(), any()))
                 .thenAnswer(inv -> com.bablsoft.accessflow.core.api.DataBudgetStatus.none(inv.getArgument(0)));
     }
@@ -963,6 +970,187 @@ class QueryReviewStateMachineTest {
                 canRead, canWrite, canDdl, allowedSchemas, allowedTables,
                 AccessGrantStatus.APPROVED, Instant.now().plusSeconds(3600),
                 UUID.randomUUID(), "approver@x.io", Instant.now());
+    }
+
+    // ── External decision hook (#945) ─────────────────────────────────────────
+
+    private com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation hookAnswer(
+            com.bablsoft.accessflow.workflow.api.DecisionHookOutcome outcome, Integer approvals,
+            com.bablsoft.accessflow.workflow.api.DecisionHookFailure failure, String reason) {
+        return new com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation(hookId,
+                "OPA", outcome, failure, approvals, reason, failure == null ? 200 : null, 25L);
+    }
+
+    private void givenHook(com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation answer) {
+        hookInvoker = (q, c, a) -> Optional.of(answer);
+        when(decisionHookGateway.appliesTo(organizationId, datasourceId)).thenReturn(true);
+    }
+
+    private AuditEntry hookAuditRow() {
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.atLeastOnce()).record(captor.capture());
+        return captor.getAllValues().stream()
+                .filter(e -> e.action() == AuditAction.QUERY_DECISION_HOOK_EVALUATED)
+                .findFirst().orElseThrow();
+    }
+
+    @Test
+    void aHookRejectionRejectsRecordsTheHookAndAuditsIt() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        var answer = hookAnswer(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.REJECT,
+                null, null, "pii outside hours");
+        givenHook(answer);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(routingDecisionService).applyHookDecision(queryId, QueryStatus.REJECTED,
+                RoutingAction.AUTO_REJECT, null, "pii outside hours", hookId);
+        verify(eventPublisher).publishEvent(
+                new QueryAutoRejectedEvent(queryId, null, "pii outside hours", hookId));
+        verify(decisionHookResultService).record(queryId, answer);
+        var row = hookAuditRow();
+        assertThat(row.actorId()).isNull();
+        assertThat(row.metadata()).containsEntry("outcome", "REJECT")
+                .containsEntry("trigger", "decision_hook")
+                .containsEntry("resulting_status", "REJECTED")
+                .containsEntry("decision_hook_id", hookId);
+    }
+
+    @Test
+    void aHookEscalationRaisesTheApprovalCount() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenHook(hookAnswer(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.ESCALATE, 2,
+                null, null));
+        when(messageSource.getMessage(eq("workflow.decision_hook.default_reason"), any(), any()))
+                .thenReturn("Decided by OPA");
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(routingDecisionService).applyHookDecision(queryId, QueryStatus.PENDING_REVIEW,
+                RoutingAction.ESCALATE, 3, "Decided by OPA", hookId);
+        verify(eventPublisher).publishEvent(
+                new QueryReadyForReviewEvent(queryId, null, "Decided by OPA", 3, hookId));
+        assertThat(hookAuditRow().metadata()).containsEntry("effective_min_approvals", 3)
+                .containsEntry("requested_approvals", 2);
+    }
+
+    @Test
+    void aHookRequireApprovalsIsRecordedAsSuch() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenHook(hookAnswer(
+                com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.REQUIRE_APPROVALS, 4, null,
+                "four eyes"));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(routingDecisionService).applyHookDecision(queryId, QueryStatus.PENDING_REVIEW,
+                RoutingAction.REQUIRE_APPROVALS, 4, "four eyes", hookId);
+    }
+
+    @Test
+    void aFailingHookSendsAnAutoApprovingQueryToReviewAndAuditsTheFailure() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(true, true, RiskLevel.LOW);
+        var answer = hookAnswer(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.FAILED,
+                null, com.bablsoft.accessflow.workflow.api.DecisionHookFailure.TIMEOUT, null);
+        givenHook(answer);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(queryRequestStateService, never()).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.APPROVED);
+        verify(routingDecisionService, never()).applyHookDecision(any(), any(), any(), any(), any(),
+                any());
+        verify(eventPublisher, never()).publishEvent(any(QueryAutoApprovedEvent.class));
+        verify(decisionHookResultService).record(queryId, answer);
+        assertThat(hookAuditRow().metadata()).containsEntry("outcome", "FAILED")
+                .containsEntry("failure", "TIMEOUT")
+                .containsEntry("resulting_status", "PENDING_REVIEW");
+    }
+
+    @Test
+    void anAllowingHookIsRecordedWithoutChangingThePlanDecision() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(true, true, RiskLevel.LOW);
+        givenHook(hookAnswer(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.ALLOW, null,
+                null, null));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.APPROVED);
+        verify(decisionHookResultService).record(eq(queryId), any());
+        assertThat(hookAuditRow().metadata()).containsEntry("outcome", "ALLOW")
+                .doesNotContainKey("failure");
+    }
+
+    @Test
+    void aHookAuditFailureDoesNotUndoTheDecision() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenHook(hookAnswer(com.bablsoft.accessflow.workflow.api.DecisionHookOutcome.REJECT, null,
+                null, "no"));
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit down"))
+                .when(auditLogService).record(any());
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(routingDecisionService).applyHookDecision(eq(queryId), eq(QueryStatus.REJECTED),
+                any(), any(), any(), any());
+    }
+
+    @Test
+    void noApplicableHookMeansNoCallAndNoPreEvaluation() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(decisionHookGateway).appliesTo(organizationId, datasourceId);
+        verify(decisionHookGateway, never()).live();
+        verify(decisionHookResultService, never()).record(any(), any());
+        // One evaluation only — the pre-evaluation runs only when a hook applies.
+        verify(routingPolicyEngine).evaluate(eq(organizationId), eq(datasourceId), any());
+    }
+
+    @Test
+    void aMatchedPolicyMeansTheHookIsNeverCalledEvenWhenOneApplies() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+        when(decisionHookGateway.appliesTo(organizationId, datasourceId)).thenReturn(true);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(decisionHookGateway, never()).live();
+        verify(decisionHookResultService, never()).record(any(), any());
+        verify(queryRequestStateService, never()).recordDataBudgetReviewForced(any());
+    }
+
+    @Test
+    void theHookIsNotCalledForAQueryThatAlreadyLeftPendingAi() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(new QueryRequestSnapshot(queryId, datasourceId,
+                        organizationId, submitterId, "SELECT 1", QueryType.SELECT, false,
+                        QueryStatus.APPROVED, null, null, null, false)));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai off"));
+
+        verify(decisionHookGateway, never()).appliesTo(any(), any());
+        verify(decisionHookGateway, never()).live();
     }
 
     private void givenPendingAiQuery(QueryType type) {

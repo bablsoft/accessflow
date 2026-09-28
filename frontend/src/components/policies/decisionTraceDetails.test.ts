@@ -223,4 +223,16 @@ describe('formatStepDetails — masking, omission and enum values (#1066 review)
     expect(byKey.data_budget_remaining_bytes).toBe('2 GB');
     expect(rows.find((r) => r.key === 'data_budget_name')?.label).toBe('Data budget name');
   });
+
+  it('labels the decision hook outcome and failure (#945)', () => {
+    const rows = formatStepDetails(
+      { decision_hook_name: 'OPA', outcome: 'FAILED', failure: 'SIGNATURE_MISMATCH', latency_ms: 40 },
+      t,
+    );
+    const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    expect(byKey.outcome).toBe('Failed');
+    expect(byKey.failure).toBe('Bad signature');
+    expect(byKey.latency_ms).toBe('40');
+    expect(formatStepDetails({ outcome: 'SOMETHING_ELSE' }, t)[0]?.value).toBe('SOMETHING_ELSE');
+  });
 });

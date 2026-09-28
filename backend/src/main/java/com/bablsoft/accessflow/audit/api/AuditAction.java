@@ -106,6 +106,10 @@ public enum AuditAction {
     ROUTING_POLICY_UPDATED,
     ROUTING_POLICY_DELETED,
     ROUTING_POLICY_REORDERED,
+    DECISION_HOOK_CREATED,
+    DECISION_HOOK_UPDATED,
+    DECISION_HOOK_DELETED,
+    DECISION_HOOK_TESTED,
     SQL_REVIEW_RULESET_CREATED,
     SQL_REVIEW_RULESET_UPDATED,
     SQL_REVIEW_RULESET_DELETED,
@@ -132,6 +136,7 @@ public enum AuditAction {
      * when the guard changed the outcome; never for {@code WARN}, never on a rejection.
      */
     SQL_REVIEW_BLOCKED,
+    QUERY_DECISION_HOOK_EVALUATED,
     /**
      * The bytes-scanned cap (#941) changed a query's outcome: refused it when it left
      * {@code PENDING_AI} ({@code stage=decision}), turned an automatic approval into human review,

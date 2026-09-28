@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
 import com.bablsoft.accessflow.core.api.DecisionTrace;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookConsultation;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 
 import java.util.UUID;
@@ -32,13 +33,34 @@ import java.util.UUID;
  *                            budget applies
  * @param dataBudgetChangedOutcome whether the exhausted budget refused the query or turned an
  *                            automatic approval into human review — the condition for its audit row
+ * @param hook                what the external decision hook answered (#945), or {@code null} when
+ *                            no hook was consulted — none applies, or an earlier stage decided
  */
 record QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
                      Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
                      ConditionContext context, DecisionTrace trace,
                      SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
                      boolean bytesCapChangedOutcome, DataBudgetCheck dataBudget,
-                     boolean dataBudgetChangedOutcome) {
+                     boolean dataBudgetChangedOutcome, DecisionHookConsultation hook) {
+
+    /** A decision no decision hook took part in. */
+    QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
+                  Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
+                  ConditionContext context, DecisionTrace trace,
+                  SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
+                  boolean bytesCapChangedOutcome, DataBudgetCheck dataBudget,
+                  boolean dataBudgetChangedOutcome) {
+        this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
+                trace, sqlReviewSuppression, bytesCap, bytesCapChangedOutcome, dataBudget,
+                dataBudgetChangedOutcome, null);
+    }
+
+    /** The same decision, recording that the hook was consulted on the way to it. */
+    QueryDecision withHook(DecisionHookConsultation consultation) {
+        return new QueryDecision(kind, nextStatus, routingMatch, effectiveApprovals, grantId,
+                grantApproverEmail, context, trace, sqlReviewSuppression, bytesCap,
+                bytesCapChangedOutcome, dataBudget, dataBudgetChangedOutcome, consultation);
+    }
 
     /** A decision no data budget took part in. */
     QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
@@ -47,7 +69,7 @@ record QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatc
                   SqlReviewSuppression sqlReviewSuppression, BytesCapCheck bytesCap,
                   boolean bytesCapChangedOutcome) {
         this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
-                trace, sqlReviewSuppression, bytesCap, bytesCapChangedOutcome, null, false);
+                trace, sqlReviewSuppression, bytesCap, bytesCapChangedOutcome, null, false, null);
     }
 
     /** A decision no bytes-scanned cap took part in. */

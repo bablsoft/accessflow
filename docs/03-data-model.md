@@ -953,7 +953,64 @@ Records the outcome of routing a single query request (AF-379, Flyway `V59__crea
 | `matched_policy_id` | FK → `routing_policy` NULL, `ON DELETE SET NULL` — null when no policy matched (fall-through) or the policy was later deleted |
 | `action` | ENUM `routing_action` — the action that fired |
 | `effective_min_approvals` | INTEGER nullable — resolved absolute approver count for `ESCALATE` / `REQUIRE_APPROVALS`; read by the review service as the per-stage minimum override |
-| `reason` | VARCHAR(500) nullable — copied from the matched policy |
+| `reason` | VARCHAR(500) nullable — copied from the matched policy, or the decision hook's reason |
+| `source` | ENUM `routing_decision_source` NOT NULL DEFAULT `POLICY` (#945, `V197`) — `POLICY` when a routing policy matched, `DECISION_HOOK` when the external decision hook escalated, required approvals or rejected. Every pre-#945 row is `POLICY` |
+| `decision_hook_id` | UUID nullable (#945) — the hook that decided when `source = DECISION_HOOK`; bare UUID so the decision outlives a deleted hook. `matched_policy_id` is then null |
+| `created_at` | TIMESTAMPTZ |
+
+A decision hook's `REJECT`, `ESCALATE` and `REQUIRE_APPROVALS` answers are stored with the routing
+action they map onto (`AUTO_REJECT`, `ESCALATE`, `REQUIRE_APPROVALS`) so the review service's
+approval-count override works unchanged. A hook can never produce an `AUTO_APPROVE` row —
+`RoutingDecisionService.applyHookDecision` refuses one. A hook `ALLOW` or failure writes no
+`routing_decision` row; those are recorded in `decision_hook_results`.
+
+---
+
+## decision_hooks (#945)
+
+An external policy decision hook: an operator-run HTTPS endpoint the routing chain consults when no
+routing policy matched, immediately before the grant-covered fast path (`V197`). Admin-managed via
+[`/admin/decision-hooks`](04-api-spec.md#external-decision-hooks-admindecision-hooks-routing_policy_manage-945).
+Semantics: [docs/05-backend.md → External decision hook](05-backend.md#external-decision-hook-945).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` NOT NULL, `ON DELETE CASCADE` |
+| `datasource_id` | FK → `datasources` NULL, `ON DELETE CASCADE` — null for the organization default |
+| `name` | VARCHAR(255) NOT NULL |
+| `endpoint_url` | VARCHAR(2048) NOT NULL — `https://`, checked by the SSRF guard at save time and again, after DNS resolution, on every call |
+| `timeout_ms` | INTEGER NOT NULL DEFAULT 2000, `CHECK (timeout_ms BETWEEN 100 AND 10000)` — the whole call |
+| `secret_encrypted` | TEXT NOT NULL — AES-256-GCM ciphertext of the HMAC signing secret; `@JsonIgnore`, never returned |
+| `include_sql` | BOOLEAN NOT NULL DEFAULT FALSE — whether the payload carries the SQL text |
+| `enabled` | BOOLEAN NOT NULL DEFAULT TRUE |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Two partial unique indexes keep at most one hook per datasource (`uq_decision_hooks_org_datasource`,
+`WHERE datasource_id IS NOT NULL`) and one organization default (`uq_decision_hooks_org_default`,
+`WHERE datasource_id IS NULL`) — the `sql_review_rulesets` precedent. A datasource resolves to its
+own hook, else the default; a **disabled** datasource hook means no hook for that datasource and does
+not fall back to the default.
+
+## decision_hook_results (#945)
+
+One row per query the decision hook was consulted for, whatever it answered — `ALLOW` and failures
+included, which `routing_decision` alone would not record. Surfaced as `decision_hook` on
+`GET /queries/{id}`. Simulations never write one.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | FK → `query_requests` NOT NULL, `ON DELETE CASCADE`, **UNIQUE** |
+| `decision_hook_id` | UUID NOT NULL — bare UUID, survives the hook's deletion |
+| `decision_hook_name` | VARCHAR(255) NOT NULL — the name at the time of the call |
+| `outcome` | ENUM `decision_hook_outcome` NOT NULL — `ALLOW`, `ESCALATE`, `REQUIRE_APPROVALS`, `REJECT`, `FAILED` |
+| `failure` | ENUM `decision_hook_failure` nullable — set exactly when `outcome = FAILED` (`CHECK`): `TIMEOUT`, `TRANSPORT_ERROR`, `NON_2XX`, `UNPARSEABLE`, `SIGNATURE_MISMATCH`, `INVALID_DECISION`, `SSRF_BLOCKED`, `CIRCUIT_OPEN` |
+| `requested_approvals` | INTEGER nullable — the count the hook asked for (1–10) |
+| `reason` | VARCHAR(500) nullable — the hook's reason, truncated |
+| `http_status` | INTEGER nullable — null when no response arrived |
+| `latency_ms` | BIGINT NOT NULL |
 | `created_at` | TIMESTAMPTZ |
 
 ---
@@ -1168,6 +1225,11 @@ PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
                              with breach_action=REJECT; decided right after the bytes-scanned cap)
            ↘ PENDING_REVIEW (data budget used up under REQUIRE_REVIEW — every auto-approve path
                              is held for a person, like a SQL review BLOCK)
+           ↘ REJECTED       (external decision hook REJECT, #945 — only when no routing policy
+                             matched; recorded on routing_decision with source=DECISION_HOOK)
+           ↘ PENDING_REVIEW (external decision hook ESCALATE / REQUIRE_APPROVALS, or any hook
+                             failure — a failure holds every auto-approve path for a person. A
+                             hook can never approve)
 PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet;
                             for a recurring series — recurrence_rule set, #627 — also any
@@ -1863,6 +1925,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `SERVICE_ACCOUNT_CREATED` / `SERVICE_ACCOUNT_UPDATED` / `SERVICE_ACCOUNT_DEACTIVATED` | Admin creates / updates / deactivates a service account via `/admin/service-accounts` (#871). Resource: `service_account`, `resource_id` = the account's `users.id`. Metadata on create: `email`, `role`; on update: `fields` (the request fields that were present) and `cleared` (the UI-owned fields reset through `clear`) — never their values. Accounts reconciled from bootstrap YAML keep auditing as `API_KEY_CREATED` / `API_KEY_UPDATED` with `source = BOOTSTRAP`. |
 | `SERVICE_ACCOUNT_DELEGATION_GRANTED` / `SERVICE_ACCOUNT_DELEGATION_REVOKED` | A human (`channel=self_service`, via `/me/service-account-delegations`) or an admin (`channel=admin`) let a service account act on a human's behalf, or revoked that grant (#874). Resource: `service_account`. Metadata: `delegation_id`, `principal_user_id`, `expires_at` (when set), `channel`. |
 | `SERVICE_ACCOUNT_KEY_ISSUED` / `SERVICE_ACCOUNT_KEY_ROTATED` / `SERVICE_ACCOUNT_KEY_REVOKED` | Admin issues / rotates / revokes an API key on behalf of a service account (#871). Resource: `service_account`. Metadata: `api_key_id`, `name` (issue); `api_key_id`, `superseded_key_id`, `name`, `superseded_expires_at` (rotate — the old key's new expiry, i.e. the end of the grace window); `api_key_id` (revoke). The raw key is never logged. |
+| `DECISION_HOOK_CREATED` / `DECISION_HOOK_UPDATED` / `DECISION_HOOK_DELETED` / `DECISION_HOOK_TESTED` | Admin creates / updates / deletes / sends a test request to an external decision hook via `/admin/decision-hooks` (#945). Resource: `decision_hook`. Metadata on create / update: `name`, `enabled`, `include_sql`, `datasource_id` (when bound), `endpoint_origin` (scheme, host and port — never the path or query), and on update `secret_rotated`; on test: `outcome` and `failure`. Never the secret or the endpoint URL. |
+| `QUERY_DECISION_HOOK_EVALUATED` | The external decision hook was consulted for a query leaving `PENDING_AI` (#945) — one row per live consult, whatever it answered. System-attributed: `actor_id` is NULL. Resource: `query_request`. Metadata: `trigger: "decision_hook"`, `decision_hook_id`, `decision_hook_name`, `outcome`, `failure` (failures only), `requested_approvals`, `effective_min_approvals`, `reason`, `http_status`, `latency_ms`, `resulting_status`. A rejection or escalation additionally rides on the usual `QUERY_REJECTED` / `QUERY_REVIEW_REQUESTED` row with `source: "DECISION_HOOK"` and `decision_hook_id` in place of `routing_policy_id`. Simulations write none. |
 | `SQL_REVIEW_BLOCKED` | A `BLOCK` SQL review finding suppressed an auto-approve path and forced the request to human review (#864). System-attributed: `actor_id` is NULL. Resource: `query_request` (written by `QueryReviewStateMachine` after the transition) or `request_group` (written by `GroupAiAnalysisListener`). Metadata: `trigger: "sql_review"`, `blocking_rule_ids` (distinct, sorted), `suppressed_paths` — one or more of `ROUTING_AUTO_APPROVE`, `GRANT_FAST_PATH`, `REVIEW_PLAN` for a query, `GROUP_REVIEW_PLAN` for a group — plus `matched_policy_id` when routing was the suppressed path and `blocking_item_ids` for a group. Written **only when the guard changed the outcome**: never for `WARN`, never on a routing `AUTO_REJECT` (the rejection stands), never on the AI-failed path or a plan that already required review (the findings are still on the detail), and never for break-glass, which records findings but is not gated. |
 | `QUERY_BYTES_SCANNED_CAP_ENFORCED` | The bytes-scanned cap (#941) changed a query's outcome. System-attributed: `actor_id` is NULL. Resource: `query_request` — or `request_group` when a group member was refused at execution (metadata then carries `item_id`), or `datasource` when a table preview was refused (`stage: "sample"`, actor = the caller, metadata adds `table`). Metadata: `trigger: "bytes_scanned_cap"`, `stage` (`decision` — the query left `PENDING_AI` rejected, or an automatic approval was held for review; `execution` — refused just before running, the query is then `FAILED`), `limit`, `source` (`DATASOURCE` \| `GRANT`), `outcome`, and `estimated_bytes` when an estimate existed. Never written when the estimate was within the cap; a successful `QUERY_EXECUTED` row under a cap instead carries `bytes_scanned_cap`, `bytes_scanned_cap_source` and `bytes_scanned_estimate` |
 | `QUERY_DATA_BUDGET_ENFORCED` | An exhausted data budget (#942) changed a query's outcome. System-attributed: `actor_id` is NULL. Resource: `query_request` — or `request_group` when a group member was refused at execution (metadata then carries `item_id`). Metadata: `trigger: "data_budget"`, `stage` (`decision` — the query left `PENDING_AI` rejected, or an automatic approval was held for review; `execution` — refused just before running, the query is then `FAILED`), `action` (`REJECT` \| `REQUIRE_REVIEW`), `data_budget_id`, `used_rows`, `used_bytes`, `window_minutes`, and `matched_policy_id` when a routing `AUTO_APPROVE` was suppressed. Never written when allowance remained; a successful `QUERY_EXECUTED` row under a budget instead carries `data_budget_rows_charged` and `data_budget_bytes_charged` |
@@ -1905,7 +1969,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `row_limit_policy`, `data_budget`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `decision_hook`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `service_account`, `row_security_policy`, `row_limit_policy`, `data_budget`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 

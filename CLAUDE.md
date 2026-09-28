@@ -356,6 +356,16 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
   PENDING_AI → PENDING_REVIEW (data budget used up, breach_action=REQUIRE_REVIEW — #942; suppresses
                           the same auto-approve paths as a SQL review BLOCK, never softens
                           AUTO_REJECT)
+  PENDING_AI → REJECTED  (external decision hook REJECT — #945; consulted only when no routing
+                          policy matched, just before the grant fast path. Recorded on
+                          routing_decision with source=DECISION_HOOK, QueryAutoRejectedEvent carries
+                          the hook id; audited QUERY_DECISION_HOOK_EVALUATED)
+  PENDING_AI → PENDING_REVIEW (external decision hook ESCALATE / REQUIRE_APPROVALS — #945;
+                          REQUIRE_APPROVALS is clamped to max(requested, plan minimum) — or ANY hook
+                          failure: timeout, non-2xx/redirect, bad response signature, unknown
+                          decision, SSRF-blocked address, open circuit. A failure joins the SQL
+                          review BLOCK guard and suppresses the grant fast path and the plan's
+                          approvals. A hook can NEVER approve — RoutingDecisionService refuses it)
   PENDING_REVIEW → APPROVED or REJECTED (external ticket resolution — AF-453; a channel with
                           bidirectional_sync=true maps a ServiceNow/Jira ticket resolution onto a
                           decision via workflow.api.ExternalDecisionService. System-attributed:

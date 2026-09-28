@@ -610,3 +610,28 @@ export function dashboardErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.dashboard_generic');
 }
+
+export function decisionHookErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'DECISION_HOOK_NOT_FOUND') {
+      return i18n.t('errors.decision_hook_not_found');
+    }
+    if (code === 'DECISION_HOOK_SCOPE_CONFLICT') {
+      // The detail says whether the default or a datasource is taken, localized by the backend.
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.decision_hook_scope_conflict');
+    }
+    if (code === 'DECISION_HOOK_INVALID') {
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.decision_hook_invalid');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.decision_hook_generic');
+}

@@ -217,3 +217,51 @@ resource "accessflow_sql_review_ruleset" "test" {
 		},
 	})
 }
+
+func TestAccDecisionHook_basic(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "accessflow_decision_hook" "test" {
+  name         = "tf-acc-decision-hook"
+  endpoint_url = "https://opa.example.com/v1/data/accessflow/decision"
+  secret       = "tf-acc-secret-0123456789abcdef0123456789"
+  enabled      = false
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("accessflow_decision_hook.test", "id"),
+					resource.TestCheckNoResourceAttr("accessflow_decision_hook.test", "datasource_id"),
+					resource.TestCheckResourceAttr("accessflow_decision_hook.test", "timeout_ms", "2000"),
+					resource.TestCheckResourceAttr("accessflow_decision_hook.test", "include_sql", "false"),
+					resource.TestCheckResourceAttr("accessflow_decision_hook.test", "enabled", "false"),
+				),
+			},
+			{
+				Config: `
+resource "accessflow_decision_hook" "test" {
+  name         = "tf-acc-decision-hook-renamed"
+  endpoint_url = "https://opa.example.com/v1/data/accessflow/decision"
+  secret       = "tf-acc-secret-0123456789abcdef0123456789"
+  timeout_ms   = 1500
+  enabled      = false
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("accessflow_decision_hook.test", "name", "tf-acc-decision-hook-renamed"),
+					resource.TestCheckResourceAttr("accessflow_decision_hook.test", "timeout_ms", "1500"),
+				),
+			},
+			{
+				ResourceName:      "accessflow_decision_hook.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// The secret is write-only and never returned by the API.
+				ImportStateVerifyIgnore: []string{"secret"},
+			},
+		},
+	})
+}

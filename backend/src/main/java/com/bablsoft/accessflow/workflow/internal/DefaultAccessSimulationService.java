@@ -40,6 +40,7 @@ import com.bablsoft.accessflow.workflow.api.BreakGlassEligibilityService;
 import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
 import com.bablsoft.accessflow.core.api.DecisionTraceStep;
 import com.bablsoft.accessflow.core.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.internal.hook.DecisionHookGateway;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -81,6 +82,8 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final RolePermissionHolderLookupService rolePermissionHolderLookupService;
     private final QueryDecisionEvaluator queryDecisionEvaluator;
+    // The simulation invoker only names the hook that would apply; a simulation never calls out.
+    private final DecisionHookGateway decisionHookGateway;
     private final SqlReviewService sqlReviewService;
     private final RoutingPolicyEngine routingPolicyEngine;
     private final ReviewPlanLookupService reviewPlanLookupService;
@@ -159,7 +162,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var decision = queryDecisionEvaluator.evaluate(
                 syntheticSnapshot(organizationId, input, parsed), input.aiOutcome(),
                 input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, bytesCap, dataBudget,
-                clock);
+                decisionHookGateway.simulation(), clock);
         steps.addAll(withFullPolicyList(decision, organizationId, input.datasourceId()));
 
         steps.add(reviewerStep(input, decision.nextStatus()));

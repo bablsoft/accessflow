@@ -98,9 +98,14 @@ class AuditEventListener {
                 () -> queryRequestLookupService.findById(event.queryRequestId()),
                 snapshot -> {
                     var metadata = new HashMap<String, Object>();
-                    if (event.matchedPolicyId() != null) {
-                        metadata.put("source", "ROUTING_POLICY");
-                        metadata.put("routing_policy_id", event.matchedPolicyId().toString());
+                    if (event.matchedPolicyId() != null || event.decisionHookId() != null) {
+                        if (event.decisionHookId() != null) {
+                            metadata.put("source", "DECISION_HOOK");
+                            metadata.put("decision_hook_id", event.decisionHookId().toString());
+                        } else {
+                            metadata.put("source", "ROUTING_POLICY");
+                            metadata.put("routing_policy_id", event.matchedPolicyId().toString());
+                        }
                         if (event.effectiveMinApprovals() != null) {
                             metadata.put("effective_min_approvals", event.effectiveMinApprovals());
                         }
@@ -187,7 +192,10 @@ class AuditEventListener {
                 snapshot -> {
                     var metadata = new HashMap<String, Object>();
                     metadata.put("auto_rejected", true);
-                    if (event.matchedPolicyId() != null) {
+                    if (event.decisionHookId() != null) {
+                        metadata.put("source", "DECISION_HOOK");
+                        metadata.put("decision_hook_id", event.decisionHookId().toString());
+                    } else if (event.matchedPolicyId() != null) {
                         metadata.put("source", "ROUTING_POLICY");
                         metadata.put("routing_policy_id", event.matchedPolicyId().toString());
                     }

@@ -91,6 +91,7 @@ class DefaultAccessSimulationServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock RolePermissionHolderLookupService rolePermissionHolderLookupService;
     @Mock QueryDecisionEvaluator queryDecisionEvaluator;
+    @Mock com.bablsoft.accessflow.workflow.internal.hook.DecisionHookGateway decisionHookGateway;
     @Mock SqlReviewService sqlReviewService;
     @Mock RoutingPolicyEngine routingPolicyEngine;
     @Mock ReviewPlanLookupService reviewPlanLookupService;
@@ -113,7 +114,8 @@ class DefaultAccessSimulationServiceTest {
     void buildService() {
         service = new DefaultAccessSimulationService(datasourceAdminService, userQueryService,
                 quotaService, queryParser, permissionLookupService,
-                rolePermissionHolderLookupService, queryDecisionEvaluator, sqlReviewService,
+                rolePermissionHolderLookupService, queryDecisionEvaluator, decisionHookGateway,
+                sqlReviewService,
                 routingPolicyEngine,
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
@@ -141,7 +143,7 @@ class DefaultAccessSimulationServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(permission(true, false, false, List.of("public"))));
         when(queryDecisionEvaluator.evaluate(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(),
-                any(), any(), any(), any())).thenReturn(planDecision(QueryStatus.PENDING_REVIEW));
+                any(), any(), any(), any(), any())).thenReturn(planDecision(QueryStatus.PENDING_REVIEW));
         when(sqlReviewService.evaluate(eq(organizationId), eq(datasourceId), any()))
                 .thenReturn(SqlReviewResult.clean());
         when(routingPolicyEngine.enabledFor(organizationId, datasourceId)).thenReturn(List.of());
@@ -182,7 +184,7 @@ class DefaultAccessSimulationServiceTest {
 
         verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.COMPLETED), eq(RiskLevel.LOW),
                 eq(5), eq(List.of()), org.mockito.ArgumentMatchers.isNull(),
-                org.mockito.ArgumentMatchers.isNull(), eq(clock));
+                org.mockito.ArgumentMatchers.isNull(), any(), eq(clock));
         verify(datasourceAdminService, never()).update(any(), any(), any());
     }
 
@@ -203,7 +205,7 @@ class DefaultAccessSimulationServiceTest {
 
         verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.COMPLETED), eq(RiskLevel.LOW),
                 eq(5), eq(List.of("cross_join", "select_star")),
-                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(), any(),
                 eq(clock));
         verify(sqlReviewService).evaluate(organizationId, datasourceId,
                 "SELECT card_number FROM public.payments");
@@ -218,7 +220,7 @@ class DefaultAccessSimulationServiceTest {
 
         verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.SKIPPED), eq(null), eq(-1),
                 eq(List.of()), org.mockito.ArgumentMatchers.isNull(),
-                org.mockito.ArgumentMatchers.isNull(), eq(clock));
+                org.mockito.ArgumentMatchers.isNull(), any(), eq(clock));
     }
 
     @Test
@@ -232,7 +234,7 @@ class DefaultAccessSimulationServiceTest {
 
         var passed = org.mockito.ArgumentCaptor.forClass(BytesCapCheck.class);
         verify(queryDecisionEvaluator).evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any(), passed.capture(), any(), any());
+                org.mockito.ArgumentMatchers.anyInt(), any(), passed.capture(), any(), any(), any());
         assertThat(passed.getValue().limit()).isEqualTo(500L);
         assertThat(passed.getValue().outcome()).isNull();
         assertThat(passed.getValue().rejects()).isFalse();
@@ -251,7 +253,7 @@ class DefaultAccessSimulationServiceTest {
 
         var passed = org.mockito.ArgumentCaptor.forClass(DataBudgetCheck.class);
         verify(queryDecisionEvaluator).evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any(), any(), passed.capture(), any());
+                org.mockito.ArgumentMatchers.anyInt(), any(), any(), passed.capture(), any(), any());
         assertThat(passed.getValue().rejects()).isTrue();
     }
 
@@ -571,7 +573,7 @@ class DefaultAccessSimulationServiceTest {
     @Test
     void reviewersAreSkippedWhenTheRequestWouldNotReachReview() {
         when(queryDecisionEvaluator.evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), any()))
+                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), any(), any()))
                 .thenReturn(planDecision(QueryStatus.APPROVED));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
@@ -587,7 +589,8 @@ class DefaultAccessSimulationServiceTest {
         // UTC bean, so a default-constructed simulator must too or those conditions trace wrong.
         var fresh = new DefaultAccessSimulationService(datasourceAdminService, userQueryService,
                 quotaService, queryParser, permissionLookupService,
-                rolePermissionHolderLookupService, queryDecisionEvaluator, sqlReviewService,
+                rolePermissionHolderLookupService, queryDecisionEvaluator, decisionHookGateway,
+                sqlReviewService,
                 routingPolicyEngine,
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
@@ -598,7 +601,7 @@ class DefaultAccessSimulationServiceTest {
 
         var passed = org.mockito.ArgumentCaptor.forClass(Clock.class);
         verify(queryDecisionEvaluator).evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), passed.capture());
+                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), any(), passed.capture());
         assertThat(passed.getValue().getZone()).isEqualTo(ZoneId.systemDefault());
     }
 
@@ -641,7 +644,7 @@ class DefaultAccessSimulationServiceTest {
         when(routingPolicyEngine.evaluateAll(any(), any()))
                 .thenReturn(List.of(alsoMatched, decided));
         when(queryDecisionEvaluator.evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), any()))
+                org.mockito.ArgumentMatchers.anyInt(), any(), any(), any(), any(), any()))
                 .thenReturn(routedDecision(decidedId));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
@@ -785,6 +788,7 @@ class DefaultAccessSimulationServiceTest {
                 DecisionTraceStep.of(QueryDecisionStepKind.BYTES_SCANNED_CAP, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.DECISION_HOOK, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.DENY, "k"));
         return new QueryDecision(QueryDecisionKind.PLAN_PENDING_REVIEW, status, null, null, null,
@@ -806,6 +810,7 @@ class DefaultAccessSimulationServiceTest {
                 DecisionTraceStep.of(QueryDecisionStepKind.BYTES_SCANNED_CAP, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.DATA_BUDGET, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.DECISION_HOOK, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP, "k"));
         return new QueryDecision(QueryDecisionKind.ROUTING_ESCALATE, QueryStatus.PENDING_REVIEW,

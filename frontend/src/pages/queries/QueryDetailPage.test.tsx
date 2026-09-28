@@ -323,6 +323,76 @@ describe('QueryDetailPage — AI failure surface (AF-249)', () => {
     expect(banner).toHaveTextContent('no estimate');
   });
 
+  it('names the decision hook that escalated and hides the policy banner (#945)', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      matched_policy: {
+        policy_id: null,
+        policy_name: null,
+        action: 'ESCALATE',
+        reason: 'pii',
+        source: 'DECISION_HOOK',
+        decision_hook_id: 'dh-1',
+      },
+      decision_hook: {
+        decision_hook_id: 'dh-1',
+        decision_hook_name: 'OPA gate',
+        outcome: 'ESCALATE',
+        requested_approvals: 1,
+        reason: 'pii outside hours',
+        http_status: 200,
+        latency_ms: 12,
+        evaluated_at: '2026-09-28T10:00:00Z',
+      },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const alert = await screen.findByTestId('decision-hook-alert');
+    expect(alert).toHaveTextContent('Decision hook "OPA gate": Escalate');
+    expect(alert).toHaveTextContent('Reason: pii outside hours');
+    expect(screen.queryByText(/Auto-decided by routing policy/)).not.toBeInTheDocument();
+  });
+
+  it('explains a failed decision hook sent the query to review (#945)', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      decision_hook: {
+        decision_hook_id: 'dh-1',
+        decision_hook_name: 'OPA gate',
+        outcome: 'FAILED',
+        failure: 'TIMEOUT',
+        latency_ms: 2003,
+        evaluated_at: '2026-09-28T10:00:00Z',
+      },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const alert = await screen.findByTestId('decision-hook-alert');
+    expect(alert).toHaveTextContent('The hook failed (Timed out)');
+  });
+
+  it('falls back to "no reason given" for an answer without a reason (#945)', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      decision_hook: {
+        decision_hook_id: 'dh-1',
+        decision_hook_name: 'OPA gate',
+        outcome: 'ALLOW',
+        latency_ms: 3,
+        evaluated_at: '2026-09-28T10:00:00Z',
+      },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('decision-hook-alert')).toHaveTextContent('no reason given');
+  });
+
   it('does not render the failure banner when analysis succeeded', async () => {
     setUser('REVIEWER');
     const ok = failedQuery();

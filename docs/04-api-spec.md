@@ -4282,6 +4282,189 @@ Rewrites the priority order of the org's policies atomically.
 | 409 | `ROUTING_POLICY_PRIORITY_CONFLICT` | Another policy in the organization already uses that priority |
 | 422 | `ROUTING_POLICY_INVALID` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies |
 
+### External Decision Hooks (`/admin/decision-hooks`) *(`ROUTING_POLICY_MANAGE`)* (#945)
+
+An operator-run HTTP endpoint (an OPA sidecar, an in-house policy service) that the routing chain consults when **no local routing policy matched**, immediately before the grant-covered fast path. The hook can leave the decision alone (`ALLOW`), ask for more approvals (`ESCALATE`, `REQUIRE_APPROVALS`) or refuse the query (`REJECT`). **It can never approve**, and every failure sends the query to human review. Evaluation semantics: [docs/05-backend.md → "External decision hook"](05-backend.md#external-decision-hook-945). Trust model and SSRF rules: [docs/07-security.md → "External decision hook trust model"](07-security.md#external-decision-hook-trust-model-945). Storage: [docs/03-data-model.md → decision_hooks](03-data-model.md#decision_hooks-945).
+
+A hook is organization-wide (`datasource_id` absent) or bound to one datasource. A datasource resolves to its own hook, else the organization default, else none. A **disabled** datasource-bound hook means "no hook" for that datasource: it does not fall back to the organization default. There is at most one hook per datasource and one organization default.
+
+All endpoints require `ROUTING_POLICY_MANAGE` and operate within the caller's organization. Every mutation writes an audit row against resource type `decision_hook`: `DECISION_HOOK_CREATED`, `DECISION_HOOK_UPDATED`, `DECISION_HOOK_DELETED`, `DECISION_HOOK_TESTED`. The secret never appears in a response, a log line or an audit row.
+
+#### POST /admin/decision-hooks — Request Body
+
+```json
+{
+  "name": "OPA production gate",
+  "datasource_id": null,
+  "endpoint_url": "https://opa.internal.example.com/v1/data/accessflow/decision",
+  "timeout_ms": 2000,
+  "secret": "a-random-string-of-at-least-32-characters",
+  "include_sql": false,
+  "enabled": true
+}
+```
+
+| Field | Rules |
+|---|---|
+| `name` | Required, 1–255 characters. |
+| `datasource_id` | Optional. Absent or null makes this the organization default. A datasource from another organization is `404 DATASOURCE_NOT_FOUND`. |
+| `endpoint_url` | Required, ≤ 2048 characters, `https://` with no user-info. Plain `http://` and hosts that are, or resolve to, loopback / private / link-local / CGNAT / unique-local / multicast addresses are refused with **422** `DECISION_HOOK_INVALID` unless the deployment sets `ACCESSFLOW_WORKFLOW_DECISION_HOOK_ALLOW_PRIVATE_NETWORK=true`. The same check runs again, after DNS resolution, on every call. |
+| `timeout_ms` | Optional, 100–10000, default 2000. The whole call (connect, send, read) must finish inside it. |
+| `secret` | Required on create, 32–512 characters. HMAC-SHA256 key for both directions. Stored AES-256-GCM encrypted. |
+| `include_sql` | Optional, default `false`. When `true` the request payload carries the SQL text. Off by default because the SQL can contain literal values, and sending them to a third-party endpoint is a disclosure an operator should choose deliberately. |
+| `enabled` | Optional, default `true`. |
+
+**Response 201:** the hook object (shape below), with a `Location` header.
+**Response 400:** `VALIDATION_ERROR`.
+**Response 404:** `DATASOURCE_NOT_FOUND`.
+**Response 409:** `DECISION_HOOK_SCOPE_CONFLICT` — the datasource (or the organization default) already has a hook.
+**Response 422:** `DECISION_HOOK_INVALID` — the URL failed the scheme / address check.
+
+#### GET /admin/decision-hooks — Response 200
+
+Every hook in the caller's organization, organization default first, then by name. No pagination.
+
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "datasource_id": null,
+    "name": "OPA production gate",
+    "endpoint_url": "https://opa.internal.example.com/v1/data/accessflow/decision",
+    "timeout_ms": 2000,
+    "include_sql": false,
+    "enabled": true,
+    "secret_configured": true,
+    "version": 0,
+    "created_at": "2026-09-28T10:00:00Z",
+    "updated_at": "2026-09-28T10:00:00Z"
+  }
+]
+```
+
+#### GET /admin/decision-hooks/{id}
+
+A single hook. **Response 404:** `DECISION_HOOK_NOT_FOUND` when it is missing or belongs to another organization.
+
+#### PUT /admin/decision-hooks/{id}
+
+Full replace with the `POST` body, except that `secret` is optional: omit it (or send null) to keep the stored one. **Response 200:** the updated hook. **Response 404 / 409 / 422:** as for `POST`. Updating or deleting a hook resets its circuit breaker.
+
+#### DELETE /admin/decision-hooks/{id}
+
+**Response 204.** **Response 404:** `DECISION_HOOK_NOT_FOUND`. Past `decision_hook_results` rows keep the hook id.
+
+#### POST /admin/decision-hooks/{id}/test — Response 200
+
+Sends one signed request with a synthetic payload (`"test": true`, `X-AccessFlow-Event: QUERY_DECISION_TEST`, no real query) and reports what the live path would have concluded. It runs the full client — address check, timeout, signature verification, response parsing — but bypasses and does not feed the circuit breaker, and it touches no query. It works on a disabled hook.
+
+```json
+{
+  "outcome": "FAILED",
+  "failure": "SIGNATURE_MISMATCH",
+  "requested_approvals": null,
+  "reason": null,
+  "http_status": 200,
+  "latency_ms": 41
+}
+```
+
+**Response 404:** `DECISION_HOOK_NOT_FOUND`.
+
+#### Wire contract
+
+AccessFlow sends `POST <endpoint_url>` with `Content-Type: application/json` and these headers:
+
+| Header | Value |
+|---|---|
+| `X-AccessFlow-Event` | `QUERY_DECISION` (or `QUERY_DECISION_TEST` from the test endpoint) |
+| `X-AccessFlow-Delivery` | the payload's `request_id` |
+| `X-AccessFlow-Signature` | `sha256=<lowercase hex HMAC-SHA256 of the raw request body, keyed with the secret>` — the same contract as notification webhooks |
+
+Request body (keys are omitted when the value is unknown; `sql` is present only when `include_sql` is on):
+
+```json
+{
+  "request_id": "5c1f0c3e-…",
+  "event": "QUERY_DECISION",
+  "test": false,
+  "timestamp": "2026-09-28T10:00:00Z",
+  "organization_id": "uuid",
+  "query_request_id": "uuid",
+  "submitter": {
+    "user_id": "uuid",
+    "email": "ana@example.com",
+    "display_name": "Ana",
+    "role": "ANALYST",
+    "principal_type": "HUMAN",
+    "group_ids": ["uuid"],
+    "on_behalf_of_user_id": null
+  },
+  "datasource": { "id": "uuid", "name": "prod-orders", "db_type": "POSTGRESQL", "environment": "PRODUCTION" },
+  "query": {
+    "type": "SELECT",
+    "referenced_tables": ["public.orders"],
+    "shapes": ["JOIN"],
+    "has_where_clause": true,
+    "has_limit_clause": false,
+    "transactional": false
+  },
+  "ai": { "outcome": "COMPLETED", "risk_level": "LOW", "risk_score": 12 },
+  "cost_estimate": { "estimated_rows": 1200, "estimated_bytes_scanned": null, "scan_type": "INDEX" },
+  "client": { "ip": "10.0.0.7", "user_agent": "Mozilla/5.0 …", "ci_cd_origin": false }
+}
+```
+
+The endpoint must answer **2xx** with a JSON body **and** an `X-AccessFlow-Signature: sha256=<hex HMAC-SHA256 of the raw response body>` header keyed with the same secret:
+
+```json
+{ "request_id": "5c1f0c3e-…", "decision": "ESCALATE", "approvals": 1, "reason": "Touches PII outside business hours" }
+```
+
+| `decision` | Effect |
+|---|---|
+| `ALLOW` | No effect. The grant fast path and the review plan decide exactly as if no hook existed. |
+| `ESCALATE` | Human review with the plan's minimum plus `approvals` (1–10, default 1). |
+| `REQUIRE_APPROVALS` | Human review with `max(approvals, plan minimum)` approvals (`approvals` 1–10, required). A hook can raise the bar but never lower it. |
+| `REJECT` | The query is rejected. |
+
+`request_id` must echo the request's. `reason` is optional and truncated to 500 characters. The response body is read up to 64 KiB. **Every other outcome is a failure** and sends the query to human review at the plan's minimum, with the grant fast path and the plan's own auto-approval suppressed: timeout, connection error, a non-2xx status (redirects are not followed, so a 3xx counts), a missing or wrong response signature, a `request_id` mismatch, an unparseable or oversized body, a `decision` outside the four above — `AUTO_APPROVE` and `APPROVE` included — a missing or out-of-range `approvals`, an address refused at call time, or an open circuit breaker.
+
+#### Query detail
+
+`GET /queries/{id}` gains:
+
+- `matched_policy.source` — `POLICY` or `DECISION_HOOK` — and `matched_policy.decision_hook_id`. A hook that escalated, required approvals or rejected is recorded on the query's routing decision with `source: DECISION_HOOK` and a null `policy_id`.
+- `decision_hook` — present whenever a hook was consulted, including `ALLOW` and failures:
+
+```json
+"decision_hook": {
+  "decision_hook_id": "uuid",
+  "decision_hook_name": "OPA production gate",
+  "outcome": "FAILED",
+  "failure": "TIMEOUT",
+  "requested_approvals": null,
+  "reason": null,
+  "http_status": null,
+  "latency_ms": 2003,
+  "evaluated_at": "2026-09-28T10:00:02Z"
+}
+```
+
+`outcome` is `ALLOW`, `ESCALATE`, `REQUIRE_APPROVALS`, `REJECT` or `FAILED`. `failure` is set only for `FAILED`: `TIMEOUT`, `TRANSPORT_ERROR`, `NON_2XX`, `UNPARSEABLE`, `SIGNATURE_MISMATCH`, `INVALID_DECISION`, `SSRF_BLOCKED` or `CIRCUIT_OPEN`.
+
+#### Decision-hook Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the request body |
+| 403 | `FORBIDDEN` | Caller lacks `ROUTING_POLICY_MANAGE` |
+| 404 | `DECISION_HOOK_NOT_FOUND` | Hook does not exist or is in another organization |
+| 404 | `DATASOURCE_NOT_FOUND` | `datasource_id` does not exist in the caller's organization |
+| 409 | `DECISION_HOOK_SCOPE_CONFLICT` | The datasource, or the organization default, already has a hook |
+| 422 | `DECISION_HOOK_INVALID` | The endpoint URL failed the scheme or address check |
+
 ### SQL Review Rulesets (`/admin/sql-review-rulesets`) *(`SQL_REVIEW_MANAGE`)* (#863)
 
 Administration of the deterministic SQL review rulesets (epic #860): one ruleset per `environment` per organization (`DEVELOPMENT` / `TEST` / `STAGING` / `PRODUCTION`) plus at most one organization-wide default (`environment` absent). A datasource resolves to the ruleset bound to its `environment`, else the default, else no rules. A ruleset assigns each built-in rule a severity — `OFF` (not evaluated), `WARN` (reported, no workflow effect), `BLOCK` (reported and, since #864, the query can never auto-approve — every auto-approve path is suppressed and it lands in `PENDING_REVIEW`; `BLOCK` never rejects) — and, for the two parameterised rules, its params. Every catalog rule not named in a ruleset runs at its built-in default severity (see [GET /sql-review/rules](#get-sql-reviewrules--response-200-863)). Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
@@ -4777,6 +4960,7 @@ follow up with one simulation per user of interest. It is deliberately not an N-
         "effective_min_approvals": 3
       }
     },
+    { "step": "DECISION_HOOK", "outcome": "SKIP", "reason": "An earlier stage decided, so the decision hook was not consulted", "details": {} },
     { "step": "GRANT_FAST_PATH", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": {} },
     { "step": "REVIEW_PLAN", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": { "requires_human_approval": true, "auto_approve_reads": false, "min_approvals_required": 1 } },
     {
@@ -4836,7 +5020,7 @@ it. Every later step is still present with `outcome: "SKIP"`.
 all. Those are exactly the traces worth reading closely, so treat its absence as information — it means
 no routing condition was evaluated, not that the signals were empty.
 
-**`steps` is always all fourteen, in this fixed order**, so a client can render a stable checklist: a step
+**`steps` is always all fifteen, in this fixed order**, so a client can render a stable checklist: a step
 that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outcome` is one of `ALLOW`,
 `DENY`, `MATCH`, `NO_MATCH`, `SKIP`. `reason` is localized to the request's `Accept-Language`.
 
@@ -4854,9 +5038,11 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `DATA_BUDGET` | `data_budget_used_percent`, `data_budget_remaining_rows`, `data_budget_remaining_bytes`, `data_budget_action`, `data_budget_id`, `data_budget_name` | whenever a budget applies to the user on a SELECT (#942); `{}` on `NO_MATCH` (no budget, or not a SELECT). Read live in both a simulation and a real decision — usage is a persisted fact about the user. `ALLOW` while allowance remains; `DENY` when an exhausted budget has `breach_action: REJECT` (the trace then ends `REJECTED` and every later decision stage is `SKIP`); `MATCH` when it has `REQUIRE_REVIEW` — every auto-approve stage below then reports `data_budget_suppressed: true`. `data_budget_id` / `_name` name the exhausted budget that decided |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
 | | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed`, `bytes_cap_suppressed`, `data_budget_suppressed` | `MATCH` only |
+| `DECISION_HOOK` | `decision_hook_id`, `decision_hook_name` | whenever a hook applies (#945). In a simulation the step is always `SKIP` (`workflow.decision.hook.simulation`) — the hook is named, never called, and the rest of the trace proceeds as if it had allowed. `NO_MATCH` when no hook applies; `SKIP` when a routing policy, the cap, the budget or the AI-failure path decided first |
+| | `outcome`, `failure`, `requested_approvals`, `effective_min_approvals`, `reason`, `http_status`, `latency_ms` | a live consult only: `ALLOW` on an allow, `DENY` on a reject, `MATCH` on an escalation / required approvals, and `MATCH` on a failure — every auto-approve stage below then reports `decision_hook_suppressed: true` |
 | `GRANT_FAST_PATH` | `considered_grant_ids` | whenever grants were looked up |
 | | `grant_id`, `approver_email` | `MATCH`, and `NO_MATCH` when a covering grant was suppressed by a `BLOCK` finding |
-| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed`, `bytes_cap_suppressed`, `data_budget_suppressed` | always (the `*_suppressed` keys absent on `SKIP`) |
+| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed`, `bytes_cap_suppressed`, `data_budget_suppressed`, `decision_hook_suppressed` | always (the `*_suppressed` keys absent on `SKIP`) |
 | | `review_plan_id`, `min_approvals_required` | only when the datasource has a review plan |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded` | always |
 | | `reviewers[]` (`user_id`, `email`, `display_name`) | when the datasource has its own reviewer assignment |

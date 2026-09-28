@@ -115,12 +115,13 @@ resource "accessflow_sql_review_ruleset" "production" {
 | `accessflow_ai_config` | `api_key` write-only |
 | `accessflow_notification_channel` | `config` map; `channel_type` immutable (forces replacement) |
 | `accessflow_sql_review_ruleset` | Deterministic SQL review rules; `rules` is a set of `{rule_id, severity, params}`, `environment` omitted = org-wide default |
+| `accessflow_decision_hook` | External policy decision hook (#945); `secret` write-only (sent on create and only when it changes), `datasource_id` omitted = org-wide default, `timeout_ms` defaults to 2000 |
 
 Data sources: `accessflow_datasource`, `accessflow_review_plan` (look up by `id`).
 
 The provider drives the **existing** REST endpoints (`/datasources`, `/review-plans`,
 `/admin/routing-policies`, `/admin/ai-configs`, `/admin/notification-channels`,
-`/admin/sql-review-rulesets`, and the nested `/datasources/{id}/{row-security,masking}-policies`) —
+`/admin/sql-review-rulesets`, `/admin/decision-hooks`, and the nested `/datasources/{id}/{row-security,masking}-policies`) —
 no AccessFlow-specific endpoints were added.
 Idempotency comes from Terraform state (create → store UUID → read/update/delete by id), matching
 the bootstrap reconciler's authoritative-upsert intent.

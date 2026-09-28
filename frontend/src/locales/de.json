@@ -115,7 +115,8 @@
     "schemaChangeSets": "Änderungssätze",
     "schemaDrift": "Schema-Drift",
     "access_simulation": "Zugriffssimulation",
-    "jobs": "Geplante Jobs"
+    "jobs": "Geplante Jobs",
+    "decision_hooks": "Entscheidungs-Hooks"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "Delegation nicht gefunden.",
     "service_account_delegation_exists": "Diese Person erlaubt dem Account bereits, in ihrem Auftrag zu handeln.",
     "service_account_delegation_principal_invalid": "Der Prinzipal muss eine aktive Person in dieser Organisation sein.",
-    "service_account_delegation_invalid": "Das Delegationsziel muss ein aktiver Service-Account sein."
+    "service_account_delegation_invalid": "Das Delegationsziel muss ein aktiver Service-Account sein.",
+    "decision_hook_not_found": "Entscheidungs-Hook nicht gefunden.",
+    "decision_hook_scope_conflict": "Für diesen Bereich gibt es bereits einen Entscheidungs-Hook.",
+    "decision_hook_invalid": "Die Endpunkt-URL ist nicht erlaubt.",
+    "decision_hook_generic": "Der Entscheidungs-Hook konnte nicht gespeichert werden."
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "Geschätzter Scan: {{estimate}} · Limit: {{limit}} ({{source}})",
       "bytes_cap_no_estimate": "keine Schätzung",
-      "results_truncated_budget": "{{count}} Zeilen zurückgegeben (auf Ihr verbleibendes Datenbudget begrenzt)"
+      "results_truncated_budget": "{{count}} Zeilen zurückgegeben (auf Ihr verbleibendes Datenbudget begrenzt)",
+      "decision_hook_title": "Entscheidungs-Hook „{{name}}“: {{outcome}}",
+      "decision_hook_body": "Grund: {{reason}}",
+      "decision_hook_failed_body": "Der Hook ist fehlgeschlagen ({{failure}}), daher ging diese Abfrage in die manuelle Prüfung."
     }
   },
   "reviews": {
@@ -2865,6 +2873,49 @@
       "unit_h": "{{value}} Std.",
       "unit_m": "{{value}} Min.",
       "unit_s": "{{value}} s"
+    },
+    "decision_hooks": {
+      "title": "Entscheidungs-Hooks",
+      "subtitle": "Ein externer Richtliniendienst, der befragt wird, wenn keine Routing-Richtlinie greift.",
+      "add_button": "Hook hinzufügen",
+      "load_error": "Entscheidungs-Hooks konnten nicht geladen werden.",
+      "empty": "Noch keine Entscheidungs-Hooks. Abfragen ohne passende Routing-Richtlinie gehen direkt zum Grant-Schnellpfad und zum Prüfplan.",
+      "trust_title": "Ein Hook kann Hürden hinzufügen, aber nie entfernen",
+      "trust_body": "Der Hook kann zulassen, eskalieren, mehr Genehmigungen verlangen oder ablehnen. Genehmigen kann er nie. Timeout, Fehler, falsche Signatur oder eine unerwartete Antwort schicken die Abfrage in die manuelle Prüfung.",
+      "create_modal_title": "Entscheidungs-Hook hinzufügen",
+      "edit_modal_title": "Entscheidungs-Hook bearbeiten · {{name}}",
+      "save_create": "Hook erstellen",
+      "save_update": "Änderungen speichern",
+      "create_success": "Entscheidungs-Hook erstellt.",
+      "update_success": "Entscheidungs-Hook aktualisiert.",
+      "delete_success": "Entscheidungs-Hook gelöscht.",
+      "delete_confirm_title": "Diesen Entscheidungs-Hook löschen?",
+      "delete_confirm_body": "Abfragen werden „{{name}}“ nicht mehr befragen.",
+      "col_name": "Name",
+      "col_scope": "Gilt für",
+      "col_timeout": "Timeout",
+      "col_include_sql": "Sendet SQL",
+      "col_enabled": "Aktiv",
+      "col_actions": "Aktionen",
+      "scope_org_default": "Organisationsstandard",
+      "timeout_value": "{{ms}} ms",
+      "label_name": "Name",
+      "label_scope": "Gilt für",
+      "scope_help": "Ein Datenquellen-Hook ersetzt für diese Datenquelle den Organisationsstandard.",
+      "label_endpoint_url": "Endpunkt-URL",
+      "endpoint_help": "Nur HTTPS. Private und interne Adressen werden abgelehnt, sofern die Installation sie nicht erlaubt.",
+      "label_timeout": "Timeout (ms)",
+      "timeout_help": "Zwischen 100 und 10000. Eine langsamere Antwort gilt als Fehler.",
+      "label_secret": "Signaturgeheimnis",
+      "secret_help": "Mindestens 32 Zeichen. Signiert jede Anfrage und muss jede Antwort signieren.",
+      "secret_keep_help": "Leer lassen, um das aktuelle Geheimnis zu behalten.",
+      "label_include_sql": "SQL-Text senden",
+      "label_enabled": "Aktiv",
+      "include_sql_warning": "Der SQL-Text kann Literalwerte wie Namen oder Kontonummern enthalten. Nur aktivieren, wenn der Endpunkt sie erhalten darf.",
+      "test_button": "Testanfrage senden",
+      "test_answered": "Der Hook antwortete {{outcome}} in {{latency}} ms.",
+      "test_failed": "Der Hook ist fehlgeschlagen: {{failure}} ({{latency}} ms). Abfragen würden in die manuelle Prüfung gehen.",
+      "endpoint_scheme": "Geben Sie eine http://- oder https://-URL ein."
     }
   },
   "notifications": {
@@ -3751,7 +3802,8 @@
       "MASKING": "Maskierung",
       "BREAK_GLASS": "Break-Glass",
       "BYTES_SCANNED_CAP": "Limit für gescannte Bytes",
-      "DATA_BUDGET": "Datenbudget"
+      "DATA_BUDGET": "Datenbudget",
+      "DECISION_HOOK": "Entscheidungs-Hook"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Konnektor-Prüfungen",
@@ -3824,6 +3876,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "Zur Prüfung senden",
       "REJECT": "Ablehnen"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "Zulassen",
+      "ESCALATE": "Eskalieren",
+      "REQUIRE_APPROVALS": "Genehmigungen verlangen",
+      "REJECT": "Ablehnen",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "Zeitüberschreitung",
+      "TRANSPORT_ERROR": "Verbindungsfehler",
+      "NON_2XX": "Fehlerstatus",
+      "UNPARSEABLE": "Unlesbare Antwort",
+      "SIGNATURE_MISMATCH": "Falsche Signatur",
+      "INVALID_DECISION": "Ungültige Entscheidung",
+      "SSRF_BLOCKED": "Adresse nicht erlaubt",
+      "CIRCUIT_OPEN": "Nach wiederholten Fehlern pausiert"
     }
   },
   "access": {
@@ -5841,7 +5910,16 @@
       "data_budget_remaining_bytes": "Verbleibende Budget-Bytes",
       "data_budget_remaining_rows": "Verbleibende Budget-Zeilen",
       "data_budget_suppressed": "Durch das Datenbudget unterdrückt",
-      "data_budget_used_percent": "Datenbudget verbraucht"
+      "data_budget_used_percent": "Datenbudget verbraucht",
+      "decision_hook_id": "Entscheidungs-Hook-ID",
+      "decision_hook_name": "Entscheidungs-Hook",
+      "decision_hook_suppressed": "Durch fehlgeschlagenen Entscheidungs-Hook zurückgehalten",
+      "outcome": "Ergebnis",
+      "failure": "Fehler",
+      "requested_approvals": "Angeforderte Genehmigungen",
+      "http_status": "HTTP-Status",
+      "latency_ms": "Latenz (ms)",
+      "reason": "Grund"
     },
     "use_id": "ID {{id}} verwenden",
     "user_id_placeholder": "Benutzer-ID einfügen",

@@ -1402,6 +1402,64 @@ Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](0
 - **Audit.** A matched `ESCALATE` / `REQUIRE_APPROVALS` policy records its id, resolved
   `effective_min_approvals`, and reason on the `QUERY_REVIEW_REQUESTED` audit row.
 
+### External decision hook trust model (#945)
+
+The decision hook lets an operator plug their own decision logic into routing over outbound HTTP
+(mechanics: [docs/05-backend.md → External decision hook](05-backend.md#external-decision-hook-945)).
+It sits inside the enforcement path, so its trust model is spelled out here.
+
+**What the hook is trusted to do.** Add friction, never remove it. Its vocabulary is `ALLOW`,
+`ESCALATE`, `REQUIRE_APPROVALS` and `REJECT`; there is no approve, and `REQUIRE_APPROVALS` is clamped
+to the review plan's minimum, so no answer can lower the number of approvals a query needs. `ALLOW`
+only means "no objection" — the grant fast path and the review plan still decide. A compromised or
+misconfigured endpoint can therefore at worst reject or delay queries; it can never approve one.
+
+**What it is not trusted with.** It runs only when no local routing policy matched, so it can never
+override an explicit policy. It is never consulted on the AI-failure path, and never after a
+bytes-scanned cap or data budget has already refused the query. It is not an authorization source:
+the self-approval ban, reviewer eligibility and every proxy guard at execution are untouched.
+
+**Fail closed.** Every failure — timeout, transport error, non-2xx (redirects are not followed),
+oversized or unparseable body, missing or wrong response signature, a `request_id` that does not
+echo the request, an unknown decision, an address refused at call time, an open circuit breaker —
+counts as `FAILED` and sends the query to human review with every auto-approve path suppressed. None
+of them means "allow". A dead endpoint therefore degrades AccessFlow to "everything that the hook
+covers needs a person", which is the safe direction.
+
+**Integrity in both directions.** Requests are signed with `X-AccessFlow-Signature: sha256=<HMAC>`
+over the raw body — the notification-webhook contract, so the endpoint verifies it the way it already
+verifies webhooks. Responses must be signed with the same secret over their raw body and must echo
+the request's random `request_id`; AccessFlow verifies the signature in constant time before parsing,
+so a network attacker cannot forge or replay an answer. The secret is 32–512 characters, stored
+AES-256-GCM encrypted (`decision_hooks.secret_encrypted`, `@JsonIgnore`), write-only in the API
+(`secret_configured` only) and never written to a log or an audit row.
+
+**Disclosure.** The payload carries identity, datasource, query type, referenced tables, the AI
+verdict, the cost estimate and client context — so `ROUTING_POLICY_MANAGE`, which manages hooks,
+now also decides where submitter data such as email, client IP and user agent is sent. Grant it to a
+custom role with that in mind; every create and update is audited with the endpoint's origin
+(`endpoint_origin`, never the full URL). It does **not** carry the SQL text unless the hook has
+`include_sql` on: the SQL can contain literal values, and sending them to a third-party endpoint is a
+disclosure the operator must choose, not inherit.
+
+**SSRF.** The endpoint URL is admin-supplied and called from inside the deployment's network. Unless
+`ACCESSFLOW_WORKFLOW_DECISION_HOOK_ALLOW_PRIVATE_NETWORK=true`, `DecisionHookUrlGuard` requires
+`https://` with a host and no user-info or fragment, and refuses hosts that are, or resolve to,
+loopback, unspecified, private (RFC 1918), link-local — cloud metadata `169.254.169.254` included —
+CGNAT (`100.64.0.0/10`), benchmarking, reserved, multicast or unique-local IPv6 addresses, also when
+embedded in IPv4-mapped, IPv4-compatible, NAT64 or 6to4 IPv6 forms. The check runs at save time
+(422 `DECISION_HOOK_INVALID`) and again after DNS resolution on every call (`SSRF_BLOCKED`, which
+fails closed). Redirects are never followed, so an allowed endpoint cannot bounce the call to a
+refused one. The residual gap is DNS rebinding between the call-time lookup and the HTTP client's own
+connection; operators who need a hard guarantee should also restrict egress at the network layer.
+Turning `allow-private-network` on is the expected setup for an in-cluster OPA sidecar
+(`http://localhost:8181`) — it also permits plain `http://` — and trades this guard for network
+segmentation.
+
+**Availability.** Each call is bounded by the hook's `timeout_ms` (100–10000). A per-hook circuit
+breaker opens after `circuit-failure-threshold` consecutive failures and fails every consult closed
+without a call for `circuit-open-duration`, so a dead endpoint cannot stall every submission.
+
 ### Calling application (#938)
 
 Every request can be attributed to the **application** that made it — recorded as

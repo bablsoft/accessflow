@@ -115,7 +115,8 @@
     "schemaChangeSets": "Наборы изменений",
     "schemaDrift": "Дрейф схемы",
     "access_simulation": "Симуляция доступа",
-    "jobs": "Запланированные задания"
+    "jobs": "Запланированные задания",
+    "decision_hooks": "Хуки решений"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "Делегирование не найдено.",
     "service_account_delegation_exists": "Этот человек уже разрешает аккаунту действовать от его имени.",
     "service_account_delegation_principal_invalid": "Принципал должен быть активным человеком в этой организации.",
-    "service_account_delegation_invalid": "Целью делегирования должен быть активный сервисный аккаунт."
+    "service_account_delegation_invalid": "Целью делегирования должен быть активный сервисный аккаунт.",
+    "decision_hook_not_found": "Хук принятия решений не найден.",
+    "decision_hook_scope_conflict": "Для этой области уже есть хук принятия решений.",
+    "decision_hook_invalid": "URL конечной точки не разрешён.",
+    "decision_hook_generic": "Не удалось сохранить хук принятия решений."
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "Оценка сканирования: {{estimate}} · Лимит: {{limit}} ({{source}})",
       "bytes_cap_no_estimate": "нет оценки",
-      "results_truncated_budget": "Возвращено строк: {{count}} (ограничено оставшимся бюджетом данных)"
+      "results_truncated_budget": "Возвращено строк: {{count}} (ограничено оставшимся бюджетом данных)",
+      "decision_hook_title": "Хук решений «{{name}}»: {{outcome}}",
+      "decision_hook_body": "Причина: {{reason}}",
+      "decision_hook_failed_body": "Хук завершился ошибкой ({{failure}}), поэтому запрос отправлен на ручную проверку."
     }
   },
   "reviews": {
@@ -2865,6 +2873,49 @@
       "unit_h": "{{value}} ч",
       "unit_m": "{{value}} мин",
       "unit_s": "{{value}} с"
+    },
+    "decision_hooks": {
+      "title": "Хуки решений",
+      "subtitle": "Внешний сервис политик, к которому обращаются, когда не подошла ни одна политика маршрутизации.",
+      "add_button": "Добавить хук",
+      "load_error": "Не удалось загрузить хуки решений.",
+      "empty": "Хуков решений пока нет. Запросы, не подошедшие ни под одну политику маршрутизации, сразу проходят через быстрый путь грантов и план проверки.",
+      "trust_title": "Хук может добавлять проверки, но никогда их не снимает",
+      "trust_body": "Хук может разрешить, эскалировать, потребовать больше одобрений или отклонить. Одобрить он не может никогда. Тайм-аут, ошибка, неверная подпись или неожиданный ответ отправляют запрос на ручную проверку.",
+      "create_modal_title": "Добавить хук решений",
+      "edit_modal_title": "Изменить хук решений · {{name}}",
+      "save_create": "Создать хук",
+      "save_update": "Сохранить изменения",
+      "create_success": "Хук решений создан.",
+      "update_success": "Хук решений обновлён.",
+      "delete_success": "Хук решений удалён.",
+      "delete_confirm_title": "Удалить этот хук решений?",
+      "delete_confirm_body": "Запросы больше не будут обращаться к «{{name}}».",
+      "col_name": "Название",
+      "col_scope": "Применяется к",
+      "col_timeout": "Тайм-аут",
+      "col_include_sql": "Отправляет SQL",
+      "col_enabled": "Включён",
+      "col_actions": "Действия",
+      "scope_org_default": "По умолчанию для организации",
+      "timeout_value": "{{ms}} мс",
+      "label_name": "Название",
+      "label_scope": "Применяется к",
+      "scope_help": "Хук источника данных заменяет хук организации по умолчанию для этого источника.",
+      "label_endpoint_url": "URL конечной точки",
+      "endpoint_help": "Только HTTPS. Частные и внутренние адреса отклоняются, если установка их не разрешает.",
+      "label_timeout": "Тайм-аут (мс)",
+      "timeout_help": "От 100 до 10000. Более медленный ответ считается ошибкой.",
+      "label_secret": "Секрет подписи",
+      "secret_help": "Не менее 32 символов. Подписывает каждый запрос и должен подписывать каждый ответ.",
+      "secret_keep_help": "Оставьте пустым, чтобы сохранить текущий секрет.",
+      "label_include_sql": "Отправлять текст SQL",
+      "label_enabled": "Включён",
+      "include_sql_warning": "Текст SQL может содержать литеральные значения, например имена или номера счетов. Включайте, только если конечной точке можно их получать.",
+      "test_button": "Отправить тестовый запрос",
+      "test_answered": "Хук ответил {{outcome}} за {{latency}} мс.",
+      "test_failed": "Хук завершился ошибкой: {{failure}} ({{latency}} мс). Запросы ушли бы на ручную проверку.",
+      "endpoint_scheme": "Введите URL с http:// или https://."
     }
   },
   "notifications": {
@@ -3751,7 +3802,8 @@
       "MASKING": "Маскирование",
       "BREAK_GLASS": "Экстренный доступ",
       "BYTES_SCANNED_CAP": "Лимит сканируемых байтов",
-      "DATA_BUDGET": "Бюджет данных"
+      "DATA_BUDGET": "Бюджет данных",
+      "DECISION_HOOK": "Хук решений"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Проверки коннектора",
@@ -3824,6 +3876,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "Отправить на проверку",
       "REJECT": "Отклонить"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "Разрешить",
+      "ESCALATE": "Эскалировать",
+      "REQUIRE_APPROVALS": "Потребовать одобрения",
+      "REJECT": "Отклонить",
+      "FAILED": "Ошибка"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "Тайм-аут",
+      "TRANSPORT_ERROR": "Ошибка соединения",
+      "NON_2XX": "Статус ошибки",
+      "UNPARSEABLE": "Нечитаемый ответ",
+      "SIGNATURE_MISMATCH": "Неверная подпись",
+      "INVALID_DECISION": "Недопустимое решение",
+      "SSRF_BLOCKED": "Адрес запрещён",
+      "CIRCUIT_OPEN": "Приостановлен после повторных ошибок"
     }
   },
   "access": {
@@ -5841,7 +5910,16 @@
       "data_budget_remaining_bytes": "Осталось байтов бюджета",
       "data_budget_remaining_rows": "Осталось строк бюджета",
       "data_budget_suppressed": "Подавлено бюджетом данных",
-      "data_budget_used_percent": "Использовано бюджета данных"
+      "data_budget_used_percent": "Использовано бюджета данных",
+      "decision_hook_id": "ID хука решений",
+      "decision_hook_name": "Хук решений",
+      "decision_hook_suppressed": "Задержано из-за ошибки хука решений",
+      "outcome": "Результат",
+      "failure": "Ошибка",
+      "requested_approvals": "Запрошено одобрений",
+      "http_status": "HTTP-статус",
+      "latency_ms": "Задержка (мс)",
+      "reason": "Причина"
     },
     "use_id": "Использовать ID {{id}}",
     "user_id_placeholder": "Вставьте ID пользователя",

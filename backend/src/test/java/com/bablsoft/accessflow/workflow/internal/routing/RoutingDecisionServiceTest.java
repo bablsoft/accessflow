@@ -121,4 +121,62 @@ class RoutingDecisionServiceTest {
 
         assertThat(service().findMatchedPolicy(queryId)).isEmpty();
     }
+    @Test
+    void applyHookDecisionRecordsTheHookAsTheSource() {
+        var hookId = UUID.randomUUID();
+
+        service().applyHookDecision(queryId, QueryStatus.REJECTED, RoutingAction.AUTO_REJECT, null,
+                "pii", hookId);
+
+        var captor = ArgumentCaptor.forClass(RoutingDecisionEntity.class);
+        verify(routingDecisionRepository).save(captor.capture());
+        var saved = captor.getValue();
+        assertThat(saved.getSource())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.DECISION_HOOK);
+        assertThat(saved.getDecisionHookId()).isEqualTo(hookId);
+        assertThat(saved.getMatchedPolicyId()).isNull();
+        assertThat(saved.getAction()).isEqualTo(RoutingAction.AUTO_REJECT);
+        assertThat(saved.getReason()).isEqualTo("pii");
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.REJECTED);
+    }
+
+    @Test
+    void aHookCanNeverRecordAnApproval() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service().applyHookDecision(queryId,
+                        QueryStatus.APPROVED, RoutingAction.AUTO_APPROVE, null, "x", UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.mockito.Mockito.verifyNoInteractions(routingDecisionRepository, queryRequestStateService);
+    }
+
+    @Test
+    void aHookActionMustLeadToItsOwnStatus() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service().applyHookDecision(queryId,
+                        QueryStatus.APPROVED, RoutingAction.ESCALATE, 2, "x", UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service().applyHookDecision(queryId,
+                        QueryStatus.PENDING_REVIEW, RoutingAction.AUTO_REJECT, null, "x",
+                        UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.mockito.Mockito.verifyNoInteractions(routingDecisionRepository, queryRequestStateService);
+    }
+
+    @Test
+    void findMatchedPolicyCarriesTheHookSource() {
+        var hookId = UUID.randomUUID();
+        var decision = new RoutingDecisionEntity();
+        decision.setAction(RoutingAction.ESCALATE);
+        decision.setReason("r");
+        decision.setSource(com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.DECISION_HOOK);
+        decision.setDecisionHookId(hookId);
+        when(routingDecisionRepository.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(decision));
+
+        var view = service().findMatchedPolicy(queryId).orElseThrow();
+
+        assertThat(view.source())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.RoutingDecisionSource.DECISION_HOOK);
+        assertThat(view.decisionHookId()).isEqualTo(hookId);
+        assertThat(view.policyName()).isNull();
+    }
 }

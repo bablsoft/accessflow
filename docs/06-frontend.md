@@ -1263,6 +1263,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
 /admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)
+/admin/decision-hooks               → DecisionHooksPage (lazy; ROUTING_POLICY_MANAGE — external policy decision hook — #945)
 /admin/sql-review                   → SqlReviewRulesetsPage (lazy; SQL_REVIEW_MANAGE — deterministic SQL review rulesets — #865)
 /admin/deployment-pipelines         → DeploymentPipelinesPage (lazy; DEPLOYMENT_PIPELINE_MANAGE — pipeline CRUD — #696)
 /admin/deployment-pipelines/:id     → DeploymentPipelineSettingsPage (lazy; tabs synced to ?tab=: general / environments / versions / permissions / freeze windows / routing policies / simulate / CI setup — #696, #743, #1066)
@@ -1324,7 +1325,7 @@ still gates each entry.
 | | **API** *(domain `apis`)* | `/api-connectors` |
 | | **Deployments** *(domain `deployments`)* | `/admin/deployment-pipelines` |
 | `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/service-accounts`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
-| | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/sql-review`, `/admin/over-provisioned-access`, `/admin/privileged-access`, `/admin/access-simulations`, `/admin/break-glass` |
+| | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/decision-hooks`, `/admin/sql-review`, `/admin/over-provisioned-access`, `/admin/privileged-access`, `/admin/access-simulations`, `/admin/break-glass` |
 | | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
 | `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages`, `/admin/governance-domains` |
@@ -1459,6 +1460,25 @@ Groups (and individual users) can be assigned as **per-datasource reviewers** so
 sees the review queues it owns; the client for that endpoint is
 [frontend/src/api/datasourceReviewers.ts](../frontend/src/api/datasourceReviewers.ts)
 (`listReviewers` / `addReviewer` / `removeReviewer` against `/datasources/{id}/reviewers`).
+
+### Decision hooks (#945)
+
+`DecisionHooksPage` (`/admin/decision-hooks`, lazy, `ROUTING_POLICY_MANAGE`) manages the external
+policy decision hook consulted when no routing policy matched. The nav entry **Decision hooks** sits
+in Security → **Access control**, right after **Routing policies**. An info `Alert` states the trust
+model (a hook can add friction, never remove it) above a `<Table>` of hooks — organization default
+or datasource, endpoint, timeout, whether the SQL is sent, an `enabled` `Switch` (a full `PUT` without
+the secret) — with per-row **Send a test request** (`POST /admin/decision-hooks/{id}/test`, reported
+as a success or warning toast naming the outcome or failure and the latency), edit and delete. The
+create / edit `Modal` (named form `decision-hook`) mirrors the backend constraints: name ≤ 255,
+endpoint URL ≤ 2048, timeout 100–10000, secret 32–512 and required on create only — on edit an empty
+secret keeps the stored one and is left out of the body. Turning on **Send the SQL text** shows a
+disclosure warning. API: [frontend/src/api/decisionHooks.ts](../frontend/src/api/decisionHooks.ts);
+form mapping: [frontend/src/pages/admin/decisionHookForm.ts](../frontend/src/pages/admin/decisionHookForm.ts);
+errors: `decisionHookErrorMessage`. `QueryDetailPage` renders the query's `decision_hook` result as an
+`Alert` (`data-testid="decision-hook-alert"`, a warning when the hook failed) and suppresses the
+routing-policy banner when `matched_policy.source` is `DECISION_HOOK`; the decision trace labels the
+`DECISION_HOOK` step and its `outcome` / `failure` details.
 
 ### Routing policies (AF-379)
 

@@ -394,6 +394,16 @@ accessflow:
     # Minimum gap between two occurrences of a recurring series; shorter recurrence rules are
     # rejected at submission with HTTP 400 (#627).
     recurrence-min-interval: ${ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL:PT5M}
+    decision-hook:
+      # External policy decision hook (#945). Permits plain http:// and endpoints that are, or
+      # resolve to, loopback / private / link-local / unique-local addresses — e.g. an in-cluster
+      # OPA sidecar. Off by default: the endpoint is admin-supplied and called from inside the network.
+      allow-private-network: ${ACCESSFLOW_WORKFLOW_DECISION_HOOK_ALLOW_PRIVATE_NETWORK:false}
+      # Consecutive failed calls that open a hook's circuit breaker; while open, every consult
+      # fails closed to human review without a call.
+      circuit-failure-threshold: ${ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_FAILURE_THRESHOLD:5}
+      # How long an open circuit stays open before one trial call is let through.
+      circuit-open-duration: ${ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_OPEN_DURATION:PT30S}
   dashboard:
     weekly-digest:
       # Cadence at which WeeklyDigestJob wakes to scan for opted-in users due a digest (AF-498).

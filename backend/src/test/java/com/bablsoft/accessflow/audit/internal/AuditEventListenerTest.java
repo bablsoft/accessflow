@@ -280,6 +280,41 @@ class AuditEventListenerTest {
     }
 
     @Test
+    void onQueryAutoRejectedByTheDecisionHookRecordsTheHookAsTheSource() {
+        var queryId = UUID.randomUUID();
+        var hookId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoRejected(new com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent(
+                queryId, null, "pii", hookId));
+
+        var entry = captor.getValue();
+        assertThat(entry.metadata()).containsEntry("source", "DECISION_HOOK")
+                .containsEntry("decision_hook_id", hookId.toString())
+                .doesNotContainKey("routing_policy_id");
+    }
+
+    @Test
+    void onQueryReadyForReviewEscalatedByTheDecisionHookRecordsTheHook() {
+        var queryId = UUID.randomUUID();
+        var hookId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryReadyForReview(new QueryReadyForReviewEvent(queryId, null, "pii", 3, hookId));
+
+        var entry = captor.getValue();
+        assertThat(entry.metadata()).containsEntry("source", "DECISION_HOOK")
+                .containsEntry("decision_hook_id", hookId.toString())
+                .containsEntry("effective_min_approvals", 3)
+                .containsEntry("reason", "pii")
+                .doesNotContainKey("routing_policy_id");
+    }
+
+    @Test
     void onQueryTimedOutRecordsRejectedWithAutoMetadata() {
         var queryId = UUID.randomUUID();
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
