@@ -36,6 +36,9 @@ class WhereAlwaysTrueRuleTest {
         assertThat(apply(rule, "DELETE FROM t WHERE ((1 = 1))")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE x = x")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE t.x = t.x")).hasSize(1);
+        assertThat(apply(rule, "DELETE FROM t WHERE year = year")).hasSize(1);
+        assertThat(apply(rule, "DELETE FROM t WHERE month = month")).hasSize(1);
+        assertThat(apply(rule, "UPDATE t SET a = 1 WHERE day = day")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE 'a' = 'a'")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE 1 <> 0")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE 1 > 0")).hasSize(1);

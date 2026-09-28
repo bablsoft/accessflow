@@ -58,6 +58,9 @@ class CrossJoinRuleTest {
         // Unqualified columns get the benefit of the doubt.
         assertThat(apply(rule, "SELECT a FROM t, u WHERE id = uid")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t, u WHERE t.id = uid")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM t, u WHERE year = u.year")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM t, u WHERE month = u.m")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM t, u WHERE t.day = day")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t OUTER APPLY fn(t.id) f")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t CROSS APPLY fn(t.id) f")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t t1, u WHERE u.id = t1.id")).isEmpty();
@@ -82,5 +85,7 @@ class CrossJoinRuleTest {
         assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("(t.id = u.id OR a = b) AND t.x = t.y")))
                 .containsExactly(new CrossJoinRule.ColumnPair("t", "u"), new CrossJoinRule.ColumnPair(null, null),
                         new CrossJoinRule.ColumnPair("t", "t"));
+        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("year = u.year AND t.x = day")))
+                .containsExactly(new CrossJoinRule.ColumnPair(null, "u"), new CrossJoinRule.ColumnPair("t", null));
     }
 }

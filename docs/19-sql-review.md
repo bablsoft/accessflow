@@ -197,6 +197,11 @@ Things that follow from the table:
   is the parseable form.
 - **`DROP DATABASE`** was unreachable under JSqlParser 5.3, which did not parse it; 5.4 (#1077)
   parses it, so it now reaches `drop_statement` like `DROP TABLE`.
+- **Bare date-unit names are still columns to the rules.** JSqlParser 5.4 parses an unqualified
+  `year`, `month`, `day`, `hour`, `minute` or `second` as a date-unit keyword rather than a column
+  (5.3 parsed them as columns); `t.year` is unaffected. `where_always_true` and `cross_join` treat such an operand as an unqualified
+  column (#1080), so `WHERE year = year` is still reported and `FROM t, u WHERE year = u.year`
+  still counts as a correlation.
 - **Findings carry a line number** (one-based, from the construct's AST node) for a single
   statement. Every member of a `BEGIN … COMMIT` envelope is re-parsed from a deparsed slice, so its
   findings carry `line_number = null` and are located by `statement_index` instead.
