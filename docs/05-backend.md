@@ -2036,7 +2036,11 @@ misconfigured endpoint can add friction and never remove it:
 | `ESCALATE` (`approvals` 1–10, default 1) | `PENDING_REVIEW` with plan minimum + `approvals` | `DECISION_HOOK_ESCALATE` |
 | `REQUIRE_APPROVALS` (`approvals` 1–10) | `PENDING_REVIEW` with **`max(approvals, plan minimum)`** — clamped, so a hook can raise the bar but never lower it | `DECISION_HOOK_REQUIRE_APPROVALS` |
 | `REJECT` | `REJECTED` | `DECISION_HOOK_REJECT` |
-| anything that is not a well-formed, correctly signed 2xx answer carrying one of the four | `FAILED`: the hook joins the auto-approve **guard** (next to a SQL review `BLOCK`, the bytes-cap no-estimate review and an exhausted data budget), so the grant fast path and the plan's own approvals are suppressed and the query lands in `PENDING_REVIEW` at the plan minimum | the plan kind, `suppressed_decision_hook` in the trace |
+| anything that is not a well-formed, correctly signed 2xx answer carrying one of the four | `FAILED`: the hook joins the auto-approve **guard** (next to a SQL review `BLOCK`, the bytes-cap no-estimate review and an exhausted data budget), so the grant fast path and the plan's own approvals are suppressed and the query lands in `PENDING_REVIEW` at the plan minimum | the plan kind; the trace reason is `…suppressed_decision_hook` and the plan step carries `decision_hook_suppressed: true` |
+
+A hook escalation raises the `QUERY_ESCALATED` notification exactly like a policy escalation
+(`NotificationListener` keys on the policy *or* hook id), so a ticketing channel with that trigger
+opens a ticket for it.
 
 The three deciding answers are persisted through `RoutingDecisionService.applyHookDecision` as a
 `routing_decision` row with `source = DECISION_HOOK`, the hook id, no policy, and the routing action
@@ -2048,15 +2052,17 @@ consult, whatever it answered, is recorded in `decision_hook_results` and audite
 `decisionHookId` on `QueryAutoRejectedEvent` / `QueryReadyForReviewEvent`.
 
 **Fail closed.** `DecisionHookClient` turns every one of these into `FAILED` and never throws:
-timeout (`TIMEOUT` — the whole call, headers *and* body, under one deadline; a slow-drip body is cut
-off by closing its stream), connection / TLS / DNS error (`TRANSPORT_ERROR`), any status outside 2xx
+timeout (`TIMEOUT` — the whole call, the call-time DNS lookup, connect, headers *and* body, under one
+deadline; a slow-drip body is cut off by closing its stream), connection / TLS / DNS error (`TRANSPORT_ERROR`), any status outside 2xx
 including a 3xx — redirects are never followed (`NON_2XX`), a body over 64 KiB, unparseable, or
 not echoing the request's `request_id` (`UNPARSEABLE`), a missing or wrong response signature
 (`SIGNATURE_MISMATCH`), a decision outside the four or a missing / out-of-range approval count
 (`INVALID_DECISION` — `AUTO_APPROVE` lands here), an address the SSRF guard refuses at call time
 (`SSRF_BLOCKED`), and an open circuit (`CIRCUIT_OPEN`). A stored secret that no longer decrypts
 (a rotated `ENCRYPTION_KEY`) is reported as `TRANSPORT_ERROR` rather than thrown, so the query is
-never stranded in `PENDING_AI`.
+never stranded in `PENDING_AI`. `DecisionHookGateway` additionally maps any unexpected
+`RuntimeException` between claiming the circuit breaker and recording its result — building the
+payload, say — to `TRANSPORT_ERROR`, so a half-open trial is always released.
 
 **Wire contract.** `POST` with `X-AccessFlow-Event: QUERY_DECISION`, `X-AccessFlow-Delivery:
 <request_id>` and `X-AccessFlow-Signature: sha256=<hex>` over the raw body — the notification-webhook
@@ -2072,7 +2078,17 @@ circuit for `circuit-open-duration` (default `PT30S`), during which every consul
 human review **without a call**; then exactly one caller is let through as a half-open trial. An
 update or delete of the hook resets it. The worst case a submission pays is therefore the hook's
 `timeout_ms` (100–10000, default 2000) until the breaker opens — on a path that already waits for an
-LLM. The call runs inside the decision listener's transaction, bounded by that same timeout.
+LLM.
+
+**No transaction is open during the call.** `QueryReviewStateMachine`'s AI-completed and AI-skipped
+handlers are plain `@Async @TransactionalEventListener`s rather than `@ApplicationModuleListener`s,
+so they hold no transaction of their own. When `DecisionHookGateway.appliesTo` says a hook applies,
+a read-only pre-evaluation runs in a short `REQUIRES_NEW` transaction with an invoker that only
+records whether the chain reached the hook (a matched policy, the cap and the budget all decide
+before it); the hook is then called with no transaction — and so no pooled connection — held, and
+the decision is taken in a fresh `REQUIRES_NEW` transaction with the answer passed in as a
+precomputed invoker. A slow but healthy endpoint therefore cannot exhaust the connection pool. The
+admin test endpoint is not transactional for the same reason.
 
 **Simulators never call out.** The access simulator passes `DecisionHookGateway.simulation()`, which
 names the hook that would apply and reports the `DECISION_HOOK` step as `SKIP` with

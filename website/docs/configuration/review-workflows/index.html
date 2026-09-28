@@ -591,7 +591,8 @@ APPROVED → FAILED (execution error)</pre>
             rule does not fit the routing-policy builder. You run a small web service — an
             <a href="https://www.openpolicyagent.org/" rel="noopener">Open Policy Agent</a> sidecar or an
             in-house policy service — and AccessFlow asks it about every query that <strong>no routing
-            policy matched</strong>, just before a standing access grant or the review plan gets to
+            policy matched</strong> (a query already rejected by a cost or data limit, or whose AI
+            analysis failed, goes to review without asking it), just before a standing access grant or the review plan gets to
             approve it. A policy that matched always wins, so the hook can never overrule a rule you
             wrote in AccessFlow.
           </p>
@@ -630,14 +631,17 @@ APPROVED → FAILED (execution error)</pre>
             cost estimate and where the request came from — but <em>not</em> the SQL text, which can
             contain real values such as names or account numbers. Turn on <em>Send the SQL text</em>
             only if your service may see them.</li>
-            <li><strong>Click the test button</strong> to send a signed test request and see what your
-            service answered, or why it failed, before any real query depends on it.</li>
+            <li><strong>Switch <em>Enabled</em> off for the first save</strong>, then use the
+            <em>Send a test request</em> button in the hook's row. It sends a signed test request and
+            shows what your service answered, or why it failed. A switched-off hook is never asked
+            about real queries, so switch it on only once the test comes back the way you expect.</li>
           </ol>
           <div class="docs-callout info">
             <strong>When the service fails, a person decides.</strong> A timeout, a connection error,
             an error status, a redirect, an answer that is not signed with your secret, an answer that
             is not one of the four above — all of them send the query to human review, never through.
-            After five failures in a row AccessFlow stops calling the service for 30 seconds and sends
+            After five failures in a row AccessFlow stops calling the service for 30 seconds (each
+            AccessFlow server counts on its own) and sends
             everything straight to review, so a service that is down cannot slow every submission; both
             numbers are configurable (<code>ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_FAILURE_THRESHOLD</code>,
             <code>ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_OPEN_DURATION</code>). Every answer is shown on

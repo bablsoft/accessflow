@@ -1427,7 +1427,10 @@ AES-256-GCM encrypted (`decision_hooks.secret_encrypted`, `@JsonIgnore`), write-
 (`secret_configured` only) and never written to a log or an audit row.
 
 **Disclosure.** The payload carries identity, datasource, query type, referenced tables, the AI
-verdict, the cost estimate and client context. It does **not** carry the SQL text unless the hook has
+verdict, the cost estimate and client context — so `ROUTING_POLICY_MANAGE`, which manages hooks,
+now also decides where submitter data such as email, client IP and user agent is sent. Grant it to a
+custom role with that in mind; every create and update is audited with the endpoint's origin
+(`endpoint_origin`, never the full URL). It does **not** carry the SQL text unless the hook has
 `include_sql` on: the SQL can contain literal values, and sending them to a third-party endpoint is a
 disclosure the operator must choose, not inherit.
 

@@ -4960,6 +4960,7 @@ follow up with one simulation per user of interest. It is deliberately not an N-
         "effective_min_approvals": 3
       }
     },
+    { "step": "DECISION_HOOK", "outcome": "SKIP", "reason": "An earlier stage decided, so the decision hook was not consulted", "details": {} },
     { "step": "GRANT_FAST_PATH", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": {} },
     { "step": "REVIEW_PLAN", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": { "requires_human_approval": true, "auto_approve_reads": false, "min_approvals_required": 1 } },
     {
