@@ -47,6 +47,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-review-delegation': 'configuration/review-workflows/',
   'cfg-review-escalation': 'configuration/review-workflows/',
   'cfg-routing-policies': 'configuration/review-workflows/',
+  'cfg-decision-hooks': 'configuration/review-workflows/',
   'cfg-sql-review': 'configuration/review-workflows/',
   'cfg-attestation': 'configuration/review-workflows/',
   'cfg-deployment-pipelines': 'configuration/review-workflows/',

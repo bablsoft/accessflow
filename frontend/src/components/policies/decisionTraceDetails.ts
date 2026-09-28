@@ -3,6 +3,8 @@ import type {
   BytesScannedCapOutcome,
   BytesScannedCapSource,
   DataBudgetBreachAction,
+  DecisionHookFailure,
+  DecisionHookOutcome,
   MaskingStrategy,
   QueryShape,
   QueryStatus,
@@ -17,6 +19,8 @@ import {
   BYTES_SCANNED_CAP_OUTCOMES,
   BYTES_SCANNED_CAP_SOURCES,
   DATA_BUDGET_BREACH_ACTIONS,
+  DECISION_HOOK_FAILURES,
+  DECISION_HOOK_OUTCOMES,
   MASKING_STRATEGIES,
   QUERY_SHAPES,
   QUERY_TYPES,
@@ -25,6 +29,8 @@ import {
   bytesScannedCapOutcomeLabel,
   bytesScannedCapSourceLabel,
   dataBudgetBreachActionLabel,
+  decisionHookFailureLabel,
+  decisionHookOutcomeLabel,
   maskingStrategyLabel,
   queryShapeLabel,
   queryStatusLabel,
@@ -79,6 +85,9 @@ export const KNOWN_DETAIL_KEYS = [
   'data_budget_suppressed',
   'data_budget_used_percent',
   'db_type',
+  'decision_hook_id',
+  'decision_hook_name',
+  'decision_hook_suppressed',
   'denied_shapes',
   'denied_tables',
   'effective_min_approvals',
@@ -90,11 +99,14 @@ export const KNOWN_DETAIL_KEYS = [
   'estimated_rows',
   'evaluated_at',
   'expires_at',
+  'failure',
   'freeze_window_id',
   'frozen',
   'grant_id',
   'has_limit_clause',
   'has_where_clause',
+  'http_status',
+  'latency_ms',
   'limit',
   'masks',
   'matched_policy_id',
@@ -103,6 +115,7 @@ export const KNOWN_DETAIL_KEYS = [
   'minutes_since_last_approval',
   'operation_count',
   'operation_id',
+  'outcome',
   'pipeline_name',
   'plan_approvers',
   'policies',
@@ -113,11 +126,13 @@ export const KNOWN_DETAIL_KEYS = [
   'query_shapes',
   'query_type',
   'quota_type',
+  'reason',
   'reason_text',
   'referenced_tables',
   'rejected_columns',
   'rejected_tables',
   'releasable',
+  'requested_approvals',
   'requester_group_ids',
   'requester_ip_address',
   'requester_role_name',
@@ -192,6 +207,12 @@ function enumValue(key: string, value: unknown, t: TFunction): string | null {
   }
   if (key === 'data_budget_used_percent' && typeof value === 'number') {
     return `${value}%`;
+  }
+  if (key === 'outcome' && includes<DecisionHookOutcome>(DECISION_HOOK_OUTCOMES, value)) {
+    return decisionHookOutcomeLabel(t, value);
+  }
+  if (key === 'failure' && includes<DecisionHookFailure>(DECISION_HOOK_FAILURES, value)) {
+    return decisionHookFailureLabel(t, value);
   }
   return null;
 }

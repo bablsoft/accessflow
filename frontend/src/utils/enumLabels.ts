@@ -89,6 +89,8 @@ import type {
   DeploymentDecisionStepKind,
   EffectiveAccessTableScope,
   QueryDecisionStepKind,
+  DecisionHookOutcome,
+  DecisionHookFailure,
   SimulatedAiOutcome,
   StatementCapability,
 } from '@/types/api';
@@ -585,6 +587,7 @@ export const QUERY_DECISION_STEP_KINDS: readonly QueryDecisionStepKind[] = [
   'BYTES_SCANNED_CAP',
   'DATA_BUDGET',
   'ROUTING_POLICIES',
+  'DECISION_HOOK',
   'GRANT_FAST_PATH',
   'REVIEW_PLAN',
   'ELIGIBLE_REVIEWERS',
@@ -595,6 +598,33 @@ export const QUERY_DECISION_STEP_KINDS: readonly QueryDecisionStepKind[] = [
 
 export const queryDecisionStepLabel = (t: TFunction, v: QueryDecisionStepKind): string =>
   t(`enums.query_decision_step.${v}` as const);
+
+// --- External policy decision hook (#945) ---
+
+export const DECISION_HOOK_OUTCOMES: readonly DecisionHookOutcome[] = [
+  'ALLOW',
+  'ESCALATE',
+  'REQUIRE_APPROVALS',
+  'REJECT',
+  'FAILED',
+] as const;
+
+export const decisionHookOutcomeLabel = (t: TFunction, v: DecisionHookOutcome): string =>
+  t(`enums.decision_hook_outcome.${v}` as const);
+
+export const DECISION_HOOK_FAILURES: readonly DecisionHookFailure[] = [
+  'TIMEOUT',
+  'TRANSPORT_ERROR',
+  'NON_2XX',
+  'UNPARSEABLE',
+  'SIGNATURE_MISMATCH',
+  'INVALID_DECISION',
+  'SSRF_BLOCKED',
+  'CIRCUIT_OPEN',
+] as const;
+
+export const decisionHookFailureLabel = (t: TFunction, v: DecisionHookFailure): string =>
+  t(`enums.decision_hook_failure.${v}` as const);
 
 export const API_DECISION_STEP_KINDS: readonly ApiDecisionStepKind[] = [
   'CONNECTOR_GATES',

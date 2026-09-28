@@ -54,6 +54,8 @@ import {
   bytesScannedCapSourceLabel,
   channelTypeLabel,
   routingActionLabel,
+  decisionHookFailureLabel,
+  decisionHookOutcomeLabel,
 } from '@/utils/enumLabels';
 import { formatBytes } from '@/utils/queryPlan';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
@@ -549,7 +551,7 @@ export function QueryDetailPage() {
               })}
             />
           )}
-          {query.matched_policy && (
+          {query.matched_policy && query.matched_policy.source !== 'DECISION_HOOK' && (
             <Alert
               type="info"
               showIcon
@@ -563,6 +565,28 @@ export function QueryDetailPage() {
                 reason:
                   query.matched_policy.reason ?? t('queries.detail.matched_policy_no_reason'),
               })}
+            />
+          )}
+          {query.decision_hook && (
+            <Alert
+              type={query.decision_hook.outcome === 'FAILED' ? 'warning' : 'info'}
+              showIcon
+              data-testid="decision-hook-alert"
+              title={t('queries.detail.decision_hook_title', {
+                name: query.decision_hook.decision_hook_name,
+                outcome: decisionHookOutcomeLabel(t, query.decision_hook.outcome),
+              })}
+              description={
+                query.decision_hook.outcome === 'FAILED' && query.decision_hook.failure
+                  ? t('queries.detail.decision_hook_failed_body', {
+                      failure: decisionHookFailureLabel(t, query.decision_hook.failure),
+                    })
+                  : t('queries.detail.decision_hook_body', {
+                      reason:
+                        query.decision_hook.reason ??
+                        t('queries.detail.matched_policy_no_reason'),
+                    })
+              }
             />
           )}
           {query.bytes_scanned_cap && (

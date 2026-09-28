@@ -4,6 +4,7 @@ import '@/i18n';
 import {
   adminErrorMessage,
   auditSinkErrorMessage,
+  decisionHookErrorMessage,
   queryReplayErrorMessage,
   rolesErrorMessage,
   serviceAccountErrorMessage,
@@ -200,5 +201,45 @@ describe('serviceAccountErrorMessage (#875)', () => {
   it('falls back to the generic message for unknown errors', () => {
     expect(serviceAccountErrorMessage({})).toMatch(/service account/i);
     expect(serviceAccountErrorMessage(new Error('boom'))).toBe('boom');
+  });
+});
+
+describe('decisionHookErrorMessage (#945)', () => {
+  it('maps DECISION_HOOK_NOT_FOUND to a friendly message', () => {
+    expect(decisionHookErrorMessage(axiosError(404, { error: 'DECISION_HOOK_NOT_FOUND' }))).toMatch(
+      /decision hook/i,
+    );
+  });
+
+  it('prefers the localized detail for a scope conflict and an invalid URL', () => {
+    expect(
+      decisionHookErrorMessage(
+        axiosError(409, { error: 'DECISION_HOOK_SCOPE_CONFLICT', detail: 'default taken' }),
+      ),
+    ).toBe('default taken');
+    expect(
+      decisionHookErrorMessage(axiosError(422, { error: 'DECISION_HOOK_INVALID', detail: 'https only' })),
+    ).toBe('https only');
+  });
+
+  it('falls back to its own messages without a detail', () => {
+    expect(decisionHookErrorMessage(axiosError(409, { error: 'DECISION_HOOK_SCOPE_CONFLICT' }))).toMatch(
+      /already/i,
+    );
+    expect(decisionHookErrorMessage(axiosError(422, { error: 'DECISION_HOOK_INVALID' }))).toMatch(
+      /endpoint/i,
+    );
+  });
+
+  it('uses detail, then title, for unmapped codes', () => {
+    expect(decisionHookErrorMessage(axiosError(400, { error: 'X', detail: 'specific' }))).toBe('specific');
+    expect(decisionHookErrorMessage(axiosError(400, { error: 'X', title: 'Bad Request' }))).toBe(
+      'Bad Request',
+    );
+  });
+
+  it('falls back to the generic message for unknown errors', () => {
+    expect(decisionHookErrorMessage({})).toMatch(/decision hook/i);
+    expect(decisionHookErrorMessage(new Error('boom'))).toBe('boom');
   });
 });

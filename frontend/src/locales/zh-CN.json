@@ -115,7 +115,8 @@
     "schemaChangeSets": "变更集",
     "schemaDrift": "架构漂移",
     "access_simulation": "访问模拟",
-    "jobs": "计划任务"
+    "jobs": "计划任务",
+    "decision_hooks": "决策钩子"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "未找到委托。",
     "service_account_delegation_exists": "此人已允许该账号代表其操作。",
     "service_account_delegation_principal_invalid": "委托人必须是本组织中的活跃人员。",
-    "service_account_delegation_invalid": "委托目标必须是活跃的服务账号。"
+    "service_account_delegation_invalid": "委托目标必须是活跃的服务账号。",
+    "decision_hook_not_found": "未找到决策钩子。",
+    "decision_hook_scope_conflict": "该范围已有决策钩子。",
+    "decision_hook_invalid": "不允许使用该端点 URL。",
+    "decision_hook_generic": "无法保存决策钩子。"
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "预计扫描：{{estimate}} · 上限：{{limit}}（{{source}}）",
       "bytes_cap_no_estimate": "无估算",
-      "results_truncated_budget": "返回 {{count}} 行（受剩余数据预算限制）"
+      "results_truncated_budget": "返回 {{count}} 行（受剩余数据预算限制）",
+      "decision_hook_title": "决策钩子“{{name}}”：{{outcome}}",
+      "decision_hook_body": "原因：{{reason}}",
+      "decision_hook_failed_body": "钩子失败（{{failure}}），因此该查询已转入人工审核。"
     }
   },
   "reviews": {
@@ -2865,6 +2873,48 @@
       "unit_h": "{{value}} 小时",
       "unit_m": "{{value}} 分钟",
       "unit_s": "{{value}} 秒"
+    },
+    "decision_hooks": {
+      "title": "决策钩子",
+      "subtitle": "当没有路由策略匹配时调用的外部策略服务。",
+      "add_button": "添加钩子",
+      "load_error": "无法加载决策钩子。",
+      "empty": "暂无决策钩子。未匹配任何路由策略的查询将直接进入授权快速通道和审核计划。",
+      "trust_title": "钩子只能增加管控，不能减少管控",
+      "trust_body": "钩子可以允许、升级、要求更多审批或拒绝，但永远不能批准。超时、错误、签名错误或意外回复都会让查询转入人工审核。",
+      "create_modal_title": "添加决策钩子",
+      "edit_modal_title": "编辑决策钩子 · {{name}}",
+      "save_create": "创建钩子",
+      "save_update": "保存更改",
+      "create_success": "决策钩子已创建。",
+      "update_success": "决策钩子已更新。",
+      "delete_success": "决策钩子已删除。",
+      "delete_confirm_title": "删除此决策钩子？",
+      "delete_confirm_body": "查询将不再调用“{{name}}”。",
+      "col_name": "名称",
+      "col_scope": "适用范围",
+      "col_timeout": "超时",
+      "col_include_sql": "发送 SQL",
+      "col_enabled": "已启用",
+      "col_actions": "操作",
+      "scope_org_default": "组织默认",
+      "timeout_value": "{{ms}} 毫秒",
+      "label_name": "名称",
+      "label_scope": "适用范围",
+      "scope_help": "数据源钩子会替代该数据源的组织默认钩子。",
+      "label_endpoint_url": "端点 URL",
+      "endpoint_help": "仅限 HTTPS。除非部署允许，否则会拒绝私有和内部地址。",
+      "label_timeout": "超时（毫秒）",
+      "timeout_help": "100 到 10000 之间。更慢的回复视为失败。",
+      "label_secret": "签名密钥",
+      "secret_help": "至少 32 个字符。对每个请求签名，且每个回复也必须签名。",
+      "secret_keep_help": "留空以保留当前密钥。",
+      "label_include_sql": "发送 SQL 文本",
+      "label_enabled": "已启用",
+      "include_sql_warning": "SQL 文本可能包含姓名或账号等字面值。仅在该端点可以接收这些数据时开启。",
+      "test_button": "发送测试请求",
+      "test_answered": "钩子在 {{latency}} 毫秒内回复了 {{outcome}}。",
+      "test_failed": "钩子失败：{{failure}}（{{latency}} 毫秒）。查询将转入人工审核。"
     }
   },
   "notifications": {
@@ -3751,7 +3801,8 @@
       "MASKING": "脱敏",
       "BREAK_GLASS": "紧急访问",
       "BYTES_SCANNED_CAP": "扫描字节上限",
-      "DATA_BUDGET": "数据预算"
+      "DATA_BUDGET": "数据预算",
+      "DECISION_HOOK": "决策钩子"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "连接器检查",
@@ -3824,6 +3875,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "转交人工审核",
       "REJECT": "拒绝"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "允许",
+      "ESCALATE": "升级",
+      "REQUIRE_APPROVALS": "要求审批",
+      "REJECT": "拒绝",
+      "FAILED": "失败"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "超时",
+      "TRANSPORT_ERROR": "连接错误",
+      "NON_2XX": "错误状态",
+      "UNPARSEABLE": "无法解析的回复",
+      "SIGNATURE_MISMATCH": "签名错误",
+      "INVALID_DECISION": "无效决策",
+      "SSRF_BLOCKED": "地址不被允许",
+      "CIRCUIT_OPEN": "多次失败后已暂停"
     }
   },
   "access": {
@@ -5839,7 +5907,16 @@
       "data_budget_remaining_bytes": "预算剩余字节",
       "data_budget_remaining_rows": "预算剩余行数",
       "data_budget_suppressed": "被数据预算抑制",
-      "data_budget_used_percent": "数据预算已用"
+      "data_budget_used_percent": "数据预算已用",
+      "decision_hook_id": "决策钩子 ID",
+      "decision_hook_name": "决策钩子",
+      "decision_hook_suppressed": "因决策钩子失败而暂缓",
+      "outcome": "结果",
+      "failure": "失败原因",
+      "requested_approvals": "请求的审批数",
+      "http_status": "HTTP 状态",
+      "latency_ms": "延迟（毫秒）",
+      "reason": "原因"
     },
     "use_id": "使用 ID {{id}}",
     "user_id_placeholder": "粘贴用户 ID",

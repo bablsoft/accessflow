@@ -115,7 +115,8 @@
     "schemaChangeSets": "Ensembles de modifications",
     "schemaDrift": "Dérive de schéma",
     "access_simulation": "Simulation d'accès",
-    "jobs": "Tâches planifiées"
+    "jobs": "Tâches planifiées",
+    "decision_hooks": "Hooks de décision"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "Délégation introuvable.",
     "service_account_delegation_exists": "Cette personne autorise déjà le compte à agir pour son compte.",
     "service_account_delegation_principal_invalid": "Le principal doit être une personne active de cette organisation.",
-    "service_account_delegation_invalid": "La cible de la délégation doit être un compte de service actif."
+    "service_account_delegation_invalid": "La cible de la délégation doit être un compte de service actif.",
+    "decision_hook_not_found": "Hook de décision introuvable.",
+    "decision_hook_scope_conflict": "Ce périmètre a déjà un hook de décision.",
+    "decision_hook_invalid": "L'URL du point de terminaison n'est pas autorisée.",
+    "decision_hook_generic": "Impossible d'enregistrer le hook de décision."
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "Analyse estimée : {{estimate}} · Limite : {{limit}} ({{source}})",
       "bytes_cap_no_estimate": "aucune estimation",
-      "results_truncated_budget": "{{count}} lignes renvoyées (plafonnées à votre budget de données restant)"
+      "results_truncated_budget": "{{count}} lignes renvoyées (plafonnées à votre budget de données restant)",
+      "decision_hook_title": "Hook de décision « {{name}} » : {{outcome}}",
+      "decision_hook_body": "Motif : {{reason}}",
+      "decision_hook_failed_body": "Le hook a échoué ({{failure}}), cette requête est donc partie en revue humaine."
     }
   },
   "reviews": {
@@ -2865,6 +2873,48 @@
       "unit_h": "{{value}} h",
       "unit_m": "{{value}} min",
       "unit_s": "{{value}} s"
+    },
+    "decision_hooks": {
+      "title": "Hooks de décision",
+      "subtitle": "Un service de politiques externe consulté lorsqu'aucune politique de routage ne correspond.",
+      "add_button": "Ajouter un hook",
+      "load_error": "Impossible de charger les hooks de décision.",
+      "empty": "Aucun hook de décision pour l'instant. Les requêtes qui ne correspondent à aucune politique de routage passent directement par la voie rapide des octrois et le plan de revue.",
+      "trust_title": "Un hook peut ajouter des contrôles, jamais en retirer",
+      "trust_body": "Le hook peut autoriser, escalader, exiger davantage d'approbations ou rejeter. Il ne peut jamais approuver. Un délai dépassé, une erreur, une signature invalide ou une réponse inattendue envoient la requête en revue humaine.",
+      "create_modal_title": "Ajouter un hook de décision",
+      "edit_modal_title": "Modifier le hook de décision · {{name}}",
+      "save_create": "Créer le hook",
+      "save_update": "Enregistrer les modifications",
+      "create_success": "Hook de décision créé.",
+      "update_success": "Hook de décision mis à jour.",
+      "delete_success": "Hook de décision supprimé.",
+      "delete_confirm_title": "Supprimer ce hook de décision ?",
+      "delete_confirm_body": "Les requêtes ne consulteront plus « {{name}} ».",
+      "col_name": "Nom",
+      "col_scope": "S'applique à",
+      "col_timeout": "Délai d'attente",
+      "col_include_sql": "Envoie le SQL",
+      "col_enabled": "Activé",
+      "col_actions": "Actions",
+      "scope_org_default": "Défaut de l'organisation",
+      "timeout_value": "{{ms}} ms",
+      "label_name": "Nom",
+      "label_scope": "S'applique à",
+      "scope_help": "Un hook de source de données remplace le défaut de l'organisation pour cette source.",
+      "label_endpoint_url": "URL du point de terminaison",
+      "endpoint_help": "HTTPS uniquement. Les adresses privées et internes sont refusées sauf si le déploiement les autorise.",
+      "label_timeout": "Délai d'attente (ms)",
+      "timeout_help": "Entre 100 et 10000. Une réponse plus lente compte comme un échec.",
+      "label_secret": "Secret de signature",
+      "secret_help": "Au moins 32 caractères. Signe chaque requête et doit signer chaque réponse.",
+      "secret_keep_help": "Laissez vide pour conserver le secret actuel.",
+      "label_include_sql": "Envoyer le texte SQL",
+      "label_enabled": "Activé",
+      "include_sql_warning": "Le texte SQL peut contenir des valeurs littérales comme des noms ou des numéros de compte. Ne l'activez que si le point de terminaison peut les recevoir.",
+      "test_button": "Envoyer une requête de test",
+      "test_answered": "Le hook a répondu {{outcome}} en {{latency}} ms.",
+      "test_failed": "Le hook a échoué : {{failure}} ({{latency}} ms). Les requêtes partiraient en revue humaine."
     }
   },
   "notifications": {
@@ -3751,7 +3801,8 @@
       "MASKING": "Masquage",
       "BREAK_GLASS": "Accès d'urgence",
       "BYTES_SCANNED_CAP": "Limite d’octets analysés",
-      "DATA_BUDGET": "Budget de données"
+      "DATA_BUDGET": "Budget de données",
+      "DECISION_HOOK": "Hook de décision"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Contrôles du connecteur",
@@ -3824,6 +3875,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "Envoyer en revue humaine",
       "REJECT": "Refuser"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "Autoriser",
+      "ESCALATE": "Escalader",
+      "REQUIRE_APPROVALS": "Exiger des approbations",
+      "REJECT": "Rejeter",
+      "FAILED": "Échec"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "Délai dépassé",
+      "TRANSPORT_ERROR": "Erreur de connexion",
+      "NON_2XX": "Statut d'erreur",
+      "UNPARSEABLE": "Réponse illisible",
+      "SIGNATURE_MISMATCH": "Signature invalide",
+      "INVALID_DECISION": "Décision invalide",
+      "SSRF_BLOCKED": "Adresse non autorisée",
+      "CIRCUIT_OPEN": "En pause après des échecs répétés"
     }
   },
   "access": {
@@ -5839,7 +5907,16 @@
       "data_budget_remaining_bytes": "Octets restants du budget",
       "data_budget_remaining_rows": "Lignes restantes du budget",
       "data_budget_suppressed": "Suspendu par le budget de données",
-      "data_budget_used_percent": "Budget de données consommé"
+      "data_budget_used_percent": "Budget de données consommé",
+      "decision_hook_id": "ID du hook de décision",
+      "decision_hook_name": "Hook de décision",
+      "decision_hook_suppressed": "Retenu par un hook de décision en échec",
+      "outcome": "Résultat",
+      "failure": "Échec",
+      "requested_approvals": "Approbations demandées",
+      "http_status": "Statut HTTP",
+      "latency_ms": "Latence (ms)",
+      "reason": "Motif"
     },
     "use_id": "Utiliser l'ID {{id}}",
     "user_id_placeholder": "Collez un ID d'utilisateur",

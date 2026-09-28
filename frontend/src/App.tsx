@@ -59,6 +59,7 @@ const SlackConfigPage = lazy(() => import('@/pages/admin/SlackConfigPage'));
 const LangfuseConfigPage = lazy(() => import('@/pages/admin/LangfuseConfigPage'));
 const HelpAgentConfigPage = lazy(() => import('@/pages/admin/HelpAgentConfigPage'));
 const SqlReviewRulesetsPage = lazy(() => import('@/pages/admin/SqlReviewRulesetsPage'));
+const DecisionHooksPage = lazy(() => import('@/pages/admin/DecisionHooksPage'));
 const GroupsListPage = lazy(() =>
   import('@/pages/admin/groups/GroupsListPage').then((m) => ({ default: m.GroupsListPage })),
 );
@@ -547,6 +548,16 @@ export function App() {
             element={
               <AuthGuard requirePermission={'ROUTING_POLICY_MANAGE'}>
                 <RoutingPoliciesPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/decision-hooks"
+            element={
+              <AuthGuard requirePermission={'ROUTING_POLICY_MANAGE'}>
+                <Suspense fallback={null}>
+                  <DecisionHooksPage />
+                </Suspense>
               </AuthGuard>
             }
           />

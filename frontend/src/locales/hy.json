@@ -115,7 +115,8 @@
     "schemaChangeSets": "Փոփոխությունների հավաքածուներ",
     "schemaDrift": "Սխեմայի շեղում",
     "access_simulation": "Մուտքի սիմուլյացիա",
-    "jobs": "Պլանավորված առաջադրանքներ"
+    "jobs": "Պլանավորված առաջադրանքներ",
+    "decision_hooks": "Որոշման hook-եր"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "Պատվիրակումը չի գտնվել։",
     "service_account_delegation_exists": "Այս անձն արդեն թույլատրում է հաշվին գործել իր անունից։",
     "service_account_delegation_principal_invalid": "Պրինցիպալը պետք է լինի այս կազմակերպության ակտիվ անձ։",
-    "service_account_delegation_invalid": "Պատվիրակման թիրախը պետք է լինի ակտիվ ծառայողական հաշիվ։"
+    "service_account_delegation_invalid": "Պատվիրակման թիրախը պետք է լինի ակտիվ ծառայողական հաշիվ։",
+    "decision_hook_not_found": "Որոշման hook-ը չի գտնվել։",
+    "decision_hook_scope_conflict": "Այս շրջանակն արդեն ունի որոշման hook։",
+    "decision_hook_invalid": "Վերջնակետի URL-ը թույլատրված չէ։",
+    "decision_hook_generic": "Չհաջողվեց պահպանել որոշման hook-ը։"
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "Գնահատված սկանավորում՝ {{estimate}} · Սահմանաչափ՝ {{limit}} ({{source}})",
       "bytes_cap_no_estimate": "գնահատական չկա",
-      "results_truncated_budget": "Վերադարձվել է {{count}} տող (սահմանափակված ձեր մնացած տվյալների բյուջեով)"
+      "results_truncated_budget": "Վերադարձվել է {{count}} տող (սահմանափակված ձեր մնացած տվյալների բյուջեով)",
+      "decision_hook_title": "Որոշման hook «{{name}}»՝ {{outcome}}",
+      "decision_hook_body": "Պատճառ՝ {{reason}}",
+      "decision_hook_failed_body": "Hook-ը ձախողվեց ({{failure}}), ուստի այս հարցումն ուղարկվեց մարդկային վերանայման։"
     }
   },
   "reviews": {
@@ -2865,6 +2873,48 @@
       "unit_h": "{{value}} ժ",
       "unit_m": "{{value}} ր",
       "unit_s": "{{value}} վ"
+    },
+    "decision_hooks": {
+      "title": "Որոշման hook-եր",
+      "subtitle": "Արտաքին քաղաքականության ծառայություն, որին դիմում են, երբ ոչ մի երթուղավորման քաղաքականություն չի համընկնում։",
+      "add_button": "Ավելացնել hook",
+      "load_error": "Չհաջողվեց բեռնել որոշման hook-երը։",
+      "empty": "Որոշման hook-եր դեռ չկան։ Ոչ մի երթուղավորման քաղաքականության չհամապատասխանող հարցումներն անմիջապես անցնում են թույլտվությունների արագ ուղի և վերանայման պլան։",
+      "trust_title": "Hook-ը կարող է ավելացնել խոչընդոտներ, բայց երբեք չի հեռացնում",
+      "trust_body": "Hook-ը կարող է թույլատրել, բարձրացնել, պահանջել ավելի շատ հաստատումներ կամ մերժել։ Այն երբեք չի կարող հաստատել։ Ժամանակի սպառումը, սխալը, սխալ ստորագրությունը կամ անսպասելի պատասխանը հարցումն ուղարկում են մարդկային վերանայման։",
+      "create_modal_title": "Ավելացնել որոշման hook",
+      "edit_modal_title": "Խմբագրել որոշման hook · {{name}}",
+      "save_create": "Ստեղծել hook",
+      "save_update": "Պահպանել փոփոխությունները",
+      "create_success": "Որոշման hook-ը ստեղծվեց։",
+      "update_success": "Որոշման hook-ը թարմացվեց։",
+      "delete_success": "Որոշման hook-ը ջնջվեց։",
+      "delete_confirm_title": "Ջնջե՞լ այս որոշման hook-ը",
+      "delete_confirm_body": "Հարցումներն այլևս չեն դիմի «{{name}}»-ին։",
+      "col_name": "Անուն",
+      "col_scope": "Կիրառվում է",
+      "col_timeout": "Ժամանակի սահման",
+      "col_include_sql": "Ուղարկում է SQL",
+      "col_enabled": "Միացված",
+      "col_actions": "Գործողություններ",
+      "scope_org_default": "Կազմակերպության լռելյայն",
+      "timeout_value": "{{ms}} մվ",
+      "label_name": "Անուն",
+      "label_scope": "Կիրառվում է",
+      "scope_help": "Տվյալների աղբյուրի hook-ը փոխարինում է կազմակերպության լռելյայնին այդ աղբյուրի համար։",
+      "label_endpoint_url": "Վերջնակետի URL",
+      "endpoint_help": "Միայն HTTPS։ Մասնավոր և ներքին հասցեները մերժվում են, եթե տեղակայումը դրանք չի թույլատրում։",
+      "label_timeout": "Ժամանակի սահման (մվ)",
+      "timeout_help": "100-ից 10000։ Ավելի դանդաղ պատասխանը համարվում է ձախողում։",
+      "label_secret": "Ստորագրման գաղտնիք",
+      "secret_help": "Առնվազն 32 նիշ։ Ստորագրում է յուրաքանչյուր հարցում և պետք է ստորագրի յուրաքանչյուր պատասխան։",
+      "secret_keep_help": "Թողեք դատարկ՝ ընթացիկ գաղտնիքը պահպանելու համար։",
+      "label_include_sql": "Ուղարկել SQL տեքստը",
+      "label_enabled": "Միացված",
+      "include_sql_warning": "SQL տեքստը կարող է պարունակել բառացի արժեքներ, օրինակ՝ անուններ կամ հաշվեհամարներ։ Միացրեք միայն, եթե վերջնակետը կարող է դրանք ստանալ։",
+      "test_button": "Ուղարկել փորձնական հարցում",
+      "test_answered": "Hook-ը պատասխանեց {{outcome}} {{latency}} մվ-ում։",
+      "test_failed": "Hook-ը ձախողվեց՝ {{failure}} ({{latency}} մվ)։ Հարցումները կանցնեին մարդկային վերանայման։"
     }
   },
   "notifications": {
@@ -3751,7 +3801,8 @@
       "MASKING": "Քողարկում",
       "BREAK_GLASS": "Արտակարգ մուտք",
       "BYTES_SCANNED_CAP": "Սկանավորված բայթերի սահմանաչափ",
-      "DATA_BUDGET": "Տվյալների բյուջե"
+      "DATA_BUDGET": "Տվյալների բյուջե",
+      "DECISION_HOOK": "Որոշման hook"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Միակցիչի ստուգումներ",
@@ -3824,6 +3875,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "Ուղարկել մարդկային վերանայման",
       "REJECT": "Մերժել"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "Թույլատրել",
+      "ESCALATE": "Բարձրացնել",
+      "REQUIRE_APPROVALS": "Պահանջել հաստատումներ",
+      "REJECT": "Մերժել",
+      "FAILED": "Ձախողված"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "Ժամանակը սպառվեց",
+      "TRANSPORT_ERROR": "Միացման սխալ",
+      "NON_2XX": "Սխալի կարգավիճակ",
+      "UNPARSEABLE": "Անընթեռնելի պատասխան",
+      "SIGNATURE_MISMATCH": "Սխալ ստորագրություն",
+      "INVALID_DECISION": "Անվավեր որոշում",
+      "SSRF_BLOCKED": "Հասցեն թույլատրված չէ",
+      "CIRCUIT_OPEN": "Դադարեցված է կրկնվող ձախողումներից հետո"
     }
   },
   "access": {
@@ -5839,7 +5907,16 @@
       "data_budget_remaining_bytes": "Բյուջեի մնացած բայթեր",
       "data_budget_remaining_rows": "Բյուջեի մնացած տողեր",
       "data_budget_suppressed": "Կասեցված է տվյալների բյուջեով",
-      "data_budget_used_percent": "Տվյալների բյուջեի օգտագործում"
+      "data_budget_used_percent": "Տվյալների բյուջեի օգտագործում",
+      "decision_hook_id": "Որոշման hook-ի ID",
+      "decision_hook_name": "Որոշման hook",
+      "decision_hook_suppressed": "Կասեցված է ձախողված որոշման hook-ի պատճառով",
+      "outcome": "Արդյունք",
+      "failure": "Ձախողում",
+      "requested_approvals": "Պահանջված հաստատումներ",
+      "http_status": "HTTP կարգավիճակ",
+      "latency_ms": "Ուշացում (մվ)",
+      "reason": "Պատճառ"
     },
     "use_id": "Օգտագործել ID {{id}}",
     "user_id_placeholder": "Տեղադրեք օգտատիրոջ ID",

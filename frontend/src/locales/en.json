@@ -115,7 +115,8 @@
     "schemaChangeSets": "Change sets",
     "schemaDrift": "Schema drift",
     "access_simulation": "Access simulation",
-    "jobs": "Scheduled jobs"
+    "jobs": "Scheduled jobs",
+    "decision_hooks": "Decision hooks"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -453,7 +454,11 @@
     "service_account_delegation_not_found": "Delegation not found.",
     "service_account_delegation_exists": "This person already permits the account to act on their behalf.",
     "service_account_delegation_principal_invalid": "The principal must be an active person in this organization.",
-    "service_account_delegation_invalid": "The delegation target must be an active service account."
+    "service_account_delegation_invalid": "The delegation target must be an active service account.",
+    "decision_hook_not_found": "Decision hook not found.",
+    "decision_hook_scope_conflict": "That scope already has a decision hook.",
+    "decision_hook_invalid": "The endpoint URL is not allowed.",
+    "decision_hook_generic": "Could not save the decision hook."
   },
   "editor": {
     "text_to_sql": {
@@ -869,7 +874,10 @@
       },
       "bytes_cap_body": "Estimated scan: {{estimate}} · Cap: {{limit}} ({{source}})",
       "bytes_cap_no_estimate": "no estimate",
-      "results_truncated_budget": "{{count}} rows returned (capped at your remaining data budget)"
+      "results_truncated_budget": "{{count}} rows returned (capped at your remaining data budget)",
+      "decision_hook_title": "Decision hook \"{{name}}\": {{outcome}}",
+      "decision_hook_body": "Reason: {{reason}}",
+      "decision_hook_failed_body": "The hook failed ({{failure}}), so this query was sent to human review."
     }
   },
   "reviews": {
@@ -2865,6 +2873,48 @@
       "unit_h": "{{value}} h",
       "unit_m": "{{value}} min",
       "unit_s": "{{value}} s"
+    },
+    "decision_hooks": {
+      "title": "Decision hooks",
+      "subtitle": "An external policy service consulted when no routing policy matched.",
+      "add_button": "Add hook",
+      "load_error": "Could not load decision hooks.",
+      "empty": "No decision hooks yet. Queries that match no routing policy go straight to the grant fast path and the review plan.",
+      "trust_title": "A hook can add friction, never remove it",
+      "trust_body": "The hook may allow, escalate, require more approvals or reject. It can never approve. A timeout, error, bad signature or unexpected answer sends the query to human review.",
+      "create_modal_title": "Add decision hook",
+      "edit_modal_title": "Edit decision hook · {{name}}",
+      "save_create": "Create hook",
+      "save_update": "Save changes",
+      "create_success": "Decision hook created.",
+      "update_success": "Decision hook updated.",
+      "delete_success": "Decision hook deleted.",
+      "delete_confirm_title": "Delete this decision hook?",
+      "delete_confirm_body": "Queries will no longer consult \"{{name}}\".",
+      "col_name": "Name",
+      "col_scope": "Applies to",
+      "col_timeout": "Timeout",
+      "col_include_sql": "Sends SQL",
+      "col_enabled": "Enabled",
+      "col_actions": "Actions",
+      "scope_org_default": "Organization default",
+      "timeout_value": "{{ms}} ms",
+      "label_name": "Name",
+      "label_scope": "Applies to",
+      "scope_help": "A datasource hook replaces the organization default for that datasource.",
+      "label_endpoint_url": "Endpoint URL",
+      "endpoint_help": "HTTPS only. Private and internal addresses are refused unless the deployment allows them.",
+      "label_timeout": "Timeout (ms)",
+      "timeout_help": "Between 100 and 10000. A slower answer counts as a failure.",
+      "label_secret": "Signing secret",
+      "secret_help": "At least 32 characters. Signs every request and must sign every response.",
+      "secret_keep_help": "Leave empty to keep the current secret.",
+      "label_include_sql": "Send the SQL text",
+      "label_enabled": "Enabled",
+      "include_sql_warning": "The SQL text can contain literal values such as names or account numbers. Only turn this on if the endpoint may receive them.",
+      "test_button": "Send a test request",
+      "test_answered": "The hook answered {{outcome}} in {{latency}} ms.",
+      "test_failed": "The hook failed: {{failure}} ({{latency}} ms). Queries would go to human review."
     }
   },
   "notifications": {
@@ -3776,7 +3826,8 @@
       "MASKING": "Masking",
       "BREAK_GLASS": "Break-glass",
       "BYTES_SCANNED_CAP": "Bytes-scanned cap",
-      "DATA_BUDGET": "Data budget"
+      "DATA_BUDGET": "Data budget",
+      "DECISION_HOOK": "Decision hook"
     },
     "api_decision_step": {
       "CONNECTOR_GATES": "Connector gates",
@@ -3849,6 +3900,23 @@
     "data_budget_breach_action": {
       "REQUIRE_REVIEW": "Send to human review",
       "REJECT": "Reject"
+    },
+    "decision_hook_outcome": {
+      "ALLOW": "Allow",
+      "ESCALATE": "Escalate",
+      "REQUIRE_APPROVALS": "Require approvals",
+      "REJECT": "Reject",
+      "FAILED": "Failed"
+    },
+    "decision_hook_failure": {
+      "TIMEOUT": "Timed out",
+      "TRANSPORT_ERROR": "Connection error",
+      "NON_2XX": "Error status",
+      "UNPARSEABLE": "Unreadable answer",
+      "SIGNATURE_MISMATCH": "Bad signature",
+      "INVALID_DECISION": "Invalid decision",
+      "SSRF_BLOCKED": "Address not allowed",
+      "CIRCUIT_OPEN": "Paused after repeated failures"
     }
   },
   "access": {
@@ -5839,7 +5907,16 @@
       "data_budget_remaining_bytes": "Budget bytes left",
       "data_budget_remaining_rows": "Budget rows left",
       "data_budget_suppressed": "Suppressed by the data budget",
-      "data_budget_used_percent": "Data budget used"
+      "data_budget_used_percent": "Data budget used",
+      "decision_hook_id": "Decision hook ID",
+      "decision_hook_name": "Decision hook",
+      "decision_hook_suppressed": "Held back by a failed decision hook",
+      "outcome": "Outcome",
+      "failure": "Failure",
+      "requested_approvals": "Requested approvals",
+      "http_status": "HTTP status",
+      "latency_ms": "Latency (ms)",
+      "reason": "Reason"
     },
     "use_id": "Use ID {{id}}",
     "user_id_placeholder": "Paste a user ID",

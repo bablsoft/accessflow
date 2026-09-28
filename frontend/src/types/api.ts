@@ -1512,6 +1512,8 @@ export interface QueryDetail {
   updated_at: string;
   /** The bytes-scanned cap that applied (#941); omitted when none did. */
   bytes_scanned_cap?: BytesScannedCapDetail | null;
+  /** What the external decision hook answered (#945); absent when none was consulted. */
+  decision_hook?: QueryDecisionHookResult | null;
 }
 
 /** One executed (or failed) occurrence of a recurring query series (#627). */
@@ -1555,12 +1557,87 @@ export interface ApprovedByGrant {
   expires_at: string | null;
 }
 
-/** The routing policy that auto-decided a query, surfaced on the detail timeline. */
+/** Who decided a query's routing decision (#945). */
+export type RoutingDecisionSource = 'POLICY' | 'DECISION_HOOK';
+
+/**
+ * The routing policy — or, since #945, the external decision hook — that auto-decided a query,
+ * surfaced on the detail timeline. When `source` is `DECISION_HOOK` the policy fields are null.
+ */
 export interface MatchedRoutingPolicy {
   policy_id: string | null;
   policy_name: string | null;
   action: RoutingAction;
   reason: string | null;
+  source?: RoutingDecisionSource;
+  decision_hook_id?: string | null;
+}
+
+// --- External policy decision hook (#945) ---
+
+/** What a decision hook concluded. There is deliberately no approve. */
+export type DecisionHookOutcome = 'ALLOW' | 'ESCALATE' | 'REQUIRE_APPROVALS' | 'REJECT' | 'FAILED';
+
+/** Why a decision hook call counted as FAILED — every one sends the query to human review. */
+export type DecisionHookFailure =
+  | 'TIMEOUT'
+  | 'TRANSPORT_ERROR'
+  | 'NON_2XX'
+  | 'UNPARSEABLE'
+  | 'SIGNATURE_MISMATCH'
+  | 'INVALID_DECISION'
+  | 'SSRF_BLOCKED'
+  | 'CIRCUIT_OPEN';
+
+/** `GET /admin/decision-hooks` element. The signing secret is never returned. */
+export interface DecisionHook {
+  id: string;
+  organization_id: string;
+  /** Absent for the organization default. */
+  datasource_id?: string | null;
+  name: string;
+  endpoint_url: string;
+  timeout_ms: number;
+  include_sql: boolean;
+  enabled: boolean;
+  secret_configured: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Body of `POST` / `PUT /admin/decision-hooks`. On update an omitted `secret` keeps the stored one. */
+export interface DecisionHookWriteRequest {
+  name: string;
+  datasource_id: string | null;
+  endpoint_url: string;
+  timeout_ms: number;
+  secret?: string;
+  include_sql: boolean;
+  enabled: boolean;
+}
+
+/** `POST /admin/decision-hooks/{id}/test` response. */
+export interface DecisionHookTestResult {
+  outcome: DecisionHookOutcome;
+  failure?: DecisionHookFailure | null;
+  requested_approvals?: number | null;
+  reason?: string | null;
+  http_status?: number | null;
+  latency_ms: number;
+}
+
+/** What the decision hook answered for one query, on the query detail. */
+export interface QueryDecisionHookResult {
+  decision_hook_id: string;
+  decision_hook_name: string;
+  outcome: DecisionHookOutcome;
+  failure?: DecisionHookFailure | null;
+  requested_approvals?: number | null;
+  reason?: string | null;
+  http_status?: number | null;
+  latency_ms: number;
+  evaluated_at: string;
 }
 
 /**
@@ -4518,6 +4595,7 @@ export type QueryDecisionStepKind =
   | 'BYTES_SCANNED_CAP'
   | 'DATA_BUDGET'
   | 'ROUTING_POLICIES'
+  | 'DECISION_HOOK'
   | 'GRANT_FAST_PATH'
   | 'REVIEW_PLAN'
   | 'ELIGIBLE_REVIEWERS'
