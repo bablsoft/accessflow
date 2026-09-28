@@ -86,7 +86,7 @@ Required:
 
 Optional:
 
-- `params` (Map of List of String) Rule parameters as lists of strings — `protected_table` takes `globs`, `disallowed_function` takes `names`. Omit for the twelve parameterless rules.
+- `params` (Map of List of String) Rule parameters as lists of strings — `protected_table` takes `globs`, `disallowed_function` takes `names`. Omit for the sixteen parameterless rules.
 
 ## Import
 

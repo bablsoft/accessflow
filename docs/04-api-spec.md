@@ -2493,7 +2493,7 @@ The built-in rule catalog in catalog order, localized in the request locale. Req
 ]
 ```
 
-`category` is one of `STATEMENT_SAFETY`, `PERFORMANCE`, `SCHEMA_CHANGE`, `DATA_PROTECTION`. `params` describes the rule's list-valued parameters: `key` is the JSON key inside a rule config's `params` object, `required` whether a config that supplies the rule must supply a non-empty list (a required param with non-empty `defaults` may still be omitted — `disallowed_function.names` defaults to `pg_sleep`, `sleep`, `benchmark`, `load_file`), and `value_pattern` the whole-string regular expression every entry must match. Twelve of the fourteen rules take no params.
+`category` is one of `STATEMENT_SAFETY`, `PERFORMANCE`, `SCHEMA_CHANGE`, `DATA_PROTECTION`. `params` describes the rule's list-valued parameters: `key` is the JSON key inside a rule config's `params` object, `required` whether a config that supplies the rule must supply a non-empty list (a required param with non-empty `defaults` may still be omitted — `disallowed_function.names` defaults to `pg_sleep`, `sleep`, `benchmark`, `load_file`), and `value_pattern` the whole-string regular expression every entry must match. Sixteen of the eighteen rules take no params.
 
 **Response 403:** `FORBIDDEN` — caller lacks `SQL_REVIEW_MANAGE`.
 

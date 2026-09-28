@@ -82,7 +82,7 @@ func (r *sqlReviewRulesetResource) Schema(_ context.Context, _ resource.SchemaRe
 							Optional:    true,
 							ElementType: sqlReviewRuleParamsType,
 							MarkdownDescription: "Rule parameters as lists of strings — `protected_table` takes `globs`, " +
-								"`disallowed_function` takes `names`. Omit for the twelve parameterless rules.",
+								"`disallowed_function` takes `names`. Omit for the sixteen parameterless rules.",
 						},
 					},
 				},

@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.sqlreview.internal;
 
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.sqlreview.api.SqlRuleCategory;
+import com.bablsoft.accessflow.sqlreview.internal.rules.CreateIndexWithoutConcurrentlyRule;
 import com.bablsoft.accessflow.sqlreview.internal.rules.DmlWithoutTransactionRule;
 import com.bablsoft.accessflow.sqlreview.internal.rules.LeadingWildcardLikeRule;
 import com.bablsoft.accessflow.sqlreview.internal.rules.MissingWhereOnDeleteRule;
@@ -39,7 +41,7 @@ class SqlReviewEvaluatorTest {
                 ResolvedRule.defaults(new DmlWithoutTransactionRule()),
                 new ResolvedRule(new NoLineRule(), SqlReviewSeverity.WARN, Map.of()));
 
-        var result = evaluator.evaluate(List.of(second, first), rules);
+        var result = evaluator.evaluate(DbType.POSTGRESQL, List.of(second, first), rules);
 
         assertThat(result.applicable()).isTrue();
         assertThat(result.findings()).extracting(SqlReviewFinding::statementIndex, SqlReviewFinding::lineNumber,
@@ -60,7 +62,7 @@ class SqlReviewEvaluatorTest {
                 new ResolvedRule(counting, SqlReviewSeverity.OFF, Map.of()),
                 new ResolvedRule(new SelectStarRule(), SqlReviewSeverity.BLOCK, Map.of()));
 
-        var result = evaluator.evaluate(List.of(statement(0, "SELECT * FROM t")), rules);
+        var result = evaluator.evaluate(DbType.POSTGRESQL, List.of(statement(0, "SELECT * FROM t")), rules);
 
         assertThat(counting.applications).isZero();
         assertThat(result.findings()).singleElement().satisfies(f -> {
@@ -76,8 +78,8 @@ class SqlReviewEvaluatorTest {
                 ResolvedRule.defaults(new ExplodingRule()),
                 ResolvedRule.defaults(new SelectStarRule()));
 
-        var result = evaluator.evaluate(List.of(statement(0, "SELECT * FROM t"), statement(1, "SELECT * FROM u")),
-                rules);
+        var result = evaluator.evaluate(DbType.POSTGRESQL,
+                List.of(statement(0, "SELECT * FROM t"), statement(1, "SELECT * FROM u")), rules);
 
         assertThat(result.findings()).extracting(SqlReviewFinding::ruleId).containsExactly("select_star", "select_star");
     }
@@ -91,7 +93,7 @@ class SqlReviewEvaluatorTest {
                 ResolvedRule.defaults(new MissingWhereOnDeleteRule()),
                 ResolvedRule.defaults(new DmlWithoutTransactionRule()));
 
-        var result = evaluator.evaluate(statements, rules);
+        var result = evaluator.evaluate(DbType.POSTGRESQL, statements, rules);
 
         assertThat(statements).hasSize(3);
         assertThat(result.findings()).singleElement().satisfies(f -> {
@@ -103,11 +105,22 @@ class SqlReviewEvaluatorTest {
 
     @Test
     void noRulesOrNoStatementsIsClean() throws JSQLParserException {
-        assertThat(evaluator.evaluate(List.of(statement(0, "SELECT * FROM t")), List.of()).findings()).isEmpty();
-        assertThat(evaluator.evaluate(List.of(), List.of(ResolvedRule.defaults(new SelectStarRule()))).findings())
-                .isEmpty();
-        assertThat(evaluator.evaluate(List.of(statement(0, "SELECT 1")), List.of(ResolvedRule.defaults(new NullRule())))
+        assertThat(evaluator.evaluate(DbType.POSTGRESQL, List.of(statement(0, "SELECT * FROM t")), List.of())
                 .findings()).isEmpty();
+        assertThat(evaluator.evaluate(DbType.POSTGRESQL, List.of(),
+                List.of(ResolvedRule.defaults(new SelectStarRule()))).findings()).isEmpty();
+        assertThat(evaluator.evaluate(DbType.POSTGRESQL, List.of(statement(0, "SELECT 1")),
+                List.of(ResolvedRule.defaults(new NullRule()))).findings()).isEmpty();
+    }
+
+    @Test
+    void aRuleThatDoesNotApplyToTheDialectIsNeverApplied() throws JSQLParserException {
+        var rules = List.of(ResolvedRule.defaults(new CreateIndexWithoutConcurrentlyRule()));
+        var statements = List.of(statement(0, "CREATE INDEX ix ON t (c)"));
+
+        assertThat(evaluator.evaluate(DbType.MYSQL, statements, rules).findings()).isEmpty();
+        assertThat(evaluator.evaluate(DbType.POSTGRESQL, statements, rules).findings())
+                .extracting(SqlReviewFinding::ruleId).containsExactly("create_index_without_concurrently");
     }
 
     /** Fires on every statement with no line, to exercise the nulls-last ordering. */

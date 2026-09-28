@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.sqlreview.internal.rules;
 
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.sqlreview.api.SqlRuleCategory;
@@ -28,9 +29,18 @@ public interface SqlRule {
     /** The severity applied when the resolved ruleset has no config row for this rule. */
     SqlReviewSeverity defaultSeverity();
 
-    /** The parameters this rule accepts; empty for the twelve parameterless rules. */
+    /** The parameters this rule accepts; empty for the sixteen parameterless rules. */
     default List<SqlRuleParam> params() {
         return List.of();
+    }
+
+    /**
+     * Whether this rule is evaluated for a datasource of {@code dbType} (#1079). Only ever asked
+     * about the relational dialects; a dialect-specific rule narrows it, and the evaluator skips it
+     * elsewhere exactly as if it were {@code OFF}.
+     */
+    default boolean appliesTo(DbType dbType) {
+        return true;
     }
 
     /**

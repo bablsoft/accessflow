@@ -2133,8 +2133,9 @@ timeout, signature verification, parsing — with a synthetic payload (`test: tr
 
 The third way a query is judged, next to AI analysis and routing policies: a **named, deterministic
 rule catalog** evaluated over the JSqlParser AST, with a per-rule severity (`OFF` / `WARN` /
-`BLOCK`) that an admin sets per environment. #862 ships the engine and the fourteen built-in rules
-behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; #863 the REST
+`BLOCK`) that an admin sets per environment. #862 ships the engine and the fourteen original
+built-in rules (#1079 adds four structured-DDL rules, eighteen in all) behind
+`sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; #863 the REST
 surface (below); #864 the enforcement at the submission chokepoint (`BLOCK` suppresses every
 auto-approve path and forces `PENDING_REVIEW` — it **never** rejects; see "Submission enforcement"
 below); the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
@@ -2148,7 +2149,10 @@ including one added later) returns `SqlReviewResult.notApplicable()` — `applic
 findings — before the SQL is parsed or a ruleset is loaded. This is deliberately not fail-closed: an
 engine with no rule support must never make its queries harder to approve than they are today. The
 gate is an explicit allow-list rather than `QueryEngineCatalog.isEngineManaged()`, which reads the
-connector manifest and answers *false* for a type without one.
+connector manifest and answers *false* for a type without one. Within the allow-list a rule may
+narrow itself with `SqlRule.appliesTo(DbType)` (default `true`, #1079); `SqlReviewEvaluator.evaluate(dbType, …)`
+skips a rule that does not apply exactly like an `OFF` one. Only `create_index_without_concurrently`
+narrows itself (to `POSTGRESQL`).
 
 **Ruleset resolution.** datasource → its `environment` → the ruleset bound to that environment →
 else the organization-wide default (`environment IS NULL`) → else no rules (an applicable, empty
@@ -2178,9 +2182,10 @@ the output — and therefore the persisted rows and the editor diagnostics — i
 **The SPI.** `sqlreview/internal/rules/SqlRule` — `ruleId()`, `category()`
 (`sqlreview.api.SqlRuleCategory`), `defaultSeverity()`, `params()` (declared `SqlRuleParam`s: key,
 required, defaults), `messageArgKeys()` (the finding `args` keys in the order they bind to `{0}`,
-`{1}`… of `sqlreview.rule.<id>.message`) and `apply(SqlRuleContext, params)`. It is internal, not
+`{1}`… of `sqlreview.rule.<id>.message`), `appliesTo(DbType)` (dialect narrowing, #1079) and
+`apply(SqlRuleContext, params)`. It is internal, not
 `api`, because implementations import JSqlParser. Rules are plain classes; `SqlRuleCatalog` is the
-one bean that knows the fourteen, in catalog order. The expression-level rules share
+one bean that knows the eighteen, in catalog order. The expression-level rules share
 `StatementWalker`, a `TablesNamesFinder` subclass that records every `Function`, `LikeExpression`,
 `PlainSelect` and `Table` it traverses — select list, FROM/JOIN, WHERE, HAVING, UPDATE SET,
 INSERT…SELECT, every subquery — and additionally descends into GROUP BY, ORDER BY, LIMIT and OFFSET
@@ -2190,7 +2195,7 @@ not hide a banned function). `TableNames.normalize` mirrors the proxy's `normali
 heuristic; `protected_table` matches through the shared `core.api.GlobMatcher` (which #862 also made
 the single glob matcher behind routing-policy, API-governance and deployment version globs).
 
-**The catalog.** All fourteen are AST-only — no schema introspection, no datasource connection.
+**The catalog.** All eighteen are AST-only — no schema introspection, no datasource connection.
 
 | Rule id | Fires when | `args` (message order) | Default | Category |
 |---|---|---|---|---|
@@ -2208,9 +2213,13 @@ the single glob matcher behind routing-policy, API-governance and deployment ver
 | `disallowed_function` | a call to a banned function anywhere in the statement, matched on the unqualified, case-insensitive name (`pg_catalog.PG_SLEEP(5)` is caught by `pg_sleep`). Param `names`; absent or empty falls back to the built-in `pg_sleep`, `sleep`, `benchmark`, `load_file` | `function` | BLOCK | STATEMENT_SAFETY |
 | `protected_table` | a referenced table matches a configured glob (`payroll.*`, `*.audit_log`), tried against the normalised `schema.table` name **and** the bare table name, so `audit_log` also matches `public.audit_log`; one finding per table with the first matching glob. Param `globs`; absent or empty → no findings | `table`, `glob` | BLOCK | DATA_PROTECTION |
 | `dml_without_transaction` | `INSERT` / `UPDATE` / `DELETE` submitted outside a `BEGIN…COMMIT` envelope (the parser's `transactional` flag) | — | WARN | STATEMENT_SAFETY |
+| `add_not_null_column_without_default` | `ALTER TABLE … ADD [COLUMN] c <type> NOT NULL` with no `DEFAULT` (#1079), one per column; identity / `AUTO_INCREMENT` / `IDENTITY(…)` / `serial` columns exempt. JSqlParser 5.4 keeps column constraints as a token list, read by the package-private `ColumnDefinitions` helper | `column` | WARN | SCHEMA_CHANGE |
+| `create_index_without_concurrently` | `CREATE [UNIQUE] INDEX` without `CONCURRENTLY` (`CreateIndex.isConcurrently()`, #1079). `appliesTo` = `POSTGRESQL` only | `table` | WARN | SCHEMA_CHANGE |
+| `alter_column_type` | an in-place redefinition carrying a type — `ALTER COLUMN c TYPE …` (PG), `ALTER COLUMN c <type>` (SQL Server), `MODIFY` / `CHANGE` (MySQL, reported under the old name), `MODIFY (…)` (Oracle); one per column (#1079). Narrowing is not decidable from the AST (only the new type is known), so every redefinition is reported | `column`, `type` | WARN | SCHEMA_CHANGE |
+| `set_not_null_on_existing_column` | `ALTER COLUMN c SET NOT NULL` (`getColumnSetNotNullList()`), or Oracle's type-less `MODIFY c NOT NULL`; one per column (#1079) | `column` | WARN | SCHEMA_CHANGE |
 
-`DROP DATABASE` is listed for the spec but unreachable: JSqlParser 5.3 does not parse it, so the
-proxy rejects it with 422 before any rule runs.
+`DROP DATABASE` was unreachable under JSqlParser 5.3, which did not parse it; 5.4 (#1077) parses it
+as DDL, so it now reaches `drop_statement`.
 
 **Params and write-time validation.** `params` is a JSON object of string arrays
 (`{"names": [...]}`, `{"globs": [...]}`) — `sqlreview.api.SqlReviewRuleConfigView.params` is
@@ -2285,7 +2294,7 @@ also cover configured / empty / absent params), the anti-defeat pair (`UPDATE �
 silent for `missing_where_on_update` and caught by `where_always_true`), `SqlReviewEvaluatorTest`
 (ordering, `OFF`, re-stamping, a throwing rule, envelope indices), `DefaultSqlReviewServiceTest`
 (the full resolution chain and the non-relational guard, which asserts the parser and repositories
-are never touched), `SqlRuleCatalogTest` (fourteen unique ids, every id has its three message keys,
+are never touched), `SqlRuleCatalogTest` (eighteen unique ids, every id has its three message keys,
 `messageArgKeys` equals the args each rule emits). #863 adds `DefaultSqlReviewRulesetServiceTest`
 (create / update / delete, both conflicts, the raced unique violation, validation-before-mutation),
 `DefaultSqlReviewRuleCatalogServiceTest`, `DefaultSqlReviewFindingRendererTest`, the controller /

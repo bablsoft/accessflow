@@ -24,7 +24,7 @@ class DefaultSqlReviewRuleCatalogServiceTest {
     void listsEveryRuleInCatalogOrderWithItsIdentity() {
         var views = service.rules(Locale.ENGLISH);
 
-        assertThat(views).hasSize(14);
+        assertThat(views).hasSize(18);
         assertThat(views).extracting(SqlReviewRuleView::ruleId)
                 .containsExactlyElementsOf(catalog.rules().stream().map(rule -> rule.ruleId()).toList());
         var protectedTable = views.stream().filter(v -> v.ruleId().equals("protected_table")).findFirst().orElseThrow();

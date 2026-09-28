@@ -62,7 +62,7 @@
         "description": "AccessFlow and hoop.dev compared from hoop.dev's own docs: a proxy you submit statements to versus a gateway your clients connect through, and where hoop.dev wins.",
         "inLanguage": "en",
         "datePublished": "2026-09-16",
-        "dateModified": "2026-09-16",
+        "dateModified": "2026-09-28",
         "url": "https://accessflow.io/compare/accessflow-vs-hoop-dev/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": {
@@ -312,7 +312,7 @@
                 <tr><td>Just-in-time, time-bound access</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: self-service requests, automatic expiry, optional pre-approval of covered queries</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: a connection request with a duration, approved in Slack, Teams or the web app, expiring on its own</td></tr>
                 <tr><td>Break-glass with mandatory retro-review</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: per-user, per-datasource, admins included; every admin is paged; a different admin must sign off afterwards</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>Can requesters approve their own request</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Never, on any channel, for any role</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
-                <tr><td>Written SQL review rules</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>14 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Guardrails: an ordered deny list by operation, table, substring, regex or detected entity; the free tier allows one rule per process</td></tr>
+                <tr><td>Written SQL review rules</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>18 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Guardrails: an ordered deny list by operation, table, substring, regex or detected entity; the free tier allows one rule per process</td></tr>
                 <tr><td>Column masking</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: full, partial, hash, email and format-preserving strategies; admins are masked too unless explicitly revealed</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: gateway live masking through Presidio, Google DLP or its own engine; the sidecar masks five entity types in responses</td></tr>
                 <tr><td>Row-level security</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: the statement is rewritten with a parameter-bound predicate, failing closed where an engine cannot</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>Result export controls</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: allow, watermark, row cap or deny per datasource</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
@@ -343,7 +343,7 @@
           <h2>Where AccessFlow is the better fit</h2>
           <ul class="compare-fit">
             <li><strong>You want a decision before execution, for everything.</strong> Every statement goes through routing and, unless a policy or a covering grant says otherwise, through a review plan with named stages and a minimum number of approvers per stage; nobody can approve their own request from any channel.</li>
-            <li><strong>Your rules should be written down and predictable.</strong> Fourteen named checks with a severity per environment, a block that always puts a person in front of the query and never silently rejects it, and, for routing, masking and row rules, a simulator that replays your own past queries to show what a draft would have changed.</li>
+            <li><strong>Your rules should be written down and predictable.</strong> Eighteen named checks with a severity per environment, a block that always puts a person in front of the query and never silently rejects it, and, for routing, masking and row rules, a simulator that replays your own past queries to show what a draft would have changed.</li>
             <li><strong>Row-level and export controls matter.</strong> AccessFlow rewrites the query so a user only gets the rows they are cleared for, and can watermark, cap or deny a download; hoop.dev documents masking but not row rewriting or export governance.</li>
             <li><strong>Auditors will ask how you know the log is intact.</strong> Keyed hash chaining, an append-only database role, a verify endpoint, signed PDF and CSV reports, and a write-once S3 sink with signed segments.</li>
             <li><strong>Provisioning and infrastructure as code.</strong> SCIM 2.0 user and group lifecycle and an official Terraform provider are included; neither is documented for hoop.dev.</li>
@@ -375,7 +375,7 @@
 
         <section class="docs-section scroll-pad" id="sources">
           <h2>Sources</h2>
-          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <p>Checked on <time datetime="2026-09-28">28 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
           <ul class="docs-link-list">
             <li><a href="https://github.com/hoophq/hoop" rel="nofollow noopener">hoop.dev repository</a> — the MIT licence, the sidecar and gateway positioning, and the supported protocol table</li>
             <li><a href="https://hoop.dev/pricing" rel="nofollow noopener">hoop.dev pricing</a> — the open-source tier, its per-process rule caps and the Enterprise licence</li>
