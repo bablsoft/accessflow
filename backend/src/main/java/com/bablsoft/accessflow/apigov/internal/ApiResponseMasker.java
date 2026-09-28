@@ -256,14 +256,21 @@ public class ApiResponseMasker {
             if (hasGroup && matcher.group(1) != null) {
                 var prefix = body.substring(matcher.start(), matcher.start(1));
                 var suffix = body.substring(matcher.end(1), matcher.end());
-                var masked = ColumnMasker.apply(mask.strategy(), matcher.group(1), mask.params());
+                var masked = textOrEmpty(ColumnMasker.apply(mask.strategy(), matcher.group(1),
+                        mask.params()));
                 matcher.appendReplacement(out, Matcher.quoteReplacement(prefix + masked + suffix));
             } else {
-                var masked = ColumnMasker.apply(mask.strategy(), matcher.group(), mask.params());
+                var masked = textOrEmpty(ColumnMasker.apply(mask.strategy(), matcher.group(),
+                        mask.params()));
                 matcher.appendReplacement(out, Matcher.quoteReplacement(masked));
             }
         }
         matcher.appendTail(out);
         return out.toString();
+    }
+
+    /** NULLIFY yields {@code null}; inside a raw text body that becomes the empty string. */
+    private static String textOrEmpty(String masked) {
+        return masked == null ? "" : masked;
     }
 }

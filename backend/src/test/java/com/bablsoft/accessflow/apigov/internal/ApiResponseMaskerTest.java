@@ -152,6 +152,58 @@ class ApiResponseMaskerTest {
     }
 
     @Test
+    void nullifyYieldsJsonNull() {
+        var body = "{\"user\":{\"ssn\":\"123456789\"}}";
+
+        var masked = masker.mask(body, "application/json", List.of(
+                mask(ApiMaskingMatcherType.JSON_PATH, "user.ssn", MaskingStrategy.NULLIFY, Map.of())));
+
+        assertThat(masked).contains("\"ssn\":null").doesNotContain("123456789");
+    }
+
+    @Test
+    void nullifyInsideRegexBodyBecomesEmptyText() {
+        var body = "token=abc123 end";
+
+        var masked = masker.mask(body, "text/plain", List.of(
+                mask(ApiMaskingMatcherType.REGEX, "abc123", MaskingStrategy.NULLIFY, Map.of())));
+
+        assertThat(masked).isEqualTo("token= end");
+    }
+
+    @Test
+    void nullifyInsideRegexCapturingGroupKeepsSurroundingText() {
+        var body = "{\"card\":\"4111111111111111\"}";
+
+        var masked = masker.mask(body, "text/plain", List.of(
+                mask(ApiMaskingMatcherType.REGEX, "\"card\":\"(\\d+)\"", MaskingStrategy.NULLIFY,
+                        Map.of())));
+
+        assertThat(masked).isEqualTo("{\"card\":\"\"}");
+    }
+
+    @Test
+    void nullifyEmptiesXmlElement() {
+        var body = "<user><ssn>123456789</ssn></user>";
+
+        var masked = masker.mask(body, "application/xml", List.of(
+                mask(ApiMaskingMatcherType.XML_PATH, "//ssn", MaskingStrategy.NULLIFY, Map.of())));
+
+        assertThat(masked).doesNotContain("123456789");
+    }
+
+    @Test
+    void keepFirstAppliesToJsonLeaf() {
+        var body = "{\"phone\":\"0912345678\"}";
+
+        var masked = masker.mask(body, "application/json", List.of(
+                mask(ApiMaskingMatcherType.JSON_PATH, "phone", MaskingStrategy.KEEP_FIRST,
+                        Map.of("visible_prefix", "4"))));
+
+        assertThat(masked).contains("\"phone\":\"0912******\"");
+    }
+
+    @Test
     void legacyRestrictedFieldHelperFullMasks() {
         var body = "{\"ssn\":\"123\"}";
 

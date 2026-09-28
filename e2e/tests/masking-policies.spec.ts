@@ -192,4 +192,57 @@ test.describe.serial('dynamic data masking policies (AF-381)', () => {
     await expect(page.getByText('Masking policy saved')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('public.demo.secret').first()).toBeVisible({ timeout: 10_000 });
   });
+
+  // ── 4. Configurable strategy: KEEP_FIRST with a live preview (#944) ───────
+  test('admin configures a KEEP_FIRST policy with a live preview', async ({ page }) => {
+    if (!datasource) throw new Error('datasource not created in beforeAll');
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/datasources/${datasource.id}/settings`);
+    await page.getByRole('tab', { name: /Masking/ }).click();
+    await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Add policy' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('combobox').first().fill('public.demo.phone');
+    await dialog.getByLabel('Sample value').click();
+
+    await dialog.getByLabel('Strategy').click();
+    await page.getByTitle('Keep first N', { exact: true }).click();
+    await dialog.getByLabel('Visible prefix length').fill('4');
+    await dialog.getByLabel('Sample value').fill('0912345678');
+    await expect(dialog.getByTestId('masking-preview-output')).toHaveText('0912******');
+
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Masking policy saved')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('public.demo.phone').first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ── 5. A malformed regex is rejected when the policy is saved (#944) ──────
+  test('a malformed REGEX_REPLACE pattern is rejected on save', async ({ page }) => {
+    if (!datasource) throw new Error('datasource not created in beforeAll');
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/datasources/${datasource.id}/settings`);
+    await page.getByRole('tab', { name: /Masking/ }).click();
+    await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: 'Add policy' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('combobox').first().fill('public.demo.card');
+    await dialog.getByLabel('Sample value').click();
+
+    await dialog.getByLabel('Strategy').click();
+    await page.getByTitle('Regex replace', { exact: true }).click();
+    await dialog.getByLabel('Pattern (Java regular expression)').fill('(unclosed');
+    await dialog.getByLabel('Replacement template').fill('x');
+
+    const saveResponse = page.waitForResponse(
+      (r) => r.request().method() === 'POST' && /\/masking-policies$/.test(r.url()),
+    );
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    expect((await saveResponse).status()).toBe(422);
+    await expect(page.getByText(/regular expression is not valid/)).toBeVisible({ timeout: 10_000 });
+    await expect(dialog).toBeVisible();
+  });
 });

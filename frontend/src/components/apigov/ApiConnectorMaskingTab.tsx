@@ -4,14 +4,12 @@ import {
   Button,
   Form,
   Input,
-  InputNumber,
   Modal,
   Select,
   Switch,
   Table,
   Tag,
   Tooltip,
-  Typography,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -42,7 +40,13 @@ import {
   maskingStrategyLabel,
 } from '@/utils/enumLabels';
 import { roleSelectOptions } from '@/utils/roleOptions';
-import { maskingPreview } from '@/utils/maskingPreview';
+import { MaskingPreviewPanel } from '@/components/masking/MaskingPreviewPanel';
+import { MaskingStrategyParamsFields } from '@/components/masking/MaskingStrategyParamsFields';
+import {
+  formValuesFromStrategyParams,
+  strategyParamsFromForm,
+  type StrategyParamFormValues,
+} from '@/utils/maskingStrategyParams';
 import { userDisplay } from '@/utils/userDisplay';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
@@ -243,12 +247,11 @@ function RevealSummary({ policy }: { policy: ApiConnectorMaskingPolicy }) {
   return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
 }
 
-interface MaskingFormValues {
+interface MaskingFormValues extends StrategyParamFormValues {
   matcher_type: ApiMaskingMatcherType;
   operation_id?: string;
   field_ref: string;
   strategy: MaskingStrategy;
-  visible_suffix?: number | null;
   reveal_to_roles?: string[];
   reveal_to_group_ids?: string[];
   reveal_to_user_ids?: string[];
@@ -269,7 +272,10 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
   const [form] = Form.useForm<MaskingFormValues>();
   const matcherType = Form.useWatch('matcher_type', form);
   const strategy = Form.useWatch('strategy', form);
-  const visibleSuffix = Form.useWatch('visible_suffix', form);
+  const previewParams = Form.useWatch(
+    (values: MaskingFormValues) => strategyParamsFromForm(values.strategy, values),
+    form,
+  );
   const [sample, setSample] = useState('jane.doe@example.com');
 
   const operationsQuery = useQuery({
@@ -326,13 +332,12 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
   useEffect(() => {
     if (!open) return;
     if (policy) {
-      const suffix = policy.strategy_params?.visible_suffix;
       form.setFieldsValue({
         matcher_type: policy.matcher_type,
         operation_id: policy.operation_id ?? undefined,
         field_ref: policy.field_ref,
         strategy: policy.strategy,
-        visible_suffix: suffix != null && suffix !== '' ? Number(suffix) : undefined,
+        ...formValuesFromStrategyParams(policy.strategy_params),
         reveal_to_roles: policy.reveal_to_roles,
         reveal_to_group_ids: policy.reveal_to_group_ids,
         reveal_to_user_ids: policy.reveal_to_user_ids,
@@ -361,10 +366,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
   });
 
   const onFinish = (values: MaskingFormValues) => {
-    const params =
-      values.strategy === 'PARTIAL' && values.visible_suffix != null
-        ? { visible_suffix: String(values.visible_suffix) }
-        : undefined;
+    const params = strategyParamsFromForm(values.strategy, values);
     saveMutation.mutate({
       matcher_type: values.matcher_type,
       operation_id: values.matcher_type === 'SCHEMA_FIELD' ? values.operation_id : undefined,
@@ -377,12 +379,6 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
       enabled: values.enabled,
     });
   };
-
-  const previewValue = maskingPreview(
-    strategy ?? 'FULL',
-    sample,
-    visibleSuffix != null ? { visible_suffix: String(visibleSuffix) } : undefined,
-  );
 
   return (
     <Modal
@@ -451,22 +447,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           <Select<MaskingStrategy> options={enumOptions(MASKING_STRATEGIES, maskingStrategyLabel, t)} />
         </Form.Item>
 
-        {strategy === 'PARTIAL' && (
-          <Form.Item
-            name="visible_suffix"
-            label={t('apiGov.settings.masking.label_visible_suffix')}
-            rules={[
-              {
-                type: 'number',
-                min: 1,
-                max: 256,
-                message: t('apiGov.settings.masking.visible_suffix_range'),
-              },
-            ]}
-          >
-            <InputNumber min={1} max={256} style={{ width: 160 }} />
-          </Form.Item>
-        )}
+        <MaskingStrategyParamsFields strategy={strategy} />
 
         <Form.Item name="reveal_to_roles" label={t('apiGov.settings.masking.label_reveal_roles')}>
           <Select<string[]>
@@ -502,21 +483,14 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           <Switch />
         </Form.Item>
 
-        <div style={{ padding: '10px 12px', background: 'var(--bg-sunken)', borderRadius: 6 }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
-            {t('apiGov.settings.masking.preview_label')}
-          </div>
-          <Input
-            size="small"
-            value={sample}
-            onChange={(e) => setSample(e.target.value)}
-            aria-label={t('apiGov.settings.masking.preview_sample')}
-            style={{ marginBottom: 8 }}
-          />
-          <Typography.Text className="mono" copyable={previewValue !== ''}>
-            {previewValue === '' ? '—' : previewValue}
-          </Typography.Text>
-        </div>
+        <MaskingPreviewPanel
+          strategy={strategy}
+          params={previewParams}
+          sample={sample}
+          onSampleChange={setSample}
+          label={t('apiGov.settings.masking.preview_label')}
+          sampleAriaLabel={t('apiGov.settings.masking.preview_sample')}
+        />
       </Form>
     </Modal>
   );

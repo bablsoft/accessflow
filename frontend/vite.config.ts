@@ -138,6 +138,8 @@ export default defineConfig({
         'src/components/datasources/ErDiagramTab.tsx',
         'src/components/datasources/erDiagramLayout.ts',
         'src/components/datasources/policySimulationSummaries.ts',
+        'src/components/masking/MaskingStrategyParamsFields.tsx',
+        'src/components/masking/MaskingPreviewPanel.tsx',
         'src/components/editor/useQueryAuthoring.ts',
         'src/components/editor/sqlReviewDiagnostics.ts',
         'src/components/editor/SqlEditor.tsx',

@@ -40,6 +40,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -188,6 +189,17 @@ class DefaultApiConnectorMaskingAdminServiceTest {
 
         assertThatThrownBy(() -> service.create(connectorId, orgId, command))
                 .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+    }
+
+    @Test
+    void createRejectsMalformedRegexWithLocalizedParamsError() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.JSON_PATH,
+                null, "a", MaskingStrategy.REGEX_REPLACE, Map.of("pattern", "(unclosed", "replacement", "x"),
+                List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.create(connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.masking_params.pattern_invalid"), any(), any());
     }
 
     @Test

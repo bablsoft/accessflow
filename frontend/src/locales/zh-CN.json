@@ -1303,7 +1303,6 @@
         "label_column_ref": "列",
         "placeholder_column_ref": "schema.table.column",
         "label_strategy": "策略",
-        "label_visible_suffix": "可见后缀长度",
         "label_reveal_roles": "揭示给角色",
         "label_reveal_groups": "揭示给组",
         "label_reveal_users": "揭示给用户",
@@ -1313,7 +1312,6 @@
         "column_required": "必须指定目标列",
         "column_max": "目标列最多 512 个字符",
         "strategy_required": "需要脱敏策略",
-        "visible_suffix_range": "可见后缀必须在 1 到 256 之间",
         "save_success": "脱敏策略已保存",
         "save_error": "保存脱敏策略失败",
         "delete_success": "脱敏策略已删除",
@@ -3250,7 +3248,18 @@
       "PARTIAL": "部分（保留末 N 位）",
       "HASH": "哈希（SHA-256）",
       "EMAIL": "保留邮箱格式",
-      "FORMAT_PRESERVING": "保留格式"
+      "FORMAT_PRESERVING": "保留格式",
+      "KEEP_FIRST": "保留前 N 位",
+      "CONSTANT": "常量",
+      "NULLIFY": "置为 NULL",
+      "REGEX_REPLACE": "正则替换",
+      "NUMERIC_BUCKET": "数值分桶",
+      "DATE_GENERALIZE": "日期泛化"
+    },
+    "masking_date_precision": {
+      "YEAR": "年",
+      "QUARTER": "季度",
+      "MONTH": "月"
     },
     "routing_action": {
       "AUTO_APPROVE": "自动批准",
@@ -4578,8 +4587,6 @@
         "field_hint_regex": "响应体上的正则表达式；将对第一个捕获组进行脱敏。",
         "label_strategy": "脱敏策略",
         "strategy_required": "需要脱敏策略",
-        "label_visible_suffix": "可见后缀长度",
-        "visible_suffix_range": "请输入 1 到 256 之间的整数",
         "label_reveal_roles": "揭示给角色",
         "label_reveal_groups": "揭示给组",
         "label_reveal_users": "揭示给用户",
@@ -5940,5 +5947,33 @@
     },
     "window_minutes_one": "{{count}} 分钟",
     "window_minutes_other": "{{count}} 分钟"
+  },
+  "maskingParams": {
+    "label_visible_suffix": "可见后缀长度",
+    "label_visible_prefix": "可见前缀长度",
+    "visible_length_range": "请输入 1 到 {{max}} 之间的整数",
+    "label_constant_replacement": "替换值",
+    "placeholder_constant_replacement": "REDACTED",
+    "constant_replacement_required": "请输入替换值",
+    "replacement_max": "替换内容不得超过 {{max}} 个字符",
+    "label_pattern": "模式（Java 正则表达式）",
+    "pattern_required": "请输入模式",
+    "pattern_max": "模式不得超过 {{max}} 个字符",
+    "label_regex_replacement": "替换模板",
+    "regex_help": "使用 $1 或 ${name} 引用捕获组。模式未匹配的值将被完全脱敏。",
+    "label_bucket_mode": "分桶方式",
+    "bucket_mode_size": "固定桶大小",
+    "bucket_mode_boundaries": "显式边界",
+    "label_bucket_size": "桶大小",
+    "bucket_size_invalid": "请输入正数",
+    "label_boundaries": "边界",
+    "boundaries_invalid": "请输入 1 到 {{max}} 个严格递增、以逗号分隔的数字",
+    "numeric_help": "非数值的值将被完全脱敏。",
+    "label_precision": "精度",
+    "precision_required": "请选择精度",
+    "date_help": "不以 yyyy-MM 日期开头的值将被完全脱敏。",
+    "nullify_help": "每个值都以 NULL 返回，而不是脱敏标记。",
+    "preview_null": "NULL",
+    "preview_regex_note": "预览使用浏览器的正则引擎；以服务器的 Java 引擎结果为准。"
   }
 }

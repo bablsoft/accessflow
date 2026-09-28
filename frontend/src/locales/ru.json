@@ -1303,7 +1303,6 @@
         "label_column_ref": "Столбец",
         "placeholder_column_ref": "схема.таблица.столбец",
         "label_strategy": "Стратегия",
-        "label_visible_suffix": "Длина видимого суффикса",
         "label_reveal_roles": "Раскрыть для ролей",
         "label_reveal_groups": "Раскрыть для групп",
         "label_reveal_users": "Раскрыть для пользователей",
@@ -1313,7 +1312,6 @@
         "column_required": "Требуется целевой столбец",
         "column_max": "Целевой столбец должен содержать не более 512 символов",
         "strategy_required": "Требуется стратегия маскирования",
-        "visible_suffix_range": "Видимый суффикс должен быть от 1 до 256",
         "save_success": "Политика маскирования сохранена",
         "save_error": "Не удалось сохранить политику маскирования",
         "delete_success": "Политика маскирования удалена",
@@ -3250,7 +3248,18 @@
       "PARTIAL": "Частичное (оставить последние N)",
       "HASH": "Хеш (SHA-256)",
       "EMAIL": "С сохранением e-mail",
-      "FORMAT_PRESERVING": "С сохранением формата"
+      "FORMAT_PRESERVING": "С сохранением формата",
+      "KEEP_FIRST": "Оставить первые N",
+      "CONSTANT": "Константа",
+      "NULLIFY": "Заменить на NULL",
+      "REGEX_REPLACE": "Замена по regex",
+      "NUMERIC_BUCKET": "Числовые интервалы",
+      "DATE_GENERALIZE": "Обобщение даты"
+    },
+    "masking_date_precision": {
+      "YEAR": "Год",
+      "QUARTER": "Квартал",
+      "MONTH": "Месяц"
     },
     "routing_action": {
       "AUTO_APPROVE": "Автоодобрение",
@@ -4578,8 +4587,6 @@
         "field_hint_regex": "Регулярное выражение по телу ответа; маскируется первая группа захвата.",
         "label_strategy": "Стратегия маскирования",
         "strategy_required": "Требуется стратегия маскирования",
-        "label_visible_suffix": "Длина видимого суффикса",
-        "visible_suffix_range": "Введите целое число от 1 до 256",
         "label_reveal_roles": "Раскрыть для ролей",
         "label_reveal_groups": "Раскрыть для групп",
         "label_reveal_users": "Раскрыть для пользователей",
@@ -5940,5 +5947,33 @@
     },
     "window_minutes_one": "{{count}} минута",
     "window_minutes_other": "{{count}} мин"
+  },
+  "maskingParams": {
+    "label_visible_suffix": "Длина видимого суффикса",
+    "label_visible_prefix": "Длина видимого префикса",
+    "visible_length_range": "Введите целое число от 1 до {{max}}",
+    "label_constant_replacement": "Значение замены",
+    "placeholder_constant_replacement": "REDACTED",
+    "constant_replacement_required": "Введите значение замены",
+    "replacement_max": "Замена должна содержать не более {{max}} символов",
+    "label_pattern": "Шаблон (регулярное выражение Java)",
+    "pattern_required": "Введите шаблон",
+    "pattern_max": "Шаблон должен содержать не более {{max}} символов",
+    "label_regex_replacement": "Шаблон замены",
+    "regex_help": "Ссылайтесь на группы через $1 или ${name}. Значение, не совпавшее с шаблоном, маскируется полностью.",
+    "label_bucket_mode": "Группировка",
+    "bucket_mode_size": "Фиксированный размер интервала",
+    "bucket_mode_boundaries": "Явные границы",
+    "label_bucket_size": "Размер интервала",
+    "bucket_size_invalid": "Введите положительное число",
+    "label_boundaries": "Границы",
+    "boundaries_invalid": "Введите от 1 до {{max}} чисел в строго возрастающем порядке через запятую",
+    "numeric_help": "Нечисловые значения маскируются полностью.",
+    "label_precision": "Точность",
+    "precision_required": "Выберите точность",
+    "date_help": "Значения, не начинающиеся с даты yyyy-MM, маскируются полностью.",
+    "nullify_help": "Каждое значение возвращается как NULL вместо маски.",
+    "preview_null": "NULL",
+    "preview_regex_note": "Предпросмотр выполнен движком regex браузера; решающим является Java-движок сервера."
   }
 }

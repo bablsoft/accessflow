@@ -117,9 +117,12 @@ class JdbcResultRowMapper {
 
     private Object maskValue(ResultSet rs, int index, ColumnMaskResolver.AppliedMask mask)
             throws SQLException {
-        if (mask.strategy() == com.bablsoft.accessflow.core.api.MaskingStrategy.FULL) {
-            // Never materialize the raw value for full masking — only check for NULL.
-            return rs.getObject(index) == null && rs.wasNull() ? null : ColumnMasker.FULL_MASK;
+        if (!ColumnMasker.readsRawValue(mask.strategy())) {
+            // Never materialize the raw value when the output does not depend on it — only
+            // check for NULL (FULL, CONSTANT, NULLIFY).
+            return rs.getObject(index) == null && rs.wasNull()
+                    ? null
+                    : ColumnMasker.applyWithoutValue(mask.strategy(), mask.params());
         }
         var raw = rs.getString(index);
         if (raw == null && rs.wasNull()) {

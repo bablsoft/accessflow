@@ -166,6 +166,16 @@ class DefaultMaskingPolicyAdminServiceTest {
     }
 
     @Test
+    void createRejectsMalformedRegexWithLocalizedParamsError() {
+        var command = new CreateMaskingPolicyCommand("col", MaskingStrategy.REGEX_REPLACE,
+                Map.of("pattern", "(unclosed", "replacement", "x"), List.of(), List.of(), List.of(), true);
+
+        assertThatThrownBy(() -> service.create(datasourceId, orgId, command))
+                .isInstanceOf(IllegalMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.masking_params.pattern_invalid"), any(), any());
+    }
+
+    @Test
     void createRejectsUnknownRevealRole() {
         var command = new CreateMaskingPolicyCommand("col", MaskingStrategy.FULL, Map.of(),
                 List.of("WIZARD"), List.of(), List.of(), true);
