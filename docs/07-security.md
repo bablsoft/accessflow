@@ -1103,9 +1103,34 @@ nothing changes.
 **conditional reveal** evaluated per query submitter. Same trust posture — a defense-in-depth
 value-rendering control, not an access boundary:
 
-- **Strategies:** `FULL` (`***`, the legacy behaviour), `PARTIAL` (keep last N chars), `HASH` (stable
-  SHA-256 hex — same input always yields the same digest, enabling correlation without disclosure),
-  `EMAIL` (`j***@domain`), `FORMAT_PRESERVING` (preserve length/shape).
+- **Strategies** (configurable by parameters, never by code — #944):
+
+  | Strategy | `strategy_params` | Output | Fails closed when |
+  |---|---|---|---|
+  | `FULL` | — | `***` (the legacy behaviour; the raw value is never read) | — |
+  | `PARTIAL` | `visible_suffix` 1–256 (default 4) | keep the last N chars | — (a value no longer than N becomes one `*` per character) |
+  | `KEEP_FIRST` | `visible_prefix` 1–256 (default 4) | keep the first N chars: `0912******` | — (a value no longer than N becomes one `*` per character) |
+  | `HASH` | `salt` (optional; set by lifecycle pseudonymization) | stable SHA-256 hex — same input, same digest, enabling correlation without disclosure | — |
+  | `EMAIL` | — | `j***@domain` | the value is not email-shaped |
+  | `FORMAT_PRESERVING` | — | digits → `*`, letters → `x`, separators kept | — |
+  | `CONSTANT` | `replacement` 1–256 chars | the constant (e.g. `REDACTED`); the raw value is never read | — |
+  | `NULLIFY` | — | `null` (distinct from `FULL`'s sentinel); the raw value is never read | — |
+  | `REGEX_REPLACE` | `pattern` ≤ 512, `replacement` ≤ 256 (`$n` / `${name}`) | `replaceAll` over the value | **no match** (or only empty matches), a backtracking budget is exceeded, the value is over 4,096 chars or the output over 8,192, or any regex error |
+  | `NUMERIC_BUCKET` | exactly one of `bucket_size` (> 0) or `boundaries` (1–50 strictly ascending, comma-separated) | floor to a multiple (`54321` → `50000`), or a band (`<18`, `[18, 30)`, `>=65`) | the value is not a number, or exceeds 1,000 digits of precision or scale |
+  | `DATE_GENERALIZE` | `precision` `YEAR` \| `QUARTER` \| `MONTH` | `1987`, `1987-Q2`, `1987-05` | the value does not start with a `yyyy-MM` date |
+
+  **Why configuration and not a masking SPI.** A plugin would run user-supplied code on every value of
+  every governed result, inside the one path whose job is keeping raw values in. Parameterised
+  strategies cover the common requests with none of those failure modes, and every one of them
+  **fails closed**: a value a strategy cannot apply to is rendered as `***`, never passed through — the
+  reason an unmatched `REGEX_REPLACE` value is masked rather than returned unchanged. `java.util.regex`
+  has no timeout, so the regex is evaluated over a character sequence that aborts after a fixed read
+  budget; catastrophic backtracking costs one `***`, not a stalled query. Parameters are validated
+  **when the policy is saved** (`core.api.MaskingStrategyParamsValidator`, shared by datasource and
+  API-connector masking): a malformed regex, a pattern that matches the empty string (it would
+  match every value without masking it), a replacement referencing a group the pattern does not
+  define, an unknown precision, or a parameter the strategy does not accept is a `422` with a specific,
+  localized detail — never a failure during someone's query.
 - **Reveal is explicit only.** A submitter sees the unmasked value only when their role, one of their
   group ids, or their user id is listed in the policy's `reveal_to_*` columns. There is **no implicit
   ADMIN bypass** — admins are masked too unless explicitly revealed, so the rule is fully expressed in

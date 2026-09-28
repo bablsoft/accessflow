@@ -227,7 +227,11 @@ column, a mask/tag targets it four ways via the `api_masking_matcher_type` enum:
   match when there is none) is masked.
 
 **Masking policies** (`api_connector_masking_policy`, admin CRUD under
-`/api-connectors/{id}/masking-policies`) carry a `MaskingStrategy` + `strategy_params` and
+`/api-connectors/{id}/masking-policies`) carry a `MaskingStrategy` + `strategy_params` (every strategy
+of the SQL path, including the configurable `REGEX_REPLACE` / `CONSTANT` / `NULLIFY` / `KEEP_FIRST` /
+`NUMERIC_BUCKET` / `DATE_GENERALIZE` of #944, validated at save time by the same
+`MaskingStrategyParamsValidator`; `NULLIFY` renders a JSON leaf as `null`, empties an XML node, and
+removes the matched text of a `REGEX` matcher) and
 `reveal_to_roles`/`reveal_to_group_ids`/`reveal_to_user_ids`. `ApiConnectorMaskingResolutionService`
 resolves the policies that *apply* to a submitter (a requester in any reveal list sees the unmasked
 value — same precedence as the SQL path, resolved via `core.api.UserQueryService` +

@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-28",
       "url": "https://accessflow.io/docs/configuration/connectors/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/connectors/",
       "image": "https://accessflow.io/og-image.png",
@@ -269,7 +269,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Connectors.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -436,7 +436,8 @@
             redact response fields before the snapshot is stored. Because API responses aren't columnar,
             a policy targets a field four ways — a <em>schema field</em> (operation + field from the
             parsed catalog), a <em>JSON path</em>, an <em>XML path</em> (XPath), or a <em>regex</em> —
-            each with a masking strategy (full, partial, hash, email, format-preserving) and
+            each with a masking strategy (full, partial, hash, email, format-preserving, keep first N,
+            constant, nullify, regex replace, numeric bucket, date generalization) and
             role / group / user <em>reveal</em> scoping (a requester in a reveal list sees the unmasked
             value; no implicit admin bypass). <em>Data-classification tags</em> (PII, PCI, PHI, GDPR,
             FINANCIAL, SENSITIVE) on a field auto-derive a masking policy and raise the AI risk score for

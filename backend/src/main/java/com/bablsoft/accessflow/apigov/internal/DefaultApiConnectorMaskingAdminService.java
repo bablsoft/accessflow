@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorMa
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorMaskingPolicyRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.MaskingStrategyParamsValidator;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,6 @@ import java.util.UUID;
 class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdminService {
 
     private static final TypeReference<Map<String, Object>> PARAMS_TYPE = new TypeReference<>() {};
-    private static final int MAX_VISIBLE_SUFFIX = 256;
 
     private final ApiConnectorMaskingPolicyRepository policyRepository;
     private final RoleLookupService roleLookupService;
@@ -159,24 +159,9 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
     }
 
     private void validateParams(MaskingStrategy strategy, Map<String, String> params) {
-        if (strategy != MaskingStrategy.PARTIAL || params == null) {
-            return;
-        }
-        var suffix = params.get("visible_suffix");
-        if (suffix == null || suffix.isBlank()) {
-            return;
-        }
-        int value;
-        try {
-            value = Integer.parseInt(suffix.trim());
-        } catch (NumberFormatException ex) {
-            throw new IllegalApiConnectorMaskingPolicyException(
-                    msg("error.api_masking_policy_invalid_visible_suffix"));
-        }
-        if (value < 1 || value > MAX_VISIBLE_SUFFIX) {
-            throw new IllegalApiConnectorMaskingPolicyException(
-                    msg("error.api_masking_policy_invalid_visible_suffix"));
-        }
+        MaskingStrategyParamsValidator.validate(strategy, params).ifPresent(violation -> {
+            throw new IllegalApiConnectorMaskingPolicyException(msg(violation.messageKey(), violation.argsArray()));
+        });
     }
 
     private List<String> normalizeRoles(UUID organizationId, List<String> roles) {

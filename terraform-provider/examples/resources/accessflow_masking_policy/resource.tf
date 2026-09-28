@@ -13,3 +13,12 @@ resource "accessflow_masking_policy" "mask_ssn" {
     visible_suffix = "4"
   }
 }
+
+resource "accessflow_masking_policy" "phone_prefix" {
+  datasource_id = accessflow_datasource.prod_postgres.id
+  column_ref    = "public.users.phone"
+  strategy      = "KEEP_FIRST"
+  strategy_params = {
+    visible_prefix = "4"
+  }
+}

@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.MaskingPolicyAdminService;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyView;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.MaskingStrategyParamsValidator;
 import com.bablsoft.accessflow.core.api.UpdateMaskingPolicyCommand;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
@@ -33,7 +34,6 @@ import java.util.UUID;
 class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
 
     private static final TypeReference<Map<String, Object>> PARAMS_TYPE = new TypeReference<>() {};
-    private static final int MAX_VISIBLE_SUFFIX = 256;
 
     private final MaskingPolicyRepository maskingPolicyRepository;
     private final RoleRepository roleRepository;
@@ -140,22 +140,9 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
     }
 
     private void validateParams(MaskingStrategy strategy, Map<String, String> params) {
-        if (strategy != MaskingStrategy.PARTIAL || params == null) {
-            return;
-        }
-        var suffix = params.get("visible_suffix");
-        if (suffix == null || suffix.isBlank()) {
-            return;
-        }
-        int value;
-        try {
-            value = Integer.parseInt(suffix.trim());
-        } catch (NumberFormatException ex) {
-            throw new IllegalMaskingPolicyException(msg("error.masking_policy_invalid_visible_suffix"));
-        }
-        if (value < 1 || value > MAX_VISIBLE_SUFFIX) {
-            throw new IllegalMaskingPolicyException(msg("error.masking_policy_invalid_visible_suffix"));
-        }
+        MaskingStrategyParamsValidator.validate(strategy, params).ifPresent(violation -> {
+            throw new IllegalMaskingPolicyException(msg(violation.messageKey(), violation.argsArray()));
+        });
     }
 
     private List<String> normalizeRoles(UUID organizationId, List<String> roles) {

@@ -52,6 +52,7 @@ import type {
   DbType,
   InvitationStatus,
   ExportPolicyMode,
+  MaskingDatePrecision,
   MaskingStrategy,
   OAuth2Provider,
   OptimizationType,
@@ -255,7 +256,22 @@ export const MASKING_STRATEGIES: readonly MaskingStrategy[] = [
   'HASH',
   'EMAIL',
   'FORMAT_PRESERVING',
+  'KEEP_FIRST',
+  'CONSTANT',
+  'NULLIFY',
+  'REGEX_REPLACE',
+  'NUMERIC_BUCKET',
+  'DATE_GENERALIZE',
 ] as const;
+
+export const MASKING_DATE_PRECISIONS: readonly MaskingDatePrecision[] = [
+  'YEAR',
+  'QUARTER',
+  'MONTH',
+] as const;
+
+export const maskingDatePrecisionLabel = (t: TFunction, v: MaskingDatePrecision): string =>
+  t(`enums.masking_date_precision.${v}` as const);
 
 export const maskingStrategyLabel = (t: TFunction, v: MaskingStrategy): string =>
   t(`enums.masking_strategy.${v}` as const);
