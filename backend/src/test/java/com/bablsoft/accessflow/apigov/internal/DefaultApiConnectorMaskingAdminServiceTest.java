@@ -41,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -164,6 +165,71 @@ class DefaultApiConnectorMaskingAdminServiceTest {
     }
 
     @Test
+    void createRejectsInvalidXPathFieldRef() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.XML_PATH,
+                null, "//user[", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.create(connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.api_masking_policy_invalid_xpath"),
+                eq(new Object[]{"//user["}), any());
+        verify(policyRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsXPathThatDoesNotSelectNodes() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.XML_PATH,
+                null, "count(//ssn)", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.create(connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.api_masking_policy_invalid_xpath"), any(), any());
+    }
+
+    @Test
+    void createAcceptsValidXPathFieldRef() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.XML_PATH,
+                null, " //user/ssn | //user/@card ", MaskingStrategy.FULL, Map.of(), List.of(), List.of(),
+                List.of(), null);
+
+        var view = service.create(connectorId, orgId, command);
+
+        assertThat(view.fieldRef()).isEqualTo("//user/ssn | //user/@card");
+    }
+
+    @Test
+    void createRejectsInvalidRegexFieldRef() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.REGEX,
+                null, "\\d{3}-(\\d{4", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.create(connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.api_masking_policy_invalid_regex"), any(), any());
+        verify(policyRepository, never()).save(any());
+    }
+
+    @Test
+    void createAcceptsValidRegexFieldRef() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.REGEX,
+                null, "\"ssn\":\"(\\d{3}-\\d{2}-\\d{4})\"", MaskingStrategy.FULL, Map.of(), List.of(),
+                List.of(), List.of(), null);
+
+        var view = service.create(connectorId, orgId, command);
+
+        assertThat(view.matcherType()).isEqualTo(ApiMaskingMatcherType.REGEX);
+    }
+
+    @Test
+    void createDoesNotSyntaxCheckJsonPathFieldRef() {
+        var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.JSON_PATH,
+                null, "user[", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        var view = service.create(connectorId, orgId, command);
+
+        assertThat(view.fieldRef()).isEqualTo("user[");
+    }
+
+    @Test
     void createRejectsNullStrategy() {
         var command = new CreateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.JSON_PATH,
                 null, "a", null, Map.of(), List.of(), List.of(), List.of(), null);
@@ -262,6 +328,39 @@ class DefaultApiConnectorMaskingAdminServiceTest {
         assertThat(view.matcherType()).isEqualTo(ApiMaskingMatcherType.REGEX);
         assertThat(view.fieldRef()).isEqualTo("new");
         assertThat(view.enabled()).isFalse();
+    }
+
+    @Test
+    void updateRejectsInvalidXPathFieldRef() {
+        var policyId = UUID.randomUUID();
+        var existing = entity(ApiMaskingMatcherType.XML_PATH, "//ssn");
+        existing.setId(policyId);
+        when(policyRepository.findByIdAndOrganizationIdAndConnectorId(policyId, orgId, connectorId))
+                .thenReturn(Optional.of(existing));
+        var command = new UpdateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.XML_PATH, null,
+                "//ssn[@", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.update(policyId, connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        assertThat(existing.getFieldRef()).isEqualTo("//ssn");
+        verify(policyRepository, never()).save(any());
+    }
+
+    @Test
+    void updateRejectsInvalidRegexFieldRef() {
+        var policyId = UUID.randomUUID();
+        var existing = entity(ApiMaskingMatcherType.REGEX, "\\d+");
+        existing.setId(policyId);
+        when(policyRepository.findByIdAndOrganizationIdAndConnectorId(policyId, orgId, connectorId))
+                .thenReturn(Optional.of(existing));
+        var command = new UpdateApiConnectorMaskingPolicyCommand(ApiMaskingMatcherType.REGEX, null,
+                "[a-z", MaskingStrategy.FULL, Map.of(), List.of(), List.of(), List.of(), null);
+
+        assertThatThrownBy(() -> service.update(policyId, connectorId, orgId, command))
+                .isInstanceOf(IllegalApiConnectorMaskingPolicyException.class);
+        verify(messageSource).getMessage(eq("error.api_masking_policy_invalid_regex"),
+                eq(new Object[]{"[a-z"}), any());
+        verify(policyRepository, never()).save(any());
     }
 
     @Test

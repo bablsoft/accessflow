@@ -242,6 +242,20 @@ XPath masks to XML bodies, regex over whatever remains — reusing `core.api.Col
 body is masked **once**, before the snapshot is stored, so the raw value never persists. Applied
 policy ids are recorded on the `API_REQUEST_EXECUTED` audit metadata.
 
+**Field references are validated on write (#1110).** Create and update reject, with `422
+ILLEGAL_API_MASKING_POLICY`, an `XML_PATH` or `REGEX` field reference the masker could not evaluate,
+so a typo is caught when the policy is saved rather than showing up as redacted responses.
+`ApiMaskingFieldRefValidator` evaluates an `XML_PATH` with `XPathFactory` (secure processing on) to a
+node-set against an empty document. That is the same evaluation the masker runs, so it also rejects
+expressions that compile but do not select nodes, such as `count(//ssn)`. It also rejects namespace
+prefixes (`//ns:ssn`), because response bodies are parsed without namespace awareness and a prefixed
+step never matches, and `$variables`, because the masker binds none and evaluation would throw. A
+`REGEX` must compile with `java.util.regex.Pattern`. `SCHEMA_FIELD` and `JSON_PATH` references are only
+checked for blank. The admin form runs the same check in the browser: the browser's XPath engine for
+`XML_PATH`, and a JavaScript `RegExp` for `REGEX`, after rewriting Java-only syntax such as `(?i)` and
+possessive quantifiers. The server's check is the authoritative one. Classification tags that derive
+a masking policy do not run this check yet.
+
 **Classification tags** (`api_connector_classification_tag`, admin CRUD under
 `/api-connectors/{id}/classification-tags`) tag a field (`operation_id` + `field_ref` + matcher) with
 PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE. Tagging auto-derives a masking policy from

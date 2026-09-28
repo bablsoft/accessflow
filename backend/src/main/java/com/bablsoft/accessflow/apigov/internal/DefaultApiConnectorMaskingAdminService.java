@@ -64,6 +64,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
         var matcherType = requireMatcherType(command.matcherType());
         var operationId = requireOperationFor(matcherType, command.operationId());
         var fieldRef = requireFieldRef(command.fieldRef());
+        validateFieldRefSyntax(matcherType, fieldRef);
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
         var roles = normalizeRoles(organizationId, command.revealToRoles());
@@ -93,6 +94,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
         var matcherType = requireMatcherType(command.matcherType());
         var operationId = requireOperationFor(matcherType, command.operationId());
         var fieldRef = requireFieldRef(command.fieldRef());
+        validateFieldRefSyntax(matcherType, fieldRef);
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
         var roles = normalizeRoles(organizationId, command.revealToRoles());
@@ -149,6 +151,12 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
             throw new IllegalApiConnectorMaskingPolicyException(msg("error.api_masking_policy_field_required"));
         }
         return fieldRef.trim();
+    }
+
+    private void validateFieldRefSyntax(ApiMaskingMatcherType matcherType, String fieldRef) {
+        ApiMaskingFieldRefValidator.validate(matcherType, fieldRef).ifPresent(key -> {
+            throw new IllegalApiConnectorMaskingPolicyException(msg(key, fieldRef));
+        });
     }
 
     private MaskingStrategy requireStrategy(MaskingStrategy strategy) {
