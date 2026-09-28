@@ -1857,7 +1857,8 @@ caller's language.
 #### The simulation
 
 `workflow.internal.DefaultAccessSimulationService` reconstructs the whole journey of a hypothetical
-request as fourteen ordered steps, delegating stages 5–10 (`SQL_REVIEW` through `REVIEW_PLAN`) to the
+request as fifteen ordered steps, delegating stages 5–11 (`SQL_REVIEW` through `REVIEW_PLAN`, with the
+decision hook named but never called — #945) to the
 evaluator wholesale and owning the rest.
 A stage that did not apply is reported as `SKIP`, never omitted, so a client renders a stable checklist
 and a missing stage is always a bug.
@@ -2002,6 +2003,85 @@ For `REQUIRE_APPROVALS` / `ESCALATE`, the resolved absolute count is written to 
 **Skip / failure paths.** On the AI-skipped path (`datasource.ai_analysis_enabled = false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal, so risk-gated policies simply don't match and the query continues to non-risk policies or the plan fall-through. Routing is **not** run on the AI-failure path (`AiAnalysisFailedEvent`) — a missing AI signal never feeds an automated routing decision; the query lands in `PENDING_REVIEW` for a human, consistent with the auto-approve asymmetry above.
 
 **Audit.** Automated decisions reuse the `QUERY_APPROVED` / `QUERY_REJECTED` audit actions with metadata `{ auto_approved | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`. A `REQUIRE_APPROVALS` / `ESCALATE` match records the same matched-policy metadata (`source: "ROUTING_POLICY", routing_policy_id, effective_min_approvals, reason`) on the `QUERY_REVIEW_REQUESTED` action — the `QueryReadyForReviewEvent` carries the matched-policy fields for the routed-to-review path (AF-446). Policy CRUD writes the dedicated `ROUTING_POLICY_CREATED` / `_UPDATED` / `_DELETED` / `_REORDERED` actions against the `routing_policy` resource type. The engine reads / writes the new `routing_policy` and `routing_decision` tables (Flyway `V59__create_routing_policy.sql`).
+
+### External decision hook (#945)
+
+Policy-as-code covers what decomposes into the typed operands. For everything else an operator can
+point AccessFlow at their own decision service — an OPA sidecar, an in-house policy API — through an
+**outbound, HMAC-signed HTTP hook**. It is deliberately not an in-process plugin: user code in the
+enforcement path fails in quiet, dangerous ways, while an HTTP call has an explicit timeout, an
+explicit failure mode and no shared memory with the enforcement logic. Admin API:
+[docs/04-api-spec.md → External Decision Hooks](04-api-spec.md#external-decision-hooks-admindecision-hooks-routing_policy_manage-945).
+Tables: [`decision_hooks`, `decision_hook_results`](03-data-model.md#decision_hooks-945). Trust
+model and SSRF rules: [docs/07-security.md](07-security.md#external-decision-hook-trust-model-945).
+
+**Where it runs.** `QueryDecisionEvaluator` consults the hook through a `DecisionHookInvoker`
+parameter, in exactly one place: after the bytes-scanned cap, the data budget and the AI-failure
+fallback, **after `RoutingPolicyEngine` found no match**, and **immediately before the grant-covered
+fast path**. So a matched local policy always short-circuits the hook — the hook can never weaken an
+explicit policy — while the hook can hold back a grant approval that would otherwise have gone
+through. A refusal by the cap or the budget, and the AI-failure path, never reach it. The trace gains
+a `DECISION_HOOK` step between `ROUTING_POLICIES` and `GRANT_FAST_PATH`.
+
+**Resolution.** The datasource's own hook, else the organization default, else none
+(`DecisionHookGateway.applicable`). A disabled datasource hook means "no hook" for that datasource;
+it does not fall through to the default.
+
+**Outcomes.** A strict subset of the routing actions — there is no approve, so a compromised or
+misconfigured endpoint can add friction and never remove it:
+
+| Hook answer | Effect | `QueryDecisionKind` |
+|---|---|---|
+| `ALLOW` | None. The grant fast path and the review plan decide as if no hook existed. | the grant / plan kind |
+| `ESCALATE` (`approvals` 1–10, default 1) | `PENDING_REVIEW` with plan minimum + `approvals` | `DECISION_HOOK_ESCALATE` |
+| `REQUIRE_APPROVALS` (`approvals` 1–10) | `PENDING_REVIEW` with **`max(approvals, plan minimum)`** — clamped, so a hook can raise the bar but never lower it | `DECISION_HOOK_REQUIRE_APPROVALS` |
+| `REJECT` | `REJECTED` | `DECISION_HOOK_REJECT` |
+| anything that is not a well-formed, correctly signed 2xx answer carrying one of the four | `FAILED`: the hook joins the auto-approve **guard** (next to a SQL review `BLOCK`, the bytes-cap no-estimate review and an exhausted data budget), so the grant fast path and the plan's own approvals are suppressed and the query lands in `PENDING_REVIEW` at the plan minimum | the plan kind, `suppressed_decision_hook` in the trace |
+
+The three deciding answers are persisted through `RoutingDecisionService.applyHookDecision` as a
+`routing_decision` row with `source = DECISION_HOOK`, the hook id, no policy, and the routing action
+they map onto (`AUTO_REJECT` / `ESCALATE` / `REQUIRE_APPROVALS`) — so `DefaultReviewService` honours
+the approval-count override unchanged. `applyHookDecision` refuses `AUTO_APPROVE` outright. Every live
+consult, whatever it answered, is recorded in `decision_hook_results` and audited as
+`QUERY_DECISION_HOOK_EVALUATED` (system-attributed); a rejection or escalation also carries
+`source: "DECISION_HOOK"` on the usual `QUERY_REJECTED` / `QUERY_REVIEW_REQUESTED` row, via the
+`decisionHookId` on `QueryAutoRejectedEvent` / `QueryReadyForReviewEvent`.
+
+**Fail closed.** `DecisionHookClient` turns every one of these into `FAILED` and never throws:
+timeout (`TIMEOUT` — the whole call, headers *and* body, under one deadline; a slow-drip body is cut
+off by closing its stream), connection / TLS / DNS error (`TRANSPORT_ERROR`), any status outside 2xx
+including a 3xx — redirects are never followed (`NON_2XX`), a body over 64 KiB, unparseable, or
+not echoing the request's `request_id` (`UNPARSEABLE`), a missing or wrong response signature
+(`SIGNATURE_MISMATCH`), a decision outside the four or a missing / out-of-range approval count
+(`INVALID_DECISION` — `AUTO_APPROVE` lands here), an address the SSRF guard refuses at call time
+(`SSRF_BLOCKED`), and an open circuit (`CIRCUIT_OPEN`). A stored secret that no longer decrypts
+(a rotated `ENCRYPTION_KEY`) is reported as `TRANSPORT_ERROR` rather than thrown, so the query is
+never stranded in `PENDING_AI`.
+
+**Wire contract.** `POST` with `X-AccessFlow-Event: QUERY_DECISION`, `X-AccessFlow-Delivery:
+<request_id>` and `X-AccessFlow-Signature: sha256=<hex>` over the raw body — the notification-webhook
+contract. The response must carry the same header over its own raw body, keyed with the same secret,
+and echo `request_id`, which binds the answer to this request so a captured answer cannot be
+replayed. The payload (`DecisionHookPayloadFactory`) carries submitter identity and groups,
+datasource, query type, referenced tables, shapes, AI verdict, cost estimate and client context; the
+SQL text only when the hook has `include_sql` on. The exact shape is in the API spec.
+
+**Circuit breaker and latency budget.** `DecisionHookCircuitBreaker` is in-memory and per JVM, like
+`ReplicaHealthRegistry`: `circuit-failure-threshold` consecutive failures (default 5) open the
+circuit for `circuit-open-duration` (default `PT30S`), during which every consult fails closed to
+human review **without a call**; then exactly one caller is let through as a half-open trial. An
+update or delete of the hook resets it. The worst case a submission pays is therefore the hook's
+`timeout_ms` (100–10000, default 2000) until the breaker opens — on a path that already waits for an
+LLM. The call runs inside the decision listener's transaction, bounded by that same timeout.
+
+**Simulators never call out.** The access simulator passes `DecisionHookGateway.simulation()`, which
+names the hook that would apply and reports the `DECISION_HOOK` step as `SKIP` with
+`workflow.decision.hook.simulation`; the outcome is computed as if the hook had allowed. The routing
+policy simulator replays policies only and does not model the hook.
+
+**Test endpoint.** `POST /admin/decision-hooks/{id}/test` runs the full client — address check,
+timeout, signature verification, parsing — with a synthetic payload (`test: true`,
+`X-AccessFlow-Event: QUERY_DECISION_TEST`), bypassing and not feeding the circuit breaker.
 
 ### Deterministic SQL review rules (`sqlreview`, #862)
 

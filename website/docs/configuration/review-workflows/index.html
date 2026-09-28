@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-25",
+      "dateModified": "2026-09-28",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -226,6 +226,7 @@
             <p class="docs-toc-label">Review workflows</p>
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-routing-policies">Routing policies</a>
+            <a href="#cfg-decision-hooks">External decision hook</a>
             <a href="#cfg-sql-review">SQL review rules</a>
             <a href="#cfg-attestation">Access recertification campaigns</a>
             <a href="#cfg-access-explainer">Effective-access explainer</a>
@@ -273,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-25">25 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -581,6 +582,72 @@ APPROVED → FAILED (execution error)</pre>
           </div>
 
           <!-- AI -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-decision-hooks">External decision hook</h2>
+          <p>
+            <strong>What it is.</strong> A way to plug your own decision logic into routing when a
+            rule does not fit the routing-policy builder. You run a small web service — an
+            <a href="https://www.openpolicyagent.org/" rel="noopener">Open Policy Agent</a> sidecar or an
+            in-house policy service — and AccessFlow asks it about every query that <strong>no routing
+            policy matched</strong>, just before a standing access grant or the review plan gets to
+            approve it. A policy that matched always wins, so the hook can never overrule a rule you
+            wrote in AccessFlow.
+          </p>
+          <p>
+            <strong>What it can answer.</strong> <em>Allow</em> (no objection — the grant and the review
+            plan decide as usual), <em>Escalate</em> (send the query to reviewers and add approvals on
+            top of the plan's minimum), <em>Require approvals</em> (send it to reviewers with at least
+            this many approvals — never fewer than the plan already asks for) or <em>Reject</em>. There
+            is deliberately no <em>approve</em>: a hook can add checks, never remove them, so a broken
+            or compromised service cannot wave queries through.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Open <code>/admin/decision-hooks</code> (the <em>Decision
+            hooks</em> entry in the <em>Security</em> nav group, next to <em>Routing policies</em>) and
+            click <em>Add hook</em>:
+          </p>
+          <ol>
+            <li><strong>Name it and choose where it applies</strong> — the whole organisation, or one
+            datasource. A datasource's own hook replaces the organisation-wide one for that datasource;
+            switching it off means that datasource has no hook at all.</li>
+            <li><strong>Enter the endpoint URL.</strong> It must be <code>https://</code>. Addresses inside
+            your own network — <code>localhost</code>, private ranges, the cloud metadata address — are
+            refused, because the URL is typed by an admin and called from inside your network. If your
+            policy service runs next to AccessFlow (an OPA sidecar on <code>http://localhost:8181</code>,
+            say), set <code>ACCESSFLOW_WORKFLOW_DECISION_HOOK_ALLOW_PRIVATE_NETWORK=true</code> on the
+            backend; that also allows plain <code>http://</code>.</li>
+            <li><strong>Set the timeout</strong> (100–10,000&nbsp;ms, default 2,000). A slower answer counts
+            as a failure.</li>
+            <li><strong>Set a signing secret</strong> of at least 32 characters. AccessFlow signs every
+            request with it exactly like <a href="/docs/configuration/notifications/">webhook
+            notifications</a> (<code>X-AccessFlow-Signature: sha256=…</code>), and your service must sign
+            its answer the same way. The secret is stored encrypted and never shown again; leave it
+            empty when editing to keep it.</li>
+            <li><strong>Decide whether to send the SQL.</strong> By default the request carries who is
+            asking, the datasource, the query type, the tables it touches, the AI risk verdict, the
+            cost estimate and where the request came from — but <em>not</em> the SQL text, which can
+            contain real values such as names or account numbers. Turn on <em>Send the SQL text</em>
+            only if your service may see them.</li>
+            <li><strong>Click the test button</strong> to send a signed test request and see what your
+            service answered, or why it failed, before any real query depends on it.</li>
+          </ol>
+          <div class="docs-callout info">
+            <strong>When the service fails, a person decides.</strong> A timeout, a connection error,
+            an error status, a redirect, an answer that is not signed with your secret, an answer that
+            is not one of the four above — all of them send the query to human review, never through.
+            After five failures in a row AccessFlow stops calling the service for 30 seconds and sends
+            everything straight to review, so a service that is down cannot slow every submission; both
+            numbers are configurable (<code>ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_FAILURE_THRESHOLD</code>,
+            <code>ACCESSFLOW_WORKFLOW_DECISION_HOOK_CIRCUIT_OPEN_DURATION</code>). Every answer is shown on
+            the query's detail page and recorded in the
+            <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>
+            (<code>QUERY_DECISION_HOOK_EVALUATED</code>). The
+            <a href="#cfg-access-explainer">effective-access explainer</a> names the hook that would
+            apply but never calls it. You can also manage hooks with the
+            <a href="/docs/iac/">Terraform provider</a> (<code>accessflow_decision_hook</code>).
+          </div>
         </section>
 
 <section class="docs-section">
