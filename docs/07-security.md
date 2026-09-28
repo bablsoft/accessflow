@@ -1121,6 +1121,17 @@ value-rendering control, not an access boundary:
   entry would apply to the same column; a `restricted_columns` entry with no covering policy is
   unchanged (backward compatible).
 
+### Aggregate disclosure — what masking does not bound
+
+Masking, row caps and row-level security bound the rows and values a query **returns**, not what it
+**discloses**. `SELECT COUNT(*) FROM customer WHERE national_id = '…'` returns one unmasked number and
+still confirms a specific person, because masking acts on output values only — a masked column can be
+filtered on, grouped by and aggregated over. If a column must not be probed, **deny** it
+([`denied_columns`](#denied-columns--block-not-mask-935), #935, which checks every column position including predicates and aggregate
+arguments); mask it only when seeing it in rendered form is acceptable. The minimum-group-size design,
+its explicit non-goals and the detect-first recommendation are in
+[docs/21-aggregate-disclosure.md](21-aggregate-disclosure.md) (design, #943 — not implemented).
+
 ### API connector response masking & classification (AF-518)
 
 `api_connector_masking_policy` brings the same model to API-connector responses (the apigov module),
