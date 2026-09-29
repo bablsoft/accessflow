@@ -4505,6 +4505,15 @@
       "not_yet_observed": "Aún no hay historial suficiente",
       "last_used": "Último uso {{date}}",
       "scope_ratio": "{{used}}/{{granted}} del alcance"
+    },
+    "row_limit": {
+      "hint": "El límite de filas que esta persona obtiene realmente: la menor anulación entre sus permisos directos y de grupo, limitada por el límite del origen de datos y el tope de la instalación.",
+      "configured_applies": "Configurado {{configured}} · se aplica {{effective}} ({{source}})",
+      "applies": "Se aplica {{effective}} ({{source}})",
+      "source_grant": "este permiso",
+      "source_group": "grupo {{name}}",
+      "source_datasource_cap": "límite del origen de datos",
+      "source_global_ceiling": "tope de la instalación"
     }
   },
   "over_provisioned": {

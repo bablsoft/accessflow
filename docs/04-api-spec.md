@@ -3261,6 +3261,15 @@ when the subject no longer exists) and, for a service account, `subject_owner_em
 a robot's grant and the human accountable for it instead of revoking what they do not recognise.
 The evidence CSV keeps its snapshot columns only.
 
+Items also carry row-limit evidence frozen at campaign open (#1084): `row_limit_override` (the
+reviewed grant's own configured cap, `null` when it sets none), `effective_row_limit` (the cap the
+proxy actually applies to the subject — the smallest live override across their direct and group
+grants, clamped by the datasource `max_rows_per_query` and `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`),
+and `row_limit_source` — `grant`, `group:<name>`, `datasource_cap` or `global_ceiling`. The last two
+are `null` on items snapshotted before this evidence existed. The evidence CSV adds the same three
+columns (`row_limit_override`, `effective_row_limit`, `row_limit_source`) after
+`permission_expires_at`, empty for `null`.
+
 ### Attestation Error Codes
 
 | Status | `error` code | Cause |

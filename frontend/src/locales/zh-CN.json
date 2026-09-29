@@ -4505,6 +4505,15 @@
       "not_yet_observed": "历史数据尚不足",
       "last_used": "最近使用 {{date}}",
       "scope_ratio": "范围内 {{used}}/{{granted}}"
+    },
+    "row_limit": {
+      "hint": "此人实际获得的行数限制：其直接授权和组授权中最小的覆盖值，并受数据源限制和部署上限约束。",
+      "configured_applies": "配置 {{configured}} · 实际 {{effective}}（{{source}}）",
+      "applies": "实际 {{effective}}（{{source}}）",
+      "source_grant": "此授权",
+      "source_group": "组 {{name}}",
+      "source_datasource_cap": "数据源限制",
+      "source_global_ceiling": "部署上限"
     }
   },
   "over_provisioned": {

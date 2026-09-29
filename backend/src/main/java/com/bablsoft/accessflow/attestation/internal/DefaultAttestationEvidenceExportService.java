@@ -20,11 +20,13 @@ import java.util.UUID;
 class DefaultAttestationEvidenceExportService implements AttestationEvidenceExportService {
 
     // The usage_* columns (#625) are the evidence a reviewer saw at decision time — an auditor
-    // asking "why was this certified?" needs the same picture, not today's usage.
+    // asking "why was this certified?" needs the same picture, not today's usage. Likewise the
+    // row-limit columns (#1084): the grant's own value next to the limit that actually applied.
     private static final String[] HEADER = {
             "item_id", "campaign_id", "campaign_name", "datasource_name", "subject_email",
             "subject_display_name", "can_read", "can_write", "can_ddl", "can_break_glass",
-            "permission_expires_at", "usage_last_used_at", "usage_count",
+            "permission_expires_at", "row_limit_override", "effective_row_limit",
+            "row_limit_source", "usage_last_used_at", "usage_count",
             "usage_granted_target_count", "usage_used_target_count", "usage_recommendation",
             "decision", "close_reason", "decided_by", "decided_at", "decision_comment"
     };
@@ -61,6 +63,9 @@ class DefaultAttestationEvidenceExportService implements AttestationEvidenceExpo
                     Boolean.toString(item.isCanBreakGlass()),
                     item.getPermissionExpiresAt() != null
                             ? item.getPermissionExpiresAt().toString() : "",
+                    text(item.getRowLimitOverride()),
+                    text(item.getEffectiveRowLimit()),
+                    text(item.getRowLimitSource()),
                     text(item.getUsageLastUsedAt()),
                     text(item.getUsageCount()),
                     text(item.getUsageGrantedTargetCount()),

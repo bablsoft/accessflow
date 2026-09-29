@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-28",
+      "dateModified": "2026-09-29",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -756,13 +756,24 @@ APPROVED → FAILED (execution error)</pre>
             permission-revoke path, so access is actually removed.
           </p>
           <p>
+            <strong>The row limit that really applies.</strong> A grant's own row limit is not always
+            what its holder gets: a lower limit on one of their groups, the datasource's maximum rows
+            per query, or the deployment-wide ceiling can all cut it down. Each item therefore records
+            both the limit configured on the grant under review and the limit that actually applies,
+            with what set it (this grant, a named group, the datasource cap or the deployment
+            ceiling). When the two differ, the worklist shows it — for example
+            <em>Configured 5000 · applies 1000 (datasource cap)</em> — so nobody certifies a limit
+            that isn't in force.
+          </p>
+          <p>
             <strong>Configure it.</strong> Manage campaigns from <code>/admin/attestation</code> and
             certify items from the reviewer worklist at <code>/reviews/attestations</code>. Two
             clustered-safe jobs run the lifecycle: one opens <code>SCHEDULED</code> campaigns at their
             <code>scheduled_open_at</code>, the other closes <code>OPEN</code> campaigns at their
             <code>due_at</code> and applies each campaign's pending-default (<code>KEEP</code> or
             <code>REVOKE</code>) to anything a reviewer never got to. A completed campaign exports as a
-            CSV <strong>evidence</strong> file (who reviewed what, decisions, timestamps), and every
+            CSV <strong>evidence</strong> file (who reviewed what, decisions, timestamps, and the
+            configured and applied row limit), and every
             transition — <code>ATTESTATION_CAMPAIGN_OPENED/CLOSED</code>,
             <code>ATTESTATION_ITEM_CERTIFIED/REVOKED</code> — lands in the tamper-evident
             <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.

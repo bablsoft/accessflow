@@ -64,6 +64,9 @@ class AttestationViewMapperTest {
         e.setDecidedBy(UUID.randomUUID());
         e.setDecidedAt(Instant.parse("2026-07-03T00:00:00Z"));
         e.setDecisionComment("no longer needed");
+        e.setRowLimitOverride(5_000);
+        e.setEffectiveRowLimit(1_000);
+        e.setRowLimitSource("datasource_cap");
 
         var v = AttestationViewMapper.toItemView(e);
 
@@ -74,6 +77,9 @@ class AttestationViewMapperTest {
         assertThat(v.decision()).isEqualTo(AttestationItemDecision.REVOKED);
         assertThat(v.closeReason()).isEqualTo(AttestationItemCloseReason.REVIEWER);
         assertThat(v.decisionComment()).isEqualTo("no longer needed");
+        assertThat(v.rowLimitOverride()).isEqualTo(5_000);
+        assertThat(v.effectiveRowLimit()).isEqualTo(1_000);
+        assertThat(v.rowLimitSource()).isEqualTo("datasource_cap");
         // Subject resolution is a read-time pass (#875), never part of the snapshot mapping.
         assertThat(v.subjectPrincipalType()).isNull();
         assertThat(v.subjectOwnerEmail()).isNull();
