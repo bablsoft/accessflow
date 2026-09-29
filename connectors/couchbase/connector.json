@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-couchbase-1.0.7-all.jar",
-    "fileName": "accessflow-engine-couchbase-1.0.7-all.jar",
-    "sha256": "54e4d56e5bbea8e076fdf0dcaea0cf413f3fd4477e5111b2f959d1541bcc524c"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-couchbase-1.0.8-all.jar",
+    "fileName": "accessflow-engine-couchbase-1.0.8-all.jar",
+    "sha256": "9641749557e52f0bde7f89d177c155aa8628a5cfa6be4225bcc09f7530e1891a"
   }
 }
