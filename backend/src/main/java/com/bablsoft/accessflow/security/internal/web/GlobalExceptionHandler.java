@@ -22,6 +22,7 @@ import com.bablsoft.accessflow.core.api.DeniedColumnsNotSupportedException;
 import com.bablsoft.accessflow.core.api.DeniedShapesNotSupportedException;
 import com.bablsoft.accessflow.core.api.BytesScannedCapNotSupportedException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException;
 import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
@@ -443,6 +444,15 @@ class GlobalExceptionHandler {
                 msg("error.bytes_scanned_cap_not_supported", ex.dbType().name()));
         pd.setProperty("error", "BYTES_SCANNED_CAP_NOT_SUPPORTED");
         pd.setProperty("dbType", ex.dbType().name());
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidRowLimitOverrideException.class)
+    ProblemDetail handleInvalidRowLimitOverride(InvalidRowLimitOverrideException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.row_limit_override_invalid"));
+        pd.setProperty("error", "INVALID_ROW_LIMIT_OVERRIDE");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

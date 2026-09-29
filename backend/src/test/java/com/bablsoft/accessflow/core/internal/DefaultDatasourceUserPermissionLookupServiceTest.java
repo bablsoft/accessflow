@@ -589,6 +589,34 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
                 .isEqualTo(700L);
     }
 
+    @Test
+    void findForTreatsANonPositiveStoredRowLimitAsAbsent() {
+        assertThat(mergeRowLimits(0, 50).rowLimitOverride()).isEqualTo(50);
+        assertThat(mergeRowLimits(50, -3).rowLimitOverride()).isEqualTo(50);
+        assertThat(mergeRowLimits(0, -1).rowLimitOverride()).isNull();
+    }
+
+    @Test
+    void findDirectForAndContributionsExposeANonPositiveStoredRowLimitAsNull() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setRowLimitOverride(0);
+        var group = newGroupPermission(groupId, datasourceId);
+        group.setRowLimitOverride(-2);
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(group));
+
+        assertThat(service.findDirectFor(userId, datasourceId).orElseThrow().rowLimitOverride())
+                .isNull();
+        assertThat(service.findContributions(userId, datasourceId))
+                .extracting(c -> c.rowLimitOverride()).containsExactly(null, null);
+    }
+
     private DatasourceUserPermissionView mergeRowLimits(
             Integer directLimit, Integer groupLimit) {
         var userId = UUID.randomUUID();

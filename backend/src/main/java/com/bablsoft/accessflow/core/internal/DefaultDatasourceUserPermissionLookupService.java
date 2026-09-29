@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPer
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPermissionLookupService {
@@ -330,7 +332,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 DeniedTables.normalize(toList(entity.getDeniedSchemas())),
                 DeniedTables.normalize(toList(entity.getDeniedTables())),
                 DeniedShapes.fromNames(toList(entity.getDeniedShapes())),
-                entity.getRowLimitOverride(),
+                rowLimit(entity.getRowLimitOverride(), entity.getId()),
                 entity.getBytesScannedLimitOverride(),
                 entity.getExpiresAt());
     }
@@ -344,7 +346,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 DeniedShapes.fromNames(toList(e.getDeniedShapes())),
-                e.getRowLimitOverride(), e.getBytesScannedLimitOverride(), e.getExpiresAt(),
+                rowLimit(e.getRowLimitOverride(), e.getId()), e.getBytesScannedLimitOverride(),
+                e.getExpiresAt(),
                 e.getAccessGrantRequestId());
     }
 
@@ -357,8 +360,21 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 toList(e.getRestrictedColumns()), toList(e.getDeniedColumns()),
                 toList(e.getDeniedSchemas()), toList(e.getDeniedTables()),
                 DeniedShapes.fromNames(toList(e.getDeniedShapes())),
-                e.getRowLimitOverride(), e.getBytesScannedLimitOverride(), e.getExpiresAt(),
+                rowLimit(e.getRowLimitOverride(), e.getId()), e.getBytesScannedLimitOverride(),
+                e.getExpiresAt(),
                 null);
+    }
+
+    /**
+     * A non-positive stored override (pre-V199 row, manual SQL) reads as "no override" (#1085), so
+     * the proxy is never handed a cap it would reject and the grantee's queries keep working.
+     */
+    private static Integer rowLimit(Integer stored, UUID grantId) {
+        if (stored != null && stored < 1) {
+            log.warn("Ignoring non-positive row_limit_override {} on datasource grant {}", stored, grantId);
+            return null;
+        }
+        return stored;
     }
 
     private static List<String> toList(String[] array) {

@@ -718,9 +718,13 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 this grantee: the smaller of it and the datasource's `max_bytes_scanned_per_query` applies, and
 across a user's direct and group grants the smallest wins. It is accepted only on BigQuery,
 Snowflake and Databricks datasources (422 `BYTES_SCANNED_CAP_NOT_SUPPORTED` otherwise).
+`row_limit_override` (optional, `@Min(1)`; omit or `null` for no override) is re-checked by the
+service for callers that bypass the web layer (400 `INVALID_ROW_LIMIT_OVERRIDE`) and by a database
+`CHECK` constraint (#1085).
 
 **Response 201:** Permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/{permId}`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 400:** `row_limit_override` below 1. `error: VALIDATION_ERROR` from the web layer, or `INVALID_ROW_LIMIT_OVERRIDE` from the service (#1085).
 **Response 409:** A permission row already exists for `(user_id, datasource_id)`. `error: DATASOURCE_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** Target user does not exist or does not belong to the caller's organization. `error: ILLEGAL_DATASOURCE_PERMISSION`.
 **Response 422:** `denied_columns` is non-empty on an engine-managed datasource (every engine plugin, warehouses included). `error: DENIED_COLUMNS_NOT_SUPPORTED`, with `dbType`.
@@ -798,6 +802,7 @@ Same body as the per-user grant with `group_id` in place of `user_id`:
 
 **Response 201:** Group permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/groups/{permId}`.
 **Response 404:** Datasource or group does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
+**Response 400:** `row_limit_override` below 1. `error: VALIDATION_ERROR` from the web layer, or `INVALID_ROW_LIMIT_OVERRIDE` from the service (#1085).
 **Response 409:** A permission row already exists for `(group_id, datasource_id)`. `error: DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS`.
 **Response 422:** `denied_columns` on an engine-managed datasource. `error: DENIED_COLUMNS_NOT_SUPPORTED`.
 **Response 422:** `denied_shapes` on an engine-managed datasource. `error: DENIED_SHAPES_NOT_SUPPORTED`.

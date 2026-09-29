@@ -30,6 +30,7 @@ import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.QuotaService;
@@ -671,7 +672,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
-        entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setRowLimitOverride(rowLimit(command.rowLimitOverride()));
         entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
                 command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
@@ -733,7 +734,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
-        entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setRowLimitOverride(rowLimit(command.rowLimitOverride()));
         entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
                 command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
@@ -1178,6 +1179,13 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
      * A bytes-scanned cap (#941) is refused on an engine that reports no bytes estimate — there it
      * could only reject everything or nothing. Null passes through (no cap).
      */
+    private static Integer rowLimit(Integer limit) {
+        if (limit != null && limit < 1) {
+            throw new InvalidRowLimitOverrideException(limit);
+        }
+        return limit;
+    }
+
     private static Long bytesCap(DbType dbType, Long cap) {
         if (cap != null && !BytesScannedCapSupport.supports(dbType)) {
             throw new BytesScannedCapNotSupportedException(dbType);

@@ -11,6 +11,7 @@ public sealed class DatasourceAdminException extends RuntimeException
                 DeniedColumnsNotSupportedException,
                 DeniedShapesNotSupportedException,
                 BytesScannedCapNotSupportedException,
+                InvalidRowLimitOverrideException,
                 MissingAiConfigForDatasourceException,
                 TableNotFoundException {
 
