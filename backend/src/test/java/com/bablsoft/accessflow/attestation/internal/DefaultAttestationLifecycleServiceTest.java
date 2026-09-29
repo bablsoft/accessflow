@@ -18,6 +18,10 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.DatasourceView;
+import com.bablsoft.accessflow.proxy.api.EffectiveRowCap;
+import com.bablsoft.accessflow.proxy.api.RowCapResolver;
 import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +39,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,6 +57,7 @@ class DefaultAttestationLifecycleServiceTest {
     @Mock com.bablsoft.accessflow.access.api.GrantUsageService grantUsageService;
     @Mock com.bablsoft.accessflow.audit.api.AuditLogService auditLogService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock DatasourceUserPermissionLookupService permissionLookupService;
 
     DefaultAttestationLifecycleService service;
 
@@ -60,9 +67,25 @@ class DefaultAttestationLifecycleServiceTest {
 
     @BeforeEach
     void setUp() {
+        RowCapResolver rowCapResolver = new RowCapResolver() {
+            @Override
+            public EffectiveRowCap resolve(Integer override, int datasourceCap) {
+                return EffectiveRowCap.of(override, datasourceCap, globalCeiling());
+            }
+
+            @Override
+            public int globalCeiling() {
+                return 10_000;
+            }
+        };
         service = new DefaultAttestationLifecycleService(campaignRepository, itemRepository,
                 itemStateService, datasourceAdminService, datasourceLookupService,
-                grantUsageService, auditLogService, eventPublisher, new ObjectMapper());
+                grantUsageService, new AttestationRowLimitResolver(permissionLookupService,
+                        rowCapResolver),
+                auditLogService, eventPublisher, new ObjectMapper());
+        var datasource = mock(DatasourceView.class);
+        lenient().when(datasource.maxRowsPerQuery()).thenReturn(1_000);
+        lenient().when(datasourceAdminService.getForAdmin(any(), any())).thenReturn(datasource);
     }
 
     private AttestationCampaignEntity scheduledDatasourceCampaign() {
@@ -130,6 +153,56 @@ class DefaultAttestationLifecycleServiceTest {
         assertThat(snapshot.get("denied_tables")).hasSize(1);
         assertThat(snapshot.get("denied_shapes").get(0).asString()).isEqualTo("GROUP_BY");
         assertThat(snapshot.get("bytes_scanned_limit_override").asLong()).isEqualTo(8_000L);
+    }
+
+    @Test
+    void openRecordsTheEffectiveRowLimitNextToTheConfiguredOne() {
+        var userId = UUID.randomUUID();
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        when(datasourceAdminService.listPermissions(datasourceId, orgId))
+                .thenReturn(List.of(new DatasourcePermissionView(UUID.randomUUID(), datasourceId,
+                        userId, "u@example.com", "User", true, false, false, false, 5_000,
+                        null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                        List.of(), null, UUID.randomUUID(), Instant.now())));
+        when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+        when(permissionLookupService.findContributionsForDatasource(datasourceId))
+                .thenReturn(List.of(new com.bablsoft.accessflow.core.api.DatasourcePermissionContribution(
+                        com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind.DIRECT,
+                        UUID.randomUUID(), userId, datasourceId, null, null, true, false, false,
+                        false, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                        List.of(), 5_000, null, null, null)));
+        var merged = mock(com.bablsoft.accessflow.core.api.DatasourceUserPermissionView.class);
+        when(merged.rowLimitOverride()).thenReturn(5_000);
+        when(permissionLookupService.mergeContributions(any())).thenReturn(Optional.of(merged));
+
+        service.openCampaign(campaignId);
+
+        var item = ArgumentCaptor.forClass(AttestationItemEntity.class);
+        verify(itemRepository).save(item.capture());
+        assertThat(item.getValue().getRowLimitOverride()).isEqualTo(5_000);
+        assertThat(item.getValue().getEffectiveRowLimit()).isEqualTo(1_000);
+        assertThat(item.getValue().getRowLimitSource()).isEqualTo("datasource_cap");
+        var snapshot = new ObjectMapper().readTree(item.getValue().getPermissionSnapshot());
+        assertThat(snapshot.get("row_limit_override").asInt()).isEqualTo(5_000);
+        assertThat(snapshot.get("effective_row_limit").asInt()).isEqualTo(1_000);
+        assertThat(snapshot.get("row_limit_source").asString()).isEqualTo("datasource_cap");
+    }
+
+    @Test
+    void openSkipsTheDatasourceLookupWhenItHasNoGrants() {
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        when(datasourceAdminService.listPermissions(datasourceId, orgId)).thenReturn(List.of());
+
+        service.openCampaign(campaignId);
+
+        verify(datasourceAdminService, never()).getForAdmin(any(), any());
+        verify(permissionLookupService, never()).findContributionsForDatasource(any());
     }
 
     @Test

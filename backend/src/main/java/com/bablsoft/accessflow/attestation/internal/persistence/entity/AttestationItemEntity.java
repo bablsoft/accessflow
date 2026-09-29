@@ -98,6 +98,18 @@ public class AttestationItemEntity {
     @Column(name = "usage_recommendation", columnDefinition = "grant_usage_recommendation")
     private GrantUsageRecommendation usageRecommendation;
 
+    // #1084 row-limit evidence: the reviewed grant's own override, the cap enforcement applies
+    // after the merge and clamp, and what set it (grant / group:<name> / datasource_cap /
+    // global_ceiling). Null on items snapshotted before V198.
+    @Column(name = "row_limit_override")
+    private Integer rowLimitOverride;
+
+    @Column(name = "effective_row_limit")
+    private Integer effectiveRowLimit;
+
+    @Column(name = "row_limit_source", columnDefinition = "text")
+    private String rowLimitSource;
+
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "attestation_item_decision")

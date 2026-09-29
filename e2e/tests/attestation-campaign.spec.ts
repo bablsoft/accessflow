@@ -63,8 +63,11 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
     const revokeUser = await findUserByEmailViaApi(request, adminToken, revokeEmail);
     revokeUserId = revokeUser.id;
 
+    // #1084: 5000 rows configured on a datasource capped at 1000 (the default) — the evidence
+    // must record that 1000 is what applies.
     await grantPermissionViaApi(request, adminToken, datasource.id, keepUser.id, {
       canRead: true,
+      rowLimitOverride: 5000,
     });
     await grantPermissionViaApi(request, adminToken, datasource.id, revokeUser.id, {
       canRead: true,
@@ -98,6 +101,9 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
     const revokeItem = items.find((i) => i.subject_user_email === revokeEmail);
     expect(keepItem).toBeTruthy();
     expect(revokeItem).toBeTruthy();
+    expect(keepItem?.row_limit_override).toBe(5000);
+    expect(keepItem?.effective_row_limit).toBe(1000);
+    expect(keepItem?.row_limit_source).toBe('datasource_cap');
 
     const ctx = await browser.newContext();
     try {
@@ -111,6 +117,13 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
       // Both subjects render as rows.
       await expect(page.getByText(keepEmail, { exact: true })).toBeVisible({ timeout: 15_000 });
       await expect(page.getByText(revokeEmail, { exact: true })).toBeVisible();
+
+      // #1084: the keep row shows the configured limit next to the one that applies.
+      await expect(
+        page
+          .getByRole('row', { name: new RegExp(keepEmail) })
+          .getByText('Configured 5000 · applies 1000 (datasource cap)'),
+      ).toBeVisible();
 
       // Certify the keep row. Scope to its table row so we hit the right button.
       const keepRow = page.getByRole('row', { name: new RegExp(keepEmail) });
@@ -163,5 +176,7 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
     expect(contentType).toContain('text/csv');
     expect(body).toContain(keepEmail);
     expect(body).toContain(revokeEmail);
+    expect(body).toContain('row_limit_override,effective_row_limit,row_limit_source');
+    expect(body).toContain('5000,1000,datasource_cap');
   });
 });

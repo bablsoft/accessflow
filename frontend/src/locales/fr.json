@@ -4505,6 +4505,15 @@
       "not_yet_observed": "Pas encore assez d'historique",
       "last_used": "Dernière utilisation {{date}}",
       "scope_ratio": "{{used}}/{{granted}} de la portée"
+    },
+    "row_limit": {
+      "hint": "La limite de lignes que cette personne obtient réellement : la plus petite surcharge parmi ses autorisations directes et de groupe, plafonnée par la limite de la source de données et le plafond du déploiement.",
+      "configured_applies": "Configuré {{configured}} · appliqué {{effective}} ({{source}})",
+      "applies": "Appliqué {{effective}} ({{source}})",
+      "source_grant": "cette autorisation",
+      "source_group": "groupe {{name}}",
+      "source_datasource_cap": "limite de la source de données",
+      "source_global_ceiling": "plafond du déploiement"
     }
   },
   "over_provisioned": {

@@ -3563,6 +3563,16 @@ export interface AttestationItem {
   permission_expires_at: string | null;
   permission_created_at: string;
   /**
+   * Row-limit evidence (#1084): the reviewed grant's own `row_limit_override`, the cap enforcement
+   * applied to the subject at campaign open, and what set it — `grant`, `group:<name>`,
+   * `datasource_cap` or `global_ceiling` — or `no_live_grant` (with a null effective limit) when the
+   * subject had no unexpired grant. The last two are null on items snapshotted before this evidence
+   * existed.
+   */
+  row_limit_override: number | null;
+  effective_row_limit: number | null;
+  row_limit_source: string | null;
+  /**
    * Least-privilege evidence captured at campaign open (#625). All five are null together when no
    * usage summary existed then — which is "no data", not "never used". Render the two differently:
    * a missing measurement must not read as an argument for revoking the grant.

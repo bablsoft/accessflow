@@ -104,6 +104,13 @@ class AttestationLifecycleIntegrationTest {
 
     @AfterEach
     void cleanup() {
+        if (organization != null) {
+            // Group grants reference users through created_by, so they go before deleteAll.
+            jdbcTemplate.update("DELETE FROM datasource_group_permissions WHERE organization_id = ?",
+                    organization.getId());
+            jdbcTemplate.update("DELETE FROM user_groups WHERE organization_id = ?",
+                    organization.getId());
+        }
         jdbcTemplate.update("DELETE FROM attestation_item");
         jdbcTemplate.update("DELETE FROM attestation_campaign");
         jdbcTemplate.update("DELETE FROM user_notifications");
@@ -189,6 +196,61 @@ class AttestationLifecycleIntegrationTest {
                 Integer.class);
         assertThat(openedAudits).isEqualTo(1);
         assertThat(closedAudits).isEqualTo(1);
+    }
+
+    @Test
+    void openRecordsTheRowLimitEnforcementAppliesAndIgnoresExpiredGroupGrants() {
+        setDirectRowLimit(subjectA, 500);
+        setDirectRowLimit(subjectB, 5_000);
+        // subjectA: a live group grant lower than the direct one sets the limit.
+        groupGrant("analysts", subjectA, 100, null);
+        // subjectB: an expired group grant contributes nothing, so the datasource cap clamps 5000.
+        groupGrant("former", subjectB, 50, Instant.now().minus(1, ChronoUnit.DAYS));
+
+        var now = Instant.now();
+        var campaign = adminService.create(new CreateAttestationCampaignCommand(
+                organization.getId(), admin.getId(), "Row limit review", null,
+                AttestationCampaignScope.DATASOURCE, datasource.getId(),
+                AttestationPendingDefault.KEEP, now, now.plus(7, ChronoUnit.DAYS)));
+        adminService.openNow(campaign.id(), organization.getId());
+
+        var items = adminService.listItems(campaign.id(), organization.getId(),
+                PageRequest.of(0, 50)).content();
+        var itemA = items.stream().filter(i -> i.subjectUserId().equals(subjectA.getId()))
+                .findFirst().orElseThrow();
+        var itemB = items.stream().filter(i -> i.subjectUserId().equals(subjectB.getId()))
+                .findFirst().orElseThrow();
+        assertThat(itemA.rowLimitOverride()).isEqualTo(500);
+        assertThat(itemA.effectiveRowLimit()).isEqualTo(100);
+        assertThat(itemA.rowLimitSource()).isEqualTo("group:analysts");
+        assertThat(itemB.rowLimitOverride()).isEqualTo(5_000);
+        assertThat(itemB.effectiveRowLimit()).isEqualTo(1_000);
+        assertThat(itemB.rowLimitSource()).isEqualTo("datasource_cap");
+
+        var csv = new String(evidenceExportService.export(campaign.id(), organization.getId())
+                .content(), StandardCharsets.UTF_8);
+        assertThat(csv).contains("row_limit_override,effective_row_limit,row_limit_source")
+                .contains("500,100,group:analysts")
+                .contains("5000,1000,datasource_cap");
+    }
+
+    private void setDirectRowLimit(UserEntity subject, int rowLimit) {
+        jdbcTemplate.update("UPDATE datasource_user_permissions SET row_limit_override = ? "
+                + "WHERE user_id = ? AND datasource_id = ?", rowLimit, subject.getId(),
+                datasource.getId());
+    }
+
+    private void groupGrant(String name, UserEntity member, int rowLimit, Instant expiresAt) {
+        var groupId = UUID.randomUUID();
+        jdbcTemplate.update("INSERT INTO user_groups (id, organization_id, name) VALUES (?, ?, ?)",
+                groupId, organization.getId(), name);
+        jdbcTemplate.update("INSERT INTO user_group_memberships (user_id, group_id) VALUES (?, ?)",
+                member.getId(), groupId);
+        jdbcTemplate.update("INSERT INTO datasource_group_permissions (id, organization_id, "
+                + "datasource_id, group_id, can_read, row_limit_override, expires_at, created_by) "
+                + "VALUES (?, ?, ?, ?, TRUE, ?, ?, ?)", UUID.randomUUID(), organization.getId(),
+                datasource.getId(), groupId, rowLimit,
+                expiresAt == null ? null : java.sql.Timestamp.from(expiresAt), admin.getId());
     }
 
     @Test

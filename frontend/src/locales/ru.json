@@ -4505,6 +4505,15 @@
       "not_yet_observed": "Пока недостаточно истории",
       "last_used": "Последнее использование {{date}}",
       "scope_ratio": "{{used}}/{{granted}} области"
+    },
+    "row_limit": {
+      "hint": "Лимит строк, который фактически действует для этого человека: наименьшее переопределение среди прямых и групповых разрешений, ограниченное лимитом источника данных и потолком развёртывания.",
+      "configured_applies": "Настроено {{configured}} · действует {{effective}} ({{source}})",
+      "applies": "Действует {{effective}} ({{source}})",
+      "source_grant": "это разрешение",
+      "source_group": "группа {{name}}",
+      "source_datasource_cap": "лимит источника данных",
+      "source_global_ceiling": "потолок развёртывания"
     }
   },
   "over_provisioned": {

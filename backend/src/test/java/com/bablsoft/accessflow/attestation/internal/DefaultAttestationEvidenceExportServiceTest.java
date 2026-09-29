@@ -72,6 +72,33 @@ class DefaultAttestationEvidenceExportServiceTest {
     }
 
     @Test
+    void exportCarriesTheConfiguredAndEffectiveRowLimit() {
+        when(campaignRepository.findByIdAndOrganizationId(campaignId, orgId))
+                .thenReturn(Optional.of(campaign()));
+        var limited = item("alice@example.com");
+        limited.setRowLimitOverride(5_000);
+        limited.setEffectiveRowLimit(1_000);
+        limited.setRowLimitSource("datasource_cap");
+        when(itemRepository.findByCampaignIdOrderByCreatedAtAsc(campaignId))
+                .thenReturn(List.of(limited, item("bob@example.com")));
+
+        var csv = new String(service(50_000).export(campaignId, orgId).content(),
+                StandardCharsets.UTF_8);
+        var lines = csv.split("\r\n");
+
+        var header = List.of(lines[0].split(",", -1));
+        var alice = List.of(lines[1].split(",", -1));
+        var bob = List.of(lines[2].split(",", -1));
+        int override = header.indexOf("row_limit_override");
+        assertThat(header.get(override + 1)).isEqualTo("effective_row_limit");
+        assertThat(header.get(override + 2)).isEqualTo("row_limit_source");
+        assertThat(alice.subList(override, override + 3))
+                .containsExactly("5000", "1000", "datasource_cap");
+        // An item snapshotted before the evidence existed exports empty cells, not zero.
+        assertThat(bob.subList(override, override + 3)).containsExactly("", "", "");
+    }
+
+    @Test
     void exportTruncatesBeyondCap() {
         when(campaignRepository.findByIdAndOrganizationId(campaignId, orgId))
                 .thenReturn(Optional.of(campaign()));

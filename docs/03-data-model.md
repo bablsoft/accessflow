@@ -2564,6 +2564,9 @@ a **bare** reference (no FK) used only as the revoke target.
 | `usage_granted_target_count` | INT nullable (#625) — allow-listed tables; null also means *unrestricted* |
 | `usage_used_target_count` | INT nullable (#625) — granted tables actually exercised |
 | `usage_recommendation` | ENUM `grant_usage_recommendation` nullable (#625) — the verdict frozen at open |
+| `row_limit_override` | INT nullable (#1084, Flyway V198) — the reviewed grant's own configured row cap; V198 backfilled it from the frozen `permission_snapshot` |
+| `effective_row_limit` | INT nullable (#1084) — the row cap enforcement applied to the subject at open: smallest live override across direct + group grants, clamped by the datasource and global caps |
+| `row_limit_source` | TEXT nullable (#1084) — what set `effective_row_limit`: `grant` \| `group:<name>` \| `datasource_cap` \| `global_ceiling`, or `no_live_grant` (effective limit null) when the subject had no unexpired grant |
 | `decision` | ENUM `attestation_item_decision`: `PENDING` \| `CERTIFIED` \| `REVOKED`; DEFAULT `PENDING` |
 | `close_reason` | ENUM `attestation_item_close_reason`: `REVIEWER` \| `AUTO_DEFAULT_KEEP` \| `AUTO_DEFAULT_REVOKE`; nullable |
 | `decided_by` | UUID nullable (bare) — null for the end-of-campaign automatic default |
@@ -2586,6 +2589,14 @@ falsify it. Null therefore means **"no data"**, *not* "never used" — a grant f
 campaign opened legitimately has none, and the two readings push a reviewer in opposite directions, so
 the read models must render them differently (`AttestationItemResponse` carries
 `@JsonInclude(ALWAYS)` precisely so an absent key cannot be confused with a null one).
+
+The three `row_limit_*` columns (#1084) exist because a grant's own override is not what its holder
+gets: a direct `5000` on a datasource capped at `1000`, or a direct `500` beside a group grant of
+`100`, would otherwise have a reviewer certify a limit that does not apply. `permission_snapshot`
+carries `effective_row_limit` and `row_limit_source` next to `row_limit_override`. Like the usage
+columns, `effective_row_limit` and `row_limit_source` are frozen at open and never backfilled —
+null on items snapshotted before V198. `row_limit_override` is the exception: it was already frozen
+inside `permission_snapshot`, so V198 lifted it from there.
 
 ---
 

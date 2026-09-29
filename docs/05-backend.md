@@ -2675,8 +2675,9 @@ hard-codes `STAGE = 1`, so an approver rule with `stage > 1` on a connector's pl
 
 The `attestation` module adds recurring **access-recertification campaigns** so datasource owners
 periodically attest "these users still need this access" — the access-governance control SOX / SOC2 /
-ISO 27001 auditors require. It depends only on the `core.api`, `audit.api`, and `scheduling.api`
-exposed interfaces.
+ISO 27001 auditors require. It depends only on other modules' exposed interfaces — `core.api`,
+`audit.api`, `access.api` (usage evidence), `security.api`, `serviceaccounts.api` (subject
+resolution) and `proxy.api` (the row-cap clamp, #1084).
 
 **Open (snapshot).** `AttestationLifecycleService.openCampaign` (idempotent, row-locked, one
 transaction) flips `SCHEDULED → OPEN` and snapshots the current standing grants into
@@ -2708,6 +2709,22 @@ beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) w
 `ATTESTATION_EVIDENCE_EXPORTED` audit row. Since #625 the CSV also carries the five `usage_*` columns
 frozen on each item — an auditor asking "why was this certified?" needs the picture the reviewer had
 at decision time, not today's usage.
+
+**Row-limit evidence (#1084).** A grant's own `row_limit_override` is not what its holder gets: the
+proxy enforces the smallest live override across the user's direct and group grants, clamped by the
+datasource `max_rows_per_query` and the global ceiling. So each item records both — the reviewed
+grant's `row_limit_override` (what is being certified) and `effective_row_limit` with its
+`row_limit_source` (`grant` / `group:<name>` / `datasource_cap` / `global_ceiling`), on the columns,
+in `permission_snapshot`, in the CSV, and on the worklist ("Configured 5000 · applies 1000
+(datasource cap)") when they differ. A subject with no live grant at all — the reviewed one has
+expired — is recorded as `no_live_grant` with a null effective limit, never as the datasource cap. `AttestationRowLimitResolver` loads the datasource's live contributions once
+(`DatasourceUserPermissionLookupService.findContributionsForDatasource`, expired grants already
+dropped), merges each subject's through `mergeContributions` and clamps through `proxy.api.RowCapResolver`
+— the executor's own `EffectiveRowCap` clamp (#946) — so evidence and enforcement cannot disagree; the
+resolver only names the bound (a tie credits the reviewed grant while it is live; tied groups are
+broken by name). V198 lifted `row_limit_override` for older items out of their frozen
+`permission_snapshot`; their `effective_row_limit` / `row_limit_source` stay null. Per-table row-limit policies (#934)
+depend on the query's tables and are not part of the standing-grant evidence.
 
 ### Least-privilege intelligence (#625)
 

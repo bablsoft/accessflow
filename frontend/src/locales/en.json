@@ -4505,6 +4505,15 @@
       "not_yet_observed": "Not enough history yet",
       "last_used": "Last used {{date}}",
       "scope_ratio": "{{used}}/{{granted}} in scope"
+    },
+    "row_limit": {
+      "hint": "The row limit this person actually gets: the smallest override across their direct and group grants, capped by the datasource limit and the deployment ceiling.",
+      "configured_applies": "Configured {{configured}} · applies {{effective}} ({{source}})",
+      "applies": "Applies {{effective}} ({{source}})",
+      "source_grant": "this grant",
+      "source_group": "group {{name}}",
+      "source_datasource_cap": "datasource cap",
+      "source_global_ceiling": "deployment ceiling"
     }
   },
   "over_provisioned": {

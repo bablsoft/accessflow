@@ -4505,6 +4505,15 @@
       "not_yet_observed": "Noch zu wenig Verlauf",
       "last_used": "Zuletzt genutzt {{date}}",
       "scope_ratio": "{{used}}/{{granted}} im Umfang"
+    },
+    "row_limit": {
+      "hint": "Das Zeilenlimit, das diese Person tatsächlich erhält: die kleinste Überschreibung aus direkten und Gruppenberechtigungen, begrenzt durch das Datenquellenlimit und die Obergrenze der Installation.",
+      "configured_applies": "Konfiguriert {{configured}} · gilt {{effective}} ({{source}})",
+      "applies": "Gilt {{effective}} ({{source}})",
+      "source_grant": "diese Berechtigung",
+      "source_group": "Gruppe {{name}}",
+      "source_datasource_cap": "Datenquellenlimit",
+      "source_global_ceiling": "Obergrenze der Installation"
     }
   },
   "over_provisioned": {

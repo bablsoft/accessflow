@@ -29,6 +29,9 @@ final class AttestationViewMapper {
                 e.isCanBreakGlass(),
                 e.getPermissionExpiresAt(),
                 e.getPermissionCreatedAt(),
+                e.getRowLimitOverride(),
+                e.getEffectiveRowLimit(),
+                e.getRowLimitSource(),
                 e.getUsageLastUsedAt(),
                 e.getUsageCount(),
                 e.getUsageGrantedTargetCount(),
@@ -39,7 +42,10 @@ final class AttestationViewMapper {
                 e.getDecidedBy(),
                 e.getDecidedAt(),
                 e.getDecisionComment(),
-                e.getCreatedAt());
+                e.getCreatedAt(),
+                null,
+                null,
+                null);
     }
 
     static AttestationCampaignView toCampaignView(AttestationCampaignEntity e, String datasourceName,

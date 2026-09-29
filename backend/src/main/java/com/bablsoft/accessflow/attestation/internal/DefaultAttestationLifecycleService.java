@@ -46,6 +46,7 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceLookupService datasourceLookupService;
     private final GrantUsageService grantUsageService;
+    private final AttestationRowLimitResolver rowLimitResolver;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
@@ -126,11 +127,19 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         for (DatasourceSnapshotSource source : sources(campaign)) {
             var permissions = datasourceAdminService.listPermissions(
                     source.datasourceId(), campaign.getOrganizationId());
+            if (permissions.isEmpty()) {
+                continue;
+            }
+            var maxRows = datasourceAdminService
+                    .getForAdmin(source.datasourceId(), campaign.getOrganizationId())
+                    .maxRowsPerQuery();
+            var rowLimits = rowLimitResolver.forDatasource(source.datasourceId(), maxRows);
             for (DatasourcePermissionView view : permissions) {
                 if (itemRepository.existsByCampaignIdAndPermissionId(campaign.getId(), view.id())) {
                     continue;
                 }
-                itemRepository.save(toItem(campaign, source.datasourceName(), view));
+                itemRepository.save(toItem(campaign, source.datasourceName(), view,
+                        rowLimits.evaluate(view)));
                 inserted++;
             }
         }
@@ -151,7 +160,8 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
     }
 
     private AttestationItemEntity toItem(AttestationCampaignEntity campaign, String datasourceName,
-                                         DatasourcePermissionView view) {
+                                         DatasourcePermissionView view,
+                                         AttestationRowLimitResolver.RowLimitEvidence rowLimit) {
         var item = new AttestationItemEntity();
         item.setId(UUID.randomUUID());
         item.setCampaignId(campaign.getId());
@@ -168,7 +178,10 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         item.setCanBreakGlass(view.canBreakGlass());
         item.setPermissionExpiresAt(view.expiresAt());
         item.setPermissionCreatedAt(view.createdAt());
-        item.setPermissionSnapshot(toSnapshotJson(view));
+        item.setRowLimitOverride(rowLimit.configured());
+        item.setEffectiveRowLimit(rowLimit.effective());
+        item.setRowLimitSource(rowLimit.source());
+        item.setPermissionSnapshot(toSnapshotJson(view, rowLimit));
         item.setDecision(AttestationItemDecision.PENDING);
         applyUsageEvidence(item, campaign.getOrganizationId(), view);
         return item;
@@ -195,7 +208,8 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
                 });
     }
 
-    private String toSnapshotJson(DatasourcePermissionView view) {
+    private String toSnapshotJson(DatasourcePermissionView view,
+                                  AttestationRowLimitResolver.RowLimitEvidence rowLimit) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("permission_id", view.id().toString());
         node.put("datasource_id", view.datasourceId().toString());
@@ -211,6 +225,13 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         } else {
             node.putNull("row_limit_override");
         }
+        // The grant's own value above is what is certified; this is what the subject actually gets.
+        if (rowLimit.effective() != null) {
+            node.put("effective_row_limit", rowLimit.effective());
+        } else {
+            node.putNull("effective_row_limit");
+        }
+        node.put("row_limit_source", rowLimit.source());
         if (view.bytesScannedLimitOverride() != null) {
             node.put("bytes_scanned_limit_override", view.bytesScannedLimitOverride());
         } else {

@@ -525,6 +525,8 @@ export async function grantPermissionViaApi(
     deniedTables?: string[];
     // #940 — QueryShape names the grantee may never use (JOIN, UNION, SUBQUERY, …).
     deniedShapes?: string[];
+    // #933 — per-grant row cap; enforcement clamps it to the datasource cap.
+    rowLimitOverride?: number;
   } = {},
 ): Promise<GrantedPermission> {
   const res = await request.post(
@@ -542,6 +544,7 @@ export async function grantPermissionViaApi(
         denied_schemas: opts.deniedSchemas ?? null,
         denied_tables: opts.deniedTables ?? null,
         denied_shapes: opts.deniedShapes ?? null,
+        row_limit_override: opts.rowLimitOverride ?? null,
       },
     },
   );
@@ -1209,6 +1212,10 @@ export interface AttestationItemSummary {
   subject_user_email: string;
   permission_id: string;
   decision: string;
+  // #1084 row-limit evidence
+  row_limit_override: number | null;
+  effective_row_limit: number | null;
+  row_limit_source: string | null;
 }
 
 // POST /api/v1/admin/attestation-campaigns — creates a SCHEDULED campaign.
