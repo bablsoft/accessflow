@@ -1175,10 +1175,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         return names;
     }
 
-    /**
-     * A bytes-scanned cap (#941) is refused on an engine that reports no bytes estimate — there it
-     * could only reject everything or nothing. Null passes through (no cap).
-     */
+    /** Service-level twin of the web DTO's {@code @Min(1)} (#1085); null means no override. */
     private static Integer rowLimit(Integer limit) {
         if (limit != null && limit < 1) {
             throw new InvalidRowLimitOverrideException(limit);
@@ -1186,6 +1183,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         return limit;
     }
 
+    /**
+     * A bytes-scanned cap (#941) is refused on an engine that reports no bytes estimate — there it
+     * could only reject everything or nothing. Null passes through (no cap).
+     */
     private static Long bytesCap(DbType dbType, Long cap) {
         if (cap != null && !BytesScannedCapSupport.supports(dbType)) {
             throw new BytesScannedCapNotSupportedException(dbType);

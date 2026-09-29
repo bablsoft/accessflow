@@ -366,8 +366,8 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     }
 
     /**
-     * A non-positive stored override (pre-V199 row, manual SQL) reads as "no override" (#1085), so
-     * the proxy is never handed a cap it would reject and the grantee's queries keep working.
+     * Belt-and-braces behind V199's CHECK (#1085): a non-positive stored override reads as "no
+     * override", so the proxy is never handed a cap it would reject even if the constraint is absent.
      */
     private static Integer rowLimit(Integer stored, UUID grantId) {
         if (stored != null && stored < 1) {
