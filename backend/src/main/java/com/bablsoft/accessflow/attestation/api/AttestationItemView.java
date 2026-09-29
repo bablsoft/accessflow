@@ -25,8 +25,11 @@ import java.util.UUID;
  * <p>{@code rowLimitOverride} is the reviewed grant's own configured cap; {@code effectiveRowLimit}
  * is the cap enforcement applied to the subject at campaign open, after the merge across direct and
  * group grants and the datasource / deployment clamp, and {@code rowLimitSource} names what set it —
- * {@code grant}, {@code group:<name>}, {@code datasource_cap} or {@code global_ceiling} (#1084). The
- * last two are null together on items snapshotted before that evidence existed.
+ * {@code grant}, {@code group:<name>}, {@code datasource_cap} or {@code global_ceiling} (#1084); when
+ * the subject had no live grant at all (the reviewed one expired) the source is
+ * {@code no_live_grant} and {@code effectiveRowLimit} is null. Per-table row-limit policies depend on
+ * the query and are not included. The last two are null together on items snapshotted before that
+ * evidence existed; {@code rowLimitOverride} was lifted from the frozen snapshot for those.
  */
 public record AttestationItemView(
         UUID id,

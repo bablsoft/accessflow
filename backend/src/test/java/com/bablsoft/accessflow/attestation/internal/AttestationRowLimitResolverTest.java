@@ -36,6 +36,7 @@ class AttestationRowLimitResolverTest {
 
     private final UUID datasourceId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
+    private final UUID reviewedId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -121,20 +122,42 @@ class AttestationRowLimitResolverTest {
     }
 
     @Test
-    void aSubjectWithNoLiveContributionIsMergedFromNothing() {
+    void aSubjectWithNoLiveGrantIsRecordedAsSuchNotAsTheDatasourceCap() {
         when(lookupService.findContributionsForDatasource(datasourceId)).thenReturn(List.of());
-        when(lookupService.mergeContributions(List.of())).thenReturn(Optional.empty());
 
         var evidence = resolver.forDatasource(datasourceId, 1_000).evaluate(reviewed(300));
 
-        assertThat(evidence).isEqualTo(new AttestationRowLimitResolver.RowLimitEvidence(300,
-                1_000, "datasource_cap"));
+        assertThat(evidence).isEqualTo(new AttestationRowLimitResolver.RowLimitEvidence(300, null,
+                "no_live_grant"));
+        verify(lookupService, never()).mergeContributions(List.of());
+    }
+
+    @Test
+    void anExpiredReviewedGrantIsNotCreditedOnATieWithALiveGroup() {
+        // The reviewed direct grant expired, so only the group contributes — at the same value.
+        var group = contribution(DatasourcePermissionSourceKind.GROUP, "analysts", 100);
+        givenContributions(List.of(group), 100);
+
+        var evidence = resolver.forDatasource(datasourceId, 1_000).evaluate(reviewed(100));
+
+        assertThat(evidence.source()).isEqualTo("group:analysts");
+    }
+
+    @Test
+    void tiedGroupsAreCreditedByName() {
+        var zeta = contribution(DatasourcePermissionSourceKind.GROUP, "zeta", 100);
+        var alpha = contribution(DatasourcePermissionSourceKind.GROUP, "alpha", 100);
+        var direct = contribution(DatasourcePermissionSourceKind.DIRECT, null, 500);
+        givenContributions(List.of(direct, zeta, alpha), 100);
+
+        var evidence = resolver.forDatasource(datasourceId, 1_000).evaluate(reviewed(500));
+
+        assertThat(evidence.source()).isEqualTo("group:alpha");
     }
 
     @Test
     void contributionsAreLoadedOncePerDatasource() {
         when(lookupService.findContributionsForDatasource(datasourceId)).thenReturn(List.of());
-        when(lookupService.mergeContributions(List.of())).thenReturn(Optional.empty());
 
         var limits = resolver.forDatasource(datasourceId, 1_000);
         limits.evaluate(reviewed(null));
@@ -154,14 +177,15 @@ class AttestationRowLimitResolverTest {
 
     private DatasourcePermissionContribution contribution(DatasourcePermissionSourceKind kind,
                                                           String groupName, Integer rowLimit) {
-        return new DatasourcePermissionContribution(kind, UUID.randomUUID(), userId, datasourceId,
+        var sourceId = kind == DatasourcePermissionSourceKind.DIRECT ? reviewedId : UUID.randomUUID();
+        return new DatasourcePermissionContribution(kind, sourceId, userId, datasourceId,
                 groupName == null ? null : UUID.randomUUID(), groupName, true, false, false, false,
                 List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
                 rowLimit, null, null, null);
     }
 
     private DatasourcePermissionView reviewed(Integer rowLimit) {
-        return new DatasourcePermissionView(UUID.randomUUID(), datasourceId, userId,
+        return new DatasourcePermissionView(reviewedId, datasourceId, userId,
                 "u@example.com", "User", true, false, false, false, rowLimit, null, List.of(),
                 List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), null,
                 UUID.randomUUID(), Instant.now());

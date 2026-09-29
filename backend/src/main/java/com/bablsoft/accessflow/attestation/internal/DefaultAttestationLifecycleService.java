@@ -226,7 +226,11 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
             node.putNull("row_limit_override");
         }
         // The grant's own value above is what is certified; this is what the subject actually gets.
-        node.put("effective_row_limit", rowLimit.effective());
+        if (rowLimit.effective() != null) {
+            node.put("effective_row_limit", rowLimit.effective());
+        } else {
+            node.putNull("effective_row_limit");
+        }
         node.put("row_limit_source", rowLimit.source());
         if (view.bytesScannedLimitOverride() != null) {
             node.put("bytes_scanned_limit_override", view.bytesScannedLimitOverride());

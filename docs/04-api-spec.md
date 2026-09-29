@@ -3265,8 +3265,12 @@ Items also carry row-limit evidence frozen at campaign open (#1084): `row_limit_
 reviewed grant's own configured cap, `null` when it sets none), `effective_row_limit` (the cap the
 proxy actually applies to the subject — the smallest live override across their direct and group
 grants, clamped by the datasource `max_rows_per_query` and `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`),
-and `row_limit_source` — `grant`, `group:<name>`, `datasource_cap` or `global_ceiling`. The last two
-are `null` on items snapshotted before this evidence existed. The evidence CSV adds the same three
+and `row_limit_source` — `grant`, `group:<name>`, `datasource_cap` or `global_ceiling`, or
+`no_live_grant` (with a `null` `effective_row_limit`) when the subject had no unexpired grant at all.
+Per-table row-limit policies depend on the query and are not included. `effective_row_limit` and
+`row_limit_source` are `null` on items snapshotted before this evidence existed; their
+`row_limit_override` was lifted from the frozen `permission_snapshot`, so it still means "the grant
+sets none" when `null`. The evidence CSV adds the same three
 columns (`row_limit_override`, `effective_row_limit`, `row_limit_source`) after
 `permission_expires_at`, empty for `null`.
 

@@ -22,7 +22,7 @@ export function AttestationRowLimitNote({ item }: { item: AttestationItem }) {
 
   return (
     <Tooltip title={t('attestation.row_limit.hint')}>
-      <span className="muted" style={{ fontSize: 11 }} data-testid="attestation-row-limit-note">
+      <span className="muted" style={{ fontSize: 11 }} tabIndex={0}>
         {configured != null
           ? t('attestation.row_limit.configured_applies', { configured, effective, source })
           : t('attestation.row_limit.applies', { effective, source })}

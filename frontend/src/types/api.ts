@@ -3565,8 +3565,9 @@ export interface AttestationItem {
   /**
    * Row-limit evidence (#1084): the reviewed grant's own `row_limit_override`, the cap enforcement
    * applied to the subject at campaign open, and what set it — `grant`, `group:<name>`,
-   * `datasource_cap` or `global_ceiling`. The last two are null on items snapshotted before this
-   * evidence existed.
+   * `datasource_cap` or `global_ceiling` — or `no_live_grant` (with a null effective limit) when the
+   * subject had no unexpired grant. The last two are null on items snapshotted before this evidence
+   * existed.
    */
   row_limit_override: number | null;
   effective_row_limit: number | null;

@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.proxy.api.RowCapResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +29,8 @@ class AttestationRowLimitResolver {
     static final String SOURCE_GROUP_PREFIX = "group:";
     static final String SOURCE_DATASOURCE_CAP = "datasource_cap";
     static final String SOURCE_GLOBAL_CEILING = "global_ceiling";
+    /** The subject has no live grant at all — the reviewed one expired — so no limit applies. */
+    static final String SOURCE_NO_LIVE_GRANT = "no_live_grant";
 
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final RowCapResolver rowCapResolver;
@@ -39,8 +42,11 @@ class AttestationRowLimitResolver {
         return new DatasourceRowLimits(byUser, maxRowsPerQuery);
     }
 
-    /** The configured override on the reviewed grant, the limit that applies, and what set it. */
-    record RowLimitEvidence(Integer configured, int effective, String source) {
+    /**
+     * The configured override on the reviewed grant, the limit that applies, and what set it.
+     * {@code effective} is null only for {@link #SOURCE_NO_LIVE_GRANT}.
+     */
+    record RowLimitEvidence(Integer configured, Integer effective, String source) {
     }
 
     final class DatasourceRowLimits {
@@ -56,6 +62,11 @@ class AttestationRowLimitResolver {
 
         RowLimitEvidence evaluate(DatasourcePermissionView reviewed) {
             var parts = byUser.getOrDefault(reviewed.userId(), List.of());
+            if (parts.isEmpty()) {
+                // Nothing live to merge: the subject cannot run a query here, so reporting the
+                // datasource cap would claim access that does not exist.
+                return new RowLimitEvidence(reviewed.rowLimitOverride(), null, SOURCE_NO_LIVE_GRANT);
+            }
             var override = permissionLookupService.mergeContributions(parts)
                     .map(merged -> merged.rowLimitOverride())
                     .orElse(null);
@@ -75,15 +86,22 @@ class AttestationRowLimitResolver {
         private static String overrideSource(DatasourcePermissionView reviewed,
                                              List<DatasourcePermissionContribution> parts,
                                              Integer override) {
-            // On a tie the grant under review is credited: it is what the reviewer certifies.
-            if (Objects.equals(reviewed.rowLimitOverride(), override)) {
+            // On a tie the grant under review is credited — it is what the reviewer certifies — but
+            // only while it is live: an expired grant is not among the contributions.
+            boolean reviewedIsLive = parts.stream().anyMatch(c ->
+                    c.sourceKind() == DatasourcePermissionSourceKind.DIRECT
+                            && c.sourceId().equals(reviewed.id()));
+            if (reviewedIsLive && Objects.equals(reviewed.rowLimitOverride(), override)) {
                 return SOURCE_GRANT;
             }
+            // Tied groups are broken by name so the recorded evidence is reproducible.
             return parts.stream()
                     .filter(c -> c.sourceKind() == DatasourcePermissionSourceKind.GROUP)
                     .filter(c -> Objects.equals(c.rowLimitOverride(), override))
-                    .findFirst()
-                    .map(c -> SOURCE_GROUP_PREFIX + c.groupName())
+                    .map(DatasourcePermissionContribution::groupName)
+                    .filter(Objects::nonNull)
+                    .min(Comparator.naturalOrder())
+                    .map(name -> SOURCE_GROUP_PREFIX + name)
                     .orElse(SOURCE_GRANT);
         }
     }

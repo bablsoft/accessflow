@@ -168,6 +168,12 @@ class DefaultAttestationLifecycleServiceTest {
                         null, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
                         List.of(), null, UUID.randomUUID(), Instant.now())));
         when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+        when(permissionLookupService.findContributionsForDatasource(datasourceId))
+                .thenReturn(List.of(new com.bablsoft.accessflow.core.api.DatasourcePermissionContribution(
+                        com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind.DIRECT,
+                        UUID.randomUUID(), userId, datasourceId, null, null, true, false, false,
+                        false, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                        List.of(), 5_000, null, null, null)));
         var merged = mock(com.bablsoft.accessflow.core.api.DatasourceUserPermissionView.class);
         when(merged.rowLimitOverride()).thenReturn(5_000);
         when(permissionLookupService.mergeContributions(any())).thenReturn(Optional.of(merged));

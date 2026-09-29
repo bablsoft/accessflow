@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-29">29 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -757,11 +757,11 @@ APPROVED → FAILED (execution error)</pre>
           </p>
           <p>
             <strong>The row limit that really applies.</strong> A grant's own row limit is not always
-            what its holder gets: a lower limit on one of their groups, the datasource's maximum rows
-            per query, or the deployment-wide ceiling can all cut it down. Each item therefore records
+            what its holder gets: a lower limit on one of their groups, the datasource's own limit, or
+            the system-wide ceiling can all cut it down. Each item therefore records
             both the limit configured on the grant under review and the limit that actually applies,
-            with what set it (this grant, a named group, the datasource cap or the deployment
-            ceiling). When the two differ, the worklist shows it — for example
+            with what set it (this grant, a named group, the datasource's own limit or the
+            system-wide ceiling). When the two differ, the worklist shows it — for example
             <em>Configured 5000 · applies 1000 (datasource cap)</em> — so nobody certifies a limit
             that isn't in force.
           </p>
