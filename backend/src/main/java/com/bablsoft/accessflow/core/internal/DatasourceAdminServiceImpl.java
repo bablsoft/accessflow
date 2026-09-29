@@ -30,6 +30,7 @@ import com.bablsoft.accessflow.core.api.QueryShape;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.QuotaService;
@@ -671,7 +672,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
-        entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setRowLimitOverride(rowLimit(command.rowLimitOverride()));
         entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
                 command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
@@ -733,7 +734,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
         entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
-        entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setRowLimitOverride(rowLimit(command.rowLimitOverride()));
         entity.setBytesScannedLimitOverride(bytesCap(datasource.getDbType(),
                 command.bytesScannedLimitOverride()));
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
@@ -1172,6 +1173,14 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             throw new DeniedShapesNotSupportedException(datasource.getDbType());
         }
         return names;
+    }
+
+    /** Service-level twin of the web DTO's {@code @Min(1)} (#1085); null means no override. */
+    private static Integer rowLimit(Integer limit) {
+        if (limit != null && limit < 1) {
+            throw new InvalidRowLimitOverrideException(limit);
+        }
+        return limit;
     }
 
     /**

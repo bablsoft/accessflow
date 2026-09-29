@@ -316,6 +316,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidRowLimitOverrideReturns400() {
+        var pd = handler.handleInvalidRowLimitOverride(
+                new com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException(0));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getDetail()).isNotBlank();
+        assertThat(pd.getProperties()).containsEntry("error", "INVALID_ROW_LIMIT_OVERRIDE");
+    }
+
+    @Test
     void invalidSqlReturns422() {
         var pd = handler.handleInvalidSql(new InvalidSqlException("nope"));
 

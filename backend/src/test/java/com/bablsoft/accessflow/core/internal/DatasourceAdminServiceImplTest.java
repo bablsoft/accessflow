@@ -940,6 +940,50 @@ class DatasourceAdminServiceImplTest {
                 null, null, null, cap, clear, missing);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, -5})
+    void grantPermissionRefusesANonPositiveRowLimitOverride(int override) {
+        stubGrantableUser(DbType.POSTGRESQL);
+
+        assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId,
+                rowLimitPermission(override)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException.class)
+                .satisfies(e -> assertThat(((com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException) e)
+                        .value()).isEqualTo(override));
+        verify(permissionRepository, never()).save(any());
+    }
+
+    @Test
+    void grantPermissionStoresAPositiveOrAbsentRowLimitOverride() {
+        stubGrantableUser(DbType.POSTGRESQL);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.grantPermission(datasourceId, orgId, adminId, rowLimitPermission(1));
+        assertThat(saved.getValue().getRowLimitOverride()).isEqualTo(1);
+
+        service.grantPermission(datasourceId, orgId, adminId, rowLimitPermission(null));
+        assertThat(saved.getValue().getRowLimitOverride()).isNull();
+    }
+
+    @Test
+    void grantGroupPermissionRefusesANonPositiveRowLimitOverride() {
+        var groupId = UUID.randomUUID();
+        when(datasourceRepository.findById(datasourceId))
+                .thenReturn(Optional.of(buildDatasource(datasourceId, orgId, "Prod")));
+        var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
+                groupId, true, false, false, false, 0, null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.InvalidRowLimitOverrideException.class);
+        verify(groupPermissionRepository, never()).save(any());
+    }
+
+    private CreatePermissionCommand rowLimitPermission(Integer override) {
+        return new CreatePermissionCommand(userId, true, false, false, false, override, null, null,
+                null, null, null, null, null, null, null, null);
+    }
+
     private CreatePermissionCommand bytesCapPermission(Long override) {
         return new CreatePermissionCommand(userId, true, false, false, false, null, override, null,
                 null, null, null, null, null, null, null, null);
