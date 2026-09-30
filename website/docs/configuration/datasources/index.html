@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-28",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -451,7 +451,8 @@
             fixed <em>literal</em> or a <code>:user.*</code> <em>variable</em> — the built-in
             <code>:user.id</code> / <code>:user.email</code> / <code>:user.role</code> /
             <code>:user.groups</code>, or an admin-set per-user attribute (the <em>Attributes</em>
-            key/value editor on <em>Admin → Users</em>). The <em>applies to</em> roles / groups / users
+            key/value editor on <em>Admin → Users</em>, or a service account's <em>Attributes</em>
+            tab). The <em>applies to</em> roles / groups / users
             scope it (empty = everyone, no implicit admin bypass — the inverse of masking's
             <em>reveal to</em>). Values are bound as parameters, never concatenated; an unresolved
             variable filters out every row (fail-closed); and a query the engine can't safely rewrite

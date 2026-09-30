@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.serviceaccounts.api;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ import java.util.UUID;
  * {@code displayName}, {@code role} / {@code roleId} — are additionally refused when they would
  * change on a BOOTSTRAP account. The UI-owned fields are reset through {@code clear}: naming
  * {@code MCP_TOOL_ALLOW_LIST} there means "every tool" (an empty list means "no tool").
+ * {@code attributes} (#1130) is UI-owned and replaces the row-security attribute map when present;
+ * an empty map removes every attribute.
  */
 public record UpdateServiceAccountCommand(
         String displayName,
@@ -23,10 +26,12 @@ public record UpdateServiceAccountCommand(
         List<String> mcpToolAllowList,
         Integer rateLimitPerMinute,
         Integer rateLimitPerDay,
+        Map<String, String> attributes,
         Set<ServiceAccountClearableField> clear
 ) {
     public UpdateServiceAccountCommand {
         mcpToolAllowList = mcpToolAllowList == null ? null : List.copyOf(mcpToolAllowList);
+        attributes = attributes == null ? null : Map.copyOf(attributes);
         clear = clear == null ? Set.of() : Set.copyOf(clear);
     }
 }

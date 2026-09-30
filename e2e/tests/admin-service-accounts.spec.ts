@@ -74,7 +74,15 @@ test.describe('service-accounts admin UI (#875, #876)', () => {
     // Create lands in the settings page on the overview tab.
     await page.waitForURL(`**/admin/service-accounts/${created.id}`, { timeout: 15_000 });
     await expect(page.getByRole('heading', { name: displayName })).toBeVisible();
-    for (const tab of ['Overview', 'API keys', 'MCP tools', 'Limits', 'On-behalf-of principals', 'Activity']) {
+    for (const tab of [
+      'Overview',
+      'API keys',
+      'MCP tools',
+      'Limits',
+      'Attributes',
+      'On-behalf-of principals',
+      'Activity',
+    ]) {
       await expect(page.getByRole('tab', { name: tab })).toBeVisible();
     }
     await expect(page.getByTestId('bootstrap-banner')).toHaveCount(0);
@@ -156,6 +164,28 @@ test.describe('service-accounts admin UI (#875, #876)', () => {
     await clickTab(page, 'MCP tools');
     await expect(activeTabPanel(page).getByRole('checkbox', { name: /validate_sql/ })).toBeChecked();
     await expect(activeTabPanel(page).getByRole('checkbox', { name: /submit_query/ })).not.toBeChecked();
+
+    // Row-security attributes (#1130): the service-account surface is their only write path.
+    await clickTab(page, 'Attributes');
+    const attributesPanel = activeTabPanel(page);
+    await expect(attributesPanel.getByTestId('attributes-empty')).toBeVisible();
+    await attributesPanel.getByRole('button', { name: /Add attribute/ }).click();
+    await attributesPanel.getByLabel('Key', { exact: true }).fill('region');
+    await attributesPanel.getByLabel('Value', { exact: true }).fill('EU');
+    const saveAttributes = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && r.url().includes(`/admin/service-accounts/${created.id}`),
+      { timeout: 15_000 },
+    );
+    await attributesPanel.getByRole('button', { name: 'Save attributes' }).click();
+    const savedAttributes = await saveAttributes;
+    expect(savedAttributes.status()).toBe(200);
+    expect(savedAttributes.request().postDataJSON()).toEqual({ attributes: { region: 'EU' } });
+    await expect(page.getByText('Attributes updated')).toBeVisible();
+
+    await page.reload();
+    await clickTab(page, 'Attributes');
+    await expect(activeTabPanel(page).getByLabel('Key', { exact: true })).toHaveValue('region');
+    await expect(activeTabPanel(page).getByLabel('Value', { exact: true })).toHaveValue('EU');
 
     // The list shows the restricted count and the UI badge.
     await page.getByRole('button', { name: 'Back to service accounts' }).click();

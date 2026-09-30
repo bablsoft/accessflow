@@ -17,6 +17,10 @@ import {
   suggestedRotationName,
   toolsFormFromAccount,
   toolsUpdateInput,
+  attributesFormFromAccount,
+  attributesMap,
+  attributesUpdateInput,
+  duplicateAttributeKeys,
 } from '../serviceAccountForm';
 
 const t = i18n.t.bind(i18n);
@@ -245,5 +249,43 @@ describe('NO_CONTROL_CHARACTERS (#938)', () => {
     expect(NO_CONTROL_CHARACTERS.test('')).toBe(true);
     expect(NO_CONTROL_CHARACTERS.test('tab\tname')).toBe(false);
     expect(NO_CONTROL_CHARACTERS.test('bell\u0007')).toBe(false);
+  });
+});
+
+describe('attributes encoding (#1130)', () => {
+  it('prefills sorted rows and an empty list when the detail has none', () => {
+    expect(attributesFormFromAccount({ attributes: { tenant: 'acme', region: 'EU' } })).toEqual({
+      attributes: [
+        { key: 'region', value: 'EU' },
+        { key: 'tenant', value: 'acme' },
+      ],
+    });
+    expect(attributesFormFromAccount({})).toEqual({ attributes: [] });
+  });
+
+  it('trims keys and values and drops rows without a key', () => {
+    expect(attributesMap([{ key: ' region ', value: ' EU ' }, { key: '  ', value: 'x' }, { key: 'k' }])).toEqual({
+      region: 'EU',
+      k: '',
+    });
+    expect(attributesMap(undefined)).toEqual({});
+  });
+
+  it('sends the whole map on a change, {} to remove everything, and nothing when unchanged', () => {
+    const account = { attributes: { region: 'EU' } };
+    expect(attributesUpdateInput({ attributes: [{ key: 'region', value: 'EU' }] }, account)).toEqual({});
+    expect(attributesUpdateInput({ attributes: [{ key: 'region', value: 'US' }] }, account)).toEqual({
+      attributes: { region: 'US' },
+    });
+    expect(
+      attributesUpdateInput({ attributes: [{ key: 'tenant', value: 'EU' }] }, account),
+    ).toEqual({ attributes: { tenant: 'EU' } });
+    expect(attributesUpdateInput({ attributes: [] }, account)).toEqual({ attributes: {} });
+    expect(attributesUpdateInput({ attributes: [] }, {})).toEqual({});
+  });
+
+  it('reports trimmed duplicate keys', () => {
+    expect([...duplicateAttributeKeys([{ key: 'a' }, { key: ' a ' }, { key: 'b' }, { key: '' }])]).toEqual(['a']);
+    expect(duplicateAttributeKeys(undefined).size).toBe(0);
   });
 });

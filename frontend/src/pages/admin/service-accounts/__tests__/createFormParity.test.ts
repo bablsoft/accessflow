@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  ATTRIBUTE_CONSTRAINTS,
   CREATE_FORM_CONSTRAINTS,
   KEY_FORM_CONSTRAINTS,
   UPDATE_FORM_CONSTRAINTS,
@@ -20,7 +21,16 @@ const WEB_DIR = path.resolve(
   '../../../../../../backend/src/main/java/com/bablsoft/accessflow/serviceaccounts/internal/web',
 );
 
-const NOT_A_FORM_FIELD = new Set(['role', 'role_id', 'owner_user_id', 'mcp_tool_allow_list', 'active', 'clear']);
+// `attributes` is a map with per-key / per-value constraints — asserted by its own case below.
+const NOT_A_FORM_FIELD = new Set([
+  'role',
+  'role_id',
+  'owner_user_id',
+  'mcp_tool_allow_list',
+  'active',
+  'attributes',
+  'clear',
+]);
 
 function snakeCase(camel: string): string {
   return camel.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -59,6 +69,20 @@ describe('service-account form ↔ backend validation parity', () => {
     const backend = constraintsOf('UpdateServiceAccountRequest.java');
     // @Pattern("\\s*\\S[\\s\\S]*") is "non-blank when sent"; the form never sends a blank name.
     expect(backend).toEqual(UPDATE_FORM_CONSTRAINTS);
+  });
+
+  it('the attributes tab mirrors UpdateServiceAccountRequest.attributes (#1130)', () => {
+    const source = readFileSync(path.join(WEB_DIR, 'UpdateServiceAccountRequest.java'), 'utf8');
+    const component = source.match(/(@Size\(max = \d+[^)]*\)\s*Map<[\s\S]*?> attributes)/)?.[1] ?? '';
+    expect(component).not.toBe('');
+    const [entries, key, value] = component.split(/Map<|String,/);
+    expect(Number(entries?.match(/@Size\(max = (\d+)/)?.[1])).toBe(ATTRIBUTE_CONSTRAINTS.max_entries);
+    // The key is required (the tab's key rule); a blank value is allowed but never null.
+    expect(key).toMatch(/@NotBlank\b/);
+    expect(Number(key?.match(/@Size\(max = (\d+)/)?.[1])).toBe(ATTRIBUTE_CONSTRAINTS.key_max);
+    expect(value).toMatch(/@NotNull\b/);
+    expect(value).not.toMatch(/@NotBlank\b/);
+    expect(Number(value?.match(/@Size\(max = (\d+)/)?.[1])).toBe(ATTRIBUTE_CONSTRAINTS.value_max);
   });
 
   it('the issue and rotate modals mirror the key request records', () => {

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,9 +35,10 @@ class ServiceAccountWebModelsTest {
                 "custom", false, ServiceAccountSource.BOOTSTRAP, "d", owner, "owner@example.com", "Owner",
                 List.of("validate_sql"), 1, 2, 1,
                 Instant.EPOCH.plusSeconds(1), Instant.EPOCH.plusSeconds(4), Instant.EPOCH, Instant.EPOCH.plusSeconds(5),
-                List.of(key));
+                List.of(key), Map.of("region", "EU"));
 
         var response = ServiceAccountResponse.from(view);
+        assertThat(response.attributes()).containsExactly(Map.entry("region", "EU"));
 
         assertThat(response.id()).isEqualTo(ID);
         assertThat(response.email()).isEqualTo("bot@example.com");
@@ -74,7 +76,7 @@ class ServiceAccountWebModelsTest {
     void responseKeepsANullAllowListMeaningEveryTool() {
         var view = new ServiceAccountAdminView(ID, ORG, "e", "n", null, UUID.randomUUID(), "r", true,
                 ServiceAccountSource.UI, null, null, null, null, null, null, null, 0, null, null, Instant.EPOCH,
-                Instant.EPOCH, null);
+                Instant.EPOCH, null, null);
         var response = ServiceAccountResponse.from(view);
         assertThat(response.mcpToolAllowList()).isNull();
         assertThat(response.apiKeys()).isEmpty();
@@ -92,7 +94,7 @@ class ServiceAccountWebModelsTest {
     void pageResponseCopiesThePageShape() {
         var view = new ServiceAccountAdminView(ID, ORG, "e", "n", null, null, "r", true,
                 ServiceAccountSource.UI, null, null, null, null, List.of(), null, null, 0, null, null, Instant.EPOCH,
-                Instant.EPOCH, List.of());
+                Instant.EPOCH, List.of(), null);
         var page = ServiceAccountPageResponse.from(new PageResponse<>(List.of(view), 2, 10, 21, 3));
         assertThat(page.content()).singleElement().extracting(ServiceAccountResponse::id).isEqualTo(ID);
         assertThat(page.page()).isEqualTo(2);
@@ -142,8 +144,9 @@ class ServiceAccountWebModelsTest {
         var owner = UUID.randomUUID();
         var roleId = UUID.randomUUID();
         var request = new UpdateServiceAccountRequest("Bot", UserRoleType.ANALYST, roleId, false, "d", owner,
-                List.of(), 1, 2, null);
+                List.of(), 1, 2, Map.of("tenant", "acme"), null);
         var command = request.toCommand();
+        assertThat(command.attributes()).containsExactly(Map.entry("tenant", "acme"));
         assertThat(command.displayName()).isEqualTo("Bot");
         assertThat(command.role()).isEqualTo(UserRoleType.ANALYST);
         assertThat(command.roleId()).isEqualTo(roleId);
@@ -154,20 +157,22 @@ class ServiceAccountWebModelsTest {
         assertThat(command.rateLimitPerMinute()).isEqualTo(1);
         assertThat(command.rateLimitPerDay()).isEqualTo(2);
         assertThat(request.presentFields()).containsExactly("display_name", "role", "role_id", "active",
-                "description", "owner_user_id", "mcp_tool_allow_list", "rate_limit_per_minute", "rate_limit_per_day");
+                "description", "owner_user_id", "mcp_tool_allow_list", "rate_limit_per_minute", "rate_limit_per_day",
+                "attributes");
 
         assertThat(request.clearedFields()).isEmpty();
         assertThat(command.clear()).isEmpty();
         assertThat(request.isClearDisjointFromValues()).isTrue();
 
-        var empty = new UpdateServiceAccountRequest(null, null, null, null, null, null, null, null, null, null);
+        var empty = new UpdateServiceAccountRequest(null, null, null, null, null, null, null, null, null, null, null);
         assertThat(empty.presentFields()).isEmpty();
         assertThat(empty.clearedFields()).isEmpty();
         assertThat(empty.toCommand().mcpToolAllowList()).isNull();
+        assertThat(empty.toCommand().attributes()).isNull();
         assertThat(empty.isClearDisjointFromValues()).isTrue();
 
         var cleared = new UpdateServiceAccountRequest(null, null, null, null, null, null, null, null, null,
-                Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY, ServiceAccountClearableField.DESCRIPTION));
+                null, Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY, ServiceAccountClearableField.DESCRIPTION));
         assertThat(cleared.clearedFields()).containsExactly("description", "rate_limit_per_day");
         assertThat(cleared.toCommand().clear()).containsExactlyInAnyOrder(
                 ServiceAccountClearableField.RATE_LIMIT_PER_DAY, ServiceAccountClearableField.DESCRIPTION);
@@ -177,15 +182,15 @@ class ServiceAccountWebModelsTest {
     @Test
     void updateRequestRejectsAFieldThatIsBothSetAndCleared() {
         assertThat(new UpdateServiceAccountRequest(null, null, null, null, "d", null, null, null, null,
-                Set.of(ServiceAccountClearableField.DESCRIPTION)).isClearDisjointFromValues()).isFalse();
+                null, Set.of(ServiceAccountClearableField.DESCRIPTION)).isClearDisjointFromValues()).isFalse();
         assertThat(new UpdateServiceAccountRequest(null, null, null, null, null, UUID.randomUUID(), null, null, null,
-                Set.of(ServiceAccountClearableField.OWNER_USER_ID)).isClearDisjointFromValues()).isFalse();
+                null, Set.of(ServiceAccountClearableField.OWNER_USER_ID)).isClearDisjointFromValues()).isFalse();
         assertThat(new UpdateServiceAccountRequest(null, null, null, null, null, null, List.of(), null, null,
-                Set.of(ServiceAccountClearableField.MCP_TOOL_ALLOW_LIST)).isClearDisjointFromValues()).isFalse();
+                null, Set.of(ServiceAccountClearableField.MCP_TOOL_ALLOW_LIST)).isClearDisjointFromValues()).isFalse();
         assertThat(new UpdateServiceAccountRequest(null, null, null, null, null, null, null, 1, null,
-                Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_MINUTE)).isClearDisjointFromValues()).isFalse();
+                null, Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_MINUTE)).isClearDisjointFromValues()).isFalse();
         assertThat(new UpdateServiceAccountRequest(null, null, null, null, null, null, null, null, 1,
-                Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY)).isClearDisjointFromValues()).isFalse();
+                null, Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY)).isClearDisjointFromValues()).isFalse();
     }
 
     @Test

@@ -2719,6 +2719,7 @@
         "tab_keys": "Claves de API",
         "tab_tools": "Herramientas MCP",
         "tab_limits": "Límites",
+        "tab_attributes": "Atributos",
         "tab_principals": "Principales en nombre de",
         "tab_activity": "Actividad",
         "deactivate": "Desactivar",
@@ -2803,6 +2804,17 @@
         "placeholder_default": "Predeterminado del despliegue",
         "save": "Guardar límites",
         "success": "Límites de tasa actualizados"
+      },
+      "attributes": {
+        "description": "Atributos clave/valor que se resuelven en los predicados de seguridad de filas como :user.<key>. Guardar reemplaza el conjunto completo; el bootstrap nunca los declara, por lo que también se pueden editar en cuentas gestionadas por bootstrap.",
+        "empty": "No hay atributos definidos.",
+        "key": "Clave",
+        "value": "Valor",
+        "add": "Añadir atributo",
+        "remove": "Eliminar atributo",
+        "duplicate_key": "Esta clave ya está en uso.",
+        "save": "Guardar atributos",
+        "success": "Atributos actualizados"
       },
       "principals": {
         "description": "Personas que consienten ser nombradas por esta cuenta mediante X-AccessFlow-On-Behalf-Of. Una delegación no otorga permisos: la clave de la cuenta decide qué puede hacer, y la persona nombrada cuenta como solicitante para la prohibición de autoaprobación.",
