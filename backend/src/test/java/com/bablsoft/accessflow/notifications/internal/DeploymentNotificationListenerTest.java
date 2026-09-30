@@ -114,7 +114,7 @@ class DeploymentNotificationListenerTest {
     @Test
     void breakGlassExecutionNotifiesAdmins() {
         listener.onBreakGlassExecuted(new DeploymentBreakGlassExecutedEvent(orgId, requestId,
-                pipelineId, submitterId, "incident 42"));
+                pipelineId, submitterId, "incident 42", null));
         verify(dispatcher).dispatchDeployment(
                 NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, requestId, null, null);
     }
@@ -127,7 +127,7 @@ class DeploymentNotificationListenerTest {
     @Test
     void breakGlassDoesNotAlsoNotifyTheSubmitterOfApproval() {
         listener.onBreakGlassExecuted(new DeploymentBreakGlassExecutedEvent(orgId, requestId,
-                pipelineId, submitterId, "incident 42"));
+                pipelineId, submitterId, "incident 42", null));
         verify(dispatcher, never()).dispatchDeployment(
                 org.mockito.ArgumentMatchers.eq(NotificationEventType.DEPLOYMENT_APPROVED),
                 any(), any(), any());

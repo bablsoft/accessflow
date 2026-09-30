@@ -15,6 +15,8 @@ import java.util.function.Function;
  * Exactly one of {@code queryRequestId} / {@code apiRequestId} / {@code deploymentRequestId} is
  * set — the row's target kind (AF-500 / #692). {@code sqlReviewFindings} (#864) are rendered into
  * the caller's locale; they were recorded at submission and never gated the emergency execution.
+ * {@code onBehalfOfUserId} (#1129) is the human an agent broke glass for; like the submitter, they
+ * can never acknowledge the event.
  */
 public record BreakGlassEventResponse(
         UUID id,
@@ -26,6 +28,7 @@ public record BreakGlassEventResponse(
         UUID connectorId,
         UUID pipelineId,
         UUID submittedByUserId,
+        UUID onBehalfOfUserId,
         String submittedByDisplayName,
         String submittedByEmail,
         String sqlText,
@@ -51,6 +54,7 @@ public record BreakGlassEventResponse(
                 view.connectorId(),
                 view.pipelineId(),
                 view.submittedByUserId(),
+                view.onBehalfOfUserId(),
                 view.submittedByDisplayName(),
                 view.submittedByEmail(),
                 view.sqlText(),

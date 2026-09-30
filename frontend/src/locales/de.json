@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Break-Glass-Ereignis bestätigen",
     "acknowledge_confirm_body": "Bestätigen Sie, dass Sie diese Notfallausführung geprüft haben. Dies schließt die nachträgliche Prüfung ab.",
     "acknowledge_comment_placeholder": "Abstimmungsnotiz hinzufügen (optional)",
+    "acknowledge_self_disabled": "Sie können kein Break-Glass-Ereignis bestätigen, das Sie ausgelöst haben oder das in Ihrem Auftrag ausgeführt wurde",
     "drawer_title": "Break-Glass-Ereignis",
     "view_query": "Ausgeführte Abfrage anzeigen",
     "section_justification": "Begründung",

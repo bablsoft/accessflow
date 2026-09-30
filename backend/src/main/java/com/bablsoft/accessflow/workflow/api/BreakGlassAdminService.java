@@ -21,7 +21,8 @@ public interface BreakGlassAdminService {
      *
      * @throws BreakGlassEventNotFoundException if no event exists in this organization.
      * @throws BreakGlassAlreadyReviewedException if the event is already reviewed.
-     * @throws SelfAcknowledgeNotAllowedException if the actor is the submitter of the break-glass query.
+     * @throws SelfAcknowledgeNotAllowedException if the actor is the submitter of the break-glass
+     *         event or the human it was run on behalf of (#1129).
      */
     BreakGlassEventView acknowledge(UUID organizationId, UUID eventId, UUID actorUserId,
                                     String comment);

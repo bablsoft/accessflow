@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Հաստատել break-glass իրադարձությունը",
     "acknowledge_confirm_body": "Հաստատեք, որ վերանայել եք այս արտակարգ կատարումը։ Սա փակում է հետադարձ վերանայումը։",
     "acknowledge_comment_placeholder": "Ավելացրեք համադրման նշում (ըստ ցանկության)",
+    "acknowledge_self_disabled": "Դուք չեք կարող հաստատել break-glass իրադարձություն, որը ներկայացրել եք դուք կամ որը կատարվել է ձեր անունից",
     "drawer_title": "Break-glass իրադարձություն",
     "view_query": "Դիտել կատարված հարցումը",
     "section_justification": "Հիմնավորում",

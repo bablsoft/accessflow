@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Acknowledge break-glass event",
     "acknowledge_confirm_body": "Confirm you have reviewed this emergency execution. This closes the retrospective review.",
     "acknowledge_comment_placeholder": "Add a reconciliation note (optional)",
+    "acknowledge_self_disabled": "You can't acknowledge a break-glass event you submitted or that was run on your behalf",
     "drawer_title": "Break-glass event",
     "view_query": "View executed query",
     "section_justification": "Justification",

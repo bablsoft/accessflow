@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassNotPermittedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
+import com.bablsoft.accessflow.workflow.api.BreakGlassService.ApiBreakGlassReview;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.DeploymentBreakGlassReview;
 import com.bablsoft.accessflow.workflow.api.BreakGlassStatus;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
@@ -127,7 +128,27 @@ class DefaultBreakGlassServiceTest {
         verify(breakGlassEventRepository).save(entity.capture());
         assertThat(entity.getValue().getQueryRequestId()).isEqualTo(queryId);
         assertThat(entity.getValue().getJustification()).isEqualTo("prod is down");
+        assertThat(entity.getValue().getOnBehalfOfUserId()).isNull();
         verify(eventPublisher).publishEvent(any(BreakGlassExecutedEvent.class));
+    }
+
+    @Test
+    void breakGlassStampsTheOnBehalfOfPrincipalOnTheRetroReview() {
+        var principalId = UUID.randomUUID();
+        stubDatasourceForUser(true);
+        stubParse("SELECT 1", QueryType.SELECT, Set.of());
+        stubPermission(true, false, false, true, null, List.of(), List.of());
+        when(queryRequestPersistenceService.submit(any())).thenReturn(queryId);
+        when(queryLifecycleService.executeBreakGlass(queryId, userId))
+                .thenReturn(new ExecutionOutcome(queryId, QueryStatus.EXECUTED, 1L, 5));
+
+        service.breakGlassExecute(new BreakGlassInput(datasourceId, "SELECT 1", "prod is down",
+                userId, organizationId, false, "10.0.0.1", "agent", principalId, APP));
+
+        var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
+        verify(breakGlassEventRepository).save(entity.capture());
+        assertThat(entity.getValue().getSubmittedBy()).isEqualTo(userId);
+        assertThat(entity.getValue().getOnBehalfOfUserId()).isEqualTo(principalId);
     }
 
     @Test
@@ -331,8 +352,9 @@ class DefaultBreakGlassServiceTest {
         var deploymentRequestId = UUID.randomUUID();
         var pipelineId = UUID.randomUUID();
 
+        var principalId = UUID.randomUUID();
         var eventId = service.openDeploymentBreakGlassReview(new DeploymentBreakGlassReview(
-                organizationId, deploymentRequestId, pipelineId, userId, "prod is down"));
+                organizationId, deploymentRequestId, pipelineId, userId, "prod is down", principalId));
 
         var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
         verify(breakGlassEventRepository).save(entity.capture());
@@ -342,13 +364,33 @@ class DefaultBreakGlassServiceTest {
         assertThat(entity.getValue().getOrganizationId()).isEqualTo(organizationId);
         assertThat(entity.getValue().getSubmittedBy()).isEqualTo(userId);
         assertThat(entity.getValue().getJustification()).isEqualTo("prod is down");
+        assertThat(entity.getValue().getOnBehalfOfUserId()).isEqualTo(principalId);
         assertThat(entity.getValue().getStatus()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void openApiBreakGlassReviewStampsTargetAndOnBehalfOfPrincipal() {
+        var apiRequestId = UUID.randomUUID();
+        var connectorId = UUID.randomUUID();
+        var principalId = UUID.randomUUID();
+
+        var eventId = service.openApiBreakGlassReview(new ApiBreakGlassReview(
+                organizationId, apiRequestId, connectorId, userId, null, principalId));
+
+        var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
+        verify(breakGlassEventRepository).save(entity.capture());
+        assertThat(eventId).isEqualTo(entity.getValue().getId());
+        assertThat(entity.getValue().getApiRequestId()).isEqualTo(apiRequestId);
+        assertThat(entity.getValue().getConnectorId()).isEqualTo(connectorId);
+        assertThat(entity.getValue().getSubmittedBy()).isEqualTo(userId);
+        assertThat(entity.getValue().getOnBehalfOfUserId()).isEqualTo(principalId);
+        assertThat(entity.getValue().getJustification()).isEqualTo("(none)");
     }
 
     @Test
     void openDeploymentBreakGlassReviewDefaultsNullJustification() {
         service.openDeploymentBreakGlassReview(new DeploymentBreakGlassReview(
-                organizationId, UUID.randomUUID(), UUID.randomUUID(), userId, null));
+                organizationId, UUID.randomUUID(), UUID.randomUUID(), userId, null, null));
 
         var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
         verify(breakGlassEventRepository).save(entity.capture());

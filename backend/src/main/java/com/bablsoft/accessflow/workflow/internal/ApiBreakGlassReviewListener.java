@@ -24,6 +24,6 @@ class ApiBreakGlassReviewListener {
     void onApiBreakGlassExecuted(ApiBreakGlassExecutedEvent event) {
         breakGlassService.openApiBreakGlassReview(new BreakGlassService.ApiBreakGlassReview(
                 event.organizationId(), event.apiRequestId(), event.connectorId(),
-                event.submitterUserId(), event.justification()));
+                event.submitterUserId(), event.justification(), event.onBehalfOfUserId()));
     }
 }

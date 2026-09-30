@@ -167,6 +167,32 @@ class DefaultApiRequestServiceTest {
     }
 
     @Test
+    void breakGlassForwardsTheOnBehalfOfPrincipalToTheRetroReviewEvent() {
+        var principalId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, true)));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        var executed = new ApiRequestEntity();
+        executed.setId(UUID.randomUUID());
+        executed.setOrganizationId(orgId);
+        executed.setConnectorId(connectorId);
+        executed.setSubmittedBy(userId);
+        executed.setStatus(QueryStatus.EXECUTED);
+        when(executionService.execute(any())).thenReturn(executed);
+
+        service.submit(new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, "POST",
+                "/charges", null, null, ApiBodyType.RAW, "application/json", "{}", null, null,
+                java.util.Map.of(), "need", null, SubmissionReason.EMERGENCY_ACCESS, "1.2.3.4", "ua",
+                principalId));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ApiBreakGlassExecutedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().submitterUserId()).isEqualTo(userId);
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(principalId);
+    }
+
+    @Test
     void breakGlassWithoutPermissionIsDenied() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
         when(permissionResolver.resolve(connectorId, userId))

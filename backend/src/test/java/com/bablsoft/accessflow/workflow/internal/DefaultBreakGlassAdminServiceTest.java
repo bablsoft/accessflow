@@ -165,6 +165,35 @@ class DefaultBreakGlassAdminServiceTest {
     }
 
     @Test
+    void acknowledgeRejectsTheHumanTheEmergencyWasRunOnBehalfOf() {
+        var principalId = UUID.randomUUID();
+        var entity = pendingEntity();
+        entity.setOnBehalfOfUserId(principalId);
+        when(repository.findByIdAndOrganizationId(eventId, organizationId))
+                .thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.acknowledge(organizationId, eventId, principalId, null))
+                .isInstanceOf(SelfAcknowledgeNotAllowedException.class);
+
+        verify(repository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void acknowledgeAllowsAnotherAdminWhenTheEventCarriesAnOnBehalfOfPrincipal() {
+        var principalId = UUID.randomUUID();
+        var entity = pendingEntity();
+        entity.setOnBehalfOfUserId(principalId);
+        when(repository.findByIdAndOrganizationId(eventId, organizationId))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.acknowledge(organizationId, eventId, adminId, null);
+
+        assertThat(view.status()).isEqualTo(BreakGlassStatus.REVIEWED);
+        assertThat(view.onBehalfOfUserId()).isEqualTo(principalId);
+    }
+
+    @Test
     void acknowledgeRejectsAlreadyReviewed() {
         var entity = pendingEntity();
         entity.setStatus(BreakGlassStatus.REVIEWED);

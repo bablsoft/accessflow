@@ -13,5 +13,6 @@ public record ApiBreakGlassExecutedEvent(
         UUID apiRequestId,
         UUID connectorId,
         UUID submitterUserId,
-        String justification) {
+        String justification,
+        UUID onBehalfOfUserId) {
 }

@@ -10,6 +10,7 @@ import {
   Skeleton,
   Space,
   Table,
+  Tooltip,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
@@ -26,6 +27,7 @@ import {
   listBreakGlassEvents,
 } from '@/api/breakGlass';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
+import { useAuthStore } from '@/store/authStore';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
@@ -42,6 +44,7 @@ export default function BreakGlassLogPage() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState<BreakGlassEventStatus | 'all'>('PENDING_REVIEW');
@@ -259,21 +262,37 @@ export default function BreakGlassLogPage() {
               {
                 title: t('breakglass.col_actions'),
                 width: 140,
-                render: (_v, e) => (
-                  <Space size={4} onClick={(ev) => ev.stopPropagation()}>
-                    <Button
-                      size="small"
-                      disabled={e.status !== 'PENDING_REVIEW'}
-                      onClick={() => {
-                        setAckTarget(e);
-                        setAckComment('');
-                      }}
-                      data-testid={`acknowledge-${e.id}`}
-                    >
-                      {t('breakglass.action_acknowledge')}
-                    </Button>
-                  </Space>
-                ),
+                render: (_v, e) => {
+                  // The submitter, and the human an agent broke glass for, can never sign off
+                  // the retro-review (#1129); the server refuses it too.
+                  const isOwnEvent =
+                    currentUserId != null &&
+                    (e.submitted_by_user_id === currentUserId ||
+                      e.on_behalf_of_user_id === currentUserId);
+                  return (
+                    <Space size={4} onClick={(ev) => ev.stopPropagation()}>
+                      <Tooltip
+                        title={
+                          isOwnEvent && e.status === 'PENDING_REVIEW'
+                            ? t('breakglass.acknowledge_self_disabled')
+                            : undefined
+                        }
+                      >
+                        <Button
+                          size="small"
+                          disabled={e.status !== 'PENDING_REVIEW' || isOwnEvent}
+                          onClick={() => {
+                            setAckTarget(e);
+                            setAckComment('');
+                          }}
+                          data-testid={`acknowledge-${e.id}`}
+                        >
+                          {t('breakglass.action_acknowledge')}
+                        </Button>
+                      </Tooltip>
+                    </Space>
+                  );
+                },
               },
             ]}
           />

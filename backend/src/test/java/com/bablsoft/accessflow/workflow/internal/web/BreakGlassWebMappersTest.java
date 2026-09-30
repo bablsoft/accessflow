@@ -16,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BreakGlassWebMappersTest {
 
+    private static final UUID PRINCIPAL = UUID.randomUUID();
+
     @Test
     void executeResponseMapsResult() {
         var id = UUID.randomUUID();
@@ -48,6 +50,7 @@ class BreakGlassWebMappersTest {
         assertThat(response.id()).isEqualTo(view.id());
         assertThat(response.datasourceName()).isEqualTo("prod-db");
         assertThat(response.submittedByEmail()).isEqualTo("a@x.io");
+        assertThat(response.onBehalfOfUserId()).isEqualTo(PRINCIPAL);
         assertThat(response.executionStatus()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(response.status()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
         assertThat(response.sqlReviewFindings()).isEmpty();
@@ -61,7 +64,8 @@ class BreakGlassWebMappersTest {
                 java.util.Map.of());
         var view = new BreakGlassEventView(base.id(), base.queryRequestId(), null, null,
                 base.organizationId(), base.datasourceId(), base.datasourceName(), null, null,
-                base.submittedByUserId(), base.submittedByDisplayName(), base.submittedByEmail(),
+                base.submittedByUserId(), base.onBehalfOfUserId(), base.submittedByDisplayName(),
+                base.submittedByEmail(),
                 base.sqlText(), base.executionStatus(), base.justification(), base.status(),
                 null, null, null, null, base.createdAt(), List.of(finding));
 
@@ -88,7 +92,8 @@ class BreakGlassWebMappersTest {
     private BreakGlassEventView sampleView() {
         return new BreakGlassEventView(
                 UUID.randomUUID(), UUID.randomUUID(), null, null, UUID.randomUUID(),
-                UUID.randomUUID(), "prod-db", null, null, UUID.randomUUID(), "Alice", "a@x.io",
+                UUID.randomUUID(), "prod-db", null, null, UUID.randomUUID(), PRINCIPAL, "Alice",
+                "a@x.io",
                 "SELECT 1", QueryStatus.EXECUTED, "prod is down", BreakGlassStatus.PENDING_REVIEW,
                 null, null, null, null, Instant.now(), List.of());
     }

@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "确认 break-glass 事件",
     "acknowledge_confirm_body": "确认您已复核此次应急执行。此操作将关闭事后复核。",
     "acknowledge_comment_placeholder": "添加对账备注（可选）",
+    "acknowledge_self_disabled": "您不能确认由您提交或代表您执行的 break-glass 事件",
     "drawer_title": "Break-glass 事件",
     "view_query": "查看已执行的查询",
     "section_justification": "理由",

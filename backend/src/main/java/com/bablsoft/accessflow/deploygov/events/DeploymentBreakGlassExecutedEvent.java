@@ -13,5 +13,6 @@ public record DeploymentBreakGlassExecutedEvent(
         UUID deploymentRequestId,
         UUID pipelineId,
         UUID submitterUserId,
-        String justification) {
+        String justification,
+        UUID onBehalfOfUserId) {
 }

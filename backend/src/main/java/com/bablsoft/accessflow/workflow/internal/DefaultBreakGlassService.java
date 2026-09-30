@@ -105,6 +105,7 @@ class DefaultBreakGlassService implements BreakGlassService {
         event.setOrganizationId(input.organizationId());
         event.setDatasourceId(datasource.id());
         event.setSubmittedBy(input.submitterUserId());
+        event.setOnBehalfOfUserId(input.onBehalfOfUserId());
         event.setJustification(input.justification());
         event.setStatus(BreakGlassStatus.PENDING_REVIEW);
         breakGlassEventRepository.save(event);
@@ -128,6 +129,7 @@ class DefaultBreakGlassService implements BreakGlassService {
         event.setConnectorId(review.connectorId());
         event.setOrganizationId(review.organizationId());
         event.setSubmittedBy(review.submitterUserId());
+        event.setOnBehalfOfUserId(review.onBehalfOfUserId());
         event.setJustification(review.justification() == null ? "(none)" : review.justification());
         event.setStatus(BreakGlassStatus.PENDING_REVIEW);
         breakGlassEventRepository.save(event);
@@ -145,6 +147,7 @@ class DefaultBreakGlassService implements BreakGlassService {
         event.setPipelineId(review.pipelineId());
         event.setOrganizationId(review.organizationId());
         event.setSubmittedBy(review.submitterUserId());
+        event.setOnBehalfOfUserId(review.onBehalfOfUserId());
         event.setJustification(review.justification() == null ? "(none)" : review.justification());
         event.setStatus(BreakGlassStatus.PENDING_REVIEW);
         breakGlassEventRepository.save(event);

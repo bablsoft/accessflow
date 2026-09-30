@@ -62,6 +62,9 @@ public class BreakGlassEventEntity {
     @Column(name = "submitted_by", nullable = false)
     private UUID submittedBy;
 
+    @Column(name = "on_behalf_of_user_id")
+    private UUID onBehalfOfUserId;
+
     @Column(nullable = false, columnDefinition = "text")
     private String justification;
 

@@ -16,6 +16,8 @@ import java.util.UUID;
  * governed resource for the non-query kinds the way {@code datasourceId} does for queries.
  * {@code sqlReviewFindings} are the deterministic SQL review findings recorded when the emergency
  * query was submitted (#864) — they never gated the execution; they are here for the retro-review.
+ * {@code onBehalfOfUserId} is the human an agent broke glass for (#874) — a second submitter
+ * identity that can never acknowledge the event (#1129).
  */
 public record BreakGlassEventView(
         UUID id,
@@ -28,6 +30,7 @@ public record BreakGlassEventView(
         UUID connectorId,
         UUID pipelineId,
         UUID submittedByUserId,
+        UUID onBehalfOfUserId,
         String submittedByDisplayName,
         String submittedByEmail,
         String sqlText,

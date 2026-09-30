@@ -1621,9 +1621,10 @@ row tracks the review alongside it.
 | `connector_id` | UUID nullable — bare (no FK); set for API targets (AF-500) |
 | `pipeline_id` | UUID nullable — bare (no FK); set for deployment targets (#692) |
 | `submitted_by` | UUID NOT NULL — bare (no FK); the user who broke glass |
+| `on_behalf_of_user_id` | UUID nullable — bare (no FK); the human an agent broke glass for (`X-AccessFlow-On-Behalf-Of`, #874), copied from the target's `on_behalf_of_user_id` at creation for all three kinds. A second submitter identity: they can never acknowledge the row (#1129, V200 — which backfills existing rows from their target) |
 | `justification` | TEXT NOT NULL — mandatory reason captured at submission |
 | `status` | ENUM `break_glass_status`: `PENDING_REVIEW` (default) \| `REVIEWED` |
-| `reviewed_by` | UUID nullable — bare (no FK); the admin who acknowledged (never the submitter) |
+| `reviewed_by` | UUID nullable — bare (no FK); the admin who acknowledged (never the submitter nor `on_behalf_of_user_id`) |
 | `review_comment` | TEXT nullable — optional reconciliation note |
 | `reviewed_at` | TIMESTAMPTZ nullable |
 | `version` | BIGINT — optimistic lock |

@@ -302,15 +302,18 @@ A miss is **never silently dropped**. Any of these returns one opaque
 
 What the header *does* do:
 - **Stamps provenance.** `on_behalf_of_user_id` is written on `query_requests`, `api_requests`,
-  `deployment_requests` (and `deployment_rollback_reviews`), and `request_groups`. Every audit row
+  `deployment_requests` (and `deployment_rollback_reviews`), `request_groups`, and
+  `break_glass_events`. Every audit row
   of the request gets `on_behalf_of_user_id`, `api_key_id`, and `service_account` through
   `ServiceAccountProvenanceContributor`
   (`backend/src/main/java/com/bablsoft/accessflow/serviceaccounts/internal/ServiceAccountProvenanceContributor.java:30-51`).
 - **Narrows who may approve.** The named human becomes a **second submitter identity** for the
   self-approval ban (`isSubmitterIdentity`, e.g.
   `backend/src/main/java/com/bablsoft/accessflow/workflow/internal/DefaultReviewService.java:289`).
-  Alice cannot approve what the agent submitted for her. This closes the approval-laundering hole
-  where a person could submit through a bot and then approve the bot's request.
+  Alice cannot approve what the agent submitted for her, and she cannot acknowledge the
+  retro-review of a break-glass run the agent performed for her (`break_glass_events.on_behalf_of_user_id`,
+  #1129). This closes the approval-laundering hole where a person could submit through a bot and
+  then approve the bot's request.
 - **Is refused on every review / decision path.** Query, API, deployment, and rollback reviews,
   group approve/reject, erasure reviews, access requests, and break-glass acknowledgement are listed
   in `OnBehalfOfDecisionPaths.java:21-29`. They return `403 ON_BEHALF_OF_REVIEW_FORBIDDEN`, and the
@@ -368,8 +371,6 @@ can be rotated with grace and revoked on the spot.
   changes, when the reconciler re-applies the declared role; a custom role is kept.
 - There is no self-service screen for a human to consent to being named. Use
   `/api/v1/me/service-account-delegations`, or ask an admin to grant it on the account.
-- Break-glass retro-review acknowledgement still guards only the submitter, not an on-behalf-of
-  principal.
 - `tools/list` is not filtered ([§5](#5-mcp-tool-allow-list)).
 
 ---

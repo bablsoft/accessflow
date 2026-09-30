@@ -3103,6 +3103,8 @@ export interface BreakGlassEvent {
   connector_id: string | null;
   pipeline_id: string | null;
   submitted_by_user_id: string;
+  /** The human an agent broke glass for (#874); never allowed to acknowledge (#1129). */
+  on_behalf_of_user_id?: string | null;
   submitted_by_display_name: string | null;
   submitted_by_email: string | null;
   sql_text: string | null;

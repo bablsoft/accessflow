@@ -74,7 +74,7 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
     public BreakGlassEventView acknowledge(UUID organizationId, UUID eventId, UUID actorUserId,
                                            String comment) {
         var entity = loadOrThrow(organizationId, eventId);
-        if (entity.getSubmittedBy().equals(actorUserId)) {
+        if (isSubmitterIdentity(entity, actorUserId)) {
             throw new SelfAcknowledgeNotAllowedException(eventId);
         }
         if (entity.getStatus() == BreakGlassStatus.REVIEWED) {
@@ -88,6 +88,12 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
         eventPublisher.publishEvent(new BreakGlassReviewedEvent(
                 eventId, entity.getQueryRequestId(), organizationId, actorUserId));
         return toView(saved);
+    }
+
+    // The human an agent broke glass for (#874) is a second submitter identity, exactly as on every
+    // other review path — otherwise they could sign off the retro-review of their own emergency.
+    static boolean isSubmitterIdentity(BreakGlassEventEntity entity, UUID userId) {
+        return userId.equals(entity.getSubmittedBy()) || userId.equals(entity.getOnBehalfOfUserId());
     }
 
     private BreakGlassEventEntity loadOrThrow(UUID organizationId, UUID eventId) {
@@ -125,6 +131,7 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
                 entity.getConnectorId(),
                 entity.getPipelineId(),
                 entity.getSubmittedBy(),
+                entity.getOnBehalfOfUserId(),
                 submitter != null ? submitter.displayName() : null,
                 submitter != null ? submitter.email() : null,
                 query != null ? query.sqlText() : null,

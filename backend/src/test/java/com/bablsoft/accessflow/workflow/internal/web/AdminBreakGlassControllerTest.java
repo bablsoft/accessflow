@@ -128,7 +128,7 @@ class AdminBreakGlassControllerTest {
                                      UUID deploymentRequestId, UUID datasourceId,
                                      UUID connectorId, UUID pipelineId) {
         return new BreakGlassEventView(eventId, queryRequestId, apiRequestId, deploymentRequestId,
-                orgId, datasourceId, null, connectorId, pipelineId, submitterId, "Dev",
+                orgId, datasourceId, null, connectorId, pipelineId, submitterId, null, "Dev",
                 "dev@example.com", null, QueryStatus.EXECUTED, "incident 42",
                 BreakGlassStatus.REVIEWED, actorId, "Admin", "ok", Instant.now(), Instant.now(),
                 List.of());
