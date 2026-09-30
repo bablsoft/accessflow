@@ -3057,7 +3057,7 @@ The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/
 
 1. **Organization** — looks up by slug, creates if missing. Slug is derived from `bootstrap.organization.name` when `bootstrap.organization.slug` is blank.
 2. **Admin user** — looks up by email. Creates with role=ADMIN if missing. **Does NOT rotate** the password on existing users (operators rotate via the admin API).
-3. **Service accounts (+ API keys)** — upsert by email; registers each as a `BOOTSTRAP`-managed service account through `serviceaccounts.api.ServiceAccountProvisioningService.ensureRegistered` and imports its declared key via `ApiKeyService.importOrUpdate`. Skipped per account when the spec fingerprint is unchanged. `role` defaults to `ADMIN` when omitted — always declare a narrow one ([22-service-accounts.md](22-service-accounts.md) §3, §8).
+3. **Service accounts (+ API keys)** — upsert by email; registers each as a `BOOTSTRAP`-managed service account through `serviceaccounts.api.ServiceAccountProvisioningService.ensureRegistered` and imports its declared key via `ApiKeyService.importOrUpdate`. Skipped per account when the spec fingerprint is unchanged; on a changed fingerprint the spec-owned `role` / `displayName` are re-applied to an existing account through `UserAdminService.updateUser` (audited as `changed_fields`), except that a custom role (null legacy `role`) is kept. `role` defaults to `ADMIN` when omitted — always declare a narrow one ([22-service-accounts.md](22-service-accounts.md) §3, §8).
 4. **Notification channels** — upsert by `(orgId, name)`.
 5. **AI configs** — upsert by `(orgId, name)`.
 6. **Review plans** — upsert by `(orgId, name)`. Resolves `notifyChannelNames` against step 4 and `approverEmails` against step 2 (or any pre-existing users in the same org).
@@ -4765,7 +4765,8 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
     deliberately keeps the submitter-only guard — admin-only, and the on-behalf-of is on its audit
     row; a follow-up issue.
 - **Known limitation.** `PUT /admin/users/{id}` does not consult `principal_type`, so a `USER_MANAGE`
-  holder can still edit a `BOOTSTRAP` account's display name or role there. The UI never offers
+  holder can still edit a `BOOTSTRAP` account's display name or role there (until the next changed
+  reconcile re-applies the declared values; a custom role is kept). The UI never offers
   that path: since #875 the users page badges service accounts, filters by `?principal_type=`, and
   routes their row action to `/admin/service-accounts/{id}` instead of the edit modal.
 

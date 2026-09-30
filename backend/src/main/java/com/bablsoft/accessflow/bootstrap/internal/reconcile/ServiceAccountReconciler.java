@@ -8,9 +8,11 @@ import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.ServiceAccountSpec;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.PrincipalType;
+import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountProvisioningService;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
@@ -19,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,7 +40,9 @@ import java.util.UUID;
  * owner, description) are deliberately outside the spec and its fingerprint, so an admin's edit
  * survives a restart and an existing install adopts the feature with no YAML change. A declared
  * email that already belongs to a plain user is adopted (typed on the next changed reconcile) and
- * logged at WARN, since there is no reverse path.
+ * logged at WARN, since there is no reverse path. The spec owns {@code role} and
+ * {@code displayName} — the admin surface refuses to edit them on a {@code BOOTSTRAP} account — so
+ * a changed fingerprint re-applies whichever of the two drifted on an existing user.
  */
 @Component
 @RequiredArgsConstructor
@@ -78,7 +83,8 @@ public class ServiceAccountReconciler {
         }
         var role = spec.role() == null ? UserRoleType.ADMIN : spec.role();
 
-        var userId = resolveOrCreateUser(organizationId, spec, role);
+        var existing = resolveExistingUser(organizationId, spec);
+        var userId = existing == null ? createUser(organizationId, spec, role) : existing.id();
 
         var specFingerprint = fingerprinter.fingerprint(specFields(spec, role));
         var storedFingerprint = stateTracker
@@ -94,6 +100,9 @@ public class ServiceAccountReconciler {
         // user rather than a keyed HUMAN.
         serviceAccountProvisioningService.ensureRegistered(organizationId, userId,
                 ServiceAccountSource.BOOTSTRAP);
+        var changedFields = existing == null
+                ? List.<String>of()
+                : reapplyDeclaredFields(organizationId, spec, role, existing);
         apiKeyService.importOrUpdate(userId, organizationId, spec.apiKeyName(), spec.apiKey(),
                 spec.apiKeyExpiresAt());
         log.info("Bootstrap: {} service-account API key '{}' for '{}' (userId={})",
@@ -108,30 +117,34 @@ public class ServiceAccountReconciler {
                         BootstrapResourceType.SERVICE_ACCOUNT,
                         userId,
                         changeKind,
-                        List.of(),
+                        changedFields,
                         Map.of("email", spec.email(), "api_key_name", spec.apiKeyName(), "role", role.name())));
         return userId;
     }
 
-    private UUID resolveOrCreateUser(UUID organizationId, ServiceAccountSpec spec, UserRoleType role) {
+    private UserView resolveExistingUser(UUID organizationId, ServiceAccountSpec spec) {
         var existing = userQueryService.findByEmail(spec.email());
-        if (existing.isPresent()) {
-            var user = existing.get();
-            if (!user.organizationId().equals(organizationId)) {
-                throw new IllegalStateException(
-                        "Service account email '%s' is registered against a different organization"
-                                .formatted(spec.email()));
-            }
-            if (user.principalType() != PrincipalType.SERVICE_ACCOUNT) {
-                // Adoption is deliberate (a pre-#868 install declares accounts that already exist
-                // as plain users), but a typo naming a real person's email must be loud: since #869
-                // that person can no longer sign in interactively (password, refresh, or SSO).
-                log.warn("Bootstrap: service account '{}' matches an existing {} user {} — "
-                        + "adopting it as a SERVICE_ACCOUNT; interactive sign-in for it will be blocked",
-                        spec.email(), user.principalType(), user.id());
-            }
-            return user.id();
+        if (existing.isEmpty()) {
+            return null;
         }
+        var user = existing.get();
+        if (!user.organizationId().equals(organizationId)) {
+            throw new IllegalStateException(
+                    "Service account email '%s' is registered against a different organization"
+                            .formatted(spec.email()));
+        }
+        if (user.principalType() != PrincipalType.SERVICE_ACCOUNT) {
+            // Adoption is deliberate (a pre-#868 install declares accounts that already exist
+            // as plain users), but a typo naming a real person's email must be loud: since #869
+            // that person can no longer sign in interactively (password, refresh, or SSO).
+            log.warn("Bootstrap: service account '{}' matches an existing {} user {} — "
+                    + "adopting it as a SERVICE_ACCOUNT; interactive sign-in for it will be blocked",
+                    spec.email(), user.principalType(), user.id());
+        }
+        return user;
+    }
+
+    private UUID createUser(UUID organizationId, ServiceAccountSpec spec, UserRoleType role) {
         var created = userAdminService.createUser(new CreateUserCommand(
                 organizationId,
                 spec.email(),
@@ -144,6 +157,41 @@ public class ServiceAccountReconciler {
         log.info("Bootstrap: created service-account user '{}' (id={}, role={})",
                 created.email(), created.id(), role);
         return created.id();
+    }
+
+    /**
+     * Re-applies the spec-owned {@code role} / {@code displayName} to an existing account and
+     * returns the audit {@code changedFields}. A custom role (null legacy {@code role}) is kept:
+     * the spec can only name a system role, so overwriting it could widen the account.
+     */
+    private List<String> reapplyDeclaredFields(UUID organizationId, ServiceAccountSpec spec,
+                                               UserRoleType role, UserView user) {
+        var onCustomRole = user.role() == null;
+        if (onCustomRole) {
+            log.warn("Bootstrap: service account '{}' is on custom role '{}' — keeping it; "
+                    + "the declared role {} is not applied", spec.email(), user.roleName(), role);
+        }
+        var roleChanged = !onCustomRole && user.role() != role;
+        var displayNameChanged = !spec.displayName().equals(user.displayName());
+        if (!roleChanged && !displayNameChanged) {
+            return List.of();
+        }
+        // currentUserId is null: a system write, never subject to the self-edit guards.
+        userAdminService.updateUser(user.id(), organizationId, null, new UpdateUserCommand(
+                roleChanged ? role : null,
+                null,
+                displayNameChanged ? spec.displayName() : null,
+                null));
+        var changed = new ArrayList<String>();
+        if (roleChanged) {
+            changed.add("role");
+        }
+        if (displayNameChanged) {
+            changed.add("display_name");
+        }
+        log.info("Bootstrap: re-applied {} to service account '{}' (userId={}, role={})",
+                changed, spec.email(), user.id(), role);
+        return List.copyOf(changed);
     }
 
     private static Map<String, Object> specFields(ServiceAccountSpec spec, UserRoleType role) {

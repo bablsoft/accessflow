@@ -655,7 +655,7 @@ accessflow.bootstrap.organization.governs-deployments     → ACCESSFLOW_BOOTSTR
 accessflow.bootstrap.admin.display-name                   → ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME
 accessflow.bootstrap.service-accounts[0].email            → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL
 accessflow.bootstrap.service-accounts[0].api-key          → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY
-accessflow.bootstrap.service-accounts[0].role             → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE   (defaults to ADMIN; applied only when the account is created — set it before the first start)
+accessflow.bootstrap.service-accounts[0].role             → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE   (defaults to ADMIN — always set it; re-applied to an existing account when the spec changes)
 accessflow.bootstrap.review-plans[0].name                 → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_NAME
 accessflow.bootstrap.review-plans[0].approver-emails[1]   → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_APPROVER_EMAILS_1
 accessflow.bootstrap.datasources[2].password              → ACCESSFLOW_BOOTSTRAP_DATASOURCES_2_PASSWORD

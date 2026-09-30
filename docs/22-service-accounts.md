@@ -116,16 +116,20 @@ not watch. Give it the smallest role that works.
   (`DefaultServiceAccountAdminService.java:65`). The create form preselects it and warns when you
   pick a role that can review.
 - **Declarative (bootstrap) default: `ADMIN`.** `ServiceAccountReconciler`
-  (`backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/reconcile/ServiceAccountReconciler.java:79`)
+  (`backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/reconcile/ServiceAccountReconciler.java:84`)
   falls back to `ADMIN` when a `bootstrap.serviceAccounts[]` entry omits `role`. This predates
-  service accounts and is a **poor default**. **Always set `role` explicitly** in a bootstrap spec,
-  **before the account's first start**. The reconciler applies `role` and `displayName` only when
-  it *creates* the user (`resolveOrCreateUser`, `ServiceAccountReconciler.java:116-147`); changing
-  them in the spec later does nothing to an existing account, and the service-accounts UI/API
-  refuses the edit on a `BOOTSTRAP` account (409). To narrow an account that already came up as
-  `ADMIN`, change its role through `PUT /api/v1/admin/users/{id}` (`USER_MANAGE`) — the one path
-  that does not consult `principal_type` ([§9](#9-known-limitations)) — and set the same role in
-  the spec so the record matches.
+  service accounts and is a **poor default**. **Always set `role` explicitly** in a bootstrap spec.
+  The spec owns `role` and `displayName`: the reconciler applies them when it creates the user, and
+  whenever the spec's fingerprint changes it re-applies whichever of the two differs on the
+  existing account through `UserAdminService.updateUser` (`reapplyDeclaredFields`,
+  `ServiceAccountReconciler.java:167-195`), audited as the account's `BOOTSTRAP` upsert with
+  `changed_fields`. To narrow an account that already came up as `ADMIN`, change `role` in the spec
+  and restart. The service-accounts UI/API refuses the same edit on a `BOOTSTRAP` account (409),
+  because the spec would own it anyway. The spec can only name a **system** role: a custom role
+  given to a bootstrap account through `PUT /api/v1/admin/users/{id}` is kept on every later
+  reconcile (logged at WARN), never reset to the declared role, so a key rotation cannot widen it.
+  Before upgrading, check that each declared `role` matches the role the account actually has — a
+  system role changed outside the spec is reset on the next spec change.
 
 | Machine | Suggested role | Plus |
 |---|---|---|
@@ -300,7 +304,7 @@ A service account is created in one of two places, and `service_accounts.managed
 | | `UI` | `BOOTSTRAP` |
 |---|---|---|
 | Created by | an admin (UI or API) | `bootstrap.serviceAccounts[]` / `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*` on startup |
-| Display name, role | editable | **declared by the spec, applied only at creation**: changing either from the service-accounts UI/API is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (an unchanged value is a no-op), and changing it in the spec later is **not** re-applied to an existing account ([§3](#3-choosing-a-role--keep-it-narrow)) |
+| Display name, role | editable | **declared by the spec**: applied at creation and re-applied to the existing account whenever the spec changes, except that a custom role assigned outside the spec is kept ([§3](#3-choosing-a-role--keep-it-narrow)); changing either from the service-accounts UI/API is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (an unchanged value is a no-op) |
 | Owner, description, active, tool allow-list, rate limits, delegations | editable | editable. The reconciler never touches them, so a UI edit survives every restart |
 | Extra keys issued in the UI | rotate / revoke freely | rotate / revoke freely |
 | The **declared** key (`api_keys.bootstrap_declared`) | — | **cannot be revoked or rotated** from any surface |
@@ -338,7 +342,8 @@ can be rotated with grace and revoked on the spot.
 - `PUT /api/v1/admin/users/{id}` does not consult `principal_type`. The UI never offers that path
   for a service account: the users page badges it, filters by `?principal_type=`, and routes its row
   action to `/admin/service-accounts/{id}`. A direct API caller with `USER_MANAGE` could still edit
-  its role there.
+  its role there. On a `BOOTSTRAP` account a system-role edit there lasts only until the spec next
+  changes, when the reconciler re-applies the declared role; a custom role is kept.
 - There is no self-service screen for a human to consent to being named. Use
   `/api/v1/me/service-account-delegations`, or ask an admin to grant it on the account.
 - Break-glass retro-review acknowledgement still guards only the submitter, not an on-behalf-of
@@ -372,7 +377,7 @@ bootstrap:
   serviceAccounts:
     - email: ci-deploy@acme.com
       displayName: CI deploy bot
-      role: READONLY              # set it before the first start — the default is ADMIN, and a later change is not re-applied
+      role: READONLY              # always set it — the default is ADMIN; a later change is re-applied on restart
       apiKeyName: ci
       apiKeySecretRef: { name: af-secrets, key: ci-api-key }
 ```

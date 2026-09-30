@@ -511,10 +511,10 @@ bootstrap:
   # accounts page (graced rotation, instant revoke); declare one here when it must
   # exist before anyone signs in. The raw key is supplied from a Secret (only its
   # hash is stored), upserted by email and re-imported whenever the spec changes —
-  # so the declared key cannot be revoked or rotated from the UI. ALWAYS set role
-  # before the first start: omitted, it defaults to ADMIN, and role/displayName are
-  # applied only when the account is created (a later change here is not re-applied).
-  # See docs/22-service-accounts.md.
+  # so the declared key cannot be revoked or rotated from the UI. ALWAYS set role:
+  # omitted, it defaults to ADMIN. role/displayName are owned by this spec and
+  # re-applied to an existing account whenever the spec changes (a custom role
+  # assigned outside the spec is kept). See docs/22-service-accounts.md.
   serviceAccounts: []
   # - email: ci@acme.com
   #   displayName: CI Pipeline
