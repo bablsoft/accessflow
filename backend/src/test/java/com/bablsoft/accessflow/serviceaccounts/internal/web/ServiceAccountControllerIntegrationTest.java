@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -266,6 +267,63 @@ class ServiceAccountControllerIntegrationTest {
                 String.class, botId)).isEqualTo("edited in the UI");
         assertThat(jdbcTemplate.queryForObject("SELECT display_name FROM users WHERE id = ?",
                 String.class, botId)).isEqualTo("CI runner");
+    }
+
+    @Test
+    void attributesAreUiOwnedAndReadBackOnTheDetailOnly() {
+        // The service-account surface is the only writer since #1130 closed PUT /admin/users/{id};
+        // bootstrap never declares attributes, so a BOOTSTRAP account accepts them.
+        var botId = seedBootstrapAccount().userId();
+
+        var set = mvc.put().uri(BASE + "/" + botId).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"attributes\":{\"region\":\"EU\",\"tenant\":\"acme\"}}").exchange();
+        assertThat(set).hasStatus(200);
+        assertThat(set).bodyJson().extractingPath("$.attributes.region").asString().isEqualTo("EU");
+        assertThat(set).bodyJson().extractingPath("$.attributes.tenant").asString().isEqualTo("acme");
+
+        var detail = mvc.get().uri(BASE + "/" + botId).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(detail).bodyJson().extractingPath("$.attributes.region").asString().isEqualTo("EU");
+        var users = mvc.get().uri("/api/v1/admin/users/" + botId + "/attributes")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
+        assertThat(users).bodyJson().extractingPath("$.attributes.tenant").asString().isEqualTo("acme");
+        var list = mvc.get().uri(BASE).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
+        assertThat(list).bodyJson().doesNotHavePath("$.content[0].attributes");
+
+        // Omitted = unchanged; {} removes every attribute.
+        var untouched = mvc.put().uri(BASE + "/" + botId).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"description\":\"d\"}").exchange();
+        assertThat(untouched).bodyJson().extractingPath("$.attributes.region").asString().isEqualTo("EU");
+        var cleared = mvc.put().uri(BASE + "/" + botId).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"attributes\":{}}").exchange();
+        assertThat(cleared).hasStatus(200);
+        assertThat(cleared).bodyJson().extractingPath("$.attributes").asMap().isEmpty();
+    }
+
+    @Test
+    void attributesOutsideTheAdminUsersBoundsAre400() {
+        var id = createUiAccount();
+        var longKey = "k".repeat(129);
+        var longValue = "v".repeat(513);
+        var tooMany = new StringBuilder("{\"attributes\":{");
+        for (int i = 0; i < 51; i++) {
+            tooMany.append(i == 0 ? "" : ",").append("\"k").append(i).append("\":\"v\"");
+        }
+        tooMany.append("}}");
+        for (var body : List.of(
+                "{\"attributes\":{\"" + longKey + "\":\"v\"}}",
+                "{\"attributes\":{\"k\":\"" + longValue + "\"}}",
+                "{\"attributes\":{\" \":\"v\"}}",
+                "{\"attributes\":{\"k\":null}}",
+                tooMany.toString())) {
+            var response = mvc.put().uri(BASE + "/" + id).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON).content(body).exchange();
+            assertThat(response).hasStatus(400);
+            assertThat(response).bodyJson().extractingPath("$.error").asString().isEqualTo("VALIDATION_ERROR");
+        }
+        assertThat(jdbcTemplate.queryForObject("SELECT attributes::text FROM users WHERE id = ?",
+                String.class, id)).isEqualTo("{}");
     }
 
     @Test

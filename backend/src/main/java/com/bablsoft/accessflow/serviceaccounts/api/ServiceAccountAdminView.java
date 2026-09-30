@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -12,6 +13,8 @@ import java.util.UUID;
  * a single-account read and empty on the list; {@code activeApiKeyCount} counts keys neither
  * revoked nor expired and {@code lastUsedAt} is the latest use across all keys. {@code role} is the
  * legacy system-role enum (null on a custom role); {@code roleName} is always populated.
+ * {@code attributes} — the row-security {@code :user.<key>} map (#1130) — is populated on a
+ * single-account read and null on the list.
  */
 public record ServiceAccountAdminView(
         UUID id,
@@ -35,10 +38,12 @@ public record ServiceAccountAdminView(
         Instant lastLoginAt,
         Instant createdAt,
         Instant updatedAt,
-        List<ServiceAccountKeyView> apiKeys
+        List<ServiceAccountKeyView> apiKeys,
+        Map<String, String> attributes
 ) {
     public ServiceAccountAdminView {
         mcpToolAllowList = mcpToolAllowList == null ? null : List.copyOf(mcpToolAllowList);
         apiKeys = apiKeys == null ? List.of() : List.copyOf(apiKeys);
+        attributes = attributes == null ? null : Map.copyOf(attributes);
     }
 }

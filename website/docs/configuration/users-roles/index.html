@@ -761,6 +761,11 @@
             <li><strong>Cap its request rate.</strong> The <em>Limits</em> tab sets per-minute and
               per-day request ceilings for this account; leave a field blank to inherit the deployment
               default.</li>
+            <li><strong>Give it row-security attributes.</strong> The <em>Attributes</em> tab holds the
+              key/value pairs a <a href="/docs/configuration/datasources/">row security</a> policy reads
+              as <code>:user.&lt;key&gt;</code> — for example <code>region = EU</code>, so the account
+              only sees European rows. This is the only place to set them for a service account; the
+              <em>Users</em> page does not edit service accounts.</li>
             <li><strong>Let it act on someone's behalf.</strong> The <em>On-behalf-of principals</em>
               tab lists the people who consent to be named by this account through the
               <code>X-AccessFlow-On-Behalf-Of</code> header. A delegation confers no permission — the
@@ -779,11 +784,11 @@
             the page and change only in that configuration — the declared key can be neither revoked
             nor rotated here, because the next change to that configuration would re-import it. Rotate it by
             changing the secret and restarting AccessFlow, or deactivate the account here in an emergency. Everything else
-            (owner, description, tools, limits, delegations, extra keys) stays editable. When the
+            (owner, description, tools, limits, attributes, delegations, extra keys) stays editable. When the
             configuration leaves out the role it defaults to <em>Admin</em>, so always set one. A later
             change to the role or display name in the configuration is applied to the account on the
-            next restart. A custom role an admin gives the account through the users API is kept,
-            because the configuration can only name a built-in role.
+            next restart. A custom role the account already holds is kept, because the configuration can
+            only name a built-in role.
           </p>
           <p>
             <strong>Where robots show up.</strong> <code>/admin/users</code> lists service accounts

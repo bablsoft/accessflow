@@ -266,6 +266,50 @@ describe('ServiceAccountSettingsPage', () => {
     );
   });
 
+  it('replaces the attribute map, refusing a duplicate key and an over-long value (#1130)', async () => {
+    getServiceAccount.mockResolvedValue(
+      account({ managed_by: 'BOOTSTRAP', attributes: { region: 'EU', tenant: 'acme' } }),
+    );
+    render(wrap(<ServiceAccountSettingsPage />, '/admin/service-accounts/sa-1?tab=attributes'));
+    await screen.findByRole('heading', { name: 'CI bot' });
+    await waitFor(() => expect(within(panel()).getAllByLabelText('Key')[0]).toHaveValue('region'));
+
+    // A duplicate key never reaches the API.
+    fireEvent.change(within(panel()).getAllByLabelText('Key')[1]!, { target: { value: 'region' } });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Save attributes' }));
+    // Both colliding rows are flagged.
+    expect(await within(panel()).findAllByText('This key is already used.')).toHaveLength(2);
+    fireEvent.change(within(panel()).getAllByLabelText('Key')[1]!, { target: { value: 'tenant' } });
+    fireEvent.change(within(panel()).getAllByLabelText('Value')[1]!, { target: { value: 'x'.repeat(513) } });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Save attributes' }));
+    expect(await within(panel()).findByText('Must be at most 512 characters.')).toBeInTheDocument();
+    expect(updateServiceAccount).not.toHaveBeenCalled();
+
+    // Editable on a BOOTSTRAP account: bootstrap never declares attributes.
+    fireEvent.change(within(panel()).getAllByLabelText('Value')[1]!, { target: { value: 'globex' } });
+    fireEvent.click(within(panel()).getByRole('button', { name: /Add attribute/ }));
+    fireEvent.change(within(panel()).getAllByLabelText('Key')[2]!, { target: { value: ' team ' } });
+    fireEvent.change(within(panel()).getAllByLabelText('Value')[2]!, { target: { value: 'data' } });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Save attributes' }));
+    await waitFor(() =>
+      expect(updateServiceAccount).toHaveBeenCalledWith('sa-1', {
+        attributes: { region: 'EU', tenant: 'globex', team: 'data' },
+      }),
+    );
+  });
+
+  it('removes every attribute by sending an empty map', async () => {
+    getServiceAccount.mockResolvedValue(account({ attributes: { region: 'EU' } }));
+    render(wrap(<ServiceAccountSettingsPage />, '/admin/service-accounts/sa-1?tab=attributes'));
+    await screen.findByRole('heading', { name: 'CI bot' });
+    await waitFor(() => expect(within(panel()).getByLabelText('Key')).toHaveValue('region'));
+
+    fireEvent.click(within(panel()).getByRole('button', { name: /Remove attribute/ }));
+    expect(within(panel()).getByTestId('attributes-empty')).toBeInTheDocument();
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Save attributes' }));
+    await waitFor(() => expect(updateServiceAccount).toHaveBeenCalledWith('sa-1', { attributes: {} }));
+  });
+
   it('lists, grants and revokes on-behalf-of principals', async () => {
     listDelegatedPrincipals.mockResolvedValue([
       {

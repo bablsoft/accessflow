@@ -2836,6 +2836,8 @@ export interface ServiceAccount {
   updated_at: string;
   /** Populated on a single-account read only; the list always returns `[]`. */
   api_keys: ServiceAccountKey[];
+  /** Row-security `:user.<key>` attributes (#1130). Single-account read only; absent on the list. */
+  attributes?: Record<string, string>;
 }
 
 export type ServiceAccountPage = PageEnvelope<ServiceAccount>;
@@ -2868,6 +2870,8 @@ export interface UpdateServiceAccountInput {
   mcp_tool_allow_list?: string[];
   rate_limit_per_minute?: number;
   rate_limit_per_day?: number;
+  /** Replaces the whole map when sent; `{}` removes every attribute (#1130). */
+  attributes?: Record<string, string>;
   clear?: ServiceAccountClearableField[];
 }
 

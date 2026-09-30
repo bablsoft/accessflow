@@ -56,6 +56,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -192,6 +193,24 @@ class DefaultServiceAccountAdminServiceTest {
         assertThat(view.activeApiKeyCount()).isEqualTo(2);
         assertThat(view.mcpToolAllowList()).containsExactly("validate_sql");
         assertThat(view.roleName()).isEqualTo("ANALYST");
+        assertThat(view.attributes()).isEmpty();
+    }
+
+    @Test
+    void getCarriesTheRowSecurityAttributesAndTheListDoesNot() {
+        stubLoad();
+        stubUser();
+        when(apiKeyService.list(userId)).thenReturn(List.of());
+        when(userAdminService.getUserAttributes(userId, ORG)).thenReturn(Map.of("region", "EU"));
+
+        assertThat(service.get(ORG, userId).attributes()).containsExactly(Map.entry("region", "EU"));
+
+        when(repository.findAllByOrganizationId(eq(ORG), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity)));
+        when(apiKeyService.listByUserIds(List.of(userId))).thenReturn(Map.of());
+        assertThat(service.list(ORG, null, PageRequest.of(0, 20)).content())
+                .singleElement().satisfies(view -> assertThat(view.attributes()).isNull());
+        verify(userAdminService).getUserAttributes(userId, ORG);
     }
 
     @Test
@@ -329,7 +348,7 @@ class DefaultServiceAccountAdminServiceTest {
                 .thenReturn(Map.of(userId, user(userId), ACTOR, user(ACTOR, true, PrincipalType.HUMAN)));
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand("Renamed", null, roleId, false,
-                null, null, List.of(), null, 500, null));
+                null, null, List.of(), null, 500, null, null));
 
         var captor = ArgumentCaptor.forClass(UpdateUserCommand.class);
         verify(userAdminService).updateUser(eq(userId), eq(ORG), eq(ACTOR), captor.capture());
@@ -353,7 +372,7 @@ class DefaultServiceAccountAdminServiceTest {
         when(apiKeyService.list(userId)).thenReturn(List.of());
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(null, null, null, null,
-                "new desc", null, null, 1, 2, null));
+                "new desc", null, null, 1, 2, null, null));
 
         verify(userAdminService, never()).updateUser(any(), any(), any(), any());
         assertThat(entity.getDescription()).isEqualTo("new desc");
@@ -374,7 +393,7 @@ class DefaultServiceAccountAdminServiceTest {
         entity.setRateLimitPerDay(50);
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(null, null, null, null,
-                null, null, null, null, null, Set.of(ServiceAccountClearableField.MCP_TOOL_ALLOW_LIST,
+                null, null, null, null, null, null, Set.of(ServiceAccountClearableField.MCP_TOOL_ALLOW_LIST,
                 ServiceAccountClearableField.OWNER_USER_ID, ServiceAccountClearableField.RATE_LIMIT_PER_DAY)));
 
         assertThat(entity.getMcpToolAllowList()).isNull();
@@ -384,10 +403,36 @@ class DefaultServiceAccountAdminServiceTest {
         assertThat(entity.getRateLimitPerMinute()).isEqualTo(5);
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(null, null, null, null,
-                null, null, null, null, null, Set.of(ServiceAccountClearableField.DESCRIPTION,
+                null, null, null, null, null, null, Set.of(ServiceAccountClearableField.DESCRIPTION,
                 ServiceAccountClearableField.RATE_LIMIT_PER_MINUTE)));
         assertThat(entity.getDescription()).isNull();
         assertThat(entity.getRateLimitPerMinute()).isNull();
+    }
+
+    @Test
+    void updateReplacesAttributesThroughTheUserServiceEvenOnABootstrapAccount() {
+        // Bootstrap never declares attributes, so they are UI-owned (#1130).
+        entity.setManagedBy(ServiceAccountSource.BOOTSTRAP);
+        stubLoad();
+        stubUser();
+        when(repository.save(entity)).thenReturn(entity);
+        when(apiKeyService.list(userId)).thenReturn(List.of());
+
+        service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(null, null, null, null,
+                null, null, null, null, null, Map.of("tenant", "acme"), null));
+        service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(null, null, null, null,
+                null, null, null, null, null, Map.of(), null));
+
+        var captor = ArgumentCaptor.forClass(UpdateUserCommand.class);
+        verify(userAdminService, times(2)).updateUser(eq(userId), eq(ORG), eq(ACTOR), captor.capture());
+        var first = captor.getAllValues().get(0);
+        assertThat(first.attributes()).containsExactly(Map.entry("tenant", "acme"));
+        assertThat(first.displayName()).isNull();
+        assertThat(first.role()).isNull();
+        assertThat(first.roleId()).isNull();
+        assertThat(first.active()).isNull();
+        // An empty map removes every attribute.
+        assertThat(captor.getAllValues().get(1).attributes()).isEmpty();
     }
 
     @Test
@@ -397,7 +442,7 @@ class DefaultServiceAccountAdminServiceTest {
         stubUser();
 
         assertThatThrownBy(() -> service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(
-                "Other", null, null, null, null, null, null, null, null, null)))
+                "Other", null, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ServiceAccountBootstrapManagedException.class)
                 .satisfies(ex -> assertThat(((ServiceAccountBootstrapManagedException) ex).field())
                         .isEqualTo("display_name"));
@@ -412,12 +457,12 @@ class DefaultServiceAccountAdminServiceTest {
         stubUser();
 
         assertThatThrownBy(() -> service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(
-                null, UserRoleType.ADMIN, null, null, null, null, null, null, null, null)))
+                null, UserRoleType.ADMIN, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ServiceAccountBootstrapManagedException.class)
                 .satisfies(ex -> assertThat(((ServiceAccountBootstrapManagedException) ex).field())
                         .isEqualTo("role"));
         assertThatThrownBy(() -> service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(
-                null, null, UUID.randomUUID(), null, null, null, null, null, null, null)))
+                null, null, UUID.randomUUID(), null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ServiceAccountBootstrapManagedException.class)
                 .satisfies(ex -> assertThat(((ServiceAccountBootstrapManagedException) ex).field())
                         .isEqualTo("role_id"));
@@ -433,7 +478,7 @@ class DefaultServiceAccountAdminServiceTest {
         when(apiKeyService.list(userId)).thenReturn(List.of());
 
         service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(current.displayName(),
-                current.role(), current.roleId(), true, "edited", null, List.of("validate_sql"), 10, 20, null));
+                current.role(), current.roleId(), true, "edited", null, List.of("validate_sql"), 10, 20, null, null));
 
         // An equal declared value is a no-op for the guard but still flows through updateUser
         // (with active), exactly like a UI account.
@@ -446,7 +491,7 @@ class DefaultServiceAccountAdminServiceTest {
     void updateValidatesOwnerAndToolsBeforeWriting() {
         stubLoad();
         assertThatThrownBy(() -> service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(
-                null, null, null, null, null, null, List.of("nope"), null, null, null)))
+                null, null, null, null, null, null, List.of("nope"), null, null, null, null)))
                 .isInstanceOf(ServiceAccountUnknownMcpToolException.class);
         verify(repository, never()).save(any());
     }
@@ -455,7 +500,7 @@ class DefaultServiceAccountAdminServiceTest {
     void updateOfAMissingAccountIsNotFound() {
         when(repository.findByUserIdAndOrganizationId(userId, ORG)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.update(ORG, userId, ACTOR, new UpdateServiceAccountCommand(
-                null, null, null, null, null, null, null, null, null, null)))
+                null, null, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ServiceAccountNotFoundException.class);
     }
 

@@ -90,7 +90,7 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
         var now = clock.instant();
         return ServiceAccountPageAdapter.toPageResponse(page.map(entity -> toView(entity,
                 users.get(entity.getUserId()), owner(users, entity),
-                keys.getOrDefault(entity.getUserId(), List.of()), now, false)));
+                keys.getOrDefault(entity.getUserId(), List.of()), now, false, null)));
     }
 
     @Override
@@ -135,10 +135,13 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
         if (entity.getManagedBy() == ServiceAccountSource.BOOTSTRAP) {
             rejectDeclaredFieldChange(current, command);
         }
+        // Attributes are UI-owned (bootstrap never declares them), so they stay editable on a
+        // BOOTSTRAP account. This is their only write path since #1130 closed PUT /admin/users/{id}.
         if (command.displayName() != null || command.role() != null || command.roleId() != null
-                || command.active() != null) {
+                || command.active() != null || command.attributes() != null) {
             userAdminService.updateUser(userId, organizationId, actorUserId, new UpdateUserCommand(
-                    command.role(), command.roleId(), command.active(), command.displayName(), null));
+                    command.role(), command.roleId(), command.active(), command.displayName(),
+                    command.attributes()));
         }
         // Null means unchanged; a reset is asked for by name. An omitted allow-list therefore never
         // silently re-opens every tool — the one write on this surface that widens something.
@@ -312,7 +315,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
             throw new ServiceAccountNotFoundException(entity.getUserId());
         }
         return toView(entity, user, owner(users, entity), apiKeyService.list(entity.getUserId()),
-                clock.instant(), true);
+                clock.instant(), true, userAdminService.getUserAttributes(entity.getUserId(),
+                        entity.getOrganizationId()));
     }
 
     private static UserView owner(Map<UUID, UserView> users, ServiceAccountEntity entity) {
@@ -320,7 +324,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
     }
 
     private static ServiceAccountAdminView toView(ServiceAccountEntity entity, UserView user, UserView owner,
-                                                  List<ApiKeyView> keys, Instant now, boolean includeKeys) {
+                                                  List<ApiKeyView> keys, Instant now, boolean includeKeys,
+                                                  Map<String, String> attributes) {
         if (user == null) {
             // The detail row cascades from users, so this is a detached-user race at worst.
             throw new ServiceAccountNotFoundException(entity.getUserId());
@@ -350,7 +355,8 @@ class DefaultServiceAccountAdminService implements ServiceAccountAdminService {
                 user.lastLoginAt(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                includeKeys ? keys.stream().map(DefaultServiceAccountAdminService::toKeyView).toList() : List.of());
+                includeKeys ? keys.stream().map(DefaultServiceAccountAdminService::toKeyView).toList() : List.of(),
+                attributes);
     }
 
     private static boolean isActive(ApiKeyView key, Instant now) {

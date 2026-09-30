@@ -6,13 +6,15 @@ import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * Wire shape of a service account. {@code mcpToolAllowList} is {@code null} for every tool and
  * empty for none; {@code apiKeys} is populated on a single-account read and empty on the list.
  * {@code ownerEmail} / {@code ownerDisplayName} are resolved at read time from {@code ownerUserId}
- * (#875) and null when there is no owner.
+ * (#875) and null when there is no owner. {@code attributes} (#1130) is the row-security
+ * attribute map on a single-account read and omitted on the list.
  */
 public record ServiceAccountResponse(
         UUID id,
@@ -35,7 +37,8 @@ public record ServiceAccountResponse(
         Instant lastLoginAt,
         Instant createdAt,
         Instant updatedAt,
-        List<ServiceAccountKeyResponse> apiKeys
+        List<ServiceAccountKeyResponse> apiKeys,
+        Map<String, String> attributes
 ) {
     public static ServiceAccountResponse from(ServiceAccountAdminView view) {
         return new ServiceAccountResponse(
@@ -59,6 +62,7 @@ public record ServiceAccountResponse(
                 view.lastLoginAt(),
                 view.createdAt(),
                 view.updatedAt(),
-                view.apiKeys().stream().map(ServiceAccountKeyResponse::from).toList());
+                view.apiKeys().stream().map(ServiceAccountKeyResponse::from).toList(),
+                view.attributes());
     }
 }
