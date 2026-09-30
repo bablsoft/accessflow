@@ -9,6 +9,7 @@ import {
   deleteDatasource,
   deleteReviewPlanViaApi,
   deleteRoleViaApi,
+  listRolesViaApi,
   inviteUserViaApi,
   loginViaApi,
   submitQueryViaApi,
@@ -738,6 +739,14 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
       await expect(warnings).toHaveCount(1, { timeout: 10_000 });
       await expect(warnings).toHaveText('1 service account holds this role and can approve.');
     } finally {
+      // A deactivated account still holds its role, and a role with holders
+      // cannot be deleted — move it back to a system role first.
+      const readonly = (await listRolesViaApi(request, adminToken)).find(
+        (r) => r.system && r.name === 'READONLY',
+      );
+      if (readonly) {
+        await updateServiceAccountRoleViaApi(request, adminToken, account.id, readonly.id);
+      }
       await deactivateServiceAccountViaApi(request, adminToken, account.id);
       await deleteReviewPlanViaApi(request, adminToken, plan.id);
       await deleteRoleViaApi(request, adminToken, role.id);

@@ -66,8 +66,11 @@ class UserQueryServiceImplTest {
         var orgId = UUID.randomUUID();
         var customRole = new RoleEntity();
         customRole.setName("Triage bots");
+        var reviewerRole = new RoleEntity();
+        reviewerRole.setName("REVIEWER");
         var legacyReviewer = buildUser(UUID.randomUUID(), orgId, "a@example.com", UserRoleType.REVIEWER);
         var linkedReviewer = buildUser(UUID.randomUUID(), orgId, "b@example.com", UserRoleType.REVIEWER);
+        linkedReviewer.setRoleRef(reviewerRole);
         var custom = buildUser(UUID.randomUUID(), orgId, "c@example.com", UserRoleType.ANALYST);
         custom.setRoleRef(customRole);
         var roleless = buildUser(UUID.randomUUID(), orgId, "d@example.com", null);

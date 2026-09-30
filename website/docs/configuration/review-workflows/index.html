@@ -291,13 +291,14 @@
             a submitted query gets from "submitted" to "executed". Use it to require AI scoring, one or
             more human sign-offs, or both, and to auto-approve low-risk reads. Each plan is a sequence
             of stages; each stage names approvers (by role or specific user) and a minimum number of
-            approvals before the query advances. A rule that names a role covers every holder of that
-            role, service accounts included. The editor warns under any such rule and shows how many
-            service accounts could approve, so an agent never becomes an approver by accident.
+            approvals before the query advances.
           </p>
           <p>
             <strong>Configure it.</strong> Build plans at <code>/admin/review-plans</code> — start
-            from a built-in template or from scratch:
+            from a built-in template or from scratch. A rule that names a role covers every holder of
+            that role, service accounts included. When a rule's role is held by active service
+            accounts, the editor warns under that rule and shows how many could approve. The warning
+            is advisory: it does not stop you saving the plan.
           </p>
           <figure class="docs-figure">
             <picture>
