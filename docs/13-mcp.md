@@ -13,6 +13,12 @@ This document covers:
 3. The full tool surface.
 4. Limits, errors, and audit behaviour.
 
+**Whose key?** A key is scoped to one identity and carries exactly its permissions. A person
+trying an agent on their own laptop can use a personal key (below). An agent that runs unattended —
+a chat-ops bot, a scheduled assistant, a shared team agent — should have a **service account** of
+its own, with a narrow role, a tool allow-list and its own rate limit; see
+[22-service-accounts.md](22-service-accounts.md) for the full reference.
+
 For the wire-level REST spec see [04-api-spec.md → API Keys](04-api-spec.md#api-keys-meapi-keys).
 For Spring-side architecture see [05-backend.md → User API keys (security module)](05-backend.md#user-api-keys-security-module)
 and [05-backend.md → MCP server (mcp module)](05-backend.md#mcp-server-mcp-module).

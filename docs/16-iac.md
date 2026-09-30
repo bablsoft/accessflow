@@ -11,17 +11,31 @@ governance resources declaratively over the REST API, complementing the env-driv
   that wrap common operations (provision a datasource, submit and await a query, gate a
   deployment on approval and report its outcome — AF-694) for pipelines.
 
-Everything authenticates with an AccessFlow **API key** (`Authorization: ApiKey <af_…>`). The key
-inherits its owner's permissions, so use an admin (or admin-role **service account**).
+Everything authenticates with an AccessFlow **API key** (`Authorization: ApiKey <af_…>`) issued to
+a **service account** — a non-human identity that can never sign in interactively. The key carries
+exactly the account's permissions, so give each pipeline an account whose role covers only what it
+manages ([22-service-accounts.md](22-service-accounts.md) §3).
 
 ---
 
-## Authentication: bootstrap a service account
+## Authentication: a service account
 
-A pipeline needs credentials without an interactive login. The `bootstrap` module can seed a
-**service account** — an API-key-only user (interactive sign-in — password or SSO — is blocked,
-#869) whose raw key you supply from a Secret (only its hash is stored). The key is upserted by `(user, api_key_name)` and rotated in
-place when it changes — the same authoritative-upsert semantics as the rest of bootstrap.
+A pipeline needs credentials without an interactive login. A **service account** is an
+API-key-only user (interactive sign-in — password or SSO — is blocked, #869) created in one of two
+ways. Full reference: [22-service-accounts.md](22-service-accounts.md).
+
+**In the admin UI or API (recommended for most pipelines).** *Security & Access → Identity →
+Service accounts → Create service account* (or `POST /api/v1/admin/service-accounts`,
+`SERVICE_ACCOUNT_MANAGE`), then **Issue key** on its *API keys* tab
+(`POST /api/v1/admin/service-accounts/{id}/api-keys`). The plaintext is shown once. These keys can
+be **rotated with a grace window** (the old key keeps working, default 24 h,
+`ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE`) and **revoked** at once. The same page sets a per-account
+rate limit, an MCP tool allow-list, and which humans the account may act for.
+
+**Declaratively through `bootstrap` (when the account must exist before anyone signs in** — e.g.
+the Terraform identity that provisions everything else). You supply the raw key from a Secret (only
+its hash is stored); it is upserted by `(user, api_key_name)` and rotated in place when it changes —
+the same authoritative-upsert semantics as the rest of bootstrap.
 
 ```yaml
 # Helm values (see charts/accessflow/examples/values-bootstrap-service-account.yaml)
@@ -32,7 +46,7 @@ bootstrap:
   serviceAccounts:
     - email: terraform@acme.com
       displayName: Terraform CI
-      role: ADMIN                 # default ADMIN — declarative CRUD needs admin
+      role: ADMIN                 # set it before the first start (omitted → ADMIN; applied only when the account is created); a CI trigger-only bot needs READONLY
       apiKeyName: terraform
       apiKeySecretRef: { name: af-secrets, key: ci-api-key }   # value is the af_-prefixed token
       # apiKeyExpiresAt: "2027-01-01T00:00:00Z"   # optional; never expires when omitted
@@ -41,8 +55,24 @@ bootstrap:
 Or via env (relaxed binding):
 `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_{EMAIL,DISPLAY_NAME,ROLE,API_KEY_NAME,API_KEY,API_KEY_EXPIRES_AT}`.
 The upsert is audited (`API_KEY_CREATED` / `API_KEY_UPDATED`, `metadata.source=BOOTSTRAP`); the raw
-key never appears in the audit log. You can also mint a key interactively at
-`POST /api/v1/me/api-keys`.
+key never appears in the audit log.
+
+**Who owns what.** A bootstrap account is `managed_by = BOOTSTRAP`: its display name and role are
+declared by the spec and applied **only when the account is first created** — a later change in
+the spec is not re-applied, and the service-accounts UI refuses the edit
+(`409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`); narrow an existing account's role through
+`PUT /api/v1/admin/users/{id}` ([22-service-accounts.md](22-service-accounts.md) §3) — while its
+description, owner, tool allow-list, rate limits and delegations stay editable in the UI and survive
+every restart. Its **declared key can be neither revoked nor rotated** from the UI or API: the
+reconciler re-imports it — clearing any revocation — on the next changed reconcile. Rotate a declared
+key by changing the Secret and restarting; retire it by removing or renaming it in the spec, or
+deactivate the account. Keys issued to a bootstrap account in the UI behave like any other.
+
+**Attributing runs to a person.** A pipeline acting for the human who triggered it may send
+`X-AccessFlow-On-Behalf-Of: <email|uuid>`, once that human has consented to this account (admin:
+the account's *On-behalf-of principals* tab). It stamps the request and audit rows with the human
+and bars them from approving it; it never adds a permission. None of the shipped wrappers send it
+today — add the header in a plain `curl` step if you need it.
 
 ---
 

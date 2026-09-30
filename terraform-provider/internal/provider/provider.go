@@ -50,8 +50,8 @@ func (p *accessflowProvider) Schema(_ context.Context, _ provider.SchemaRequest,
 				Optional:  true,
 				Sensitive: true,
 				MarkdownDescription: "AccessFlow API key (the `af_`-prefixed token) used for `Authorization: ApiKey`. " +
-					"May also be set with the `ACCESSFLOW_API_KEY` environment variable. Bootstrap one declaratively " +
-					"with a service account (see the provider docs).",
+					"May also be set with the `ACCESSFLOW_API_KEY` environment variable. Issue one to a dedicated " +
+					"service account (see the provider docs).",
 			},
 		},
 	}

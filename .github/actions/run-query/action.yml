@@ -14,7 +14,7 @@ inputs:
     description: "AccessFlow base URL."
     required: true
   api-key:
-    description: "AccessFlow API key (the af_-prefixed token)."
+    description: "AccessFlow API key (the af_-prefixed token) issued to a dedicated service account — see docs/22-service-accounts.md. Store it as a secret."
     required: true
   datasource-id:
     description: "Target datasource UUID."

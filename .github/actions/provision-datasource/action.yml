@@ -12,7 +12,7 @@ inputs:
     description: "AccessFlow base URL, e.g. https://accessflow.example.com"
     required: true
   api-key:
-    description: "AccessFlow API key (the af_-prefixed token)."
+    description: "AccessFlow API key (the af_-prefixed token) issued to a dedicated service account — see docs/22-service-accounts.md. Store it as a secret."
     required: true
   name:
     description: "Datasource name (unique per organization; the idempotency key)."

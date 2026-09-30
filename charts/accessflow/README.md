@@ -88,6 +88,7 @@ set ingress / replicas / secrets on their own.
 | [`examples/values-bootstrap-saml-sso.yaml`](examples/values-bootstrap-saml-sso.yaml) | SAML 2.0 SP wired to a corporate IdP (Okta, Azure AD, JumpCloud, Auth0, ADFS). |
 | [`examples/values-bootstrap-datasources.yaml`](examples/values-bootstrap-datasources.yaml) | AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL). |
 | [`examples/values-bootstrap-notifications.yaml`](examples/values-bootstrap-notifications.yaml) | System SMTP relay + Slack / email / webhook channels + a fan-out review plan. |
+| [`examples/values-bootstrap-service-account.yaml`](examples/values-bootstrap-service-account.yaml) | A CI / IaC service account and its API key, declared as code (set its `role` before the first start — it defaults to `ADMIN` and is applied only at creation). |
 | [`examples/values-bootstrap.yaml`](examples/values-bootstrap.yaml) | Kitchen-sink reference covering every `bootstrap.*` field at once. |
 
 The example files are sourced from GitHub — they are intentionally excluded

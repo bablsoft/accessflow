@@ -2,8 +2,10 @@
 
 Reusable CI building blocks that wrap the AccessFlow REST API for pipelines, complementing the
 [Terraform/OpenTofu provider](../terraform-provider/). All of these authenticate with an
-AccessFlow **API key** (`Authorization: ApiKey <af_...>`) — bootstrap a service-account key
-declaratively (see [docs/16-iac.md](../docs/16-iac.md)) and store it as a CI secret.
+AccessFlow **API key** (`Authorization: ApiKey <af_...>`) issued to a dedicated **service account**
+— from the *Service accounts* admin page, or declared in bootstrap config (see
+[docs/16-iac.md](../docs/16-iac.md) and [docs/22-service-accounts.md](../docs/22-service-accounts.md))
+— and stored as a CI secret.
 
 ## GitHub Actions (composite)
 
@@ -114,9 +116,12 @@ report sees your deployment's job status). `external_run_id` is `$(Build.BuildId
 
 ### Service-account key & secrets
 
-Bootstrap a service-account API key declaratively (`bootstrap.serviceAccounts` /
-`ApiKeyService.importOrUpdate` — see [docs/16-iac.md](../docs/16-iac.md)) and store it as a
-masked/protected CI secret. Triggering needs a per-pipeline `can_trigger` grant (admins bypass
+Create a service account for the pipeline (*Security & Access → Identity → Service accounts*, role
+**Read-only** for a deployment-gate bot) and issue its key from the account's *API keys* tab — or
+declare both through `bootstrap.serviceAccounts` (set `role` explicitly; it defaults to `ADMIN`) —
+see [docs/16-iac.md](../docs/16-iac.md). Store the key as a masked/protected CI secret, and rotate it
+with the account's **Rotate** action: the old key keeps working for a grace window (default 24 h)
+while you swap the secret. Triggering needs a per-pipeline `can_trigger` grant (admins bypass
 it; break-glass has **no** admin bypass). The scripts never enable `set -x` and only ever place
 the key in the `Authorization` header; on Azure the key is mapped through `env:` rather than
 inlined, so it cannot leak into expanded logs.

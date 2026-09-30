@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -232,7 +232,7 @@
             <p class="docs-toc-label">Gate a CI/CD pipeline</p>
             <a href="#guide-deployment-approval">What you are building</a>
             <a href="#guide-deployment-account">1. Create the CI service account</a>
-            <a href="#guide-deployment-key">2. Mint its API key</a>
+            <a href="#guide-deployment-key">2. Issue its API key</a>
             <a href="#guide-deployment-pipeline">3. Create the pipeline</a>
             <a href="#guide-deployment-environments">4. Add environments</a>
             <a href="#guide-deployment-trigger">5. Grant the service account permission to trigger</a>
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -330,70 +330,54 @@
 <section class="docs-section">
           <h2 id="guide-deployment-account">1. Create the CI service account</h2>
           <p>
-            The API key's owning user <em>is</em> the submitter of every deployment it opens, and
+            The API key's owner <em>is</em> the submitter of every deployment it opens, and
             nobody can approve their own deployment. So the CI identity must be an account that
-            never approves — not your admin account.
+            never approves — not your admin account. AccessFlow has a dedicated kind of account for
+            this: a <strong>service account</strong>, which has no password, can never sign in, and
+            only ever authenticates with an API key.
           </p>
           <ol>
-            <li><strong>Open the users page.</strong> Sidebar → <em>Security &amp; Access</em> →
-              <strong>Users</strong>.</li>
-            <li><strong>Use the dropdown arrow, not the button.</strong> The control at the top
-              right is a split button. Its main half is <strong>Invite via email</strong>; the path
-              you want, <strong>Create with password</strong>, is behind the small arrow beside
-              it.</li>
-            <li><strong>Fill the form.</strong> <strong>Email</strong>, <strong>Initial
-              password</strong>, <strong>Display name</strong>. Leave <strong>Role</strong> on
-              <strong>Analyst</strong> — the right to trigger deployments comes from the
+            <li><strong>Open the service accounts page.</strong> Sidebar → <em>Security &amp;
+              Access</em> → <em>Identity</em> → <strong>Service accounts</strong>.</li>
+            <li><strong>Create it.</strong> Click <strong>Create service account</strong> and fill
+              <strong>Email</strong> (an identifier only — nothing is sent to it) and
+              <strong>Display name</strong>.</li>
+            <li><strong>Keep the role narrow.</strong> Leave <strong>Role</strong> on
+              <strong>Read-only</strong> — the right to trigger deployments comes from the
               per-pipeline grant in step 5, not from the role.</li>
-            <li><strong>Submit.</strong> The button reads <strong>Send invite</strong> even on this
-              path. No mail is sent.</li>
+            <li><strong>Optionally name an owner.</strong> The person accountable for this pipeline,
+              so a reviewer knows who to ask.</li>
           </ol>
-          <div class="docs-callout warn">
-            <strong>Invite via email fails without SMTP.</strong> The email path checks that system
-            SMTP is configured before it does anything else, and returns
-            <code>422 SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE</code> when it is not. If you have not
-            <a href="/docs/guides/notifications/">set up notifications</a> yet, the password path is
-            the only one that works.
-          </div>
-          <figure class="docs-figure">
-            <picture>
-              <source srcset="/images/docs/users-invite-light.webp" media="(prefers-color-scheme: light)" />
-              <img src="/images/docs/users-invite-dark.webp"
-                   alt="The admin users page with the create-user form open, showing the email, initial password, display name and role fields."
-                   loading="lazy" width="1440" height="900" />
-            </picture>
-            <figcaption>Sidebar → <em>Security &amp; Access</em> → <strong>Users</strong>. <strong>Create with password</strong> lives behind the split button's arrow.</figcaption>
-          </figure>
           <div class="docs-callout info">
-            <strong>Prefer not to hand a service account a password?</strong> Steps 1 and 2 can be
-            declared instead, with <code>bootstrap.serviceAccounts[]</code> — it creates the user
-            with password login disabled and imports a key you generated yourself. See
-            <a href="/docs/guides/terraform/#guide-terraform-credentials">Automate with
-            Terraform</a>, or <a href="/docs/iac/#iac-service-account">service-account API keys</a>
-            for the full property list. On a pipeline you intend to keep, this is the better path.
+            <strong>Managing everything as code?</strong> Steps 1 and 2 can be declared instead,
+            with <code>bootstrap.serviceAccounts[]</code> — it creates the same kind of account and
+            imports a key you generated yourself. Set its <code>role</code> before the first start: when
+            omitted it defaults to Admin, and it is applied only when the account is created. See <a href="/docs/guides/terraform/#guide-terraform-credentials">Automate
+            with Terraform</a>, or <a href="/docs/iac/#iac-service-account">service-account API
+            keys</a> for the full property list.
           </div>
         </section>
 
 <section class="docs-section">
-          <h2 id="guide-deployment-key">2. Mint its API key</h2>
+          <h2 id="guide-deployment-key">2. Issue its API key</h2>
           <p>
-            API keys are self-service. There is no admin screen that mints a key on someone else's
-            behalf, so you have to sign in <em>as</em> the service account once.
+            Creating the account opens its settings page. You issue the key from there, as the
+            admin — nobody signs in as the service account.
           </p>
           <ol>
-            <li><strong>Sign in as the service account</strong> — a private browser window keeps
-              your admin session intact.</li>
-            <li><strong>Open its keys.</strong> User menu → <strong>Profile settings</strong> →
-              <strong>API keys</strong> → <strong>Create API key</strong>.</li>
-            <li><strong>Name it and copy the value.</strong> The raw <code>af_…</code> key is shown
-              once and never again. Paste it straight into your CI secret store.</li>
+            <li><strong>Open its keys.</strong> The <strong>API keys</strong> tab →
+              <strong>Issue key</strong>.</li>
+            <li><strong>Name it and copy the value.</strong> Call it after the consumer, for example
+              <code>github-actions</code>. The raw <code>af_…</code> key is shown once and never
+              again. Paste it straight into your CI secret store.</li>
           </ol>
           <div class="docs-callout info">
             <strong>Think twice before giving a pipeline key an expiry.</strong> The form's
             optional <em>Expires</em> field takes a date and time — the picker greys out anything in
             the past — but the gate is fail-closed, so on the day it passes every deployment job
-            stops until someone mints a new key. Leave it empty and the key lasts until you revoke
-            it. Set a date only if you will rotate the CI secret before then.
+            stops until someone issues a new key. Leave it empty and the key lasts until you revoke
+            it. To change it on a schedule, use <strong>Rotate</strong> instead: the old key keeps
+            working for a grace period (24 hours by default) while you swap the CI secret.
           </div>
         </section>
 
@@ -542,7 +526,11 @@
           <p>
             Whatever you configure, one rule cannot be configured away: the submitter can never
             approve their own deployment, admins and override holders included. That is why step 1
-            insisted on a separate account.
+            insisted on a separate account. If your pipeline also names the engineer who started it
+            (the <code>X-AccessFlow-On-Behalf-Of</code> header, once they have agreed to it — an admin
+            records that on the service account's <em>On-behalf-of principals</em> tab), that engineer cannot approve
+            the deployment either. The CI steps in this guide do not send that header; add it to your
+            own request if you need it.
           </p>
         </section>
 
@@ -658,7 +646,7 @@
               account can be given its own), and the wrappers simply wait the number of seconds
               the server asks for before trying again. A pipeline that hits this constantly is
               polling too fast — lengthen the poll interval, or have an admin raise the account's
-              limit through the service-account API.</li>
+              limit on its <strong>Limits</strong> tab.</li>
           </ul>
           <div class="docs-callout ok">
             <strong>A real worked example.</strong> The AccessFlow public demo deploys itself

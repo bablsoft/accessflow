@@ -62,7 +62,7 @@
         "inLanguage": "en",
         "articleSection": "AI agents",
         "datePublished": "2026-08-25",
-        "dateModified": "2026-09-19",
+        "dateModified": "2026-09-30",
         "url": "https://accessflow.io/ai-agents/",
         "mainEntityOfPage": "https://accessflow.io/ai-agents/",
         "image": "https://accessflow.io/og-image.png",
@@ -317,8 +317,8 @@
 
         <div class="qa-grid">
           <div class="qa-item">
-            <h3>Keys inherit the human</h3>
-            <p>An API key carries the owning user's role and datasource permissions exactly. A reviewer's key can review; an analyst's key cannot. An agent never gets more access than the person who created it.</p>
+            <h3>Keys carry their owner's access, nothing more</h3>
+            <p>An API key carries exactly the role and datasource permissions of the identity it belongs to — a person for a personal key, or the service account an admin set up for the agent. A reviewer's key can review; an analyst's key cannot. An agent never gets more access than the identity its key belongs to.</p>
           </div>
           <div class="qa-item">
             <h3>Masking survives sampling</h3>
@@ -359,8 +359,12 @@
       <section id="connect" class="docs-section scroll-pad">
         <h2>Connecting an agent</h2>
         <p>
-          Create a key under <strong>Profile → API keys</strong>, then point the client at your
-          AccessFlow instance. The server speaks stateless Streamable HTTP at
+          Give the agent a key, then point the client at your AccessFlow instance. For an agent that
+          runs on its own — a chat bot, a scheduled assistant, a shared team agent — ask an admin
+          for a <a href="/docs/configuration/users-roles/#cfg-service-accounts">service account</a>
+          with a narrow role and only the tools it needs, and use a key issued on its
+          <em>API keys</em> tab. For trying an agent on your own machine, a personal key from
+          <strong>Profile → API keys</strong> works too, with exactly your own permissions. The server speaks stateless Streamable HTTP at
           <span class="mono">/mcp</span>.
         </p>
 

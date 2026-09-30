@@ -19,7 +19,7 @@ const BOOTSTRAP_KEY_NAME = 'e2e';
 
 test.describe.configure({ timeout: 90_000 });
 
-test.describe('service-accounts admin UI (#875)', () => {
+test.describe('service-accounts admin UI (#875, #876)', () => {
   let adminAccessToken = '';
   const createdAccountIds: string[] = [];
 
@@ -38,7 +38,7 @@ test.describe('service-accounts admin UI (#875)', () => {
     }
   });
 
-  test('creates an account from the sidebar, issues and rotates a key, restricts its tools', async ({
+  test('creates an account from the sidebar, issues, rotates and revokes a key, restricts its tools', async ({
     page,
   }) => {
     const stamp = Date.now();
@@ -97,6 +97,7 @@ test.describe('service-accounts admin UI (#875)', () => {
     // Rotate it with a 12-hour grace: the replacement is shown once, the old key's end is stated.
     await keyRow.getByRole('button', { name: 'Rotate' }).click();
     const rotateDialog = page.getByRole('dialog').filter({ hasText: 'Rotate API key' });
+    await rotateDialog.getByLabel('Key name').fill('github-actions-rotated');
     await rotateDialog.getByLabel('Grace period (hours)').fill('12');
     await rotateDialog.getByRole('button', { name: 'Rotate' }).click();
     const rotated = page.getByRole('dialog').filter({ hasText: 'Copy the replacement API key' });
@@ -106,6 +107,33 @@ test.describe('service-accounts admin UI (#875)', () => {
     await expect(
       activeTabPanel(page).getByRole('row').filter({ hasText: 'github-actions' }),
     ).toHaveCount(2);
+
+    // Revoke the superseded key instead of waiting out its grace: the popconfirm names it, the
+    // DELETE lands, and the row stays as an audit trail with no actions left.
+    const oldKeyRow = activeTabPanel(page)
+      .getByRole('row')
+      .filter({ hasText: 'github-actions' })
+      .filter({ hasNotText: 'github-actions-rotated' });
+    await oldKeyRow.getByRole('button', { name: 'Revoke' }).click();
+    const revokePopover = page
+      .locator('.ant-popover')
+      .filter({ hasText: 'Revoke API key "github-actions"?' });
+    await expect(revokePopover).toBeVisible();
+    const revokeResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'DELETE' &&
+        new RegExp(`/admin/service-accounts/${created.id}/api-keys/[0-9a-f-]+$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await revokePopover.getByRole('button', { name: 'Revoke', exact: true }).click();
+    expect((await revokeResponse).status()).toBe(204);
+    await expect(page.getByText('API key revoked', { exact: true })).toBeVisible();
+    await expect(oldKeyRow.getByText('Revoked', { exact: true })).toBeVisible();
+    await expect(oldKeyRow.getByRole('button', { name: 'Revoke' })).toHaveCount(0);
+    const replacementRow = activeTabPanel(page)
+      .getByRole('row')
+      .filter({ hasText: 'github-actions-rotated' });
+    await expect(replacementRow.getByText('Active', { exact: true })).toBeVisible();
 
     // Restrict the MCP tools to one and check it survives a reload.
     await clickTab(page, 'MCP tools');

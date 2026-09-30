@@ -38,6 +38,7 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/19-sql-review.md` — deterministic SQL review rules (`sqlreview`)
   - `docs/20-schema-change-governance.md` — schema change governance (`schemachange`)
   - `docs/21-aggregate-disclosure.md` — aggregate disclosure guard (design, #943)
+  - `docs/22-service-accounts.md` — service accounts / non-human identities (`serviceaccounts`, epic #867)
 - **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.bablsoft.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `mvn verify` (run from `backend/` — there is no Maven wrapper).
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **End-to-end** at `e2e/` — Playwright suite with its own `docker-compose.e2e.yml` that builds backend + frontend from the working tree and seeds a deterministic admin via the `bootstrap` module. Owns auth and (over time) all critical user flows. Run: `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test`.
@@ -64,6 +65,7 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - SQL review rules / rulesets / editor lint → `19-sql-review.md`
   - Schema change sets / DDL gate / promotion / drift → `20-schema-change-governance.md`
   - Aggregate / group-size disclosure, classification-driven routing → `21-aggregate-disclosure.md`
+  - Service accounts / API keys / MCP allow-list / rate limit / on-behalf-of → `22-service-accounts.md`
 - Always re-skim CLAUDE.md sections relevant to the layer you're touching (Modulith rules, validation parity, i18n, scheduled-job locking, JaCoCo gate).
 
 ### 2. Branch

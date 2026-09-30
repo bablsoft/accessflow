@@ -98,6 +98,8 @@ accessflow-ui/
 │   │   │   ├── SampleDataDrawer.tsx  # Drawer hosting SampleDataPreview (AF-443)
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
 │   │   │
+│   │   ├── serviceaccounts/      # Settings-page tabs (overview, keys, MCP tools, limits, principals, activity), IssuedKeyModal, RoleField — #875
+│   │   │
 │   │   ├── audit/
 │   │   │   ├── AuditLogTable.tsx   # Searchable audit event table
 │   │   │   └── AuditDetailDrawer.tsx # Slide-in detail for single event
@@ -177,6 +179,7 @@ accessflow-ui/
 │   │       ├── NotificationsPage.tsx
 │   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
 │   │       ├── ScimConfigPage.tsx    # SCIM 2.0 provisioning config + bearer tokens (#621)
+│   │       ├── service-accounts/     # ServiceAccountsPage (list + create) and ServiceAccountSettingsPage (six tabs) — #875
 │   │       ├── LangfuseConfigPage.tsx # Langfuse tracing + prompt management
 │   │       ├── HelpAgentConfigPage.tsx # In-app help chat agent settings + corpus status (AF-906)
 │   │       └── helpAgentRetrieval.ts   # Pure: why retrieval cannot be enabled, from the bound config
@@ -1697,6 +1700,11 @@ the actor on `AuditLogPage` rows (`on_behalf_of_email`, resolved server-side fro
 / `on_behalf_of_user_id` from the URL once on mount, which is what the Activity tab links into.
 The action / resource-type filter lists include the `SERVICE_ACCOUNT_*` actions and the
 `service_account` resource.
+
+**No self-service consent screen.** A human's own "this service account may act for me" surface
+(`/me/service-account-delegations`) has no page yet — only the admin *On-behalf-of principals* tab
+grants on a human's behalf. The feature reference is
+[22-service-accounts.md](22-service-accounts.md).
 
 **Calling application (#938).** `ClientApplicationTag` (`src/components/common/`) renders the
 recorded application name in `code` style with a tooltip naming its source; a `HEADER` source

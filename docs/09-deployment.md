@@ -284,17 +284,16 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 
 1. **Create the CI service account.** The API key's owning user *is* the submitter, and a submitter
    can never approve their own deployment — so this must not be the account that approves.
-   Sidebar → *Security & Access* → **Users**. The top-right control is a split button; click its
-   **dropdown arrow** and choose **Create with password** (the *Invite via email* path hard-fails
-   without system SMTP, which this deployment does not configure). Fill **Email**, **Initial
-   password**, **Display name**, and leave **Role** on **Analyst** — the trigger right comes from
-   the per-pipeline grant in step 3, not from the role. Submit with **Send invite** (no mail is
-   sent on this path).
-2. **Mint its API key.** API keys are self-service — `/api/v1/me/api-keys` has no admin-side
-   equivalent — so sign in as the service account in a private window, open the user menu →
-   **Profile settings** → **API keys** → **Create API key**. The raw `af_…` value is shown once;
-   copy it then. The form's optional **Expires** field takes a date and time; leave it empty and the
-   key never expires.
+   Sidebar → *Security & Access* → *Identity* → **Service accounts** → **Create service account**.
+   Fill **Email** (an identifier only — nothing is mailed) and **Display name**, and leave **Role**
+   on **Read-only** — the trigger right comes from the per-pipeline grant in step 3, not from the
+   role. A service account has no password and can never sign in interactively
+   ([22-service-accounts.md](22-service-accounts.md)).
+2. **Issue its API key.** Creation lands on the account's settings page: **API keys** tab →
+   **Issue key**, name it `github-actions`. The raw `af_…` value is shown once, in a copy dialog;
+   copy it then. The optional **Expires** field takes a date and time; leave it empty and the key
+   never expires. To replace it later use **Rotate** — the old key keeps working for a grace window
+   (default 24 h) so an in-flight run is not cut off.
 3. **Create the pipeline, environment and grant.** As an admin: sidebar → *Connections* →
    *Deployments* → **Deployment Pipelines** → **Add pipeline**, provider **GitHub Actions**. Creation lands on
    the pipeline's settings page, where the UUID sits under the pipeline name with a copy button
@@ -328,9 +327,11 @@ Everything below is state inside the demo instance and in GitHub settings; none 
    bad or expired credential fails the job without consuming anyone's approval.
 
 Steps 1–2 can instead be provisioned declaratively through `bootstrap.serviceAccounts[]`
-(see [Bootstrap configuration](#bootstrap-configuration)), which creates the user with password
-login disabled and imports a key you generate — preferable if you would rather not hand a
-service account a usable password.
+(see [Bootstrap configuration](#bootstrap-configuration)), which creates the same kind of
+API-key-only account and imports a key you generate. **Set `role` explicitly** — the declarative
+default is `ADMIN` — and note that a declared key cannot be revoked or rotated from the UI (the next
+changed reconcile would re-import it); rotate it in the Secret instead
+([22-service-accounts.md](22-service-accounts.md) §8).
 
 ### Full `values.yaml`
 
@@ -654,6 +655,7 @@ accessflow.bootstrap.organization.governs-deployments     → ACCESSFLOW_BOOTSTR
 accessflow.bootstrap.admin.display-name                   → ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME
 accessflow.bootstrap.service-accounts[0].email            → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL
 accessflow.bootstrap.service-accounts[0].api-key          → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY
+accessflow.bootstrap.service-accounts[0].role             → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE   (defaults to ADMIN; applied only when the account is created — set it before the first start)
 accessflow.bootstrap.review-plans[0].name                 → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_NAME
 accessflow.bootstrap.review-plans[0].approver-emails[1]   → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_APPROVER_EMAILS_1
 accessflow.bootstrap.datasources[2].password              → ACCESSFLOW_BOOTSTRAP_DATASOURCES_2_PASSWORD
@@ -924,9 +926,11 @@ kubectl logs -l app.kubernetes.io/component=backend --tail=200 | grep Bootstrap
 
 Beyond env-driven bootstrap, AccessFlow ships a **Terraform / OpenTofu provider** and reusable
 **GitHub / GitLab CI Actions** (AF-452) for managing governance resources declaratively over the
-REST API from a Terraform/GitOps pipeline. Both authenticate with an API key — bootstrap a
-**service account** (`bootstrap.serviceAccounts[]`, above) to give a pipeline credentials with no
-interactive login.
+REST API from a Terraform/GitOps pipeline. Both authenticate with an API key issued to a
+**service account** — created on the *Service accounts* admin page (or
+`POST /api/v1/admin/service-accounts`), or declared through `bootstrap.serviceAccounts[]` (above)
+when it must exist before anyone signs in. See [22-service-accounts.md](22-service-accounts.md)
+for role choice, rotation and the declarative-vs-UI ownership split.
 
 ```hcl
 provider "accessflow" {
