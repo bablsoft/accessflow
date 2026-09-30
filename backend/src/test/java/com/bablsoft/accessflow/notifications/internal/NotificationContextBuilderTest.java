@@ -24,7 +24,6 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
@@ -155,25 +154,6 @@ class NotificationContextBuilderTest {
                 .containsExactly("rev@example.com");
         assertThat(ctx.reviewUrl().toString()).isEqualTo(
                 "https://app.example.test/queries/" + queryId);
-    }
-
-    @Test
-    void recipientCarriesThePrincipalType() {
-        var botId = UUID.randomUUID();
-        when(reviewPlanLookup.findForDatasource(datasourceId))
-                .thenReturn(Optional.of(plan(List.of(new ApproverRule(botId, null, 1)), List.of())));
-        var human = user(botId, "bot@example.com", UserRoleType.REVIEWER);
-        var bot = new UserView(human.id(), human.email(), human.displayName(), human.role(),
-                human.roleId(), human.roleName(), human.organizationId(), true,
-                human.authProvider(), null, null, null, false, false, human.createdAt(), null,
-                null, PrincipalType.SERVICE_ACCOUNT);
-        when(userQuery.findById(botId)).thenReturn(Optional.of(bot));
-
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
-                .orElseThrow();
-
-        assertThat(ctx.recipients()).extracting(RecipientView::principalType)
-                .containsExactly(PrincipalType.SERVICE_ACCOUNT);
     }
 
     @Test

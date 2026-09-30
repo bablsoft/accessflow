@@ -209,7 +209,7 @@ class DefaultUserGroupService implements UserGroupService {
                                             UserGroupMembershipSourceType source) {
         var group = loadInOrganization(groupId, organizationId);
         var entitySource = toEntitySource(source);
-        var desired = userIds == null ? Set.<UUID>of() : new LinkedHashSet<>(userIds);
+        var desired = userIds == null ? new LinkedHashSet<UUID>() : new LinkedHashSet<>(userIds);
         var existing = membershipRepository.findAllByGroup_Id(groupId);
         var existingBySource = existing.stream()
                 .filter(m -> m.getSource() == entitySource)
@@ -219,6 +219,9 @@ class DefaultUserGroupService implements UserGroupService {
                 .map(m -> m.getUser().getId())
                 .collect(Collectors.toSet());
 
+        // A SCIM row an agent picked up before #867 is released on the next sync, never kept.
+        desired.removeIf(id -> existingBySource.containsKey(id)
+                && isScimAttachingServiceAccount(source, existingBySource.get(id).getUser()));
         for (var entry : existingBySource.entrySet()) {
             if (!desired.contains(entry.getKey())) {
                 membershipRepository.delete(entry.getValue());

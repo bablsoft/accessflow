@@ -4804,7 +4804,8 @@ The **`scim/` module** (`com.bablsoft.accessflow.scim`) is the SCIM 2.0 service 
   overwritten or deactivated by an IdP push. Group member adds are resolved through the same
   directory before `addMember` runs, because a throw inside it would mark the transaction
   rollback-only. `DefaultUserGroupService` also refuses `source=SCIM` memberships for a service
-  account, and group reads omit service-account members.
+  account and releases any legacy one on the next replace, and group reads omit service-account
+  members.
 - **Admin surface.** `/api/v1/admin/scim-config` + `/api/v1/admin/scim/tokens`
   (`PERM_SSO_CONFIGURE`), show-once token issuance mirroring API keys.
 - No scheduled jobs — SCIM is entirely IdP-push-driven.

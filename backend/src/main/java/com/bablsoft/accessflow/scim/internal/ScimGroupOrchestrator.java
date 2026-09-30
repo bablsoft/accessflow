@@ -249,7 +249,8 @@ public class ScimGroupOrchestrator {
                 userGroupService.addMember(groupId, memberId, principal.organizationId(),
                         UserGroupMembershipSourceType.SCIM);
             } catch (UserNotFoundException ex) {
-                // Unknown member ids are skipped — the IdP may race a user delete.
+                // Only a user deleted since the lookup lands here, and by then this transaction is
+                // already rollback-only — the catch keeps the loop going, not the commit.
             }
         }
     }

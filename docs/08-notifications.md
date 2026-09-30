@@ -522,7 +522,8 @@ table so the bell-icon UI in the topbar can render history, unread counts, and a
 individual entries. This persistence pipeline is independent of channel configuration —
 users still receive in-app notifications when no external channel is set up. Service accounts
 (`principal_type = SERVICE_ACCOUNT`, epic #867) never get an inbox row, and so never get the
-WebSocket push that follows one. Their channel delivery is unaffected.
+WebSocket push that follows one. `UserNotificationService.recordForUsers`, which every in-app
+writer goes through, drops them. Their channel delivery is unaffected.
 
 **Recipients** are resolved per event type and mirror the channel-routing logic already
 in `NotificationContextBuilder`:

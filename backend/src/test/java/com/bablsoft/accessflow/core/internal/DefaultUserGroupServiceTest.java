@@ -395,6 +395,24 @@ class DefaultUserGroupServiceTest {
         verify(membershipRepository, never()).save(any());
     }
 
+    @Test
+    void replaceMembersBySourceScimReleasesALegacyServiceAccountRow() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var bot = user(UUID.randomUUID(), orgId);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        var legacyRow = membership(bot.getId(), group.getId(), UserGroupMembershipSource.SCIM);
+        legacyRow.setUser(bot);
+        legacyRow.setGroup(group);
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of(legacyRow));
+
+        var result = service.replaceMembersBySource(group.getId(), orgId,
+                List.of(bot.getId()), UserGroupMembershipSourceType.SCIM);
+
+        assertThat(result).isEmpty();
+        verify(membershipRepository).delete(legacyRow);
+    }
+
     private UserGroupEntity group(String name) {
         var org = new OrganizationEntity();
         org.setId(orgId);
