@@ -24,6 +24,7 @@ class DeploymentBreakGlassReviewListener {
         breakGlassService.openDeploymentBreakGlassReview(
                 new BreakGlassService.DeploymentBreakGlassReview(
                         event.organizationId(), event.deploymentRequestId(), event.pipelineId(),
-                        event.submitterUserId(), event.justification()));
+                        event.submitterUserId(), event.justification(),
+                        event.onBehalfOfUserId()));
     }
 }

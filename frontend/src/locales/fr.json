@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Valider l'événement break-glass",
     "acknowledge_confirm_body": "Confirmez que vous avez examiné cette exécution d’urgence. Cela clôt la revue rétrospective.",
     "acknowledge_comment_placeholder": "Ajouter une note de rapprochement (facultatif)",
+    "acknowledge_self_disabled": "Vous ne pouvez pas valider un événement break-glass que vous avez soumis ou qui a été exécuté en votre nom",
     "drawer_title": "Événement break-glass",
     "view_query": "Voir la requête exécutée",
     "section_justification": "Justification",

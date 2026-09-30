@@ -217,6 +217,29 @@ class BreakGlassLifecycleIntegrationTest {
     }
 
     @Test
+    void theHumanAnAgentBrokeGlassForCannotAcknowledgeTheRetroReview() {
+        // An agent breaks glass on behalf of Bob (#874); Bob is an admin, so without the #1129
+        // guard he could sign off the retro-review of an emergency run for him.
+        var principal = saveUser("bob", UserRoleType.ADMIN);
+        grantBreakGlass(submitter);
+        var result = breakGlassService.breakGlassExecute(new BreakGlassInput(
+                datasource.getId(), "SELECT 1 FROM items LIMIT 1", "incident",
+                submitter.getId(), organization.getId(), false, null, null, principal.getId()));
+
+        assertThat(breakGlassAdminService.get(organization.getId(), result.eventId())
+                .onBehalfOfUserId()).isEqualTo(principal.getId());
+        assertThatThrownBy(() -> breakGlassAdminService.acknowledge(organization.getId(),
+                result.eventId(), principal.getId(), null))
+                .isInstanceOf(SelfAcknowledgeNotAllowedException.class);
+        assertThat(breakGlassAdminService.get(organization.getId(), result.eventId()).status())
+                .isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+
+        var reviewed = breakGlassAdminService.acknowledge(organization.getId(), result.eventId(),
+                admin.getId(), null);
+        assertThat(reviewed.status()).isEqualTo(BreakGlassStatus.REVIEWED);
+    }
+
+    @Test
     void deniedWhenPermissionLacksBreakGlassFlag() {
         // submitter can read the datasource but was not granted break-glass.
         grantReadOnly(submitter);

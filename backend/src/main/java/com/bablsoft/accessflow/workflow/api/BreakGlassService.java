@@ -49,7 +49,8 @@ public interface BreakGlassService {
             UUID apiRequestId,
             UUID connectorId,
             UUID submitterUserId,
-            String justification) {
+            String justification,
+            UUID onBehalfOfUserId) {
     }
 
     record DeploymentBreakGlassReview(
@@ -57,7 +58,8 @@ public interface BreakGlassService {
             UUID deploymentRequestId,
             UUID pipelineId,
             UUID submitterUserId,
-            String justification) {
+            String justification,
+            UUID onBehalfOfUserId) {
     }
 
     record BreakGlassInput(

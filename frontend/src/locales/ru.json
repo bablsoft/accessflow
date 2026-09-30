@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Подтвердить событие break-glass",
     "acknowledge_confirm_body": "Подтвердите, что вы проверили этот аварийный запуск. Это закроет ретроспективную проверку.",
     "acknowledge_comment_placeholder": "Добавьте примечание о сверке (необязательно)",
+    "acknowledge_self_disabled": "Нельзя подтвердить событие break-glass, которое вы отправили или которое было выполнено от вашего имени",
     "drawer_title": "Событие break-glass",
     "view_query": "Открыть выполненный запрос",
     "section_justification": "Обоснование",

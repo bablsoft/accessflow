@@ -151,7 +151,7 @@ public class DefaultApiRequestService implements ApiRequestService {
         // transaction. Decoupled via the event so apigov never depends on workflow (AF-567).
         eventPublisher.publishEvent(new ApiBreakGlassExecutedEvent(
                 command.organizationId(), entity.getId(), connector.getId(), command.submitterUserId(),
-                command.justification()));
+                command.justification(), command.onBehalfOfUserId()));
         audit(AuditAction.API_REQUEST_BREAK_GLASS_EXECUTED, executed, command.submittedIp(),
                 command.submittedUserAgent(), Map.of("verb", command.verb()));
         return new ApiRequestSubmissionResult(executed.getId(), executed.getStatus());

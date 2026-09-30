@@ -26,9 +26,10 @@ class DeploymentBreakGlassReviewListenerTest {
         var deploymentRequestId = UUID.randomUUID();
         var pipelineId = UUID.randomUUID();
         var submitterId = UUID.randomUUID();
+        var principalId = UUID.randomUUID();
 
         listener.onDeploymentBreakGlassExecuted(new DeploymentBreakGlassExecutedEvent(
-                orgId, deploymentRequestId, pipelineId, submitterId, "prod is down"));
+                orgId, deploymentRequestId, pipelineId, submitterId, "prod is down", principalId));
 
         var captor = ArgumentCaptor.forClass(BreakGlassService.DeploymentBreakGlassReview.class);
         verify(breakGlassService).openDeploymentBreakGlassReview(captor.capture());
@@ -37,5 +38,6 @@ class DeploymentBreakGlassReviewListenerTest {
         assertThat(captor.getValue().pipelineId()).isEqualTo(pipelineId);
         assertThat(captor.getValue().submitterUserId()).isEqualTo(submitterId);
         assertThat(captor.getValue().justification()).isEqualTo("prod is down");
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(principalId);
     }
 }

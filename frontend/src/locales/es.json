@@ -4240,6 +4240,7 @@
     "acknowledge_confirm_title": "Reconocer evento de break-glass",
     "acknowledge_confirm_body": "Confirme que ha revisado esta ejecución de emergencia. Esto cierra la revisión retrospectiva.",
     "acknowledge_comment_placeholder": "Añada una nota de conciliación (opcional)",
+    "acknowledge_self_disabled": "No puede reconocer un evento de break-glass que usted envió o que se ejecutó en su nombre",
     "drawer_title": "Evento de break-glass",
     "view_query": "Ver la consulta ejecutada",
     "section_justification": "Justificación",

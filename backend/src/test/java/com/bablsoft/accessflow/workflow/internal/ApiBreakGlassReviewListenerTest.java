@@ -26,9 +26,10 @@ class ApiBreakGlassReviewListenerTest {
         var apiRequestId = UUID.randomUUID();
         var connectorId = UUID.randomUUID();
         var submitterId = UUID.randomUUID();
+        var principalId = UUID.randomUUID();
 
         listener.onApiBreakGlassExecuted(new ApiBreakGlassExecutedEvent(
-                orgId, apiRequestId, connectorId, submitterId, "prod is down"));
+                orgId, apiRequestId, connectorId, submitterId, "prod is down", principalId));
 
         var captor = ArgumentCaptor.forClass(BreakGlassService.ApiBreakGlassReview.class);
         verify(breakGlassService).openApiBreakGlassReview(captor.capture());
@@ -37,5 +38,6 @@ class ApiBreakGlassReviewListenerTest {
         assertThat(captor.getValue().connectorId()).isEqualTo(connectorId);
         assertThat(captor.getValue().submitterUserId()).isEqualTo(submitterId);
         assertThat(captor.getValue().justification()).isEqualTo("prod is down");
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(principalId);
     }
 }

@@ -389,6 +389,7 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(captor.getValue().pipelineId()).isEqualTo(pipeline.getId());
         assertThat(captor.getValue().submitterUserId()).isEqualTo(SUBMITTER);
         assertThat(captor.getValue().justification()).isEqualTo("ship it");
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
         verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_BREAK_GLASS_EXECUTED),
                 eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(saved.getId()), eq(ORG), eq(SUBMITTER),
                 any(), eq("10.0.0.1"));
@@ -652,6 +653,22 @@ class DefaultDeploymentRequestServiceTest {
         return new SubmitDeploymentRequestCommand(pipeline.getId(), "production", ORG, SUBMITTER,
                 false, "2.4.1", "abc123", "ghcr.io/app:2.4.1", "https://ci/run/1", externalRunId,
                 Map.of("changelog", "fix things"), "ship it", null, null, "10.0.0.1");
+    }
+
+    @Test
+    void breakGlassForwardsTheOnBehalfOfPrincipalToTheRetroReviewEvent() {
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+        var principalId = UUID.randomUUID();
+
+        service.submit(new SubmitDeploymentRequestCommand(pipeline.getId(), "production", ORG,
+                SUBMITTER, false, "2.4.1", "abc123", "ghcr.io/app:2.4.1", "https://ci/run/1",
+                "run-1", Map.of(), "ship it", null, SubmissionReason.EMERGENCY_ACCESS, "10.0.0.1",
+                principalId));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(DeploymentBreakGlassExecutedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(principalId);
     }
 
     private SubmitDeploymentRequestCommand breakGlassCommand(String externalRunId, boolean admin) {

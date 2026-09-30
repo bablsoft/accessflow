@@ -192,7 +192,8 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
 
         eventPublisher.publishEvent(new DeploymentBreakGlassExecutedEvent(
                 command.organizationId(), entity.getId(), pipeline.getId(),
-                command.submitterUserId(), command.justification()));
+                command.submitterUserId(), command.justification(),
+                command.onBehalfOfUserId()));
         return new DeploymentRequestSubmissionResult(toDetailView(entity), false);
     }
 
