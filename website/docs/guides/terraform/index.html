@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-17",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/guides/terraform/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/terraform/",
       "image": "https://accessflow.io/og-image.png",
@@ -279,7 +279,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Manage AccessFlow with Terraform.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-17">17 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -311,11 +311,26 @@
           <h2 id="guide-terraform-credentials">1. Get a service-account API key</h2>
           <p>
             Terraform needs credentials that do not depend on anyone's browser session. The
-            intended path is a <strong>service account</strong>: an API-key-only user that can never
-            sign in interactively (by password or single sign-on) and whose key you generate
-            yourself, so AccessFlow only ever stores its hash.
+            intended path is a <strong>service account</strong>: an account that can never sign in
+            interactively (by password or single sign-on) and authenticates only with an API key.
+            There are two ways to create one.
           </p>
-          <p>Generate a key first — it is just a random token with an <code>af_</code> prefix:</p>
+          <p>
+            <strong>From the admin screens.</strong> Sidebar → <em>Security &amp; Access</em> →
+            <em>Identity</em> → <strong>Service accounts</strong> → <strong>Create service
+            account</strong>. Pick a role that holds the management permissions for what your
+            Terraform code owns — a custom role, or Admin if it manages everything. Then, on the
+            account's <strong>API keys</strong> tab, click <strong>Issue key</strong> and copy the
+            <code>af_…</code> value, which is shown once. Keys issued this way can be rotated with a
+            grace period and revoked at any time. See
+            <a href="/docs/configuration/users-roles/#cfg-service-accounts">service accounts</a>.
+          </p>
+          <p>
+            <strong>Declared in configuration</strong> — the better fit when Terraform is what
+            provisions everything else, so the account must exist before anyone signs in. You
+            generate the key yourself, and AccessFlow only ever stores its hash. Generate it first —
+            it is just a random token with an <code>af_</code> prefix:
+          </p>
           <div class="code-block">
             <div class="code-block-head">
               <span class="mono">create the secret</span>
@@ -343,7 +358,7 @@
   serviceAccounts:
     - email: terraform@acme.example.com
       displayName: Terraform CI
-      role: ADMIN
+      role: ADMIN   <span class="c-com"># set before the first start — narrow it if Terraform manages less</span>
       apiKeyName: terraform
       apiKeySecretRef:
         name: accessflow-bootstrap-secrets
@@ -356,11 +371,17 @@
             Outside Kubernetes the same fields are environment variables —
             <code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code>,
             <code>_DISPLAY_NAME</code>, <code>_ROLE</code>, <code>_API_KEY_NAME</code>,
-            <code>_API_KEY</code> and the optional <code>_API_KEY_EXPIRES_AT</code>. Rotating the
-            key is a matter of changing the secret: bootstrap re-imports it in place.
+            <code>_API_KEY</code> and the optional <code>_API_KEY_EXPIRES_AT</code>. When
+            <code>role</code> is left out it defaults to Admin, so set it explicitly — and before the first
+            start, because the role is applied only when the account is created; editing it in the
+            configuration later does not change an existing account. Rotating a declared key is a
+            matter of changing the secret and restarting AccessFlow: bootstrap re-imports it in place
+            on startup. For
+            the same reason it cannot be revoked from the admin screens — the next change would bring
+            it back — so retire it in the configuration, or deactivate the account.
           </p>
           <div class="docs-callout info">
-            <strong>Just evaluating?</strong> Any user can mint a key for themselves at
+            <strong>Just evaluating?</strong> Any user can create a key for themselves at
             <strong>Profile settings</strong> → <strong>API keys</strong>. The raw value is shown
             once. It works fine for a first <code>apply</code>, but a personal key inherits that
             person's account — use a service account for anything that outlives the experiment.

@@ -17,6 +17,7 @@ accessflow/
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
 ├── accessflow-compliance/        # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459)
 ├── accessflow-mcp/               # Spring AI stateless MCP server — @Tool callbacks for AI agents
+├── accessflow-serviceaccounts/   # Non-human identities — service accounts, key rotation, tool allow-list, rate limit, on-behalf-of (epic #867)
 └── accessflow-app/               # Spring Boot main application, Docker entrypoint
 ```
 
@@ -3056,13 +3057,15 @@ The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/
 
 1. **Organization** — looks up by slug, creates if missing. Slug is derived from `bootstrap.organization.name` when `bootstrap.organization.slug` is blank.
 2. **Admin user** — looks up by email. Creates with role=ADMIN if missing. **Does NOT rotate** the password on existing users (operators rotate via the admin API).
-3. **Notification channels** — upsert by `(orgId, name)`.
-4. **AI configs** — upsert by `(orgId, name)`.
-5. **Review plans** — upsert by `(orgId, name)`. Resolves `notifyChannelNames` against step 3 and `approverEmails` against step 2 (or any pre-existing users in the same org).
-6. **Datasources** — upsert by `(orgId, name)`. Resolves `reviewPlanName` and `aiConfigName`. `dbType=CUSTOM` is rejected — operators upload CUSTOM JDBC driver JARs through the admin API.
-7. **SAML** — singleton per org. Only applied when `bootstrap.saml.enabled=true`.
-8. **OAuth2 providers** — upsert by `(orgId, provider)`.
-9. **System SMTP** — singleton per org. Only applied when `bootstrap.systemSmtp.enabled=true`.
+3. **Service accounts (+ API keys)** — upsert by email; registers each as a `BOOTSTRAP`-managed service account through `serviceaccounts.api.ServiceAccountProvisioningService.ensureRegistered` and imports its declared key via `ApiKeyService.importOrUpdate`. Skipped per account when the spec fingerprint is unchanged. `role` defaults to `ADMIN` when omitted — always declare a narrow one ([22-service-accounts.md](22-service-accounts.md) §3, §8).
+4. **Notification channels** — upsert by `(orgId, name)`.
+5. **AI configs** — upsert by `(orgId, name)`.
+6. **Review plans** — upsert by `(orgId, name)`. Resolves `notifyChannelNames` against step 4 and `approverEmails` against step 2 (or any pre-existing users in the same org).
+7. **Datasources** — upsert by `(orgId, name)`. Resolves `reviewPlanName` and `aiConfigName`. `dbType=CUSTOM` is rejected — operators upload CUSTOM JDBC driver JARs through the admin API.
+8. **SAML** — singleton per org. Only applied when `bootstrap.saml.enabled=true`.
+9. **OAuth2 providers** — upsert by `(orgId, provider)`.
+10. **Langfuse** — singleton per org.
+11. **System SMTP** — singleton per org. Only applied when `bootstrap.systemSmtp.enabled=true`.
 
 **Authoritative semantics.** Every restart re-applies the declared spec, overwriting matching rows in the DB. Rows that are NOT declared are left untouched (no destructive cleanup). Operators who edit a declared row through the admin UI will see their change reverted on the next restart.
 
@@ -3070,7 +3073,7 @@ The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/
 
 **Failure handling.** If the organization reconciler fails, bootstrap aborts immediately. For every subsequent reconciler, failures are logged at ERROR, collected, and the runner throws a `BootstrapException` at the end — the pod fails its readiness probe so the operator sees the failure in `kubectl describe pod` rather than discovering it through silent half-applied state.
 
-**Module boundaries.** `bootstrap` is a Spring Modulith application module with only an `internal/` package — it has no public API of its own. It depends on the public `api/` packages of `core`, `ai`, `security`, `notifications`, and `scheduling` (for `DistributedLockService`), plus the `audit/events/` named interface (which owns `BootstrapResourceUpsertedEvent` so the consumer doesn't form a cycle back into bootstrap). It reuses each domain's `Default*Service` for encryption / persistence (sensitive fields like API keys, datasource passwords, OAuth2 client secrets, and SMTP passwords are AES-256-GCM encrypted by those services, not by bootstrap).
+**Module boundaries.** `bootstrap` is a Spring Modulith application module with only an `internal/` package — it has no public API of its own. It depends on the public `api/` packages of `core`, `ai`, `security`, `notifications`, `serviceaccounts` (for `ServiceAccountProvisioningService`), and `scheduling` (for `DistributedLockService`), plus the `audit/events/` named interface (which owns `BootstrapResourceUpsertedEvent` so the consumer doesn't form a cycle back into bootstrap). It reuses each domain's `Default*Service` for encryption / persistence (sensitive fields like API keys, datasource passwords, OAuth2 client secrets, and SMTP passwords are AES-256-GCM encrypted by those services, not by bootstrap).
 
 **Validation parity.** The Helm chart validates required `bootstrap.*` values at `helm template` / `helm install` time (`accessflow.bootstrap.validate` in [_bootstrap-env.tpl](../charts/accessflow/templates/_bootstrap-env.tpl)) so misconfig surfaces at deploy time, not at pod start. The backend re-checks the same invariants in each reconciler to defend against non-Helm install paths.
 
@@ -4762,10 +4765,13 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
     deliberately keeps the submitter-only guard — admin-only, and the on-behalf-of is on its audit
     row; a follow-up issue.
 - **Known limitation.** `PUT /admin/users/{id}` does not consult `principal_type`, so a `USER_MANAGE`
-  holder can still edit a `BOOTSTRAP` account's display name or role there; #875 hides service
-  accounts from the users page.
+  holder can still edit a `BOOTSTRAP` account's display name or role there. The UI never offers
+  that path: since #875 the users page badges service accounts, filters by `?principal_type=`, and
+  routes their row action to `/admin/service-accounts/{id}` instead of the edit modal.
 
-The full REST contract is in `docs/04-api-spec.md` → "Service Accounts".
+The full REST contract is in `docs/04-api-spec.md` → "Service Accounts"; the operator-facing
+reference (role choice, rotation, allow-list caveats, fail-open limiter, on-behalf-of, the bootstrap
+re-import trap, a CI runbook) is [22-service-accounts.md](22-service-accounts.md).
 
 ## SCIM provisioning (scim module, #621)
 

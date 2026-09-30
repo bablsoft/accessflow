@@ -105,6 +105,7 @@ Sourced, dated comparisons with the products AccessFlow is evaluated against. Ev
 - [API Access Governance](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/17-api-governance.md): Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions
 - [Deployment Approval Governance](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/18-deployment-governance.md): Gate CI/CD deployments behind approval workflows — pipelines, environments, freeze windows, the fail-closed gate
 - [Deterministic SQL Review Rules](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/19-sql-review.md): The named rule catalog, per-environment OFF / WARN / BLOCK severities, ruleset resolution, the submission chokepoint where a BLOCK escalates to a person and never rejects, the live editor lint, and the documented exemptions
+- [Service Accounts](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/22-service-accounts.md): Non-human identities for CI, IaC and AI agents — API-key-only sign-in, narrow roles, graced key rotation, MCP tool allow-list, per-identity rate limits, on-behalf-of attribution that never widens permissions, declarative-vs-UI ownership
 
 ## Optional
 

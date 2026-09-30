@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Integrations & boundaries",
       "datePublished": "2026-09-11",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/integrations/",
       "mainEntityOfPage": "https://accessflow.io/docs/integrations/",
       "image": "https://accessflow.io/og-image.png",
@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Integrations &amp; boundaries.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
         <section id="fit" class="docs-section">
@@ -312,10 +312,13 @@
               <strong>REST API</strong> — everything the UI does, under <code>/api/v1</code>. A browser
               session authenticates with a JWT; a program authenticates with an
               <strong>API key</strong> (<code>Authorization: ApiKey af_…</code> or
-              <code>X-API-Key</code>). Personal keys are minted under
+              <code>X-API-Key</code>). Personal keys are created under
               <strong>Profile → API keys</strong> and carry exactly their owner's role and datasource
-              permissions; <a href="/docs/iac/#iac-service-account">service-account keys</a> are
-              API-key-only users for automation. The full endpoint reference is
+              permissions. Automation should use a
+              <a href="/docs/configuration/users-roles/#cfg-service-accounts">service account</a>
+              instead — an identity of its own that can never sign in, whose keys an admin issues,
+              rotates and revokes (see also <a href="/docs/iac/#iac-service-account">service-account
+              keys for pipelines</a>). The full endpoint reference is
               <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">docs/04-api-spec.md</a>.
             </li>
             <li>

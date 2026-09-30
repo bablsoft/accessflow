@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-28",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -274,7 +274,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -777,8 +777,12 @@
             <a href="/docs/iac/#iac-service-account">Infrastructure as code</a>) shows a
             <em>Bootstrap</em> badge. Its email, display name, role and declared key are read-only on
             the page and change only in that configuration — the declared key can be neither revoked
-            nor rotated here, because the next bootstrap run would re-import it. Everything else
-            (owner, description, tools, limits, delegations, extra keys) stays editable.
+            nor rotated here, because the next change to that configuration would re-import it. Rotate it by
+            changing the secret and restarting AccessFlow, or deactivate the account here in an emergency. Everything else
+            (owner, description, tools, limits, delegations, extra keys) stays editable. When the
+            configuration leaves out the role it defaults to <em>Admin</em>, so set one before the account's
+            first start — the role and display name are applied only when the account is created, and
+            a later change in the configuration is not applied to an existing account.
           </p>
           <p>
             <strong>Where robots show up.</strong> <code>/admin/users</code> lists service accounts

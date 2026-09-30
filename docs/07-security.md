@@ -235,7 +235,9 @@ Operator setup guide (Okta / Entra ID walkthroughs): `website/docs/configuration
 ### API key authentication
 
 Users may create personal API keys (under **Profile → API keys**) to authenticate the MCP
-server and other programmatic clients without a browser session. The flow:
+server and other programmatic clients without a browser session; an admin issues keys on a
+**service account's** behalf instead (see "Service accounts are API-key-only" below and
+[22-service-accounts.md](22-service-accounts.md)). The flow:
 
 - **Format.** `af_<32-byte base64url, no padding>` — ~38 characters. Generated with
   `SecureRandom`; the `af_` prefix is informational.

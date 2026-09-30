@@ -407,12 +407,19 @@ the `Retry-After` handling are covered without a backend); the GitLab and Azure 
 extracted from their YAML (`extract-template-scripts.py`) and run — and shellchecked — through the
 same double by `ci-templates-test.sh`.
 
-**Service-account setup.** Mint an AccessFlow API key for a dedicated service-account user
-(`POST /api/v1/me/api-keys`, or declaratively through the `bootstrap` module's
-`ApiKeyService.importOrUpdate`), grant that user `can_trigger` on the pipeline — and
-`can_break_glass` only if emergency deploys should be possible from CI — and store the raw key as a
-CI secret. Because the key's owning user is the submitter, that account can never approve its own
-deployments.
+**Service-account setup.** Create a dedicated **service account** (*Security & Access → Identity →
+Service accounts*, role `READONLY` — the trigger endpoint checks the pipeline grant, not the role)
+and issue its key from the account's *API keys* tab (`POST /api/v1/admin/service-accounts/{id}/api-keys`),
+or declare both through `bootstrap.serviceAccounts[]` (set `role` explicitly — it defaults to
+`ADMIN`). A service account cannot sign in, so its first key can only come from an admin or bootstrap. Grant the
+account `can_trigger` on the pipeline — and `can_break_glass` only if emergency deploys should be
+possible from CI — and store the raw key as a CI secret. Because the key's owning user is the
+submitter, that account can never approve its own deployments; when the pipeline sends
+`X-AccessFlow-On-Behalf-Of` for the engineer who triggered it (and that engineer has consented), the
+engineer cannot approve it either. Every wrapper retries a `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED`
+honouring `Retry-After`, so a per-account cap on the *Limits* tab slows a runaway pipeline rather
+than failing a healthy one. Rotate the key with the account's **Rotate** action and a grace window
+longer than your longest queued run. Full reference: [22-service-accounts.md](22-service-accounts.md).
 
 ---
 

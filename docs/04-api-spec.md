@@ -3,7 +3,7 @@
 ## General
 
 - **Base path:** `/api/v1`
-- **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`. Programmatic / IaC clients (the Terraform/OpenTofu provider and the reusable CI Actions — see [docs/16-iac.md](16-iac.md)) instead authenticate with an **API key**: `Authorization: ApiKey <af_…>` (or `X-API-Key: <af_…>`). The key inherits its owning user's permissions; mint one at `POST /api/v1/me/api-keys` or bootstrap a service-account key declaratively. The provider drives the existing datasource / review-plan / routing-policy / AI-config / notification-channel CRUD endpoints below — IaC added **no** new endpoints.
+- **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`. Programmatic / IaC clients (the Terraform/OpenTofu provider and the reusable CI Actions — see [docs/16-iac.md](16-iac.md)) instead authenticate with an **API key**: `Authorization: ApiKey <af_…>` (or `X-API-Key: <af_…>`). The key inherits its owning user's permissions. For automation use a **service account** ([docs/22-service-accounts.md](22-service-accounts.md)) whose key an admin issues at `POST /api/v1/admin/service-accounts/{id}/api-keys` or declares through bootstrap; a person's own key is minted at `POST /api/v1/me/api-keys`. The provider drives the existing datasource / review-plan / routing-policy / AI-config / notification-channel CRUD endpoints below — IaC added **no** new endpoints.
 - **Rate limits (#873):** every **API-key-authenticated** request — `/api/v1/**` and `/mcp/**` alike — is counted against the calling identity in a Redis fixed window: a `service_accounts` row's `rate_limit_per_minute` / `rate_limit_per_day` when set, otherwise the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE`, default `120`; `…_PER_DAY`, default `0` = unlimited). A human's personal key gets the defaults. Over the cap the response is `429 SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` — an RFC 9457 `ProblemDetail` with `limit` and `retryAfterSeconds` properties **and** a real `Retry-After` header (seconds until the window resets). JWT browser sessions are never rate-limited. The limiter is a resource guardrail, not an authorization check, so it **fails open**: when Redis is unreachable the request is served unmetered and a throttled `WARN` is logged.
 - **On-behalf-of attribution (#874):** an **API-key** request may carry `X-AccessFlow-On-Behalf-Of: <user uuid | email>` to record that the agent / CI job acted **for** a specific human. The named human must be an active `HUMAN` member of the caller's organization holding a live delegated-principal grant for that service account (see [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871) and [`/me/service-account-delegations`](#me-service-account-delegations-874)). It is **attribution only**: the effective permission set is always and only the key owner's — the principal never touches `JwtClaims`. The submission it accompanies is stamped with `on_behalf_of_user_id`, every audit row written during the request carries `metadata.on_behalf_of_user_id` (plus `api_key_id` and `service_account`, which every API-key request contributes), and the named human joins the submitter under the self-approval ban. Failure is loud, never silent: `403 ON_BEHALF_OF_NOT_PERMITTED` with a deliberately opaque `reason` — `not_api_key` (a JWT session sent it) or `not_permitted` (unknown, another organization, inactive, not a human, or no live grant — one code, so the header cannot probe which emails exist). On any review / decision surface the header is refused outright with `403 ON_BEHALF_OF_REVIEW_FORBIDDEN`: an agent may act *for* a human when it submits; it may never cast a vote *as* one.
 - **Content-Type:** `application/json`
@@ -3083,6 +3083,12 @@ whose `content` entries have the same shape as the `granted` rows above.
 
 A human's own consent surface for [on-behalf-of attribution](#general): "this service account may act for me". Any signed-in user; no permission beyond that, because a grant confers nothing on the agent and the caller can only ever be the principal. The admin counterpart — granting on a human's behalf — is [`/admin/service-accounts/{id}/delegated-principals`](#service-accounts-adminservice-accounts-service_account_manage-871); both share the delegation object documented there.
 
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/me/service-account-delegations` | Every grant naming the caller, revoked and expired included |
+| `POST` | `/me/service-account-delegations` | Consent to be named by a service account, optionally expiring |
+| `DELETE` | `/me/service-account-delegations/{id}` | Revoke a grant the caller gave |
+
 ### GET /me/service-account-delegations
 
 Every grant naming the caller, newest first, revoked and expired included. **Response 200:** array of delegation objects.
@@ -3599,6 +3605,9 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `POST` | `/admin/service-accounts/{id}/api-keys/{keyId}/rotate` | Rotate a key: issue the replacement and expire the old one after a grace window (`201`) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `DELETE` | `/admin/service-accounts/{id}/api-keys/{keyId}` | Revoke a key (`204`); a bootstrap-declared key is refused with `409 SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `GET` | `/admin/service-accounts/mcp-tools` | The MCP tool names an allow-list may reference, in catalog order — what the admin UI's MCP tools tab is built from (#875) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `GET` | `/admin/service-accounts/{id}/delegated-principals` | Humans the account may name in `X-AccessFlow-On-Behalf-Of`, revoked and expired included (#874) *(`SERVICE_ACCOUNT_MANAGE` or `USER_MANAGE`)* |
+| `POST` | `/admin/service-accounts/{id}/delegated-principals` | Grant a human's consent to be named, optionally expiring (`201`) (#874) *(`SERVICE_ACCOUNT_MANAGE` or `USER_MANAGE`)* |
+| `DELETE` | `/admin/service-accounts/{id}/delegated-principals/{delegationId}` | Soft-revoke a grant (`204`, idempotent) (#874) *(`SERVICE_ACCOUNT_MANAGE` or `USER_MANAGE`)* |
 | `GET` | `/admin/system-smtp` | Get the organization's system SMTP configuration (404 when unset) |
 | `PUT` | `/admin/system-smtp` | Create or update the system SMTP configuration |
 | `DELETE` | `/admin/system-smtp` | Remove the system SMTP configuration |
@@ -8474,7 +8483,7 @@ never a silent mutation of the query under review.
 | `404` | Not Found |
 | `409` | Conflict — e.g. duplicate datasource name |
 | `422` | Unprocessable Entity — SQL parse error, query execution failure, datasource unavailable |
-| `429` | Too Many Requests — rate limit hit |
+| `429` | Too Many Requests — `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` on an API-key request over its per-identity window (honour `Retry-After`), or a feature-specific limit such as `AI_RATE_LIMIT_EXCEEDED` |
 | `500` | Internal Server Error |
 | `503` | Service Unavailable — connection pool initialization failed |
 | `504` | Gateway Timeout — query exceeded `accessflow.proxy.execution.statement-timeout` |
@@ -9692,6 +9701,8 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `SERVICE_ACCOUNT_DELEGATION_INVALID` | 422 | `ServiceAccountDelegationInvalidException` | `expires_at` is not in the future (#874). |
 | `ON_BEHALF_OF_NOT_PERMITTED` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` on a JWT session (`reason=not_api_key`), or naming a human the calling service account may not act for (`reason=not_permitted` — one opaque code for unknown / other organization / inactive / not human / no live grant) (#874). |
 | `ON_BEHALF_OF_REVIEW_FORBIDDEN` | 403 | *(written by `ApiKeyRequestFilter`, no exception type)* | `X-AccessFlow-On-Behalf-Of` sent to a review / decision endpoint — an agent may submit *for* a human, never vote *as* one (#874). |
+| `SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED` | 429 | *(written by `ApiKeyRequestFilter` from `ServiceAccountRateLimitExceededException`)* | An API-key request exceeded its identity's per-minute or per-day window (#873). Body includes `limit` and `retryAfterSeconds`; a real `Retry-After` header is set. JWT sessions are never limited. |
+| `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` | 401 | `ServiceAccountSignInException` | Password login, refresh, or an SSO exchange for a service account (#869) — API-key-only; no session is ever issued. SAML / OAuth2 success handlers redirect with the same code. |
 | `REQUEST_GROUP_ON_BEHALF_OF_CONFLICT` | 409 | `IllegalRequestGroupStateException.OnBehalfOfConflict` | A request-group draft already naming a different on-behalf-of principal was submitted with another (#874). |
 | `DATA_BUDGET_NOT_FOUND` | 404 | `DataBudgetNotFoundException` | Unknown data-budget id, or the budget belongs to another datasource / organization (#942). |
 | `ILLEGAL_DATA_BUDGET` | 422 | `IllegalDataBudgetException` | A data budget with no limit, a value out of range, an unknown applies-to role, or an applies-to user / group outside the organization (#942). |

@@ -46,9 +46,12 @@ API, or CI, not Terraform-managed.
 ## Authentication
 
 The provider authenticates with an AccessFlow **API key** (the `af_`-prefixed token) sent as
-`Authorization: ApiKey <key>`. The key inherits the permissions of its owning user, so use an
-admin (or admin-role service account). For CI/GitOps, bootstrap a dedicated service-account key
-declaratively — see the AccessFlow docs (`docs/16-iac.md`).
+`Authorization: ApiKey <key>`. Issue it to a dedicated **service account** — a non-human identity
+that can never sign in interactively — rather than to a person. Create the account on AccessFlow's
+*Service accounts* admin page (or declare it in the `bootstrap` config for GitOps), give it a role
+that holds only the management permissions for the resources this configuration owns, and issue
+the key from its *API keys* tab. Keys issued there can be rotated with a grace window and revoked
+instantly. See the AccessFlow docs (`docs/16-iac.md`, `docs/22-service-accounts.md`).
 
 ## Example Usage
 
@@ -65,7 +68,7 @@ terraform {
 # ACCESSFLOW_API_KEY environment variables (recommended for CI).
 provider "accessflow" {
   endpoint = "https://accessflow.example.com"
-  api_key  = var.accessflow_api_key # the af_-prefixed token, e.g. from a bootstrap service account
+  api_key  = var.accessflow_api_key # the af_-prefixed token of a service account
 }
 
 variable "accessflow_api_key" {
@@ -86,5 +89,5 @@ Both arguments may instead be supplied via environment variables:
 
 ### Optional
 
-- `api_key` (String, Sensitive) AccessFlow API key (the `af_`-prefixed token) used for `Authorization: ApiKey`. May also be set with the `ACCESSFLOW_API_KEY` environment variable. Bootstrap one declaratively with a service account (see the provider docs).
+- `api_key` (String, Sensitive) AccessFlow API key (the `af_`-prefixed token) used for `Authorization: ApiKey`. May also be set with the `ACCESSFLOW_API_KEY` environment variable. Issue one to a dedicated service account (see the provider docs).
 - `endpoint` (String) Base URL of the AccessFlow backend, e.g. `https://accessflow.example`. May also be set with the `ACCESSFLOW_ENDPOINT` environment variable.

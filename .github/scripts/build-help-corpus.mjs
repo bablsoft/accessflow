@@ -35,7 +35,7 @@ const SCHEMA_VERSION = 1;
 const MAX_CHUNK_TOKENS = 800;
 // Guard rails: a broken selector must fail loudly rather than silently emit three chunks.
 const MIN_CHUNKS = 350;
-const MAX_CHUNKS = 600;
+const MAX_CHUNKS = 700;
 // Below this a "section" is a label and a date stamp, not an answer.
 const MIN_SECTION_TOKENS = 40;
 const MIN_QUICK_REF_TOKENS = 1500;

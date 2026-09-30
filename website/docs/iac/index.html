@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-28",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/iac/",
       "mainEntityOfPage": "https://accessflow.io/docs/iac/",
       "image": "https://accessflow.io/og-image.png",
@@ -269,14 +269,14 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
           <h2>Infrastructure as Code (Terraform / OpenTofu &amp; CI Actions)</h2>
           <div class="docs-callout info">
             <strong>There is a guide for this.</strong> <a href="/docs/guides/terraform/">Manage AccessFlow with Terraform</a>
-            is the step-by-step version: mint a service-account key, configure the provider, apply a first resource. This chapter is the reference behind it.
+            is the step-by-step version: get a service-account key, configure the provider, apply a first resource. This chapter is the reference behind it.
           </div>
           <p>
             Beyond the env-driven GitOps bootstrap, AccessFlow ships an official
@@ -286,36 +286,62 @@
             API key — the provider manages datasources, review plans, routing / row-security /
             masking policies, SQL review rulesets, AI configs, and notification channels with the same authoritative-upsert
             semantics as the bootstrap reconciler.
+          </p>
 
           <h3>Can AccessFlow be managed with Terraform?</h3>
           <p>
             Yes. The official <code>bablsoft/accessflow</code> provider works with both Terraform and OpenTofu, and manages datasources, review plans, routing, row-security and masking policies, SQL review rulesets, AI configs, and notification channels. It authenticates with a service-account API key and upserts declaratively, the same way the GitOps bootstrap reconciler does.
           </p>
-          </p>
 
           <h3 id="iac-service-account">Service-account API keys</h3>
           <p>
-            A pipeline needs credentials without an interactive login. Bootstrap can seed a
-            <strong>service account</strong> — an API-key-only user that can never sign in
-            interactively, by password or single sign-on — whose raw key you supply from a Secret (only its hash is stored, rotated in place when it
-            changes). Set these operator env vars (or the equivalent Helm
+            A pipeline needs credentials without an interactive login, so it runs as a
+            <strong>service account</strong> — an account that can never sign in interactively, by
+            password or single sign-on, and authenticates only with an API key. Give each pipeline
+            its own, with a role that covers only what it manages.
+          </p>
+          <p>
+            <strong>From the admin screens</strong> (the usual way): Sidebar → <em>Security &amp;
+            Access</em> → <em>Identity</em> → <strong>Service accounts</strong> →
+            <strong>Create service account</strong>, then <strong>Issue key</strong> on its
+            <strong>API keys</strong> tab. The key is shown once. Keys issued there can be rotated
+            with a grace period — the old key keeps working for 24 hours by default
+            (<code>ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE</code>) while you swap the CI secret —
+            and revoked instantly. The same page sets request limits, an AI-agent tool allow-list,
+            and the people the account may act for. See
+            <a href="/docs/configuration/users-roles/#cfg-service-accounts">service accounts</a>.
+          </p>
+          <p>
+            <strong>Declared in configuration</strong> — for an account that must exist before
+            anyone signs in, such as the Terraform identity that provisions everything else. You
+            supply the raw key from a Secret (only its hash is stored; it is replaced in place when
+            it changes). Set these operator env vars (or the equivalent Helm
             <code>bootstrap.serviceAccounts[]</code> with an <code>apiKeySecretRef</code>):
           </p>
           <ul>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code></li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME</code></li>
-            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — default <code>ADMIN</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — defaults to <code>ADMIN</code>, so set the narrowest role that works before the first start: the role is applied only when the account is created</li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME</code></li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY</code> — the raw <code>af_</code>-prefixed token</li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_EXPIRES_AT</code> — optional ISO-8601</li>
           </ul>
-          <p>You can also mint a key interactively at <code>POST /api/v1/me/api-keys</code>.</p>
+          <p>
+            A declared account's name and role are set from the configuration when the account is
+            first created. Changing them in the configuration later is not applied to the existing
+            account, and the service-account screens will not change them either — to narrow an existing
+            account's role, an admin calls <code>PUT /api/v1/admin/users/{id}</code>. Its limits, tool
+            allow-list and description stay editable. Its
+            declared key cannot be revoked or rotated from the screens either — the next change to
+            the configuration would bring it back. Rotate it by changing the Secret and restarting,
+            or deactivate the account in an emergency.
+          </p>
           <p>
             Every request an API key makes is counted against that identity — 120 per minute by
             default (<code>ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE</code>), with an
             optional daily cap (<code>…_REQUESTS_PER_DAY</code>, unlimited by default). A service
-            account can carry its own limits, set by an admin through
-            <code>PUT /api/v1/admin/service-accounts/{id}</code>. Over the cap the API answers
+            account can carry its own limits, set by an admin on its <strong>Limits</strong> tab
+            (or <code>PUT /api/v1/admin/service-accounts/{id}</code>). Over the cap the API answers
             HTTP 429 with a <code>Retry-After</code> header. Every wrapper on this page waits it
             out rather than failing the job — the GitHub Actions and GitLab jobs for provisioning
             and queries within their own timeout, the deployment-gate wrappers below within the
@@ -520,8 +546,8 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           </p>
           <p>
             <strong>The API key a pipeline uses is an ordinary AccessFlow key</strong> belonging to a
-            dedicated service-account user — mint it as described under
-            <a href="#iac-service-account">service-account API keys</a> above, grant that user
+            dedicated service account — issue it as described under
+            <a href="#iac-service-account">service-account API keys</a> above, grant that account
             <code>can_trigger</code> on the pipeline (see
             <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment
             pipelines</a>), and store the raw key as a CI secret. Because the key's owning user is the

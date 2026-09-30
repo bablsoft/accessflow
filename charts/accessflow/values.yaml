@@ -505,15 +505,20 @@ bootstrap:
       name: ""                  # K8s Secret name (must exist)
       key: ""                   # key inside that Secret
 
-  # CI / IaC service accounts (AF-452). Each is an API-key-only user used by the
-  # Terraform/OpenTofu provider or the reusable CI Actions. The raw key is supplied
-  # from a Secret (only its hash is stored); password login is disabled. role
-  # defaults to ADMIN (declarative CRUD needs admin). Upserted by email; the key is
-  # rotated in place when apiKey changes.
+  # CI / IaC service accounts declared as code (AF-452, epic #867). Each is a
+  # non-human identity that can never sign in interactively and authenticates with
+  # API keys only. Most accounts are easier to create on the admin UI's Service
+  # accounts page (graced rotation, instant revoke); declare one here when it must
+  # exist before anyone signs in. The raw key is supplied from a Secret (only its
+  # hash is stored), upserted by email and re-imported whenever the spec changes —
+  # so the declared key cannot be revoked or rotated from the UI. ALWAYS set role
+  # before the first start: omitted, it defaults to ADMIN, and role/displayName are
+  # applied only when the account is created (a later change here is not re-applied).
+  # See docs/22-service-accounts.md.
   serviceAccounts: []
   # - email: ci@acme.com
   #   displayName: CI Pipeline
-  #   role: ADMIN                  # ADMIN | REVIEWER | ANALYST | READONLY | AUDITOR
+  #   role: READONLY               # ADMIN | REVIEWER | ANALYST | READONLY | AUDITOR — set it explicitly
   #   apiKeyName: terraform
   #   apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: ci-api-key }
   #   apiKeyExpiresAt: ""          # optional ISO-8601 instant; never expires when blank

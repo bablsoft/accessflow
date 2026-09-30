@@ -62,7 +62,7 @@
         "inLanguage": "en",
         "articleSection": "Security",
         "datePublished": "2026-08-29",
-        "dateModified": "2026-09-15",
+        "dateModified": "2026-09-30",
         "url": "https://accessflow.io/security/",
         "mainEntityOfPage": "https://accessflow.io/security/",
         "image": "https://accessflow.io/og-image.png",
@@ -381,6 +381,14 @@
               <h3>Workforce-ready auth</h3>
               <p>Sign in with the accounts your company already uses — SAML 2.0 SSO and OAuth 2.0 / OIDC, with built-in templates for Google, GitHub, Microsoft, GitLab, and a generic provider for any other IdP (Keycloak, Auth0, Okta, …). Roles and group memberships sync automatically from your identity provider on every login, with optional TOTP two-factor. With <strong>SCIM 2.0 provisioning</strong>, the IdP drives the whole user lifecycle: joiners are created, movers re-grouped, and leavers deactivated automatically — sessions and standing access grants revoked the moment someone is offboarded in Okta or Entra ID. One deployment hosts <strong>multiple fully-isolated organizations</strong>, and a <strong>super-admin</strong> manages tenants across the cluster — with per-org quotas and a kill-switch that disables an org instantly. <a class="prose-link" href="/docs/configuration/auth/#cfg-oauth">Auth &amp; SSO docs →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-roles">Users &amp; roles docs →</a></p>
               <span class="tag">JWT · SAML · OAuth · SCIM provisioning · IdP group sync · TOTP · Multi-tenant orgs · Per-org quotas</span>
+            </div>
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M12 3v4"/><circle cx="9" cy="13" r="1.2"/><circle cx="15" cy="13" r="1.2"/></svg>
+              </div>
+              <h3>Service accounts for pipelines and agents</h3>
+              <p>CI jobs, Terraform and AI agents get identities of their own instead of borrowing a person's key. A <strong>service account</strong> can never sign in — no password, no single sign-on — and works only through API keys an admin issues. Each key is shown once, can be rotated with a grace period so running jobs are not cut off, and revoked instantly. The account carries only the role you give it, can be limited to specific AI-agent tools, and has its own request limits. It may say which person it is acting for — once that person has agreed — and that person is recorded on the request and <strong>cannot approve it</strong>; naming someone never adds a single permission. <a class="prose-link" href="/docs/configuration/users-roles/#cfg-service-accounts">Service accounts docs →</a></p>
+              <span class="tag">API keys only · Rotation without downtime · Tool limits · Request limits · Acting for a person</span>
             </div>
           </div>
         </section>

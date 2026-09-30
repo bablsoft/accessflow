@@ -88,7 +88,7 @@ its own anchor and part index. Inserting a section therefore does not renumber t
 which is what makes a documentation edit re-embed the sections it touched rather than the page.
 
 The script asserts loudly rather than silently emitting a broken bundle. It fails when a page
-under `website/` matches no section rule and no exclusion, when the chunk count leaves the 350–600
+under `website/` matches no section rule and no exclusion, when the chunk count leaves the 350–700
 range, when any chunk exceeds the token budget, when two chunks collide on `id`, when an excluded
 path appears, or when a page has no `<main>`, no `<h1>` or no canonical URL.
 
