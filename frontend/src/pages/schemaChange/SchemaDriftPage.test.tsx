@@ -133,6 +133,13 @@ describe('SchemaDriftPage', () => {
     expect(screen.getByTestId('drift-environment-dev').textContent).toContain('Not scanned yet.');
   });
 
+  it('links the page to the schema change set docs', async () => {
+    renderPage();
+    await screen.findByTestId('drift-environment-prod');
+    const link = document.querySelector('a.af-page-docs-link');
+    expect(link?.getAttribute('href')).toContain('#cfg-schema-changes');
+  });
+
   it('renders an inapplicable engine as unsupported, distinct from a clean scan', async () => {
     api.listSchemaDriftScans.mockResolvedValue(
       page([scan('e-dev'), scan('e-mongo', { applicable: false, error_message: 'ENGINE_NOT_APPLICABLE' })]),

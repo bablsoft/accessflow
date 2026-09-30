@@ -911,7 +911,7 @@ Pipelines and environment names come from `GET /schema-change-pipelines`, not
 **Schema changes** → `Change sets` and `Schema drift`, both on `SCHEMA_CHANGE_MANAGE`; the routes
 carry the same `AuthGuard`. A `SCHEMA_DRIFT_DETECTED` notification opens `/schema-drift`, and
 `websocketManager` maps `schema_change_promotion.status_changed` (pushed to the promoter) onto the
-set's detail key and the list.
+set's detail key and the list. All three page headers carry `docsAnchor="cfg-schema-changes"` (#884).
 
 ## Deployment governance pages (#696, epic AF-682)
 

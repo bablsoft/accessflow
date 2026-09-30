@@ -193,6 +193,7 @@ export default function SchemaChangeSetListPage() {
       <PageHeader
         title={t('schemaChange.list.title')}
         subtitle={t('schemaChange.list.subtitle')}
+        docsAnchor="cfg-schema-changes"
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating(true)}>
             {t('schemaChange.list.create')}

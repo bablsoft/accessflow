@@ -231,6 +231,7 @@
             <a href="#cfg-attestation">Access recertification campaigns</a>
             <a href="#cfg-access-explainer">Effective-access explainer</a>
             <a href="#cfg-deployment-pipelines">Deployment pipelines</a>
+            <a href="#cfg-schema-changes">Schema change sets</a>
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
@@ -1091,6 +1092,85 @@ APPROVED → FAILED (execution error)</pre>
             default <code>PT5M</code>) and <code>ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK</code> (how often
             approved deployments are scanned to announce that they have become releasable, default
             <code>PT1M</code>). Every transition lands in the
+            <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="cfg-schema-changes">Schema change sets</h2>
+          <p>
+            <strong>What it is.</strong> A governed way to change a database's <em>structure</em> —
+            create a table, add a column, drop an index — across your environments in order. A
+            <strong>schema change set</strong> is an ordered list of schema statements written once,
+            under a <a href="#cfg-deployment-pipelines">deployment pipeline</a>, and then
+            <strong>promoted</strong> one environment at a time: <code>dev</code>, then
+            <code>staging</code>, then <code>production</code>. An environment only accepts a change
+            set that has already applied successfully on every lower environment that has a
+            database behind it, so production can only ever receive a change that worked in staging.
+          </p>
+          <p>
+            <strong>What is refused before it is saved.</strong> Every statement is checked with the
+            target database's own parser when you save. Statements that read or change data —
+            <code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> — are
+            refused with a message pinned to the statement, and so are a
+            <code>BEGIN … COMMIT</code> wrapper and several statements pasted into one box. If a
+            <a href="#cfg-sql-review">SQL review rule</a> set to <em>block</em> matches, the save is
+            refused too; a rule set to <em>warn</em> shows its warning under the statement and lets
+            the save through. The first promotion <strong>freezes</strong> the list: from then on
+            the statements cannot be edited, so the text that reaches production is exactly the text
+            that ran in staging.
+          </p>
+          <p>
+            <strong>What it will not do.</strong> There is no rollback. Statements run one after
+            another, each on its own, so if statement 7 of 12 fails, the first six stay applied and
+            the promotion reads <em>partially applied</em>. Fix what is left with a new change set.
+          </p>
+          <p>
+            <strong>Configure it.</strong> First give each environment a database: on the pipeline's
+            <strong>Environments</strong> tab at <code>/admin/deployment-pipelines</code>, pick the
+            datasource that environment's schema changes should land on. Environments without one
+            are skipped by the ladder. Then open <strong>Schema changes → Change sets</strong>
+            (<code>/schema-change-sets</code>; requires the <code>SCHEMA_CHANGE_MANAGE</code>
+            permission, held by <code>ADMIN</code>), create a change set for the pipeline, and add
+            its statements. The detail page shows the <strong>promotion ladder</strong>: one step
+            per environment, each saying whether it is ready to promote, in progress, applied, or
+            blocked — and, when blocked, why (a lower environment not yet applied, an active freeze
+            window, no database bound).
+          </p>
+          <p>
+            <strong>Promote it.</strong> Promoting needs the DDL grant on the target datasource for
+            the person clicking <em>Promote</em>, <strong>admins included</strong>. A promotion is
+            refused inside a <a href="#cfg-deployment-pipelines">freeze window</a>. It then goes
+            through review as a <a href="/docs/workflows/#flow-request-groups">request group</a> — approvers come from
+            the target datasource's <a href="#cfg-review-plans">review plan</a> — the environment's own
+            approval count and review-plan override do not apply to schema changes — and an
+            environment that requires review is refused outright if that plan would not ask a
+            person. Once approved, the statements run in order within about a minute, and the
+            ladder moves on; from that point the promotion can no longer be cancelled.
+            Reviewers are notified when a promotion needs them; the promoter is notified when it
+            applies or fails.
+          </p>
+          <p>
+            <strong>Watch for drift.</strong> <strong>Schema changes → Schema drift</strong>
+            (<code>/schema-drift</code>) compares each environment's live structure against the
+            environment below it and lists the differences — a table missing, a column with a
+            different type — for someone to <em>acknowledge</em>. <strong>Scan now</strong> checks
+            one environment on demand. Scheduled scans are off until you turn them on per pipeline
+            with <code>PUT /api/v1/schema-drift/configs/{pipelineId}</code>, which also chooses what
+            to compare against: the environment below (the default), one reference environment, or
+            the structure recorded right after that environment's last successful promotion — the
+            one that catches changes made outside AccessFlow. Drift compares tables, columns and
+            foreign keys only; indexes, constraints, defaults, views and column lengths are
+            invisible to it, so "no drift" means nothing changed in what it can see. It never fixes
+            anything itself.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS</code> (statements
+            per change set, default <code>50</code>) and the
+            <code>ACCESSFLOW_SCHEMACHANGE_DRIFT_*</code> settings for the scan cadence, time budget
+            and caps — see the
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">deployment reference</a>.
+            Every change set edit, promotion step, scan and acknowledgement lands in the
             <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
           </p>
         </section>

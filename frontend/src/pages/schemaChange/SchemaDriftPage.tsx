@@ -290,7 +290,11 @@ export default function SchemaDriftPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('schemaChange.drift.title')} subtitle={t('schemaChange.drift.subtitle')} />
+      <PageHeader
+        title={t('schemaChange.drift.title')}
+        subtitle={t('schemaChange.drift.subtitle')}
+        docsAnchor="cfg-schema-changes"
+      />
       <div
         style={{
           padding: '12px 28px',

@@ -244,6 +244,14 @@
 
 ---
 
+## v2.7 🚧 in progress
+
+**Theme:** Governing changes to the database schema itself.
+
+- **Schema change governance** — the missing unit between a single DDL query and a deployment: a **schema change set**, an ordered list of schema statements authored once under a deployment pipeline and **promoted along its environment ladder** (`dev → staging → prod`), with the guarantee that an environment only ever receives a change that already succeeded in every lower environment bound to a database. Deployment environments gain an optional bound datasource and a real, unique `sort_order`, which is what makes the ladder meaningful. Every statement is parsed with the target engine's own parser before it can be saved: `SELECT` / `INSERT` / `UPDATE` / `DELETE` are refused, a `BEGIN … COMMIT` envelope or multi-statement text is refused, and a deterministic SQL review `BLOCK` refuses the save outright — the one place a blocking rule rejects, since a set being authored has no reviewer to escalate to. The statement list **freezes** on first promotion and carries a SHA-256 checksum, so "applied to staging" still means the same text when prod is asked. Promotion is fail-closed: it needs `can_ddl` on the target datasource for the promoting user, **with no admin exemption**; it is refused in a frozen environment, `HOLD` included; and an environment that requires review is refused outright when the target datasource's review plan could not enforce one. A promotion runs as an ordered request group — aggregated AI analysis, union-of-approvers review, the scheduled run job as the durable execution trigger — and projects the group's status back onto itself. There is **no rollback at all**: each statement runs on its own, so a failure part-way leaves the environment `PARTIALLY_APPLIED` and a new change set is the remedy. An opt-in, per-pipeline **schema drift** job introspects each environment on a schedule and diffs it against the previous environment, a designated reference environment, or the snapshot taken right after the last successful promotion, opening findings an admin acknowledges; it compares schemas, tables, columns and foreign keys only — never indexes, constraints, defaults, views or type precision — and **never writes**. Notifications on review, apply, failure and newly opened drift; audited end to end; managed at `/schema-change-sets` and `/schema-drift` behind `SCHEMA_CHANGE_MANAGE` (#870 — sub-issues #877–#884) — see [docs/20-schema-change-governance.md](20-schema-change-governance.md)
+
+---
+
 ## Backlog / Unscheduled
 
 **Theme:** Candidate features not yet scheduled into a milestone.
