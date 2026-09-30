@@ -16,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BreakGlassWebMappersTest {
 
+    private static final UUID PRINCIPAL = UUID.randomUUID();
+
     @Test
     void executeResponseMapsResult() {
         var id = UUID.randomUUID();
@@ -62,7 +64,8 @@ class BreakGlassWebMappersTest {
                 java.util.Map.of());
         var view = new BreakGlassEventView(base.id(), base.queryRequestId(), null, null,
                 base.organizationId(), base.datasourceId(), base.datasourceName(), null, null,
-                base.submittedByUserId(), base.onBehalfOfUserId(), base.submittedByDisplayName(), base.submittedByEmail(),
+                base.submittedByUserId(), base.onBehalfOfUserId(), base.submittedByDisplayName(),
+                base.submittedByEmail(),
                 base.sqlText(), base.executionStatus(), base.justification(), base.status(),
                 null, null, null, null, base.createdAt(), List.of(finding));
 
@@ -85,8 +88,6 @@ class BreakGlassWebMappersTest {
         assertThat(response.size()).isEqualTo(20);
         assertThat(response.totalPages()).isEqualTo(1);
     }
-
-    private static final UUID PRINCIPAL = UUID.randomUUID();
 
     private BreakGlassEventView sampleView() {
         return new BreakGlassEventView(

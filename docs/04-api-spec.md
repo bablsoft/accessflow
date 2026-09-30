@@ -1929,7 +1929,7 @@ per row. Query params: `status` (`PENDING_REVIEW` / `REVIEWED`), `datasourceId`,
 `to`, `page`, `size` (max 200) — `datasourceId` naturally matches only query rows. Each item
 carries the target ids (plus `connectorId` / `pipelineId` for the non-query kinds and the executed
 query's SQL + status for query rows), submitter, `on_behalf_of_user_id` (the human an agent broke
-glass for via `X-AccessFlow-On-Behalf-Of`, #874; `null` for a human submission — #1129), datasource,
+glass for via `X-AccessFlow-On-Behalf-Of`, #874; omitted for a human submission — #1129), datasource,
 justification, and review fields.
 Query rows also carry `sql_review_findings` (#864) — the deterministic SQL review findings recorded
 when the emergency query was submitted, in the same rendered per-finding shape as
@@ -1938,8 +1938,10 @@ clean or not-applicable evaluation. Break-glass bypasses the decision chain the 
 in by design, so these findings never gated the execution — they are here for the retro-review, and
 `GET /admin/break-glass/{id}` returns the same object.
 `POST /admin/break-glass/{id}/acknowledge` (ADMIN, optional `{ "comment": "…" }`)
-transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and rejects self-acknowledge
-— by the submitter or by the `on_behalf_of_user_id` human (#1129) — (403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`) and already-reviewed (409 `BREAK_GLASS_ALREADY_REVIEWED`).
+transitions `PENDING_REVIEW → REVIEWED` and audits `BREAK_GLASS_REVIEWED`. It rejects a
+self-acknowledge with 403 `SELF_ACKNOWLEDGE_NOT_ALLOWED` — the submitter and the
+`on_behalf_of_user_id` human (#1129) alike — and an already-reviewed event with 409
+`BREAK_GLASS_ALREADY_REVIEWED`.
 
 ### GET /queries — Query Parameters
 
