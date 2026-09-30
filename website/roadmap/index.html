@@ -395,11 +395,10 @@
           <p>
             <strong>v2.7 is in development</strong> and is not in the grid above yet. Among the
             things it adds: database schema changes written once and promoted environment by
-            environment — reviewed at each step, locked after the first, and only reaching production
-            once they applied cleanly in every environment below it — with an opt-in scan that
-            reports when an environment's tables and columns drift away from where they should be.
-            The full in-progress scope is on
-            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub</a>.
+            environment — going through the same review as any other request, locked once first
+            promoted, and only reaching production after they applied cleanly in every environment
+            below it — with an opt-in scan that reports when an environment's tables and columns
+            drift away from where they should be.
           </p>
           <p>
             What shipped when, release by release, is in

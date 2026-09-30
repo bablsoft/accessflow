@@ -1142,9 +1142,11 @@ APPROVED → FAILED (execution error)</pre>
             the person clicking <em>Promote</em>, <strong>admins included</strong>. A promotion is
             refused inside a <a href="#cfg-deployment-pipelines">freeze window</a>. It then goes
             through review as a <a href="/docs/workflows/#flow-request-groups">request group</a> — approvers come from
-            the target datasource's <a href="#cfg-review-plans">review plan</a>, and an environment
-            that requires review is refused outright if that plan would not ask a person. Once
-            approved, the statements run in order within about a minute, and the ladder moves on.
+            the target datasource's <a href="#cfg-review-plans">review plan</a> — the environment's own
+            approval count and review-plan override do not apply to schema changes — and an
+            environment that requires review is refused outright if that plan would not ask a
+            person. Once approved, the statements run in order within about a minute, and the
+            ladder moves on; from that point the promotion can no longer be cancelled.
             Reviewers are notified when a promotion needs them; the promoter is notified when it
             applies or fails.
           </p>
