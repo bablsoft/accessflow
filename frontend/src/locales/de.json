@@ -2721,6 +2721,7 @@
         "tab_keys": "API-Keys",
         "tab_tools": "MCP-Tools",
         "tab_limits": "Limits",
+        "tab_attributes": "Attribute",
         "tab_principals": "Im-Auftrag-von-Prinzipale",
         "tab_activity": "Aktivität",
         "deactivate": "Deaktivieren",
@@ -2805,6 +2806,17 @@
         "placeholder_default": "Deployment-Standard",
         "save": "Limits speichern",
         "success": "Ratenlimits aktualisiert"
+      },
+      "attributes": {
+        "description": "Schlüssel/Wert-Attribute, die in Zeilensicherheits-Prädikaten als :user.<key> aufgelöst werden. Speichern ersetzt den gesamten Satz; Bootstrap deklariert sie nie, daher sind sie auch bei Bootstrap-verwalteten Konten bearbeitbar.",
+        "empty": "Keine Attribute gesetzt.",
+        "key": "Schlüssel",
+        "value": "Wert",
+        "add": "Attribut hinzufügen",
+        "remove": "Attribut entfernen",
+        "duplicate_key": "Dieser Schlüssel wird bereits verwendet.",
+        "save": "Attribute speichern",
+        "success": "Attribute aktualisiert"
       },
       "principals": {
         "description": "Personen, die zustimmen, von diesem Account über X-AccessFlow-On-Behalf-Of genannt zu werden. Eine Delegation verleiht keine Berechtigung: der eigene Key des Accounts entscheidet, was er darf, und die genannte Person gilt für das Selbstgenehmigungsverbot als Einreicher.",

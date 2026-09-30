@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountClearableField;
 import com.bablsoft.accessflow.serviceaccounts.api.UpdateServiceAccountCommand;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -12,13 +13,15 @@ import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Every field is null-means-unchanged. UI-owned fields are reset by naming them in {@code clear}
  * — {@code MCP_TOOL_ALLOW_LIST} there re-opens every tool — and a field may not be both sent and
- * cleared in the same request.
+ * cleared in the same request. {@code attributes} replaces the row-security attribute map when
+ * present ({@code {}} removes every attribute) — the same bounds as {@code PUT /admin/users/{id}}.
  */
 public record UpdateServiceAccountRequest(
         @Size(max = 255, message = "{validation.service_account_display_name.size}")
@@ -42,6 +45,12 @@ public record UpdateServiceAccountRequest(
         @Positive(message = "{validation.service_account_rate_limit.positive}")
         Integer rateLimitPerDay,
 
+        @Size(max = 50, message = "{validation.user_attributes.max}")
+        Map<@NotBlank(message = "{validation.user_attribute_key.blank}")
+            @Size(max = 128, message = "{validation.user_attribute_key.size}") String,
+            @NotNull(message = "{validation.user_attribute_value.required}")
+            @Size(max = 512, message = "{validation.user_attribute_value.size}") String> attributes,
+
         Set<ServiceAccountClearableField> clear
 ) {
     @AssertTrue(message = "{validation.service_account_clear.conflict}")
@@ -56,7 +65,7 @@ public record UpdateServiceAccountRequest(
 
     public UpdateServiceAccountCommand toCommand() {
         return new UpdateServiceAccountCommand(displayName, role, roleId, active, description, ownerUserId,
-                mcpToolAllowList, rateLimitPerMinute, rateLimitPerDay, clear);
+                mcpToolAllowList, rateLimitPerMinute, rateLimitPerDay, attributes, clear);
     }
 
     /** The field names present in the body — audit metadata, never the values. */
@@ -88,6 +97,9 @@ public record UpdateServiceAccountRequest(
         }
         if (rateLimitPerDay != null) {
             fields.add("rate_limit_per_day");
+        }
+        if (attributes != null) {
+            fields.add("attributes");
         }
         return List.copyOf(fields);
     }

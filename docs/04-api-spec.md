@@ -3791,7 +3791,7 @@ resolve in row-security predicates as `:user.<key>`. They are admin-set, **not**
 
 **Response 200:** Updated user object.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
-**Response 409:** The user is a service account (`principal_type = SERVICE_ACCOUNT`, #1130) — every field is refused, `attributes` included. Change its role, active flag or display name through `PUT /admin/service-accounts/{id}` behind `SERVICE_ACCOUNT_MANAGE`; that endpoint has no `attributes` field, so a service account's attributes currently cannot be changed ([22-service-accounts.md](22-service-accounts.md) §9). `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path` (e.g. `/api/v1/admin/service-accounts/{id}`). Checked after the organization (404) and before the self-protection rules.
+**Response 409:** The user is a service account (`principal_type = SERVICE_ACCOUNT`, #1130) — every field is refused, `attributes` included. Change its role, active flag, display name or `attributes` through `PUT /admin/service-accounts/{id}` behind `SERVICE_ACCOUNT_MANAGE`, which carries the same `attributes` field with the same bounds. `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path` (e.g. `/api/v1/admin/service-accounts/{id}`). Checked after the organization (404) and before the self-protection rules.
 **Response 422:** Self-protection violation — admins cannot change their own role to one that lacks the `USER_MANAGE` permission, or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
 
 ### GET /admin/users/{id}/attributes — Response 200
@@ -3827,7 +3827,7 @@ All endpoints require `SERVICE_ACCOUNT_MANAGE` (`USERS` group, held by the syste
 | `display_name`, `role` / `role_id` | editable | **read-only** — a value that *differs* from the current one is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`; sending the current value is a no-op |
 | the bootstrap-declared API key (`bootstrap_declared: true`) | n/a | **cannot be revoked or rotated** (`409 SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED`) — the next changed reconcile would silently reactivate it; rotate the secret in the bootstrap source and restart instead |
 | `active` | editable | editable — the reconciler never resurrects a deactivated account; `PUT { "active": true }` is the remediation (and, every field being null-means-unchanged, touches nothing else) |
-| `description`, `owner_user_id`, `mcp_tool_allow_list`, `rate_limit_per_minute`, `rate_limit_per_day` | editable | editable — never touched by a bootstrap re-run |
+| `description`, `owner_user_id`, `mcp_tool_allow_list`, `rate_limit_per_minute`, `rate_limit_per_day`, `attributes` | editable | editable — never touched by a bootstrap re-run (the spec cannot declare attributes) |
 | additional (undeclared) API keys | issue / rotate / revoke | issue / rotate / revoke |
 
 This split is what lets an existing install adopt the feature without editing a line of YAML.
@@ -3867,11 +3867,12 @@ This split is what lets an existing install adopt the feature without editing a 
       "expires_at": null,
       "revoked_at": null
     }
-  ]
+  ],
+  "attributes": { "region": "EU" }
 }
 ```
 
-`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `owner_email` / `owner_display_name` (#875) are resolved from `owner_user_id` at read time in the same user lookup as the account itself — `null` when there is no owner, or the owner was hard-deleted. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` when the account inherits the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE` / `_PER_DAY`), and a positive integer overrides them for this account — enforced on every API-key request since #873 (see *Rate limits* under General); "unlimited" for one account is not expressible, only the deployment-wide `0`. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
+`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `owner_email` / `owner_display_name` (#875) are resolved from `owner_user_id` at read time in the same user lookup as the account itself — `null` when there is no owner, or the owner was hard-deleted. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here and enforced at every MCP `tools/call` (#872, [13-mcp.md §4](13-mcp.md#4-limits-errors-and-audit)); `tools/list` still advertises every tool. `rate_limit_*` are `null` when the account inherits the deployment defaults (`ACCESSFLOW_SERVICEACCOUNTS_RATE_LIMIT_REQUESTS_PER_MINUTE` / `_PER_DAY`), and a positive integer overrides them for this account — enforced on every API-key request since #873 (see *Rate limits* under General); "unlimited" for one account is not expressible, only the deployment-wide `0`. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there. `attributes` (#1130) is the account's row-security map (`users.attributes`, resolved as `:user.<key>` in row-security predicates) — `{}` when none are set, returned on `GET /{id}` and on the `PUT` response only and omitted from the list. It is the same map `GET /admin/users/{id}/attributes` returns.
 
 #### GET /admin/service-accounts — Query Parameters
 
@@ -3920,7 +3921,7 @@ The account is created with `auth_provider = LOCAL`, an unusable random password
 
 #### GET /admin/service-accounts/{id} — Response 200
 
-Full service account object including `api_keys`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` — the id is unknown, belongs to another organization, or is a human user.
+Full service account object including `api_keys` and `attributes`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` — the id is unknown, belongs to another organization, or is a human user.
 
 #### PUT /admin/service-accounts/{id} — Request Body
 
@@ -3935,6 +3936,7 @@ Full service account object including `api_keys`. **Response 404:** `SERVICE_ACC
   "mcp_tool_allow_list": ["list_datasources"],
   "rate_limit_per_minute": 60,
   "rate_limit_per_day": null,
+  "attributes": { "region": "EU", "tenant": "acme" },
   "clear": ["RATE_LIMIT_PER_DAY"]
 }
 ```
@@ -3944,6 +3946,7 @@ Full service account object including `api_keys`. **Response 404:** `SERVICE_ACC
 - **Declared fields** — `display_name`, `role` / `role_id`. On a `BOOTSTRAP` account a value that differs from the current one is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (the `ProblemDetail` carries `field`); an equal value is accepted as a no-op, so a full-form client need not special-case bootstrap accounts. `display_name`, when sent, must not be blank.
 - **`active`** — never bootstrap-declared. `false` behaves like `DELETE`; `true` reactivates.
 - **UI-owned fields** — `description`, `owner_user_id`, `mcp_tool_allow_list` (`[]` = no tool), `rate_limit_per_minute`, `rate_limit_per_day` — are set when sent and **reset by name** through `clear`, a set of `DESCRIPTION` \| `OWNER_USER_ID` \| `MCP_TOOL_ALLOW_LIST` (→ `null`, every tool) \| `RATE_LIMIT_PER_MINUTE` \| `RATE_LIMIT_PER_DAY` (→ `null`, back to the deployment default). A field that is both sent and named in `clear` is `400 VALIDATION_ERROR`.
+- **`attributes`** (#1130) — the row-security attribute map, UI-owned (the bootstrap spec cannot declare it), so it is editable on a `BOOTSTRAP` account too. When sent it **replaces** the whole map; `{}` removes every attribute. Same bounds as `PUT /admin/users/{id}`: `@Size(max=50)` entries, every key `@NotBlank` and `@Size(max=128)`, every value non-null and `@Size(max=512)` (blank allowed). Since `PUT /admin/users/{id}` refuses service accounts (`409 USER_IS_SERVICE_ACCOUNT`), this is the only write path for a service account's attributes. Audit metadata lists `attributes` among the `fields` — never the values.
 
 **Response 200:** Updated service account object. **Response 400:** `VALIDATION_ERROR`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `ROLE_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`. **Response 422:** `SERVICE_ACCOUNT_OWNER_INVALID` / `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL`; `ILLEGAL_USER_OPERATION` when the caller is itself the target (a service account on an admin role, authenticating with its own key, cannot deactivate itself or drop its own user-management role — the same self-protection as `PUT /admin/users/{id}`).
 

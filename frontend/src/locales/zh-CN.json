@@ -2721,6 +2721,7 @@
         "tab_keys": "API 密钥",
         "tab_tools": "MCP 工具",
         "tab_limits": "限制",
+        "tab_attributes": "属性",
         "tab_principals": "代表的委托人",
         "tab_activity": "活动",
         "deactivate": "停用",
@@ -2805,6 +2806,17 @@
         "placeholder_default": "部署默认值",
         "save": "保存限制",
         "success": "速率限制已更新"
+      },
+      "attributes": {
+        "description": "键/值属性，在行级安全谓词中以 :user.<key> 解析。保存会替换整个集合；bootstrap 从不声明属性，因此由 bootstrap 管理的账户也可编辑。",
+        "empty": "未设置属性。",
+        "key": "键",
+        "value": "值",
+        "add": "添加属性",
+        "remove": "删除属性",
+        "duplicate_key": "该键已被使用。",
+        "save": "保存属性",
+        "success": "属性已更新"
       },
       "principals": {
         "description": "同意被此账号通过 X-AccessFlow-On-Behalf-Of 指名的人员。委托不授予任何权限：账号自身的密钥决定它能做什么，被指名的人在禁止自行审批的规则中视为提交者。",

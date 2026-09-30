@@ -2721,6 +2721,7 @@
         "tab_keys": "Clés d'API",
         "tab_tools": "Outils MCP",
         "tab_limits": "Limites",
+        "tab_attributes": "Attributs",
         "tab_principals": "Principaux « pour le compte de »",
         "tab_activity": "Activité",
         "deactivate": "Désactiver",
@@ -2805,6 +2806,17 @@
         "placeholder_default": "Valeur par défaut du déploiement",
         "save": "Enregistrer les limites",
         "success": "Limites de débit mises à jour"
+      },
+      "attributes": {
+        "description": "Attributs clé/valeur résolus dans les prédicats de sécurité des lignes sous la forme :user.<key>. L'enregistrement remplace l'ensemble complet ; le bootstrap ne les déclare jamais, ils restent donc modifiables sur les comptes gérés par bootstrap.",
+        "empty": "Aucun attribut défini.",
+        "key": "Clé",
+        "value": "Valeur",
+        "add": "Ajouter un attribut",
+        "remove": "Supprimer l'attribut",
+        "duplicate_key": "Cette clé est déjà utilisée.",
+        "save": "Enregistrer les attributs",
+        "success": "Attributs mis à jour"
       },
       "principals": {
         "description": "Personnes qui consentent à être nommées par ce compte via X-AccessFlow-On-Behalf-Of. Une délégation ne confère aucune permission : la clé du compte décide de ce qu'il peut faire, et la personne nommée compte comme demandeur pour l'interdiction d'auto-approbation.",

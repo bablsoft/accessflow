@@ -2721,6 +2721,7 @@
         "tab_keys": "API keys",
         "tab_tools": "MCP tools",
         "tab_limits": "Limits",
+        "tab_attributes": "Attributes",
         "tab_principals": "On-behalf-of principals",
         "tab_activity": "Activity",
         "deactivate": "Deactivate",
@@ -2805,6 +2806,17 @@
         "placeholder_default": "Deployment default",
         "save": "Save limits",
         "success": "Rate limits updated"
+      },
+      "attributes": {
+        "description": "Key/value attributes resolvable in row-security predicates as :user.<key>. Saving replaces the whole set; bootstrap never declares them, so they are editable on bootstrap-managed accounts too.",
+        "empty": "No attributes set.",
+        "key": "Key",
+        "value": "Value",
+        "add": "Add attribute",
+        "remove": "Remove attribute",
+        "duplicate_key": "This key is already used.",
+        "save": "Save attributes",
+        "success": "Attributes updated"
       },
       "principals": {
         "description": "People who consent to be named by this account through X-AccessFlow-On-Behalf-Of. A delegation confers no permission: the account's own key decides what it may do, and the named person counts as a submitter for the self-approval ban.",

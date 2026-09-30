@@ -113,8 +113,15 @@ select **Create service account**. The form asks for:
 - an optional owner and description
 - optional per-minute and per-day request limits
 
-On save, the account's settings page opens with six tabs: *Overview*, *API keys*, *MCP tools*,
-*Limits*, *On-behalf-of principals*, and *Activity*.
+On save, the account's settings page opens with seven tabs: *Overview*, *API keys*, *MCP tools*,
+*Limits*, *Attributes*, *On-behalf-of principals*, and *Activity*.
+
+The *Attributes* tab edits the account's row-security attributes — the values a row-security
+predicate reads as `:user.<key>` (at most 50; key ≤ 128, value ≤ 512 characters). Saving replaces
+the whole set. On the API they are the `attributes` field of `PUT
+/api/v1/admin/service-accounts/{id}` (`{}` removes them all), and `GET` on the same path returns
+them. This is their only write path: the generic users API refuses service accounts (`409
+USER_IS_SERVICE_ACCOUNT`, #1130).
 
 **API:** `POST /api/v1/admin/service-accounts` (201). The full contract, including update, key,
 and delegation endpoints, is in
@@ -336,7 +343,7 @@ A service account is created in one of two places, and `service_accounts.managed
 |---|---|---|
 | Created by | an admin (UI or API) | `bootstrap.serviceAccounts[]` / `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<n>_*` on startup |
 | Display name, role | editable | **declared by the spec**: applied at creation and re-applied to the existing account whenever the spec changes, except that a custom role assigned outside the spec is kept ([§3](#3-choosing-a-role--keep-it-narrow)); changing either from the service-accounts UI/API is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (an unchanged value is a no-op) |
-| Owner, description, active, tool allow-list, rate limits, delegations | editable | editable. The reconciler never touches them, so a UI edit survives every restart |
+| Owner, description, active, tool allow-list, rate limits, row-security attributes, delegations | editable | editable. The reconciler never touches them, so a UI edit survives every restart |
 | Extra keys issued in the UI | rotate / revoke freely | rotate / revoke freely |
 | The **declared** key (`api_keys.bootstrap_declared`) | — | **cannot be revoked or rotated** from any surface |
 
@@ -370,9 +377,6 @@ can be rotated with grace and revoked on the spot.
 
 ## 9. Known limitations
 
-- A service account's row-security `attributes` (`:user.<key>`) cannot be changed. The generic
-  users API refuses service accounts (`409 USER_IS_SERVICE_ACCOUNT`, #1130), and the
-  service-account API has no `attributes` field yet. Existing values are kept.
 - There is no self-service screen for a human to consent to being named. Use
   `/api/v1/me/service-account-delegations`, or ask an admin to grant it on the account.
 - `tools/list` is not filtered ([§5](#5-mcp-tool-allow-list)).

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "b615cde60c92",
-  "generatedAt": "2026-09-30T13:16:08.533Z",
-  "sourceCommit": "7ebf5fa8162b9d2f2d1f491e71297f7b7beec089",
+  "corpusVersion": "ac2428e6191e",
+  "generatedAt": "2026-09-30T13:35:51.588Z",
+  "sourceCommit": "43d8e2ae499c91dcb4bfc8dc977b1f9b20fcd286",
   "chunkCount": 604,
-  "sha256": "b615cde60c92451a39c1a6a75a1583ac28b9cec13d4bdf80f031d8d7f9b3bbd7",
+  "sha256": "ac2428e6191e7735d245bb9636ffd83f60ce53530e3ac16e0a7eaf738513c233",
   "quickReferenceSha256": "af9167770251a221bdce1414872ea3a194fdc57a6d8212f8945849cbfff50661",
   "sources": [
     {
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 20,
-      "sha256": "305339d9684c29b65c909e64c9e0831ad52b52e5baff0b24f3bdb59d61ffc2b6"
+      "sha256": "e18690c45bb4f856338e7f6641675b6bd6b36e119020d8cb92f900a03bd5b163"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "b915ef523b806585d8570d6015396cc58586771bcf1ae424f68fcf0fc6c1dc2b"
+      "sha256": "eb6331072595945d4eb16ab125f9daeab48b2c1615f65bde8a8e2da3fbf4cf1c"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "1a45109cf8e9267ae1315f02d8e00e06fbff801bd0f72884e26e0dc988ccb018"
+      "sha256": "54dbf35ca979af49c9a1ebc8c73754ae67fb7bffe2de5ef92ad4707e4b35c574"
     }
   ]
 }

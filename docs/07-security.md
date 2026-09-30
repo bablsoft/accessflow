@@ -596,8 +596,9 @@ restart). The generic users API cannot reach around that boundary: `PUT` and `DE
 /admin/users/{id}` (`USER_MANAGE`) refuse a `SERVICE_ACCOUNT` target with `409
 USER_IS_SERVICE_ACCOUNT` (#1130, `service_account_path` names the right resource), so a service
 account's role, active flag and display name change only behind `SERVICE_ACCOUNT_MANAGE` and the
-bootstrap-managed guard. Its row-security `attributes` have no write path at all for now (the
-service-account surface does not expose them), so they stay at whatever value they held. The users page (#875) lists service
+bootstrap-managed guard. Its row-security `attributes` are written only through the same
+`PUT /admin/service-accounts/{id}` (the `attributes` field, #1130) — UI-owned, so editable on a
+`BOOTSTRAP` account, and bounded exactly like the users API. The users page (#875) lists service
 accounts with a *Service account* badge and a principal-type filter (default: everyone) and routes
 their row action to `/admin/service-accounts/{id}` instead of the user edit modal and offers no *Deactivate* on them; `GET /admin/users` exposes
 `principal_type` and accepts `?principal_type=` for exactly this. Since #869 the discriminator itself is enforced on the sign-in
