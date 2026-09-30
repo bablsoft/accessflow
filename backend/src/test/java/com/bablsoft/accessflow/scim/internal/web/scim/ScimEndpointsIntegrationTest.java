@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.scim.internal.web.scim;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -251,6 +252,68 @@ class ScimEndpointsIntegrationTest {
     }
 
     @Test
+    void serviceAccountsAreInvisibleToTheIdp() {
+        var human = seedScimUser("human@example.com");
+        var bot = seedServiceAccount("bot@example.com");
+
+        var list = scimGet("/scim/v2/Users");
+        assertThat(list).hasStatus(200);
+        assertThat(list).bodyJson().extractingPath("$.totalResults").asNumber().isEqualTo(1);
+        assertThat(list).bodyJson().extractingPath("$.Resources[0].id").asString()
+                .isEqualTo(human.getId().toString());
+
+        var filtered = mvc.get().uri("/scim/v2/Users")
+                .param("filter", "userName eq \"bot@example.com\"")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + rawToken)
+                .exchange();
+        assertThat(filtered).bodyJson().extractingPath("$.totalResults").asNumber().isEqualTo(0);
+
+        assertThat(scimGet("/scim/v2/Users/" + bot.getId())).hasStatus(404);
+        assertThat(scimDelete("/scim/v2/Users/" + bot.getId())).hasStatus(404);
+        var patch = mvc.patch().uri("/scim/v2/Users/" + bot.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + rawToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"Operations":[{"op":"replace","path":"active","value":false}]}
+                        """)
+                .exchange();
+        assertThat(patch).hasStatus(404);
+        assertThat(userRepository.findById(bot.getId()).orElseThrow().isActive()).isTrue();
+    }
+
+    @Test
+    void scimGroupWritesNeverAttachAServiceAccount() throws Exception {
+        var bot = seedServiceAccount("bot@example.com");
+
+        var created = scimPost("/scim/v2/Groups", """
+                {"schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"],
+                 "displayName":"Agents","members":[{"value":"%s"}]}
+                """.formatted(bot.getId()));
+        assertThat(created).hasStatus(201);
+        var groupId = userGroupService.listAll(org.getId()).stream()
+                .filter(g -> "Agents".equals(g.name()))
+                .findFirst().orElseThrow().id();
+        assertThat(userGroupService.listMembers(groupId, org.getId())).isEmpty();
+
+        var add = mvc.patch().uri("/scim/v2/Groups/" + groupId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + rawToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"Operations":[{"op":"add","path":"members","value":[{"value":"%s"}]}]}
+                        """.formatted(bot.getId()))
+                .exchange();
+        assertThat(add).hasStatus(200);
+        assertThat(userGroupService.listMembers(groupId, org.getId())).isEmpty();
+
+        // An admin's MANUAL membership stands, but the IdP's view of the group omits it.
+        userGroupService.addMember(groupId, bot.getId(), org.getId(),
+                UserGroupMembershipSourceType.MANUAL);
+        var read = scimGet("/scim/v2/Groups/" + groupId);
+        assertThat(read).hasStatus(200);
+        assertThat(read.getResponse().getContentAsString()).doesNotContain(bot.getId().toString());
+    }
+
+    @Test
     void groupFilterByDisplayName() {
         scimPost("/scim/v2/Groups", "{\"displayName\":\"Platform\"}");
 
@@ -272,6 +335,19 @@ class ScimEndpointsIntegrationTest {
         user.setRole(UserRoleType.ANALYST);
         user.setActive(true);
         user.setOrganization(org);
+        return userRepository.save(user);
+    }
+
+    private UserEntity seedServiceAccount(String email) {
+        var user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setEmail(email);
+        user.setDisplayName(email);
+        user.setAuthProvider(AuthProviderType.LOCAL);
+        user.setRole(UserRoleType.READONLY);
+        user.setActive(true);
+        user.setOrganization(org);
+        user.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
         return userRepository.save(user);
     }
 

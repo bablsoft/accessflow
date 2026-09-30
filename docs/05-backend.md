@@ -4799,6 +4799,12 @@ The **`scim/` module** (`com.bablsoft.accessflow.scim`) is the SCIM 2.0 service 
   paging for `startIndex`). `ScimGroupOrchestrator` maps onto `core.api.UserGroupService`'s
   source-scoped member operations (`source=SCIM`). DELETE on a user deactivates — AccessFlow
   never hard-deletes users.
+- **Service accounts are invisible (#867).** `DefaultExternalUserDirectoryService` lists, finds
+  and updates `HUMAN` rows only, so a service account reads as `404` over SCIM and can't be
+  overwritten or deactivated by an IdP push. Group member adds are resolved through the same
+  directory before `addMember` runs, because a throw inside it would mark the transaction
+  rollback-only. `DefaultUserGroupService` also refuses `source=SCIM` memberships for a service
+  account, and group reads omit service-account members.
 - **Admin surface.** `/api/v1/admin/scim-config` + `/api/v1/admin/scim/tokens`
   (`PERM_SSO_CONFIGURE`), show-once token issuance mirroring API keys.
 - No scheduled jobs — SCIM is entirely IdP-push-driven.

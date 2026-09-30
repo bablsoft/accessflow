@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.CreateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UpdateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
@@ -340,6 +341,55 @@ class DefaultUserGroupServiceTest {
 
         var result = service.replaceMembersBySource(group.getId(), orgId,
                 List.of(unknownUserId), UserGroupMembershipSourceType.SCIM);
+
+        assertThat(result).isEmpty();
+        verify(membershipRepository, never()).save(any());
+    }
+
+    @Test
+    void addMemberWithScimSourceRefusesServiceAccount() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var bot = user(UUID.randomUUID(), orgId);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(bot.getId())).thenReturn(Optional.of(bot));
+
+        assertThatThrownBy(() -> service.addMember(group.getId(), bot.getId(), orgId,
+                UserGroupMembershipSourceType.SCIM))
+                .isInstanceOf(UserNotFoundException.class);
+        verify(membershipRepository, never()).save(any());
+    }
+
+    @Test
+    void addMemberWithManualSourceAcceptsServiceAccount() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var bot = user(UUID.randomUUID(), orgId);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(bot.getId())).thenReturn(Optional.of(bot));
+        when(membershipRepository.existsByUser_IdAndGroup_Id(bot.getId(), group.getId()))
+                .thenReturn(false);
+        when(membershipRepository.save(any(UserGroupMembershipEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.addMember(group.getId(), bot.getId(), orgId,
+                UserGroupMembershipSourceType.MANUAL);
+
+        assertThat(view.source()).isEqualTo(UserGroupMembershipSourceType.MANUAL);
+    }
+
+    @Test
+    void replaceMembersBySourceScimSkipsServiceAccounts() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of());
+        var bot = user(UUID.randomUUID(), orgId);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findByOrganization_IdAndId(orgId, bot.getId()))
+                .thenReturn(Optional.of(bot));
+
+        var result = service.replaceMembersBySource(group.getId(), orgId,
+                List.of(bot.getId()), UserGroupMembershipSourceType.SCIM);
 
         assertThat(result).isEmpty();
         verify(membershipRepository, never()).save(any());

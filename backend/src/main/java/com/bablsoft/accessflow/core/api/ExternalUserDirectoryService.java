@@ -11,6 +11,10 @@ import java.util.UUID;
  *
  * <p>Deactivation (active {@code true -> false}) publishes
  * {@code core.events.UserDeactivatedEvent} exactly like the admin paths.
+ *
+ * <p>Only {@link PrincipalType#HUMAN} users are visible (#867): every finder and {@link #list}
+ * skip service accounts, and {@link #updateExternal} reports one as not found, so an IdP can
+ * neither read nor overwrite nor deprovision an agent.
  */
 public interface ExternalUserDirectoryService {
 

@@ -789,7 +789,9 @@
             <strong>Where robots show up.</strong> <code>/admin/users</code> lists service accounts
             alongside people with a badge and a filter (<em>People and service accounts</em> / <em>People only</em> / <em>Service accounts only</em>); group member
             and permission pickers badge them too; and an attestation reviewer sees the account's owner
-            next to its grant.
+            next to its grant. Service accounts get no in-app notification inbox, although your
+            configured channels still reach them. They are also invisible to SCIM, so an identity
+            provider sync can never deactivate them.
           </p>
 
         </section>

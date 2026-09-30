@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
@@ -221,6 +222,46 @@ class NotificationDispatcherTest {
                 isNull(),
                 isNull(),
                 any());
+    }
+
+    @Test
+    void skipsInAppNotificationsForServiceAccounts() {
+        var reviewer = UUID.randomUUID();
+        var bot = UUID.randomUUID();
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_SUBMITTED,
+                        List.of(new RecipientView(reviewer, "a@x", "A"),
+                                new RecipientView(bot, "bot@x", "Bot",
+                                        PrincipalType.SERVICE_ACCOUNT)))));
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
+
+        dispatcher.dispatch(NotificationEventType.QUERY_SUBMITTED, queryRequestId, null, null, null);
+
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.QUERY_SUBMITTED),
+                eq(Set.of(reviewer)),
+                eq(orgId),
+                eq(queryRequestId),
+                isNull(),
+                isNull(),
+                isNull(),
+                any());
+    }
+
+    @Test
+    void recordsNoInAppNotificationWhenEveryRecipientIsAServiceAccount() {
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_SUBMITTED,
+                        List.of(new RecipientView(UUID.randomUUID(), "bot@x", "Bot",
+                                PrincipalType.SERVICE_ACCOUNT)))));
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
+
+        dispatcher.dispatch(NotificationEventType.QUERY_SUBMITTED, queryRequestId, null, null, null);
+
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(),
+                any(), any(), any());
     }
 
     @Test

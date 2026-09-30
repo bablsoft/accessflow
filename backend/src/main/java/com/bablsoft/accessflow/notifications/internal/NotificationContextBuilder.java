@@ -954,7 +954,8 @@ class NotificationContextBuilder {
     }
 
     private static RecipientView toRecipient(UserView user) {
-        return new RecipientView(user.id(), user.email(), user.displayName());
+        return new RecipientView(user.id(), user.email(), user.displayName(),
+                user.principalType());
     }
 
     private static String truncate(String text, int max) {

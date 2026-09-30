@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
@@ -281,7 +282,8 @@ class NotificationDispatcher {
         }
         Set<UUID> recipientIds = new LinkedHashSet<>();
         for (RecipientView r : ctx.recipients()) {
-            if (r.userId() != null) {
+            // No inbox for agents (#867) — nobody reads it; channel delivery is unaffected.
+            if (r.userId() != null && r.principalType() != PrincipalType.SERVICE_ACCOUNT) {
                 recipientIds.add(r.userId());
             }
         }

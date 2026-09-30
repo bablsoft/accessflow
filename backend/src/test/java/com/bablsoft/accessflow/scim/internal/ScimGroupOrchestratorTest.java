@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.scim.internal;
 
+import com.bablsoft.accessflow.core.api.ExternalUserDirectoryService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipView;
 import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.UserGroupNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserGroupView;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.scim.api.ScimPrincipal;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimGroupResource;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimInvalidValueException;
@@ -22,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +44,7 @@ class ScimGroupOrchestratorTest {
     private static final String BASE = "https://af.example.com/scim/v2";
 
     @Mock UserGroupService userGroupService;
+    @Mock ExternalUserDirectoryService directory;
 
     ScimGroupOrchestrator orchestrator;
 
@@ -49,7 +56,7 @@ class ScimGroupOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        orchestrator = new ScimGroupOrchestrator(userGroupService);
+        orchestrator = new ScimGroupOrchestrator(userGroupService, directory);
         lenient().when(userGroupService.getGroup(groupId, orgId))
                 .thenReturn(groupView(groupId, "Engineers", "grp-ext-1"));
         lenient().when(userGroupService.listMembers(groupId, orgId)).thenReturn(List.of());
@@ -125,6 +132,22 @@ class ScimGroupOrchestratorTest {
     }
 
     @Test
+    void getOmitsServiceAccountMembers() {
+        var memberId = UUID.randomUUID();
+        when(userGroupService.listMembers(groupId, orgId)).thenReturn(List.of(
+                new UserGroupMembershipView(memberId, groupId, "jane@example.com", "Jane",
+                        UserGroupMembershipSourceType.SCIM, Instant.now()),
+                new UserGroupMembershipView(UUID.randomUUID(), groupId, "bot@example.com", "Bot",
+                        UserGroupMembershipSourceType.MANUAL, Instant.now(),
+                        PrincipalType.SERVICE_ACCOUNT)));
+
+        var resource = orchestrator.get(principal, groupId, BASE);
+
+        assertThat(resource.members()).extracting(m -> m.value())
+                .containsExactly(memberId.toString());
+    }
+
+    @Test
     void getUnknownGroupIs404() {
         var unknown = UUID.randomUUID();
         when(userGroupService.getGroup(unknown, orgId))
@@ -155,10 +178,27 @@ class ScimGroupOrchestratorTest {
                     "value":[{"value":"%s"}]}]}
                 """.formatted(memberId));
 
+        when(directory.findById(orgId, memberId)).thenReturn(Optional.of(
+                mock(UserView.class)));
+
         orchestrator.patch(principal, groupId, patch, BASE);
 
         verify(userGroupService).addMember(groupId, memberId, orgId,
                 UserGroupMembershipSourceType.SCIM);
+    }
+
+    @Test
+    void memberAddPatchSkipsIdsTheDirectoryHides() {
+        var hiddenId = UUID.randomUUID();
+        var patch = patchRequest("""
+                {"Operations":[{"op":"add","path":"members","value":[{"value":"%s"}]}]}
+                """.formatted(hiddenId));
+        when(directory.findById(orgId, hiddenId)).thenReturn(Optional.empty());
+
+        orchestrator.patch(principal, groupId, patch, BASE);
+
+        verify(userGroupService, never()).addMember(any(), any(), any(),
+                any(UserGroupMembershipSourceType.class));
     }
 
     @Test
