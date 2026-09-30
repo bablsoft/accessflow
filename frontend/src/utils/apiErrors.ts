@@ -182,6 +182,8 @@ export function adminErrorMessage(err: unknown): string {
     if (code === 'EMAIL_ALREADY_EXISTS') return i18n.t('errors.email_already_exists');
     if (code === 'USER_NOT_FOUND') return i18n.t('errors.user_not_found');
     if (code === 'ILLEGAL_USER_OPERATION') return i18n.t('errors.illegal_user_operation_admin');
+    // Localised server-side and names the Service accounts page (#1130).
+    if (code === 'USER_IS_SERVICE_ACCOUNT' && body?.detail) return body.detail;
     if (code === 'AI_CONFIG_NAME_ALREADY_EXISTS') {
       return i18n.t('errors.ai_config_name_already_exists');
     }

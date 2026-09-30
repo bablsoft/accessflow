@@ -4764,11 +4764,15 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
     (`channel=mcp`) so an agent's submission reaches the tamper-evident log, not only the mutable
     request row. Break-glass retro-review acknowledgement refuses the on-behalf-of human too
     (#1129): `break_glass_events.on_behalf_of_user_id` is a second submitter identity there.
-- **Known limitation.** `PUT /admin/users/{id}` does not consult `principal_type`, so a `USER_MANAGE`
-  holder can still edit a `BOOTSTRAP` account's display name or role there (until the next changed
-  reconcile re-applies the declared values; a custom role is kept). The UI never offers
-  that path: since #875 the users page badges service accounts, filters by `?principal_type=`, and
-  routes their row action to `/admin/service-accounts/{id}` instead of the edit modal.
+- **Admin-users guard (#1130).** `PUT` / `DELETE /admin/users/{id}` go through
+  `UserAdminService.updateHumanUser` / `deactivateHumanUser`, which refuse a `SERVICE_ACCOUNT`
+  with `UserIsServiceAccountException` → `409 USER_IS_SERVICE_ACCOUNT` inside the same
+  transaction. `PUT` checks the organization (404) before the principal; `DELETE` keeps its
+  self-deactivation 422 first, then the organization, then the principal. The plain `updateUser` /
+  `deactivateUser` stay principal-agnostic because they are the chokepoint the service-account
+  admin service and `ServiceAccountReconciler` write through. Since #875 the users page also routes
+  a service account's row action to `/admin/service-accounts/{id}` instead of the edit modal, and
+  since #1130 it offers no *Deactivate* on that row.
 
 The full REST contract is in `docs/04-api-spec.md` → "Service Accounts"; the operator-facing
 reference (role choice, rotation, allow-list caveats, fail-open limiter, on-behalf-of, the bootstrap

@@ -192,6 +192,24 @@ describe('adminErrorMessage', () => {
       .toBe('This user change is not permitted (admins cannot demote or deactivate themselves).');
   });
 
+  it('surfaces the localised detail for USER_IS_SERVICE_ACCOUNT', () => {
+    expect(
+      adminErrorMessage(
+        buildAxiosError(409, {
+          error: 'USER_IS_SERVICE_ACCOUNT',
+          title: 'Conflict',
+          detail: 'This user is a service account. Manage it on the Service accounts page instead.',
+        }),
+      ),
+    ).toBe('This user is a service account. Manage it on the Service accounts page instead.');
+  });
+
+  it('falls back to the title for USER_IS_SERVICE_ACCOUNT without a detail', () => {
+    expect(
+      adminErrorMessage(buildAxiosError(409, { error: 'USER_IS_SERVICE_ACCOUNT', title: 'Conflict' })),
+    ).toBe('Conflict');
+  });
+
   it('maps NOTIFICATION_CHANNEL_CONFIG_INVALID', () => {
     expect(
       adminErrorMessage(buildAxiosError(422, { error: 'NOTIFICATION_CHANNEL_CONFIG_INVALID' })),

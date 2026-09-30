@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
+import com.bablsoft.accessflow.core.api.UserIsServiceAccountException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -98,8 +99,20 @@ class UserAdminServiceImpl implements UserAdminService {
     @Transactional
     public UserView updateUser(UUID id, UUID organizationId, UUID currentUserId,
                                UpdateUserCommand command) {
-        var entity = loadInOrganization(id, organizationId);
+        return update(loadInOrganization(id, organizationId), organizationId, currentUserId, command);
+    }
 
+    @Override
+    @Transactional
+    public UserView updateHumanUser(UUID id, UUID organizationId, UUID currentUserId,
+                                    UpdateUserCommand command) {
+        var entity = requireHuman(loadInOrganization(id, organizationId));
+        return update(entity, organizationId, currentUserId, command);
+    }
+
+    private UserView update(UserEntity entity, UUID organizationId, UUID currentUserId,
+                            UpdateUserCommand command) {
+        var id = entity.getId();
         if (id.equals(currentUserId)) {
             if ((command.role() != null || command.roleId() != null)
                     && !newRoleKeepsUserManage(organizationId, command)) {
@@ -140,11 +153,25 @@ class UserAdminServiceImpl implements UserAdminService {
     @Override
     @Transactional
     public UserView deactivateUser(UUID id, UUID organizationId, UUID currentUserId) {
+        requireNotSelf(id, currentUserId);
+        return deactivate(loadInOrganization(id, organizationId), organizationId);
+    }
+
+    @Override
+    @Transactional
+    public UserView deactivateHumanUser(UUID id, UUID organizationId, UUID currentUserId) {
+        requireNotSelf(id, currentUserId);
+        return deactivate(requireHuman(loadInOrganization(id, organizationId)), organizationId);
+    }
+
+    private void requireNotSelf(UUID id, UUID currentUserId) {
         if (id.equals(currentUserId)) {
             throw new IllegalUserOperationException(
                     "Admin users cannot deactivate themselves");
         }
-        var entity = loadInOrganization(id, organizationId);
+    }
+
+    private UserView deactivate(UserEntity entity, UUID organizationId) {
         if (entity.isActive()) {
             entity.setActive(false);
             onDeactivated(entity.getId(), organizationId);
@@ -240,6 +267,13 @@ class UserAdminServiceImpl implements UserAdminService {
                 .orElseThrow(() -> new UserNotFoundException(id));
         if (!entity.getOrganization().getId().equals(organizationId)) {
             throw new UserNotFoundException(id);
+        }
+        return entity;
+    }
+
+    private UserEntity requireHuman(UserEntity entity) {
+        if (entity.getPrincipalType() == PrincipalType.SERVICE_ACCOUNT) {
+            throw new UserIsServiceAccountException(entity.getId());
         }
         return entity;
     }

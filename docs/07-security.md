@@ -592,13 +592,14 @@ default 24 h, or a per-request `grace_period`), so a leaked key is handled by **
 rotated, on the admin surface *or* through the account's own `/me/api-keys` — `importOrUpdate`
 clears `revoked_at` on every changed reconcile, so a revoke would only appear to work until the
 next restart; the 409 names the real remediation (rotate the secret at the bootstrap source, then
-restart). **Known limitation:** `PUT /admin/users/{id}` (`USER_MANAGE`) does not consult
-`principal_type`, so it can still change a `BOOTSTRAP` account's display name or role — the
-bootstrap-managed 409 is enforced on the service-account surface only, and the next changed
-reconcile re-applies the declared display name and system role (a custom role is kept). The users page (#875)
-therefore lists service accounts with a *Service account* badge and a principal-type filter
-(default: everyone) but routes their row action to `/admin/service-accounts/{id}` instead of the
-user edit modal, so the UI never offers the unguarded path; `GET /admin/users` exposes
+restart). The generic users API cannot reach around that boundary: `PUT` and `DELETE
+/admin/users/{id}` (`USER_MANAGE`) refuse a `SERVICE_ACCOUNT` target with `409
+USER_IS_SERVICE_ACCOUNT` (#1130, `service_account_path` names the right resource), so a service
+account's role, active flag and display name change only behind `SERVICE_ACCOUNT_MANAGE` and the
+bootstrap-managed guard. Its row-security `attributes` have no write path at all for now (the
+service-account surface does not expose them), so they stay at whatever value they held. The users page (#875) lists service
+accounts with a *Service account* badge and a principal-type filter (default: everyone) and routes
+their row action to `/admin/service-accounts/{id}` instead of the user edit modal and offers no *Deactivate* on them; `GET /admin/users` exposes
 `principal_type` and accepts `?principal_type=` for exactly this. Since #869 the discriminator itself is enforced on the sign-in
 surface — password, refresh, SAML and OAuth2 all reject a `SERVICE_ACCOUNT` (see "API key
 authentication" above) — while by API key a service account still authenticates and is authorized

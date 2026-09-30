@@ -465,14 +465,20 @@ export function UsersPage() {
                               },
                             ]
                           : []),
-                        {
-                          key: 'deactivate',
-                          icon: <DeleteOutlined />,
-                          danger: true,
-                          label: t('admin.users.deactivate_action'),
-                          disabled: !u.active,
-                          onClick: () => onConfirmDeactivate(u),
-                        },
+                        // DELETE /admin/users/{id} refuses a service account (#1130); it is
+                        // deactivated from its own page.
+                        ...(u.principal_type === 'SERVICE_ACCOUNT'
+                          ? []
+                          : [
+                              {
+                                key: 'deactivate',
+                                icon: <DeleteOutlined />,
+                                danger: true,
+                                label: t('admin.users.deactivate_action'),
+                                disabled: !u.active,
+                                onClick: () => onConfirmDeactivate(u),
+                              },
+                            ]),
                       ],
                     }}
                     trigger={['click']}
