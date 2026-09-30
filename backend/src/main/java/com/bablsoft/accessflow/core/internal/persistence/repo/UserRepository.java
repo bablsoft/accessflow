@@ -39,6 +39,9 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     Page<UserEntity> findAllByOrganization_IdAndPrincipalType(
             UUID organizationId, PrincipalType principalType, Pageable pageable);
 
+    List<UserEntity> findAllByOrganization_IdAndPrincipalTypeAndActiveTrue(
+            UUID organizationId, PrincipalType principalType);
+
     List<UserEntity> findAllByOrganization_IdAndRole(UUID organizationId, UserRoleType role);
 
     List<UserEntity> findAllByOrganization_IdAndIdIn(UUID organizationId, Collection<UUID> ids);

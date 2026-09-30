@@ -2289,6 +2289,8 @@
       "approver_role": "Rol",
       "approver_stage": "Etapa",
       "approver_add": "Añadir aprobador",
+      "approver_role_service_account_warning_one": "{{count}} cuenta de servicio tiene este rol y puede aprobar.",
+      "approver_role_service_account_warning_other": "{{count}} cuentas de servicio tienen este rol y pueden aprobar.",
       "approver_remove": "Eliminar",
       "save_create": "Crear plan",
       "save_update": "Guardar cambios",

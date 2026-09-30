@@ -1047,7 +1047,8 @@ export async function acceptInvitationViaApi(
 }
 
 export interface ReviewPlanApprover {
-  role?: 'ADMIN' | 'REVIEWER';
+  /** A system role name or a custom role's name (AF-522). */
+  role?: string;
   userId?: string;
   stage: number;
 }

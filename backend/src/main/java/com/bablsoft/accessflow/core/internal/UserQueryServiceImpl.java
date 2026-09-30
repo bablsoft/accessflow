@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -11,8 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +65,16 @@ class UserQueryServiceImpl implements UserQueryService {
                         systemRole).stream()
                 .map(this::toView)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> countActiveServiceAccountsByRoleName(UUID organizationId) {
+        return userRepository.findAllByOrganization_IdAndPrincipalTypeAndActiveTrue(organizationId,
+                        PrincipalType.SERVICE_ACCOUNT).stream()
+                .map(UserEntity::roleName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(name -> name, TreeMap::new, Collectors.counting()));
     }
 
     private static UserRoleType systemRoleOrNull(String roleName) {

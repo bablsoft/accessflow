@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "cf2dba458fa8",
-  "generatedAt": "2026-09-30T13:03:43.726Z",
-  "sourceCommit": "8ca08027c9e8e6e05035599a47ae5f370bba4a24",
+  "corpusVersion": "ac2428e6191e",
+  "generatedAt": "2026-09-30T13:35:51.588Z",
+  "sourceCommit": "43d8e2ae499c91dcb4bfc8dc977b1f9b20fcd286",
   "chunkCount": 604,
-  "sha256": "cf2dba458fa8a62fa5bdf9bba32fa398e555355fc995e76208991f7f4b527fe4",
+  "sha256": "ac2428e6191e7735d245bb9636ffd83f60ce53530e3ac16e0a7eaf738513c233",
   "quickReferenceSha256": "af9167770251a221bdce1414872ea3a194fdc57a6d8212f8945849cbfff50661",
   "sources": [
     {
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 24,
-      "sha256": "933e9ffdc75a1d25640c94c9a2689d91a4cc988814f42295ac83155639f8e260"
+      "sha256": "f60bc56c17edd434f0defa1d97e7ce6520755e4e43e8620ec76a0315be0e0652"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "a4e1046295e9ae46c318ab347b7f65f707a4872a502e4ecd3b7035a85f16d515"
+      "sha256": "54dbf35ca979af49c9a1ebc8c73754ae67fb7bffe2de5ef92ad4707e4b35c574"
     }
   ]
 }

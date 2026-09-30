@@ -49,6 +49,22 @@ export async function issueServiceAccountKeyViaApi(
   return { id: body.api_key.id, rawKey: body.raw_key };
 }
 
+/** Moves an account onto another role by id (`PUT`, every other field left unchanged). */
+export async function updateServiceAccountRoleViaApi(
+  request: APIRequestContext,
+  token: string,
+  accountId: string,
+  roleId: string,
+): Promise<void> {
+  const res = await request.put(`${BASE()}/${accountId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { role_id: roleId },
+  });
+  if (!res.ok()) {
+    throw new Error(`Update service account role failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
 /** Deactivates an account (`204`); its keys stop authenticating, nothing is revoked. */
 export async function deactivateServiceAccountViaApi(
   request: APIRequestContext,

@@ -2289,6 +2289,8 @@
       "approver_role": "Rôle",
       "approver_stage": "Étape",
       "approver_add": "Ajouter un approbateur",
+      "approver_role_service_account_warning_one": "{{count}} compte de service détient ce rôle et peut approuver.",
+      "approver_role_service_account_warning_other": "{{count}} comptes de service détiennent ce rôle et peuvent approuver.",
       "approver_remove": "Retirer",
       "save_create": "Créer le plan",
       "save_update": "Enregistrer les modifications",

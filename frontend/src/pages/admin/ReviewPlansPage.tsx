@@ -30,6 +30,7 @@ import { Pill } from '@/components/common/Pill';
 import {
   createReviewPlan,
   deleteReviewPlan,
+  listApproverRoleServiceAccounts,
   listReviewPlanTemplates,
   listReviewPlans,
   reviewPlanKeys,
@@ -46,6 +47,7 @@ import {
   type ReviewPlanFormApproverRow as ApproverFormRow,
   type ReviewPlanFormValues as PlanFormValues,
 } from './reviewPlanTemplateForm';
+import { ApproverRoleServiceAccountWarning } from './ApproverRoleServiceAccountWarning';
 import type {
   ReviewPlan,
   ReviewPlanTemplate,
@@ -84,6 +86,24 @@ export function ReviewPlansPage() {
   );
 
   const isOpen = creating || editing !== null;
+
+  // Advisory only (#1131): a failed fetch shows no warning and never blocks the form.
+  const serviceAccountCountsQuery = useQuery({
+    queryKey: reviewPlanKeys.approverRoleServiceAccounts(),
+    queryFn: listApproverRoleServiceAccounts,
+    enabled: isOpen,
+    staleTime: 60_000,
+  });
+  const serviceAccountCountsByRole = useMemo(
+    () =>
+      new Map(
+        (serviceAccountCountsQuery.data ?? []).map((c) => [
+          c.role_name.toLowerCase(),
+          c.service_account_count,
+        ]),
+      ),
+    [serviceAccountCountsQuery.data],
+  );
 
   const requestedPlanId = searchParams.get('planId');
   useEffect(() => {
@@ -460,56 +480,60 @@ export function ReviewPlansPage() {
               {(fields, { add, remove }, { errors }) => (
                 <>
                   {fields.map(({ key, name }) => (
-                    <div
-                      key={key}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr 90px 32px',
-                        gap: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Form.Item
-                        name={[name, 'user_id']}
-                        rules={[
-                          {
-                            validator: async (_rule, value) => {
-                              const role = form.getFieldValue(['approvers', name, 'role']);
-                              if (!value && !role) {
-                                throw new Error(
-                                  t('admin.review_plans.validation_user_or_role'),
-                                );
-                              }
+                    <div key={key} style={{ marginBottom: 8 }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 90px 32px',
+                          gap: 8,
+                        }}
+                      >
+                        <Form.Item
+                          name={[name, 'user_id']}
+                          rules={[
+                            {
+                              validator: async (_rule, value) => {
+                                const role = form.getFieldValue(['approvers', name, 'role']);
+                                if (!value && !role) {
+                                  throw new Error(
+                                    t('admin.review_plans.validation_user_or_role'),
+                                  );
+                                }
+                              },
                             },
-                          },
-                        ]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <Input
-                          placeholder={t('admin.review_plans.select_user_placeholder')}
-                          allowClear
+                          ]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Input
+                            placeholder={t('admin.review_plans.select_user_placeholder')}
+                            allowClear
+                          />
+                        </Form.Item>
+                        <Form.Item name={[name, 'role']} style={{ marginBottom: 0 }}>
+                          <Select
+                            allowClear
+                            placeholder={t('admin.review_plans.select_role_placeholder')}
+                            options={approverRoleOptions}
+                            loading={rolesQuery.isLoading}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          name={[name, 'stage']}
+                          rules={[{ required: true, type: 'number', min: 1 }]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <InputNumber min={1} style={{ width: '100%' }} />
+                        </Form.Item>
+                        <Button
+                          type="text"
+                          icon={<DeleteOutlined />}
+                          aria-label={t('admin.review_plans.approver_remove')}
+                          onClick={() => remove(name)}
                         />
-                      </Form.Item>
-                      <Form.Item name={[name, 'role']} style={{ marginBottom: 0 }}>
-                        <Select
-                          allowClear
-                          placeholder={t('admin.review_plans.select_role_placeholder')}
-                          options={approverRoleOptions}
-                          loading={rolesQuery.isLoading}
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        name={[name, 'stage']}
-                        rules={[{ required: true, type: 'number', min: 1 }]}
-                        style={{ marginBottom: 0 }}
-                      >
-                        <InputNumber min={1} style={{ width: '100%' }} />
-                      </Form.Item>
-                      <Button
-                        type="text"
-                        icon={<DeleteOutlined />}
-                        aria-label={t('admin.review_plans.approver_remove')}
-                        onClick={() => remove(name)}
+                      </div>
+                      <ApproverRoleServiceAccountWarning
+                        name={name}
+                        countsByRole={serviceAccountCountsByRole}
                       />
                     </div>
                   ))}

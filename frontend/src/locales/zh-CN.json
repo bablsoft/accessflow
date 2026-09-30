@@ -2289,6 +2289,8 @@
       "approver_role": "角色",
       "approver_stage": "阶段",
       "approver_add": "添加审批人",
+      "approver_role_service_account_warning_one": "{{count}} 个服务账号持有此角色，可以审批。",
+      "approver_role_service_account_warning_other": "{{count}} 个服务账号持有此角色，可以审批。",
       "approver_remove": "移除",
       "save_create": "创建计划",
       "save_update": "保存更改",

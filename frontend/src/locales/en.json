@@ -2348,6 +2348,8 @@
       "approver_role": "Role",
       "approver_stage": "Stage",
       "approver_add": "Add approver",
+      "approver_role_service_account_warning_one": "{{count}} service account holds this role and can approve.",
+      "approver_role_service_account_warning_other": "{{count}} service accounts hold this role and can approve.",
       "approver_remove": "Remove",
       "save_create": "Create plan",
       "save_update": "Save changes",
