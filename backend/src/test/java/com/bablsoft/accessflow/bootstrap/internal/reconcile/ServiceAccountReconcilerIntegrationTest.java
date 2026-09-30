@@ -28,8 +28,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Drives {@link ServiceAccountReconciler} against the real database (#868): a declared account
  * comes out typed {@code SERVICE_ACCOUNT} with a {@code BOOTSTRAP}-managed detail row, a spec
- * change re-asserts the type without touching UI-owned fields, and an unchanged spec still
- * short-circuits on the fingerprint with zero writes.
+ * change re-asserts the type and the spec-owned role / display name without touching UI-owned
+ * fields, and an unchanged spec still short-circuits on the fingerprint with zero writes.
  */
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
@@ -124,6 +124,42 @@ class ServiceAccountReconcilerIntegrationTest {
         assertThat(account.rateLimitPerDay()).isEqualTo(7);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT revoked_at FROM api_keys WHERE user_id = ?", OffsetDateTime.class, userId)).isNull();
+    }
+
+    @Test
+    void changedSpecNarrowsTheRoleAndRenamesAnExistingAccount() {
+        var userId = reconciler.reconcile(organizationId, List.of(new ServiceAccountSpec(
+                email, "CI runner", null, "terraform", "af_first_key", null))).get(email);
+        assertThat(userQueryService.findById(userId).orElseThrow().role()).isEqualTo(UserRoleType.ADMIN);
+
+        var again = reconciler.reconcile(organizationId, List.of(new ServiceAccountSpec(
+                email, "CI runner (narrowed)", UserRoleType.READONLY, "terraform", "af_first_key", null)))
+                .get(email);
+
+        assertThat(again).isEqualTo(userId);
+        var user = userQueryService.findById(userId).orElseThrow();
+        assertThat(user.role()).isEqualTo(UserRoleType.READONLY);
+        assertThat(user.roleName()).isEqualTo("READONLY");
+        assertThat(user.displayName()).isEqualTo("CI runner (narrowed)");
+        assertThat(user.principalType()).isEqualTo(PrincipalType.SERVICE_ACCOUNT);
+        assertThat(serviceAccountLookupService.findByUserId(userId).orElseThrow().managedBy())
+                .isEqualTo(ServiceAccountSource.BOOTSTRAP);
+    }
+
+    @Test
+    void changedSpecKeepsACustomRoleAssignedOutsideTheSpec() {
+        var userId = reconciler.reconcile(organizationId, List.of(spec("af_first_key"))).get(email);
+        var customRoleId = UUID.randomUUID();
+        jdbcTemplate.update("INSERT INTO roles (id, organization_id, name, is_system) VALUES (?, ?, ?, false)",
+                customRoleId, organizationId, "Terraform " + customRoleId);
+        jdbcTemplate.update("UPDATE users SET role_id = ?, role = NULL WHERE id = ?", customRoleId, userId);
+
+        reconciler.reconcile(organizationId, List.of(new ServiceAccountSpec(
+                email, "CI runner", null, "terraform", "af_rotated_key", null)));
+
+        var user = userQueryService.findById(userId).orElseThrow();
+        assertThat(user.role()).isNull();
+        assertThat(user.roleId()).isEqualTo(customRoleId);
     }
 
     @Test

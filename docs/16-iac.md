@@ -46,7 +46,7 @@ bootstrap:
   serviceAccounts:
     - email: terraform@acme.com
       displayName: Terraform CI
-      role: ADMIN                 # set it before the first start (omitted → ADMIN; applied only when the account is created); a CI trigger-only bot needs READONLY
+      role: ADMIN                 # always set it (omitted → ADMIN; a later change is re-applied on restart); a CI trigger-only bot needs READONLY
       apiKeyName: terraform
       apiKeySecretRef: { name: af-secrets, key: ci-api-key }   # value is the af_-prefixed token
       # apiKeyExpiresAt: "2027-01-01T00:00:00Z"   # optional; never expires when omitted
@@ -58,10 +58,11 @@ The upsert is audited (`API_KEY_CREATED` / `API_KEY_UPDATED`, `metadata.source=B
 key never appears in the audit log.
 
 **Who owns what.** A bootstrap account is `managed_by = BOOTSTRAP`: its display name and role are
-declared by the spec and applied **only when the account is first created** — a later change in
-the spec is not re-applied, and the service-accounts UI refuses the edit
-(`409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`); narrow an existing account's role through
-`PUT /api/v1/admin/users/{id}` ([22-service-accounts.md](22-service-accounts.md) §3) — while its
+declared by the spec — applied when the account is created and **re-applied to the existing
+account whenever the spec changes**, audited with `changed_fields` — so narrow an account's role by
+changing `role` in the spec and restarting; the service-accounts UI refuses the edit
+(`409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`). A custom role assigned outside the spec is kept, never
+reset to the declared system role ([22-service-accounts.md](22-service-accounts.md) §3). Its
 description, owner, tool allow-list, rate limits and delegations stay editable in the UI and survive
 every restart. Its **declared key can be neither revoked nor rotated** from the UI or API: the
 reconciler re-imports it — clearing any revocation — on the next changed reconcile. Rotate a declared

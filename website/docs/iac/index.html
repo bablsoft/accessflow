@@ -321,16 +321,18 @@
           <ul>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code></li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME</code></li>
-            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — defaults to <code>ADMIN</code>, so set the narrowest role that works before the first start: the role is applied only when the account is created</li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — defaults to <code>ADMIN</code>, so always set the narrowest role that works; a later change is applied on the next restart</li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME</code></li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY</code> — the raw <code>af_</code>-prefixed token</li>
             <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_EXPIRES_AT</code> — optional ISO-8601</li>
           </ul>
           <p>
-            A declared account's name and role are set from the configuration when the account is
-            first created. Changing them in the configuration later is not applied to the existing
-            account, and the service-account screens will not change them either — to narrow an existing
-            account's role, an admin calls <code>PUT /api/v1/admin/users/{id}</code>. Its limits, tool
+            A declared account's name and role come from the configuration: they are set when the
+            account is created and applied again whenever the configuration changes, so narrowing
+            the role there and restarting narrows the account. The service-account screens will not
+            change them. A custom role an admin gives the account through
+            <code>PUT /api/v1/admin/users/{id}</code> is kept — the configuration can only name a
+            built-in role, so it never overwrites one. Its limits, tool
             allow-list and description stay editable. Its
             declared key cannot be revoked or rotated from the screens either — the next change to
             the configuration would bring it back. Rotate it by changing the Secret and restarting,

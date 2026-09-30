@@ -358,7 +358,7 @@
   serviceAccounts:
     - email: terraform@acme.example.com
       displayName: Terraform CI
-      role: ADMIN   <span class="c-com"># set before the first start — narrow it if Terraform manages less</span>
+      role: ADMIN   <span class="c-com"># always set it — narrow it if Terraform manages less</span>
       apiKeyName: terraform
       apiKeySecretRef:
         name: accessflow-bootstrap-secrets
@@ -372,9 +372,9 @@
             <code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code>,
             <code>_DISPLAY_NAME</code>, <code>_ROLE</code>, <code>_API_KEY_NAME</code>,
             <code>_API_KEY</code> and the optional <code>_API_KEY_EXPIRES_AT</code>. When
-            <code>role</code> is left out it defaults to Admin, so set it explicitly — and before the first
-            start, because the role is applied only when the account is created; editing it in the
-            configuration later does not change an existing account. Rotating a declared key is a
+            <code>role</code> is left out it defaults to Admin, so set it explicitly. The role and display
+            name are applied again whenever the configuration changes, so you can narrow the account
+            later by editing <code>role</code> and restarting. Rotating a declared key is a
             matter of changing the secret and restarting AccessFlow: bootstrap re-imports it in place
             on startup. For
             the same reason it cannot be revoked from the admin screens — the next change would bring

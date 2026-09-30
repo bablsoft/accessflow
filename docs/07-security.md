@@ -594,7 +594,8 @@ clears `revoked_at` on every changed reconcile, so a revoke would only appear to
 next restart; the 409 names the real remediation (rotate the secret at the bootstrap source, then
 restart). **Known limitation:** `PUT /admin/users/{id}` (`USER_MANAGE`) does not consult
 `principal_type`, so it can still change a `BOOTSTRAP` account's display name or role — the
-bootstrap-managed 409 is enforced on the service-account surface only. The users page (#875)
+bootstrap-managed 409 is enforced on the service-account surface only, and the next changed
+reconcile re-applies the declared display name and system role (a custom role is kept). The users page (#875)
 therefore lists service accounts with a *Service account* badge and a principal-type filter
 (default: everyone) but routes their row action to `/admin/service-accounts/{id}` instead of the
 user edit modal, so the UI never offers the unguarded path; `GET /admin/users` exposes

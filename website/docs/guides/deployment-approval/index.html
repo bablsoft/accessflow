@@ -351,8 +351,8 @@
           <div class="docs-callout info">
             <strong>Managing everything as code?</strong> Steps 1 and 2 can be declared instead,
             with <code>bootstrap.serviceAccounts[]</code> — it creates the same kind of account and
-            imports a key you generated yourself. Set its <code>role</code> before the first start: when
-            omitted it defaults to Admin, and it is applied only when the account is created. See <a href="/docs/guides/terraform/#guide-terraform-credentials">Automate
+            imports a key you generated yourself. Always set its <code>role</code>: when
+            omitted it defaults to Admin. A later change is applied on the next restart. See <a href="/docs/guides/terraform/#guide-terraform-credentials">Automate
             with Terraform</a>, or <a href="/docs/iac/#iac-service-account">service-account API
             keys</a> for the full property list.
           </div>
