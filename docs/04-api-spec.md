@@ -3765,7 +3765,8 @@ All fields optional. Omitted fields are left unchanged.
 `role_id` (AF-522) assigns any visible role (system or custom) and wins over the legacy `role`
 enum when both are present.
 
-`attributes` (AF-380) is an optional key/value map (≤ 50 entries; key ≤ 128, value ≤ 512 chars). When
+`attributes` (AF-380) is an optional key/value map (≤ 50 entries; key non-blank and ≤ 128 chars, value
+non-null and ≤ 512 chars — any violation is `400 VALIDATION_ERROR`). When
 present it **replaces** the user's attribute map; omit it to leave attributes unchanged. These values
 resolve in row-security predicates as `:user.<key>`. They are admin-set, **not** synced from the IdP.
 

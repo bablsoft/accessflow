@@ -15,6 +15,8 @@ import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepo
 import com.bablsoft.accessflow.security.internal.token.RefreshTokenStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
@@ -26,6 +28,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -209,6 +212,28 @@ class AdminUserControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.role").asString().isEqualTo("REVIEWER");
         assertThat(result).bodyJson().extractingPath("$.active").asBoolean().isFalse();
+    }
+
+    static Stream<String> invalidAttributeBodies() {
+        return Stream.of(
+                "{\"attributes\":{\"" + "k".repeat(129) + "\":\"EU\"}}",
+                "{\"attributes\":{\"region\":\"" + "v".repeat(513) + "\"}}",
+                "{\"attributes\":{\"   \":\"EU\"}}",
+                "{\"attributes\":{\"region\":null}}");
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidAttributeBodies")
+    void updateUserWithInvalidAttributesReturns400(String body) {
+        var result = mvc.put().uri("/api/v1/admin/users/" + analyst.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
     }
 
     @Test
