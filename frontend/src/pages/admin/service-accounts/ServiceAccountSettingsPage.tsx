@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
 import { ServiceAccountActivityTab } from '@/components/serviceaccounts/ServiceAccountActivityTab';
+import { ServiceAccountAttributesTab } from '@/components/serviceaccounts/ServiceAccountAttributesTab';
 import { ServiceAccountKeysTab } from '@/components/serviceaccounts/ServiceAccountKeysTab';
 import { ServiceAccountLimitsTab } from '@/components/serviceaccounts/ServiceAccountLimitsTab';
 import { ServiceAccountOverviewTab } from '@/components/serviceaccounts/ServiceAccountOverviewTab';
@@ -20,7 +21,15 @@ import { serviceAccountErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { isBootstrapManaged } from './serviceAccountForm';
 
-const TAB_KEYS = ['overview', 'api-keys', 'mcp-tools', 'limits', 'principals', 'activity'] as const;
+const TAB_KEYS = [
+  'overview',
+  'api-keys',
+  'mcp-tools',
+  'limits',
+  'attributes',
+  'principals',
+  'activity',
+] as const;
 
 export function ServiceAccountSettingsPage() {
   const { t } = useTranslation();
@@ -149,6 +158,11 @@ export function ServiceAccountSettingsPage() {
                 key: 'limits',
                 label: t('admin.service_accounts.settings.tab_limits'),
                 children: <ServiceAccountLimitsTab account={account} />,
+              },
+              {
+                key: 'attributes',
+                label: t('admin.service_accounts.settings.tab_attributes'),
+                children: <ServiceAccountAttributesTab account={account} />,
               },
               {
                 key: 'principals',

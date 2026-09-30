@@ -40,6 +40,17 @@ export const UPDATE_FORM_CONSTRAINTS = {
   rate_limit_per_day: { positive: true },
 } as const satisfies Record<string, FieldConstraints>;
 
+/**
+ * `UpdateServiceAccountRequest.attributes` (#1130) — the same bounds as `PUT /admin/users/{id}`:
+ * at most `max_entries` rows, a non-blank key of at most `key_max` chars, a value of at most
+ * `value_max` chars (blank allowed).
+ */
+export const ATTRIBUTE_CONSTRAINTS = {
+  max_entries: 50,
+  key_max: 128,
+  value_max: 512,
+} as const;
+
 /** `IssueServiceAccountKeyRequest` / `RotateServiceAccountKeyRequest` (#871). */
 export const KEY_FORM_CONSTRAINTS = {
   name: { required: true, max: 100 },
@@ -139,6 +150,65 @@ export function limitsUpdateInput(
   }
   if (clear.length > 0) input.clear = clear;
   return input;
+}
+
+// ── Attributes (#1130) ───────────────────────────────────────────────────────
+//
+// The map is replaced wholesale when sent, so the tab always sends the full edited set — `{}`
+// removes every attribute. An unchanged set is omitted, which the API reads as "unchanged".
+
+export interface AttributeRow {
+  key: string;
+  value: string;
+}
+
+export interface AttributesFormValues {
+  attributes: AttributeRow[];
+}
+
+export function attributesFormFromAccount(
+  account: Pick<ServiceAccount, 'attributes'>,
+): AttributesFormValues {
+  return {
+    attributes: Object.entries(account.attributes ?? {})
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => ({ key, value })),
+  };
+}
+
+export function attributesMap(rows: readonly Partial<AttributeRow>[] | undefined): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const row of rows ?? []) {
+    const key = row.key?.trim();
+    if (key) map[key] = (row.value ?? '').trim();
+  }
+  return map;
+}
+
+export function attributesUpdateInput(
+  values: AttributesFormValues,
+  account: Pick<ServiceAccount, 'attributes'>,
+): UpdateServiceAccountInput {
+  const next = attributesMap(values.attributes);
+  const current = account.attributes ?? {};
+  const nextKeys = Object.keys(next);
+  const unchanged =
+    nextKeys.length === Object.keys(current).length &&
+    nextKeys.every((key) => Object.hasOwn(current, key) && current[key] === next[key]);
+  return unchanged ? {} : { attributes: next };
+}
+
+/** Trimmed keys that occur more than once — the map would silently keep only the last row. */
+export function duplicateAttributeKeys(rows: readonly Partial<AttributeRow>[] | undefined): Set<string> {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const row of rows ?? []) {
+    const key = row.key?.trim();
+    if (!key) continue;
+    if (seen.has(key)) duplicates.add(key);
+    seen.add(key);
+  }
+  return duplicates;
 }
 
 // ── Overview ─────────────────────────────────────────────────────────────────

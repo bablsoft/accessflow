@@ -42,6 +42,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -168,7 +169,7 @@ class ServiceAccountControllerTest {
     @Test
     void updatePassesTheCallerAsActorAndAuditsThePresentFieldNames() {
         var body = new UpdateServiceAccountRequest("Renamed", null, null, true, "d", null, null, 5, null,
-                Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY));
+                Map.of("region", "EU"), Set.of(ServiceAccountClearableField.RATE_LIMIT_PER_DAY));
         when(service.update(eq(organizationId), eq(accountId), eq(adminId), any())).thenReturn(view(List.of()));
 
         var result = controller.update(accountId, body, authentication, auditContext);
@@ -177,11 +178,12 @@ class ServiceAccountControllerTest {
         verify(service).update(eq(organizationId), eq(accountId), eq(adminId), captor.capture());
         assertThat(captor.getValue().displayName()).isEqualTo("Renamed");
         assertThat(captor.getValue().active()).isTrue();
+        assertThat(captor.getValue().attributes()).containsExactly(Map.entry("region", "EU"));
         assertThat(result.id()).isEqualTo(accountId);
         var audit = recordedAudit();
         assertThat(audit.action()).isEqualTo(AuditAction.SERVICE_ACCOUNT_UPDATED);
         assertThat(audit.metadata()).containsEntry("fields",
-                List.of("display_name", "active", "description", "rate_limit_per_minute"));
+                List.of("display_name", "active", "description", "rate_limit_per_minute", "attributes"));
         assertThat(audit.metadata()).containsEntry("cleared", List.of("rate_limit_per_day"));
     }
 
@@ -381,7 +383,7 @@ class ServiceAccountControllerTest {
         return new ServiceAccountAdminView(accountId, organizationId, "bot@example.com", "Bot",
                 UserRoleType.READONLY, UUID.randomUUID(), "READONLY", true, ServiceAccountSource.UI, "d", null,
                 null, null, List.of("validate_sql"), 10, null, keys.size(), null, null, Instant.EPOCH, Instant.EPOCH,
-                keys);
+                keys, null);
     }
 
     private static ServiceAccountKeyView key(String name, boolean declared) {
