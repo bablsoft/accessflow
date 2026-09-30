@@ -595,10 +595,11 @@ next restart; the 409 names the real remediation (rotate the secret at the boots
 restart). The generic users API cannot reach around that boundary: `PUT` and `DELETE
 /admin/users/{id}` (`USER_MANAGE`) refuse a `SERVICE_ACCOUNT` target with `409
 USER_IS_SERVICE_ACCOUNT` (#1130, `service_account_path` names the right resource), so a service
-account's role, active flag, display name and attributes change only behind
-`SERVICE_ACCOUNT_MANAGE` and the bootstrap-managed guard. The users page (#875) lists service
+account's role, active flag and display name change only behind `SERVICE_ACCOUNT_MANAGE` and the
+bootstrap-managed guard. Its row-security `attributes` have no write path at all for now (the
+service-account surface does not expose them), so they stay at whatever value they held. The users page (#875) lists service
 accounts with a *Service account* badge and a principal-type filter (default: everyone) and routes
-their row action to `/admin/service-accounts/{id}` instead of the user edit modal; `GET /admin/users` exposes
+their row action to `/admin/service-accounts/{id}` instead of the user edit modal and offers no *Deactivate* on them; `GET /admin/users` exposes
 `principal_type` and accepts `?principal_type=` for exactly this. Since #869 the discriminator itself is enforced on the sign-in
 surface — password, refresh, SAML and OAuth2 all reject a `SERVICE_ACCOUNT` (see "API key
 authentication" above) — while by API key a service account still authenticates and is authorized

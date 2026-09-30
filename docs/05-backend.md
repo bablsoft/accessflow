@@ -4766,11 +4766,13 @@ reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
     (#1129): `break_glass_events.on_behalf_of_user_id` is a second submitter identity there.
 - **Admin-users guard (#1130).** `PUT` / `DELETE /admin/users/{id}` go through
   `UserAdminService.updateHumanUser` / `deactivateHumanUser`, which refuse a `SERVICE_ACCOUNT`
-  with `UserIsServiceAccountException` → `409 USER_IS_SERVICE_ACCOUNT` (organization 404 first,
-  then the principal check, inside the same transaction). The plain `updateUser` /
+  with `UserIsServiceAccountException` → `409 USER_IS_SERVICE_ACCOUNT` inside the same
+  transaction. `PUT` checks the organization (404) before the principal; `DELETE` keeps its
+  self-deactivation 422 first, then the organization, then the principal. The plain `updateUser` /
   `deactivateUser` stay principal-agnostic because they are the chokepoint the service-account
   admin service and `ServiceAccountReconciler` write through. Since #875 the users page also routes
-  a service account's row action to `/admin/service-accounts/{id}` instead of the edit modal.
+  a service account's row action to `/admin/service-accounts/{id}` instead of the edit modal, and
+  since #1130 it offers no *Deactivate* on that row.
 
 The full REST contract is in `docs/04-api-spec.md` → "Service Accounts"; the operator-facing
 reference (role choice, rotation, allow-list caveats, fail-open limiter, on-behalf-of, the bootstrap

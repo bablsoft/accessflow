@@ -307,7 +307,7 @@ class GlobalExceptionHandler {
     ProblemDetail handleUserIsServiceAccount(UserIsServiceAccountException ex) {
         var path = "/api/v1/admin/service-accounts/" + ex.userId();
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                msg("error.user_is_service_account", path));
+                msg("error.user_is_service_account"));
         pd.setProperty("error", "USER_IS_SERVICE_ACCOUNT");
         pd.setProperty("service_account_path", path);
         pd.setProperty("timestamp", Instant.now().toString());

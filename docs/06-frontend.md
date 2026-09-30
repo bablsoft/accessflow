@@ -1681,7 +1681,9 @@ any user cell), `renderUserOption` (an AntD `Select optionRender` that keeps the
 plain string — every picker's `showSearch.optionFilterProp: 'label'` still works — and draws the
 badge beside it; fed by `userSelectOptions` in `src/utils/userOptions.ts`), and `ManagedByTag`.
 `UsersPage` badges agents, routes their row action to the service-account page instead of the
-edit modal, and offers a *People and service accounts / People only / Service accounts only*
+edit modal, hides *Deactivate* on their rows (the users API refuses a service account with `409
+USER_IS_SERVICE_ACCOUNT`, #1130 — `adminErrorMessage` surfaces that response's localised `detail`),
+and offers a *People and service accounts / People only / Service accounts only*
 filter that is server-side (`?principal_type=`) because an agent can sit on any page; the default
 shows everyone. The eight `listUsers`-fed pickers (group members, pipeline / connector / datasource
 permission grants, masking, row-security and export-policy reveal lists) badge agents through

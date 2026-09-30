@@ -148,7 +148,8 @@ not watch. Give it the smallest role that works.
   `changed_fields`. To narrow an account that already came up as `ADMIN`, change `role` in the spec
   and restart. The service-accounts UI/API refuses the same edit on a `BOOTSTRAP` account (409),
   because the spec would own it anyway. The spec can only name a **system** role: a custom role the
-  account already holds is kept on every later reconcile (logged at WARN), never reset to the
+  account already holds (one given before #1130 through the generic users API, or to a UI-created
+  account the spec later adopts) is kept on every later reconcile (logged at WARN), never reset to the
   declared role, so a key rotation cannot widen it. The generic users API cannot change it either —
   `PUT` and `DELETE /api/v1/admin/users/{id}` refuse a service account with `409
   USER_IS_SERVICE_ACCOUNT` (#1130).
@@ -366,6 +367,9 @@ can be rotated with grace and revoked on the spot.
 
 ## 9. Known limitations
 
+- A service account's row-security `attributes` (`:user.<key>`) cannot be changed. The generic
+  users API refuses service accounts (`409 USER_IS_SERVICE_ACCOUNT`, #1130), and the
+  service-account API has no `attributes` field yet. Existing values are kept.
 - There is no self-service screen for a human to consent to being named. Use
   `/api/v1/me/service-account-delegations`, or ask an admin to grant it on the account.
 - `tools/list` is not filtered ([§5](#5-mcp-tool-allow-list)).

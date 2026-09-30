@@ -3771,7 +3771,7 @@ resolve in row-security predicates as `:user.<key>`. They are admin-set, **not**
 
 **Response 200:** Updated user object.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
-**Response 409:** The user is a service account (`principal_type = SERVICE_ACCOUNT`, #1130) — every field, `attributes` included, is refused; manage it through `PUT /admin/service-accounts/{id}` behind `SERVICE_ACCOUNT_MANAGE`. `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path` (e.g. `/api/v1/admin/service-accounts/{id}`). Checked after the organization (404) and before the self-protection rules.
+**Response 409:** The user is a service account (`principal_type = SERVICE_ACCOUNT`, #1130) — every field is refused, `attributes` included. Change its role, active flag or display name through `PUT /admin/service-accounts/{id}` behind `SERVICE_ACCOUNT_MANAGE`; that endpoint has no `attributes` field, so a service account's attributes currently cannot be changed ([22-service-accounts.md](22-service-accounts.md) §9). `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path` (e.g. `/api/v1/admin/service-accounts/{id}`). Checked after the organization (404) and before the self-protection rules.
 **Response 422:** Self-protection violation — admins cannot change their own role to one that lacks the `USER_MANAGE` permission, or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
 
 ### GET /admin/users/{id}/attributes — Response 200

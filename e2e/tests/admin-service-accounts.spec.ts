@@ -210,5 +210,12 @@ test.describe('service-accounts admin UI (#875, #876)', () => {
     await findRowAcrossPages(page, botRow);
     await expect(botRow.getByTestId('principal-type-tag')).toHaveText('Service account');
     await expect(page.getByRole('row').filter({ hasText: ADMIN_EMAIL })).toHaveCount(0);
+
+    // The generic users API refuses a service account (#1130), so its row offers only the
+    // route to its own page — never the user edit modal or Deactivate.
+    await botRow.getByRole('button', { name: /Edit/ }).click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', { name: /Manage this identity from Service accounts/ })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /Deactivate/ })).toHaveCount(0);
   });
 });

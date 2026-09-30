@@ -134,6 +134,23 @@ describe('UsersPage — service accounts (#875)', () => {
 
     expect(await screen.findByText('service-account-route')).toBeInTheDocument();
   });
+
+  it('offers no Deactivate on a service account row', async () => {
+    render(wrap(<UsersPage />));
+    const botRow = (await screen.findByText('CI bot')).closest('tr');
+
+    fireEvent.click(within(botRow!).getByRole('button', { name: 'Edit' }));
+    await screen.findByText('Manage this identity from Service accounts.');
+    expect(screen.queryByText('Deactivate')).not.toBeInTheDocument();
+  });
+
+  it('still offers Deactivate on a person row', async () => {
+    render(wrap(<UsersPage />));
+    const aliceRow = (await screen.findByText('Alice')).closest('tr');
+
+    fireEvent.click(within(aliceRow!).getByRole('button', { name: 'Edit' }));
+    expect(await screen.findByText('Deactivate')).toBeInTheDocument();
+  });
 });
 
 describe('UsersPage — effective access (#946)', () => {
