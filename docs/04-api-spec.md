@@ -3771,6 +3771,7 @@ resolve in row-security predicates as `:user.<key>`. They are admin-set, **not**
 
 **Response 200:** Updated user object.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
+**Response 409:** The user is a service account (`principal_type = SERVICE_ACCOUNT`, #1130) — every field, `attributes` included, is refused; manage it through `PUT /admin/service-accounts/{id}` behind `SERVICE_ACCOUNT_MANAGE`. `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path` (e.g. `/api/v1/admin/service-accounts/{id}`). Checked after the organization (404) and before the self-protection rules.
 **Response 422:** Self-protection violation — admins cannot change their own role to one that lacks the `USER_MANAGE` permission, or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
 
 ### GET /admin/users/{id}/attributes — Response 200
@@ -3789,6 +3790,7 @@ Soft-deactivates the user (`active=false`) and revokes all of their refresh toke
 
 **Response 204:** No content.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
+**Response 409:** The user is a service account (#1130) — deactivate it with `DELETE /admin/service-accounts/{id}` instead. `error: USER_IS_SERVICE_ACCOUNT`, with `service_account_path`.
 **Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
 
 ### Service Accounts (`/admin/service-accounts`) *(`SERVICE_ACCOUNT_MANAGE`)* (#871)
@@ -9711,6 +9713,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_KEY_NOT_FOUND` | 404 | `ApiKeyNotFoundException` | Unknown API key id, or the key is owned by another user. |
 | `API_KEY_DUPLICATE_NAME` | 409 | `ApiKeyDuplicateNameException` | The caller already has an API key with the requested name. |
 | `API_KEY_BOOTSTRAP_DECLARED` | 409 | `ApiKeyBootstrapDeclaredException` | Revoke of a service account's bootstrap-declared key (#871) — a changed reconcile would reactivate it; rotate the secret at the bootstrap source and restart. Body includes `apiKeyId`. |
+| `USER_IS_SERVICE_ACCOUNT` | 409 | `UserIsServiceAccountException` | `PUT` or `DELETE /admin/users/{id}` targeted a service account (#1130). Body includes `service_account_path` — the `/api/v1/admin/service-accounts/{id}` resource to use instead. |
 | `SERVICE_ACCOUNT_NOT_FOUND` | 404 | `ServiceAccountNotFoundException` | Unknown service account id, another organization, or a human user (#871). Body includes `serviceAccountId`. |
 | `SERVICE_ACCOUNT_KEY_NOT_FOUND` | 404 | `ServiceAccountKeyNotFoundException` | Unknown API key id, or the key is not owned by that service account (#871). Body includes `apiKeyId`. |
 | `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` | 409 | `ServiceAccountBootstrapManagedException` | A bootstrap-declared field (`display_name`, `role`, `role_id`) would change on a `managed_by = BOOTSTRAP` account (#871). Body includes `field`. |

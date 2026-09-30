@@ -103,6 +103,7 @@ class AdminUserController {
     @ApiResponse(responseCode = "200", description = "User updated")
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "404", description = "User not found in caller's organization")
+    @ApiResponse(responseCode = "409", description = "Target is a service account — use /admin/service-accounts/{id}")
     @ApiResponse(responseCode = "422", description = "Illegal user operation (e.g. self-demote)")
     AdminUserResponse updateUser(@PathVariable UUID id,
                                  @Valid @RequestBody UpdateUserRequest request,
@@ -110,7 +111,7 @@ class AdminUserController {
         var caller = currentClaims(authentication);
         var command = new UpdateUserCommand(request.role(), request.roleId(), request.active(),
                 request.displayName(), request.attributes());
-        var updated = userAdminService.updateUser(id, caller.organizationId(),
+        var updated = userAdminService.updateHumanUser(id, caller.organizationId(),
                 caller.userId(), command);
         return AdminUserResponse.from(updated);
     }
@@ -129,12 +130,13 @@ class AdminUserController {
     @Operation(summary = "Deactivate a user and revoke all of their refresh tokens")
     @ApiResponse(responseCode = "204", description = "User deactivated")
     @ApiResponse(responseCode = "404", description = "User not found in caller's organization")
+    @ApiResponse(responseCode = "409", description = "Target is a service account — use /admin/service-accounts/{id}")
     @ApiResponse(responseCode = "422", description = "Cannot deactivate self")
     ResponseEntity<Void> deactivateUser(@PathVariable UUID id, Authentication authentication,
                                         RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         // Refresh-token + JIT-grant revocation fan out from UserDeactivatedEvent listeners.
-        userAdminService.deactivateUser(id, caller.organizationId(), caller.userId());
+        userAdminService.deactivateHumanUser(id, caller.organizationId(), caller.userId());
         recordAudit(AuditAction.USER_DEACTIVATED, id, caller, auditContext, Map.of());
 
         return ResponseEntity.noContent().build();

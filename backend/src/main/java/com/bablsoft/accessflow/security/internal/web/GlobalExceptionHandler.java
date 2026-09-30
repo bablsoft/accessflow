@@ -65,6 +65,7 @@ import com.bablsoft.accessflow.core.api.SetupAlreadyCompletedException;
 import com.bablsoft.accessflow.core.api.SystemSmtpDeliveryException;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.UnsupportedLanguageException;
+import com.bablsoft.accessflow.core.api.UserIsServiceAccountException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
@@ -298,6 +299,17 @@ class GlobalExceptionHandler {
     ProblemDetail handleUserNotFound(UserNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_not_found"));
         pd.setProperty("error", "USER_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserIsServiceAccountException.class)
+    ProblemDetail handleUserIsServiceAccount(UserIsServiceAccountException ex) {
+        var path = "/api/v1/admin/service-accounts/" + ex.userId();
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.user_is_service_account", path));
+        pd.setProperty("error", "USER_IS_SERVICE_ACCOUNT");
+        pd.setProperty("service_account_path", path);
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

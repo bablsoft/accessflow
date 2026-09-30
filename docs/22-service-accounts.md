@@ -147,9 +147,11 @@ not watch. Give it the smallest role that works.
   `ServiceAccountReconciler.java:167-195`), audited as the account's `BOOTSTRAP` upsert with
   `changed_fields`. To narrow an account that already came up as `ADMIN`, change `role` in the spec
   and restart. The service-accounts UI/API refuses the same edit on a `BOOTSTRAP` account (409),
-  because the spec would own it anyway. The spec can only name a **system** role: a custom role
-  given to a bootstrap account through `PUT /api/v1/admin/users/{id}` is kept on every later
-  reconcile (logged at WARN), never reset to the declared role, so a key rotation cannot widen it.
+  because the spec would own it anyway. The spec can only name a **system** role: a custom role the
+  account already holds is kept on every later reconcile (logged at WARN), never reset to the
+  declared role, so a key rotation cannot widen it. The generic users API cannot change it either —
+  `PUT` and `DELETE /api/v1/admin/users/{id}` refuse a service account with `409
+  USER_IS_SERVICE_ACCOUNT` (#1130).
   Before upgrading, check that each declared `role` matches the role the account actually has — a
   system role changed outside the spec is reset on the next spec change.
 
@@ -364,11 +366,6 @@ can be rotated with grace and revoked on the spot.
 
 ## 9. Known limitations
 
-- `PUT /api/v1/admin/users/{id}` does not consult `principal_type`. The UI never offers that path
-  for a service account: the users page badges it, filters by `?principal_type=`, and routes its row
-  action to `/admin/service-accounts/{id}`. A direct API caller with `USER_MANAGE` could still edit
-  its role there. On a `BOOTSTRAP` account a system-role edit there lasts only until the spec next
-  changes, when the reconciler re-applies the declared role; a custom role is kept.
 - There is no self-service screen for a human to consent to being named. Use
   `/api/v1/me/service-account-delegations`, or ask an admin to grant it on the account.
 - `tools/list` is not filtered ([§5](#5-mcp-tool-allow-list)).

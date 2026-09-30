@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QuotaType;
 import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
+import com.bablsoft.accessflow.core.api.UserIsServiceAccountException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.events.UserDeactivatedEvent;
@@ -342,6 +343,121 @@ class UserAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.deactivateUser(userId, orgId, adminId))
                 .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void updateHumanUserAppliesFieldsToAHuman() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.updateHumanUser(userId, orgId, adminId,
+                new UpdateUserCommand(UserRoleType.REVIEWER, null, "Bob", null));
+
+        assertThat(result.role()).isEqualTo(UserRoleType.REVIEWER);
+        assertThat(result.displayName()).isEqualTo("Bob");
+    }
+
+    @Test
+    void updateHumanUserRefusesAServiceAccountWithoutMutatingIt() {
+        var entity = buildUser(userId, orgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.updateHumanUser(userId, orgId, adminId,
+                new UpdateUserCommand(UserRoleType.ADMIN, false, "Renamed", Map.of("k", "v"))))
+                .isInstanceOf(UserIsServiceAccountException.class)
+                .extracting(ex -> ((UserIsServiceAccountException) ex).userId())
+                .isEqualTo(userId);
+        assertThat(entity.getRole()).isEqualTo(UserRoleType.READONLY);
+        assertThat(entity.isActive()).isTrue();
+        assertThat(entity.getDisplayName()).isEqualTo("Alice");
+        assertThat(entity.getAttributes()).isEqualTo("{}");
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
+    }
+
+    @Test
+    void updateHumanUserChecksOrganizationBeforePrincipalType() {
+        var entity = buildUser(userId, otherOrgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.updateHumanUser(userId, orgId, adminId,
+                new UpdateUserCommand(UserRoleType.ADMIN, null, null, null)))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void updateHumanUserKeepsTheSelfProtection() {
+        var entity = buildUser(adminId, orgId, "admin@example.com", UserRoleType.ADMIN);
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.updateHumanUser(adminId, orgId, adminId,
+                new UpdateUserCommand(null, false, null, null)))
+                .isInstanceOf(IllegalUserOperationException.class);
+    }
+
+    @Test
+    void updateUserStillEditsAServiceAccountForTheServiceAccountSurface() {
+        var entity = buildUser(userId, orgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.updateUser(userId, orgId, adminId,
+                new UpdateUserCommand(UserRoleType.ANALYST, null, null, null));
+
+        assertThat(result.role()).isEqualTo(UserRoleType.ANALYST);
+    }
+
+    @Test
+    void deactivateHumanUserDeactivatesAHuman() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.deactivateHumanUser(userId, orgId, adminId);
+
+        assertThat(result.active()).isFalse();
+        verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+        verify(sessionRevocationService).revokeAllSessions(userId);
+    }
+
+    @Test
+    void deactivateHumanUserRefusesAServiceAccount() {
+        var entity = buildUser(userId, orgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.deactivateHumanUser(userId, orgId, adminId))
+                .isInstanceOf(UserIsServiceAccountException.class);
+        assertThat(entity.isActive()).isTrue();
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
+    }
+
+    @Test
+    void deactivateHumanUserBlocksSelfDeactivationBeforeLoading() {
+        assertThatThrownBy(() -> service.deactivateHumanUser(adminId, orgId, adminId))
+                .isInstanceOf(IllegalUserOperationException.class);
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    void deactivateHumanUserOnDifferentOrgThrowsNotFound() {
+        var entity = buildUser(userId, otherOrgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.deactivateHumanUser(userId, orgId, adminId))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
+    void deactivateUserStillDeactivatesAServiceAccountForTheServiceAccountSurface() {
+        var entity = buildUser(userId, orgId, "bot@example.com", UserRoleType.READONLY);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThat(service.deactivateUser(userId, orgId, adminId).active()).isFalse();
     }
 
     @Test

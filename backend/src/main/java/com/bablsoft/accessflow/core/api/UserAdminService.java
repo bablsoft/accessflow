@@ -18,6 +18,12 @@ public interface UserAdminService {
     UserView updateUser(UUID id, UUID organizationId, UUID currentUserId, UpdateUserCommand command);
 
     /**
+     * {@link #updateUser} for the admin-users surface (#1130): refuses a {@code SERVICE_ACCOUNT}
+     * target with {@link UserIsServiceAccountException}, after the organization check.
+     */
+    UserView updateHumanUser(UUID id, UUID organizationId, UUID currentUserId, UpdateUserCommand command);
+
+    /**
      * Returns the admin-set attribute map for a user, resolvable in row-security predicates as
      * {@code :user.<key>}. Empty when none are set. Throws {@link UserNotFoundException} when the
      * user is not in {@code organizationId}.
@@ -25,6 +31,12 @@ public interface UserAdminService {
     Map<String, String> getUserAttributes(UUID id, UUID organizationId);
 
     UserView deactivateUser(UUID id, UUID organizationId, UUID currentUserId);
+
+    /**
+     * {@link #deactivateUser} for the admin-users surface (#1130): refuses a {@code SERVICE_ACCOUNT}
+     * target with {@link UserIsServiceAccountException}, after the self and organization checks.
+     */
+    UserView deactivateHumanUser(UUID id, UUID organizationId, UUID currentUserId);
 
     /**
      * Sets the orthogonal platform-admin capability on a user (AF-456). Used by bootstrap to

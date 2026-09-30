@@ -275,6 +275,48 @@ class AdminUserControllerIntegrationTest {
         assertThat(result).hasStatus(404);
     }
 
+    @Test
+    void updateServiceAccountReturns409PointingAtTheServiceAccountSurface() {
+        var bot = saveServiceAccount();
+
+        var result = mvc.put().uri("/api/v1/admin/users/" + bot.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"role":"ADMIN","active":false}
+                        """)
+                .exchange();
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("USER_IS_SERVICE_ACCOUNT");
+        assertThat(result).bodyJson().extractingPath("$.service_account_path").asString()
+                .isEqualTo("/api/v1/admin/service-accounts/" + bot.getId());
+        var reloaded = userRepository.findById(bot.getId()).orElseThrow();
+        assertThat(reloaded.getRole()).isEqualTo(UserRoleType.READONLY);
+        assertThat(reloaded.isActive()).isTrue();
+    }
+
+    @Test
+    void deactivateServiceAccountReturns409AndLeavesItActive() {
+        var bot = saveServiceAccount();
+
+        var result = mvc.delete().uri("/api/v1/admin/users/" + bot.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("USER_IS_SERVICE_ACCOUNT");
+        assertThat(userRepository.findById(bot.getId()).orElseThrow().isActive()).isTrue();
+    }
+
+    private UserEntity saveServiceAccount() {
+        var bot = saveUser(primaryOrg, "bot@example.com", "Bot", UserRoleType.READONLY);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        return userRepository.save(bot);
+    }
+
     private OrganizationEntity saveOrg(String name, String slug) {
         var org = new OrganizationEntity();
         org.setId(UUID.randomUUID());

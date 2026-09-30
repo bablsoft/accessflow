@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.SecretProviderDisabledException;
 import com.bablsoft.accessflow.core.api.SecretResolutionException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.UserIsServiceAccountException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
@@ -152,6 +153,18 @@ class GlobalExceptionHandlerTest {
 
         assertThat(pd.getStatus()).isEqualTo(404);
         assertThat(pd.getProperties()).containsEntry("error", "USER_NOT_FOUND");
+    }
+
+    @Test
+    void userIsServiceAccountReturns409WithTheServiceAccountPath() {
+        var id = UUID.randomUUID();
+        var pd = handler.handleUserIsServiceAccount(new UserIsServiceAccountException(id));
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "USER_IS_SERVICE_ACCOUNT")
+                .containsEntry("service_account_path", "/api/v1/admin/service-accounts/" + id)
+                .containsKey("timestamp");
     }
 
     @Test

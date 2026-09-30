@@ -330,9 +330,9 @@
             A declared account's name and role come from the configuration: they are set when the
             account is created and applied again whenever the configuration changes, so narrowing
             the role there and restarting narrows the account. The service-account screens will not
-            change them. A custom role an admin gives the account through
-            <code>PUT /api/v1/admin/users/{id}</code> is kept — the configuration can only name a
-            built-in role, so it never overwrites one. Its limits, tool
+            change them, and neither will the general user-management screens or API. A custom role the
+            account already has is kept — the configuration can only name a built-in role, so it
+            never overwrites one. Its limits, tool
             allow-list and description stay editable. Its
             declared key cannot be revoked or rotated from the screens either — the next change to
             the configuration would bring it back. Rotate it by changing the Secret and restarting,
