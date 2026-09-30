@@ -2289,6 +2289,8 @@
       "approver_role": "Դեր",
       "approver_stage": "Փուլ",
       "approver_add": "Ավելացնել հաստատող",
+      "approver_role_service_account_warning_one": "Այս դերն ունի {{count}} ծառայողական հաշիվ, որը կարող է հաստատել։",
+      "approver_role_service_account_warning_other": "Այս դերն ունեն {{count}} ծառայողական հաշիվներ, որոնք կարող են հաստատել։",
       "approver_remove": "Հեռացնել",
       "save_create": "Ստեղծել պլանը",
       "save_update": "Պահպանել փոփոխությունները",

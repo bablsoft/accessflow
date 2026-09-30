@@ -2289,6 +2289,8 @@
       "approver_role": "Rolle",
       "approver_stage": "Stufe",
       "approver_add": "Genehmiger hinzufügen",
+      "approver_role_service_account_warning_one": "{{count}} Service-Account hat diese Rolle und kann genehmigen.",
+      "approver_role_service_account_warning_other": "{{count}} Service-Accounts haben diese Rolle und können genehmigen.",
       "approver_remove": "Entfernen",
       "save_create": "Plan erstellen",
       "save_update": "Änderungen speichern",

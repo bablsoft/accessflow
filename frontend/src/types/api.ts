@@ -1051,6 +1051,12 @@ export interface ReviewPlanTemplateDefaults {
   approvers: ReviewPlanTemplateApprover[];
 }
 
+/** Active service accounts holding a role, by role name (#1131). */
+export interface ApproverRoleServiceAccountCount {
+  role_name: string;
+  service_account_count: number;
+}
+
 export interface ReviewPlanTemplate {
   key: string;
   name: string;

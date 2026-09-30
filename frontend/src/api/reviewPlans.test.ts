@@ -45,6 +45,14 @@ describe('api/reviewPlans', () => {
     expect(result).toEqual([planFixture]);
   });
 
+  it('listApproverRoleServiceAccounts unwraps the { items } envelope', async () => {
+    const items = [{ role_name: 'REVIEWER', service_account_count: 2 }];
+    get.mockResolvedValueOnce({ data: { items } });
+    const result = await reviewPlansApi.listApproverRoleServiceAccounts();
+    expect(get).toHaveBeenCalledWith('/api/v1/review-plans/approver-role-service-accounts');
+    expect(result).toEqual(items);
+  });
+
   it('getReviewPlan GETs /api/v1/review-plans/{id}', async () => {
     get.mockResolvedValueOnce({ data: planFixture });
     const result = await reviewPlansApi.getReviewPlan('rp-1');

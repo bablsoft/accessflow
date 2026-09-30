@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type {
+  ApproverRoleServiceAccountCount,
   ReviewPlan,
   ReviewPlanTemplate,
   ReviewPlanWriteRequest,
@@ -9,6 +10,10 @@ const BASE = '/api/v1/review-plans';
 
 interface ReviewPlanListEnvelope {
   content: ReviewPlan[];
+}
+
+interface ApproverRoleServiceAccountEnvelope {
+  items: ApproverRoleServiceAccountCount[];
 }
 
 interface ReviewPlanTemplateListEnvelope {
@@ -21,6 +26,8 @@ export const reviewPlanKeys = {
   details: () => ['reviewPlans', 'detail'] as const,
   detail: (id: string) => ['reviewPlans', 'detail', id] as const,
   templates: () => ['reviewPlans', 'templates'] as const,
+  approverRoleServiceAccounts: () =>
+    ['reviewPlans', 'approverRoleServiceAccounts'] as const,
 };
 
 export async function listReviewPlans(): Promise<ReviewPlan[]> {
@@ -33,6 +40,15 @@ export async function listReviewPlanTemplates(): Promise<ReviewPlanTemplate[]> {
     `${BASE}/templates`,
   );
   return data.content;
+}
+
+export async function listApproverRoleServiceAccounts(): Promise<
+  ApproverRoleServiceAccountCount[]
+> {
+  const { data } = await apiClient.get<ApproverRoleServiceAccountEnvelope>(
+    `${BASE}/approver-role-service-accounts`,
+  );
+  return data.items;
 }
 
 export async function getReviewPlan(id: string): Promise<ReviewPlan> {

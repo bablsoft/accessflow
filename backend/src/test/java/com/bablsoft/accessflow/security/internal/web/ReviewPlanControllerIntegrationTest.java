@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
@@ -164,6 +165,39 @@ class ReviewPlanControllerIntegrationTest {
         assertThat(result).hasStatus(409);
         assertThat(result).bodyJson().extractingPath("$.error").asString()
                 .isEqualTo("REVIEW_PLAN_NAME_ALREADY_EXISTS");
+    }
+
+    @Test
+    void approverRoleServiceAccountsCountsOnlyActiveServiceAccountsInCallerOrg() {
+        saveServiceAccount(primaryOrg, "bot-1@example.com", UserRoleType.REVIEWER, true);
+        saveServiceAccount(primaryOrg, "bot-2@example.com", UserRoleType.REVIEWER, true);
+        saveServiceAccount(primaryOrg, "bot-3@example.com", UserRoleType.ANALYST, true);
+        saveServiceAccount(primaryOrg, "bot-off@example.com", UserRoleType.REVIEWER, false);
+        saveServiceAccount(otherOrg, "bot-other@example.com", UserRoleType.REVIEWER, true);
+
+        var result = mvc.get().uri("/api/v1/review-plans/approver-role-service-accounts")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.items.length()").asNumber().isEqualTo(2);
+        assertThat(result).bodyJson().extractingPath("$.items[0].role_name").asString()
+                .isEqualTo("ANALYST");
+        assertThat(result).bodyJson().extractingPath("$.items[0].service_account_count")
+                .asNumber().isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.items[1].role_name").asString()
+                .isEqualTo("REVIEWER");
+        assertThat(result).bodyJson().extractingPath("$.items[1].service_account_count")
+                .asNumber().isEqualTo(2);
+    }
+
+    @Test
+    void approverRoleServiceAccountsByReviewerReturns403() {
+        var result = mvc.get().uri("/api/v1/review-plans/approver-role-service-accounts")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(result).hasStatus(403);
     }
 
     @Test
@@ -413,6 +447,20 @@ class ReviewPlanControllerIntegrationTest {
         user.setActive(true);
         user.setOrganization(org);
         return userRepository.save(user);
+    }
+
+    private void saveServiceAccount(OrganizationEntity org, String email, UserRoleType role,
+                                    boolean active) {
+        var user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setEmail(email);
+        user.setDisplayName(email);
+        user.setRole(role);
+        user.setAuthProvider(AuthProviderType.LOCAL);
+        user.setActive(active);
+        user.setOrganization(org);
+        user.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        userRepository.save(user);
     }
 
     private ReviewPlanEntity savePlan(OrganizationEntity org, String name) {

@@ -5,8 +5,10 @@ import {
   approveQueryViaApi,
   createPostgresDatasource,
   createReviewPlanViaApi,
+  createRoleViaApi,
   deleteDatasource,
   deleteReviewPlanViaApi,
+  deleteRoleViaApi,
   inviteUserViaApi,
   loginViaApi,
   submitQueryViaApi,
@@ -14,6 +16,11 @@ import {
   waitForQueryStatus,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
+import {
+  createServiceAccountViaApi,
+  deactivateServiceAccountViaApi,
+  updateServiceAccountRoleViaApi,
+} from '../helpers/serviceAccounts';
 import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
@@ -696,5 +703,44 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     });
     await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
+  });
+
+  test('10) a role-based approver rule whose role includes a service account shows a warning', async ({
+    page,
+    request,
+  }) => {
+    // #1131. A dedicated custom role keeps the service account out of every
+    // other spec's REVIEWER approver pool on the shared stack.
+    const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const roleName = `SA approvers ${UNIQUE_SUFFIX}`;
+    const role = await createRoleViaApi(request, adminToken, roleName, ['QUERY_REVIEW']);
+    const account = await createServiceAccountViaApi(request, adminToken, {
+      email: `sa-approver-${UNIQUE_SUFFIX}@accessflow.test`,
+      displayName: `SA approver ${UNIQUE_SUFFIX}`,
+    });
+    const plan = await createReviewPlanViaApi(request, adminToken, {
+      name: `SA approver plan ${UNIQUE_SUFFIX}`,
+      approvers: [
+        { role: roleName, stage: 1 },
+        { role: 'ADMIN', stage: 2 },
+      ],
+    });
+    try {
+      await updateServiceAccountRoleViaApi(request, adminToken, account.id, role.id);
+
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await page.goto(`/admin/review-plans?planId=${plan.id}`);
+
+      const modal = page.getByRole('dialog').filter({ hasText: 'Edit review plan' });
+      await expect(modal).toBeVisible({ timeout: 15_000 });
+      // Only the custom-role row warns; the ADMIN row has no service account.
+      const warnings = modal.getByTestId('approver-role-service-account-warning');
+      await expect(warnings).toHaveCount(1, { timeout: 10_000 });
+      await expect(warnings).toHaveText('1 service account holds this role and can approve.');
+    } finally {
+      await deactivateServiceAccountViaApi(request, adminToken, account.id);
+      await deleteReviewPlanViaApi(request, adminToken, plan.id);
+      await deleteRoleViaApi(request, adminToken, role.id);
+    }
   });
 });

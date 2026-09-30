@@ -2289,6 +2289,8 @@
       "approver_role": "Роль",
       "approver_stage": "Этап",
       "approver_add": "Добавить утверждающего",
+      "approver_role_service_account_warning_one": "Сервисных аккаунтов с этой ролью: {{count}} — они могут одобрять.",
+      "approver_role_service_account_warning_other": "Сервисных аккаунтов с этой ролью: {{count}} — они могут одобрять.",
       "approver_remove": "Удалить",
       "save_create": "Создать план",
       "save_update": "Сохранить изменения",

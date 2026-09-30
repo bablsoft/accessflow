@@ -2565,6 +2565,7 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 | `POST` | `/reviews/bulk` | Apply the same decision to a batch of queries; returns per-row outcomes |
 | `GET` | `/review-plans` | List all review plans |
 | `GET` | `/review-plans/templates` | List built-in review plan templates |
+| `GET` | `/review-plans/approver-role-service-accounts` | Count active service accounts per role, for approver-rule warnings *(REVIEW_PLAN_MANAGE)* (#1131) |
 | `POST` | `/review-plans` | Create a new review plan *(ADMIN only)* |
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
 | `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
@@ -2926,6 +2927,25 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
   ]
 }
 ```
+
+### GET /review-plans/approver-role-service-accounts *(REVIEW_PLAN_MANAGE)*
+
+Counts the **active** service accounts (`principal_type = SERVICE_ACCOUNT`, [22-service-accounts.md](22-service-accounts.md)) in the caller's organization, grouped by effective role name. The effective name is the assigned role's name, or the legacy system-role column for a row not yet linked to a role. A role-targeted approver rule expands to every holder of the role, service accounts included. The review-plan editor uses this to warn on each rule whose role would make an agent an eligible approver (#1131).
+
+It sits behind `REVIEW_PLAN_MANAGE`, not `USER_MANAGE`, so an operator who may edit plans but not users still sees the warning. Roles held by no active service account are omitted. `items` are ordered by `role_name`. Clients match a rule's role to `role_name` case-insensitively, the same way rule expansion does.
+
+**Response 200:**
+
+```json
+{
+  "items": [
+    { "role_name": "REVIEWER", "service_account_count": 2 },
+    { "role_name": "Triage bots", "service_account_count": 1 }
+  ]
+}
+```
+
+**Response 403:** caller lacks `REVIEW_PLAN_MANAGE`.
 
 ### Review-plans Error Codes
 

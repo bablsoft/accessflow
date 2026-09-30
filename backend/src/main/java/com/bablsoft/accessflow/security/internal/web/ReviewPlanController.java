@@ -8,8 +8,11 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateReviewPlanCommand;
 import com.bablsoft.accessflow.core.api.ReviewPlanAdminService;
 import com.bablsoft.accessflow.core.api.UpdateReviewPlanCommand;
+import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.templates.ReviewPlanTemplates;
+import com.bablsoft.accessflow.security.internal.web.model.ApproverRoleServiceAccountCountResponse;
+import com.bablsoft.accessflow.security.internal.web.model.ApproverRoleServiceAccountListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateReviewPlanRequest;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanApproverDto;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanListResponse;
@@ -51,6 +54,7 @@ class ReviewPlanController {
 
     private final ReviewPlanAdminService reviewPlanAdminService;
     private final AuditLogService auditLogService;
+    private final UserQueryService userQueryService;
 
     @GetMapping
     @Operation(summary = "List review plans for the caller's organization")
@@ -73,6 +77,22 @@ class ReviewPlanController {
                 .map(ReviewPlanTemplateResponse::from)
                 .toList();
         return new ReviewPlanTemplateListResponse(items);
+    }
+
+    @GetMapping("/approver-role-service-accounts")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_PLAN_MANAGE')")
+    @Operation(summary = "Count active service accounts per role, for approver-rule warnings")
+    @ApiResponse(responseCode = "200", description = "Active service-account counts by role name")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "403", description = "Caller lacks REVIEW_PLAN_MANAGE")
+    ApproverRoleServiceAccountListResponse listApproverRoleServiceAccounts(
+            Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var items = userQueryService.countActiveServiceAccountsByRoleName(caller.organizationId())
+                .entrySet().stream()
+                .map(e -> new ApproverRoleServiceAccountCountResponse(e.getKey(), e.getValue()))
+                .toList();
+        return new ApproverRoleServiceAccountListResponse(items);
     }
 
     @GetMapping("/{id}")

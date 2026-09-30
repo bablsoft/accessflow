@@ -165,7 +165,10 @@ not watch. Give it the smallest role that works.
 
 A service account that holds a reviewer role can still review in principle. It can never review
 with an on-behalf-of header, and it can never approve its own submission. Prefer not to give an
-agent `REVIEWER` at all.
+agent `REVIEWER` at all. Two warnings keep this from happening by accident. The service-account
+form warns when you pick a review-capable role. The review-plan editor warns on every role-based
+approver rule whose role is currently held by at least one active service account, and names the
+count. That count comes from `GET /review-plans/approver-role-service-accounts` (#1131).
 
 ---
 
