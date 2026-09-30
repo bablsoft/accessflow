@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "42a775233422",
-  "generatedAt": "2026-09-30T08:18:53.970Z",
-  "sourceCommit": "a09b91692604a0da9a81959bcde005e45fc6ef92",
-  "chunkCount": 601,
-  "sha256": "42a7752334228f5f0264f3c546689d423725fa869f0ab9399c270a00173bfd7c",
+  "corpusVersion": "082151486fe9",
+  "generatedAt": "2026-09-30T09:01:01.699Z",
+  "sourceCommit": "0abfa711eaf8215a222a5627d2febe93226a21ab",
+  "chunkCount": 604,
+  "sha256": "082151486fe91810ab14fc4f2bdf0512f40951e4436148ba1fa50f31a717f5c3",
   "quickReferenceSha256": "af9167770251a221bdce1414872ea3a194fdc57a6d8212f8945849cbfff50661",
   "sources": [
     {
@@ -220,8 +220,8 @@
       "title": "Review workflows",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
-      "chunks": 22,
-      "sha256": "b2b8a6907b9c52799015fbaabc4ef81a67a5d05d5d4f1b2f26a66db80b915c8c"
+      "chunks": 24,
+      "sha256": "f6a683bfad83c994d84bf3c5c88b36e7d76954ba4fbba93413176317a85068c1"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -380,8 +380,8 @@
       "title": "Deployment approval governance — gate every CI/CD release",
       "url": "https://accessflow.io/features/deployment-governance/",
       "section": "Features",
-      "chunks": 7,
-      "sha256": "ca5efb6dca91879b11c84d57e9a8aa9ea6f4e5c39b115b89a702600bfaeed991"
+      "chunks": 8,
+      "sha256": "856e4e682ff516289c1775e05516e805444daf01c93a9eb0ca14f3fc4fcaa476"
     },
     {
       "path": "website/features/index.html",
@@ -397,7 +397,7 @@
       "url": "https://accessflow.io/",
       "section": "Overview",
       "chunks": 19,
-      "sha256": "33761fa79db5b2ec05f99c1cf8b244242f55eb2d430b6cc22c13d1ee9b298682"
+      "sha256": "95c02da0ee274708615572f1ac00901b6287145c0b48a9d9e76f57a2addaa8e1"
     },
     {
       "path": "website/security/index.html",

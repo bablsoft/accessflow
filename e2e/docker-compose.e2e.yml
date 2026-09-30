@@ -185,6 +185,9 @@ services:
       # #627: recurring queries fire every second and accept second-scale cadences under e2e.
       ACCESSFLOW_WORKFLOW_RECURRING_RUN_POLL_INTERVAL: PT1S
       ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL: PT1S
+      # #884: a schema-change promotion executes through ScheduledGroupRunJob (default PT1M), so
+      # poll every second. Its lockAtLeastFor=PT30S still floors the wait at ~30s.
+      ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL: PT1S
       # AF-659: this is a count of consecutive *misses*, so 1 retires a finding on the first scan
       # that stops proposing it — two scans total for the spec, against four at the default of 3.
       ACCESSFLOW_DISCOVERY_STALE_SCANS_BEFORE_EXPIRY: "1"

@@ -268,6 +268,7 @@ export default function SchemaChangeSetDetailPage() {
           t('schemaChange.detail.subtitle', { pipeline: pipelineName ?? set.pipeline_id })
         }
         breadcrumbs={[t('schemaChange.list.title'), set.name]}
+        docsAnchor="cfg-schema-changes"
         actions={
           <Space wrap>
             <Button onClick={() => navigate('/schema-change-sets')}>{t('common.back')}</Button>

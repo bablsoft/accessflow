@@ -203,6 +203,7 @@
             <a href="#freeze">Freeze windows and break-glass</a>
             <a href="#outcome">After the deploy</a>
             <a href="#versions">Which version is where</a>
+            <a href="#schema-changes">Schema changes, environment by environment</a>
             <a href="#ci">One step in your pipeline</a>
             <p class="docs-toc-label">More capabilities</p>
             <a href="/features/">All 12 capabilities</a>
@@ -286,6 +287,13 @@
           <p>A matrix lists every environment you deploy to, the version it is running now, the one it was running before, when it got there, and how that deploy ended. It answers the question the gate cannot: not whether a release may go out, but what is already out there.</p>
           <p>Each row also says how far behind it has fallen, counted two ways — how many newer releases have gone out since it last moved, and how many days passed between its deploy and the newest one. "Behind" is a plain comparison against the newest release that succeeded on that pipeline, not an attempt to parse your version numbers, so it works whether you ship <code>2.4.1</code>, a date, or a commit hash. Nothing is scheduled and nothing is alerted on: the comparison is made when you look.</p>
           <p>Environments carry short tags of your choosing — up to ten each, a customer, a region, a tier — and the matrix filters on them. That is what turns one application deployed for many customers into a single readable view: one environment per customer, all tagged alike, all lined up beside their versions. Each environment also keeps its own history, newest first, and a rolled-back environment says what it reverted to rather than quietly showing a version it is no longer running.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="schema-changes">
+          <h2>Schema changes, environment by environment</h2>
+          <p>The same environments can carry database changes, not just releases. Give an environment the database it runs on, then write a <em>change set</em> — the statements that create a table, add a column or drop an index — once. AccessFlow checks every statement with that database's own parser before saving it, and turns away anything that reads or changes data rather than structure. From the first promotion on, the list is locked, so production receives exactly the text that ran in staging.</p>
+          <p>A change set climbs the environments in order. Each step is reviewed like any other request, and a step stays blocked until every lower environment with a database has applied it successfully; the page says which one is holding it up. Promoting needs the right to change that database's structure — for admins too — and a freeze window stops it just as it stops a release. There is no undo: statements run one after another, so a failure part-way leaves the earlier ones in place and the step marked as partly applied, and the fix is a new change set.</p>
+          <p>Once changes are out, a scheduled scan you switch on per pipeline compares each environment's tables, columns and foreign keys against the one below it, a reference environment, or what it looked like right after its last promotion — the last catches a change someone made by hand. Differences land in a list to acknowledge. The scan never corrects anything, and it cannot see indexes, constraints, defaults or views. <a href="/docs/configuration/review-workflows/#cfg-schema-changes">Schema change set docs →</a></p>
         </section>
 
         <section class="docs-section scroll-pad" id="ci">

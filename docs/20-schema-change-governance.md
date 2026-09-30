@@ -20,18 +20,22 @@ under a pipeline, each optionally bound to the datasource its schema changes lan
 and **request groups** (a bundle of ordered members with aggregated AI analysis, union-of-approvers
 review and an ordered executor — the shape a promotion takes, #880).
 
-> **Delivery status.** In progress for the v2.7 milestone: the persistence foundation (#878), the
-> **authoring half** — change-set CRUD, the DDL validation gate, freeze-on-promotion and the
-> `/schema-change-sets` REST surface (#879) — **promotion** with the ladder gate, freeze-window
-> check, request-group wiring and the post-apply snapshot (#880), and the **drift half** — the
-> opt-in scan configuration, the scheduled job, the diff and the read API (#881) — and the
-> **notification and audit fan-out** (#882, §Notifications) and the **web UI** (#883, §8) are on
-> `main`. The website sweep (#884) follows.
+> **Delivery status.** Complete on `main` for the v2.7 milestone: the persistence foundation
+> (#878), the **authoring half** — change-set CRUD, the DDL validation gate, freeze-on-promotion and
+> the `/schema-change-sets` REST surface (#879) — **promotion** with the ladder gate, freeze-window
+> check, request-group wiring and the post-apply snapshot (#880), the **drift half** — the opt-in
+> scan configuration, the scheduled job, the diff and the read API (#881) — the **notification and
+> audit fan-out** (#882, §Audit & notifications) and the **web UI** (#883, §8). #884 closed the epic
+> with the roadmap entry, the website and the end-to-end coverage.
 
 > **The one sentence to remember.** A change set is a *set of schema statements*, not a
 > transaction: each statement runs on its own, autocommit, so there is **no rollback at all** —
 > which is exactly why every statement is checked before it is stored and the list is frozen the
-> moment a promotion exists.
+> moment a promotion exists. It cannot be otherwise: the proxy parser refuses DDL inside a
+> `BEGIN … COMMIT` envelope and refuses multi-statement text, so every member of the promotion's
+> request group is one statement run on its own. A failure at statement 7 of 12 leaves the
+> environment half-migrated, the promotion reads `PARTIALLY_APPLIED`, and nothing undoes
+> statements 1–6.
 
 ---
 
@@ -697,7 +701,9 @@ attempt there clears the advisory. A promote that the preview allowed but the
 gate refuses surfaces the server's `detail` to the user. A freeze window is shown with its
 behaviour and reason but no end time — the evaluator answers "in effect now", not "until when".
 
-## Audit & permissions
+## Audit & notifications
+
+### Audit & permissions
 
 `SCHEMA_CHANGE_MANAGE` is the only permission this feature introduces. Promotion writes one audit
 row per transition against the `schema_change_promotion` resource:
@@ -722,7 +728,7 @@ why `update`, `replaceStatements` and `delete` on `SchemaChangeSetService` now t
 `_UPDATED` is written only when a field actually changed, and `_DELETED` only after the delete is
 flushed.
 
-## Notifications
+### Notifications
 
 `requestgroups` has no notification path of its own, so a promotion routed through one would wait
 for approval in silence. `schemachange` therefore notifies on its **own** events —

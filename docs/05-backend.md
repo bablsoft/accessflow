@@ -1595,8 +1595,9 @@ introspects and records, and there is no corrective path, by design.
 the caller + `trigger=manual` for *Scan now*), with snake_case metadata keys like the rest of the
 module (`findings_count`, `duration_ms`, …); `SCHEMA_DRIFT_FINDING_ACKNOWLEDGED` and
 `SCHEMA_DRIFT_CONFIG_UPDATED` carry the acting user. No migration was needed — `audit_log.action` and
-`resource_type` are `VARCHAR(100)`. Notifications are **not** part of this: #882 adds the fan-out, so
-a drift finding is currently silent until somebody opens the worklist.
+`resource_type` are `VARCHAR(100)`. A scan that opens findings publishes `SchemaDriftDetectedEvent`,
+which `notifications` fans out as `SCHEMA_DRIFT_DETECTED` to every `SCHEMA_CHANGE_MANAGE` holder
+(#882); a finding re-seen while already open never notifies.
 
 ### Compliance reporting (AF-459)
 
@@ -5552,8 +5553,11 @@ fan out org-wide, never page and never ticket — see
 `schema_change_promotion.status_changed` to the promoter; `schemachange` imports neither module.
 
 **Layout.** `api/` (contracts, views, one exception per documented error code), `events/`
-(`SchemaChangePromotionStatusChangedEvent`), `internal/` — `config/SchemaChangeProperties`
-(`accessflow.schemachange.max-statements`, default 50), `DefaultSchemaChangeSetService`,
+(`SchemaChangePromotionStatusChangedEvent`, `SchemaDriftDetectedEvent`), `internal/` —
+`config/SchemaChangeProperties` (`accessflow.schemachange.max-statements`, default 50, and the
+`drift-*` knobs — `drift-poll-interval` PT6H, `drift-scan-time-budget` PT5M,
+`drift-max-tables-per-scan` 500, `drift-max-findings-per-scan` 500, `drift-scan-lock-at-most-for`
+PT30M, floored at `2 × budget + 10m`), `scheduled/SchemaDriftJob`, `DefaultSchemaChangeSetService`,
 `SchemaChangeStatementGate`, the JDK-only `SchemaChangeStatementScanner` and
 `SchemaChangeChecksum`, `SchemaChangeSetSpecifications`,
 `DefaultSchemaChangePromotionService`, `DefaultSchemaChangeLadderService` (the read-only ladder
@@ -5565,7 +5569,8 @@ it mirrors the gate's ladder and freeze checks and never replaces them),
 (`DeploymentPipelineLookupService.findPipeline`/`.findEnvironment` for the 404-never-403 checks,
 `DeploymentEnvironmentLookupService.listByPipeline` for the ladder, `DeploymentFreezeLookupService`
 for the freeze, `DeploymentPipelineAdminService.list` for the UI's pipeline listing), `proxy.api.QueryParser`, `sqlreview.api`, `requestgroups.api` + `requestgroups.events`,
-`audit.api` and `security.api.JwtClaims`; nothing depends on it.
+`audit.api`, `scheduling.api.DistributedLockService` and `security.api.JwtClaims`. `notifications`
+consumes its `api` and `events`, and `realtime` its `events`; it depends on neither.
 
 **The gate (`SchemaChangeStatementGate.validate`).** Runs on `create` and `replaceStatements`,
 in statement order, and is the only place statements are judged: (1) targets = the distinct
@@ -5614,7 +5619,9 @@ properties are camelCase (`statementIndex`, `queryType`, `limit` / `actual`, `cu
 `requestedStatus`, `findings`); the four `Reason`s of `SchemaChangeSetStatementInvalidException`
 map to four distinct 422 codes. Bean Validation: name 3–255, description ≤ 2000, each `sql_text`
 non-blank and ≤ 100 000 chars; the statement *count* is the service-side cap because a `@Size`
-cannot read a property. Authoring writes no audit rows (#882).
+cannot read a property. Authoring writes `SCHEMA_CHANGE_SET_CREATED`, `_UPDATED` (only when a field
+actually changed), `_STATEMENTS_REPLACED` and `_DELETED` against the `schema_change_set` resource,
+always with the acting user (#882).
 
 **Promotion (`DefaultSchemaChangePromotionService`, #880).** `promote` runs twelve checks in a
 fixed order — change set, archive, statements, environment, bound datasource, datasource exists,

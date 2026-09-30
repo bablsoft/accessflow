@@ -51,6 +51,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-sql-review': 'configuration/review-workflows/',
   'cfg-attestation': 'configuration/review-workflows/',
   'cfg-deployment-pipelines': 'configuration/review-workflows/',
+  'cfg-schema-changes': 'configuration/review-workflows/',
   'cfg-ai': 'configuration/ai/',
   'cfg-ai-analyses': 'configuration/ai/',
   'cfg-anomalies': 'configuration/ai/',

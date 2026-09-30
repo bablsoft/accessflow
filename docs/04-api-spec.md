@@ -9309,17 +9309,16 @@ Response shape (`202` on promote; the two reads return the same):
   "status": "PENDING",
   "statements_checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   "promoted_by": "1a2b…",
-  "submitted_at": "2026-09-22T10:20:00Z",
-  "applied_at": null,
-  "error_message": null,
-  "schema_snapshot": null,
-  "snapshot_taken_at": null
+  "submitted_at": "2026-09-22T10:20:00Z"
 }
 ```
 
-Every **outcome** is audited against the `schema_change_promotion` resource — the intermediate
-`IN_REVIEW` and `APPROVED` projections are not, since the request group already records its own
-review trail. `SCHEMA_CHANGE_PROMOTION_SUBMITTED` carries the acting user; `_APPLIED`,
+`applied_at`, `error_message`, `schema_snapshot` and `snapshot_taken_at` are omitted until set, as
+every null field is in this API.
+
+Every **outcome** is audited against the `schema_change_promotion` resource — only the
+intermediate `IN_REVIEW` projection is not, since the request group already records its own review
+trail. `SCHEMA_CHANGE_PROMOTION_SUBMITTED` carries the acting user; `_APPROVED` (#882), `_APPLIED`,
 `_PARTIALLY_APPLIED` and `_FAILED` are system rows with a null actor and `trigger=request_group`.
 `_CANCELLED` appears on both paths: with the acting user when someone cancels, and as a system row
 when the group was **rejected or timed out** — those project onto the same `CANCELLED` promotion
@@ -9500,6 +9499,8 @@ A finding:
 }
 ```
 
+`resolved_at` appears once a later scan has marked the finding `RESOLVED`, and is omitted otherwise.
+
 `object_path` is `schema`, `schema.table` or `schema.table.column`; `expected_value` is the
 baseline's side and `actual_value` the scanned environment's (either is absent when that side lacks
 the object). Names may themselves contain dots — Elasticsearch and BigQuery flatten nested fields
@@ -9527,11 +9528,13 @@ A configuration:
 {
   "id": "…", "pipeline_id": "…", "enabled": true,
   "baseline": "PREVIOUS_ENVIRONMENT", "scan_interval_hours": 24,
-  "last_scan_at": "2026-09-22T10:00:00Z"
+  "last_scan_at": "2026-09-22T10:00:00Z",
+  "last_scan_error": "prod: TARGET_INTROSPECTION_FAILED: connection refused"
 }
 ```
 
-`last_scan_at` and `last_scan_error` are written **once per pipeline run** by the scheduler, after
+`baseline_environment_id` is present only when `baseline` is `BASELINE_ENVIRONMENT`; `last_scan_error`
+only when the last run had a failed scan. `last_scan_at` and `last_scan_error` are written **once per pipeline run** by the scheduler, after
 every environment has been visited — never by *Scan now*, and never by a single environment. A run
 in which another replica was holding one of the environments is not stamped, so the pipeline stays
 due. `last_scan_error` lists every environment whose scan **failed** in that run
@@ -9654,8 +9657,8 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE` | 409 | The deployment's submitter can never acknowledge their own rollback review (#693). |
 | `SCHEMA_CHANGE_PIPELINE_NOT_FOUND` | 404 | The `pipeline_id` names no deployment pipeline in the caller's organization (#879). |
 | `SCHEMA_CHANGE_SET_NOT_FOUND` | 404 | Unknown change-set id, or the set is in another organization (#879). |
-| `SCHEMA_CHANGE_SET_NAME_CONFLICT` | 409 | A change set with that name already exists under the same pipeline (#879). |
-| `SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE` | 409 | Statements were supplied but no environment of the pipeline binds a datasource, so there is nothing to parse or review against (#879). |
+| `SCHEMA_CHANGE_SET_NAME_CONFLICT` | 409 | A change set with that name already exists under the same pipeline (`pipelineId`, `name`) (#879). |
+| `SCHEMA_CHANGE_SET_NO_TARGET_DATASOURCE` | 409 | Statements were supplied but no environment of the pipeline binds a datasource, so there is nothing to parse or review against (`pipelineId`) (#879). |
 | `SCHEMA_CHANGE_SET_TARGET_DATASOURCE_MISSING` | 409 | An environment of the pipeline binds a datasource that no longer exists in the organization (`pipelineId`, `datasourceId`) — the binding is a bare id, so a deleted datasource stays bound; rebind or clear it (#879). |
 | `SCHEMA_CHANGE_SET_STATEMENT_LIMIT` | 400 | More statements than `ACCESSFLOW_SCHEMACHANGE_MAX_STATEMENTS` allows (`limit`, `actual`) (#879). |
 | `SCHEMA_CHANGE_SET_STATEMENT_INVALID` | 422 | Statement `statementIndex` could not be parsed for a target datasource's engine; `detail` carries the parser's reason (#879). |
@@ -9666,6 +9669,17 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `SCHEMA_CHANGE_SET_FROZEN` | 409 | The change set has a promotion that is not `FAILED` / `CANCELLED`, so its statements and its existence are frozen (#879). |
 | `SCHEMA_CHANGE_SET_ARCHIVED` | 409 | Statement edits on an `ARCHIVED` change set (#879). |
 | `SCHEMA_CHANGE_SET_INVALID_STATUS_TRANSITION` | 409 | `status` may only be moved to `ARCHIVED` by hand (`currentStatus`, `requestedStatus`) (#879). |
+| `SCHEMA_CHANGE_SET_EMPTY` | 409 | Promotion of a change set with no statements (#880). |
+| `SCHEMA_CHANGE_ENVIRONMENT_NOT_FOUND` | 404 | The environment is not on the change set's pipeline, or does not exist in the caller's organization (`environmentId`) (#880). |
+| `SCHEMA_CHANGE_ENVIRONMENT_NO_DATASOURCE` | 422 | The environment binds no datasource, so there is nothing to promote to or scan (`environmentId`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_NOT_FOUND` | 404 | Unknown promotion id, or the promotion is in another organization (#880). |
+| `SCHEMA_CHANGE_PROMOTION_DDL_FORBIDDEN` | 403 | The promoting user lacks `can_ddl` on the target datasource — no admin exemption (`datasourceId`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_LADDER_INVALID` | 409 | The pipeline's environments do not carry distinct `sort_order` values, so the ladder cannot be evaluated (`pipelineId`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_LADDER_BLOCKED` | 409 | A lower-ordered environment that binds a datasource has no `APPLIED` promotion of this set (`blockingEnvironmentId`, `blockingEnvironmentName`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_FROZEN` | 409 | A freeze window is in effect for the environment — `HOLD` and `REJECT` both refuse (`environmentId`, `freezeWindowId`, `behavior`, optional `reason`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_REVIEW_UNENFORCEABLE` | 422 | The environment requires review but the target datasource's review plan would not require human approval (`environmentId`, `datasourceId`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_CONFLICT` | 409 | A non-terminal promotion of this set to this environment already exists (`changeSetId`, `environmentId`) (#880). |
+| `SCHEMA_CHANGE_PROMOTION_NOT_CANCELLABLE` | 409 | The promotion is terminal, executing, or already approved for its run (`currentStatus`) (#880). |
 | `SCHEMA_DRIFT_FINDING_NOT_FOUND` | 404 | The drift finding does not exist in the caller's organization (`findingId`) (#881). |
 | `SCHEMA_DRIFT_SCAN_IN_PROGRESS` | 409 | A drift scan of this environment is already running somewhere in the cluster (`environmentId`) (#881). |
 | `SCHEMA_DRIFT_FINDING_NOT_ACKNOWLEDGEABLE` | 409 | The finding has already been resolved by a later scan (`findingId`, `currentStatus`) (#881). |
