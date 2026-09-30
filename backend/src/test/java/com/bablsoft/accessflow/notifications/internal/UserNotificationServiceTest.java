@@ -1,5 +1,10 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
+import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.api.UserNotificationNotFoundException;
 import com.bablsoft.accessflow.notifications.events.UserNotificationCreatedEvent;
@@ -36,6 +41,7 @@ class UserNotificationServiceTest {
 
     private UserNotificationRepository repository;
     private ApplicationEventPublisher publisher;
+    private UserQueryService userQueryService;
     private UserNotificationService service;
     private final UUID userId = UUID.randomUUID();
     private final UUID orgId = UUID.randomUUID();
@@ -45,7 +51,8 @@ class UserNotificationServiceTest {
     void setUp() {
         repository = mock(UserNotificationRepository.class);
         publisher = mock(ApplicationEventPublisher.class);
-        service = new UserNotificationService(repository, publisher,
+        userQueryService = mock(UserQueryService.class);
+        service = new UserNotificationService(repository, publisher, userQueryService,
                 Clock.fixed(FIXED_NOW, ZoneOffset.UTC));
     }
 
@@ -79,6 +86,43 @@ class UserNotificationServiceTest {
         assertThat(eventCaptor.getAllValues())
                 .extracting(UserNotificationCreatedEvent::userId)
                 .containsExactlyInAnyOrder(u1, u2);
+    }
+
+    @Test
+    void recordForUsersSkipsServiceAccounts() {
+        when(repository.save(any(UserNotificationEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        var human = UUID.randomUUID();
+        var bot = UUID.randomUUID();
+        when(userQueryService.findByIds(Set.of(human, bot))).thenReturn(List.of(
+                user(human, PrincipalType.HUMAN), user(bot, PrincipalType.SERVICE_ACCOUNT)));
+
+        service.recordForUsers(NotificationEventType.ACCESS_REQUEST_APPROVED,
+                Set.of(human, bot), orgId, null, null, null, "{}");
+
+        var entityCaptor = ArgumentCaptor.forClass(UserNotificationEntity.class);
+        verify(repository).save(entityCaptor.capture());
+        assertThat(entityCaptor.getValue().getUserId()).isEqualTo(human);
+        verify(publisher, times(1)).publishEvent(any(UserNotificationCreatedEvent.class));
+    }
+
+    @Test
+    void recordForUsersWritesNothingWhenEveryRecipientIsAServiceAccount() {
+        var bot = UUID.randomUUID();
+        when(userQueryService.findByIds(Set.of(bot)))
+                .thenReturn(List.of(user(bot, PrincipalType.SERVICE_ACCOUNT)));
+
+        service.recordForUsers(NotificationEventType.ACCESS_REQUEST_APPROVED,
+                Set.of(bot), orgId, null, null, null, "{}");
+
+        verify(repository, never()).save(any());
+        verify(publisher, never()).publishEvent(any());
+    }
+
+    private UserView user(UUID id, PrincipalType type) {
+        return new UserView(id, id + "@x", "U", UserRoleType.ANALYST, null, "ANALYST", orgId, true,
+                AuthProviderType.LOCAL, null, null, null, false, false, Instant.now(), null, null,
+                type);
     }
 
     @Test

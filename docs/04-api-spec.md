@@ -8056,6 +8056,12 @@ base path and PascalCase resource names (RFC 7644), a deliberate exception to th
 `scimType` values used: `invalidFilter`, `uniqueness`, `invalidPath`, `invalidValue`. SCIM error
 `detail` strings are intentionally not localized (the consumer is an IdP provisioning engine).
 
+**Service accounts are excluded (#867).** Users with `principal_type = SERVICE_ACCOUNT` never
+appear in `/scim/v2/Users` listings, filters or `totalResults`. `GET`/`PUT`/`PATCH`/`DELETE` on one
+returns `404` and changes nothing. Group `members` entries naming one are skipped, and group reads
+omit service-account members. Emails stay globally unique, so a `POST` reusing a service account's
+email still returns `409 uniqueness`.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/scim/v2/ServiceProviderConfig` | Capability discovery (patch supported, filter max 200, no bulk/sort/etag) |

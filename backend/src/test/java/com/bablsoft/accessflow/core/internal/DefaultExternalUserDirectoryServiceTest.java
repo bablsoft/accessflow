@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateExternalUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ExternalIdAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QuotaType;
@@ -228,13 +229,50 @@ class DefaultExternalUserDirectoryServiceTest {
     @Test
     void listReturnsOffsetPage() {
         var entity = user(userId, true);
-        when(userRepository.findAllByOrganization_Id(eq(orgId), any(Pageable.class)))
+        when(userRepository.findAllByOrganization_IdAndPrincipalType(eq(orgId),
+                eq(PrincipalType.HUMAN), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(entity), Pageable.ofSize(2), 7));
 
         var page = service.list(orgId, 4, 2);
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.totalResults()).isEqualTo(7);
+    }
+
+    @Test
+    void findersHideServiceAccounts() {
+        var entity = serviceAccount();
+        when(userRepository.findByOrganization_IdAndId(orgId, userId))
+                .thenReturn(Optional.of(entity));
+        when(userRepository.findByOrganization_IdAndEmail(orgId, "bot@example.com"))
+                .thenReturn(Optional.of(entity));
+        when(userRepository.findByOrganization_IdAndScimExternalId(orgId, "ext-bot"))
+                .thenReturn(Optional.of(entity));
+
+        assertThat(service.findById(orgId, userId)).isEmpty();
+        assertThat(service.findByEmail(orgId, "bot@example.com")).isEmpty();
+        assertThat(service.findByExternalId(orgId, "ext-bot")).isEmpty();
+    }
+
+    @Test
+    void updateExternalRefusesServiceAccountWithoutSideEffects() {
+        var entity = serviceAccount();
+        when(userRepository.findByOrganization_IdAndId(orgId, userId))
+                .thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.updateExternal(orgId, userId,
+                new UpdateExternalUserCommand("x@example.com", "X", "ext-x", false)))
+                .isInstanceOf(UserNotFoundException.class);
+        assertThat(entity.isActive()).isTrue();
+        assertThat(entity.getEmail()).isEqualTo(userId + "@example.com");
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    private UserEntity serviceAccount() {
+        var entity = user(userId, true);
+        entity.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        return entity;
     }
 
     private UserEntity user(UUID id, boolean active) {

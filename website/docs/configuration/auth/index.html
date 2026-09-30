@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-30",
       "url": "https://accessflow.io/docs/configuration/auth/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/auth/",
       "image": "https://accessflow.io/og-image.png",
@@ -270,7 +270,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Authentication & SSO.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -442,7 +442,9 @@
             Group memberships pushed over SCIM are tracked separately from memberships an admin
             added manually and from SSO-login group mapping, so the three sources never overwrite
             each other. Deleting a group at the IdP deletes it in AccessFlow — including any
-            group-based grants attached to it. Every SCIM mutation lands in the audit log
+            group-based grants attached to it. Service accounts are invisible to SCIM: the IdP never
+            sees them, so it can't change or deactivate them or add them to a group. Every SCIM
+            mutation lands in the audit log
             (<code>SCIM_USER_PROVISIONED</code>, <code>SCIM_USER_DEACTIVATED</code>,
             <code>SCIM_GROUP_SYNCED</code>, …) with the token identity in the metadata.
           </p>

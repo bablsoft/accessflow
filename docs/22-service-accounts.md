@@ -68,6 +68,28 @@ build on any other caller.
 | Can review / approve | per role | per role, but never with an on-behalf-of header ([§7](#7-on-behalf-of-attribution)) |
 | Can be a review delegate | yes | no: `DefaultReviewDelegationService` refuses a non-`HUMAN` delegate (`core/internal/DefaultReviewDelegationService.java:178`) |
 | Listed on `/admin/users` | yes | badged *Service account*, and its row opens `/admin/service-accounts/{id}` |
+| Visible to SCIM (`/scim/v2`) | yes | **no**: see below |
+| In-app notification inbox | yes | **no** rows are written; channel delivery (email, Slack, webhooks) is unchanged |
+
+**SCIM never sees a service account.** An IdP push that could see agents would overwrite or
+deactivate them. Deactivating one disables all of its API keys at once, so every pipeline and agent
+using it stops, and it also revokes its JIT grants. So `core.api.ExternalUserDirectoryService`, the
+one entry point the `scim` module uses, returns only `HUMAN` rows:
+
+- `GET /scim/v2/Users` and its filters omit service accounts, and `totalResults` counts humans only.
+- `GET`, `PUT`, `PATCH` and `DELETE` on a service account's id return `404`, and nothing changes.
+- A SCIM group write never attaches a service account. `members` entries naming one are skipped,
+  both in the orchestrator and in `DefaultUserGroupService` for `source=SCIM`. A `source=SCIM`
+  membership an agent picked up before #867 is released on the next member replace. An admin's
+  `MANUAL` membership survives, but the IdP's view of the group omits it.
+- A SCIM create whose email belongs to a service account still gets `409 uniqueness`, because
+  emails are globally unique. The service account is left untouched.
+
+**No inbox for agents.** Every in-app writer (the notification dispatcher and the access-request
+listener alike) goes through `UserNotificationService.recordForUsers`. That method drops
+`SERVICE_ACCOUNT` recipients, so an agent never gets an inbox row or the WebSocket push that follows
+one. Nobody reads an agent's inbox. Channel notifications still reach an agent that is an eligible
+reviewer.
 
 The sign-in block is enforced in several places:
 - `LocalAuthenticationService` checks it **before** the password

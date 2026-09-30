@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "f6fdef0c978f",
-  "generatedAt": "2026-09-30T09:14:23.296Z",
-  "sourceCommit": "bd47f48cd047716f9451c822e9f2c573f25b5883",
+  "corpusVersion": "2ae63a855e5d",
+  "generatedAt": "2026-09-30T10:07:06.035Z",
+  "sourceCommit": "acc4ccbba011888951ef8e600a115adcbb5755d0",
   "chunkCount": 604,
-  "sha256": "f6fdef0c978f0016e4246722480c695b7d2b5b260c4209c3e5c83314d2a709e3",
+  "sha256": "2ae63a855e5df1e85c0518a4e1c5cd13a0d639dab40b8f1931bd37985655dc8c",
   "quickReferenceSha256": "af9167770251a221bdce1414872ea3a194fdc57a6d8212f8945849cbfff50661",
   "sources": [
     {
@@ -189,7 +189,7 @@
       "url": "https://accessflow.io/docs/configuration/auth/",
       "section": "Reference",
       "chunks": 6,
-      "sha256": "6f4e148725c408dcae1370712516b2df06158ddba4faa5bf52cbc01e1ddc0ea3"
+      "sha256": "1276e20e5d3b65e1b761024131e001cb46a4b2f6d902b2436430cf0894e137b9"
     },
     {
       "path": "website/docs/configuration/connectors/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 15,
-      "sha256": "059150e6aeaf962e7b268433fb423a438387ff77aaf48ba9c8060853f5bf208a"
+      "sha256": "c187c52b1881f11dfc28a58d9a11dfa81819f39ed5a3d4bec0461c9c029ab589"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",

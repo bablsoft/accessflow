@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.PrincipalType;
+import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.api.UserNotificationNotFoundException;
 import com.bablsoft.accessflow.notifications.api.UserNotificationView;
@@ -17,6 +20,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Persists per-user in-app notifications and exposes the read/write operations the bell-icon
@@ -29,19 +33,23 @@ public class UserNotificationService {
 
     private final UserNotificationRepository repository;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserQueryService userQueryService;
     private final Clock clock;
 
     @Autowired
     UserNotificationService(UserNotificationRepository repository,
-                            ApplicationEventPublisher eventPublisher) {
-        this(repository, eventPublisher, Clock.systemUTC());
+                            ApplicationEventPublisher eventPublisher,
+                            UserQueryService userQueryService) {
+        this(repository, eventPublisher, userQueryService, Clock.systemUTC());
     }
 
     UserNotificationService(UserNotificationRepository repository,
                             ApplicationEventPublisher eventPublisher,
+                            UserQueryService userQueryService,
                             Clock clock) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
+        this.userQueryService = userQueryService;
         this.clock = clock;
     }
 
@@ -70,7 +78,16 @@ public class UserNotificationService {
         if (recipientUserIds == null || recipientUserIds.isEmpty()) {
             return;
         }
+        // No inbox for agents (#867) — nobody reads it. Every in-app writer funnels through here;
+        // channel delivery is unaffected.
+        var serviceAccounts = userQueryService.findByIds(recipientUserIds).stream()
+                .filter(u -> u.principalType() == PrincipalType.SERVICE_ACCOUNT)
+                .map(UserView::id)
+                .collect(Collectors.toSet());
         for (UUID userId : recipientUserIds) {
+            if (serviceAccounts.contains(userId)) {
+                continue;
+            }
             var entity = new UserNotificationEntity();
             entity.setId(UUID.randomUUID());
             entity.setUserId(userId);

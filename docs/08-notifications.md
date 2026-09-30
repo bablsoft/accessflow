@@ -520,7 +520,10 @@ In addition to fanning the same domain events out to admin-configured email/Slac
 channels, the dispatcher persists one row per recipient in the [`user_notifications`](03-data-model.md#user_notifications)
 table so the bell-icon UI in the topbar can render history, unread counts, and act on
 individual entries. This persistence pipeline is independent of channel configuration —
-users still receive in-app notifications when no external channel is set up.
+users still receive in-app notifications when no external channel is set up. Service accounts
+(`principal_type = SERVICE_ACCOUNT`, epic #867) never get an inbox row, and so never get the
+WebSocket push that follows one. `UserNotificationService.recordForUsers`, which every in-app
+writer goes through, drops them. Their channel delivery is unaffected.
 
 **Recipients** are resolved per event type and mirror the channel-routing logic already
 in `NotificationContextBuilder`:

@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.scim.internal;
 
 import com.bablsoft.accessflow.core.api.CreateUserGroupCommand;
+import com.bablsoft.accessflow.core.api.ExternalUserDirectoryService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UpdateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
@@ -49,6 +51,7 @@ public class ScimGroupOrchestrator {
             "^members\\[value\\s+eq\\s+\"((?:[^\"\\\\]|\\\\.)*)\"\\]$", Pattern.CASE_INSENSITIVE);
 
     private final UserGroupService userGroupService;
+    private final ExternalUserDirectoryService directory;
 
     public ScimListResponse<ScimGroupResource> list(ScimPrincipal principal, String filterExpression,
                                              int startIndex, int count, String baseUrl) {
@@ -237,11 +240,17 @@ public class ScimGroupOrchestrator {
             return;
         }
         for (var memberId : memberIds) {
+            // Resolve first: a throw inside addMember would mark this transaction rollback-only.
+            // The directory hides service accounts (#867), so the IdP can never attach one.
+            if (directory.findById(principal.organizationId(), memberId).isEmpty()) {
+                continue;
+            }
             try {
                 userGroupService.addMember(groupId, memberId, principal.organizationId(),
                         UserGroupMembershipSourceType.SCIM);
             } catch (UserNotFoundException ex) {
-                // Unknown member ids are skipped — the IdP may race a user delete.
+                // Only a user deleted since the lookup lands here, and by then this transaction is
+                // already rollback-only — the catch keeps the loop going, not the commit.
             }
         }
     }
@@ -294,7 +303,9 @@ public class ScimGroupOrchestrator {
                                          String baseUrl, boolean omitMembers) {
         List<ScimMemberRef> members = null;
         if (!omitMembers) {
+            // Service accounts are invisible to the IdP (#867) — never leak one's id here.
             members = userGroupService.listMembers(group.id(), principal.organizationId()).stream()
+                    .filter(m -> m.principalType() == PrincipalType.HUMAN)
                     .map(m -> new ScimMemberRef(m.userId().toString(), m.userEmail()))
                     .toList();
         }

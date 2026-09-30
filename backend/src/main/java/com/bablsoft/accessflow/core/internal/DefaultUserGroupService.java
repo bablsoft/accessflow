@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UpdateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
@@ -159,7 +160,8 @@ class DefaultUserGroupService implements UserGroupService {
         var group = loadInOrganization(groupId, organizationId);
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
-        if (!user.getOrganization().getId().equals(organizationId)) {
+        if (!user.getOrganization().getId().equals(organizationId)
+                || isScimAttachingServiceAccount(source, user)) {
             throw new UserNotFoundException(userId);
         }
         if (membershipRepository.existsByUser_IdAndGroup_Id(userId, groupId)) {
@@ -207,7 +209,7 @@ class DefaultUserGroupService implements UserGroupService {
                                             UserGroupMembershipSourceType source) {
         var group = loadInOrganization(groupId, organizationId);
         var entitySource = toEntitySource(source);
-        var desired = userIds == null ? Set.<UUID>of() : new LinkedHashSet<>(userIds);
+        var desired = userIds == null ? new LinkedHashSet<UUID>() : new LinkedHashSet<>(userIds);
         var existing = membershipRepository.findAllByGroup_Id(groupId);
         var existingBySource = existing.stream()
                 .filter(m -> m.getSource() == entitySource)
@@ -217,6 +219,9 @@ class DefaultUserGroupService implements UserGroupService {
                 .map(m -> m.getUser().getId())
                 .collect(Collectors.toSet());
 
+        // A SCIM row an agent picked up before #867 is released on the next sync, never kept.
+        desired.removeIf(id -> existingBySource.containsKey(id)
+                && isScimAttachingServiceAccount(source, existingBySource.get(id).getUser()));
         for (var entry : existingBySource.entrySet()) {
             if (!desired.contains(entry.getKey())) {
                 membershipRepository.delete(entry.getValue());
@@ -235,7 +240,7 @@ class DefaultUserGroupService implements UserGroupService {
             }
             var user = userRepository.findByOrganization_IdAndId(organizationId, userId)
                     .orElse(null);
-            if (user == null) {
+            if (user == null || isScimAttachingServiceAccount(source, user)) {
                 continue;
             }
             var membership = new UserGroupMembershipEntity();
@@ -350,6 +355,13 @@ class DefaultUserGroupService implements UserGroupService {
             case IDP -> UserGroupMembershipSourceType.IDP;
             case SCIM -> UserGroupMembershipSourceType.SCIM;
         };
+    }
+
+    /** An IdP never sees a service account (#867), so a SCIM write may not attach one to a group. */
+    private static boolean isScimAttachingServiceAccount(UserGroupMembershipSourceType source,
+                                                         UserEntity user) {
+        return source == UserGroupMembershipSourceType.SCIM
+                && user.getPrincipalType() == PrincipalType.SERVICE_ACCOUNT;
     }
 
     private static UserGroupMembershipSource toEntitySource(UserGroupMembershipSourceType source) {

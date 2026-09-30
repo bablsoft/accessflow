@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DirectoryPage;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ExternalIdAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ExternalUserDirectoryService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.UpdateExternalUserCommand;
@@ -74,6 +75,7 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
     public UserView updateExternal(UUID organizationId, UUID userId,
                                    UpdateExternalUserCommand command) {
         var entity = userRepository.findByOrganization_IdAndId(organizationId, userId)
+                .filter(DefaultExternalUserDirectoryService::isHuman)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         if (command.email() != null) {
@@ -109,6 +111,7 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
     @Transactional(readOnly = true)
     public Optional<UserView> findById(UUID organizationId, UUID userId) {
         return userRepository.findByOrganization_IdAndId(organizationId, userId)
+                .filter(DefaultExternalUserDirectoryService::isHuman)
                 .map(UserViews::toView);
     }
 
@@ -116,6 +119,7 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
     @Transactional(readOnly = true)
     public Optional<UserView> findByEmail(UUID organizationId, String email) {
         return userRepository.findByOrganization_IdAndEmail(organizationId, normalizeEmail(email))
+                .filter(DefaultExternalUserDirectoryService::isHuman)
                 .map(UserViews::toView);
     }
 
@@ -123,14 +127,15 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
     @Transactional(readOnly = true)
     public Optional<UserView> findByExternalId(UUID organizationId, String scimExternalId) {
         return userRepository.findByOrganization_IdAndScimExternalId(organizationId, scimExternalId)
+                .filter(DefaultExternalUserDirectoryService::isHuman)
                 .map(UserViews::toView);
     }
 
     @Override
     @Transactional(readOnly = true)
     public DirectoryPage<UserView> list(UUID organizationId, int offset, int limit) {
-        var page = userRepository.findAllByOrganization_Id(
-                organizationId, new OffsetPageable(offset, limit, STABLE_ORDER));
+        var page = userRepository.findAllByOrganization_IdAndPrincipalType(organizationId,
+                PrincipalType.HUMAN, new OffsetPageable(offset, limit, STABLE_ORDER));
         return new DirectoryPage<>(
                 page.getContent().stream().map(UserViews::toView).toList(),
                 page.getTotalElements());
@@ -162,6 +167,14 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
         var roleRef = roleRepository.findByNameAndSystemTrue(role.name()).orElse(null);
         entity.setRoleRef(roleRef);
         entity.setRole(role);
+    }
+
+    /**
+     * Service accounts are invisible to the IdP (#867): an IdP sync that could see them would
+     * overwrite or deprovision every agent in the org.
+     */
+    private static boolean isHuman(UserEntity entity) {
+        return entity.getPrincipalType() == PrincipalType.HUMAN;
     }
 
     private static String normalizeEmail(String email) {
