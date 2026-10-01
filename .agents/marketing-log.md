@@ -11,7 +11,7 @@ Newest entries first inside each section. Dates are ISO (YYYY-MM-DD).
 | X (company) | https://x.com/AccessFlowIO | Live since 2026-09; new-account reach limit ("graduated access") until X sees organic engagement |
 | GitHub | https://github.com/bablsoft/accessflow (+ Discussions, Issues) | 6 stars / 3 forks on 2026-09-21 |
 | Website | https://accessflow.io — `website/` in this repo, static, no build | SEO meta + JSON-LD on every page; sourced comparison pages under `/compare/` |
-| Social share image | `website/og-image.png` | Re-cut at v2.6 on 2026-09-22. Re-cut whenever the version pill or engine count moves (`website/README.md` → "Regenerating og-image.png") |
+| Social share image | `website/og-image.png` | Re-cut at v2.7 on 2026-10-01. Re-cut whenever the version pill or engine count moves (`website/README.md` → "Regenerating og-image.png") |
 | Product Hunt | account: new/barely used (warm up daily) | **Launch postponed 2026-09-22, no new date.** Plan is date-independent (T-0 relative) — see [`launch-producthunt.md`](launch-producthunt.md) |
 | Founder personal account | TBD | Not yet used for AccessFlow content |
 | LinkedIn / Bluesky / Mastodon / Reddit / HN | — | Not started |
@@ -20,6 +20,7 @@ Newest entries first inside each section. Dates are ISO (YYYY-MM-DD).
 
 - **2026-09-22 — v2.6.0 release thread posted.** Eight tweets, light-theme screenshots on 2, 3 and 6; the explainer and API/deploy-trace tweets are text-only because both features are API-only (no UI to show). https://x.com/AccessFlowIO/status/2102367885322567833
 - **2026-09-22 — Demo assets re-cut in light theme** and two feature screenshots added (SQL review ruleset editor, privileged-access report) via `capture-shots.mts`. All in `~/Downloads/accessflow-ph-launch/`.
+- **2026-10-01 — `website/og-image.png` re-cut at v2.7** (was v2.6). Same layout and copy, version pill only; rebuilt from a throwaway `_og-template.html` per `website/README.md`, template deleted.
 - **2026-09-22 — `website/og-image.png` re-cut at v2.6** (was v2.4). Rebuilt from a throwaway `_og-template.html` per `website/README.md`; 1200×630, 62 KB, template deleted.
 - **2026-09-22 — Product Hunt launch postponed**, no new date. Plan rewritten date-independent.
 
