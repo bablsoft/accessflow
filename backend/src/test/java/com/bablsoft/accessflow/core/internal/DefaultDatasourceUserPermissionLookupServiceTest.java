@@ -40,7 +40,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         var permId = UUID.randomUUID();
         var userId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
-        var expiresAt = Instant.parse("2026-12-31T23:59:59Z");
+        var expiresAt = Instant.parse("2099-12-31T23:59:59Z");
 
         var entity = newPermission(permId, userId, datasourceId);
         entity.setCanRead(true);
@@ -827,7 +827,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         direct.setCanRead(true);
         direct.setAllowedTables(new String[] {"orders"});
         direct.setRestrictedColumns(new String[] {"ssn", "email"});
-        direct.setExpiresAt(Instant.parse("2026-10-01T00:00:00Z"));
+        direct.setExpiresAt(Instant.parse("2099-10-01T00:00:00Z"));
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(Optional.of(direct));
         var groupId = UUID.randomUUID();
@@ -835,7 +835,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         groupPermission.setCanWrite(true);
         groupPermission.setAllowedTables(new String[] {"payments"});
         groupPermission.setRestrictedColumns(new String[] {"ssn"});
-        groupPermission.setExpiresAt(Instant.parse("2026-11-01T00:00:00Z"));
+        groupPermission.setExpiresAt(Instant.parse("2099-11-01T00:00:00Z"));
         when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
         when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
                 .thenReturn(List.of(groupPermission));
@@ -849,7 +849,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(merged.canWrite()).isTrue();
         assertThat(merged.allowedTables()).containsExactly("orders", "payments");
         assertThat(merged.restrictedColumns()).containsExactly("ssn");
-        assertThat(merged.expiresAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+        assertThat(merged.expiresAt()).isEqualTo(Instant.parse("2099-11-01T00:00:00Z"));
     }
 
     @Test
