@@ -62,7 +62,7 @@
         "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-30",
+        "dateModified": "2026-10-01",
         "url": "https://accessflow.io/roadmap/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -241,7 +241,7 @@
         <section class="docs-section scroll-pad" id="available">
           <h2>Available now</h2>
           <p>
-            Everything in this grid is generally available today in v2.6 — self-hosted with Docker
+            Everything in this grid is generally available today in v2.7 — self-hosted with Docker
             Compose or Helm, and governed by the same review pipeline and tamper-evident audit log
             throughout. The map itself is driven by community input and adapter contributions.
           </p>
@@ -260,6 +260,7 @@
               <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
               <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
               <li>Cloud data warehouses — Snowflake, BigQuery, Databricks SQL (native auth)</li>
+              <li>Per-table row limits · bytes-scanned cost caps · per-user data-volume budgets</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -293,9 +294,12 @@
               <li>Personalized dashboard &amp; weekly digest</li>
               <li>Request chaining &amp; grouping</li>
               <li>Group-based data &amp; API access grants</li>
-              <li>Deterministic SQL review rules — fourteen named checks, per-environment severity, lint as you type</li>
+              <li>Deterministic SQL review rules — eighteen named checks, per-environment severity, lint as you type</li>
               <li>Policy simulator — replay a draft routing, masking or row-security rule against past traffic</li>
               <li>Effective-access explainer — trace why a request would be approved, routed or held, and who can write to a table</li>
+              <li>Table, column and query-shape deny-lists · configurable masking strategies</li>
+              <li>External policy decision hook — your own policy service can escalate or reject, never approve</li>
+              <li>Effective-permission explorer — everything one person can do on a datasource, and where it comes from</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -317,6 +321,8 @@
               <li>Drift reporting — how many releases and days an environment is behind, on demand</li>
               <li>Decision trace for a hypothetical deployment — "would a release at this moment be held?"</li>
               <li>Dashboard widgets for pending reviews, recent deployments and environment drift</li>
+              <li>Schema change sets — written once, promoted environment by environment, locked on first promotion</li>
+              <li>Opt-in schema drift scan — tables, columns and foreign keys compared, never written</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -334,7 +340,8 @@
             <h3 class="rm-cat">Auth &amp; audit</h3>
             <ul>
               <li>JWT · SAML · OAuth/OIDC · SCIM provisioning · TOTP · RBAC with custom roles</li>
-              <li>HMAC-chained audit log + CSV export</li>
+              <li>HMAC-chained audit log + CSV export · the SQL as it actually ran · calling application</li>
+              <li>Service accounts for CI and AI agents — API-key only, tool allow-lists, per-identity rate limits</li>
               <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
             </ul>
           </div>
@@ -347,6 +354,7 @@
               <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags, nested document fields included, stale findings retired</li>
               <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
               <li>Release update hint — a self-hosted install says when a newer stable release exists</li>
+              <li>Scheduled job monitor — every background job's cadence, last run, failures and history</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -376,29 +384,20 @@
             does, version by version since v1.0.
           </p>
           <p>
-            The two most recent shipped themes: <strong>v2.5</strong> carried deployment governance
-            past the approval gate into what is actually running where — per-environment version tags
-            and current-version state, rollbacks that restore the version an environment is really
-            on, a version matrix with on-demand drift reporting, and an in-app hint telling every
-            signed-in user when a newer stable release is available. <strong>v2.6</strong> answers
-            from what AccessFlow already knows: the query editor offers draft queries mined from the
-            organisation's own approved history, filtered to what each person may run; a catalog of
-            fourteen named SQL review rules checks every query as it is typed, at a severity set per
-            environment, where a blocking rule sends the query to a person rather than rejecting it;
-            an effective-access explainer traces why a request would be approved, routed or held —
-            for queries, API calls and deployments alike — and answers who can write to a table; a
-            policy simulator replays a draft rule against past traffic before it is saved; a
-            privileged-access report names everyone who can bypass the permission gate; and an
+            The two most recent shipped themes: <strong>v2.6</strong> answers from what AccessFlow
+            already knows: the query editor offers draft queries mined from the organisation's own
+            approved history, a catalog of named SQL review rules checks every query as it is typed,
+            an effective-access explainer traces why a request would be approved, routed or held, a
+            policy simulator replays a draft rule against past traffic before it is saved, and an
             in-app help assistant answers questions from the documentation shipped with the running
-            version, citing the sections it used and reading nothing else.
-          </p>
-          <p>
-            <strong>v2.7 is in development</strong> and is not in the grid above yet. Among the
-            things it adds: database schema changes written once and promoted environment by
-            environment — going through the same review as any other request, locked once first
-            promoted, and only reaching production after they applied cleanly in every environment
-            below it — with an opt-in scan that reports when an environment's tables and columns
-            drift away from where they should be.
+            version. <strong>v2.7</strong> gives CI pipelines and AI agents service accounts of their
+            own — API-key only, limited to chosen tools, rate-limited, and recording the person they
+            act for; lets an access grant deny tables, columns and query shapes as precisely as it
+            allows them, with per-table row limits, warehouse scan caps and per-person data budgets;
+            hands undecided queries to the organisation's own policy service, which can escalate or
+            reject but never approve; and governs database schema changes written once and promoted
+            environment by environment, reaching production only after they applied cleanly in every
+            environment below it, with an opt-in scan that reports schema drift.
           </p>
           <p>
             What shipped when, release by release, is in
@@ -513,7 +512,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
           </a>
         </span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.7 generally available</span>
       </div>
     </div>
   </footer>
