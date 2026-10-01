@@ -1,7 +1,7 @@
 # Product Marketing Context
 
-**Document version:** v1
-**Last updated:** 2026-09-21
+**Document version:** v1.1
+**Last updated:** 2026-10-01
 
 > Auto-drafted from the codebase (`README.md`, `website/llms.txt`, `website/compare/`,
 > `website/use-cases/`, `website/README.md`). Anything marked **TBD** is not derivable from the
@@ -103,7 +103,7 @@ Sourced comparison pages live at `website/compare/` — every claim about anothe
 **Channels:** Company account @AccessFlowIO on X (created Sept 2026). Founder personal account **TBD**.
 
 ## Proof Points
-**Metrics:** 18 governed engines; 3 governed surfaces (DB, API, deploy); 14 deterministic SQL rules; 12 MCP tools; releases every ~2 weeks (v2.6.0 on 2026-09-15; milestones 2.7–2.10 scheduled through 2026-11-10). No adoption numbers yet — do not invent any.
+**Metrics:** 18 governed engines; 3 governed surfaces (DB, API, deploy); 18 deterministic SQL rules; 12 MCP tools; releases every ~2 weeks (v2.7.0 on 2026-10-01; milestones 2.8–2.10 scheduled through 2026-11-10). No adoption numbers yet — do not invent any.
 **Customers:** **TBD** — none public.
 **Testimonials:** **TBD** — none yet.
 **Value themes:**
@@ -123,4 +123,5 @@ Sourced comparison pages live at `website/compare/` — every claim about anothe
 
 ## Changelog
 *Newest first. One line per revision: what changed and why.*
+- v1.1 (2026-10-01) — Proof points refreshed for v2.7: SQL rules 14 → 18, latest release v2.7.0; engine count re-checked against `connectors/` (still 18).
 - v1 (2026-09-21) — Initial context, auto-drafted from the codebase after the first X thread; customer language, proof points and business model marked TBD.
