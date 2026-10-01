@@ -62,7 +62,7 @@
         "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
         "inLanguage": "en",
         "datePublished": "2026-09-03",
-        "dateModified": "2026-09-15",
+        "dateModified": "2026-10-01",
         "url": "https://accessflow.io/changelog/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -197,6 +197,7 @@
           <summary>On this page</summary>
           <nav class="docs-toc">
             <p class="docs-toc-label">Releases</p>
+            <a href="#v2-7-0">v2.7.0</a>
             <a href="#v2-6-0">v2.6.0</a>
             <a href="#v2-5-0">v2.5.0</a>
             <a href="#v2-4-0">v2.4.0</a>
@@ -246,6 +247,25 @@
             <a href="/roadmap/" class="btn btn-ghost">What's planned next</a>
           </div>
         </header>
+
+        <section class="docs-section scroll-pad" id="v2-7-0">
+          <h2>v2.7.0 — Identities for machines, finer data-access controls, and governed schema changes</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-10-01">1 October 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.7.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Governed schema changes.</strong> Write a set of schema statements once, under a deployment pipeline, and promote it environment by environment — development, then staging, then production. An environment only ever receives a change that already applied cleanly in every environment below it. Each statement is parsed for the target database's dialect before it can be saved: data reads and writes are refused, and a blocking SQL review rule refuses the save. The statement list locks the moment it is first promoted — unlocking only if every promotion failed or was cancelled — so "applied to staging" still means the same text when production is asked. Promoting needs the right to change that database's structure for everyone, admins included, is refused inside a freeze window, and goes through the same review as any other request. There is no automatic rollback — a failure part-way leaves the environment marked partially applied, and a new change set is the remedy. An opt-in scheduled scan compares each environment's tables, columns and foreign keys with where they should be and reports drift for an admin to acknowledge; it never changes anything.</li>
+            <li><strong>Service accounts for pipelines and agents.</strong> CI jobs, Terraform runs and AI agents get identities of their own instead of borrowing a person's key. A service account can never sign in to the web app; it works only through API keys an admin issues — shown once, rotated with a grace period so running jobs keep working, revoked instantly. An account created from the admin page starts read-only (one declared in configuration should always name its role), can be limited to a list of AI-agent tools, and has its own request limits; every API key is now rate-limited per identity, and the bundled CI steps and the Terraform provider wait and retry when they hit the limit. An agent can say which person it is acting for, once that person has agreed: its permissions stay its own, the person is recorded on the request and in the audit log, and they can no longer approve that request themselves.</li>
+            <li><strong>Saying no as precisely as yes.</strong> An access grant can now deny specific schemas and tables — including ones created later — and that always wins over what it allows. It can refuse any query that touches a named column, even through <code>SELECT *</code>, rather than masking it, and refuse query shapes such as joins, subqueries or aggregates, which routing can also send to a reviewer instead. Row limits can be set per table, for everyone or for chosen people, roles or groups, and only ever tighten the limits already in place. Masking gains new strategies — keep the first characters, a constant, an empty value, regex replace, number bucketing and date generalisation — each checked on save and falling back to a full mask on a value it cannot handle. And the schema browser now shows each person only the tables they are allowed to query.</li>
+            <li><strong>Cost and volume budgets.</strong> On BigQuery, Snowflake and Databricks, where a ten-row result can scan a terabyte, a query whose estimated scan exceeds the cap you set is refused before it runs, and checked again just before execution. Per-person data budgets bound how many rows or how much data each user can read from a datasource over a rolling window: results are trimmed to what is left, and once the allowance is used up new reads are refused or sent for review. Everyone sees their remaining allowance in the editor, and heavy readers can be routed to a reviewer before they hit the limit.</li>
+            <li><strong>Your own policy service in the loop.</strong> For rules that routing conditions cannot express, AccessFlow can ask your own policy service — Open Policy Agent or an in-house API — over signed HTTPS. It may let a query through to the normal path, escalate it, require more approvals or reject it, but it can never approve one, and any failure sends the query to a person. The SQL is shared only if you opt in, and the service's address is checked so it cannot point inside your private network.</li>
+            <li><strong>What can this person do, right now?</strong> One read-only view shows everything a user can do on a datasource — capabilities, allowed and denied objects, masked columns, row filters and the row limit that applies — and names the grant, group or policy behind each. The decision traces for queries, API calls and deployments get their own pages, next to the answer to who can reach a table, and recertification evidence now records each grant's effective row limit.</li>
+            <li><strong>Clearer records of what ran.</strong> An executed query now keeps the statement as it actually ran — row filters and hidden-row rules included, with the values bound into it shown only as placeholders — with a toggle to compare it with what was submitted. Requests and audit entries can name the application that sent them, trusted when it comes from the API key and marked untrusted when the caller supplied it, and the audit log and query list filter on it.</li>
+            <li><strong>A monitor for background jobs.</strong> Platform admins get a page listing every scheduled job in the running install — how often it runs, when it last ran, how long it took, whether it failed and how many times in a row — with each job's run history a click away.</li>
+            <li><strong>Four more SQL review rules.</strong> New checks for schema changes that hurt in production, such as adding a required column with no default or building an index in a way that locks the table, each applying only to the databases where it matters and warning by default.</li>
+          </ul>
+        </section>
 
         <section class="docs-section scroll-pad" id="v2-6-0">
           <h2>v2.6.0 — Answering from what AccessFlow already knows</h2>
@@ -558,7 +578,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
           </a>
         </span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.7 generally available</span>
       </div>
     </div>
   </footer>
