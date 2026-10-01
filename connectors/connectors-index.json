@@ -1,5 +1,5 @@
 {
-  "version": "2.6.0",
+  "version": "2.7.0",
   "connectors": [
     {
       "id": "bigquery",
@@ -42,7 +42,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "54e4d56e5bbea8e076fdf0dcaea0cf413f3fd4477e5111b2f959d1541bcc524c"
+        "sha256": "9641749557e52f0bde7f89d177c155aa8628a5cfa6be4225bcc09f7530e1891a"
       }
     },
     {
@@ -53,7 +53,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "c17202ba330e3ef5245672e8cc3a22005cb8d515c69add79233b342683f248fc"
+        "sha256": "9682a2523c5d17aa2aaac8b777b5cfc20bf39950122368fe5886ae6143a319df"
       }
     },
     {
@@ -75,7 +75,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "782b653bf55d0af7ae07326cce6ecb599b79ffa566756e36eb4d175464b0e394"
+        "sha256": "e7a8e72e8561d69d94b1b44768fcc4d17cb79e980fb6c6c2a8717ea4ac1ab9e2"
       }
     },
     {
@@ -97,7 +97,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "59adf964e5a57186d095f30c8fcb84e9648978ffddad34fa2ade50973be6c156"
+        "sha256": "b2d5a65a2e95cd5deae6d2711ba8871958c223782cb86f56b0162be37ef085be"
       }
     },
     {
@@ -141,7 +141,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "782b653bf55d0af7ae07326cce6ecb599b79ffa566756e36eb4d175464b0e394"
+        "sha256": "e7a8e72e8561d69d94b1b44768fcc4d17cb79e980fb6c6c2a8717ea4ac1ab9e2"
       }
     },
     {
