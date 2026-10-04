@@ -32,7 +32,7 @@
         <!-- The backend version whose core.api SPI this plugin compiles against. -->
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <!-- Latest stable Jackson 2.x (repo1 maven-metadata.xml, verified 2026-07-21). -->
-        <jackson.version>2.22.2</jackson.version>
+        <jackson.version>2.22.3</jackson.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
