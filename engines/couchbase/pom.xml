@@ -31,7 +31,7 @@
         <!-- The backend version whose core.api SPI this plugin compiles against. -->
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <couchbase-client.version>3.12.0</couchbase-client.version>
-        <jackson.version>3.2.2</jackson.version>
+        <jackson.version>3.2.3</jackson.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
