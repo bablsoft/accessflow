@@ -76,16 +76,4 @@ class CrossJoinRuleTest {
         assertThat(derived).hasSize(1);
         assertThat(derived.get(0).args()).isEqualTo(Map.of("table", "sub"));
     }
-
-    @Test
-    void columnPairsHandleNullNonComparisonsAndNesting() {
-        assertThat(CrossJoinRule.columnPairs(null)).isEmpty();
-        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("t.id = 5"))).isEmpty();
-        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("NOT t.id = u.id"))).isEmpty();
-        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("(t.id = u.id OR a = b) AND t.x = t.y")))
-                .containsExactly(new CrossJoinRule.ColumnPair("t", "u"), new CrossJoinRule.ColumnPair(null, null),
-                        new CrossJoinRule.ColumnPair("t", "t"));
-        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("year = u.year AND t.x = day")))
-                .containsExactly(new CrossJoinRule.ColumnPair(null, "u"), new CrossJoinRule.ColumnPair("t", null));
-    }
 }

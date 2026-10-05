@@ -12,7 +12,6 @@ import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRu
 import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRulesetEntity;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRuleConfigRepository;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRulesetRepository;
-import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,9 +54,8 @@ class DefaultSqlReviewRulesetServiceTest {
     void setUp() {
         var messages = new StaticMessageSource();
         messages.setUseCodeAsDefaultMessage(true);
-        var catalog = new SqlRuleCatalog();
         service = new DefaultSqlReviewRulesetService(rulesetRepository, ruleConfigRepository,
-                new SqlRuleParamsValidator(catalog, messages), new SqlRuleParamsCodec(new ObjectMapper(), messages));
+                new SqlRuleParamsValidator(SqlRuleSources.builtIns(), messages), new SqlRuleParamsCodec(new ObjectMapper(), messages));
         lenient().when(rulesetRepository.saveAndFlush(any(SqlReviewRulesetEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }

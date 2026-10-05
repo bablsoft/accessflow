@@ -151,13 +151,14 @@ class SqlReviewWebModelsTest {
     void ruleResponseMapsTheCatalogView() {
         var response = SqlReviewRuleResponse.from(new SqlReviewRuleView("disallowed_function",
                 SqlRuleCategory.STATEMENT_SAFETY, SqlReviewSeverity.BLOCK, "Banned function", "desc",
-                List.of(new SqlReviewRuleParamView("names", true, List.of("pg_sleep"), "[a-z_]+"))));
+                List.of(new SqlReviewRuleParamView("names", true, List.of("pg_sleep"), "[a-z_]+")), true));
 
         assertThat(response.ruleId()).isEqualTo("disallowed_function");
         assertThat(response.category()).isEqualTo(SqlRuleCategory.STATEMENT_SAFETY);
         assertThat(response.defaultSeverity()).isEqualTo(SqlReviewSeverity.BLOCK);
         assertThat(response.name()).isEqualTo("Banned function");
         assertThat(response.description()).isEqualTo("desc");
+        assertThat(response.custom()).isTrue();
         assertThat(response.params()).singleElement().satisfies(param -> {
             assertThat(param.key()).isEqualTo("names");
             assertThat(param.required()).isTrue();

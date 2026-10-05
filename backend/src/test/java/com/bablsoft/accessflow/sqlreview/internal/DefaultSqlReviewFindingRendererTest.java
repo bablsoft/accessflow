@@ -40,6 +40,23 @@ class DefaultSqlReviewFindingRendererTest {
     }
 
     @Test
+    void customRuleFindingRendersItsSnapshottedMessageInEveryLocale() {
+        var finding = new SqlReviewFinding("custom_no_dblink", SqlReviewSeverity.BLOCK, 0, null,
+                Map.of("message", "dblink is banned"));
+
+        assertThat(renderer.message(finding, Locale.ENGLISH)).isEqualTo("dblink is banned");
+        assertThat(renderer.message(finding, Locale.GERMAN)).isEqualTo("dblink is banned");
+    }
+
+    @Test
+    void customRuleFindingWithoutAMessageRendersAsItsId() {
+        assertThat(renderer.message(new SqlReviewFinding("custom_gone", SqlReviewSeverity.WARN, 0, null, Map.of()),
+                Locale.ENGLISH)).isEqualTo("custom_gone");
+        assertThat(renderer.message(new SqlReviewFinding("custom_gone", SqlReviewSeverity.WARN, 0, null,
+                Map.of("message", " ")), Locale.ENGLISH)).isEqualTo("custom_gone");
+    }
+
+    @Test
     void unknownRuleIdRendersAsItself() {
         var finding = new SqlReviewFinding("retired_rule", SqlReviewSeverity.WARN, 0, null, Map.of());
 

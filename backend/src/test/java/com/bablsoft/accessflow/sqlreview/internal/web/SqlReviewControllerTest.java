@@ -65,7 +65,7 @@ class SqlReviewControllerTest {
 
     @Test
     void theCatalogIsGatedByTheSqlReviewManagePermissionAndEvaluateIsNot() throws NoSuchMethodException {
-        var rules = SqlReviewController.class.getDeclaredMethod("rules").getAnnotation(PreAuthorize.class);
+        var rules = SqlReviewController.class.getDeclaredMethod("rules", Authentication.class).getAnnotation(PreAuthorize.class);
         var evaluate = SqlReviewController.class
                 .getDeclaredMethod("evaluate", EvaluateSqlReviewRequest.class, Authentication.class)
                 .getAnnotation(PreAuthorize.class);
@@ -79,13 +79,19 @@ class SqlReviewControllerTest {
     @Test
     void rulesMapTheLocalizedCatalogForTheRequestLocale() {
         LocaleContextHolder.setLocale(Locale.GERMAN);
-        when(catalogService.rules(Locale.GERMAN)).thenReturn(List.of(new SqlReviewRuleView("protected_table",
+        when(catalogService.rules(organizationId, Locale.GERMAN)).thenReturn(List.of(new SqlReviewRuleView("protected_table",
                 SqlRuleCategory.DATA_PROTECTION, SqlReviewSeverity.BLOCK, "Geschützte Tabelle", "Beschreibung",
-                List.of(new SqlReviewRuleParamView("globs", true, List.of(), "[a-z*.]+")))));
+                List.of(new SqlReviewRuleParamView("globs", true, List.of(), "[a-z*.]+")), false),
+                new SqlReviewRuleView("custom_no_dblink", SqlRuleCategory.STATEMENT_SAFETY, SqlReviewSeverity.WARN,
+                        "No dblink", null, List.of(), true)));
 
-        var result = controller.rules();
+        var result = controller.rules(as(UserRoleType.ADMIN));
 
-        assertThat(result).singleElement().satisfies(rule -> {
+        assertThat(result).hasSize(2);
+        assertThat(result.get(1).custom()).isTrue();
+        assertThat(result.get(1).name()).isEqualTo("No dblink");
+        assertThat(result).first().satisfies(rule -> {
+            assertThat(rule.custom()).isFalse();
             assertThat(rule.ruleId()).isEqualTo("protected_table");
             assertThat(rule.name()).isEqualTo("Geschützte Tabelle");
             assertThat(rule.defaultSeverity()).isEqualTo(SqlReviewSeverity.BLOCK);

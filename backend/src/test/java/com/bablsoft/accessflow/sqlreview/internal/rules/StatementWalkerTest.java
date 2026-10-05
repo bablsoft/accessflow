@@ -23,6 +23,8 @@ class StatementWalkerTest {
         assertThat(walker.likes()).hasSize(2);
         assertThat(walker.plainSelects()).hasSize(2);
         assertThat(walker.tables()).extracting(Table::getName).containsExactly("t", "u", "v");
+        assertThat(walker.columns()).extracting(net.sf.jsqlparser.schema.Column::getFullyQualifiedName)
+                .contains("a", "u.n", "id", "k");
     }
 
     @Test

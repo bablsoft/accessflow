@@ -76,7 +76,7 @@ public class DefaultSqlReviewRulesetService implements SqlReviewRulesetService {
 
     @Override
     public SqlReviewRulesetView create(UUID organizationId, CreateSqlReviewRulesetCommand command) {
-        paramsValidator.validate(command.rules());
+        paramsValidator.validate(organizationId, command.rules());
         requireSlotFree(organizationId, command.environment(), null);
 
         var entity = new SqlReviewRulesetEntity();
@@ -94,7 +94,7 @@ public class DefaultSqlReviewRulesetService implements SqlReviewRulesetService {
     @Override
     public SqlReviewRulesetView update(UUID organizationId, UUID rulesetId, UpdateSqlReviewRulesetCommand command) {
         var entity = load(organizationId, rulesetId);
-        paramsValidator.validate(command.rules());
+        paramsValidator.validate(organizationId, command.rules());
         var environment = effectiveEnvironment(entity, command);
         if (environment != entity.getEnvironment()) {
             requireSlotFree(organizationId, environment, entity.getId());

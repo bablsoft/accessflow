@@ -40,9 +40,13 @@ com.bablsoft.accessflow.sqlreview/
 │   ├── SqlReviewRuleCatalogService      # the localized catalog behind GET /sql-review/rules
 │   ├── SqlReviewFindingRenderer         # rule_id + args → the reader-locale message
 │   ├── SqlReviewResult / SqlReviewFinding / SqlReviewSeverity / SqlRuleCategory
+│   ├── SqlRuleCondition                 # the custom-rule condition tree (#1009) — JDK-only sealed interface
 │   ├── SqlReviewRulesetView / SqlReviewRuleConfigView / SqlReviewRuleView / SqlReviewRuleParamView
 │   ├── Create/UpdateSqlReviewRulesetCommand
 │   └── SqlReviewRulesetNotFoundException / SqlReviewRulesetConflictException / IllegalSqlReviewRulesetException
+│       / IllegalSqlReviewCustomRuleException
+├── events/
+│   └── SqlReviewCustomRuleChangedEvent  # evicts an organization's cached custom rules (#1009)
 └── internal/
     ├── DefaultSqlReviewService          # applicability gate, ruleset resolution, parse, evaluate
     ├── DefaultSqlReviewFindingService   # persists findings wholesale per owner, answers blockingRuleIds
@@ -51,9 +55,14 @@ com.bablsoft.accessflow.sqlreview/
     ├── SqlReviewEvaluator               # pure: runs every resolved rule over every statement
     ├── SqlStatementParser               # re-parses statement slices with JSqlParser (api may not)
     ├── ResolvedRule / SqlRuleParamsCodec / SqlRuleParamsValidator / SqlReviewFindingArgsCodec
-    ├── rules/                           # SqlRule SPI, SqlRuleCatalog, the eighteen *Rule classes, shared walkers
-    ├── persistence/entity/              # SqlReviewRulesetEntity, SqlReviewRuleConfigEntity, QuerySqlReviewFindingEntity
-    ├── persistence/repo/                # the three Spring Data repositories
+    ├── SqlRuleSource                    # built-ins + the organization's enabled custom rules, cached per org (#1009)
+    ├── config/                          # SqlReviewProperties (accessflow.sqlreview.*)
+    ├── rules/                           # SqlRule SPI, SqlRuleCatalog, the eighteen *Rule classes, shared walkers,
+    │                                    #   StatementFacts (the facts a custom rule reads)
+    ├── rules/condition/                 # CustomSqlRule, SqlRuleConditionCodec/Validator/Evaluator, SafeRegex (#1009)
+    ├── persistence/entity/              # SqlReviewRulesetEntity, SqlReviewRuleConfigEntity, QuerySqlReviewFindingEntity,
+    │                                    #   SqlReviewCustomRuleEntity
+    ├── persistence/repo/                # the four Spring Data repositories
     └── web/                             # AdminSqlReviewRulesetController, SqlReviewController, SqlReviewExceptionHandler, model/
 ```
 
@@ -218,10 +227,41 @@ as `names` does), an empty list or a blank entry, or an entry outside the param'
 only). A row that slipped in by other means is degraded, not fatal: undecodable stored params keep
 their severity and run with no params, an unknown rule id is skipped, both logged.
 
-**Messages are never stored in English.** A finding is `rule_id` + `args` (`table`, `predicate`,
+**Built-in messages are never stored in English.** A built-in rule's finding is `rule_id` + `args` (`table`, `predicate`,
 `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`, `column`, `type`); the text is resolved per
 reader through `MessageSource` in the reader's locale, so the same finding reads in French to a
 French reviewer. The evaluation endpoint renders in the request locale (`Accept-Language`).
+
+### Custom rules (#1009, epic #1008)
+
+An organization can add rules of its own. A custom rule has an id `custom_<slug>`, a name, a
+message, a category, a default severity, an enabled flag and a **condition** — a tree of criteria
+over one parsed statement. Once stored it is a full member of the organization's catalog: rulesets
+configure it like a built-in, an unconfigured one runs at its own default severity, and a `BLOCK`
+finding forces review through exactly the path in §5. Other organizations never see it.
+
+| Criterion (`type`) | Fields | True when |
+|---|---|---|
+| `and` / `or` / `not` | `children` / `child` | every / any child matches; the child does not |
+| `query_type` | `any_of` | the statement kind (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `DDL`, `OTHER`) is listed |
+| `referenced_table` | `globs` | a referenced table matches a glob (full `schema.table` or bare name, as `protected_table`) |
+| `referenced_column` | `globs` | a referenced column matches a glob (as written, `o.email`, or bare, `email`) |
+| `function_called` | `names` | a listed function is called (unqualified, case-insensitive, as `disallowed_function`) |
+| `has_where` / `has_limit` / `has_order_by` | `expected` | presence of a `WHERE` (every set-operation branch) / a row limit / an `ORDER BY` equals `expected` |
+| `where_always_true` / `join_without_condition` / `like_leading_wildcard` | `expected` | the detector of `where_always_true` / `cross_join` / `leading_wildcard_like` fires — the same code |
+| `transactional` | `expected` | the statement is inside a `BEGIN … COMMIT` envelope |
+| `sql_matches` | `pattern`, `ignore_case` | the regex is found in the statement's normalised text — deparsed, so comments are gone, keywords upper-cased and whitespace collapsed |
+
+Limits: depth ≤ 5, ≤ 20 leaf criteria (`and` / `or` / `not` do not count), every list non-empty, regex ≤ 500 characters and compilable,
+message ≤ 500 characters. A regex that backtracks out of control is cut off after a step budget
+(it grows with the square of the statement length, between one and fifty million character reads)
+and the rule is skipped for that statement — it can never hang a submission. That fails open, like a
+built-in that throws, so treat `sql_matches` as a lint rather than a security boundary: a statement
+padded far enough skips it. Prefer anchored or literal patterns; a leading `.*` is redundant (the
+match is a search) and quadratic. The message
+may use `{tables}`, `{functions}` and `{statement_type}`; the rendered text (cut to 1000 characters) is stored on the finding
+and shown to every reader as written (custom messages are not translated). The admin surface that
+creates and tests custom rules lands in #1010 and the UI in #1011.
 
 ---
 
@@ -333,7 +373,7 @@ All under `/api/v1`; the full contracts are in
 | Method | Path | Who | What |
 |---|---|---|---|
 | `POST` | `/sql-review/evaluate` | any signed-in user who can see the datasource | `{datasource_id, sql}` → `{applicable, findings[]}` with localized messages. Persists nothing, writes no audit row. 404 (never 403) for an invisible datasource; 422 `INVALID_SQL` for unparseable SQL — never an empty, clean-looking list |
-| `GET` | `/sql-review/rules` | `SQL_REVIEW_MANAGE` | the catalog in catalog order, localized: `rule_id`, `category`, `default_severity`, `name`, `description`, `params[]` (`key`, `required`, `defaults`, `value_pattern`) |
+| `GET` | `/sql-review/rules` | `SQL_REVIEW_MANAGE` | the built-ins in catalog order, localized, then the organization's enabled custom rules by rule id (name and description as written, #1009): `rule_id`, `category`, `default_severity`, `name`, `description` (absent for a custom rule without one), `params[]` (`key`, `required`, `defaults`, `value_pattern`; always empty for a custom rule), `custom` |
 | `GET` / `POST` | `/admin/sql-review-rulesets` | `SQL_REVIEW_MANAGE` | list / create (`201` + `Location`) |
 | `GET` / `PUT` / `DELETE` | `/admin/sql-review-rulesets/{id}` | `SQL_REVIEW_MANAGE` | read / full replace (a `rules` list replaces the config set wholesale) / delete (`204`; findings already recorded on queries are untouched) |
 

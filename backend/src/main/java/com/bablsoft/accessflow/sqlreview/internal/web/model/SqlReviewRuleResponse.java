@@ -6,17 +6,18 @@ import com.bablsoft.accessflow.sqlreview.api.SqlRuleCategory;
 
 import java.util.List;
 
-/** One catalog rule on the wire, name and description already localized. */
+/** One catalog rule on the wire — a built-in with localized name and description, or a custom rule. */
 public record SqlReviewRuleResponse(
         String ruleId,
         SqlRuleCategory category,
         SqlReviewSeverity defaultSeverity,
         String name,
         String description,
-        List<SqlReviewRuleParamResponse> params
+        List<SqlReviewRuleParamResponse> params,
+        boolean custom
 ) {
     public static SqlReviewRuleResponse from(SqlReviewRuleView view) {
         return new SqlReviewRuleResponse(view.ruleId(), view.category(), view.defaultSeverity(), view.name(),
-                view.description(), view.params().stream().map(SqlReviewRuleParamResponse::from).toList());
+                view.description(), view.params().stream().map(SqlReviewRuleParamResponse::from).toList(), view.custom());
     }
 }

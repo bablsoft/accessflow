@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRule;
 import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleCatalog;
+import com.bablsoft.accessflow.sqlreview.internal.rules.condition.CustomSqlRule;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,9 @@ import java.util.Locale;
  * Binds a finding's {@code args} onto {@code sqlreview.rule.<rule_id>.message} in the order the
  * rule declares through {@link SqlRule#messageArgKeys()} (#863). A finding whose rule id the catalog
  * no longer knows — a persisted row that outlived a catalog change — renders as its rule id rather
- * than failing the reader.
+ * than failing the reader. A custom rule's finding (#1009) carries its already-rendered message in
+ * {@code args.message}, written in the language the admin authored it in, and is returned as is —
+ * no catalog lookup, so it renders even after the rule is edited or deleted.
  */
 @Component
 public class DefaultSqlReviewFindingRenderer implements SqlReviewFindingRenderer {
@@ -29,6 +32,10 @@ public class DefaultSqlReviewFindingRenderer implements SqlReviewFindingRenderer
 
     @Override
     public String message(SqlReviewFinding finding, Locale locale) {
+        if (CustomSqlRule.isCustomId(finding.ruleId())) {
+            var message = finding.args().get(CustomSqlRule.MESSAGE_ARG);
+            return message == null || message.isBlank() ? finding.ruleId() : message;
+        }
         var rule = catalog.byId(finding.ruleId());
         if (rule.isEmpty()) {
             return finding.ruleId();

@@ -2197,6 +2197,45 @@ not hide a banned function). `TableNames.normalize` mirrors the proxy's `normali
 heuristic; `protected_table` matches through the shared `core.api.GlobMatcher` (which #862 also made
 the single glob matcher behind routing-policy, API-governance and deployment version globs).
 
+**Custom rules and the organization-scoped source (#1009, epic #1008).** An organization may add
+its own rules (`sql_review_custom_rules`, [docs/03-data-model.md](03-data-model.md#sql_review_custom_rules)):
+a name, a message, a category, a default severity and a condition tree, `sqlreview.api.SqlRuleCondition`
+— a JDK-only sealed peer of `workflow.api.ConditionNode` (not a reuse: `workflow` already depends on
+`sqlreview.api`, so the reverse import would be a Modulith cycle) with fifteen variants: `and` /
+`or` / `not`, `query_type`, `referenced_table`, `referenced_column`, `function_called`, `has_where`,
+`has_limit`, `has_order_by`, `where_always_true`, `join_without_condition`, `like_leading_wildcard`,
+`transactional` and the regex escape hatch `sql_matches`. Every leaf is a pure function of one
+statement's AST, so a custom rule is exactly as deterministic and lint-able as a built-in.
+`sqlreview/internal/SqlRuleSource` replaces the direct `SqlRuleCatalog` reads of
+`DefaultSqlReviewService`, `DefaultSqlReviewRuleCatalogService` and `SqlRuleParamsValidator`:
+`rules(orgId)` is the built-ins in catalog order followed by the organization's enabled custom rules
+by rule id, and `byId(orgId, ruleId)` resolves a `custom_` id only within that organization. Custom
+rules are cached per organization, evicted after commit on `sqlreview.events.SqlReviewCustomRuleChangedEvent`
+and otherwise re-read after `accessflow.sqlreview.custom-rule-cache-ttl` (default `PT1M`) — the event
+is JVM-local, so the TTL bounds how long another replica keeps evaluating the previous rules. A row
+whose condition no longer decodes or validates is logged and skipped. The pieces live in
+`internal/rules/condition/`: `SqlRuleConditionCodec` (Jackson mix-in, the `RoutingConditionCodec`
+precedent), `SqlRuleConditionValidator` (depth ≤ 5, ≤ 20 leaves, non-empty lists, glob / function
+syntax as the built-in params, regex ≤ 500 chars that compiles, message ≤ 500 chars;
+`IllegalSqlReviewCustomRuleException` with `error.sql_review_rule_*` keys), `SqlRuleConditionEvaluator`
+(an exhaustive `switch` with no `default`), `SafeRegex` and `CustomSqlRule`, the `SqlRule` adapter.
+The facts a condition reads are `internal/rules/StatementFacts`, derived once per statement and
+memoised on `SqlRuleContext.facts()`; each fact reuses the helper the matching built-in uses —
+`WhereClauses` (shared with `where_always_true`), `CartesianJoins` (`cross_join`), `LeadingWildcards`
+(`leading_wildcard_like`), `RowLimits` (for `SELECT`; `UPDATE` / `DELETE` limits and ordering are read
+as `order_by_without_limit` reads them), `TableNames`, `StatementKinds` — so a custom leaf and its
+built-in counterpart cannot drift. `sql_matches` runs over the deparsed statement with whitespace
+collapsed (deparsing drops comments and upper-cases keywords). **Regex safety:** `java.util.regex`
+backtracks, so `SafeRegex` wraps the input in a `CharSequence` that throws
+`RegexBudgetExceededException` past a budget of `2·n²` character reads for an `n`-character statement,
+clamped to one–fifty million (a regex `StackOverflowError` — a
+repeated alternation recurses per iteration — is translated to the same exception); that is a `RuntimeException`, which
+`SqlReviewEvaluator` already turns into "skip this rule for this statement". A matching statement
+yields one finding whose `args.message` is the rule's message with `{tables}`, `{functions}` and
+`{statement_type}` substituted; `DefaultSqlReviewFindingRenderer` returns it verbatim for any
+`custom_` rule id, before any `MessageSource` lookup. The admin CRUD and test-against-SQL endpoint
+are #1010.
+
 **The catalog.** All eighteen are AST-only — no schema introspection, no datasource connection.
 
 | Rule id | Fires when | `args` (message order) | Default | Category |
