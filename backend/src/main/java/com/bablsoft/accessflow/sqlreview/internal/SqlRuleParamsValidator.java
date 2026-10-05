@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.sqlreview.internal;
 import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRuleConfigView;
 import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRule;
-import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleCatalog;
 import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleParam;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Validates a ruleset's rule configs at save time (#862), so a malformed glob, an empty
@@ -20,35 +20,44 @@ import java.util.Map;
  * required param may be <em>omitted</em> when the rule has built-in defaults, but a list that is
  * supplied must be non-empty and blank-free — {@code {"names": []}} is refused, not silently
  * re-defaulted. Value syntax comes from each {@link SqlRuleParam}, so the validator knows no rule
- * by name. Mirrors {@code workflow.internal.routing.RoutingConditionValidator}: the message is
+ * by name. Rule ids resolve through the organization's {@link SqlRuleSource}, so an enabled custom
+ * rule (#1009) is configurable like a built-in and, declaring no params, accepts none; a disabled
+ * custom rule stays configurable, so a ruleset that names one can still be re-saved as is. Mirrors {@code workflow.internal.routing.RoutingConditionValidator}: the message is
  * resolved in the caller's locale at the throw site. Wired into ruleset create / update by
  * {@code DefaultSqlReviewRulesetService} (#863).
  */
 @Component
 public class SqlRuleParamsValidator {
 
-    private final SqlRuleCatalog catalog;
+    private final SqlRuleSource ruleSource;
     private final MessageSource messageSource;
 
-    public SqlRuleParamsValidator(SqlRuleCatalog catalog, MessageSource messageSource) {
-        this.catalog = catalog;
+    public SqlRuleParamsValidator(SqlRuleSource ruleSource, MessageSource messageSource) {
+        this.ruleSource = ruleSource;
         this.messageSource = messageSource;
     }
 
-    public void validate(List<SqlReviewRuleConfigView> rules) {
+    public void validate(UUID organizationId, List<SqlReviewRuleConfigView> rules) {
         if (rules == null) {
             return;
         }
         var seen = new HashSet<String>();
         for (SqlReviewRuleConfigView config : rules) {
-            var rule = catalog.byId(config.ruleId())
-                    .orElseThrow(() -> fail("error.sql_review_rule_unknown", config.ruleId()));
+            var rule = ruleSource.byId(organizationId, config.ruleId());
+            if (rule.isEmpty() && !ruleSource.customRuleExists(organizationId, config.ruleId())) {
+                throw fail("error.sql_review_rule_unknown", config.ruleId());
+            }
             // (ruleset_id, rule_id) is unique in the schema; catch the duplicate here so it is a
             // 422 naming the rule rather than a constraint violation.
-            if (!seen.add(rule.ruleId())) {
-                throw fail("error.sql_review_rule_duplicate", rule.ruleId());
+            if (!seen.add(config.ruleId())) {
+                throw fail("error.sql_review_rule_duplicate", config.ruleId());
             }
-            validateParams(rule, config.params());
+            if (rule.isPresent()) {
+                validateParams(rule.get(), config.params());
+            } else if (!config.params().isEmpty()) {
+                // A disabled custom rule, like every custom rule, declares no params.
+                throw fail("error.sql_review_rule_params_unexpected", config.ruleId());
+            }
         }
     }
 

@@ -48,11 +48,14 @@ class SqlReviewController {
 
     @GetMapping("/rules")
     @PreAuthorize("hasAuthority('PERM_SQL_REVIEW_MANAGE')")
-    @Operation(summary = "The built-in SQL review rule catalog, localized in the request locale")
+    @Operation(summary = "The SQL review rule catalog of the caller's organization",
+            description = "Built-in rules, localized in the request locale, followed by the organization's "
+                    + "enabled custom rules (custom=true) with the name and description their author wrote.")
     @ApiResponse(responseCode = "200", description = "Rules in catalog order")
     @ApiResponse(responseCode = "403", description = "Caller lacks SQL_REVIEW_MANAGE")
-    List<SqlReviewRuleResponse> rules() {
-        return catalogService.rules(LocaleContextHolder.getLocale()).stream()
+    List<SqlReviewRuleResponse> rules(Authentication authentication) {
+        var caller = (JwtClaims) authentication.getPrincipal();
+        return catalogService.rules(caller.organizationId(), LocaleContextHolder.getLocale()).stream()
                 .map(SqlReviewRuleResponse::from)
                 .toList();
     }

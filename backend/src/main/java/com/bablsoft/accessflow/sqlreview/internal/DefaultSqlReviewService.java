@@ -13,7 +13,6 @@ import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRu
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRuleConfigRepository;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRulesetRepository;
 import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRule;
-import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleCatalog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +40,8 @@ import java.util.UUID;
  * organization-wide default ({@code environment IS NULL}) → else no rules. The bound ruleset is
  * picked whether or not it is enabled; a disabled one resolves to <em>no rules</em> and does not
  * fall through to the default, so disabling the production ruleset never silently re-enables the
- * default on production. Every catalog rule is evaluated: at its config row's severity and params
+ * default on production. Every rule of the organization's {@link SqlRuleSource} — the built-ins
+ * plus its enabled custom rules (#1009) — is evaluated: at its config row's severity and params
  * when the ruleset has one, at its built-in default severity otherwise. {@code OFF} rules are
  * skipped by the evaluator. Nothing here throws for a rule or ruleset defect: unknown rule ids and
  * undecodable params are logged and degraded, so a data problem never makes a query harder to
@@ -65,7 +66,7 @@ public class DefaultSqlReviewService implements SqlReviewService {
     private final SqlParserService sqlParserService;
     private final SqlReviewRulesetRepository rulesetRepository;
     private final SqlReviewRuleConfigRepository ruleConfigRepository;
-    private final SqlRuleCatalog catalog;
+    private final SqlRuleSource ruleSource;
     private final SqlRuleParamsCodec paramsCodec;
     private final SqlReviewEvaluator evaluator;
 
@@ -73,13 +74,13 @@ public class DefaultSqlReviewService implements SqlReviewService {
                                    SqlParserService sqlParserService,
                                    SqlReviewRulesetRepository rulesetRepository,
                                    SqlReviewRuleConfigRepository ruleConfigRepository,
-                                   SqlRuleCatalog catalog,
+                                   SqlRuleSource ruleSource,
                                    SqlRuleParamsCodec paramsCodec) {
         this.datasourceAdminService = datasourceAdminService;
         this.sqlParserService = sqlParserService;
         this.rulesetRepository = rulesetRepository;
         this.ruleConfigRepository = ruleConfigRepository;
-        this.catalog = catalog;
+        this.ruleSource = ruleSource;
         this.paramsCodec = paramsCodec;
         this.evaluator = new SqlReviewEvaluator();
     }
@@ -125,17 +126,22 @@ public class DefaultSqlReviewService implements SqlReviewService {
     }
 
     private List<ResolvedRule> resolveRules(SqlReviewRulesetEntity ruleset) {
+        var rules = ruleSource.rules(ruleset.getOrganizationId());
+        var known = new HashSet<String>();
+        rules.forEach(rule -> known.add(rule.ruleId()));
         var configured = new HashMap<String, SqlReviewRuleConfigEntity>();
         for (SqlReviewRuleConfigEntity config : ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(ruleset.getId())) {
-            if (catalog.byId(config.getRuleId()).isEmpty()) {
+            // A disabled or deleted custom rule is simply absent from the source, so its leftover
+            // config row lands here too.
+            if (!known.contains(config.getRuleId())) {
                 log.warn("SQL review ruleset {} configures unknown rule {}; ignoring it",
                         ruleset.getId(), config.getRuleId());
                 continue;
             }
             configured.put(config.getRuleId(), config);
         }
-        var resolved = new ArrayList<ResolvedRule>(catalog.rules().size());
-        for (SqlRule rule : catalog.rules()) {
+        var resolved = new ArrayList<ResolvedRule>(rules.size());
+        for (SqlRule rule : rules) {
             var config = configured.get(rule.ruleId());
             resolved.add(config == null
                     ? ResolvedRule.defaults(rule)

@@ -30,4 +30,13 @@ class SqlReviewApiExceptionsTest {
         assertThat(ex.environment()).isNull();
         assertThat(ex.getMessage()).contains("default");
     }
+
+    @Test
+    void illegalCustomRuleCarriesMessageAndCause() {
+        var cause = new IllegalStateException("x");
+        assertThat(new IllegalSqlReviewCustomRuleException("bad").getMessage()).isEqualTo("bad");
+        var wrapped = new IllegalSqlReviewCustomRuleException("bad", cause);
+        assertThat(wrapped.getMessage()).isEqualTo("bad");
+        assertThat(wrapped.getCause()).isSameAs(cause);
+    }
 }

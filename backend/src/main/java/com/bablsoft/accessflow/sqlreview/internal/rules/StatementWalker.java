@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.sqlreview.internal.rules;
 
 import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.PlainSelect;
@@ -31,6 +32,7 @@ final class StatementWalker extends TablesNamesFinder<Void> {
     private final List<LikeExpression> likes = new ArrayList<>();
     private final List<PlainSelect> plainSelects = new ArrayList<>();
     private final List<Table> tables = new ArrayList<>();
+    private final List<Column> columns = new ArrayList<>();
 
     private StatementWalker() {
     }
@@ -64,6 +66,17 @@ final class StatementWalker extends TablesNamesFinder<Void> {
     /** Every table reference in a FROM / JOIN / target position, in traversal order. */
     List<Table> tables() {
         return Collections.unmodifiableList(tables);
+    }
+
+    /** Every column reference — select list, predicates, assignments, ORDER BY — in traversal order (#1009). */
+    List<Column> columns() {
+        return Collections.unmodifiableList(columns);
+    }
+
+    @Override
+    public <S> Void visit(Column column, S context) {
+        columns.add(column);
+        return super.visit(column, context);
     }
 
     @Override

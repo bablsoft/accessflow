@@ -3,8 +3,6 @@ package com.bablsoft.accessflow.sqlreview.internal.rules;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.sqlreview.api.SqlRuleCategory;
-import net.sf.jsqlparser.expression.StringValue;
-import net.sf.jsqlparser.expression.operators.relational.LikeExpression;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +10,8 @@ import java.util.Map;
 
 /**
  * {@code LIKE '%…'} (also {@code ILIKE}, negated or not) — a leading wildcard is non-sargable and
- * forces a full scan of the column. Found anywhere in the statement, subqueries included.
+ * forces a full scan of the column. Found anywhere in the statement, subqueries included; detection
+ * lives in {@link LeadingWildcards}.
  */
 public final class LeadingWildcardLikeRule implements SqlRule {
 
@@ -41,11 +40,8 @@ public final class LeadingWildcardLikeRule implements SqlRule {
     @Override
     public List<SqlReviewFinding> apply(SqlRuleContext context, Map<String, List<String>> params) {
         var findings = new ArrayList<SqlReviewFinding>();
-        for (LikeExpression like : StatementWalker.walk(context.statement()).likes()) {
-            if (Tautologies.unwrap(like.getRightExpression()) instanceof StringValue pattern
-                    && pattern.getValue() != null && pattern.getValue().startsWith("%")) {
-                findings.add(context.finding(this, like, Map.of("pattern", pattern.getValue())));
-            }
+        for (LeadingWildcards.Match match : LeadingWildcards.find(StatementWalker.walk(context.statement()))) {
+            findings.add(context.finding(this, match.like(), Map.of("pattern", match.pattern())));
         }
         return findings;
     }

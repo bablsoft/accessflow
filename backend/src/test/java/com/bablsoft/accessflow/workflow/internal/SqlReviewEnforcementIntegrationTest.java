@@ -31,6 +31,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import com.bablsoft.accessflow.sqlreview.events.SqlReviewCustomRuleChangedEvent;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationService;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
@@ -155,6 +156,32 @@ class SqlReviewEnforcementIntegrationTest {
         assertThat(findings).anyMatch(f -> f.ruleId().equals("select_star") && f.isBlocking());
         awaitStatus(result.id(), QueryStatus.PENDING_REVIEW);
         assertThat(blockedAuditRows(result.id())).isEqualTo(1);
+    }
+
+    @Test
+    void aCustomBlockRuleRecordsItsFindingAndForcesReviewLikeABuiltIn() {
+        // #1009: a stored custom rule runs at its own default severity with no config row.
+        seedRuleset("select_star", SqlReviewSeverity.OFF);
+        var ruleId = "custom_orders_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        jdbcTemplate.update("INSERT INTO sql_review_custom_rules (id, organization_id, rule_id, name, message, "
+                + "category, default_severity, condition) VALUES (?, ?, ?, ?, ?, 'DATA_PROTECTION'::sql_rule_category, "
+                + "'BLOCK'::sql_review_severity, ?::jsonb)", UUID.randomUUID(), organization.getId(), ruleId,
+                "Orders reads", "{statement_type} on {tables}",
+                "{\"type\": \"referenced_table\", \"globs\": [\"orders\"]}");
+        publish(new SqlReviewCustomRuleChangedEvent(organization.getId()));
+        var datasource = persistDatasource(persistPlan(false, false), false, DbType.POSTGRESQL);
+
+        assertThat(sqlReviewService.evaluate(organization.getId(), datasource.getId(), NARROW_SELECT).findings())
+                .anyMatch(f -> f.ruleId().equals(ruleId) && f.isBlocking());
+
+        var result = submit(datasource, NARROW_SELECT);
+
+        assertThat(sqlReviewFindingService.findByQueryRequest(result.id()))
+                .anyMatch(f -> f.ruleId().equals(ruleId) && f.isBlocking()
+                        && "SELECT on orders".equals(f.args().get("message")));
+        awaitStatus(result.id(), QueryStatus.PENDING_REVIEW);
+        assertThat(blockedAuditRows(result.id())).isEqualTo(1);
+        assertThat(blockedAuditMetadata(result.id())).contains(ruleId);
     }
 
     @Test

@@ -27,14 +27,14 @@ class SqlReviewRuleViewsTest {
     @Test
     void ruleViewDefaultsNullParamsToEmptyAndRequiresIdentity() {
         var view = new SqlReviewRuleView("select_star", SqlRuleCategory.PERFORMANCE, SqlReviewSeverity.WARN,
-                "SELECT *", "desc", null);
+                "SELECT *", "desc", null, false);
 
         assertThat(view.params()).isEmpty();
         assertThatThrownBy(() -> new SqlReviewRuleView(null, SqlRuleCategory.PERFORMANCE,
-                SqlReviewSeverity.WARN, "n", "d", List.of())).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new SqlReviewRuleView("id", null, SqlReviewSeverity.WARN, "n", "d", List.of()))
+                SqlReviewSeverity.WARN, "n", "d", List.of(), false)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new SqlReviewRuleView("id", null, SqlReviewSeverity.WARN, "n", "d", List.of(), false))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new SqlReviewRuleView("id", SqlRuleCategory.PERFORMANCE, null, "n", "d",
-                List.of())).isInstanceOf(NullPointerException.class);
+                List.of(), false)).isInstanceOf(NullPointerException.class);
     }
 }

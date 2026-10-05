@@ -3191,6 +3191,41 @@ ever written through any other path.
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
 
 > **Constraint:** `UNIQUE (ruleset_id, rule_id)`. Index on `ruleset_id`.
+>
+> A row may also name an organization's custom rule (`custom_<slug>`, #1009) — there is no FK, the
+> column is shared with built-in ids. A row naming a custom rule that is disabled or deleted is
+> ignored at evaluation time like any unknown id. A **disabled** custom rule stays configurable —
+> `SqlRuleParamsValidator` accepts its id (with no params), so a ruleset naming it can be re-saved as
+> is; deleting a rule deletes its config rows (#1010).
+
+### sql_review_custom_rules
+
+An organization-defined SQL review rule (#1009, migration `V201`, epic #1008): a condition tree
+over facts derived from one parsed statement, evaluated by `sqlreview/internal/rules/condition/CustomSqlRule`
+exactly like a built-in — it is configured per ruleset through `sql_review_rule_configs`, runs at
+`default_severity` when unconfigured, and a `BLOCK` finding suppresses auto-approval through the
+unchanged #864 path. Read by `sqlreview/internal/SqlRuleSource`, which merges an organization's
+enabled rows after the built-in catalog and caches them per organization. PG enum
+`sql_rule_category` — `STATEMENT_SAFETY` | `PERFORMANCE` | `SCHEMA_CHANGE` | `DATA_PROTECTION`
+(mirrors `sqlreview.api.SqlRuleCategory`).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL, FK → `organizations` ON DELETE CASCADE |
+| `rule_id` | VARCHAR(100) NOT NULL — `custom_<slug>`; `chk_sql_review_custom_rules_rule_id` enforces `^custom_[a-z][a-z0-9_]{2,60}$`, so a custom id can never collide with a built-in and is recognisable without a lookup |
+| `name` | VARCHAR(255) NOT NULL — shown as written, never localized |
+| `description` | TEXT NULL |
+| `message` | VARCHAR(500) NOT NULL — the finding text; `{tables}`, `{functions}` and `{statement_type}` are substituted at evaluation and the result — cut to 1000 characters with `…` — is **snapshotted** into the finding's `args.message`, so history keeps rendering after the rule is edited or deleted |
+| `category` | `sql_rule_category` NOT NULL — descriptive only |
+| `default_severity` | `sql_review_severity` NOT NULL |
+| `condition` | JSONB NOT NULL — the `sqlreview.api.SqlRuleCondition` tree, `type`-discriminated, written and read only through `SqlRuleConditionCodec`: `and` / `or` (`children`), `not` (`child`), `query_type` (`any_of`), `referenced_table` / `referenced_column` (`globs`), `function_called` (`names`), `has_where` / `has_limit` / `has_order_by` / `where_always_true` / `join_without_condition` / `like_leading_wildcard` / `transactional` (`expected`), `sql_matches` (`pattern`, `ignore_case`). A row whose condition no longer decodes or validates is logged and skipped, never evaluated |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true — a disabled rule is absent from evaluation and the catalog |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> **Constraint:** `uq_sql_review_custom_rules_org_rule` — `UNIQUE (organization_id, rule_id)`.
+> The admin CRUD surface that writes these rows is #1010; until then nothing but tests writes them.
 
 ### query_sql_review_findings
 
@@ -3212,7 +3247,7 @@ engine or a clean evaluation leaves no rows behind.
 | `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
 | `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
 | `line_number` | INTEGER NULL — one-based line of the offending construct; NULL for every member of a `BEGIN…COMMIT` envelope (`SqlStatementParser` re-parses deparsed slices there) and for constructs JSqlParser gives no position for |
-| `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message` |
+| `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message`. A custom rule's finding (#1009) carries the one key `message` — its already-rendered text, returned verbatim to every reader |
 | `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 
 > Indexes `idx_query_sql_review_findings_request` on `query_request_id` and

@@ -78,7 +78,8 @@ public final class DisallowedFunctionRule implements SqlRule {
         return names;
     }
 
-    private static String bareName(Function function) {
+    /** The unqualified, normalised name of a call — {@code pg_catalog.PG_SLEEP(1)} → {@code pg_sleep}. */
+    static String bareName(Function function) {
         var parts = function.getMultipartName();
         var raw = parts == null || parts.isEmpty() ? function.getName() : parts.get(parts.size() - 1);
         return TableNames.normalize(raw == null ? "" : raw);

@@ -1765,7 +1765,7 @@ Synchronous.
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
 | `POST` | `/queries/dry-run` | Return a non-committing execution plan + estimated row impact for the SQL without executing or mutating data (AF-445); no review created. Engines without a plan concept degrade gracefully |
 | `POST` | `/sql-review/evaluate` | Evaluate SQL against the datasource's deterministic SQL review ruleset — read-only editor lint, nothing persisted or audited (#863) |
-| `GET` | `/sql-review/rules` | The localized built-in SQL review rule catalog (#863) *(`SQL_REVIEW_MANAGE`)* |
+| `GET` | `/sql-review/rules` | The organization's SQL review rule catalog — localized built-ins, then its enabled custom rules (#863, #1009) *(`SQL_REVIEW_MANAGE`)* |
 | `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft query in the datasource engine's native language (text-to-query; SQL, MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
 | `GET` | `/queries/{id}/comments` | List the inline collaboration comment threads on a query (AF-441) |
 | `POST` | `/queries/{id}/comments` | Open a new comment thread anchored to a line range of the query's SQL |
@@ -2477,7 +2477,7 @@ Deterministic SQL review (epic #860): evaluates the SQL against the ruleset reso
 
 ### GET /sql-review/rules — Response 200 (#863)
 
-The built-in rule catalog in catalog order, localized in the request locale. Requires `SQL_REVIEW_MANAGE`; the admin ruleset editor renders its severity table from it. `default_severity` is the severity a rule runs at when the resolved ruleset has no config row for it.
+The caller's organization's rule catalog: the built-in rules in catalog order, localized in the request locale, followed by the organization's enabled custom rules (#1009) in rule-id order. Requires `SQL_REVIEW_MANAGE`; the admin ruleset editor renders its severity table from it. `default_severity` is the severity a rule runs at when the resolved ruleset has no config row for it. `custom` is `true` for an organization-defined rule (`rule_id` = `custom_<slug>`), whose `name` and `description` are returned as their author wrote them — not localized — and whose `params` is always empty. A custom rule with no description omits the `description` key (null fields are not serialized).
 
 ```json
 [
@@ -2487,7 +2487,8 @@ The built-in rule catalog in catalog order, localized in the request locale. Req
     "default_severity": "WARN",
     "name": "SELECT *",
     "description": "The select list is a bare * with no explicit column list; every column is fetched, including ones added later.",
-    "params": []
+    "params": [],
+    "custom": false
   },
   {
     "rule_id": "protected_table",
@@ -2497,7 +2498,17 @@ The built-in rule catalog in catalog order, localized in the request locale. Req
     "description": "The statement touches a table matching one of the organisation's protected-table patterns.",
     "params": [
       { "key": "globs", "required": true, "defaults": [], "value_pattern": "[A-Za-z0-9_$*.-]+" }
-    ]
+    ],
+    "custom": false
+  },
+  {
+    "rule_id": "custom_no_dblink",
+    "category": "STATEMENT_SAFETY",
+    "default_severity": "BLOCK",
+    "name": "No dblink",
+    "description": "Cross-database calls bypass review on the remote side.",
+    "params": [],
+    "custom": true
   }
 ]
 ```

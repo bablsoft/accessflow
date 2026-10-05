@@ -16,7 +16,6 @@ import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRu
 import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRulesetEntity;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRuleConfigRepository;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRulesetRepository;
-import com.bablsoft.accessflow.sqlreview.internal.rules.SqlRuleCatalog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,7 +61,7 @@ class DefaultSqlReviewServiceTest {
         var messages = new StaticMessageSource();
         messages.addMessage("error.sql_review_rule_params_invalid", java.util.Locale.getDefault(), "malformed");
         service = new DefaultSqlReviewService(datasourceAdminService, sqlParserService, rulesetRepository,
-                ruleConfigRepository, new SqlRuleCatalog(), new SqlRuleParamsCodec(new ObjectMapper(), messages));
+                ruleConfigRepository, SqlRuleSources.builtIns(), new SqlRuleParamsCodec(new ObjectMapper(), messages));
     }
 
     private static DatasourceView datasource(DbType dbType, DatasourceEnvironment environment) {
@@ -212,6 +211,34 @@ class DefaultSqlReviewServiceTest {
         assertThat(result.findings()).extracting(SqlReviewFinding::ruleId, SqlReviewFinding::severity)
                 .containsExactly(org.assertj.core.groups.Tuple.tuple("protected_table", SqlReviewSeverity.BLOCK));
         assertThat(result.findings().get(0).args()).containsEntry("table", "payroll.salaries");
+    }
+
+    @Test
+    void customRulesRunAtTheirDefaultSeverityOrTheConfiguredOneAndStaleCustomConfigsAreIgnored() {
+        var messages = new StaticMessageSource();
+        var custom = new DefaultSqlReviewService(datasourceAdminService, sqlParserService, rulesetRepository,
+                ruleConfigRepository, SqlRuleSources.withCustomRules(List.of(
+                        SqlRuleSources.row("custom_no_dblink", SqlReviewSeverity.BLOCK,
+                                "{\"type\":\"function_called\",\"names\":[\"dblink\"]}"),
+                        SqlRuleSources.row("custom_billing", SqlReviewSeverity.BLOCK,
+                                "{\"type\":\"referenced_table\",\"globs\":[\"billing.*\"]}"))),
+                new SqlRuleParamsCodec(new ObjectMapper(), messages));
+        when(datasourceAdminService.getForAdmin(DATASOURCE, ORG)).thenReturn(datasource(DbType.POSTGRESQL, null));
+        var sql = "SELECT a FROM billing.invoices WHERE dblink('x', 'y') IS NULL LIMIT 1";
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(QueryType.SELECT, sql));
+        var fallback = ruleset(null, true);
+        when(rulesetRepository.findByOrganizationIdAndEnvironmentIsNull(ORG)).thenReturn(Optional.of(fallback));
+        when(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(fallback.getId())).thenReturn(List.of(
+                config(fallback, "custom_billing", SqlReviewSeverity.WARN, null),
+                config(fallback, "custom_deleted", SqlReviewSeverity.BLOCK, null)));
+
+        var result = custom.evaluate(ORG, DATASOURCE, sql);
+
+        assertThat(result.findings()).extracting(SqlReviewFinding::ruleId, SqlReviewFinding::severity)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("custom_billing", SqlReviewSeverity.WARN),
+                        org.assertj.core.groups.Tuple.tuple("custom_no_dblink", SqlReviewSeverity.BLOCK));
+        assertThat(result.findings().get(0).args())
+                .containsEntry("message", "Matched SELECT on billing.invoices");
     }
 
     @Test
