@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-elasticsearch-1.0.8-all.jar",
-    "fileName": "accessflow-engine-elasticsearch-1.0.8-all.jar",
-    "sha256": "e7a8e72e8561d69d94b1b44768fcc4d17cb79e980fb6c6c2a8717ea4ac1ab9e2"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-elasticsearch-1.0.9-all.jar",
+    "fileName": "accessflow-engine-elasticsearch-1.0.9-all.jar",
+    "sha256": "0527c40c25b9b38f3a2a4e40584ab43fb78b539a643a6adacdeaf87454e17354"
   }
 }
