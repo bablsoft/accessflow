@@ -13,7 +13,7 @@
       this one JAR) pin this version + the SHA-256 of the shaded JAR; bump them together whenever the
       engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.8</version>
+    <version>1.0.9</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow Elasticsearch Query Engine</name>
@@ -35,7 +35,7 @@
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <elasticsearch-rest-client.version>9.4.2</elasticsearch-rest-client.version>
         <opensearch-rest-client.version>3.7.0</opensearch-rest-client.version>
-        <jackson.version>3.2.2</jackson.version>
+        <jackson.version>3.2.3</jackson.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
