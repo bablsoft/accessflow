@@ -260,8 +260,16 @@ built-in that throws, so treat `sql_matches` as a lint rather than a security bo
 padded far enough skips it. Prefer anchored or literal patterns; a leading `.*` is redundant (the
 match is a search) and quadratic. The message
 may use `{tables}`, `{functions}` and `{statement_type}`; the rendered text (cut to 1000 characters) is stored on the finding
-and shown to every reader as written (custom messages are not translated). The admin surface that
-creates and tests custom rules lands in #1010 and the UI in #1011.
+and shown to every reader as written (custom messages are not translated).
+
+Custom rules are managed under `/admin/sql-review-rules` (#1010, `SQL_REVIEW_MANAGE`; §8). An
+organization holds at most **50**; `rule_id` is fixed at create — to rename, delete and re-create,
+since ruleset configs and recorded findings reference the id. **Disabling** a rule takes it out of
+evaluation and the catalog but keeps its ruleset configs (a ruleset naming it can still be saved);
+**deleting** it also removes every ruleset config row that names it. `POST
+/admin/sql-review-rules/test` runs a *draft* — saved or not — against a piece of SQL and returns the
+findings it would produce at its default severity, persisting, auditing and publishing nothing: the
+way to check a condition before it can block anyone. The UI follows in #1011.
 
 ---
 
@@ -376,15 +384,22 @@ All under `/api/v1`; the full contracts are in
 | `GET` | `/sql-review/rules` | `SQL_REVIEW_MANAGE` | the built-ins in catalog order, localized, then the organization's enabled custom rules by rule id (name and description as written, #1009): `rule_id`, `category`, `default_severity`, `name`, `description` (absent for a custom rule without one), `params[]` (`key`, `required`, `defaults`, `value_pattern`; always empty for a custom rule), `custom` |
 | `GET` / `POST` | `/admin/sql-review-rulesets` | `SQL_REVIEW_MANAGE` | list / create (`201` + `Location`) |
 | `GET` / `PUT` / `DELETE` | `/admin/sql-review-rulesets/{id}` | `SQL_REVIEW_MANAGE` | read / full replace (a `rules` list replaces the config set wholesale) / delete (`204`; findings already recorded on queries are untouched) |
+| `GET` / `POST` | `/admin/sql-review-rules` | `SQL_REVIEW_MANAGE` | list the organization's custom rules, enabled or not, by `rule_id` / create (`201` + `Location`) — #1010 |
+| `GET` / `PUT` / `DELETE` | `/admin/sql-review-rules/{id}` | `SQL_REVIEW_MANAGE` | read / full replace (`rule_id` immutable) / delete (`204`; also removes the rule's ruleset configs) |
+| `POST` | `/admin/sql-review-rules/test` | `SQL_REVIEW_MANAGE` | `{rule, sql, dialect?}` → `{findings[]}` for a draft rule — nothing persisted, audited or published |
 
 Errors: 404 `SQL_REVIEW_RULESET_NOT_FOUND`, 409 `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` /
 `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` (pre-checked; a raced unique violation maps to the same
-code), 422 `SQL_REVIEW_RULESET_INVALID`. The datasource's `environment` is written through the
+code), 422 `SQL_REVIEW_RULESET_INVALID`; for custom rules 404 `SQL_REVIEW_RULE_NOT_FOUND`, 409
+`SQL_REVIEW_RULE_CONFLICT` (duplicate `rule_id`, raced or not), 422 `SQL_REVIEW_RULE_INVALID`
+(malformed rule, changed `rule_id`, the 50-rule cap, an unsupported test `dialect`). The datasource's `environment` is written through the
 normal datasource endpoints under `DATASOURCE_MANAGE`.
 
 **Infrastructure as code.** The Terraform/OpenTofu provider drives the same endpoints:
 `accessflow_sql_review_ruleset` manages a ruleset (`rules` as a set of
-`{rule_id, severity, params}`; omit `environment` for the org-wide default) and
+`{rule_id, severity, params}`; omit `environment` for the org-wide default),
+`accessflow_sql_review_rule` manages a custom rule (`condition` as a JSON string, `rule_id`
+forces replacement) and
 `accessflow_datasource.environment` binds a datasource to one. See
 [docs/16-iac.md](16-iac.md#resources--data-sources).
 
@@ -393,7 +408,7 @@ normal datasource endpoints under `DATASOURCE_MANAGE`.
 ## Audit & permissions
 
 - **`SQL_REVIEW_MANAGE`** — in `PermissionGroup.WORKFLOW_ADMIN` beside `ROUTING_POLICY_MANAGE`;
-  held by the system `ADMIN` role only (seeded by `V171`). Gates ruleset CRUD and the rule catalog.
+  held by the system `ADMIN` role only (seeded by `V171`). Gates ruleset and custom-rule CRUD and the rule catalog.
   The evaluation endpoint is deliberately **not** behind it: anyone who can see a datasource may
   lint against it, exactly as `POST /queries/analyze` and `POST /queries/dry-run` are authorized —
   and a datasource the caller cannot see is a 404, so the endpoint cannot be used to learn which
@@ -401,6 +416,9 @@ normal datasource endpoints under `DATASOURCE_MANAGE`.
 - **`SQL_REVIEW_RULESET_CREATED` / `_UPDATED` / `_DELETED`** — one row per admin mutation, written
   from the controller so `ip_address` / `user_agent` come from the live request; resource type
   `sql_review_ruleset`.
+- **`SQL_REVIEW_RULE_CREATED` / `_UPDATED` / `_DELETED`** — the same for custom rules (#1010),
+  resource type `sql_review_rule`, metadata `rule_id`, `name`, `category`, `default_severity`,
+  `enabled`. The draft test run writes nothing.
 - **`SQL_REVIEW_BLOCKED`** — written by the state machine **only when a block actually changed the
   outcome**: `actor_id` null, `trigger=sql_review`, `blocking_rule_ids`, `suppressed_paths` (in
   evaluation order), `matched_policy_id` when routing was the path. A `WARN`, a rejection, an AI

@@ -5,8 +5,8 @@ governance resources declaratively over the REST API, complementing the env-driv
 [`bootstrap` module](09-deployment.md#bootstrap-configuration):
 
 - a **Terraform / OpenTofu provider** (`bablsoft/accessflow`) for datasources, review plans,
-  routing / row-security / masking policies, SQL review rulesets, AI configs, and notification
-  channels;
+  routing / row-security / masking policies, SQL review rulesets and custom rules, AI configs, and
+  notification channels;
 - reusable **GitHub Actions**, **GitLab CI templates** and an **Azure Pipelines step template**
   that wrap common operations (provision a datasource, submit and await a query, gate a
   deployment on approval and report its outcome — AF-694) for pipelines.
@@ -146,13 +146,14 @@ resource "accessflow_sql_review_ruleset" "production" {
 | `accessflow_ai_config` | `api_key` write-only |
 | `accessflow_notification_channel` | `config` map; `channel_type` immutable (forces replacement) |
 | `accessflow_sql_review_ruleset` | Deterministic SQL review rules; `rules` is a set of `{rule_id, severity, params}`, `environment` omitted = org-wide default |
+| `accessflow_sql_review_rule` | Organization-defined SQL review rule (#1010); `condition` is the typed tree as a JSON string, `rule_id` (`custom_…`) is immutable (forces replacement), `enabled` defaults to `true`. Configure it in a ruleset by `rule_id` |
 | `accessflow_decision_hook` | External policy decision hook (#945); `secret` write-only (sent on create and only when it changes), `datasource_id` omitted = org-wide default, `timeout_ms` defaults to 2000 |
 
 Data sources: `accessflow_datasource`, `accessflow_review_plan` (look up by `id`).
 
 The provider drives the **existing** REST endpoints (`/datasources`, `/review-plans`,
 `/admin/routing-policies`, `/admin/ai-configs`, `/admin/notification-channels`,
-`/admin/sql-review-rulesets`, `/admin/decision-hooks`, and the nested `/datasources/{id}/{row-security,masking}-policies`) —
+`/admin/sql-review-rulesets`, `/admin/sql-review-rules`, `/admin/decision-hooks`, and the nested `/datasources/{id}/{row-security,masking}-policies`) —
 no AccessFlow-specific endpoints were added.
 Idempotency comes from Terraform state (create → store UUID → read/update/delete by id), matching
 the bootstrap reconciler's authoritative-upsert intent.

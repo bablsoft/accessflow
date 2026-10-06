@@ -1,7 +1,10 @@
 package com.bablsoft.accessflow.sqlreview.internal.web;
 
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
+import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewCustomRuleException;
 import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleConflictException;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleNotFoundException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetConflictException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -23,6 +26,7 @@ class SqlReviewExceptionHandlerTest {
         var ms = new StaticMessageSource();
         ms.setUseCodeAsDefaultMessage(true);
         ms.addMessage("error.sql_review_ruleset_environment_conflict", Locale.getDefault(), "taken: {0}");
+        ms.addMessage("error.sql_review_rule_conflict", Locale.getDefault(), "rule taken: {0}");
         return ms;
     }
 
@@ -68,5 +72,33 @@ class SqlReviewExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("error", "SQL_REVIEW_RULESET_INVALID");
         assertThat(pd.getDetail()).isEqualTo("unknown rule nope");
+    }
+
+    @Test
+    void handleCustomRuleNotFoundMapsTo404WithId() {
+        var id = UUID.randomUUID();
+        var pd = handler.handleCustomRuleNotFound(new SqlReviewCustomRuleNotFoundException(id));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getProperties()).containsEntry("error", "SQL_REVIEW_RULE_NOT_FOUND");
+        assertThat(pd.getProperties()).containsEntry("id", id.toString());
+        assertThat(pd.getProperties()).containsKey("timestamp");
+        assertThat(pd.getDetail()).isEqualTo("error.sql_review_rule_not_found");
+    }
+
+    @Test
+    void handleCustomRuleConflictMapsTo409WithRuleId() {
+        var pd = handler.handleCustomRuleConflict(new SqlReviewCustomRuleConflictException("custom_no_dblink"));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "SQL_REVIEW_RULE_CONFLICT");
+        assertThat(pd.getProperties()).containsEntry("rule_id", "custom_no_dblink");
+        assertThat(pd.getDetail()).isEqualTo("rule taken: custom_no_dblink");
+    }
+
+    @Test
+    void handleIllegalCustomRuleMapsTo422WithTheThrowSiteMessage() {
+        var pd = handler.handleIllegalCustomRule(new IllegalSqlReviewCustomRuleException("too deep"));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "SQL_REVIEW_RULE_INVALID");
+        assertThat(pd.getDetail()).isEqualTo("too deep");
     }
 }

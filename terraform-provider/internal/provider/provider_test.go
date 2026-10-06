@@ -62,8 +62,8 @@ func TestProvider_ResourceAndDataSourceSchemasValid(t *testing.T) {
 
 func TestProvider_RegistersExpectedCounts(t *testing.T) {
 	p := New("test")()
-	if got := len(p.Resources(context.Background())); got != 9 {
-		t.Errorf("resource count = %d, want 9", got)
+	if got := len(p.Resources(context.Background())); got != 10 {
+		t.Errorf("resource count = %d, want 10", got)
 	}
 	if got := len(p.DataSources(context.Background())); got != 2 {
 		t.Errorf("data source count = %d, want 2", got)

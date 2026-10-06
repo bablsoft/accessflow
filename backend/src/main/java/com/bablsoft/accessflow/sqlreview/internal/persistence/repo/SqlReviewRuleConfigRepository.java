@@ -17,4 +17,17 @@ public interface SqlReviewRuleConfigRepository extends JpaRepository<SqlReviewRu
     @Modifying
     @Query("delete from SqlReviewRuleConfigEntity c where c.ruleset.id = :rulesetId")
     void deleteAllByRulesetId(@Param("rulesetId") UUID rulesetId);
+
+    /**
+     * Removes every config row naming {@code ruleId} in the organization's rulesets — a deleted
+     * custom rule (#1010). The caller supplies the transaction.
+     */
+    @Modifying
+    @Query("""
+            delete from SqlReviewRuleConfigEntity c
+            where c.ruleId = :ruleId
+              and c.ruleset.id in (select r.id from SqlReviewRulesetEntity r where r.organizationId = :organizationId)
+            """)
+    void deleteAllByOrganizationIdAndRuleId(@Param("organizationId") UUID organizationId,
+                                            @Param("ruleId") String ruleId);
 }

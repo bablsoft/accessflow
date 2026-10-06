@@ -3682,6 +3682,12 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `GET` | `/admin/sql-review-rulesets/{id}` | Get a SQL review ruleset with its per-rule severities and params *(`SQL_REVIEW_MANAGE`)* |
 | `PUT` | `/admin/sql-review-rulesets/{id}` | Replace a SQL review ruleset (name, description, environment, enabled and the full rule-config set) *(`SQL_REVIEW_MANAGE`)* |
 | `DELETE` | `/admin/sql-review-rulesets/{id}` | Delete a SQL review ruleset (`204`) *(`SQL_REVIEW_MANAGE`)* |
+| `GET` | `/admin/sql-review-rules` | List the organization's custom SQL review rules, enabled and disabled, by `rule_id` (#1010) *(`SQL_REVIEW_MANAGE`)* |
+| `POST` | `/admin/sql-review-rules` | Create a custom SQL review rule (`201`, `Location` header). `409 SQL_REVIEW_RULE_CONFLICT`, `422 SQL_REVIEW_RULE_INVALID` *(`SQL_REVIEW_MANAGE`)* |
+| `GET` | `/admin/sql-review-rules/{id}` | Get a custom SQL review rule with its condition tree *(`SQL_REVIEW_MANAGE`)* |
+| `PUT` | `/admin/sql-review-rules/{id}` | Replace a custom SQL review rule — `rule_id` is immutable (`422`) *(`SQL_REVIEW_MANAGE`)* |
+| `DELETE` | `/admin/sql-review-rules/{id}` | Delete a custom SQL review rule and every ruleset's config row for it (`204`) *(`SQL_REVIEW_MANAGE`)* |
+| `POST` | `/admin/sql-review-rules/test` | Run a draft custom rule against SQL and return the findings it would produce — nothing persisted, audited or published *(`SQL_REVIEW_MANAGE`)* |
 | `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
 | `GET` | `/admin/effective-access/users/{userId}/datasources/{datasourceId}` | One user's merged effective access on one datasource, with the provenance of every element and the effective row cap (#946) *(`DATASOURCE_PERMISSION_MANAGE`)* |
@@ -4613,6 +4619,135 @@ Deletes the ruleset and its rule configs. Findings already recorded on queries a
 | 409 | `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` | Another ruleset in the organization is already bound to that environment (`environment` property) |
 | 409 | `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` | The organization already has a default ruleset |
 | 422 | `SQL_REVIEW_RULESET_INVALID` | Unknown or duplicate `rule_id`, or malformed `params` |
+
+### SQL Review Custom Rules (`/admin/sql-review-rules`) *(`SQL_REVIEW_MANAGE`)* (#1010)
+
+Administration of an organization's own SQL review rules (epic #1008). A custom rule is a condition tree over facts derived from one parsed statement — the criteria vocabulary, limits and evaluation semantics are in [docs/19-sql-review.md → Custom rules](19-sql-review.md#custom-rules-1009-epic-1008) — plus the message a matching statement is reported with. A saved, enabled rule joins the catalog: it is listed by [GET /sql-review/rules](#get-sql-reviewrules--response-200-863) with `custom: true`, can be configured in any ruleset like a built-in (`rule_id` in `rules[]`, no `params`), runs at its own `default_severity` where a ruleset does not configure it, and is evaluated by `POST /sql-review/evaluate` and at submission. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+
+All endpoints require `SQL_REVIEW_MANAGE` and operate within the caller's organization. Every mutation writes an audit row — `SQL_REVIEW_RULE_CREATED` / `SQL_REVIEW_RULE_UPDATED` / `SQL_REVIEW_RULE_DELETED` against resource type `sql_review_rule` (metadata `rule_id`, `name`, `category`, `default_severity`, `enabled`). `POST /test` writes nothing.
+
+#### POST /admin/sql-review-rules — Request Body
+
+```json
+{
+  "rule_id": "custom_no_unbounded_billing_update",
+  "name": "No unbounded billing updates",
+  "description": "Every UPDATE on the billing schema needs a WHERE clause",
+  "message": "{statement_type} on {tables} has no WHERE clause",
+  "category": "STATEMENT_SAFETY",
+  "default_severity": "BLOCK",
+  "enabled": true,
+  "condition": {
+    "type": "and",
+    "children": [
+      { "type": "query_type", "any_of": ["UPDATE"] },
+      { "type": "referenced_table", "globs": ["billing.*"] },
+      { "type": "has_where", "expected": false }
+    ]
+  }
+}
+```
+
+| Field | Rule |
+|-------|------|
+| `rule_id` | **Required.** `custom_` followed by a slug matching `^[a-z][a-z0-9_]{2,60}$`. Unique per organization; **immutable** after create. |
+| `name` | **Required**, ≤ 255 characters. Shown as written — never localized. |
+| `description` | Optional, ≤ 2000 characters. |
+| `message` | **Required**, ≤ 500 characters. `{tables}`, `{functions}` and `{statement_type}` are substituted per statement; the rendered text is snapshotted into each finding. |
+| `category` | **Required.** `STATEMENT_SAFETY` / `PERFORMANCE` / `SCHEMA_CHANGE` / `DATA_PROTECTION`. |
+| `default_severity` | **Required.** `OFF` / `WARN` / `BLOCK` — the severity wherever a ruleset does not configure the rule. |
+| `enabled` | Optional, default `true`. A disabled rule leaves evaluation and the catalog but keeps its ruleset configs. |
+| `condition` | **Required.** The `"type"`-discriminated condition tree — depth ≤ 5, ≤ 20 leaves, every list non-empty, a `sql_matches` regex ≤ 500 characters that compiles. |
+
+An organization holds at most **50** custom rules.
+
+**Response 201:** Full rule object (see the list shape below). `Location` header points to `/api/v1/admin/sql-review-rules/{id}`.
+**Response 400:** Bean Validation failure, or a body that does not deserialize (an unknown `category` / `default_severity` literal). `error: VALIDATION_ERROR`.
+**Response 409:** The organization already has a rule with that `rule_id` (also when a concurrent create wins the race). `error: SQL_REVIEW_RULE_CONFLICT`; the `ProblemDetail` carries `rule_id`.
+**Response 422:** A malformed rule — an invalid `rule_id`, a condition that does not decode or breaks a limit, an uncompilable or over-long regex, a blank or over-long message, or the 50-rule cap reached. `error: SQL_REVIEW_RULE_INVALID`; `detail` names the problem.
+
+#### GET /admin/sql-review-rules — Response 200
+
+Every custom rule of the caller's organization, enabled or not, ordered by `rule_id` (no pagination — at most 50).
+
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "rule_id": "custom_no_unbounded_billing_update",
+    "name": "No unbounded billing updates",
+    "description": "Every UPDATE on the billing schema needs a WHERE clause",
+    "message": "{statement_type} on {tables} has no WHERE clause",
+    "category": "STATEMENT_SAFETY",
+    "default_severity": "BLOCK",
+    "enabled": true,
+    "condition": {
+      "type": "and",
+      "children": [
+        { "type": "query_type", "any_of": ["UPDATE"] },
+        { "type": "referenced_table", "globs": ["billing.*"] },
+        { "type": "has_where", "expected": false }
+      ]
+    },
+    "created_at": "2026-10-06T10:00:00Z",
+    "updated_at": "2026-10-06T10:00:00Z"
+  }
+]
+```
+
+`description` is **absent** (not `null`) when unset.
+
+#### GET /admin/sql-review-rules/{id} — Response 200
+
+Single rule object (same shape as a list element). **Response 404:** `SQL_REVIEW_RULE_NOT_FOUND` when the rule is missing or in another organization.
+
+#### PUT /admin/sql-review-rules/{id}
+
+Full replace — same body as `POST`, every field taken as sent (an omitted `description` clears it, an omitted `enabled` means `true`). `rule_id` must equal the stored one; changing it is `422 SQL_REVIEW_RULE_INVALID` (delete and re-create instead — ruleset configs and recorded findings reference the id). **Response 200:** updated rule object. **Response 400:** `VALIDATION_ERROR`. **Response 404:** `SQL_REVIEW_RULE_NOT_FOUND`. **Response 422:** `SQL_REVIEW_RULE_INVALID`.
+
+#### DELETE /admin/sql-review-rules/{id}
+
+Deletes the rule and every `sql_review_rule_configs` row that names it in the organization's rulesets. Findings already recorded keep the rule id and their snapshotted message. **Response 204:** No content. **Response 404:** `SQL_REVIEW_RULE_NOT_FOUND`.
+
+#### POST /admin/sql-review-rules/test — Request Body
+
+Runs a **draft** rule against SQL and returns the findings it would produce — the drawer's "Test against SQL" panel. Nothing is persisted, audited or published, and the rule need not be saved: `rule` is validated exactly like a `POST` body (but its `rule_id` is not checked for uniqueness and the 50-rule cap does not apply).
+
+```json
+{
+  "rule": { "rule_id": "custom_no_unbounded_billing_update", "name": "…", "message": "{statement_type} on {tables} has no WHERE clause",
+            "category": "STATEMENT_SAFETY", "default_severity": "BLOCK", "condition": { "type": "has_where", "expected": false } },
+  "sql": "UPDATE billing.invoices SET paid = true",
+  "dialect": "POSTGRESQL"
+}
+```
+
+`sql` is **required** (≤ 100 000 characters). `dialect` is optional (default `POSTGRESQL`) and must be one of the relational types — `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`.
+
+**Response 200:**
+
+```json
+{
+  "findings": [
+    { "rule_id": "custom_no_unbounded_billing_update", "severity": "BLOCK", "statement_index": 0, "line_number": 1,
+      "message": "UPDATE on billing.invoices has no WHERE clause" }
+  ]
+}
+```
+
+Findings carry the draft's `default_severity`, are ordered like `POST /sql-review/evaluate`, and `message` is the rule's message with its placeholders substituted. **Response 400:** `VALIDATION_ERROR`. **Response 422:** `SQL_REVIEW_RULE_INVALID` for a malformed draft or an unsupported `dialect`, or `INVALID_SQL` when the SQL does not parse.
+
+#### SQL-review-rules Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure, or an unreadable body (unknown `category` / `default_severity` / `dialect` literal) |
+| 403 | `FORBIDDEN` | Caller lacks `SQL_REVIEW_MANAGE` |
+| 404 | `SQL_REVIEW_RULE_NOT_FOUND` | Rule does not exist or is in another organization |
+| 409 | `SQL_REVIEW_RULE_CONFLICT` | The organization already has a rule with that `rule_id` (`rule_id` property) |
+| 422 | `SQL_REVIEW_RULE_INVALID` | Invalid or changed `rule_id`, malformed condition or message, 50-rule cap reached, unsupported test `dialect` |
+| 422 | `INVALID_SQL` | `POST /test` only — the SQL does not parse |
 
 ### Policy simulator (AF-630)
 
