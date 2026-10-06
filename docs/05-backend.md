@@ -2308,6 +2308,22 @@ the query detail, the break-glass retro-review and the request-group detail (#86
   the security catch-all's 500. Ruleset *resolution* is not part of this service — it stays in
   `DefaultSqlReviewService`, whose semantics (a bound-but-disabled ruleset yields no rules) are the
   only ones the engine honours; the `resolve(...)` declared by #861 was dropped as unused.
+- `/admin/sql-review-rules` (`SQL_REVIEW_MANAGE`, #1010) — `sqlreview.api.SqlReviewCustomRuleService`
+  (`DefaultSqlReviewCustomRuleService`) behind `AdminSqlReviewCustomRuleController`: list / get /
+  create / total-replace update / delete of the organization's custom rules. The controller decodes
+  the `condition` JSON through `SqlRuleConditionCodec` (the routing-policy precedent); the service
+  checks the rule id against the `V201` pattern, runs `SqlRuleConditionValidator`, caps the
+  organization at 50 rules (count before insert — two racing creates at 49 may both land; the cap
+  bounds evaluation cost, it is not a security boundary), pre-checks a duplicate `rule_id` and
+  translates the raced unique violation to the same 409 `SQL_REVIEW_RULE_CONFLICT`, refuses a changed
+  `rule_id` on update (422), and on delete bulk-removes the rule's `sql_review_rule_configs` rows
+  across the organization's rulesets. Every write publishes `SqlReviewCustomRuleChangedEvent`, which
+  evicts `SqlRuleSource`'s cache after commit. `POST /admin/sql-review-rules/test` builds a transient
+  `CustomSqlRule` from the draft and runs the pure `SqlReviewEvaluator` over the parsed SQL at the
+  draft's default severity (`dialect` defaults to PostgreSQL and must be relational) — no repository,
+  no event, no audit row. Mutations are audited from the controller (`SQL_REVIEW_RULE_CREATED` /
+  `_UPDATED` / `_DELETED`, resource `sql_review_rule`); errors map in `SqlReviewExceptionHandler`
+  (404 `SQL_REVIEW_RULE_NOT_FOUND`, 409 `SQL_REVIEW_RULE_CONFLICT`, 422 `SQL_REVIEW_RULE_INVALID`).
 - `GET /sql-review/rules` (`SQL_REVIEW_MANAGE`) — `sqlreview.api.SqlReviewRuleCatalogService`
   (`DefaultSqlReviewRuleCatalogService`) projects `SqlRuleCatalog` onto `SqlReviewRuleView`s with
   `.name` / `.description` resolved in the request locale and each `SqlRuleParam` as `key`,

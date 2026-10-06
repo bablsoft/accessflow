@@ -113,6 +113,9 @@ public enum AuditAction {
     SQL_REVIEW_RULESET_CREATED,
     SQL_REVIEW_RULESET_UPDATED,
     SQL_REVIEW_RULESET_DELETED,
+    SQL_REVIEW_RULE_CREATED,
+    SQL_REVIEW_RULE_UPDATED,
+    SQL_REVIEW_RULE_DELETED,
 
     /**
      * Admin lifecycle of a service account and of the API keys issued on its behalf via

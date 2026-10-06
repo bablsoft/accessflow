@@ -140,6 +140,68 @@ resource "accessflow_routing_policy" "test" {
 	})
 }
 
+func TestAccSqlReviewRule_basic(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "accessflow_sql_review_rule" "test" {
+  rule_id          = "custom_tf_acc_no_dblink"
+  name             = "tf-acc no dblink"
+  description      = "created by the acceptance test"
+  message          = "{functions} called on {tables}"
+  category         = "STATEMENT_SAFETY"
+  default_severity = "WARN"
+  condition        = jsonencode({ type = "function_called", names = ["dblink"] })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("accessflow_sql_review_rule.test", "id"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "rule_id", "custom_tf_acc_no_dblink"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "default_severity", "WARN"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "enabled", "true"),
+				),
+			},
+			{
+				Config: `
+resource "accessflow_sql_review_rule" "test" {
+  rule_id          = "custom_tf_acc_no_dblink"
+  name             = "tf-acc no dblink or pg_sleep"
+  message          = "{functions} called on {tables}"
+  category         = "DATA_PROTECTION"
+  default_severity = "BLOCK"
+  enabled          = false
+  condition = jsonencode({
+    type = "or"
+    children = [
+      { type = "function_called", names = ["dblink"] },
+      { type = "function_called", names = ["pg_sleep"] },
+    ]
+  })
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "name", "tf-acc no dblink or pg_sleep"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "category", "DATA_PROTECTION"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "default_severity", "BLOCK"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_rule.test", "enabled", "false"),
+					resource.TestCheckNoResourceAttr("accessflow_sql_review_rule.test", "description"),
+				),
+			},
+			{
+				ResourceName:      "accessflow_sql_review_rule.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// Same as accessflow_routing_policy: the API re-serializes the condition JSON, so the
+				// raw string is not byte-stable across import (all other attributes are verified).
+				ImportStateVerifyIgnore: []string{"condition"},
+			},
+		},
+	})
+}
+
 func TestAccSqlReviewRuleset_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

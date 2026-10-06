@@ -35,6 +35,7 @@ public enum AuditResourceType {
     ROUTING_POLICY("routing_policy"),
     DECISION_HOOK("decision_hook"),
     SQL_REVIEW_RULESET("sql_review_ruleset"),
+    SQL_REVIEW_RULE("sql_review_rule"),
     SERVICE_ACCOUNT("service_account"),
     ROW_SECURITY_POLICY("row_security_policy"),
     ROW_LIMIT_POLICY("row_limit_policy"),

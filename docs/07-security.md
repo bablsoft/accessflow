@@ -460,7 +460,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
-| Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
+| Manage SQL review rulesets and custom rules + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863/#1010) | — | — | — | ✓ | — |
 | Manage service accounts (`SERVICE_ACCOUNT_MANAGE`, #868) | — | — | — | ✓ | — |
 | Manage schema change sets, promotions and drift findings (`SCHEMA_CHANGE_MANAGE`, seeded by #878; gates `/schema-change-sets`, `/schema-change-promotions` and `/schema-drift` — #879–#881) | — | — | — | ✓ | — |
 | Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |

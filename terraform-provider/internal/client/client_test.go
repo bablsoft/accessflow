@@ -399,3 +399,89 @@ func TestDo_Other4xxIsNotRetried(t *testing.T) {
 		t.Errorf("calls = %d, want 1", calls)
 	}
 }
+
+func TestCreateSqlReviewRule_SendsTheConditionAsRawJSON(t *testing.T) {
+	var gotPath, gotMethod string
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"r-1","organization_id":"org-1","rule_id":"custom_no_dblink","name":"No dblink",
+			"message":"dblink on {tables}","category":"STATEMENT_SAFETY","default_severity":"BLOCK","enabled":true,
+			"condition":{"type":"function_called","names":["dblink"]},
+			"created_at":"2026-10-06T10:00:00Z","updated_at":"2026-10-06T10:00:00Z"}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "k", srv.Client())
+	ruleID, name, message, category, severity := "custom_no_dblink", "No dblink", "dblink on {tables}", "STATEMENT_SAFETY", "BLOCK"
+	rule, err := c.CreateSqlReviewRule(context.Background(), SqlReviewRuleRequest{
+		RuleID: &ruleID, Name: &name, Message: &message, Category: &category, DefaultSeverity: &severity,
+		Condition: json.RawMessage(`{"type":"function_called","names":["dblink"]}`),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/api/v1/admin/sql-review-rules" {
+		t.Errorf("got %s %s", gotMethod, gotPath)
+	}
+	cond, _ := gotBody["condition"].(map[string]any)
+	if cond == nil || cond["type"] != "function_called" {
+		t.Errorf("condition must be sent as a JSON object: %+v", gotBody)
+	}
+	for _, absent := range []string{"description", "enabled"} {
+		if _, present := gotBody[absent]; present {
+			t.Errorf("unset %s must be omitted: %+v", absent, gotBody)
+		}
+	}
+	if rule.ID != "r-1" || rule.RuleID != "custom_no_dblink" || rule.DefaultSeverity != "BLOCK" || !rule.Enabled {
+		t.Errorf("unexpected response: %+v", rule)
+	}
+	if rule.Description != nil {
+		t.Errorf("absent description should be nil, got %q", *rule.Description)
+	}
+	if string(rule.Condition) == "" {
+		t.Errorf("condition not decoded")
+	}
+}
+
+func TestSqlReviewRule_GetUpdateDelete_Paths(t *testing.T) {
+	var calls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls = append(calls, r.Method+" "+r.URL.Path)
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":"r-1","rule_id":"custom_abc","enabled":false,"condition":{"type":"has_where","expected":false}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "k", srv.Client())
+	ctx := context.Background()
+	rule, err := c.GetSqlReviewRule(ctx, "r-1")
+	if err != nil || rule.Enabled || rule.RuleID != "custom_abc" {
+		t.Fatalf("get: err=%v rule=%+v", err, rule)
+	}
+	if _, err := c.UpdateSqlReviewRule(ctx, "r-1", SqlReviewRuleRequest{}); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if err := c.DeleteSqlReviewRule(ctx, "r-1"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	want := []string{
+		"GET /api/v1/admin/sql-review-rules/r-1",
+		"PUT /api/v1/admin/sql-review-rules/r-1",
+		"DELETE /api/v1/admin/sql-review-rules/r-1",
+	}
+	if len(calls) != len(want) {
+		t.Fatalf("calls = %v", calls)
+	}
+	for i := range want {
+		if calls[i] != want[i] {
+			t.Errorf("call %d = %q, want %q", i, calls[i], want[i])
+		}
+	}
+}

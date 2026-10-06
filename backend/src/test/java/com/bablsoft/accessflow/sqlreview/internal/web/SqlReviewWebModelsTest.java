@@ -1,6 +1,13 @@
 package com.bablsoft.accessflow.sqlreview.internal.web;
 
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
+import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleView;
+import com.bablsoft.accessflow.sqlreview.api.SqlRuleCondition;
+import com.bablsoft.accessflow.sqlreview.internal.web.model.SqlReviewCustomRuleRequest;
+import com.bablsoft.accessflow.sqlreview.internal.web.model.SqlReviewCustomRuleResponse;
+import com.bablsoft.accessflow.sqlreview.internal.web.model.SqlReviewRuleTestRequest;
+import com.bablsoft.accessflow.sqlreview.internal.web.model.SqlReviewRuleTestResponse;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRuleConfigView;
@@ -23,6 +30,7 @@ import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.time.Instant;
 import java.util.List;
@@ -184,5 +192,75 @@ class SqlReviewWebModelsTest {
         assertThat(response.findings().get(1).lineNumber()).isNull();
         assertThat(response.findings().get(1).severity()).isEqualTo(SqlReviewSeverity.BLOCK);
         assertThat(SqlReviewEvaluationResponse.from(SqlReviewResult.notApplicable(), f -> "x").applicable()).isFalse();
+    }
+
+    private static SqlReviewCustomRuleRequest customRule(String ruleId) {
+        return new SqlReviewCustomRuleRequest(ruleId, "No dblink", null, "dblink on {tables}",
+                SqlRuleCategory.STATEMENT_SAFETY, SqlReviewSeverity.BLOCK, null,
+                JsonNodeFactory.instance.objectNode().put("type", "has_where").put("expected", false));
+    }
+
+    @Test
+    void customRuleRequestEnforcesTheValidatorLimits() {
+        assertThat(violatedPaths(customRule("custom_no_dblink"))).isEmpty();
+        assertThat(violatedPaths(customRule("no_prefix"))).containsExactly("ruleId");
+        assertThat(violatedPaths(customRule("custom_ab"))).containsExactly("ruleId");
+        assertThat(violatedPaths(customRule("custom_" + "a".repeat(62)))).containsExactly("ruleId");
+        var blank = new SqlReviewCustomRuleRequest(" ", " ", "d".repeat(2001), " ", null, null, null, null);
+        assertThat(violatedPaths(blank)).containsExactly("category", "condition", "defaultSeverity",
+                "description", "message", "name", "ruleId", "ruleId");
+        var tooLong = new SqlReviewCustomRuleRequest("custom_no_dblink", "n".repeat(256), null, "m".repeat(501),
+                SqlRuleCategory.PERFORMANCE, SqlReviewSeverity.WARN, true, JsonNodeFactory.instance.objectNode());
+        assertThat(violatedPaths(tooLong)).containsExactly("message", "name");
+    }
+
+    @Test
+    void customRuleRequestMapsToCommandWithTheDecodedCondition() {
+        var condition = new SqlRuleCondition.HasWhereClause(false);
+        var command = customRule("custom_no_dblink").toCommand(condition);
+        assertThat(command.ruleId()).isEqualTo("custom_no_dblink");
+        assertThat(command.message()).isEqualTo("dblink on {tables}");
+        assertThat(command.defaultSeverity()).isEqualTo(SqlReviewSeverity.BLOCK);
+        assertThat(command.enabled()).isNull();
+        assertThat(command.condition()).isEqualTo(condition);
+    }
+
+    @Test
+    void ruleTestRequestValidatesTheNestedRuleAndTheSql() {
+        assertThat(violatedPaths(new SqlReviewRuleTestRequest(null, " ", DbType.MYSQL)))
+                .containsExactly("rule", "sql");
+        assertThat(violatedPaths(new SqlReviewRuleTestRequest(customRule("bad"), "x".repeat(100_001), null)))
+                .containsExactly("rule.ruleId", "sql");
+        assertThat(violatedPaths(new SqlReviewRuleTestRequest(customRule("custom_ok_rule"), "SELECT 1", null)))
+                .isEmpty();
+    }
+
+    @Test
+    void customRuleResponseMapsTheViewAndTheConditionJson() {
+        var id = UUID.randomUUID();
+        var now = Instant.now();
+        var view = new SqlReviewCustomRuleView(id, UUID.randomUUID(), "custom_no_dblink", "No dblink", "d",
+                "m", SqlRuleCategory.DATA_PROTECTION, SqlReviewSeverity.WARN, false,
+                new SqlRuleCondition.HasWhereClause(true), now, now);
+        var json = JsonNodeFactory.instance.objectNode().put("type", "has_where");
+        var response = SqlReviewCustomRuleResponse.from(view, json);
+        assertThat(response.id()).isEqualTo(id);
+        assertThat(response.ruleId()).isEqualTo("custom_no_dblink");
+        assertThat(response.category()).isEqualTo(SqlRuleCategory.DATA_PROTECTION);
+        assertThat(response.enabled()).isFalse();
+        assertThat(response.condition()).isSameAs(json);
+        assertThat(response.createdAt()).isEqualTo(now);
+    }
+
+    @Test
+    void ruleTestResponseRendersEachFinding() {
+        var finding = new SqlReviewFinding("custom_no_dblink", SqlReviewSeverity.BLOCK, 0, 1,
+                Map.of("message", "hit"));
+        var response = SqlReviewRuleTestResponse.from(new SqlReviewResult(true, List.of(finding)),
+                f -> "rendered " + f.ruleId());
+        assertThat(response.findings()).singleElement().satisfies(f -> {
+            assertThat(f.message()).isEqualTo("rendered custom_no_dblink");
+            assertThat(f.lineNumber()).isEqualTo(1);
+        });
     }
 }

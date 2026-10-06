@@ -1,6 +1,9 @@
 package com.bablsoft.accessflow.sqlreview.internal.web;
 
+import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewCustomRuleException;
 import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleConflictException;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleNotFoundException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetConflictException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +19,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 
 // Higher precedence than the security module's GlobalExceptionHandler so its Exception catch-all
-// does not win the resolution race. IllegalSqlReviewRuleset messages are already localized at the
+// does not win the resolution race. IllegalSqlReviewRuleset / IllegalSqlReviewCustomRule messages are already localized at the
 // throw site (validator / codec); not-found and conflict are resolved here via message keys.
 // DatasourceNotFoundException (404) and InvalidSqlException (422) stay with the global handler.
 @RestControllerAdvice
@@ -57,6 +60,34 @@ class SqlReviewExceptionHandler {
     ProblemDetail handleIllegal(IllegalSqlReviewRulesetException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "SQL_REVIEW_RULESET_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SqlReviewCustomRuleNotFoundException.class)
+    ProblemDetail handleCustomRuleNotFound(SqlReviewCustomRuleNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.sql_review_rule_not_found", null));
+        pd.setProperty("error", "SQL_REVIEW_RULE_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("id", ex.id().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SqlReviewCustomRuleConflictException.class)
+    ProblemDetail handleCustomRuleConflict(SqlReviewCustomRuleConflictException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.sql_review_rule_conflict", new Object[]{ex.ruleId()}));
+        pd.setProperty("error", "SQL_REVIEW_RULE_CONFLICT");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("rule_id", ex.ruleId());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalSqlReviewCustomRuleException.class)
+    ProblemDetail handleIllegalCustomRule(IllegalSqlReviewCustomRuleException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
+        pd.setProperty("error", "SQL_REVIEW_RULE_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

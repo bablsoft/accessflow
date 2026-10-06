@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewCu
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SqlReviewCustomRuleRepository extends JpaRepository<SqlReviewCustomRuleEntity, UUID> {
@@ -11,4 +12,10 @@ public interface SqlReviewCustomRuleRepository extends JpaRepository<SqlReviewCu
     List<SqlReviewCustomRuleEntity> findAllByOrganizationIdAndEnabledTrueOrderByRuleIdAsc(UUID organizationId);
 
     boolean existsByOrganizationIdAndRuleId(UUID organizationId, String ruleId);
+
+    List<SqlReviewCustomRuleEntity> findAllByOrganizationIdOrderByRuleIdAsc(UUID organizationId);
+
+    Optional<SqlReviewCustomRuleEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    long countByOrganizationId(UUID organizationId);
 }
