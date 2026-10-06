@@ -12,7 +12,7 @@
       (connectors/snowflake/connector.json) pins this version + the SHA-256 of the shaded JAR; bump
       them together whenever the engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.3</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow Snowflake Query Engine</name>
@@ -32,7 +32,7 @@
         <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
         <!-- The backend version whose core.api SPI this plugin compiles against. -->
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
-        <snowflake-jdbc.version>4.3.2</snowflake-jdbc.version>
+        <snowflake-jdbc.version>4.3.4</snowflake-jdbc.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
