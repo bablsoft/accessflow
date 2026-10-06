@@ -84,3 +84,50 @@ export async function deleteSqlReviewRulesetsForEnvironmentViaApi(
     await deleteSqlReviewRulesetViaApi(request, token, rs.id);
   }
 }
+
+/** One custom rule as `/api/v1/admin/sql-review-rules` returns it (#1010). */
+export interface SqlReviewCustomRuleSummary {
+  id: string;
+  rule_id: string;
+  name: string;
+  enabled: boolean;
+}
+
+export async function listSqlReviewCustomRulesViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<SqlReviewCustomRuleSummary[]> {
+  const res = await request.get(`${apiBase()}/api/v1/admin/sql-review-rules`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List SQL review custom rules failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as SqlReviewCustomRuleSummary[];
+}
+
+/** Idempotent: a 404 (already gone) is not an error. */
+export async function deleteSqlReviewCustomRuleViaApi(
+  request: APIRequestContext,
+  token: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}/api/v1/admin/sql-review-rules/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok() && res.status() !== 404) {
+    throw new Error(`Delete SQL review custom rule failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+/** Removes every custom rule whose `rule_id` starts with `prefix` — leftovers of a failed run. */
+export async function deleteSqlReviewCustomRulesByPrefixViaApi(
+  request: APIRequestContext,
+  token: string,
+  prefix: string,
+): Promise<void> {
+  const rules = await listSqlReviewCustomRulesViaApi(request, token);
+  for (const rule of rules.filter((r) => r.rule_id.startsWith(prefix))) {
+    await deleteSqlReviewCustomRuleViaApi(request, token, rule.id);
+  }
+}

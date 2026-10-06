@@ -550,7 +550,7 @@ const ROUTES = [
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],
   ['/admin/routing-policies', 'Typed conditions that auto-approve, auto-reject or route a request.'],
   ['/admin/decision-hooks', 'An external policy service asked about requests no routing policy matched; it can escalate or reject, never approve.'],
-  ['/admin/sql-review', 'Deterministic SQL review rulesets: the severity (off, warn, block) every built-in rule runs at, per environment or as the organization default.'],
+  ['/admin/sql-review', 'Deterministic SQL review rulesets: the severity (off, warn, block) every rule runs at, per environment or as the organization default. The Custom rules tab composes your own rules from criteria over the SQL and tests them against sample SQL.'],
   ['/admin/attestation', 'Scheduled attestation campaigns over standing grants.'],
   ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.', 'open a campaign from Attestation'],
   ['/admin/ai-configs', 'AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.'],

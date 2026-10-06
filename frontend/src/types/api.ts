@@ -1749,14 +1749,19 @@ export interface SqlReviewRuleParam {
   value_pattern: string;
 }
 
-/** One built-in rule from `GET /sql-review/rules`; `name` / `description` arrive localized. */
+/**
+ * One rule from `GET /sql-review/rules`. A built-in's `name` / `description` arrive localized; an
+ * enabled organization custom rule (#1009) carries `custom: true` and its own text, as written.
+ */
 export interface SqlReviewRule {
   rule_id: string;
   category: SqlReviewRuleCategory;
   default_severity: SqlReviewSeverity;
   name: string;
-  description: string;
+  /** Absent on a custom rule saved without one. */
+  description?: string;
   params: SqlReviewRuleParam[];
+  custom?: boolean;
 }
 
 export interface SqlReviewRuleConfig {
@@ -1794,6 +1799,87 @@ export interface SqlReviewRulesetWriteRequest {
   environment?: DatasourceEnvironment;
   enabled: boolean;
   rules: SqlReviewRuleConfigWriteRequest[];
+}
+
+/* ---- SQL review custom rules (#1009–#1011, epic #1008) ---------------------------------------
+ * An organization-defined rule: a condition tree over facts derived from the parsed statement,
+ * plus a regex escape hatch. `rule_id` is always `custom_<slug>` and immutable after create.
+ * -------------------------------------------------------------------------------------------- */
+
+/** The `query_type` criterion also matches statements the classifier files as OTHER. */
+export type SqlRuleQueryType = QueryType | 'OTHER';
+
+export type SqlRuleExpectedOperand =
+  | 'has_where'
+  | 'has_limit'
+  | 'has_order_by'
+  | 'where_always_true'
+  | 'join_without_condition'
+  | 'like_leading_wildcard'
+  | 'transactional';
+
+export type SqlRuleConditionOperand =
+  | 'query_type'
+  | 'referenced_table'
+  | 'referenced_column'
+  | 'function_called'
+  | SqlRuleExpectedOperand
+  | 'sql_matches';
+
+export type SqlRuleConditionLeaf =
+  | { type: 'query_type'; any_of: SqlRuleQueryType[] }
+  | { type: 'referenced_table'; globs: string[] }
+  | { type: 'referenced_column'; globs: string[] }
+  | { type: 'function_called'; names: string[] }
+  | { type: SqlRuleExpectedOperand; expected: boolean }
+  | { type: 'sql_matches'; pattern: string; ignore_case: boolean };
+
+export type SqlRuleCondition =
+  | SqlRuleConditionLeaf
+  | { type: 'and'; children: SqlRuleCondition[] }
+  | { type: 'or'; children: SqlRuleCondition[] }
+  | { type: 'not'; child: SqlRuleCondition };
+
+export interface SqlReviewCustomRule {
+  id: string;
+  organization_id: string;
+  rule_id: string;
+  name: string;
+  /** Absent (not null) when unset. */
+  description?: string;
+  message: string;
+  category: SqlReviewRuleCategory;
+  default_severity: SqlReviewSeverity;
+  enabled: boolean;
+  condition: SqlRuleCondition;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST / PUT body — PUT is a full replace and may not change `rule_id`. */
+export interface SqlReviewCustomRuleWriteRequest {
+  rule_id: string;
+  name: string;
+  description?: string;
+  message: string;
+  category: SqlReviewRuleCategory;
+  default_severity: SqlReviewSeverity;
+  enabled: boolean;
+  condition: SqlRuleCondition;
+}
+
+/** The relational dialects `POST /admin/sql-review-rules/test` accepts. */
+export type SqlReviewTestDialect = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL';
+
+/** `POST /admin/sql-review-rules/test` — evaluates an unsaved draft; persists nothing. */
+export interface SqlReviewRuleTestRequest {
+  rule: SqlReviewCustomRuleWriteRequest;
+  sql: string;
+  dialect?: SqlReviewTestDialect;
+}
+
+export interface SqlReviewRuleTestResponse {
+  findings: SqlReviewFinding[];
 }
 
 /* ---- Policy simulator (AF-630) ---------------------------------------------------------------

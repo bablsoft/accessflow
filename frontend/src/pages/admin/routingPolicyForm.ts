@@ -20,8 +20,16 @@ import {
   weekdayLabel,
 } from '@/utils/enumLabels';
 import { formatBytes } from '@/utils/queryPlan';
+import {
+  rowsToTree,
+  treeToRows,
+  type ConditionMatchType,
+} from '@/components/conditions/conditionTreeForm';
 
-export type ConditionMatchType = 'ALL' | 'ANY';
+export type { ConditionMatchType };
+
+/** A routing condition leaf — every variant except the and/or/not combinators. */
+type RoutingLeaf = Exclude<RoutingCondition, { type: 'and' | 'or' | 'not' }>;
 
 /**
  * Flat form representation of one leaf condition. The guided builder produces a single-level
@@ -145,7 +153,7 @@ export function isCidr(value: string): boolean {
   return prefix >= 0 && prefix <= 32;
 }
 
-function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
+function rowToLeaf(row: RoutingConditionRow): RoutingLeaf {
   switch (row.operand) {
     case 'query_type':
       return { type: 'query_type', any_of: row.query_types ?? [] };
@@ -218,14 +226,10 @@ export function rowsToCondition(
   matchType: ConditionMatchType,
   rows: RoutingConditionRow[],
 ): RoutingCondition {
-  const children: RoutingCondition[] = rows.map((row) => {
-    const leaf = rowToLeaf(row);
-    return row.negate ? { type: 'not', child: leaf } : leaf;
-  });
-  return matchType === 'ANY' ? { type: 'or', children } : { type: 'and', children };
+  return rowsToTree(matchType, rows, rowToLeaf);
 }
 
-function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow | null {
+function leafToRow(node: RoutingLeaf, negate: boolean): RoutingConditionRow {
   switch (node.type) {
     case 'query_type':
       return { operand: 'query_type', negate, query_types: node.any_of };
@@ -297,17 +301,7 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
       };
     case 'scan_type':
       return { operand: 'scan_type', negate, scan_patterns: node.patterns };
-    default:
-      // Nested and/or/not (other than not-of-leaf) cannot be represented by the flat builder.
-      return null;
   }
-}
-
-function childToRow(child: RoutingCondition): RoutingConditionRow | null {
-  if (child.type === 'not') {
-    return leafToRow(child.child, true);
-  }
-  return leafToRow(child, false);
 }
 
 /**
@@ -319,26 +313,7 @@ export function conditionToForm(condition: RoutingCondition | null | undefined):
   rows: RoutingConditionRow[];
   supported: boolean;
 } {
-  if (!condition) {
-    return { matchType: 'ALL', rows: [], supported: true };
-  }
-  if (condition.type === 'and' || condition.type === 'or') {
-    const matchType: ConditionMatchType = condition.type === 'or' ? 'ANY' : 'ALL';
-    const rows: RoutingConditionRow[] = [];
-    for (const child of condition.children) {
-      const row = childToRow(child);
-      if (!row) {
-        return { matchType, rows: [], supported: false };
-      }
-      rows.push(row);
-    }
-    return { matchType, rows, supported: true };
-  }
-  const single = childToRow(condition);
-  if (!single) {
-    return { matchType: 'ALL', rows: [], supported: false };
-  }
-  return { matchType: 'ALL', rows: [single], supported: true };
+  return treeToRows<RoutingLeaf, RoutingConditionRow>(condition, leafToRow);
 }
 
 export function minutesToTime(minutes: number | undefined): string {

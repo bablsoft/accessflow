@@ -1284,7 +1284,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
 /admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)
 /admin/decision-hooks               → DecisionHooksPage (lazy; ROUTING_POLICY_MANAGE — external policy decision hook — #945)
-/admin/sql-review                   → SqlReviewRulesetsPage (lazy; SQL_REVIEW_MANAGE — deterministic SQL review rulesets — #865)
+/admin/sql-review                   → SqlReviewRulesetsPage (lazy; SQL_REVIEW_MANAGE — deterministic SQL review rulesets — #865; ?tab=rules → custom rules — #1011)
 /admin/deployment-pipelines         → DeploymentPipelinesPage (lazy; DEPLOYMENT_PIPELINE_MANAGE — pipeline CRUD — #696)
 /admin/deployment-pipelines/:id     → DeploymentPipelineSettingsPage (lazy; tabs synced to ?tab=: general / environments / versions / permissions / freeze windows / routing policies / simulate / CI setup — #696, #743, #1066)
 /admin/notifications                → NotificationsPage
@@ -1513,6 +1513,11 @@ conditions, each optionally negated (NOT); there is no raw-JSON editor. API acce
 [frontend/src/api/routingPolicies.ts](../frontend/src/api/routingPolicies.ts); the form↔wire mapping
 helper is [frontend/src/pages/admin/routingPolicyForm.ts](../frontend/src/pages/admin/routingPolicyForm.ts);
 types (`RoutingPolicy`, `RoutingCondition`, `RoutingAction`, …) live in `src/types/api.ts`.
+The builder itself is the shared `ConditionTreeEditor` (see *Shared condition builder* below),
+fed the 20 routing operands by `routingOperandSpecs` in
+[frontend/src/components/conditions/routingOperands.ts](../frontend/src/components/conditions/routingOperands.ts),
+which also owns the time-of-day row adapter (`toRoutingFormRow` / `fromRoutingFormRow`, minutes ↔ a
+Dayjs pair for the `RangePicker`).
 The builder offers a **Query shape** operand (#940, `query_shape`) as a required multi-select of the
 eight `QueryShape` values (`QUERY_SHAPES` / `queryShapeLabel` in `src/utils/enumLabels.ts`); the row
 summary lists the labelled shapes, and the decision trace labels `query_shapes` / `denied_shapes`
@@ -1596,6 +1601,24 @@ module and one shared drawer:
   live in
   [frontend/src/components/policies/policyImpact.ts](../frontend/src/components/policies/policyImpact.ts).
 
+### Shared condition builder (#1011)
+
+[frontend/src/components/conditions/ConditionTreeEditor.tsx](../frontend/src/components/conditions/ConditionTreeEditor.tsx)
+is the guided ALL / ANY builder used by routing policies and SQL review custom rules. It lives
+inside the caller's `Form` (`Form.useFormInstance()`, field names `match_type` / `conditions` by
+default) and renders the combinator `Select`, a `Form.List` of rows (operand `Select`, a NOT / IS
+negate `Switch`, remove) and the row's value editor. The caller passes an **operand whitelist**
+(`ConditionOperandSpec[]`): each spec names its value, label, a `defaultRow()` (picking an operand
+resets the row to it) and an editor kind — `multi`, `tags` (optional per-list validator), `bool`,
+`comparison` (number or `BytesInput`), `time-range` or `regex` (pattern + ignore-case switch).
+`maxRows` adds a list-level limit (SQL rules: 20, the backend's leaf cap). Chrome strings live under
+`conditions.editor.*`; operand-specific labels stay with the caller. The flat-row ↔ wire-tree
+conversion is the pure, generic
+[frontend/src/components/conditions/conditionTreeForm.ts](../frontend/src/components/conditions/conditionTreeForm.ts)
+(`rowsToTree` wraps negated rows in `not` and the list in `and` / `or`; `treeToRows` returns
+`supported: false` for a tree nested deeper than one level, which each page reports instead of
+editing). `routingPolicyForm.ts` and `sqlReviewCustomRuleForm.ts` only map their leaves.
+
 ### SQL review rulesets (#865, epic #860)
 
 `SqlReviewRulesetsPage` (`/admin/sql-review`, lazy, `SQL_REVIEW_MANAGE`) is the admin surface for
@@ -1634,6 +1657,37 @@ and the types (`SqlReviewRuleset`, `SqlReviewRule`, `SqlReviewFinding`, `SqlRevi
 in `src/types/api.ts`. The page header's *View docs* link is `docsAnchor="cfg-sql-review"` (#866 —
 `DOCS_ANCHOR_PAGES` → `configuration/review-workflows/`, the section beside routing policies). The
 feature chapter is [docs/19-sql-review.md](19-sql-review.md).
+
+**Custom rules (#1011, epic #1008).** The page is tabbed (`?tab=` kept in the URL, the
+`ServiceAccountSettingsPage` pattern): **Rulesets** (the default, no param) and **Custom rules**
+(`?tab=rules`, `SqlReviewCustomRulesTab`). The tab lists the organization's custom rules — name +
+description, `rule_id`, category, default severity pill, an `enabled` `Switch` (full-replace PUT via
+`toggleEnabledRequest`), updated at, edit / delete (`modal.confirm`, warning that ruleset configs
+go too). **Create rule** in the header and the row edit open `SqlReviewCustomRuleDrawer`
+(`Form name="sql-review-custom-rule"`): the slug behind a fixed `custom_` prefix
+(`^[a-z][a-z0-9_]{2,60}$`, disabled on edit — `rule_id` is immutable), name (`max 255`), description
+(`max 2000`), message (`max 500`, with the `{tables}` / `{functions}` / `{statement_type}` hint),
+category, default severity, enabled, and the shared `ConditionTreeEditor` with the twelve
+pure-AST SQL operands from `sqlRuleOperandSpecs` (`query_type` incl. `OTHER`, table / column globs
+and function names with the backend's syntax checks, seven `expected` booleans, `sql_matches` with an
+ignore-case switch and a 500-character cap — no client-side regex compile, because Java and
+JavaScript regex syntax differ). A tree authored through the API or Terraform that is nested deeper
+than the builder shows an inline warning; saving replaces it. Every boolean (`expected`,
+`ignore_case`, `enabled`) is always sent. The drawer's **Test against SQL** panel (a second
+`Form name="sql-review-rule-test"`: dialect `Select` over the five relational engines + a
+`SqlEditor`) validates the draft and posts it on demand — a button, never debounced — to
+`POST /admin/sql-review-rules/test`, rendering the result with `SqlReviewFindingList` or a "no
+findings" note; an unsaved draft works. On the Rulesets tab the modal's severity table splits the
+catalog: built-ins first, then rows with `custom: true` under a **Custom rules** section header
+(name / description come from the row, not `t()`). `toWriteRequest(values, catalog, existing)`
+carries over a stored config whose rule is absent from the catalog — a *disabled* custom rule keeps
+its configs — so saving a ruleset never drops it. Form mapping:
+[frontend/src/pages/admin/sqlReviewCustomRuleForm.ts](../frontend/src/pages/admin/sqlReviewCustomRuleForm.ts);
+API: [frontend/src/api/sqlReviewRules.ts](../frontend/src/api/sqlReviewRules.ts)
+(`sqlReviewRuleKeys`); hooks: `src/hooks/useSqlReviewCustomRules.ts` (every write invalidates both
+the rule list and `sqlReviewKeys.rules()`, the ruleset catalog); errors:
+`sqlReviewRuleErrorMessage` (404 `SQL_REVIEW_RULE_NOT_FOUND` → a localized message; 409 `_CONFLICT`,
+422 `_INVALID` and 422 `INVALID_SQL` prefer the backend `detail`). E2E: `e2e/tests/sql-review-custom-rules.spec.ts`.
 
 ### Service accounts admin pages (#875, epic #867)
 

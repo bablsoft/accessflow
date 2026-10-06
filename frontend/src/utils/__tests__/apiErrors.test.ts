@@ -20,6 +20,7 @@ import {
   reviewPlanErrorMessage,
   organizationErrorMessage,
   setupErrorMessage,
+  sqlReviewRuleErrorMessage,
   sqlReviewRulesetErrorMessage,
   textToSqlErrorMessage,
 } from '../apiErrors';
@@ -762,5 +763,38 @@ describe('sqlReviewRulesetErrorMessage (#865)', () => {
     expect(sqlReviewRulesetErrorMessage(buildAxiosError(500, {}))).toBe('Request failed');
     expect(sqlReviewRulesetErrorMessage(new Error('plain'))).toBe('plain');
     expect(sqlReviewRulesetErrorMessage('nope')).toBe('Could not save the SQL review ruleset.');
+  });
+});
+
+describe('sqlReviewRuleErrorMessage (#1011)', () => {
+  it('maps the custom rule error codes, preferring the backend detail', () => {
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(404, { error: 'SQL_REVIEW_RULE_NOT_FOUND' })))
+      .toBe('Custom SQL review rule not found.');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(409, { error: 'SQL_REVIEW_RULE_CONFLICT' })))
+      .toBe('A custom rule with that identifier already exists.');
+    expect(
+      sqlReviewRuleErrorMessage(
+        buildAxiosError(409, { error: 'SQL_REVIEW_RULE_CONFLICT', detail: 'custom_x exists' }),
+      ),
+    ).toBe('custom_x exists');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(422, { error: 'SQL_REVIEW_RULE_INVALID' })))
+      .toBe('The custom rule is invalid.');
+    expect(
+      sqlReviewRuleErrorMessage(
+        buildAxiosError(422, { error: 'SQL_REVIEW_RULE_INVALID', detail: 'depth > 5' }),
+      ),
+    ).toBe('depth > 5');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(422, { error: 'INVALID_SQL' })))
+      .toBe('The test SQL could not be parsed.');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(422, { error: 'INVALID_SQL', detail: 'line 1' })))
+      .toBe('line 1');
+  });
+
+  it('falls through detail, title, axios message and generic', () => {
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(500, { detail: 'd' }))).toBe('d');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(500, { title: 'T' }))).toBe('T');
+    expect(sqlReviewRuleErrorMessage(buildAxiosError(500, {}))).toBe('Request failed');
+    expect(sqlReviewRuleErrorMessage(new Error('plain'))).toBe('plain');
+    expect(sqlReviewRuleErrorMessage('nope')).toBe('Could not save the custom SQL review rule.');
   });
 });
