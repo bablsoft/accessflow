@@ -49,15 +49,15 @@ resource "accessflow_sql_review_ruleset" "production" {
 ### Required
 
 - `category` (String) `STATEMENT_SAFETY`, `PERFORMANCE`, `SCHEMA_CHANGE`, or `DATA_PROTECTION`.
-- `condition` (String) The typed condition tree as a JSON object string (depth ≤ 5, ≤ 20 criteria).
+- `condition` (String) The typed condition tree as a JSON object string (depth ≤ 5, ≤ 20 leaf criteria — `and` / `or` / `not` do not count).
 - `default_severity` (String) `OFF`, `WARN`, or `BLOCK` — used wherever a ruleset does not configure the rule.
 - `message` (String) Finding message, at most 500 characters. `{tables}`, `{functions}` and `{statement_type}` are substituted per statement.
-- `name` (String) Display name, at most 255 characters.
+- `name` (String) Display name, at most 255 characters, without leading or trailing whitespace (the API trims it).
 - `rule_id` (String) `custom_` followed by 3–61 lowercase letters, digits or underscores, starting with a letter. Immutable — changing it replaces the rule.
 
 ### Optional
 
-- `description` (String) At most 2000 characters.
+- `description` (String) At most 2000 characters. Omit it rather than setting an empty string — the API stores blank as unset.
 - `enabled` (Boolean) Defaults to `true`. A disabled rule leaves evaluation but keeps its ruleset configs.
 
 ### Read-Only

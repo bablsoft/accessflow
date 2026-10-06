@@ -268,7 +268,7 @@ since ruleset configs and recorded findings reference the id. **Disabling** a ru
 evaluation and the catalog but keeps its ruleset configs (a ruleset naming it can still be saved);
 **deleting** it also removes every ruleset config row that names it. `POST
 /admin/sql-review-rules/test` runs a *draft* — saved or not — against a piece of SQL and returns the
-findings it would produce at its default severity, persisting, auditing and publishing nothing: the
+findings it would produce at its default severity (a draft at `OFF` runs at `WARN`, so the condition can be checked before it is switched on anywhere), persisting, auditing and publishing nothing: the
 way to check a condition before it can block anyone. The UI follows in #1011.
 
 ---
@@ -392,7 +392,8 @@ Errors: 404 `SQL_REVIEW_RULESET_NOT_FOUND`, 409 `SQL_REVIEW_RULESET_ENVIRONMENT_
 `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` (pre-checked; a raced unique violation maps to the same
 code), 422 `SQL_REVIEW_RULESET_INVALID`; for custom rules 404 `SQL_REVIEW_RULE_NOT_FOUND`, 409
 `SQL_REVIEW_RULE_CONFLICT` (duplicate `rule_id`, raced or not), 422 `SQL_REVIEW_RULE_INVALID`
-(malformed rule, changed `rule_id`, the 50-rule cap, an unsupported test `dialect`). The datasource's `environment` is written through the
+(malformed condition or regex, changed `rule_id`, the 50-rule cap, an unsupported test `dialect`);
+a bad `rule_id` pattern or blank / over-long text is a 400 `VALIDATION_ERROR`. The datasource's `environment` is written through the
 normal datasource endpoints under `DATASOURCE_MANAGE`.
 
 **Infrastructure as code.** The Terraform/OpenTofu provider drives the same endpoints:

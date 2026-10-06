@@ -44,8 +44,9 @@ public interface SqlReviewCustomRuleService {
     void delete(UUID organizationId, UUID id);
 
     /**
-     * Evaluates a draft rule at its default severity against {@code sql}, persisting, auditing and
-     * publishing nothing. {@code dialect} {@code null} means PostgreSQL.
+     * Evaluates a draft rule at its default severity ({@code OFF} runs as {@code WARN}) against
+     * {@code sql}, persisting, auditing and publishing nothing. {@code dialect} {@code null} means
+     * PostgreSQL.
      *
      * @throws IllegalSqlReviewCustomRuleException for a malformed draft or a non-relational dialect
      */

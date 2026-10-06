@@ -4662,9 +4662,9 @@ All endpoints require `SQL_REVIEW_MANAGE` and operate within the caller's organi
 An organization holds at most **50** custom rules.
 
 **Response 201:** Full rule object (see the list shape below). `Location` header points to `/api/v1/admin/sql-review-rules/{id}`.
-**Response 400:** Bean Validation failure, or a body that does not deserialize (an unknown `category` / `default_severity` literal). `error: VALIDATION_ERROR`.
+**Response 400:** Bean Validation failure — a missing field, a `rule_id` that does not match the pattern, a blank or over-long `name` / `message` / `description` — or a body that does not deserialize (an unknown `category` / `default_severity` literal). `error: VALIDATION_ERROR`.
 **Response 409:** The organization already has a rule with that `rule_id` (also when a concurrent create wins the race). `error: SQL_REVIEW_RULE_CONFLICT`; the `ProblemDetail` carries `rule_id`.
-**Response 422:** A malformed rule — an invalid `rule_id`, a condition that does not decode or breaks a limit, an uncompilable or over-long regex, a blank or over-long message, or the 50-rule cap reached. `error: SQL_REVIEW_RULE_INVALID`; `detail` names the problem.
+**Response 422:** A malformed rule the request shape cannot catch — a condition that does not decode or breaks a limit (depth, leaf count, an empty list, an invalid glob or function name), an uncompilable or over-long regex — or the 50-rule cap reached. `error: SQL_REVIEW_RULE_INVALID`; `detail` names the problem.
 
 #### GET /admin/sql-review-rules — Response 200
 
@@ -4723,7 +4723,7 @@ Runs a **draft** rule against SQL and returns the findings it would produce — 
 }
 ```
 
-`sql` is **required** (≤ 100 000 characters). `dialect` is optional (default `POSTGRESQL`) and must be one of the relational types — `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`.
+`sql` is **required** (≤ 100 000 characters). `dialect` is optional (default `POSTGRESQL`) and must be one of the relational types — the criteria are dialect-neutral, so it only decides whether the request is accepted — `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`.
 
 **Response 200:**
 
@@ -4736,17 +4736,17 @@ Runs a **draft** rule against SQL and returns the findings it would produce — 
 }
 ```
 
-Findings carry the draft's `default_severity`, are ordered like `POST /sql-review/evaluate`, and `message` is the rule's message with its placeholders substituted. **Response 400:** `VALIDATION_ERROR`. **Response 422:** `SQL_REVIEW_RULE_INVALID` for a malformed draft or an unsupported `dialect`, or `INVALID_SQL` when the SQL does not parse.
+Findings carry the draft's `default_severity` (a draft at `OFF` is run at `WARN`, so its condition can still be checked), are ordered like `POST /sql-review/evaluate`, and `message` is the rule's message with its placeholders substituted. **Response 400:** `VALIDATION_ERROR`. **Response 422:** `SQL_REVIEW_RULE_INVALID` for a malformed draft or an unsupported `dialect`, or `INVALID_SQL` when the SQL does not parse.
 
 #### SQL-review-rules Error Codes
 
 | Status | `error` code | Cause |
 |--------|--------------|-------|
-| 400 | `VALIDATION_ERROR` | Bean Validation failure, or an unreadable body (unknown `category` / `default_severity` / `dialect` literal) |
+| 400 | `VALIDATION_ERROR` | Bean Validation failure (missing field, `rule_id` not matching the pattern, blank or over-long text), or an unreadable body (unknown `category` / `default_severity` / `dialect` literal) |
 | 403 | `FORBIDDEN` | Caller lacks `SQL_REVIEW_MANAGE` |
 | 404 | `SQL_REVIEW_RULE_NOT_FOUND` | Rule does not exist or is in another organization |
 | 409 | `SQL_REVIEW_RULE_CONFLICT` | The organization already has a rule with that `rule_id` (`rule_id` property) |
-| 422 | `SQL_REVIEW_RULE_INVALID` | Invalid or changed `rule_id`, malformed condition or message, 50-rule cap reached, unsupported test `dialect` |
+| 422 | `SQL_REVIEW_RULE_INVALID` | Changed `rule_id` on `PUT`, a condition that does not decode or breaks a limit, a bad regex, 50-rule cap reached, unsupported test `dialect` |
 | 422 | `INVALID_SQL` | `POST /test` only — the SQL does not parse |
 
 ### Policy simulator (AF-630)

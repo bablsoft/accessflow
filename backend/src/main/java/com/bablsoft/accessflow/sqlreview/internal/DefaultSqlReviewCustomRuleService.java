@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleNotFoundExceptio
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleService;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewCustomRuleView;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.sqlreview.events.SqlReviewCustomRuleChangedEvent;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewCustomRuleEntity;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewCustomRuleRepository;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -38,7 +40,8 @@ import java.util.regex.Pattern;
  *
  * <p>Every write publishes {@link SqlReviewCustomRuleChangedEvent}, which {@link SqlRuleSource}
  * consumes after commit to evict the organization's cached rules. {@link #test} builds a transient
- * {@link CustomSqlRule} and runs the pure evaluator — no repository, no event, no audit.
+ * {@link CustomSqlRule} and runs the pure evaluator (an {@code OFF} draft at {@code WARN}) — no
+ * repository, no event, no audit.
  */
 @Service
 @Transactional
@@ -136,7 +139,10 @@ public class DefaultSqlReviewCustomRuleService implements SqlReviewCustomRuleSer
         var rule = new CustomSqlRule(draft.ruleId(), draft.name().trim(), blankToNull(draft.description()),
                 draft.category(), draft.defaultSeverity(), draft.message().trim(), draft.condition());
         var statements = SqlStatementParser.parse(sqlParserService.parse(sql));
-        return evaluator.evaluate(dbType, statements, List.of(ResolvedRule.defaults(rule)));
+        // The evaluator skips OFF rules; a draft saved OFF (to be switched on per ruleset) must still
+        // show whether its condition matches, so the test run treats OFF as WARN.
+        var severity = draft.defaultSeverity() == SqlReviewSeverity.OFF ? SqlReviewSeverity.WARN : draft.defaultSeverity();
+        return evaluator.evaluate(dbType, statements, List.of(new ResolvedRule(rule, severity, Map.of())));
     }
 
     private void validate(SqlReviewCustomRuleCommand command) {

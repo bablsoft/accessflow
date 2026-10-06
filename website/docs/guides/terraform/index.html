@@ -515,7 +515,7 @@ terraform apply
                 <tr><td><code>accessflow_masking_policy</code></td><td>A column masking strategy, nested under a datasource.</td></tr>
                 <tr><td><code>accessflow_ai_config</code></td><td>An AI analyzer configuration. Its API key is write-only.</td></tr>
                 <tr><td><code>accessflow_notification_channel</code></td><td>A notification channel — email, Slack, webhook, Discord, Telegram, Microsoft Teams or PagerDuty. Changing its type replaces the resource.</td></tr>
-                <tr><td><code>accessflow_sql_review_ruleset</code></td><td>A SQL review ruleset — which built-in rules are off, warn, or block for one environment. Set a datasource's <code>environment</code> to bind it; a datasource with no environment, or one whose environment has no ruleset, uses the organization-wide default.</td></tr>
+                <tr><td><code>accessflow_sql_review_ruleset</code></td><td>A SQL review ruleset — which built-in and custom rules are off, warn, or block for one environment. Set a datasource's <code>environment</code> to bind it; a datasource with no environment, or one whose environment has no ruleset, uses the organization-wide default.</td></tr>
                 <tr><td><code>accessflow_sql_review_rule</code></td><td>A custom SQL review rule — your own criteria (which statements, tables, functions or patterns to flag), the message reviewers see, and how serious it is by default. Once saved, list it in any ruleset alongside the built-in rules.</td></tr>
               </tbody>
             </table>

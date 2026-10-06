@@ -55,8 +55,8 @@ func (r *sqlReviewRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				MarkdownDescription: "`custom_` followed by 3–61 lowercase letters, digits or underscores, starting with a letter. Immutable — changing it replaces the rule.",
 			},
-			"name":        schema.StringAttribute{Required: true, MarkdownDescription: "Display name, at most 255 characters."},
-			"description": schema.StringAttribute{Optional: true, MarkdownDescription: "At most 2000 characters."},
+			"name":        schema.StringAttribute{Required: true, MarkdownDescription: "Display name, at most 255 characters, without leading or trailing whitespace (the API trims it)."},
+			"description": schema.StringAttribute{Optional: true, MarkdownDescription: "At most 2000 characters. Omit it rather than setting an empty string — the API stores blank as unset."},
 			"message": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "Finding message, at most 500 characters. `{tables}`, `{functions}` and `{statement_type}` are substituted per statement.",
@@ -72,7 +72,7 @@ func (r *sqlReviewRuleResource) Schema(_ context.Context, _ resource.SchemaReque
 			"condition": schema.StringAttribute{
 				Required:            true,
 				CustomType:          jsontypes.NormalizedType{},
-				MarkdownDescription: "The typed condition tree as a JSON object string (depth ≤ 5, ≤ 20 criteria).",
+				MarkdownDescription: "The typed condition tree as a JSON object string (depth ≤ 5, ≤ 20 leaf criteria — `and` / `or` / `not` do not count).",
 			},
 		},
 	}

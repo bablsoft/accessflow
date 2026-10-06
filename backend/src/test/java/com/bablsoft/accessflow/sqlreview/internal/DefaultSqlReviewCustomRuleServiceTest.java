@@ -286,6 +286,17 @@ class DefaultSqlReviewCustomRuleServiceTest {
     }
 
     @Test
+    void testRunsAnOffDraftAtWarnSoItsConditionCanStillBeChecked() {
+        var sql = "UPDATE t SET a = 1";
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(QueryType.UPDATE, sql));
+        var off = new SqlReviewCustomRuleCommand("custom_abc", "n", null, "m", SqlRuleCategory.PERFORMANCE,
+                SqlReviewSeverity.OFF, true, NO_WHERE_UPDATE);
+
+        assertThat(service.test(off, sql, null).findings()).singleElement()
+                .satisfies(finding -> assertThat(finding.severity()).isEqualTo(SqlReviewSeverity.WARN));
+    }
+
+    @Test
     void testOfANonMatchingStatementIsClean() {
         var sql = "UPDATE t SET a = 1 WHERE id = 2";
         when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(QueryType.UPDATE, sql));

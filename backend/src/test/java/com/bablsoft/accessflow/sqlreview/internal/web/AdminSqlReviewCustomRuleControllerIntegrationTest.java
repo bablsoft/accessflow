@@ -200,6 +200,48 @@ class AdminSqlReviewCustomRuleControllerIntegrationTest extends SqlReviewIntegra
         assertThat(plugin).bodyJson().extractingPath("$.error").asString().isEqualTo("SQL_REVIEW_RULE_INVALID");
     }
 
+    @Test
+    void anotherOrganizationsRuleAndConfigsAreInvisibleAndSurviveADelete() {
+        var otherOrg = UUID.randomUUID();
+        var otherRuleset = UUID.randomUUID();
+        var otherRule = UUID.randomUUID();
+        jdbcTemplate.update("insert into organizations (id, name, slug) values (?, ?, ?)",
+                otherOrg, "Other " + suffix, "other-" + suffix);
+        try {
+            jdbcTemplate.update("""
+                    insert into sql_review_rulesets (id, organization_id, name, enabled) values (?, ?, ?, true)""",
+                    otherRuleset, otherOrg, "Other default " + suffix);
+            jdbcTemplate.update("""
+                    insert into sql_review_rule_configs (id, ruleset_id, rule_id, severity)
+                    values (?, ?, 'custom_billing_update', 'BLOCK'::sql_review_severity)""",
+                    UUID.randomUUID(), otherRuleset);
+            jdbcTemplate.update("""
+                    insert into sql_review_custom_rules (id, organization_id, rule_id, name, message, category,
+                        default_severity, condition)
+                    values (?, ?, 'custom_billing_update', 'Theirs', 'm', 'PERFORMANCE'::sql_rule_category,
+                        'WARN'::sql_review_severity, '{"type":"has_where","expected":false}'::jsonb)""",
+                    otherRule, otherOrg);
+
+            assertThat(send("GET", BASE + "/" + otherRule, adminToken, null)).hasStatus(404);
+            assertThat(send("PUT", BASE + "/" + otherRule, adminToken,
+                    rule("custom_billing_update", "x", CONDITION))).hasStatus(404);
+            assertThat(send("DELETE", BASE + "/" + otherRule, adminToken, null)).hasStatus(404);
+
+            var id = create("custom_billing_update");
+            assertThat(send("DELETE", BASE + "/" + id, adminToken, null)).hasStatus(204);
+
+            var surviving = jdbcTemplate.queryForObject(
+                    "select count(*) from sql_review_rule_configs where ruleset_id = ?", Long.class, otherRuleset);
+            assertThat(surviving).isEqualTo(1);
+            var otherRules = jdbcTemplate.queryForObject(
+                    "select count(*) from sql_review_custom_rules where organization_id = ?", Long.class, otherOrg);
+            assertThat(otherRules).isEqualTo(1);
+        } finally {
+            jdbcTemplate.update("delete from sql_review_rulesets where organization_id = ?", otherOrg);
+            jdbcTemplate.update("delete from organizations where id = ?", otherOrg);
+        }
+    }
+
     /** Reads one string from a JSON response body without a second assertion chain. */
     private static final class JsonPathReader {
         static String read(MvcTestResult result, String path) {
