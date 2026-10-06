@@ -269,7 +269,15 @@ evaluation and the catalog but keeps its ruleset configs (a ruleset naming it ca
 **deleting** it also removes every ruleset config row that names it. `POST
 /admin/sql-review-rules/test` runs a *draft* — saved or not — against a piece of SQL and returns the
 findings it would produce at its default severity (a draft at `OFF` runs at `WARN`, so the condition can be checked before it is switched on anywhere), persisting, auditing and publishing nothing: the
-way to check a condition before it can block anyone. The UI follows in #1011.
+way to check a condition before it can block anyone.
+
+In the UI (#1011) the rules live on the **Custom rules** tab of **Security & Access → Access control →
+SQL review** (`/admin/sql-review?tab=rules`): a list with an enabled toggle, and a create / edit drawer
+whose condition builder is the one routing policies use, restricted to the criteria above. The
+builder edits a single-level ALL / ANY list of criteria, each optionally negated; a deeper tree
+written through the API or Terraform is flagged in the drawer, and saving there replaces it. The
+drawer's **Test against SQL** panel calls the test endpoint on demand. Enabled custom rules appear in
+every ruleset's severity table under their own **Custom rules** heading.
 
 ---
 

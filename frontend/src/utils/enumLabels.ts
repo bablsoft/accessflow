@@ -1,6 +1,9 @@
 import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
+  SqlReviewTestDialect,
+  SqlRuleConditionOperand,
+  SqlRuleQueryType,
   BytesCapMissingEstimateAction,
   BytesScannedCapOutcome,
   EffectiveCapabilityKind,
@@ -998,6 +1001,38 @@ export const SQL_REVIEW_RULE_CATEGORIES: readonly SqlReviewRuleCategory[] = [
 
 export const sqlReviewRuleCategoryLabel = (t: TFunction, v: SqlReviewRuleCategory): string =>
   t(`enums.sql_review_rule_category.${v}` as const);
+
+/** The `query_type` values a SQL review custom rule may match — QUERY_TYPES plus OTHER. */
+export const SQL_RULE_QUERY_TYPES: readonly SqlRuleQueryType[] = [...QUERY_TYPES, 'OTHER'] as const;
+
+export const sqlRuleQueryTypeLabel = (t: TFunction, v: SqlRuleQueryType): string =>
+  t(`enums.query_type.${v}` as const);
+
+export const SQL_RULE_CONDITION_OPERANDS: readonly SqlRuleConditionOperand[] = [
+  'query_type',
+  'referenced_table',
+  'referenced_column',
+  'function_called',
+  'has_where',
+  'has_limit',
+  'has_order_by',
+  'where_always_true',
+  'join_without_condition',
+  'like_leading_wildcard',
+  'transactional',
+  'sql_matches',
+] as const;
+
+export const sqlRuleOperandLabel = (t: TFunction, v: SqlRuleConditionOperand): string =>
+  t(`enums.sql_rule_operand.${v}` as const);
+
+export const SQL_REVIEW_TEST_DIALECTS: readonly SqlReviewTestDialect[] = [
+  'POSTGRESQL',
+  'MYSQL',
+  'MARIADB',
+  'ORACLE',
+  'MSSQL',
+] as const;
 
 export const DATASOURCE_ENVIRONMENTS: readonly DatasourceEnvironment[] = [
   'DEVELOPMENT',

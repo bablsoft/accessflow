@@ -156,6 +156,24 @@ describe('sqlReviewForm (#865)', () => {
     expect(toWriteRequest(values, catalog).rules).toEqual([]);
   });
 
+  it('carries over stored configs for rules the catalog omits (a disabled custom rule)', () => {
+    const withDisabledCustom: SqlReviewRuleset = {
+      ...ruleset,
+      rules: [
+        ...ruleset.rules,
+        { rule_id: 'custom_paused_rule', severity: 'BLOCK', params: {} },
+        { rule_id: 'custom_with_params', severity: 'WARN', params: { k: ['v'] } },
+      ],
+    };
+    const body = toWriteRequest(toFormValues(withDisabledCustom, catalog), catalog, withDisabledCustom);
+    expect(body.rules).toEqual([
+      { rule_id: 'custom_paused_rule', severity: 'BLOCK' },
+      { rule_id: 'custom_with_params', severity: 'WARN', params: { k: ['v'] } },
+      { rule_id: 'select_star', severity: 'BLOCK' },
+      { rule_id: 'protected_table', severity: 'BLOCK', params: { globs: ['payroll.*'] } },
+    ]);
+  });
+
   it('builds a full replace body for the list-level enabled toggle', () => {
     expect(toggleEnabledRequest(ruleset, false)).toEqual({
       name: 'Production',

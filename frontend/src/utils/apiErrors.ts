@@ -596,6 +596,33 @@ export function sqlReviewRulesetErrorMessage(err: unknown): string {
   return i18n.t('errors.sql_review_ruleset_generic');
 }
 
+/** Custom SQL review rules (#1010): CRUD and the draft test endpoint. */
+export function sqlReviewRuleErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'SQL_REVIEW_RULE_NOT_FOUND') {
+      return i18n.t('errors.sql_review_rule_not_found');
+    }
+    if (code === 'SQL_REVIEW_RULE_CONFLICT') {
+      return body?.detail || i18n.t('errors.sql_review_rule_conflict');
+    }
+    if (code === 'SQL_REVIEW_RULE_INVALID') {
+      // The detail names the offending criterion / limit, localized by the backend.
+      return body?.detail || i18n.t('errors.sql_review_rule_invalid');
+    }
+    if (code === 'INVALID_SQL') {
+      return body?.detail || i18n.t('errors.sql_review_rule_invalid_sql');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.sql_review_rule_generic');
+}
+
 // Dashboard self-service errors (AF-498): suggestion dismissal + own-anomaly acknowledge/dismiss.
 // Anomaly transition/not-found details come straight from the backend's localized ProblemDetail.
 export function dashboardErrorMessage(err: unknown): string {

@@ -93,12 +93,26 @@ export function isRuleRowSent(rule: SqlReviewRule, row: RuleRowFormValues | unde
  * Maps the form onto the write body. Unlisted rules run at their built-in default (the backend
  * resolves them that way), so a row is emitted only when it differs from the default or carries
  * params — and an empty param list is omitted rather than sent as `[]`, which the API refuses.
+ *
+ * PUT is a full replace, so a stored config for a rule the catalog does not list — a *disabled*
+ * custom rule, which keeps its configs (#1009) — is carried over from `existing` verbatim rather
+ * than silently dropped.
  */
 export function toWriteRequest(
   values: SqlReviewRulesetFormValues,
   catalog: readonly SqlReviewRule[],
+  existing?: SqlReviewRuleset | null,
 ): SqlReviewRulesetWriteRequest {
   const rules: SqlReviewRuleConfigWriteRequest[] = [];
+  const listed = new Set(catalog.map((rule) => rule.rule_id));
+  for (const config of existing?.rules ?? []) {
+    if (listed.has(config.rule_id)) continue;
+    rules.push({
+      rule_id: config.rule_id,
+      severity: config.severity,
+      ...(Object.keys(config.params ?? {}).length > 0 ? { params: config.params } : {}),
+    });
+  }
   for (const rule of catalog) {
     const row = values.rules[rule.rule_id];
     if (!row || !isRuleRowSent(rule, row)) continue;

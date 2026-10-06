@@ -49,6 +49,7 @@ const SERIAL_SPECS = [
   // Binds the org-singleton STAGING SQL review ruleset (one per environment per org, #865);
   // a concurrent spec creating the same binding would 409.
   '**/sql-review.spec.ts',
+  '**/sql-review-custom-rules.spec.ts',
   // Creates a second organization (orgs are never hard-deleted, only
   // disabled), which flips singleOrganization() into "multi-org" and blanks
   // unauthenticated SSO-provider discovery (AF-456) for the rest of the

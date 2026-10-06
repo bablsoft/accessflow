@@ -22,6 +22,20 @@ const {
   deleteSqlReviewRulesetMock: vi.fn(),
 }));
 
+const { listSqlReviewCustomRulesMock } = vi.hoisted(() => ({
+  listSqlReviewCustomRulesMock: vi.fn(),
+}));
+
+vi.mock('@/api/sqlReviewRules', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/api/sqlReviewRules')>('@/api/sqlReviewRules');
+  return { ...actual, listSqlReviewCustomRules: listSqlReviewCustomRulesMock };
+});
+
+vi.mock('@/components/editor/SqlEditor', () => ({
+  SqlEditor: () => <textarea aria-label="test sql" />,
+}));
+
 vi.mock('@/api/sqlReview', async () => {
   const actual = await vi.importActual<typeof import('@/api/sqlReview')>('@/api/sqlReview');
   return {
@@ -81,11 +95,11 @@ function conflict(code: string): AxiosError {
   return new AxiosError('Conflict', undefined, undefined, undefined, response);
 }
 
-function wrap(node: ReactNode) {
+function wrap(node: ReactNode, initialEntry = '/admin/sql-review') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <App>{node}</App>
       </MemoryRouter>
     </QueryClientProvider>
@@ -265,13 +279,69 @@ describe('SqlReviewRulesetsPage (#865)', () => {
     render(wrap(<SqlReviewRulesetsPage />));
     await screen.findByText('Prod rules');
 
-    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+    // Label / text queries: getByRole over the whole tabbed page is slow in jsdom.
+    fireEvent.click(screen.getByLabelText('Delete'));
     // AntD's confirm renders its title twice (modal title + confirm title).
     expect((await screen.findAllByText('Delete ruleset?')).length).toBeGreaterThan(0);
-    const allDeletes = screen.getAllByRole('button', { name: 'Delete' });
+    const allDeletes = screen.getAllByText('Delete');
     fireEvent.click(allDeletes[allDeletes.length - 1]!);
 
     await waitFor(() => expect(deleteSqlReviewRulesetMock).toHaveBeenCalledWith('rs-1'));
     expect(await screen.findByText('Ruleset deleted.')).toBeInTheDocument();
+  });
+
+  it('opens the custom rules tab from ?tab=rules and creates a rule from the header', async () => {
+    listSqlReviewRulesetsMock.mockResolvedValue([]);
+    listSqlReviewCustomRulesMock.mockResolvedValue([]);
+
+    render(wrap(<SqlReviewRulesetsPage />, '/admin/sql-review?tab=rules'));
+    expect(await screen.findByText('No custom rules yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Create rule'));
+    expect(await screen.findByText('Create custom rule')).toBeInTheDocument();
+  });
+
+  it('switches tabs and lists custom rules under their own severity section', async () => {
+    getSqlReviewRulesMock.mockResolvedValue([
+      ...catalog,
+      {
+        rule_id: 'custom_billing_delete',
+        category: 'DATA_PROTECTION',
+        default_severity: 'WARN',
+        name: 'Billing delete',
+        params: [],
+        custom: true,
+      },
+    ]);
+    listSqlReviewRulesetsMock.mockResolvedValue([
+      ruleset({
+        rules: [
+          { rule_id: 'protected_table', severity: 'BLOCK', params: { globs: ['payroll.*'] } },
+          { rule_id: 'custom_disabled_rule', severity: 'BLOCK', params: {} },
+        ],
+      }),
+    ]);
+    listSqlReviewCustomRulesMock.mockResolvedValue([]);
+    updateSqlReviewRulesetMock.mockResolvedValue(ruleset());
+
+    render(wrap(<SqlReviewRulesetsPage />));
+    await screen.findByText('Prod rules');
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    const dialog = await screen.findByRole('dialog');
+    const section = within(dialog).getByTestId('sql-review-custom-rule-severities');
+    expect(within(section).getByText('Billing delete')).toBeInTheDocument();
+    await pickOption(within(section).getByRole('combobox'), 'Block');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(updateSqlReviewRulesetMock).toHaveBeenCalled());
+    // The disabled custom rule is absent from the catalog but its stored config survives.
+    expect(updateSqlReviewRulesetMock.mock.calls[0]?.[1].rules).toEqual([
+      { rule_id: 'custom_disabled_rule', severity: 'BLOCK' },
+      { rule_id: 'protected_table', severity: 'BLOCK', params: { globs: ['payroll.*'] } },
+      { rule_id: 'custom_billing_delete', severity: 'BLOCK' },
+    ]);
+
+    fireEvent.click(screen.getByText('Custom rules', { selector: '.ant-tabs-tab-btn, [role="tab"] *' }));
+    expect(await screen.findByText('No custom rules yet')).toBeInTheDocument();
   });
 });
