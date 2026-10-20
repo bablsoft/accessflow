@@ -113,6 +113,9 @@ services:
       # Keep the release update check (#836) off in CI: no egress to accessflow.io, and a
       # deterministic `status: UNKNOWN` for update-status.spec.ts.
       ACCESSFLOW_UPDATES_ENABLED: "false"
+      # Parallel Playwright workers + the pg_sleep statement-timeout specs exhaust Hikari's default
+      # 10-connection app pool, cascading into login 500s and hook timeouts. Postgres allows 100.
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "25"
       # Demo-only — see warning at the top of this file.
       ENCRYPTION_KEY: 40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e
       JWT_PRIVATE_KEY: |
