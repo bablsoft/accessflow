@@ -92,4 +92,19 @@ Secrets in use by this release:
 > keys, delete the Secret first and re-run `helm upgrade`; existing encrypted datasource
 > credentials will become unreadable.
 
+{{- if .Values.postgresql.enabled }}
+{{- if (.Values.postgresql.pgvectorPortable | default dict).enabled }}
+
+pgvector: the bundled PostgreSQL pod overlays the portable vector.so from
+"{{ .Values.postgresql.pgvectorPortable.image.repository }}:{{ .Values.postgresql.pgvectorPortable.image.tag }}" (initContainer "pgvector-portable"), so
+vector indexes work on CPUs without AVX-512. If you override
+postgresql.primary.initContainers / extraVolumes / extraVolumeMounts, re-add its entries.
+{{- else }}
+
+WARNING: postgresql.pgvectorPortable.enabled=false — the bundled image's vector.so needs
+AVX-512. On CPUs without it (e.g. AMD EPYC Rome) every vector index build crashes
+PostgreSQL with "signal 4: Illegal instruction".
+{{- end }}
+{{- end }}
+
 See docs/09-deployment.md for the full configuration reference and post-install hardening checklist.

@@ -234,6 +234,7 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `image.backend.tag` / `image.frontend.tag` | `""` | Override the chart's `appVersion`. Leave empty in normal use. |
 | `postgresql.enabled` | `true` | Install the bundled bitnami/postgresql subchart. Set `false` to use `externalDatabase`. |
 | `postgresql.auth.existingSecret` | `""` (auto-generated) | Bitnami's Secret reference. When empty, the subchart auto-generates the password into `{release}-postgresql`. |
+| `postgresql.pgvectorPortable.enabled` | `true` | Overlay the bundled image's AVX-512 `vector.so` with the portable build from `postgresql.pgvectorPortable.image` (default `docker.io/pgvector/pgvector:0.8.7-pg18`) via an initContainer. Prevents the SIGILL crash on CPUs without AVX-512 (e.g. AMD EPYC Rome). Uses `postgresql.primary.initContainers` / `extraVolumes` / `extraVolumeMounts` — see [pgvector on CPUs without AVX-512](#pgvector-on-cpus-without-avx-512). |
 | `redis.enabled` | `true` | Install the bundled bitnami/redis subchart. Set `false` to use `externalRedis`. |
 | `externalDatabase.host` / `.port` / `.database` / `.username` / `.existingSecret` | `""` | External PostgreSQL settings (used when `postgresql.enabled=false`). |
 | `externalRedis.url` | `""` | External Redis URL (e.g. `redis://host:6379`). |
@@ -259,6 +260,29 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `backup.persistence.existingClaim` / `.size` / `.storageClass` | `""` / `20Gi` / `""` | Backups volume — chart-created PVC (kept across uninstall) or an operator-managed claim (e.g. NFS). |
 | `backup.upload.enabled` / `.remote` / `.existingSecret` | `false` / `""` / `""` | Optional rclone shipping of the backup directory to S3/GCS/… — the Secret must hold an `rclone.conf` key. |
 | `restore.enabled` / `restore.dumpFile` | `false` / `""` | One-shot restore Job (helm hook) replaying a named dump from the backups volume. See the Backup & restore section. |
+
+## pgvector on CPUs without AVX-512
+
+The bitnami/postgresql image ships a `vector.so` (pgvector) compiled with AVX-512. On hosts
+without it — e.g. AMD EPYC Rome, older Intel Xeons, many shared-cloud instance families — the
+first HNSW index build or vector operation kills the backend with
+`terminated by signal 4: Illegal instruction`, which breaks Flyway's `vector_store` index and the
+in-app RAG / help assistant.
+
+The chart therefore defaults `postgresql.pgvectorPortable.enabled=true`: a `pgvector-portable`
+initContainer copies the portable `vector.so` from the official pgvector image into an `emptyDir`,
+mounted over `/opt/bitnami/postgresql/lib/vector.so`. The extension SQL stays the one shipped by
+the bitnami image. Things to know:
+
+- Keep `postgresql.pgvectorPortable.image.tag` on the same pgvector version and PostgreSQL major
+  as the bitnami image (the default matches the subchart's PostgreSQL 18 image).
+- Air-gapped installs must mirror that image too and point
+  `postgresql.pgvectorPortable.image.repository` at the mirror.
+- The overlay is wired through `postgresql.primary.initContainers`, `extraVolumes` and
+  `extraVolumeMounts`. Overriding any of those lists replaces the chart's entries — copy them from
+  `values.yaml` into your override, or set `postgresql.pgvectorPortable.enabled=false`.
+- On AVX-512 hardware you may disable it to skip the extra image pull; behaviour is otherwise
+  identical. External PostgreSQL (`postgresql.enabled=false`) is unaffected.
 
 ## Upgrade
 

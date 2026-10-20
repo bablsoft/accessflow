@@ -7,6 +7,7 @@
 #   - The GHCR images are mirrored into your internal registry:
 #       registry.internal.acme.example.com/accessflow/backend:X.Y.Z
 #       registry.internal.acme.example.com/accessflow/frontend:X.Y.Z
+#       registry.internal.acme.example.com/pgvector/pgvector:0.8.7-pg18
 #   - The chart and its subcharts are pulled into a local repo or installed
 #     from a packaged `.tgz` (`helm pull accessflow/accessflow --untar`).
 #   - The TLS Secret `accessflow-tls` exists with tls.crt + tls.key.
@@ -28,6 +29,13 @@ image:
   frontend:
     repository: registry.internal.acme.example.com/accessflow/frontend
     pullPolicy: IfNotPresent
+
+# The bundled bitnami/postgresql pod also pulls the portable pgvector library
+# (see docs/09-deployment.md → "pgvector on CPUs without AVX-512"); mirror it too.
+postgresql:
+  pgvectorPortable:
+    image:
+      repository: registry.internal.acme.example.com/pgvector/pgvector
 
 imagePullSecrets:
   - name: internal-registry-credentials
