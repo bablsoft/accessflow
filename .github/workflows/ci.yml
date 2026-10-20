@@ -254,6 +254,20 @@ jobs:
           helm template accessflow charts/accessflow \
             > /tmp/rendered-defaults.yaml
 
+      - name: Portable pgvector overlay (on by default, removable)
+        run: |
+          awk '/kind: StatefulSet/,/^---/' /tmp/rendered-defaults.yaml > /tmp/pg-sts.yaml
+          grep -q "name: pgvector-portable" /tmp/pg-sts.yaml
+          grep -q 'image: "docker.io/pgvector/pgvector:0.8.7-pg18"' /tmp/pg-sts.yaml
+          grep -q "mountPath: /opt/bitnami/postgresql/lib/vector.so" /tmp/pg-sts.yaml
+          grep -q "subPath: vector.so" /tmp/pg-sts.yaml
+          helm template accessflow charts/accessflow \
+            --set postgresql.pgvectorPortable.enabled=false \
+            > /tmp/rendered-no-pgvector-overlay.yaml
+          if grep -q "pgvector-portable" /tmp/rendered-no-pgvector-overlay.yaml; then
+            echo "pgvector overlay rendered although postgresql.pgvectorPortable.enabled=false" >&2; exit 1
+          fi
+
       - name: Render with externally-managed secrets (existingSecret overrides)
         run: |
           helm template accessflow charts/accessflow \

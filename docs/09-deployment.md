@@ -1189,8 +1189,19 @@ channel, a ticketing system. The help agent's corpus keeps working from the bund
 The in-app `PGVECTOR` store needs the PostgreSQL `vector` extension. Because `vector` is not a trusted extension and the application DB role is not a superuser, the extension is provisioned by a **superuser init step**, not by Flyway (which creates only the `vector_store` table, V69):
 
 - **Docker Compose** — the Postgres image is `pgvector/pgvector:pg18` and [`deploy/postgres-init/02-pgvector.sql`](../deploy/postgres-init/02-pgvector.sql) (`CREATE EXTENSION IF NOT EXISTS vector;`) runs once on first volume init (mounted into `/docker-entrypoint-initdb.d`).
-- **Helm** — the backend's `audit-role-provisioner` initContainer runs `CREATE EXTENSION IF NOT EXISTS vector;` as the postgres admin before Flyway. The bundled bitnami/postgresql image ships pgvector.
+- **Helm** — the backend's `audit-role-provisioner` initContainer runs `CREATE EXTENSION IF NOT EXISTS vector;` as the postgres admin before Flyway. The bundled bitnami/postgresql image ships pgvector. Its `vector.so` is compiled with AVX-512, though — see [pgvector on CPUs without AVX-512](#pgvector-on-cpus-without-avx-512) below.
 - **External / managed Postgres** — install the `vector` extension on the AccessFlow database yourself before the backend boots, or rely on auto-provisioning if the AccessFlow DB role may create extensions.
+
+##### pgvector on CPUs without AVX-512
+
+The bitnami/postgresql image bundled by the Helm chart ships a `vector.so` compiled with AVX-512 instructions. On hosts without AVX-512 (e.g. AMD EPYC Rome, older Intel Xeons) every HNSW index build or vector operation kills the PostgreSQL backend with `terminated by signal 4: Illegal instruction` — Flyway's `vector_store` index (and a `pg_restore` that rebuilds it) fails, and the in-app RAG and help assistant break.
+
+The chart avoids this by default with `postgresql.pgvectorPortable.enabled=true`: a `pgvector-portable` initContainer copies the portable `vector.so` from the official `docker.io/pgvector/pgvector:0.8.7-pg18` image (`postgresql.pgvectorPortable.image.*`) into an `emptyDir`, which is mounted over `/opt/bitnami/postgresql/lib/vector.so`. The extension's SQL scripts stay the ones shipped in the bitnami image.
+
+- Keep `postgresql.pgvectorPortable.image.tag` on the same pgvector version and PostgreSQL major as the bitnami image; `postgresql.pgvectorPortable.sourcePath` is the library's path inside that image.
+- Air-gapped installs must mirror the pgvector image as well and set `postgresql.pgvectorPortable.image.repository`.
+- The overlay lives in `postgresql.primary.initContainers`, `postgresql.primary.extraVolumes` and `postgresql.primary.extraVolumeMounts`. Overriding any of those lists replaces the chart's entries — copy them from `values.yaml` into your override, or disable the toggle.
+- Setting `postgresql.pgvectorPortable.enabled=false` restores the stock library; do so only on AVX-512 hardware. Docker Compose already uses the portable `pgvector/pgvector` image, and external PostgreSQL is unaffected.
 
 The extension exists regardless of whether any org actually enables RAG (the empty `vector_store` table is negligible overhead). The external `QDRANT` backend needs no Postgres extension — vectors live in Qdrant.
 

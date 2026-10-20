@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
 import { AxiosError, type AxiosResponse } from 'axios';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import '@/i18n';
 import type { SqlReviewCustomRule } from '@/types/api';
 
@@ -17,6 +17,26 @@ vi.mock('@/api/sqlReviewRules', async () => {
   const actual =
     await vi.importActual<typeof import('@/api/sqlReviewRules')>('@/api/sqlReviewRules');
   return { ...actual, ...api };
+});
+
+// jsdom has no CSS transitions, so a closing AntD Drawer unmounts its content at once. With
+// `keepMounted` the stub keeps the content mounted across close / reopen, like a real drawer that
+// is reopened before its close animation finishes.
+const drawerMode = vi.hoisted(() => ({ keepMounted: false }));
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  const Drawer = (props: ComponentProps<typeof actual.Drawer>) =>
+    drawerMode.keepMounted ? (
+      <section role="dialog">
+        {props.title}
+        {props.children}
+        {props.footer}
+      </section>
+    ) : (
+      <actual.Drawer {...props} />
+    );
+  return { ...actual, Drawer };
 });
 
 vi.mock('@/components/editor/SqlEditor', () => ({
@@ -62,6 +82,7 @@ function fill(label: string, value: string) {
 describe('SqlReviewCustomRuleDrawer (#1011)', () => {
   beforeEach(() => {
     Object.values(api).forEach((m) => m.mockReset());
+    drawerMode.keepMounted = false;
   });
 
   it('creates a rule from the form with the fixed custom_ prefix', async () => {
@@ -194,5 +215,26 @@ describe('SqlReviewCustomRuleDrawer (#1011)', () => {
     rerender(wrap(<SqlReviewCustomRuleDrawer open rule={null} onClose={vi.fn()} />));
     expect(await screen.findByLabelText('Name')).toHaveValue('');
     expect(screen.getByLabelText('Identifier')).toHaveValue('');
+  });
+  it('starts a fresh create form when reopened before the edit drawer finished closing', async () => {
+    drawerMode.keepMounted = true;
+    const { rerender } = render(wrap(<SqlReviewCustomRuleDrawer open rule={stored} onClose={vi.fn()} />));
+    fill('Description', 'Edited description');
+    // Close and reopen in one go: the content is never destroyed in between.
+    rerender(wrap(<SqlReviewCustomRuleDrawer open={false} rule={null} onClose={vi.fn()} />));
+    rerender(wrap(<SqlReviewCustomRuleDrawer open rule={null} onClose={vi.fn()} />));
+    expect(await screen.findByText('Create custom rule')).toBeInTheDocument();
+    expect(screen.getByLabelText('Identifier')).toHaveValue('');
+    expect(screen.getByLabelText('Identifier')).toBeEnabled();
+    expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Description')).toHaveValue('');
+  });
+
+  it('keeps the edited rule on screen while the drawer closes', () => {
+    drawerMode.keepMounted = true;
+    const { rerender } = render(wrap(<SqlReviewCustomRuleDrawer open rule={stored} onClose={vi.fn()} />));
+    rerender(wrap(<SqlReviewCustomRuleDrawer open={false} rule={null} onClose={vi.fn()} />));
+    expect(screen.getByText('Edit Billing delete')).toBeInTheDocument();
+    expect(screen.queryByText('Create custom rule')).not.toBeInTheDocument();
   });
 });

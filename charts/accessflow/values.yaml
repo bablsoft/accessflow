@@ -66,10 +66,57 @@ postgresql:
     database: accessflow
     username: accessflow
     existingSecret: '{{ .Release.Name }}-accessflow-db'
+  # Portable pgvector overlay. The bitnami/postgresql image ships a vector.so
+  # compiled with AVX-512, so on CPUs without it (e.g. AMD EPYC Rome) every HNSW
+  # index build or vector operation kills the backend with SIGILL ("terminated by
+  # signal 4: Illegal instruction") — Flyway's vector_store index and the AI
+  # RAG / help assistant break. When enabled, an initContainer copies the
+  # portable vector.so from the official pgvector image over the bundled one.
+  # Keep `image.tag` on the same pgvector version and PostgreSQL major as the
+  # bitnami image. The overlay is wired through `primary.initContainers`,
+  # `primary.extraVolumes` and `primary.extraVolumeMounts` below: if you override
+  # any of those lists, re-add the `pgvector-portable` entries or set
+  # `enabled: false`. Full context: docs/09-deployment.md → "pgvector on CPUs
+  # without AVX-512".
+  pgvectorPortable:
+    enabled: true
+    image:
+      repository: docker.io/pgvector/pgvector
+      tag: 0.8.7-pg18
+      pullPolicy: IfNotPresent
+    # Path of vector.so inside the pgvector image (Debian PGDG layout).
+    sourcePath: /usr/lib/postgresql/18/lib/vector.so
   primary:
     persistence:
       enabled: true
       size: 20Gi
+    # The three entries below are template strings (bitnami renders them through
+    # `tpl`), so they emit nothing when pgvectorPortable.enabled=false.
+    initContainers: |
+      {{- if .Values.pgvectorPortable.enabled }}
+      - name: pgvector-portable
+        image: {{ printf "%s:%s" .Values.pgvectorPortable.image.repository .Values.pgvectorPortable.image.tag | quote }}
+        imagePullPolicy: {{ .Values.pgvectorPortable.image.pullPolicy }}
+        command: ["cp", {{ .Values.pgvectorPortable.sourcePath | quote }}, "/pgvector/vector.so"]
+        {{- if .Values.primary.containerSecurityContext.enabled }}
+        securityContext: {{- include "common.compatibility.renderSecurityContext" (dict "secContext" .Values.primary.containerSecurityContext "context" $) | nindent 4 }}
+        {{- end }}
+        volumeMounts:
+          - name: pgvector-portable
+            mountPath: /pgvector
+      {{- end }}
+    extraVolumes: |
+      {{- if .Values.pgvectorPortable.enabled }}
+      - name: pgvector-portable
+        emptyDir: {}
+      {{- end }}
+    extraVolumeMounts: |
+      {{- if .Values.pgvectorPortable.enabled }}
+      - name: pgvector-portable
+        mountPath: /opt/bitnami/postgresql/lib/vector.so
+        subPath: vector.so
+        readOnly: true
+      {{- end }}
 
 # --- Internal Redis subchart (bitnami/redis).
 # Set enabled: false to use externalRedis below instead.

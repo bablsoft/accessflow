@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, App, Button, Drawer, Form, Input, Select, Switch } from 'antd';
 import { ExperimentOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -51,8 +51,24 @@ interface SqlReviewCustomRuleDrawerProps {
  * Create / edit drawer for an organization custom SQL review rule (#1011), with a "Test against
  * SQL" panel that evaluates the unsaved draft through `POST /admin/sql-review-rules/test`.
  */
-export function SqlReviewCustomRuleDrawer({ open, rule, onClose }: SqlReviewCustomRuleDrawerProps) {
+export function SqlReviewCustomRuleDrawer({
+  open,
+  rule: requestedRule,
+  onClose,
+}: SqlReviewCustomRuleDrawerProps) {
   const { t } = useTranslation();
+  // The parent clears `rule` as it closes the drawer; keep showing the last one while the drawer
+  // animates out, or the closing drawer re-titles itself as a create form. Each open starts a new
+  // session that remounts both Forms: reopened mid-animation, `destroyOnHidden` never unmounts the
+  // content, so `clearOnDestroy` alone would carry the previous rule's values into this one.
+  const [rule, setRule] = useState(requestedRule);
+  const [session, setSession] = useState({ open, id: 0 });
+  if (open !== session.open) {
+    setSession({ open, id: open ? session.id + 1 : session.id });
+  }
+  if (open && requestedRule !== rule) {
+    setRule(requestedRule);
+  }
   const { message } = App.useApp();
   const [form] = Form.useForm<SqlReviewCustomRuleFormValues>();
   const [testForm] = Form.useForm<TestFormValues>();
@@ -60,9 +76,8 @@ export function SqlReviewCustomRuleDrawer({ open, rule, onClose }: SqlReviewCust
   const updateMutation = useUpdateSqlReviewCustomRule();
   const testMutation = useTestSqlReviewCustomRule();
   const operands = useMemo(() => sqlRuleOperandSpecs(t), [t]);
-  // The drawer content is destroyed on close and both Forms clear their store with it
-  // (`clearOnDestroy`) — the `useForm` instances outlive the content, so without it the next open
-  // would merge the previous rule's values over these.
+  // Both Forms clear their store when they unmount (`clearOnDestroy`) — the `useForm` instances
+  // outlive the content, so without it the next mount would merge the previous values over these.
   const initial = useMemo(() => toFormValues(rule), [rule]);
   const saving = createMutation.isPending || updateMutation.isPending;
 
@@ -136,6 +151,7 @@ export function SqlReviewCustomRuleDrawer({ open, rule, onClose }: SqlReviewCust
         />
       )}
       <Form<SqlReviewCustomRuleFormValues>
+        key={session.id}
         form={form}
         name="sql-review-custom-rule"
         layout="vertical"
@@ -227,6 +243,7 @@ export function SqlReviewCustomRuleDrawer({ open, rule, onClose }: SqlReviewCust
           {t('admin.sql_review.custom_rules.test_hint')}
         </div>
         <Form<TestFormValues>
+          key={session.id}
           form={testForm}
           name="sql-review-rule-test"
           layout="vertical"
