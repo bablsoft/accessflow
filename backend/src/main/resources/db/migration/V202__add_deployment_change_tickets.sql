@@ -29,6 +29,7 @@ CREATE TABLE deployment_tickets (
     decided_at            TIMESTAMPTZ,
     created_at            TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at            TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_deployment_tickets_decision CHECK (decision IN ('APPROVED', 'REJECTED')),
     CONSTRAINT uq_deployment_tickets_channel_request UNIQUE (channel_id, deployment_request_id),
     CONSTRAINT uq_deployment_tickets_channel_external UNIQUE (channel_id, external_id)
 );

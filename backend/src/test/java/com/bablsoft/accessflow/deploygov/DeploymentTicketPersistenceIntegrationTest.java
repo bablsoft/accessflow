@@ -148,6 +148,15 @@ class DeploymentTicketPersistenceIntegrationTest {
     }
 
     @Test
+    void decisionAcceptsOnlyApprovedOrRejected() {
+        var ticket = ticket(UUID.randomUUID(), "ext-" + UUID.randomUUID());
+        ticket.setDecision("approved");
+
+        assertThatThrownBy(() -> ticketRepository.saveAndFlush(ticket))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void ticketsCascadeWithTheirDeploymentRequest() {
         var saved = ticketRepository.saveAndFlush(ticket(UUID.randomUUID(),
                 "ext-" + UUID.randomUUID()));

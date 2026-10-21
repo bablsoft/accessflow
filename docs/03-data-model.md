@@ -3139,7 +3139,9 @@ Change tickets opened in an external ticketing system (ServiceNow / Jira) for a 
 plus the state last synced back by the signed inbound webhook — the deployment sibling of
 [`query_tickets`](#query_tickets), created by **V202** (#990, epic #989). A separate table owned by
 `deploygov` (never a widened `query_tickets`, which would put a deploygov FK in a core table);
-read and written only through `deploygov.api.DeploymentTicketService`.
+read and written only through `deploygov.api.DeploymentTicketService`. **Persistence only for
+now:** nothing writes these rows yet — ticket creation and the inbound sync land in later
+sub-issues of the epic.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -3154,8 +3156,8 @@ read and written only through `deploygov.api.DeploymentTicketService`.
 | `url` | TEXT nullable — deep link into the ticketing system |
 | `status` | VARCHAR(100) — external status label, updated by the inbound webhook |
 | `resolution` | VARCHAR(100) nullable |
-| `decision` | VARCHAR(20) nullable — `APPROVED` \| `REJECTED` \| `NULL` (undecided). Plain text, deliberately not a pg enum |
-| `decided_at` | TIMESTAMPTZ nullable — when `decision` last became non-null |
+| `decision` | VARCHAR(20) nullable — `APPROVED` \| `REJECTED` \| `NULL` (undecided). Plain text, deliberately not a pg enum; `chk_deployment_tickets_decision` rejects any other value |
+| `decided_at` | TIMESTAMPTZ nullable — when `decision` last changed to a non-null value |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
 Constraints: `uq_deployment_tickets_channel_request UNIQUE (channel_id, deployment_request_id)` —
