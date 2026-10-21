@@ -615,7 +615,16 @@ off `core.api.UserView`).
 group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same
 `VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). Since #863 it gates the ruleset CRUD
 (`/admin/sql-review-rulesets`, every mutation audited as `SQL_REVIEW_RULESET_*`) and the localized
-rule catalog (`GET /sql-review/rules`). The read-only evaluation endpoint
+rule catalog (`GET /sql-review/rules`). Since #1010 it also gates organization-defined custom rules
+(`/admin/sql-review-rules`): every create / update / delete is audited from the controller as
+`SQL_REVIEW_RULE_CREATED` / `SQL_REVIEW_RULE_UPDATED` / `SQL_REVIEW_RULE_DELETED` (resource
+`sql_review_rule`; create and update carry metadata `rule_id`, `name`, `category`,
+`default_severity`, `enabled`, a delete row carries the resource id only), while the
+draft run `POST /admin/sql-review-rules/test` persists, audits and publishes nothing. A custom rule is
+scoped to its organization — another organization's rule is a 404 and never enters its catalog. Its
+`sql_matches` regex runs under a step budget and is skipped for a statement that exhausts it, which
+**fails open** like a throwing built-in: treat a regex rule as a lint, not a security boundary (see
+[docs/19-sql-review.md → Custom rules](19-sql-review.md#custom-rules-1009-epic-1008)). The read-only evaluation endpoint
 (`POST /sql-review/evaluate`) is deliberately **not** behind it: any signed-in user may lint SQL
 against a datasource they can see, authorized exactly as `POST /queries/analyze` and
 `POST /queries/dry-run` — a direct or group permission row, or `QUERY_ADMIN` — and a datasource the
