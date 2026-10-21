@@ -2978,6 +2978,12 @@ entity and no fixed semantics on tag values.
   duplicate with `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` (pre-checked, and the raced unique
   violation is translated to the same code).
 
+**V202** (#990, epic #989) adds `change_ticket_required BOOLEAN NOT NULL DEFAULT FALSE` — same
+shape as `allow_break_glass`. It marks an environment whose deployments must carry an approved
+external change ticket (see `deployment_tickets` below). This migration only stores the flag:
+ticket creation, the inbound decision sync and the gate conjunct land in later sub-issues of the
+epic, so on its own the flag changes no behaviour.
+
 ### deployment_freeze_windows
 
 Freeze windows scoped by nullable `pipeline_id` / `environment_id` (FK CASCADE; both null =
@@ -3126,6 +3132,44 @@ unconstrained (`{}` matches everything):
 
 See [docs/05-backend.md → Deployment governance](05-backend.md) for evaluation order and the
 skip-on-malformed rule.
+
+### deployment_tickets
+
+Change tickets opened in an external ticketing system (ServiceNow / Jira) for a deployment request,
+plus the state last synced back by the signed inbound webhook — the deployment sibling of
+[`query_tickets`](#query_tickets), created by **V202** (#990, epic #989). A separate table owned by
+`deploygov` (never a widened `query_tickets`, which would put a deploygov FK in a core table);
+read and written only through `deploygov.api.DeploymentTicketService`. **Persistence only for
+now:** nothing writes these rows yet — ticket creation and the inbound sync land in later
+sub-issues of the epic.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID — bare id, no FK (the module's V149 convention) |
+| `deployment_request_id` | FK → `deployment_requests` ON DELETE CASCADE |
+| `channel_id` | UUID — bare id, **no FK**, so deleting the notification channel never takes the change evidence with it |
+| `ticket_system` | VARCHAR(20) — `SERVICENOW` \| `JIRA` (channel-type name, plain text — the enum lives in notifications) |
+| `trigger_event` | VARCHAR(40) — the notification event that opened the ticket (plain text) |
+| `external_id` | VARCHAR(255) — ServiceNow sys_id / Jira issue id |
+| `external_key` | VARCHAR(255) — human-readable key (`CHG0030012` / `OPS-42`) |
+| `url` | TEXT nullable — deep link into the ticketing system |
+| `status` | VARCHAR(100) — external status label, updated by the inbound webhook |
+| `resolution` | VARCHAR(100) nullable |
+| `decision` | VARCHAR(20) nullable — `APPROVED` \| `REJECTED` \| `NULL` (undecided). Plain text, deliberately not a pg enum; `chk_deployment_tickets_decision` rejects any other value |
+| `decided_at` | TIMESTAMPTZ nullable — when `decision` last changed to a non-null value |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Constraints: `uq_deployment_tickets_channel_request UNIQUE (channel_id, deployment_request_id)` —
+one change ticket per deployment per channel, with **no trigger dimension** (unlike
+`query_tickets`) — and `uq_deployment_tickets_channel_external UNIQUE (channel_id, external_id)`
+for unambiguous inbound resolution; `idx_deployment_tickets_request` on `deployment_request_id`.
+
+**Decision stamping.** "Approved ticket" is a persisted fact on the row, not a live evaluation of
+channel config: every status update writes `decision` as mapped by the caller from the channel's
+approve/reject status lists (a status in neither list writes `NULL`). `decided_at` is set to the
+update time when `decision` changes to a non-null value, kept when the same decision is re-sent,
+and cleared with it — a reopened ticket no longer counts as decided.
 
 ---
 

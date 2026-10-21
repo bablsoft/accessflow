@@ -21,5 +21,6 @@ public record UpdateDeploymentEnvironmentCommand(
         Boolean allowBreakGlass,
         List<String> tags,
         UUID datasourceId,
-        Boolean clearDatasource) {
+        Boolean clearDatasource,
+        Boolean changeTicketRequired) {
 }

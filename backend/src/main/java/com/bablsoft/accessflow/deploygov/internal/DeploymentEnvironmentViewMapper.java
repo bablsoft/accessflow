@@ -20,6 +20,6 @@ final class DeploymentEnvironmentViewMapper {
                 e.getId(), e.getPipelineId(), e.getName(), e.getSortOrder(), e.isRequireReview(),
                 e.getRequiredApprovals(), e.getReviewPlanId(), e.isAllowBreakGlass(), e.getCreatedAt(),
                 e.getTags() == null ? List.of() : List.of(e.getTags()),
-                e.getDatasourceId());
+                e.getDatasourceId(), e.isChangeTicketRequired());
     }
 }

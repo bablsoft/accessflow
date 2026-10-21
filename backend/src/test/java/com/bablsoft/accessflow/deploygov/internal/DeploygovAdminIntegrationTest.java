@@ -138,9 +138,9 @@ class DeploygovAdminIntegrationTest {
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
 
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false, null, null));
+                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false, null, null, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true, null, null));
+                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true, null, null, null));
 
         var environments = pipelineService.listEnvironments(pipeline.id(), org.getId());
         assertThat(environments).extracting(v -> v.name())
@@ -160,25 +160,25 @@ class DeploygovAdminIntegrationTest {
         // Create normalizes: trimmed, blanks dropped, de-duplicated.
         var created = pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("prod-acme", 1, true, null, null, false,
-                        List.of(" acme ", "", "acme", "eu"), null));
+                        List.of(" acme ", "", "acme", "eu"), null, null));
         assertThat(created.tags()).containsExactly("acme", "eu");
 
         // Update replaces the whole list.
         var replaced = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of("globex"), null, null));
+                        null, List.of("globex"), null, null, null));
         assertThat(replaced.tags()).containsExactly("globex");
 
         // Null leaves tags untouched.
         var unchanged = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, 3, null, null, null, null, null,
-                        null, null, null, null));
+                        null, null, null, null, null));
         assertThat(unchanged.tags()).containsExactly("globex");
 
         // An explicit empty list clears.
         var cleared = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of(), null, null));
+                        null, List.of(), null, null, null));
         assertThat(cleared.tags()).isEmpty();
     }
 
@@ -189,27 +189,27 @@ class DeploygovAdminIntegrationTest {
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
 
         var dev = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("dev", null, null, null, null, null, null, null));
+                new CreateDeploymentEnvironmentCommand("dev", null, null, null, null, null, null, null, null));
         var staging = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("staging", null, null, null, null, null, null, null));
+                new CreateDeploymentEnvironmentCommand("staging", null, null, null, null, null, null, null, null));
         assertThat(dev.sortOrder()).isZero();
         assertThat(staging.sortOrder()).isEqualTo(1);
 
         assertThatThrownBy(() -> pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 1, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", 1, null, null, null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
         assertThatThrownBy(() -> pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
                 new UpdateDeploymentEnvironmentCommand(null, 0, null, null, null, null, null,
-                        null, null, null, null)))
+                        null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
 
         // Resending the current position is not a conflict; moving to a free one works.
         assertThat(pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
                 new UpdateDeploymentEnvironmentCommand(null, 1, null, null, null, null, null,
-                        null, null, null, null)).sortOrder()).isEqualTo(1);
+                        null, null, null, null, null)).sortOrder()).isEqualTo(1);
         assertThat(pipelineService.updateEnvironment(pipeline.id(), org.getId(), staging.id(),
                 new UpdateDeploymentEnvironmentCommand(null, 5, null, null, null, null, null,
-                        null, null, null, null)).sortOrder()).isEqualTo(5);
+                        null, null, null, null, null)).sortOrder()).isEqualTo(5);
     }
 
     @Test
@@ -223,22 +223,22 @@ class DeploygovAdminIntegrationTest {
 
         var bound = pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
-                        datasource.getId()));
+                        datasource.getId(), null));
         assertThat(bound.datasourceId()).isEqualTo(datasource.getId());
 
         // A datasource of another organization reads as "not found", never as "exists elsewhere".
         assertThatThrownBy(() -> pipelineService.updateEnvironment(pipeline.id(), org.getId(), bound.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, foreignDatasource.getId(), null)))
+                        null, null, foreignDatasource.getId(), null, null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
         assertThatThrownBy(() -> pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("staging", null, null, null, null, null, null,
-                        UUID.randomUUID())))
+                        UUID.randomUUID(), null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
 
         var cleared = pipelineService.updateEnvironment(pipeline.id(), org.getId(), bound.id(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, null, true));
+                        null, null, null, true, null));
         assertThat(cleared.datasourceId()).isNull();
         assertThat(environmentLookupService.findById(bound.id()).orElseThrow().datasourceId()).isNull();
         assertThat(environmentLookupService.listByPipeline(pipeline.id()))
@@ -321,7 +321,7 @@ class DeploygovAdminIntegrationTest {
         var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false, null, null));
+                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false, null, null, null));
 
         // Recurring Friday-evening window in Berlin, scoped to the environment.
         var recurring = freezeWindowService.create(new DeploymentFreezeWindowCommand(org.getId(),

@@ -8984,7 +8984,11 @@ value already held by a sibling is `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLI
 land on, validated through the org-scoped datasource lookup so a missing or cross-org id is `404
 DATASOURCE_NOT_FOUND`; `null` = deploy-only — #877), and — #741 — `tags` (string array, ≤10 tags
 of ≤32 chars each; free-form labels with no fixed semantics — customer, region, tier. The service
-trims, drops blanks and de-duplicates). Environment responses include `tags` and `datasourceId`.
+trims, drops blanks and de-duplicates), and — #990 — `changeTicketRequired` (default `false`;
+marks an environment whose deployments must carry an approved external change ticket — stored
+only for now, the gate does not read it yet). Environment responses include `tags`,
+`datasourceId` and `changeTicketRequired`; on the update body `changeTicketRequired = null` (or
+omitted) leaves it unchanged.
 On the **update** body `tags = null` (or omitted) leaves the tag list unchanged; an explicit `[]`
 clears it — tags are replaced as a whole list, so there is no `clearTags` flag. `datasourceId`
 follows the `clearReviewPlan` shape instead: omitted or `null` leaves the binding unchanged, and

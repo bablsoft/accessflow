@@ -6,7 +6,11 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 
 import java.util.UUID;
 
-/** Minimal projection the notifications module needs to render a deployment notification (#695). */
+/**
+ * Minimal projection the notifications module needs to render a deployment notification (#695).
+ * {@code changeTicketRequired}, {@code commitSha}, {@code artifactRef} and {@code runUrl} (#990)
+ * feed the change ticket opened for a flagged environment.
+ */
 public record DeploymentNotificationView(
         UUID id,
         UUID organizationId,
@@ -20,5 +24,9 @@ public record DeploymentNotificationView(
         String justification,
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
-        String aiSummary) {
+        String aiSummary,
+        boolean changeTicketRequired,
+        String commitSha,
+        String artifactRef,
+        String runUrl) {
 }

@@ -55,7 +55,7 @@ class SchemaDriftScanContextResolverTest {
     private void stubEnvironment(UUID boundDatasourceId) {
         when(environmentLookupService.findById(environmentId)).thenReturn(Optional.of(
                 new DeploymentEnvironmentView(environmentId, pipelineId, "prod", 20, false, null, null,
-                        false, Instant.EPOCH, List.of(), boundDatasourceId)));
+                        false, Instant.EPOCH, List.of(), boundDatasourceId, false)));
     }
 
     private void stubPipelineVisible() {

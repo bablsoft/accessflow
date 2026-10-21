@@ -100,7 +100,7 @@ class DeploygovWebModelsTest {
         var planId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
         var create = new CreateDeploymentEnvironmentRequest("production", 2, false, 3, planId,
-                true, List.of("acme", "eu"), datasourceId).toCommand();
+                true, List.of("acme", "eu"), datasourceId, true).toCommand();
         assertThat(create.name()).isEqualTo("production");
         assertThat(create.sortOrder()).isEqualTo(2);
         assertThat(create.requireReview()).isFalse();
@@ -109,9 +109,10 @@ class DeploygovWebModelsTest {
         assertThat(create.allowBreakGlass()).isTrue();
         assertThat(create.tags()).containsExactly("acme", "eu");
         assertThat(create.datasourceId()).isEqualTo(datasourceId);
+        assertThat(create.changeTicketRequired()).isTrue();
 
         var update = new UpdateDeploymentEnvironmentRequest(null, null, null, null, true, null,
-                true, null, null, null, true).toCommand();
+                true, null, null, null, true, null).toCommand();
         assertThat(update.clearRequiredApprovals()).isTrue();
         assertThat(update.clearReviewPlan()).isTrue();
         assertThat(update.name()).isNull();
@@ -119,6 +120,11 @@ class DeploygovWebModelsTest {
         assertThat(update.tags()).isNull();
         assertThat(update.datasourceId()).isNull();
         assertThat(update.clearDatasource()).isTrue();
+        assertThat(update.changeTicketRequired()).isNull();
+
+        var flagged = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
+                null, null, null, null, null, false).toCommand();
+        assertThat(flagged.changeTicketRequired()).isFalse();
     }
 
     @Test
@@ -126,7 +132,7 @@ class DeploygovWebModelsTest {
         var datasourceId = UUID.randomUUID();
         var view = new DeploymentEnvironmentView(
                 UUID.randomUUID(), UUID.randomUUID(), "production", 1, true, 2, null, false,
-                Instant.now(), List.of("acme"), datasourceId);
+                Instant.now(), List.of("acme"), datasourceId, true);
         var response = DeploymentEnvironmentResponse.from(view);
 
         assertThat(response.id()).isEqualTo(view.id());
@@ -140,6 +146,7 @@ class DeploygovWebModelsTest {
         assertThat(response.createdAt()).isEqualTo(view.createdAt());
         assertThat(response.tags()).containsExactly("acme");
         assertThat(response.datasourceId()).isEqualTo(datasourceId);
+        assertThat(response.changeTicketRequired()).isTrue();
     }
 
     @Test

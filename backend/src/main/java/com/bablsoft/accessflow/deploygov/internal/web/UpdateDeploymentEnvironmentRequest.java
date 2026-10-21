@@ -22,11 +22,12 @@ public record UpdateDeploymentEnvironmentRequest(
         @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
         List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
         UUID datasourceId,
-        Boolean clearDatasource) {
+        Boolean clearDatasource,
+        Boolean changeTicketRequired) {
 
     UpdateDeploymentEnvironmentCommand toCommand() {
         return new UpdateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
                 requiredApprovals, clearRequiredApprovals, reviewPlanId, clearReviewPlan,
-                allowBreakGlass, tags, datasourceId, clearDatasource);
+                allowBreakGlass, tags, datasourceId, clearDatasource, changeTicketRequired);
     }
 }

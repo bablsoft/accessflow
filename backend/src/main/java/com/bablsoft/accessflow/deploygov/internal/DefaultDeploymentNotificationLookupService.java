@@ -10,7 +10,6 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView;
-import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
@@ -54,17 +53,19 @@ class DefaultDeploymentNotificationLookupService implements DeploymentNotificati
         return requestRepository.findById(deploymentRequestId).map(r -> {
             var pipelineName = pipelineRepository.findById(r.getPipelineId())
                     .map(DeploymentPipelineEntity::getName).orElse(null);
-            var environmentName = environmentRepository.findById(r.getEnvironmentId())
-                    .map(DeploymentEnvironmentEntity::getName).orElse(null);
+            var environment = environmentRepository.findById(r.getEnvironmentId()).orElse(null);
             var summary = r.getAiAnalysisId() != null
                     ? aiAnalysisLookupService.findById(r.getAiAnalysisId()).orElse(null) : null;
             return new DeploymentNotificationView(r.getId(), r.getOrganizationId(),
-                    r.getPipelineId(), pipelineName, environmentName, r.getVersion(),
+                    r.getPipelineId(), pipelineName,
+                    environment != null ? environment.getName() : null, r.getVersion(),
                     r.getSubmittedBy(), r.getStatus(), r.getSubmissionReason(),
                     r.getJustification(),
                     summary != null ? summary.riskLevel() : null,
                     summary != null ? summary.riskScore() : null,
-                    summary != null ? summary.summary() : null);
+                    summary != null ? summary.summary() : null,
+                    environment != null && environment.isChangeTicketRequired(),
+                    r.getCommitSha(), r.getArtifactRef(), r.getRunUrl());
         });
     }
 

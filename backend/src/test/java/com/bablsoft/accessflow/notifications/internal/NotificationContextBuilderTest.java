@@ -877,7 +877,7 @@ class NotificationContextBuilderTest {
                 deploymentRequestId, orgId, UUID.randomUUID(), "payments-pipeline", "production",
                 "2.4.1", submitterId, QueryStatus.PENDING_REVIEW,
                 com.bablsoft.accessflow.core.api.SubmissionReason.USER_SUBMITTED,
-                "ship it", RiskLevel.LOW, 10, "ok");
+                "ship it", RiskLevel.LOW, 10, "ok", false, null, null, null);
     }
 
     @Test
