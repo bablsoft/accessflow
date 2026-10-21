@@ -161,6 +161,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         entity.setAllowBreakGlass(Boolean.TRUE.equals(command.allowBreakGlass()));
         entity.setTags(toTagArray(command.tags()));
         entity.setDatasourceId(command.datasourceId());
+        entity.setChangeTicketRequired(Boolean.TRUE.equals(command.changeTicketRequired()));
         return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity));
     }
 
@@ -201,6 +202,9 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         }
         if (command.allowBreakGlass() != null) {
             entity.setAllowBreakGlass(command.allowBreakGlass());
+        }
+        if (command.changeTicketRequired() != null) {
+            entity.setChangeTicketRequired(command.changeTicketRequired());
         }
         if (command.tags() != null) {
             entity.setTags(toTagArray(command.tags()));

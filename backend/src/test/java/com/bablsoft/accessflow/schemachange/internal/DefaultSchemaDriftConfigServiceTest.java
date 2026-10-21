@@ -64,7 +64,7 @@ class DefaultSchemaDriftConfigServiceTest {
     private void stubEnvironment(UUID id, UUID owningPipelineId, UUID boundDatasourceId) {
         when(environmentLookupService.findById(id)).thenReturn(Optional.of(
                 new DeploymentEnvironmentView(id, owningPipelineId, "dev", 10, false, null, null, false,
-                        Instant.EPOCH, List.of(), boundDatasourceId)));
+                        Instant.EPOCH, List.of(), boundDatasourceId, false)));
     }
 
     private UpsertSchemaDriftConfigCommand command(SchemaDriftBaseline baseline, UUID baselineEnvironmentId) {

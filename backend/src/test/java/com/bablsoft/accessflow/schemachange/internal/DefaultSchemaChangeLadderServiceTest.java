@@ -262,7 +262,7 @@ class DefaultSchemaChangeLadderServiceTest {
 
     private DeploymentEnvironmentView env(UUID id, String name, int sortOrder, UUID datasourceId) {
         return new DeploymentEnvironmentView(id, pipelineId, name, sortOrder, false, null, null, false, Instant.EPOCH,
-                List.of(), datasourceId);
+                List.of(), datasourceId, false);
     }
 
     private DeploymentPipelineView pipeline(UUID id, String name) {

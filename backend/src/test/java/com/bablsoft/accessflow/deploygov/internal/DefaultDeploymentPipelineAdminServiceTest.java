@@ -276,11 +276,65 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var view = service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null));
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null, null));
 
         assertThat(view.sortOrder()).isZero();
         assertThat(view.requireReview()).isTrue();
         assertThat(view.allowBreakGlass()).isFalse();
+        assertThat(view.changeTicketRequired()).isFalse();
+    }
+
+    @Test
+    void createEnvironmentStoresChangeTicketRequired() {
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.existsByPipelineIdAndName(pipelineId, "production"))
+                .thenReturn(false);
+        when(environmentRepository.findMaxSortOrderByPipelineId(pipelineId)).thenReturn(null);
+        when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.createEnvironment(pipelineId, orgId,
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null,
+                        null, null, true));
+
+        assertThat(view.changeTicketRequired()).isTrue();
+    }
+
+    @Test
+    void updateEnvironmentChangesChangeTicketRequired() {
+        var environment = environment("production", 0);
+        environment.setChangeTicketRequired(true);
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.findById(environment.getId()))
+                .thenReturn(Optional.of(environment));
+        when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, null, null, null, false));
+
+        assertThat(view.changeTicketRequired()).isFalse();
+    }
+
+    @Test
+    void updateEnvironmentNullChangeTicketRequiredLeavesItUnchanged() {
+        var environment = environment("production", 0);
+        environment.setChangeTicketRequired(true);
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.findById(environment.getId()))
+                .thenReturn(Optional.of(environment));
+        when(environmentRepository.saveAndFlush(any(DeploymentEnvironmentEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, null, null, null, null));
+
+        assertThat(view.changeTicketRequired()).isTrue();
     }
 
     @Test
@@ -291,7 +345,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DuplicateDeploymentEnvironmentNameException.class);
     }
 
@@ -306,7 +360,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenReturn(Optional.of(planSnapshot(planId, UUID.randomUUID())));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, 2, planId, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", null, null, 2, planId, null, null, null, null)))
                 .isInstanceOf(ReviewPlanNotFoundException.class);
     }
 
@@ -324,7 +378,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, 5, false, null, true, null, true, true, null,
-                        null, null));
+                        null, null, null));
 
         assertThat(view.sortOrder()).isEqualTo(5);
         assertThat(view.requireReview()).isFalse();
@@ -350,7 +404,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
         tags.add("eu");
         var view = service.createEnvironment(pipelineId, orgId,
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null,
-                        tags, null));
+                        tags, null, null));
 
         assertThat(view.tags()).containsExactly("acme", "eu");
     }
@@ -366,7 +420,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.createEnvironment(pipelineId, orgId,
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null,
-                        null, null));
+                        null, null, null));
 
         assertThat(view.tags()).isEmpty();
     }
@@ -384,7 +438,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of("globex", "us"), null, null));
+                        null, List.of("globex", "us"), null, null, null));
 
         assertThat(view.tags()).containsExactly("globex", "us");
     }
@@ -402,7 +456,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, null, null));
+                        null, null, null, null, null));
 
         assertThat(view.tags()).containsExactly("acme");
     }
@@ -420,7 +474,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, List.of(), null, null));
+                        null, List.of(), null, null, null));
 
         assertThat(view.tags()).isEmpty();
     }
@@ -435,7 +489,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, foreign.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, null, null)))
+                        null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentNotFoundException.class);
     }
 
@@ -451,7 +505,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand("production", null, null, null, null, null,
-                        null, null, null, null, null)))
+                        null, null, null, null, null, null)))
                 .isInstanceOf(DuplicateDeploymentEnvironmentNameException.class);
     }
 
@@ -490,7 +544,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var view = service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null));
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null, null));
 
         assertThat(view.sortOrder()).isEqualTo(5);
         // An appended position is free by construction — no duplicate pre-check is spent on it.
@@ -506,7 +560,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
         when(environmentRepository.existsByPipelineIdAndSortOrder(pipelineId, 1)).thenReturn(true);
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", 1, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", 1, null, null, null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class)
                 .satisfies(ex -> assertThat(((DeploymentEnvironmentSortOrderConflictException) ex)
                         .getSortOrder()).isEqualTo(1));
@@ -525,7 +579,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                         + DefaultDeploymentPipelineAdminService.SORT_ORDER_CONSTRAINT + "\""));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", 2, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", 2, null, null, null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
     }
 
@@ -540,7 +594,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                         "duplicate key value violates unique constraint \"uq_deployment_environments_pipeline_name\""));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -554,7 +608,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                 .thenThrow(new DataIntegrityViolationException(null));
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
-                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null)))
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .isNot(new org.assertj.core.api.Condition<>(
                         DeploymentEnvironmentSortOrderConflictException.class::isInstance, "translated"));
@@ -572,7 +626,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.createEnvironment(pipelineId, orgId,
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
-                        datasourceId));
+                        datasourceId, null));
 
         assertThat(view.datasourceId()).isEqualTo(datasourceId);
         verify(datasourceAdminService).getForAdmin(datasourceId, orgId);
@@ -590,7 +644,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
                 new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
-                        datasourceId)))
+                        datasourceId, null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
         verify(environmentRepository, never()).saveAndFlush(any());
     }
@@ -608,7 +662,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, datasourceId, null));
+                        null, null, datasourceId, null, null));
 
         assertThat(view.datasourceId()).isEqualTo(datasourceId);
         verify(datasourceAdminService).getForAdmin(datasourceId, orgId);
@@ -627,7 +681,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, datasourceId, null)))
+                        null, null, datasourceId, null, null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
         verify(environmentRepository, never()).saveAndFlush(any());
     }
@@ -645,7 +699,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, UUID.randomUUID(), true));
+                        null, null, UUID.randomUUID(), true, null));
 
         assertThat(view.datasourceId()).isNull();
         verify(datasourceAdminService, never()).getForAdmin(any(), any());
@@ -665,7 +719,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
-                        null, null, null, null));
+                        null, null, null, null, null));
 
         assertThat(view.datasourceId()).isEqualTo(datasourceId);
     }
@@ -682,7 +736,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, 1, null, null, null, null, null,
-                        null, null, null, null)))
+                        null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
         verify(environmentRepository, never()).saveAndFlush(any());
     }
@@ -699,7 +753,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         var view = service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, 3, null, null, null, null, null,
-                        null, null, null, null));
+                        null, null, null, null, null));
 
         assertThat(view.sortOrder()).isEqualTo(3);
         verify(environmentRepository, never())
@@ -721,7 +775,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),
                 new UpdateDeploymentEnvironmentCommand(null, 7, null, null, null, null, null,
-                        null, null, null, null)))
+                        null, null, null, null, null)))
                 .isInstanceOf(DeploymentEnvironmentSortOrderConflictException.class);
     }
 

@@ -49,6 +49,10 @@ public class DeploymentEnvironmentEntity {
     @Column(name = "allow_break_glass", nullable = false)
     private boolean allowBreakGlass = false;
 
+    /** Deployments here must carry an approved external change ticket (#990). */
+    @Column(name = "change_ticket_required", nullable = false)
+    private boolean changeTicketRequired = false;
+
     /**
      * The datasource this environment's schema changes land on (#877). Bare UUID, no FK — the row
      * survives deletion of the datasource, like {@code reviewPlanId}. Null = deploy-only environment.

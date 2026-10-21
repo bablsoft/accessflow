@@ -84,6 +84,28 @@ class DefaultDeploymentNotificationLookupServiceTest {
         assertThat(view.submittedByUserId()).isEqualTo(submitterId);
         assertThat(view.status()).isEqualTo(QueryStatus.PENDING_REVIEW);
         assertThat(view.aiRiskLevel()).isNull();
+        assertThat(view.changeTicketRequired()).isFalse();
+        assertThat(view.commitSha()).isNull();
+    }
+
+    @Test
+    void carriesTheChangeTicketFlagAndRunProvenance() {
+        var request = request();
+        request.setCommitSha("abc123");
+        request.setArtifactRef("ghcr.io/acme/payments:2.4.1");
+        request.setRunUrl("https://ci.example/runs/42");
+        var environment = environment(null);
+        environment.setChangeTicketRequired(true);
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
+        when(pipelineRepository.findById(pipelineId)).thenReturn(Optional.of(pipeline(null)));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(environment));
+
+        var view = service.find(requestId).orElseThrow();
+
+        assertThat(view.changeTicketRequired()).isTrue();
+        assertThat(view.commitSha()).isEqualTo("abc123");
+        assertThat(view.artifactRef()).isEqualTo("ghcr.io/acme/payments:2.4.1");
+        assertThat(view.runUrl()).isEqualTo("https://ci.example/runs/42");
     }
 
     @Test
@@ -97,6 +119,7 @@ class DefaultDeploymentNotificationLookupServiceTest {
 
         assertThat(view.pipelineName()).isNull();
         assertThat(view.environmentName()).isNull();
+        assertThat(view.changeTicketRequired()).isFalse();
     }
 
     @Test

@@ -21,10 +21,12 @@ public record CreateDeploymentEnvironmentRequest(
         Boolean allowBreakGlass,
         @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
         List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
-        UUID datasourceId) {
+        UUID datasourceId,
+        Boolean changeTicketRequired) {
 
     CreateDeploymentEnvironmentCommand toCommand() {
         return new CreateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
-                requiredApprovals, reviewPlanId, allowBreakGlass, tags, datasourceId);
+                requiredApprovals, reviewPlanId, allowBreakGlass, tags, datasourceId,
+                changeTicketRequired);
     }
 }

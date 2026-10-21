@@ -11,7 +11,8 @@ import java.util.UUID;
  * per-environment overrides of the pipeline's plan. {@code tags} are free-form labels (null or
  * empty = no tags); the service trims, drops blanks and de-duplicates. {@code datasourceId}
  * optionally names the datasource the environment's schema changes land on — it must belong to
- * the pipeline's organization; null = deploy-only.
+ * the pipeline's organization; null = deploy-only. {@code changeTicketRequired} defaults to
+ * {@code false} when null (#990).
  */
 public record CreateDeploymentEnvironmentCommand(
         String name,
@@ -21,5 +22,6 @@ public record CreateDeploymentEnvironmentCommand(
         UUID reviewPlanId,
         Boolean allowBreakGlass,
         List<String> tags,
-        UUID datasourceId) {
+        UUID datasourceId,
+        Boolean changeTicketRequired) {
 }

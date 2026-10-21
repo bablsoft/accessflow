@@ -17,12 +17,13 @@ public record DeploymentEnvironmentResponse(
         boolean allowBreakGlass,
         Instant createdAt,
         List<String> tags,
-        UUID datasourceId) {
+        UUID datasourceId,
+        boolean changeTicketRequired) {
 
     static DeploymentEnvironmentResponse from(DeploymentEnvironmentView view) {
         return new DeploymentEnvironmentResponse(view.id(), view.pipelineId(), view.name(),
                 view.sortOrder(), view.requireReview(), view.requiredApprovals(),
                 view.reviewPlanId(), view.allowBreakGlass(), view.createdAt(), view.tags(),
-                view.datasourceId());
+                view.datasourceId(), view.changeTicketRequired());
     }
 }

@@ -181,7 +181,7 @@ class DefaultSchemaChangeNotificationLookupServiceTest {
 
     private DeploymentEnvironmentView environment() {
         return new DeploymentEnvironmentView(environmentId, pipelineId, "staging", 1, true, null, null, false,
-                Instant.now(), List.of(), datasourceId);
+                Instant.now(), List.of(), datasourceId, false);
     }
 
     private ReviewPlanSnapshot plan(List<ApproverRule> approvers) {

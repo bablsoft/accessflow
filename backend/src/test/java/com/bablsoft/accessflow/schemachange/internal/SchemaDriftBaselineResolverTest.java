@@ -59,13 +59,13 @@ class SchemaDriftBaselineResolverTest {
 
     private DeploymentEnvironmentView environment(UUID id, String name, int sortOrder, UUID datasourceId) {
         return new DeploymentEnvironmentView(id, pipelineId, name, sortOrder, false, null, null, false,
-                Instant.EPOCH, List.of(), datasourceId);
+                Instant.EPOCH, List.of(), datasourceId, false);
     }
 
     private DeploymentEnvironmentView environment(UUID id, String name, int sortOrder, UUID datasourceId,
                                                   UUID owningPipelineId) {
         return new DeploymentEnvironmentView(id, owningPipelineId, name, sortOrder, false, null, null, false,
-                Instant.EPOCH, List.of(), datasourceId);
+                Instant.EPOCH, List.of(), datasourceId, false);
     }
 
     private SchemaDriftScanContext ctx(SchemaDriftBaseline baseline, UUID baselineEnvironmentId) {

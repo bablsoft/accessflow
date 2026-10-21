@@ -684,7 +684,7 @@ class DefaultSchemaChangePromotionServiceTest {
     private DeploymentEnvironmentView environment(UUID id, String name, int sortOrder, UUID datasourceId,
                                                   boolean requireReview) {
         return new DeploymentEnvironmentView(id, pipelineId, name, sortOrder, requireReview, null, null, false,
-                Instant.EPOCH, List.of(), datasourceId);
+                Instant.EPOCH, List.of(), datasourceId, false);
     }
 
     private ReviewPlanSnapshot plan(boolean requiresHumanApproval) {

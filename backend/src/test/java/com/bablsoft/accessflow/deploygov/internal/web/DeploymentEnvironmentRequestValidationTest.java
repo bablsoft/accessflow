@@ -36,7 +36,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void createRejectsMoreThanTenTags() {
         var request = new CreateDeploymentEnvironmentRequest("production", null, null, null, null,
-                null, tags(11), null);
+                null, tags(11), null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -46,7 +46,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void createRejectsATagLongerThan32Characters() {
         var request = new CreateDeploymentEnvironmentRequest("production", null, null, null, null,
-                null, List.of("x".repeat(33)), null);
+                null, List.of("x".repeat(33)), null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -57,7 +57,7 @@ class DeploymentEnvironmentRequestValidationTest {
     void createAcceptsTenTagsOfMaximumLength() {
         var request = new CreateDeploymentEnvironmentRequest("production", null, null, null, null,
                 null, IntStream.range(0, 10).mapToObj(i -> String.valueOf((char) ('a' + i)).repeat(32))
-                        .toList(), null);
+                        .toList(), null, null);
 
         assertThat(validator.validate(request)).isEmpty();
     }
@@ -65,7 +65,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void createRejectsANegativeSortOrder() {
         var request = new CreateDeploymentEnvironmentRequest("production", -1, null, null, null,
-                null, null, null);
+                null, null, null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -75,7 +75,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void createAcceptsZeroSortOrderAndADatasource() {
         var request = new CreateDeploymentEnvironmentRequest("production", 0, null, null, null,
-                null, null, UUID.randomUUID());
+                null, null, UUID.randomUUID(), null);
 
         assertThat(validator.validate(request)).isEmpty();
     }
@@ -83,7 +83,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void updateRejectsANegativeSortOrder() {
         var request = new UpdateDeploymentEnvironmentRequest(null, -5, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -91,9 +91,20 @@ class DeploymentEnvironmentRequestValidationTest {
     }
 
     @Test
+    void changeTicketRequiredIsUnconstrainedOnBothBodies() {
+        var create = new CreateDeploymentEnvironmentRequest("production", null, null, null, null,
+                null, null, null, true);
+        var update = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
+                null, null, null, null, null, false);
+
+        assertThat(validator.validate(create)).isEmpty();
+        assertThat(validator.validate(update)).isEmpty();
+    }
+
+    @Test
     void createAcceptsAbsentTags() {
         var request = new CreateDeploymentEnvironmentRequest("production", null, null, null, null,
-                null, null, null);
+                null, null, null, null);
 
         assertThat(validator.validate(request)).isEmpty();
     }
@@ -101,7 +112,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void updateRejectsMoreThanTenTags() {
         var request = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
-                null, null, tags(11), null, null);
+                null, null, tags(11), null, null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -111,7 +122,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void updateRejectsATagLongerThan32Characters() {
         var request = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
-                null, null, List.of("x".repeat(33)), null, null);
+                null, null, List.of("x".repeat(33)), null, null, null);
 
         assertThat(validator.validate(request))
                 .extracting(v -> v.getPropertyPath().toString())
@@ -121,7 +132,7 @@ class DeploymentEnvironmentRequestValidationTest {
     @Test
     void updateAcceptsAnEmptyTagListAsAnExplicitClear() {
         var request = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
-                null, null, List.of(), null, null);
+                null, null, List.of(), null, null, null);
 
         assertThat(validator.validate(request)).isEmpty();
     }

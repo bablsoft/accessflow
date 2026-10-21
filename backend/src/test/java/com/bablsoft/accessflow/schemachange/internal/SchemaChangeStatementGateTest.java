@@ -252,7 +252,7 @@ class SchemaChangeStatementGateTest {
 
     private DeploymentEnvironmentView environment(int sortOrder, UUID datasourceId) {
         return new DeploymentEnvironmentView(UUID.randomUUID(), pipelineId, "env-" + sortOrder, sortOrder, true, null,
-                null, false, Instant.EPOCH, List.of(), datasourceId);
+                null, false, Instant.EPOCH, List.of(), datasourceId, false);
     }
 
     private DatasourceView datasource(UUID id, DbType dbType) {
