@@ -43,7 +43,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class MongoQueryEngineIntegrationTest {
 
-    static final MongoDBContainer MONGO = new MongoDBContainer("mongo:8.0");
+    // mongod 8.0+ refuses to start on Linux kernels 6.19 through 7.0.13 (SERVER-121912, the
+    // vendored TCMalloc's rseq usage), which the GitHub ubuntu-24.04 runners now ship. 7.0 predates
+    // that allocator and exercises the same driver surface.
+    static final MongoDBContainer MONGO = new MongoDBContainer("mongo:7.0");
 
     @BeforeAll
     static void startContainer() {
