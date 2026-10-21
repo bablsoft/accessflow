@@ -1972,7 +1972,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `decision_hook`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `sql_review_rule`, `service_account`, `row_security_policy`, `row_limit_policy`, `data_budget`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `decision_hook`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `sql_review_rule`, `service_account`, `row_security_policy`, `row_limit_policy`, `data_budget`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `deployment_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`, `schema_change_promotion`, `schema_drift_scan`, `schema_drift_finding`, `schema_drift_config`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -2980,9 +2980,9 @@ entity and no fixed semantics on tag values.
 
 **V202** (#990, epic #989) adds `change_ticket_required BOOLEAN NOT NULL DEFAULT FALSE` — same
 shape as `allow_break_glass`. It marks an environment whose deployments must carry an approved
-external change ticket (see `deployment_tickets` below). This migration only stores the flag:
-ticket creation, the inbound decision sync and the gate conjunct land in later sub-issues of the
-epic, so on its own the flag changes no behaviour.
+external change ticket (see `deployment_tickets` below). Since #991 the flag makes a ServiceNow /
+Jira channel carrying the `DEPLOYMENT_SUBMITTED` trigger open a change ticket for the deployment;
+the inbound decision sync (#992) and the gate conjunct (#993) land in later sub-issues of the epic.
 
 ### deployment_freeze_windows
 
@@ -3139,9 +3139,10 @@ Change tickets opened in an external ticketing system (ServiceNow / Jira) for a 
 plus the state last synced back by the signed inbound webhook — the deployment sibling of
 [`query_tickets`](#query_tickets), created by **V202** (#990, epic #989). A separate table owned by
 `deploygov` (never a widened `query_tickets`, which would put a deploygov FK in a core table);
-read and written only through `deploygov.api.DeploymentTicketService`. **Persistence only for
-now:** nothing writes these rows yet — ticket creation and the inbound sync land in later
-sub-issues of the epic.
+read and written only through `deploygov.api.DeploymentTicketService`. Rows are written by the
+ticketing channels when they open a change ticket (#991, see
+[docs/08-notifications.md → Deployment change tickets](08-notifications.md#deployment-change-tickets-991));
+the inbound status sync (#992) and the gate that reads `decision` (#993) land in later sub-issues.
 
 | Column | Type / Notes |
 |--------|-------------|

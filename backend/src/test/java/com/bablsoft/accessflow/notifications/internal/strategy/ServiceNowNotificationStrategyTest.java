@@ -3,11 +3,14 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordTicketCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
+import com.bablsoft.accessflow.deploygov.api.RecordDeploymentTicketCommand;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -26,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
@@ -70,6 +74,7 @@ class ServiceNowNotificationStrategyTest {
     private RecordingTaskScheduler taskScheduler;
     private ApplicationEventPublisher eventPublisher;
     private QueryTicketService queryTicketService;
+    private DeploymentTicketService deploymentTicketService;
     private AuditLogService auditLogService;
     private ServiceNowNotificationStrategy strategy;
     private NotificationChannelEntity channel;
@@ -88,6 +93,7 @@ class ServiceNowNotificationStrategyTest {
         taskScheduler = new RecordingTaskScheduler();
         eventPublisher = mock(ApplicationEventPublisher.class);
         queryTicketService = mock(QueryTicketService.class);
+        deploymentTicketService = mock(DeploymentTicketService.class);
         auditLogService = mock(AuditLogService.class);
         var properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
@@ -97,7 +103,7 @@ class ServiceNowNotificationStrategyTest {
         strategy = new ServiceNowNotificationStrategy(
                 codec, JsonMapper.builder().build(), RestClient.create(), taskScheduler,
                 properties, channelRepository, eventPublisher, queryTicketService,
-                auditLogService);
+                deploymentTicketService, auditLogService);
 
         channel = new NotificationChannelEntity();
         channel.setId(UUID.randomUUID());
@@ -197,6 +203,127 @@ class ServiceNowNotificationStrategyTest {
         stubConfig(EnumSet.allOf(TicketingTrigger.class));
         strategy.deliver(anomalyCtx(), channel);
         assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void flaggedDeploymentSubmissionOpensAChangeTicket() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        var ctx = deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, true);
+        strategy.deliver(ctx, channel);
+
+        assertThat(requests).hasSize(1);
+        var body = requests.peek().body;
+        assertThat(body).contains("\"short_description\":\"[AccessFlow] Deployment 2.4.1 to "
+                + "production awaiting approval (payments)\"");
+        assertThat(body).contains("\"correlation_id\":\"accessflow-deployment-"
+                + ctx.deploymentRequestId() + "\"");
+
+        var captor = ArgumentCaptor.forClass(RecordDeploymentTicketCommand.class);
+        verify(deploymentTicketService).recordCreated(captor.capture());
+        var command = captor.getValue();
+        assertThat(command.deploymentRequestId()).isEqualTo(ctx.deploymentRequestId());
+        assertThat(command.organizationId()).isEqualTo(ctx.organizationId());
+        assertThat(command.channelId()).isEqualTo(channel.getId());
+        assertThat(command.ticketSystem()).isEqualTo("SERVICENOW");
+        assertThat(command.triggerEvent()).isEqualTo("DEPLOYMENT_SUBMITTED");
+        assertThat(command.externalId()).isEqualTo("abc123");
+        assertThat(command.externalKey()).isEqualTo("INC0010023");
+        assertThat(command.status()).isEqualTo(ServiceNowNotificationStrategy.INITIAL_STATUS);
+        verify(queryTicketService, times(0)).recordCreated(any());
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        var audit = auditCaptor.getValue();
+        assertThat(audit.action()).isEqualTo(AuditAction.TICKET_CREATED);
+        assertThat(audit.resourceType()).isEqualTo(AuditResourceType.DEPLOYMENT_TICKET);
+        assertThat(audit.resourceId()).isEqualTo(ctx.deploymentRequestId());
+        assertThat(audit.metadata())
+                .containsEntry("deployment_request_id", ctx.deploymentRequestId().toString())
+                .containsEntry("trigger_event", "DEPLOYMENT_SUBMITTED")
+                .doesNotContainKey("query_request_id");
+    }
+
+    @Test
+    void autoApprovedDeploymentOpensTheTicketOnApproval() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, true), channel);
+
+        assertThat(requests).hasSize(1);
+        var captor = ArgumentCaptor.forClass(RecordDeploymentTicketCommand.class);
+        verify(deploymentTicketService).recordCreated(captor.capture());
+        assertThat(captor.getValue().triggerEvent()).isEqualTo("DEPLOYMENT_APPROVED");
+    }
+
+    @Test
+    void unflaggedEnvironmentOpensNoTicket() {
+        stubConfig(EnumSet.allOf(TicketingTrigger.class));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, false),
+                channel);
+        assertThat(requests).isEmpty();
+        verifyNoInteractions(deploymentTicketService, auditLogService);
+    }
+
+    @Test
+    void deploymentWithoutDetailsOpensNoTicket() {
+        stubConfig(EnumSet.allOf(TicketingTrigger.class));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, (Boolean) null),
+                channel);
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void deploymentTriggerOffOpensNoTicket() {
+        stubConfig(EnumSet.of(TicketingTrigger.QUERY_REJECTED));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, true), channel);
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void deploymentLifecycleEventsBeyondTheOpeningOnesOpenNoTicket() {
+        stubConfig(EnumSet.allOf(TicketingTrigger.class));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_REJECTED, true), channel);
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, true),
+                channel);
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void existingDeploymentTicketIsNotDuplicated() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        var ctx = deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, true);
+        when(deploymentTicketService.existsFor(channel.getId(), ctx.deploymentRequestId()))
+                .thenReturn(true);
+        strategy.deliver(ctx, channel);
+        assertThat(requests).isEmpty();
+        verify(queryTicketService, times(0)).existsFor(any(), any(), anyString());
+    }
+
+    @Test
+    void racedDeploymentTicketLinkWritesNoAudit() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        when(deploymentTicketService.recordCreated(any()))
+                .thenThrow(new DataIntegrityViolationException("uq_deployment_tickets"));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, true), channel);
+        assertThat(requests).hasSize(1);
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    void racedQueryTicketLinkWritesNoAudit() {
+        stubConfig(EnumSet.of(TicketingTrigger.QUERY_REJECTED));
+        when(queryTicketService.recordCreated(any()))
+                .thenThrow(new DataIntegrityViolationException("uq_query_tickets"));
+        strategy.deliver(ctx(NotificationEventType.QUERY_REJECTED), channel);
+        assertThat(requests).hasSize(1);
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    void auditFailureDoesNotPropagate() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        when(auditLogService.record(any())).thenThrow(new IllegalStateException("audit down"));
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, true), channel);
+        verify(deploymentTicketService).recordCreated(any());
     }
 
     @Test
@@ -313,6 +440,45 @@ class ServiceNowNotificationStrategyTest {
                 "cleanup", null, null, "not ok",
                 URI.create("https://app.example.test/queries/abc"),
                 List.of(), Instant.now(), "en", null);
+    }
+
+    /**
+     * A deployment context (#991) on environment {@code production} of pipeline {@code payments};
+     * {@code changeTicketRequired == null} omits the deployment details entirely.
+     */
+    static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                             Boolean changeTicketRequired) {
+        var details = changeTicketRequired == null ? null
+                : new NotificationContext.DeploymentDetails("abc123",
+                        "ghcr.io/acme/payments:2.4.1", "https://ci.example/runs/42",
+                        changeTicketRequired, null);
+        return deploymentCtx(eventType, details);
+    }
+
+    static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                             NotificationContext.DeploymentDetails details) {
+        var deploymentRequestId = UUID.randomUUID();
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(), null, null,
+                null, null, null,
+                RiskLevel.MEDIUM, 45, "moderate",
+                UUID.randomUUID(), "payments",
+                UUID.randomUUID(), "alice@example.com", "Alice",
+                "release train 42", null, null, null,
+                URI.create("https://app.example.test/deployments/" + deploymentRequestId),
+                List.of(), Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                deploymentRequestId, "production", "2.4.1", null, null,
+                null, null, null, null, null,
+                null,
+                details);
     }
 
     private NotificationContext anomalyCtx() {

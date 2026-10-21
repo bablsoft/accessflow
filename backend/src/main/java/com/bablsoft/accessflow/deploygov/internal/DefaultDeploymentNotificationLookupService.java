@@ -46,6 +46,7 @@ class DefaultDeploymentNotificationLookupService implements DeploymentNotificati
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserQueryService userQueryService;
+    private final FreezeWindowEvaluator freezeWindowEvaluator;
 
     @Override
     @Transactional(readOnly = true)
@@ -56,6 +57,8 @@ class DefaultDeploymentNotificationLookupService implements DeploymentNotificati
             var environment = environmentRepository.findById(r.getEnvironmentId()).orElse(null);
             var summary = r.getAiAnalysisId() != null
                     ? aiAnalysisLookupService.findById(r.getAiAnalysisId()).orElse(null) : null;
+            // Only a change ticket renders the freeze status — skip the evaluation otherwise.
+            var changeTicketRequired = environment != null && environment.isChangeTicketRequired();
             return new DeploymentNotificationView(r.getId(), r.getOrganizationId(),
                     r.getPipelineId(), pipelineName,
                     environment != null ? environment.getName() : null, r.getVersion(),
@@ -64,9 +67,18 @@ class DefaultDeploymentNotificationLookupService implements DeploymentNotificati
                     summary != null ? summary.riskLevel() : null,
                     summary != null ? summary.riskScore() : null,
                     summary != null ? summary.summary() : null,
-                    environment != null && environment.isChangeTicketRequired(),
-                    r.getCommitSha(), r.getArtifactRef(), r.getRunUrl());
+                    changeTicketRequired,
+                    r.getCommitSha(), r.getArtifactRef(), r.getRunUrl(),
+                    changeTicketRequired ? activeFreezeReason(r) : null);
         });
+    }
+
+    private String activeFreezeReason(DeploymentRequestEntity request) {
+        return freezeWindowEvaluator.evaluate(request.getOrganizationId(), request.getPipelineId(),
+                        request.getEnvironmentId())
+                .map(f -> f.reason() != null && !f.reason().isBlank()
+                        ? f.reason() : f.behavior().name())
+                .orElse(null);
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
@@ -44,9 +45,10 @@ class JiraNotificationStrategy extends TicketingNotificationStrategy {
                              NotificationChannelRepository channelRepository,
                              ApplicationEventPublisher eventPublisher,
                              QueryTicketService queryTicketService,
+                             DeploymentTicketService deploymentTicketService,
                              AuditLogService auditLogService) {
         super(restClient, taskScheduler, properties, channelRepository, eventPublisher,
-                queryTicketService, auditLogService);
+                queryTicketService, deploymentTicketService, auditLogService);
         this.codec = codec;
         this.objectMapper = objectMapper;
     }
@@ -70,7 +72,9 @@ class JiraNotificationStrategy extends TicketingNotificationStrategy {
         fields.put("issuetype", Map.of("name", jira.issueType()));
         fields.put("summary", TicketDescriptionBuilder.summary(ctx));
         fields.put("description", TicketDescriptionBuilder.description(ctx));
-        fields.put("labels", List.of("accessflow"));
+        fields.put("labels", isDeployment(ctx)
+                ? List.of("accessflow", "deployment")
+                : List.of("accessflow"));
         return new TicketRequest(
                 resolve(jira.baseUrl(), "rest/api/2/issue"),
                 basicAuth(jira.userEmail(), jira.apiTokenPlain()),

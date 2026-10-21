@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
@@ -42,9 +43,10 @@ class ServiceNowNotificationStrategy extends TicketingNotificationStrategy {
                                    NotificationChannelRepository channelRepository,
                                    ApplicationEventPublisher eventPublisher,
                                    QueryTicketService queryTicketService,
+                                   DeploymentTicketService deploymentTicketService,
                                    AuditLogService auditLogService) {
         super(restClient, taskScheduler, properties, channelRepository, eventPublisher,
-                queryTicketService, auditLogService);
+                queryTicketService, deploymentTicketService, auditLogService);
         this.codec = codec;
         this.objectMapper = objectMapper;
     }
@@ -66,7 +68,9 @@ class ServiceNowNotificationStrategy extends TicketingNotificationStrategy {
         var body = new LinkedHashMap<String, Object>();
         body.put("short_description", TicketDescriptionBuilder.summary(ctx));
         body.put("description", TicketDescriptionBuilder.description(ctx));
-        if (ctx.queryRequestId() != null) {
+        if (isDeployment(ctx)) {
+            body.put("correlation_id", "accessflow-deployment-" + ctx.deploymentRequestId());
+        } else if (ctx.queryRequestId() != null) {
             body.put("correlation_id", "accessflow-" + ctx.queryRequestId());
         }
         if (sn.urgency() != null) {

@@ -507,7 +507,8 @@ class NotificationContextBuilder {
      * Builds the context for a deployment notification (#695). Not query-backed: the pipeline rides
      * in {@code datasourceId}/{@code datasourceName}, the environment/version/outcome in the
      * {@code deployment*} fields, and the submission (or break-glass) justification in
-     * {@code justification}. {@code reviewUrl} stays null — there is no deploygov UI yet.
+     * {@code justification}, and the run provenance / change-ticket inputs in {@code deployment}
+     * (#991). {@code reviewUrl} deep-links the deployment detail page.
      * SUBMITTED fans out to the eligible reviewers, OUTCOME_FAILED to the reviewers who approved,
      * BREAK_GLASS_EXECUTED to every active org admin, and APPROVED/REJECTED to the submitter.
      */
@@ -537,7 +538,7 @@ class NotificationContextBuilder {
                 submitter != null ? submitter.displayName() : null,
                 view.justification(),
                 null, null, null,
-                null,
+                buildDeploymentUrl(deploymentRequestId),
                 recipients,
                 Instant.now(),
                 locale,
@@ -553,7 +554,11 @@ class NotificationContextBuilder {
                 view.environmentName(),
                 view.version(),
                 outcome,
-                decisionReason));
+                decisionReason,
+                null, null, null, null, null,
+                null,
+                new NotificationContext.DeploymentDetails(view.commitSha(), view.artifactRef(),
+                        view.runUrl(), view.changeTicketRequired(), view.activeFreezeReason())));
     }
 
     private List<RecipientView> deploymentRecipients(NotificationEventType eventType,
@@ -951,6 +956,12 @@ class NotificationContextBuilder {
         var base = properties.publicBaseUrl().toString();
         var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         return URI.create(trimmed + "/queries/" + queryRequestId);
+    }
+
+    private URI buildDeploymentUrl(UUID deploymentRequestId) {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/deployments/" + deploymentRequestId);
     }
 
     private static RecipientView toRecipient(UserView user) {

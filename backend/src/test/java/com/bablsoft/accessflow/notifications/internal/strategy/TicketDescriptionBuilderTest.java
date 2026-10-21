@@ -40,6 +40,83 @@ class TicketDescriptionBuilderTest {
     }
 
     @Test
+    void summaryRendersBothDeploymentHeadlines() {
+        assertThat(TicketDescriptionBuilder.summary(ServiceNowNotificationStrategyTest
+                .deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, true)))
+                .isEqualTo("[AccessFlow] Deployment 2.4.1 to production awaiting approval "
+                        + "(payments)");
+        assertThat(TicketDescriptionBuilder.summary(ServiceNowNotificationStrategyTest
+                .deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, true)))
+                .isEqualTo("[AccessFlow] Deployment 2.4.1 to production approved (payments)");
+    }
+
+    @Test
+    void deploymentHeadlineSurvivesMissingNames() {
+        var ctx = new NotificationContext(NotificationEventType.DEPLOYMENT_APPROVED,
+                UUID.randomUUID(), null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, List.of(), Instant.now(), "en",
+                null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                UUID.randomUUID(), null, " ", null, null);
+        assertThat(TicketDescriptionBuilder.summary(ctx))
+                .isEqualTo("[AccessFlow] Deployment unknown to unknown approved (unknown)");
+    }
+
+    @Test
+    void defaultSummaryDropsTheDatasourcePlaceholderWhenThereIsNone() {
+        assertThat(TicketDescriptionBuilder.summary(
+                ctx(NotificationEventType.QUERY_SUBMITTED, null)))
+                .isEqualTo("[AccessFlow] QUERY_SUBMITTED");
+    }
+
+    @Test
+    void deploymentDescriptionRendersEveryChangeTicketLine() {
+        var ctx = ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED,
+                new NotificationContext.DeploymentDetails("abc123", "ghcr.io/acme/payments:2.4.1",
+                        "https://ci.example/runs/42", true, "Quarter-end freeze"));
+
+        assertThat(TicketDescriptionBuilder.description(ctx)).isEqualTo(
+                "Event: DEPLOYMENT_SUBMITTED\n"
+                        + "Deployment request: " + ctx.deploymentRequestId() + "\n"
+                        + "Pipeline: payments\n"
+                        + "Environment: production\n"
+                        + "Version: 2.4.1\n"
+                        + "Commit: abc123\n"
+                        + "Artifact: ghcr.io/acme/payments:2.4.1\n"
+                        + "CI run: https://ci.example/runs/42\n"
+                        + "Submitted by: Alice <alice@example.com>\n"
+                        + "AI risk: MEDIUM (score: 45)\n"
+                        + "Freeze: Quarter-end freeze\n"
+                        + "Justification: release train 42\n"
+                        + "\nReview in AccessFlow: https://app.example.test/deployments/"
+                        + ctx.deploymentRequestId());
+    }
+
+    @Test
+    void deploymentDescriptionSaysNoneWithoutAFreeze() {
+        var ctx = ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, true);
+
+        assertThat(TicketDescriptionBuilder.description(ctx))
+                .contains("Freeze: none\n")
+                .doesNotContain("Query request:")
+                .doesNotContain("Datasource:");
+    }
+
+    @Test
+    void deploymentDescriptionWithoutDetailsOmitsProvenance() {
+        var ctx = ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED,
+                (NotificationContext.DeploymentDetails) null);
+
+        assertThat(TicketDescriptionBuilder.description(ctx))
+                .contains("Freeze: none\n")
+                .doesNotContain("Commit:")
+                .doesNotContain("CI run:");
+    }
+
+    @Test
     void summaryUsesPlaceholderWhenDatasourceNameMissing() {
         assertThat(TicketDescriptionBuilder.summary(
                 ctx(NotificationEventType.QUERY_REJECTED, null)))

@@ -3,10 +3,13 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordTicketCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
+import com.bablsoft.accessflow.deploygov.api.RecordDeploymentTicketCommand;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -65,6 +68,7 @@ class JiraNotificationStrategyTest {
     private NotificationChannelRepository channelRepository;
     private ServiceNowNotificationStrategyTest.RecordingTaskScheduler taskScheduler;
     private QueryTicketService queryTicketService;
+    private DeploymentTicketService deploymentTicketService;
     private AuditLogService auditLogService;
     private JiraNotificationStrategy strategy;
     private NotificationChannelEntity channel;
@@ -82,6 +86,7 @@ class JiraNotificationStrategyTest {
         channelRepository = mock(NotificationChannelRepository.class);
         taskScheduler = new ServiceNowNotificationStrategyTest.RecordingTaskScheduler();
         queryTicketService = mock(QueryTicketService.class);
+        deploymentTicketService = mock(DeploymentTicketService.class);
         auditLogService = mock(AuditLogService.class);
         var properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
@@ -91,7 +96,7 @@ class JiraNotificationStrategyTest {
         strategy = new JiraNotificationStrategy(
                 codec, JsonMapper.builder().build(), RestClient.create(), taskScheduler,
                 properties, channelRepository, mock(ApplicationEventPublisher.class),
-                queryTicketService, auditLogService);
+                queryTicketService, deploymentTicketService, auditLogService);
 
         channel = new NotificationChannelEntity();
         channel.setId(UUID.randomUUID());
@@ -154,6 +159,57 @@ class JiraNotificationStrategyTest {
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.TICKET_CREATED);
+    }
+
+    @Test
+    void flaggedDeploymentOpensALabelledChangeIssue() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        var ctx = ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, true);
+        strategy.deliver(ctx, channel);
+
+        assertThat(requests).hasSize(1);
+        var body = requests.peek().body;
+        assertThat(body).contains("\"labels\":[\"accessflow\",\"deployment\"]");
+        assertThat(body).contains("\"summary\":\"[AccessFlow] Deployment 2.4.1 to production "
+                + "awaiting approval (payments)\"");
+        assertThat(body).contains("Commit: abc123");
+
+        var captor = ArgumentCaptor.forClass(RecordDeploymentTicketCommand.class);
+        verify(deploymentTicketService).recordCreated(captor.capture());
+        assertThat(captor.getValue().ticketSystem()).isEqualTo("JIRA");
+        assertThat(captor.getValue().externalKey()).isEqualTo("SEC-42");
+        assertThat(captor.getValue().deploymentRequestId()).isEqualTo(ctx.deploymentRequestId());
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().resourceType())
+                .isEqualTo(AuditResourceType.DEPLOYMENT_TICKET);
+    }
+
+    @Test
+    void unflaggedDeploymentOpensNoIssue() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        strategy.deliver(ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, false), channel);
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void deploymentTriggerOffOpensNoIssue() {
+        stubConfig(EnumSet.of(TicketingTrigger.QUERY_REJECTED));
+        strategy.deliver(ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, true), channel);
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void existingDeploymentIssueIsNotDuplicated() {
+        stubConfig(EnumSet.of(TicketingTrigger.DEPLOYMENT_SUBMITTED));
+        when(deploymentTicketService.existsFor(any(), any())).thenReturn(true);
+        strategy.deliver(ServiceNowNotificationStrategyTest.deploymentCtx(
+                NotificationEventType.DEPLOYMENT_APPROVED, true), channel);
+        assertThat(requests).isEmpty();
     }
 
     @Test

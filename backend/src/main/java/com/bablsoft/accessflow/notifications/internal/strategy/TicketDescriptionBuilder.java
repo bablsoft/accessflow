@@ -5,7 +5,8 @@ import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 /**
  * Shared plain-text summary / description rendering for the ticketing channels (AF-453). Both
  * ServiceNow ({@code short_description} / {@code description}) and Jira ({@code summary} /
- * {@code description}, REST v2 plain text) consume the same shape.
+ * {@code description}, REST v2 plain text) consume the same shape. A deployment context (#991)
+ * renders the change-ticket shape: pipeline, environment, version, run provenance and freeze status.
  */
 final class TicketDescriptionBuilder {
 
@@ -15,10 +16,11 @@ final class TicketDescriptionBuilder {
     }
 
     static String summary(NotificationContext ctx) {
-        var datasource = (ctx.datasourceName() == null || ctx.datasourceName().isBlank())
-                ? "a datasource"
-                : ctx.datasourceName();
+        var hasDatasource = ctx.datasourceName() != null && !ctx.datasourceName().isBlank();
+        var datasource = hasDatasource ? ctx.datasourceName() : "a datasource";
         var headline = switch (ctx.eventType()) {
+            case DEPLOYMENT_SUBMITTED -> deploymentHeadline(ctx, "awaiting approval");
+            case DEPLOYMENT_APPROVED -> deploymentHeadline(ctx, "approved");
             case QUERY_REJECTED -> "Query rejected on " + datasource;
             case QUERY_ESCALATED -> "Query escalated for review on " + datasource;
             case REVIEW_ESCALATED -> "Review escalated — no decision yet on " + datasource;
@@ -35,7 +37,9 @@ final class TicketDescriptionBuilder {
             case DATA_BUDGET_THRESHOLD_REACHED ->
                     "Data budget warning threshold reached on " + datasource;
             case DATA_BUDGET_EXHAUSTED -> "Data budget exhausted on " + datasource;
-            default -> ctx.eventType().name() + " on " + datasource;
+            default -> hasDatasource
+                    ? ctx.eventType().name() + " on " + datasource
+                    : ctx.eventType().name();
         };
         var summary = "[AccessFlow] " + headline;
         return summary.length() > SUMMARY_MAX_LENGTH
@@ -43,7 +47,20 @@ final class TicketDescriptionBuilder {
                 : summary;
     }
 
+    private static String deploymentHeadline(NotificationContext ctx, String state) {
+        return "Deployment " + orUnknown(ctx.deploymentVersion()) + " to "
+                + orUnknown(ctx.environmentName()) + " " + state + " ("
+                + orUnknown(ctx.datasourceName()) + ")";
+    }
+
+    private static String orUnknown(String value) {
+        return value == null || value.isBlank() ? "unknown" : value;
+    }
+
     static String description(NotificationContext ctx) {
+        if (ctx.queryRequestId() == null && ctx.deploymentRequestId() != null) {
+            return deploymentDescription(ctx);
+        }
         var sb = new StringBuilder();
         sb.append("Event: ").append(ctx.eventType().name()).append('\n');
         if (ctx.queryRequestId() != null) {
@@ -52,6 +69,50 @@ final class TicketDescriptionBuilder {
         if (ctx.datasourceName() != null) {
             sb.append("Datasource: ").append(ctx.datasourceName()).append('\n');
         }
+        appendSubmitterAndRisk(sb, ctx);
+        appendLine(sb, "Justification", ctx.justification());
+        if (ctx.reviewerComment() != null && !ctx.reviewerComment().isBlank()) {
+            sb.append("Reviewer comment: ").append(ctx.reviewerComment()).append('\n');
+        }
+        if (ctx.sqlPreview300() != null) {
+            sb.append('\n').append("Query preview:\n").append(ctx.sqlPreview300()).append('\n');
+        }
+        if (ctx.reviewUrl() != null) {
+            sb.append('\n').append("Review in AccessFlow: ").append(ctx.reviewUrl());
+        }
+        return sb.toString();
+    }
+
+    private static String deploymentDescription(NotificationContext ctx) {
+        var details = ctx.deployment();
+        var sb = new StringBuilder();
+        sb.append("Event: ").append(ctx.eventType().name()).append('\n');
+        sb.append("Deployment request: ").append(ctx.deploymentRequestId()).append('\n');
+        appendLine(sb, "Pipeline", ctx.datasourceName());
+        appendLine(sb, "Environment", ctx.environmentName());
+        appendLine(sb, "Version", ctx.deploymentVersion());
+        if (details != null) {
+            appendLine(sb, "Commit", details.commitSha());
+            appendLine(sb, "Artifact", details.artifactRef());
+            appendLine(sb, "CI run", details.runUrl());
+        }
+        appendSubmitterAndRisk(sb, ctx);
+        var freeze = details != null ? details.activeFreezeReason() : null;
+        sb.append("Freeze: ").append(freeze != null ? freeze : "none").append('\n');
+        appendLine(sb, "Justification", ctx.justification());
+        if (ctx.reviewUrl() != null) {
+            sb.append('\n').append("Review in AccessFlow: ").append(ctx.reviewUrl());
+        }
+        return sb.toString();
+    }
+
+    private static void appendLine(StringBuilder sb, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            sb.append(label).append(": ").append(value).append('\n');
+        }
+    }
+
+    private static void appendSubmitterAndRisk(StringBuilder sb, NotificationContext ctx) {
         if (ctx.submitterDisplayName() != null || ctx.submitterEmail() != null) {
             sb.append("Submitted by: ")
                     .append(ctx.submitterDisplayName() != null
@@ -68,18 +129,5 @@ final class TicketDescriptionBuilder {
             }
             sb.append('\n');
         }
-        if (ctx.justification() != null && !ctx.justification().isBlank()) {
-            sb.append("Justification: ").append(ctx.justification()).append('\n');
-        }
-        if (ctx.reviewerComment() != null && !ctx.reviewerComment().isBlank()) {
-            sb.append("Reviewer comment: ").append(ctx.reviewerComment()).append('\n');
-        }
-        if (ctx.sqlPreview300() != null) {
-            sb.append('\n').append("Query preview:\n").append(ctx.sqlPreview300()).append('\n');
-        }
-        if (ctx.reviewUrl() != null) {
-            sb.append('\n').append("Review in AccessFlow: ").append(ctx.reviewUrl());
-        }
-        return sb.toString();
     }
 }

@@ -9,7 +9,9 @@ import java.util.UUID;
 /**
  * Minimal projection the notifications module needs to render a deployment notification (#695).
  * {@code changeTicketRequired}, {@code commitSha}, {@code artifactRef} and {@code runUrl} (#990)
- * feed the change ticket opened for a flagged environment.
+ * feed the change ticket opened for a flagged environment. {@code activeFreezeReason} (#991) is
+ * non-null exactly when the environment requires a change ticket and a freeze window is in effect
+ * for the target now — the window's reason, or its behavior name when the admin left none.
  */
 public record DeploymentNotificationView(
         UUID id,
@@ -28,5 +30,6 @@ public record DeploymentNotificationView(
         boolean changeTicketRequired,
         String commitSha,
         String artifactRef,
-        String runUrl) {
+        String runUrl,
+        String activeFreezeReason) {
 }
