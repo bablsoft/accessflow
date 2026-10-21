@@ -618,7 +618,8 @@ group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V17
 rule catalog (`GET /sql-review/rules`). Since #1010 it also gates organization-defined custom rules
 (`/admin/sql-review-rules`): every create / update / delete is audited from the controller as
 `SQL_REVIEW_RULE_CREATED` / `SQL_REVIEW_RULE_UPDATED` / `SQL_REVIEW_RULE_DELETED` (resource
-`sql_review_rule`, metadata `rule_id`, `name`, `category`, `default_severity`, `enabled`), while the
+`sql_review_rule`; create and update carry metadata `rule_id`, `name`, `category`,
+`default_severity`, `enabled`, a delete row carries the resource id only), while the
 draft run `POST /admin/sql-review-rules/test` persists, audits and publishes nothing. A custom rule is
 scoped to its organization — another organization's rule is a 404 and never enters its catalog. Its
 `sql_matches` regex runs under a step budget and is skipped for a statement that exhausts it, which

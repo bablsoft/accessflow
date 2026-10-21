@@ -16,7 +16,7 @@ patterns, the audit log, the review state machine's decision chokepoint — and 
 tables, two PG enums, one permission and one datasource attribute (v2.8's custom rules add a fourth
 table, `sql_review_custom_rules`, and a third enum, `sql_rule_category` — V201).
 
-> **Delivery status.** Complete on `main` for the v2.6 milestone (in progress): the persistence foundation and the
+> **Delivery status.** Shipped in v2.6: the persistence foundation and the
 > `datasources.environment` attribute (#861), the rule engine and the fourteen built-in rules
 > (#862), ruleset administration, the localized rule catalog and the read-only evaluation
 > endpoint (#863), enforcement at the submission chokepoint with the reviewer surfaces (#864), the
@@ -265,12 +265,13 @@ padded far enough skips it. Prefer anchored or literal patterns; a leading `.*` 
 match is a search) and quadratic. The message
 may use `{tables}`, `{functions}` and `{statement_type}`; the rendered text (cut to 1000 characters) is stored on the finding
 and shown to every reader as written (custom messages are not translated). `SqlReviewFindingRenderer` returns
-that snapshot (`args.message`) verbatim on every surface in §7 — query detail, review queue,
+that snapshot (`args.message`) verbatim wherever §7 renders a message — the editor lint, query detail,
 break-glass, request-group detail — so editing or deleting the rule later never rewrites a finding
 already recorded.
 
-A worked example — every `UPDATE` on the `billing` schema needs a `WHERE`, and a person must look
-when it has none:
+A worked example, as the body of `POST /admin/sql-review-rules` (the same shape `POST
+/admin/sql-review-rules/test` takes as `rule`) — every `UPDATE` on the `billing` schema needs a
+`WHERE`, and a person must look when it has none:
 
 ```json
 {
@@ -459,8 +460,8 @@ forces replacement) and
   from the controller so `ip_address` / `user_agent` come from the live request; resource type
   `sql_review_ruleset`.
 - **`SQL_REVIEW_RULE_CREATED` / `_UPDATED` / `_DELETED`** — the same for custom rules (#1010),
-  resource type `sql_review_rule`, metadata `rule_id`, `name`, `category`, `default_severity`,
-  `enabled`. The draft test run writes nothing.
+  resource type `sql_review_rule`; create / update metadata `rule_id`, `name`, `category`,
+  `default_severity`, `enabled`, while a delete row carries the resource id only. The draft test run writes nothing.
 - **`SQL_REVIEW_BLOCKED`** — written by the state machine **only when a block actually changed the
   outcome**: `actor_id` null, `trigger=sql_review`, `blocking_rule_ids`, `suppressed_paths` (in
   evaluation order), `matched_policy_id` when routing was the path. A `WARN`, a rejection, an AI

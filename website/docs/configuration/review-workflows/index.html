@@ -726,7 +726,7 @@ APPROVED → FAILED (execution error)</pre>
           <ol>
             <li><strong>Give every datasource an environment.</strong> On the datasource's create wizard or settings page, set <em>Environment</em> to <em>Development</em>, <em>Test</em>, <em>Staging</em> or <em>Production</em> — or leave it unset. See <a href="/docs/configuration/datasources/#cfg-datasources">Datasources</a>.</li>
             <li><strong>Open <code>/admin/sql-review</code></strong> and click <em>Add ruleset</em>. Name it, and bind it to one environment — or pick <em>Organization default</em>, the ruleset that applies to every datasource with no environment set (and to any environment that has no ruleset of its own). One ruleset per environment, one organization default.</li>
-            <li><strong>Set the severities.</strong> The rules table lists every built-in rule with its default severity underneath; change only the ones you want to. For <em>Protected table</em> add the table patterns; for <em>Disallowed function</em> add or replace the banned names. Rules left at their default are not stored, so a ruleset stays a short list of what you changed. Your organization's own rules (below) are listed under their own <em>Custom rules</em> heading and take a severity the same way.</li>
+            <li><strong>Set the severities.</strong> The rules table lists every built-in rule with its default severity underneath; change only the ones you want to. For <em>Protected table</em> add the table patterns; for <em>Disallowed function</em> add or replace the banned names. Rules left at their default are not stored, so a ruleset stays a short list of what you changed. Your organization's own enabled rules (below) are listed under their own <em>Custom rules</em> heading and take a severity the same way.</li>
             <li><strong>Enable it.</strong> A ruleset can be switched off with the <em>Enabled</em> toggle — note that a disabled ruleset bound to an environment evaluates <em>no</em> rules and does <em>not</em> fall back to the organization default, so switching production off never quietly re-enables the default there.</li>
           </ol>
           <div class="docs-callout info">
@@ -744,7 +744,7 @@ APPROVED → FAILED (execution error)</pre>
             Neo4j, DynamoDB and the cloud warehouses the check reports <em>not applicable</em> and never blocks — an engine without rule
             support must never make its queries harder to approve than they are today.
           </div>
-          <h3 id="cfg-sql-review-custom-rules">Custom rules</h3>
+          <h3 id="cfg-sql-review-custom-rules">Custom SQL review rules</h3>
           <p>
             <strong>What it is.</strong> Rules of your own, next to the eighteen built-in ones, written
             without code. A custom rule is a list of conditions about a query — for example "it is an
@@ -763,11 +763,12 @@ APPROVED → FAILED (execution error)</pre>
             whether its <em>WHERE is always true</em>; a <em>join without a condition</em>; a
             <em>LIKE with a leading wildcard</em>; whether it is <em>inside a transaction</em>; and
             <em>SQL matches pattern</em>, a regular expression over the query text with comments
-            removed and spacing tidied. Any condition can be negated.
+            removed, spacing tidied and SQL keywords in upper case — tick <em>Ignore case</em>
+            unless your pattern already spells keywords that way. Any condition can be negated.
           </p>
           <ol>
             <li><strong>Open <code>/admin/sql-review</code></strong>, switch to the <em>Custom rules</em> tab and click <em>Create rule</em>.</li>
-            <li><strong>Describe the rule.</strong> Give it an <em>Identifier</em> (lowercase letters, digits and underscores — it cannot be changed later), a <em>Name</em>, and the <em>Finding message</em>. The message can name what matched with <code>{tables}</code>, <code>{functions}</code> and <code>{statement_type}</code>; it is shown to every reader exactly as you wrote it.</li>
+            <li><strong>Describe the rule.</strong> Give it an <em>Identifier</em> (3 to 61 lowercase letters, digits and underscores, starting with a letter — it cannot be changed later), a <em>Name</em>, and the <em>Finding message</em>. The message can name what matched with <code>{tables}</code>, <code>{functions}</code> and <code>{statement_type}</code>; it is shown to every reader exactly as you wrote it.</li>
             <li><strong>Pick a category and a default severity.</strong> The default applies wherever a ruleset does not set a severity for the rule.</li>
             <li><strong>Add the conditions</strong>, and choose whether the query must match <em>all</em> of them or <em>any</em> of them.</li>
             <li><strong>Test it.</strong> Paste some SQL into <em>Test against SQL</em> and click <em>Run test</em>; you see the findings the rule would produce. Nothing is saved by a test, and a draft set to <em>Off</em> is tested as <em>Warn</em>, so you can check a rule before it is switched on anywhere.</li>
@@ -789,7 +790,7 @@ APPROVED → FAILED (execution error)</pre>
             those settings. Findings already recorded on past queries keep their message either way. A
             regular expression that would take too long on a very long query is given up on for that
             query rather than holding the submission, so use <em>SQL matches pattern</em> as a helpful
-            check, not as your only safeguard — the structured conditions above never give up. Custom
+            check, not as your only safeguard. Like the built-in rules, a custom rule that cannot be checked on a query is skipped for it rather than holding the submission. Custom
             rules can also be managed from
             <a href="/docs/iac/">Terraform</a>, and every change is recorded in the
             <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
