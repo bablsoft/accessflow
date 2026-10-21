@@ -3173,8 +3173,9 @@ One ruleset per environment per organization, plus at most one organization-wide
 
 ### sql_review_rule_configs
 
-The severity (and parameters) a ruleset assigns to one rule. Rule ids are code-defined (the
-catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862), so `rule_id` is `VARCHAR`, not a PG
+The severity (and parameters) a ruleset assigns to one rule. Built-in rule ids are code-defined
+(the catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862) and custom rule ids live in
+[`sql_review_custom_rules`](#sql_review_custom_rules) (#1009), so `rule_id` is `VARCHAR`, not a PG
 enum. A catalog rule with **no** row in the resolved ruleset is still evaluated, at its built-in
 default severity; a row is only needed to change the severity (or turn the rule `OFF`) or to set
 params. A row naming a rule id the catalog does not know is ignored at evaluation time (logged)

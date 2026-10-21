@@ -13,7 +13,8 @@ of `discovery` / `attestation` / `deploygov`. `workflow` and `requestgroups` dep
 `sqlreview.api`; the reverse dependency never exists, so there is no cycle. It reuses what is
 already there — `proxy.api.SqlParserService` for the first parse, `core.api.GlobMatcher` for table
 patterns, the audit log, the review state machine's decision chokepoint — and adds only three
-tables, two PG enums, one permission and one datasource attribute.
+tables, two PG enums, one permission and one datasource attribute (v2.8's custom rules add a fourth
+table, `sql_review_custom_rules`, and a third enum, `sql_rule_category` — V201).
 
 > **Delivery status.** Complete on `main` for the v2.6 milestone (in progress): the persistence foundation and the
 > `datasources.environment` attribute (#861), the rule engine and the fourteen built-in rules
@@ -21,6 +22,9 @@ tables, two PG enums, one permission and one datasource attribute.
 > endpoint (#863), enforcement at the submission chokepoint with the reviewer surfaces (#864), the
 > live editor lint and the `/admin/sql-review` page (#865), and this chapter (#866). v2.7 adds four
 > structured-DDL rules and dialect-specific applicability, on JSqlParser 5.4 (#1079).
+> v2.8 adds organization-defined custom rules (epic #1008): the rule model, condition tree and
+> per-organization rule source (#1009), the admin API, draft test endpoint and Terraform resource
+> (#1010), the **Custom rules** tab (#1011), and this chapter's custom-rules section (#1012).
 
 > **The one sentence to remember.** A `BLOCK` finding means *a person must look*. It suppresses
 > every path that would have approved the query without a human and sends it to review. **It never
@@ -260,7 +264,34 @@ built-in that throws, so treat `sql_matches` as a lint rather than a security bo
 padded far enough skips it. Prefer anchored or literal patterns; a leading `.*` is redundant (the
 match is a search) and quadratic. The message
 may use `{tables}`, `{functions}` and `{statement_type}`; the rendered text (cut to 1000 characters) is stored on the finding
-and shown to every reader as written (custom messages are not translated).
+and shown to every reader as written (custom messages are not translated). `SqlReviewFindingRenderer` returns
+that snapshot (`args.message`) verbatim on every surface in §7 — query detail, review queue,
+break-glass, request-group detail — so editing or deleting the rule later never rewrites a finding
+already recorded.
+
+A worked example — every `UPDATE` on the `billing` schema needs a `WHERE`, and a person must look
+when it has none:
+
+```json
+{
+  "rule_id": "custom_no_unbounded_billing_update",
+  "name": "No unbounded billing updates",
+  "message": "{statement_type} on {tables} has no WHERE clause",
+  "category": "STATEMENT_SAFETY",
+  "default_severity": "BLOCK",
+  "condition": {
+    "type": "and",
+    "children": [
+      { "type": "query_type", "any_of": ["UPDATE"] },
+      { "type": "referenced_table", "globs": ["billing.*"] },
+      { "type": "has_where", "expected": false }
+    ]
+  }
+}
+```
+
+`UPDATE billing.invoices SET paid = true` produces *UPDATE on billing.invoices has no WHERE clause*
+at `BLOCK`; the same statement with a `WHERE` produces nothing.
 
 Custom rules are managed under `/admin/sql-review-rules` (#1010, `SQL_REVIEW_MANAGE`; §8). An
 organization holds at most **50**; `rule_id` is fixed at create — to rename, delete and re-create,
@@ -277,7 +308,9 @@ whose condition builder is the one routing policies use, restricted to the crite
 builder edits a single-level ALL / ANY list of criteria, each optionally negated; a deeper tree
 written through the API or Terraform is flagged in the drawer, and saving there replaces it. The
 drawer's **Test against SQL** panel calls the test endpoint on demand. Enabled custom rules appear in
-every ruleset's severity table under their own **Custom rules** heading.
+every ruleset's severity table under their own **Custom rules** heading — the catalog marks them
+`custom: true` — where a ruleset sets their severity per environment exactly as it does a built-in's
+(custom rules take no params).
 
 ---
 

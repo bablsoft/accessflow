@@ -268,6 +268,14 @@
 
 ---
 
+## v2.8 🚧 in progress
+
+**Theme:** Deployments accountable end to end — change tickets, DORA/SLA metrics, API replay & diff, verified no-AI operation, custom SQL review rules.
+
+- **Custom SQL review rules** — admins write rules of their own next to the eighteen built-ins, without code: a rule is a condition over the parsed statement (statement type, referenced tables and columns by glob, functions called, the presence of `WHERE` / a row limit / `ORDER BY`, an always-true `WHERE`, a join without a condition, a leading-wildcard `LIKE`, whether the statement is inside a transaction) or a bounded regular expression over its normalised text, with a message that names the tables and functions it matched. Drafts are tested against a piece of SQL before they are switched on; once stored a custom rule is configured per environment in every ruleset exactly like a built-in, so a `BLOCK` sends the query to a reviewer and never rejects it. At most 50 per organisation, audited on every change, managed on the **Custom rules** tab of `/admin/sql-review` and by the `accessflow_sql_review_rule` Terraform resource (epic #1008 — #1009–#1012) — see [docs/19-sql-review.md](19-sql-review.md#custom-rules-1009-epic-1008)
+
+---
+
 ## Backlog / Unscheduled
 
 **Theme:** Candidate features not yet scheduled into a milestone.
