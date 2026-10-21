@@ -2590,7 +2590,11 @@ export interface NotificationChannelPagerDutyConfig {
     | 'REVIEW_STALLED'
   >;
 }
-export type TicketingTrigger = 'QUERY_REJECTED' | 'REVIEW_TIMEOUT' | 'QUERY_ESCALATED';
+export type TicketingTrigger =
+  | 'QUERY_REJECTED'
+  | 'REVIEW_TIMEOUT'
+  | 'QUERY_ESCALATED'
+  | 'DEPLOYMENT_SUBMITTED';
 export interface NotificationChannelServiceNowConfig {
   instance_url: string;
   username: string;

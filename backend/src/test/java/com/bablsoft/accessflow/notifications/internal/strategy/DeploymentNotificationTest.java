@@ -164,12 +164,17 @@ class DeploymentNotificationTest {
         }
     }
 
-    /** No deployment event opens a ticket — see the PR notes: queries never ticket on submission
-     *  either (TicketingTrigger is rejection/timeout/escalation only), and the ticketing strategy
-     *  hard-skips non-query contexts. */
+    /** #991: only the two opening events map to a trigger — the change-ticket one. */
     @ParameterizedTest
-    @EnumSource(names = {"DEPLOYMENT_SUBMITTED", "DEPLOYMENT_APPROVED", "DEPLOYMENT_REJECTED",
-            "DEPLOYMENT_OUTCOME_FAILED", "DEPLOYMENT_BREAK_GLASS_EXECUTED"})
+    @EnumSource(names = {"DEPLOYMENT_SUBMITTED", "DEPLOYMENT_APPROVED"})
+    void openingEventsMapToTheChangeTicketTrigger(NotificationEventType event) {
+        assertThat(TicketingTrigger.forEvent(event)).contains(TicketingTrigger.DEPLOYMENT_SUBMITTED);
+    }
+
+    /** Rejection, outcome and break-glass never open a change ticket. */
+    @ParameterizedTest
+    @EnumSource(names = {"DEPLOYMENT_REJECTED", "DEPLOYMENT_OUTCOME_FAILED",
+            "DEPLOYMENT_BREAK_GLASS_EXECUTED"})
     void neverOpensATicket(NotificationEventType event) {
         assertThat(TicketingTrigger.forEvent(event)).isEmpty();
     }

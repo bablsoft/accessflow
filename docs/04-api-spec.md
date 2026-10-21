@@ -5953,7 +5953,7 @@ Required `config` keys per channel type:
 - `DISCORD`: `webhook_url` (optional: `username`, `avatar_url`).
 - `TELEGRAM`: `bot_token`, `chat_id`. The `bot_token` is AES-encrypted at rest and replaced with `********` on read; pass the literal `********` back on `PUT` to preserve the existing ciphertext.
 - `MS_TEAMS`: `webhook_url`.
-- `SERVICENOW` (AF-453): `instance_url`, `username`, `password`, `triggers` (≥ 1 of `QUERY_REJECTED` | `REVIEW_TIMEOUT` | `QUERY_ESCALATED`) (optional: `assignment_group`, `urgency` 1–3, `bidirectional_sync` default false — when true `webhook_secret` becomes required, `approve_statuses`, `reject_statuses`). `password` and `webhook_secret` are AES-encrypted at rest and masked on read.
+- `SERVICENOW` (AF-453): `instance_url`, `username`, `password`, `triggers` (≥ 1 of `QUERY_REJECTED` | `REVIEW_TIMEOUT` | `QUERY_ESCALATED` | `DEPLOYMENT_SUBMITTED` — the last opens a deployment change ticket on `change_ticket_required` environments, #991) (optional: `assignment_group`, `urgency` 1–3, `bidirectional_sync` default false — when true `webhook_secret` becomes required, `approve_statuses`, `reject_statuses`). `password` and `webhook_secret` are AES-encrypted at rest and masked on read.
 - `JIRA` (AF-453): `base_url`, `user_email`, `api_token`, `project_key`, `triggers` (same values) (optional: `issue_type` default `Task`, `bidirectional_sync` — when true `webhook_secret` becomes required, `approve_statuses`, `reject_statuses`). `api_token` and `webhook_secret` are AES-encrypted at rest and masked on read.
 
 #### PUT /admin/notification-channels/{id}

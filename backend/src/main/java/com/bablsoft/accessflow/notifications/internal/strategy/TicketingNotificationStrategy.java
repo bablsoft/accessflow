@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.RecordTicketCommand;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
+import com.bablsoft.accessflow.deploygov.api.RecordDeploymentTicketCommand;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
@@ -39,6 +41,11 @@ import java.util.UUID;
  * {@code query_tickets} link and a {@code TICKET_CREATED} audit row. Subclasses supply the
  * system-specific config decoding, request building, and response parsing.
  *
+ * <p>A deployment event (#991) opens a change ticket instead — only when the target environment
+ * has {@code change_ticket_required} set, at most once per {@code (channel, deployment)} whichever
+ * of {@code DEPLOYMENT_SUBMITTED} / {@code DEPLOYMENT_APPROVED} arrives first, persisted in
+ * {@code deployment_tickets} through {@link DeploymentTicketService}.
+ *
  * <p>Like PagerDuty, a ticketing channel only reacts to the {@link TicketingTrigger}s the operator
  * selected; every other event resolved to the channel is dropped before any HTTP call.
  */
@@ -53,6 +60,7 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
     private final NotificationChannelRepository channelRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final QueryTicketService queryTicketService;
+    private final DeploymentTicketService deploymentTicketService;
     private final AuditLogService auditLogService;
 
     protected TicketingNotificationStrategy(RestClient restClient,
@@ -61,6 +69,7 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
                                             NotificationChannelRepository channelRepository,
                                             ApplicationEventPublisher eventPublisher,
                                             QueryTicketService queryTicketService,
+                                            DeploymentTicketService deploymentTicketService,
                                             AuditLogService auditLogService) {
         this.restClient = restClient;
         this.taskScheduler = taskScheduler;
@@ -68,6 +77,7 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
         this.channelRepository = channelRepository;
         this.eventPublisher = eventPublisher;
         this.queryTicketService = queryTicketService;
+        this.deploymentTicketService = deploymentTicketService;
         this.auditLogService = auditLogService;
     }
 
@@ -93,11 +103,16 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
 
     protected abstract TestRequest buildTestRequest(TicketingChannelConfig config);
 
+    /** True for a deployment-backed context (#991) — a change ticket, not a query ticket. */
+    protected static boolean isDeployment(NotificationContext ctx) {
+        return ctx.queryRequestId() == null && ctx.deploymentRequestId() != null;
+    }
+
     @Override
     public void deliver(NotificationContext ctx, NotificationChannelEntity channel) {
-        if (ctx.queryRequestId() == null) {
-            log.debug("Skipping {} channel {} for non-query event {}", supports(), channel.getId(),
-                    ctx.eventType());
+        if (ctx.queryRequestId() == null && !isChangeTicketDeployment(ctx)) {
+            log.debug("Skipping {} channel {} for event {} without a ticket target", supports(),
+                    channel.getId(), ctx.eventType());
             return;
         }
         var config = decodeConfig(channel.getConfigJson());
@@ -107,14 +122,38 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
                     channel.getId(), ctx.eventType());
             return;
         }
-        if (queryTicketService.existsFor(channel.getId(), ctx.queryRequestId(),
-                ctx.eventType().name())) {
-            log.debug("Skipping {} channel {}: ticket already exists for query {} event {}",
-                    supports(), channel.getId(), ctx.queryRequestId(), ctx.eventType());
+        if (ticketExists(channel.getId(), ctx)) {
+            log.debug("Skipping {} channel {}: ticket already exists for {} {} event {}",
+                    supports(), channel.getId(), subjectLabel(ctx), subjectId(ctx),
+                    ctx.eventType());
             return;
         }
         var request = buildCreateRequest(ctx, config);
         attempt(channel.getId(), ctx, request, 0);
+    }
+
+    private static boolean isChangeTicketDeployment(NotificationContext ctx) {
+        return isDeployment(ctx) && ctx.deployment() != null
+                && ctx.deployment().changeTicketRequired();
+    }
+
+    /**
+     * Query tickets dedupe per {@code (channel, query, event)}; a deployment gets one change ticket
+     * per channel regardless of which opening event fired.
+     */
+    private boolean ticketExists(UUID channelId, NotificationContext ctx) {
+        return isDeployment(ctx)
+                ? deploymentTicketService.existsFor(channelId, ctx.deploymentRequestId())
+                : queryTicketService.existsFor(channelId, ctx.queryRequestId(),
+                        ctx.eventType().name());
+    }
+
+    private static UUID subjectId(NotificationContext ctx) {
+        return isDeployment(ctx) ? ctx.deploymentRequestId() : ctx.queryRequestId();
+    }
+
+    private static String subjectLabel(NotificationContext ctx) {
+        return isDeployment(ctx) ? "deployment" : "query";
     }
 
     @Override
@@ -170,14 +209,30 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
         try {
             ref = parseTicketRef(responseBody, decodeConfig(channel.getConfigJson()));
         } catch (RuntimeException ex) {
-            log.error("{} ticket created for query {} but the response could not be parsed",
-                    supports(), ctx.queryRequestId(), ex);
+            log.error("{} ticket created for {} {} but the response could not be parsed",
+                    supports(), subjectLabel(ctx), subjectId(ctx), ex);
             return;
         }
         try {
-            queryTicketService.recordCreated(new RecordTicketCommand(
+            persistLink(channel, ctx, ref);
+        } catch (DataIntegrityViolationException ex) {
+            // A concurrent delivery for the same dedupe key won the race — the remote ticket is a
+            // duplicate, but the link table stays consistent.
+            log.warn("{} ticket {} for {} {} raced an existing link; keeping the first",
+                    supports(), ref.externalKey(), subjectLabel(ctx), subjectId(ctx));
+            return;
+        }
+        writeCreatedAudit(channel, ctx, ref);
+        log.info("Created {} ticket {} for {} {} ({})", supports(), ref.externalKey(),
+                subjectLabel(ctx), subjectId(ctx), ctx.eventType());
+    }
+
+    private void persistLink(NotificationChannelEntity channel, NotificationContext ctx,
+                             TicketRef ref) {
+        if (isDeployment(ctx)) {
+            deploymentTicketService.recordCreated(new RecordDeploymentTicketCommand(
                     ctx.organizationId(),
-                    ctx.queryRequestId(),
+                    ctx.deploymentRequestId(),
                     channel.getId(),
                     supports().name(),
                     ctx.eventType().name(),
@@ -185,16 +240,18 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
                     ref.externalKey(),
                     ref.url(),
                     ref.initialStatus()));
-        } catch (DataIntegrityViolationException ex) {
-            // A concurrent delivery for the same (channel, query, event) won the race — the
-            // remote ticket is a duplicate, but the link table stays consistent.
-            log.warn("{} ticket {} for query {} raced an existing link; keeping the first",
-                    supports(), ref.externalKey(), ctx.queryRequestId());
             return;
         }
-        writeCreatedAudit(channel, ctx, ref);
-        log.info("Created {} ticket {} for query {} ({})", supports(), ref.externalKey(),
-                ctx.queryRequestId(), ctx.eventType());
+        queryTicketService.recordCreated(new RecordTicketCommand(
+                ctx.organizationId(),
+                ctx.queryRequestId(),
+                channel.getId(),
+                supports().name(),
+                ctx.eventType().name(),
+                ref.externalId(),
+                ref.externalKey(),
+                ref.url(),
+                ref.initialStatus()));
     }
 
     private void writeCreatedAudit(NotificationChannelEntity channel, NotificationContext ctx,
@@ -205,22 +262,24 @@ abstract class TicketingNotificationStrategy implements NotificationChannelStrat
             metadata.put("channel_id", channel.getId().toString());
             metadata.put("external_key", ref.externalKey());
             metadata.put("trigger_event", ctx.eventType().name());
-            metadata.put("query_request_id", ctx.queryRequestId().toString());
+            metadata.put(isDeployment(ctx) ? "deployment_request_id" : "query_request_id",
+                    subjectId(ctx).toString());
             if (ref.url() != null) {
                 metadata.put("url", ref.url());
             }
             auditLogService.record(new AuditEntry(
                     AuditAction.TICKET_CREATED,
-                    AuditResourceType.QUERY_TICKET,
-                    ctx.queryRequestId(),
+                    isDeployment(ctx)
+                            ? AuditResourceType.DEPLOYMENT_TICKET : AuditResourceType.QUERY_TICKET,
+                    subjectId(ctx),
                     ctx.organizationId(),
                     null,
                     metadata,
                     null,
                     null));
         } catch (RuntimeException ex) {
-            log.error("Failed to write TICKET_CREATED audit row for query {}",
-                    ctx.queryRequestId(), ex);
+            log.error("Failed to write TICKET_CREATED audit row for {} {}", subjectLabel(ctx),
+                    subjectId(ctx), ex);
         }
     }
 

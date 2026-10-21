@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
@@ -30,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,6 +44,7 @@ class DefaultDeploymentNotificationLookupServiceTest {
     @Mock private ReviewPlanLookupService reviewPlanLookupService;
     @Mock private AiAnalysisLookupService aiAnalysisLookupService;
     @Mock private UserQueryService userQueryService;
+    @Mock private FreezeWindowEvaluator freezeWindowEvaluator;
 
     private DefaultDeploymentNotificationLookupService service;
 
@@ -55,7 +58,8 @@ class DefaultDeploymentNotificationLookupServiceTest {
     void setUp() {
         service = new DefaultDeploymentNotificationLookupService(requestRepository,
                 pipelineRepository, environmentRepository, decisionRepository,
-                reviewPlanLookupService, aiAnalysisLookupService, userQueryService);
+                reviewPlanLookupService, aiAnalysisLookupService, userQueryService,
+                freezeWindowEvaluator);
     }
 
     @Test
@@ -86,6 +90,47 @@ class DefaultDeploymentNotificationLookupServiceTest {
         assertThat(view.aiRiskLevel()).isNull();
         assertThat(view.changeTicketRequired()).isFalse();
         assertThat(view.commitSha()).isNull();
+        assertThat(view.activeFreezeReason()).isNull();
+    }
+
+    @Test
+    void carriesTheActiveFreezeReason() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request()));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(flagged()));
+        when(freezeWindowEvaluator.evaluate(orgId, pipelineId, environmentId))
+                .thenReturn(Optional.of(new FreezeWindowEvaluator.ActiveFreeze(UUID.randomUUID(),
+                        FreezeBehavior.HOLD, "Quarter-end change freeze", 2, Instant.now())));
+
+        assertThat(service.find(requestId).orElseThrow().activeFreezeReason())
+                .isEqualTo("Quarter-end change freeze");
+    }
+
+    @Test
+    void unflaggedEnvironmentSkipsFreezeEvaluation() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request()));
+        when(environmentRepository.findById(environmentId))
+                .thenReturn(Optional.of(environment(null)));
+
+        assertThat(service.find(requestId).orElseThrow().activeFreezeReason()).isNull();
+        verifyNoInteractions(freezeWindowEvaluator);
+    }
+
+    private DeploymentEnvironmentEntity flagged() {
+        var environment = environment(null);
+        environment.setChangeTicketRequired(true);
+        return environment;
+    }
+
+    @Test
+    void activeFreezeWithoutReasonFallsBackToItsBehavior() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request()));
+        when(environmentRepository.findById(environmentId)).thenReturn(Optional.of(flagged()));
+        when(freezeWindowEvaluator.evaluate(orgId, pipelineId, environmentId))
+                .thenReturn(Optional.of(new FreezeWindowEvaluator.ActiveFreeze(UUID.randomUUID(),
+                        FreezeBehavior.REJECT, " ", 0, Instant.now())));
+
+        assertThat(service.find(requestId).orElseThrow().activeFreezeReason())
+                .isEqualTo("REJECT");
     }
 
     @Test

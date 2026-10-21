@@ -606,8 +606,11 @@ class NotificationContextBuilderTest {
         assertThat(ctx.environmentName()).isEqualTo("production");
         assertThat(ctx.deploymentVersion()).isEqualTo("2.4.1");
         assertThat(ctx.justification()).isEqualTo("ship it");
-        // No deploygov UI yet — a deployment notification must not fabricate a link.
-        assertThat(ctx.reviewUrl()).isNull();
+        assertThat(ctx.reviewUrl()).hasToString(
+                "https://app.example.test/deployments/" + deploymentRequestId);
+        assertThat(ctx.deployment()).isEqualTo(new NotificationContext.DeploymentDetails(
+                "abc123", "ghcr.io/acme/payments:2.4.1", "https://ci.example/runs/42", true,
+                "Quarter-end freeze"));
     }
 
     @Test
@@ -877,7 +880,8 @@ class NotificationContextBuilderTest {
                 deploymentRequestId, orgId, UUID.randomUUID(), "payments-pipeline", "production",
                 "2.4.1", submitterId, QueryStatus.PENDING_REVIEW,
                 com.bablsoft.accessflow.core.api.SubmissionReason.USER_SUBMITTED,
-                "ship it", RiskLevel.LOW, 10, "ok", false, null, null, null);
+                "ship it", RiskLevel.LOW, 10, "ok", true, "abc123",
+                "ghcr.io/acme/payments:2.4.1", "https://ci.example/runs/42", "Quarter-end freeze");
     }
 
     @Test
