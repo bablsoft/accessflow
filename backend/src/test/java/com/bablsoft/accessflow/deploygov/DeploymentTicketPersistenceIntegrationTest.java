@@ -25,6 +25,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -111,9 +112,9 @@ class DeploymentTicketPersistenceIntegrationTest {
                 null, null).orElseThrow();
         assertThat(progressed.status()).isEqualTo("Review");
         assertThat(progressed.decision()).isEqualTo("APPROVED");
-        // Postgres keeps microseconds; the first view may carry the clock's nanoseconds (Linux).
-        assertThat(progressed.decidedAt().truncatedTo(ChronoUnit.MICROS))
-                .isEqualTo(updated.decidedAt().truncatedTo(ChronoUnit.MICROS));
+        // Postgres rounds to microseconds; the first view may carry the clock's nanoseconds (Linux).
+        assertThat(progressed.decidedAt())
+                .isCloseTo(updated.decidedAt(), within(1, ChronoUnit.MICROS));
 
         var listed = ticketService.listByDeploymentRequest(request.getId(), organizationId);
         assertThat(listed).singleElement().satisfies(view -> {
