@@ -557,7 +557,8 @@ Every transition lands in the INSERT-only `audit_log`: `DEPLOYMENT_SUBMITTED`,
 verdict, before quorum**, so the record shows who decided what and when, not merely the outcome.
 System-attributed rows carry a **null actor** plus a `trigger` key naming the mechanism —
 `routing` (with `policy_id`), `environment_policy`, `freeze` (with `freeze_window_id`), `timeout`,
-or `pipeline`. A failed audit write is logged and swallowed rather than breaking the governed
+`ticket` (a synced change-ticket resolution, with `ticket_system`, `external_key`, `channel_id`,
+`actor` — #992), or `pipeline`. A failed audit write is logged and swallowed rather than breaking the governed
 operation.
 
 Five notification event types fan out across every configured channel (see

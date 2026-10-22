@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-10-22",
       "url": "https://accessflow.io/docs/configuration/notifications/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/notifications/",
       "image": "https://accessflow.io/og-image.png",
@@ -269,7 +269,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Notifications.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-10-22">22 October 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -315,7 +315,7 @@
                 <li><strong>Jira</strong> — supply the <em>site URL</em>, an <em>account email + API token</em>, the target <em>project key</em>, and optionally an <em>issue type</em> (default <em>Task</em>); pick the same trigger set. Issues are created via REST v2 with an <code>accessflow</code> label and link back onto the query detail page.</li>
               </ul>
             </li>
-            <li><strong>Bi-directional status sync (ServiceNow / Jira).</strong> Toggle <em>Bi-directional status sync</em> on the channel and set a <em>webhook secret</em>; then point a ServiceNow Business Rule / Jira Automation rule at <code>POST /api/v1/integrations/servicenow/webhook/&#123;channelId&#125;</code> (or <code>…/jira/webhook/&#123;channelId&#125;</code>) sending <code>{"external_id", "status", "resolution", "actor"}</code> signed with <code>X-AccessFlow-Timestamp</code> + <code>X-AccessFlow-Signature: sha256=HMAC-SHA256(secret, "v1:&#123;timestamp&#125;:&#123;body&#125;")</code>. Ticket status updates flow onto the query detail page, and a resolution matching the channel's <em>approve</em> / <em>reject</em> status lists decides a query still awaiting review — attributed to the ticketing system in the audit log.
+            <li><strong>Bi-directional status sync (ServiceNow / Jira).</strong> Toggle <em>Bi-directional status sync</em> on the channel and set a <em>webhook secret</em>; then point a ServiceNow Business Rule / Jira Automation rule at <code>POST /api/v1/integrations/servicenow/webhook/&#123;channelId&#125;</code> (or <code>…/jira/webhook/&#123;channelId&#125;</code>) sending <code>{"external_id", "status", "resolution", "actor"}</code> signed with <code>X-AccessFlow-Timestamp</code> + <code>X-AccessFlow-Signature: sha256=HMAC-SHA256(secret, "v1:&#123;timestamp&#125;:&#123;body&#125;")</code>. Ticket status updates flow onto the query detail page, and a resolution matching the channel's <em>approve</em> / <em>reject</em> status lists decides a query still awaiting review — attributed to the ticketing system in the audit log. Deployment change tickets are matched too: AccessFlow always keeps the approve / reject verdict on its own link to the ticket, and with sync on it also decides the deployment awaiting review. The ticket's <em>actor</em> cannot be matched to an AccessFlow user, so self-approval of a change ticket is not blocked — keep sync off if you need that guarantee.
             </li>
             <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
             <li><strong>Edit or remove.</strong> Each card also has <em>Edit</em> and <em>Delete</em> buttons. Deleting a channel is immediate (hard delete) — there is no soft-delete, but webhook retries already scheduled before the delete still complete.</li>

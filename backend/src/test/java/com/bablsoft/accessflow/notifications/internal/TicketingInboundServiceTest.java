@@ -6,6 +6,9 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryTicketView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketProvenance;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelConfigException;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
@@ -53,6 +56,7 @@ class TicketingInboundServiceTest {
     @Mock TicketingRequestVerifier verifier;
     @Mock TicketingReplayGuard replayGuard;
     @Mock QueryTicketService queryTicketService;
+    @Mock DeploymentTicketService deploymentTicketService;
     @Mock ExternalDecisionService externalDecisionService;
     @Mock AuditLogService auditLogService;
 
@@ -62,11 +66,13 @@ class TicketingInboundServiceTest {
     private final UUID orgId = UUID.randomUUID();
     private final UUID queryRequestId = UUID.randomUUID();
     private final UUID ticketId = UUID.randomUUID();
+    private final UUID deploymentRequestId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         service = new TicketingInboundService(channelRepository, codec, verifier, replayGuard,
-                queryTicketService, externalDecisionService, auditLogService,
+                queryTicketService, deploymentTicketService, externalDecisionService,
+                auditLogService,
                 JsonMapper.builder().build(), Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -442,6 +448,160 @@ class TicketingInboundServiceTest {
         verify(externalDecisionService).applyTicketDecision(any(), any(),
                 eq(ExternalTicketDecision.APPROVE), reason.capture());
         assertThat(reason.getValue()).startsWith("Jira ticket AF-42 moved to 'Done'");
+    }
+
+    // --- deployment change tickets (#992) -------------------------------------------------------
+
+    @Test
+    void unknownInBothTablesReturnsIgnored() {
+        stubVerifiedServiceNow(serviceNowConfig(true));
+        when(queryTicketService.updateStatus(channelId, "abc", "Resolved", null))
+                .thenReturn(Optional.empty());
+        when(deploymentTicketService.updateStatus(channelId, "abc", "Resolved", null, "APPROVED"))
+                .thenReturn(Optional.empty());
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("ignored");
+        verifyNoInteractions(auditLogService, externalDecisionService);
+    }
+
+    @Test
+    void queryTicketWinsOverDeploymentTicket() {
+        stubVerifiedServiceNow(serviceNowConfig(false));
+        when(queryTicketService.updateStatus(channelId, "abc", "Resolved", null))
+                .thenReturn(Optional.of(ticket()));
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("synced");
+        verifyNoInteractions(deploymentTicketService);
+    }
+
+    @Test
+    void deploymentTicketWithSyncOffStampsDecisionAndSkipsDecisionCall() {
+        stubVerifiedServiceNow(serviceNowConfig(false));
+        stubDeploymentTicket("Resolved", "Fixed", "APPROVED");
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\",\"resolution\":\"Fixed\","
+                        + "\"actor\":\"jdoe\"}",
+                "1", "sha256=x");
+
+        assertThat(result.status()).isEqualTo(200);
+        assertThat(result.result()).isEqualTo("synced");
+        verify(deploymentTicketService).updateStatus(channelId, "abc", "Resolved", "Fixed",
+                "APPROVED");
+        verifyNoInteractions(externalDecisionService);
+
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.TICKET_STATUS_SYNCED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.DEPLOYMENT_TICKET);
+        assertThat(entry.resourceId()).isEqualTo(deploymentRequestId);
+        assertThat(entry.organizationId()).isEqualTo(orgId);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.metadata())
+                .containsEntry("ticket_system", "SERVICENOW")
+                .containsEntry("channel_id", channelId.toString())
+                .containsEntry("external_key", "CHG0030001")
+                .containsEntry("deployment_request_id", deploymentRequestId.toString())
+                .containsEntry("status", "Resolved")
+                .containsEntry("decision", "APPROVED")
+                .containsEntry("resolution", "Fixed")
+                .containsEntry("actor", "jdoe")
+                .doesNotContainKey("query_request_id");
+    }
+
+    @Test
+    void deploymentTicketWithUnmappedStatusStampsNullDecision() {
+        stubVerifiedServiceNow(serviceNowConfig(true));
+        stubDeploymentTicket("In Progress", null, null);
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"In Progress\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("synced");
+        verify(deploymentTicketService).updateStatus(channelId, "abc", "In Progress", null, null);
+        verifyNoInteractions(externalDecisionService);
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().metadata())
+                .doesNotContainKeys("decision", "resolution", "actor");
+    }
+
+    @Test
+    void deploymentTicketWithSyncOnAppliesDecision() {
+        stubVerifiedServiceNow(serviceNowConfig(true));
+        stubDeploymentTicket("Resolved", null, "APPROVED");
+        when(externalDecisionService.applyDeploymentTicketDecision(eq(deploymentRequestId),
+                eq(orgId), eq(ExternalTicketDecision.APPROVE), any())).thenReturn(true);
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\",\"actor\":\"jdoe\"}",
+                "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("decision_applied");
+        var provenance = ArgumentCaptor.forClass(DeploymentTicketProvenance.class);
+        verify(externalDecisionService).applyDeploymentTicketDecision(eq(deploymentRequestId),
+                eq(orgId), eq(ExternalTicketDecision.APPROVE), provenance.capture());
+        assertThat(provenance.getValue()).isEqualTo(new DeploymentTicketProvenance("SERVICENOW",
+                "CHG0030001", channelId, "jdoe",
+                "ServiceNow ticket CHG0030001 moved to 'Resolved' by jdoe"));
+        verify(externalDecisionService, never()).applyTicketDecision(any(), any(), any(), any());
+    }
+
+    @Test
+    void deploymentTicketRejectStatusStampsAndAppliesReject() {
+        stubVerifiedServiceNow(serviceNowConfig(true));
+        stubDeploymentTicket("Rejected", null, "REJECTED");
+        when(externalDecisionService.applyDeploymentTicketDecision(eq(deploymentRequestId),
+                eq(orgId), eq(ExternalTicketDecision.REJECT), any())).thenReturn(true);
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Rejected\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("decision_applied");
+        verify(deploymentTicketService).updateStatus(channelId, "abc", "Rejected", null,
+                "REJECTED");
+    }
+
+    @Test
+    void deploymentDecisionRacedByManualDecisionReturnsSynced() {
+        stubVerifiedServiceNow(serviceNowConfig(true));
+        stubDeploymentTicket("Resolved", null, "APPROVED");
+        when(externalDecisionService.applyDeploymentTicketDecision(any(), any(), any(), any()))
+                .thenReturn(false);
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("synced");
+    }
+
+    @Test
+    void deploymentAuditFailureIsSwallowed() {
+        stubVerifiedServiceNow(serviceNowConfig(false));
+        stubDeploymentTicket("Resolved", null, "APPROVED");
+        doThrow(new RuntimeException("audit down")).when(auditLogService).record(any());
+
+        var result = service.handle(NotificationChannelType.SERVICENOW, channelId,
+                "{\"external_id\":\"abc\",\"status\":\"Resolved\"}", "1", "sha256=x");
+
+        assertThat(result.result()).isEqualTo("synced");
+    }
+
+    private void stubDeploymentTicket(String status, String resolution, String decision) {
+        when(queryTicketService.updateStatus(channelId, "abc", status, resolution))
+                .thenReturn(Optional.empty());
+        when(deploymentTicketService.updateStatus(channelId, "abc", status, resolution, decision))
+                .thenReturn(Optional.of(new DeploymentTicketView(UUID.randomUUID(), orgId,
+                        deploymentRequestId, channelId, "SERVICENOW", "DEPLOYMENT_SUBMITTED",
+                        "abc", "CHG0030001", null, status, resolution, decision,
+                        decision != null ? NOW : null, NOW, NOW)));
     }
 
     // --- helpers -------------------------------------------------------------------------------

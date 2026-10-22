@@ -8337,9 +8337,9 @@ Inbound ticket-status callbacks for the `SERVICENOW` / `JIRA` notification chann
 { "external_id": "abc123", "status": "Resolved", "resolution": "Done", "actor": "jdoe" }
 ```
 
-`external_id` (ServiceNow sys_id / Jira issue id) and `status` are required; `resolution` and `actor` are optional.
+`external_id` (ServiceNow sys_id / Jira issue id) and `status` are required; `resolution` and `actor` are optional. The `external_id` is matched against query tickets first, then deployment change tickets (#992); a deployment ticket's mapped `decision` is stamped on every verified callback, and the still-`PENDING_REVIEW` deployment is decided only with `bidirectional_sync`.
 
-**Responses:** `200` `{ "result": "ignored" | "synced" | "decision_applied" }` — `ignored` when no linked ticket matches `external_id`; `synced` when the ticket row was updated (and no query decision applied); `decision_applied` when `bidirectional_sync` mapped the status/resolution onto an approve/reject of the still-`PENDING_REVIEW` query. `400` unparseable payload or missing required fields; `401` missing/stale/invalid/replayed signature; `404` unknown, inactive, or type-mismatched channel. See [docs/08-notifications.md → Ticketing inbound webhooks](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
+**Responses:** `200` `{ "result": "ignored" | "synced" | "decision_applied" }` — `ignored` when no linked ticket matches `external_id`; `synced` when the ticket row was updated (and no query or deployment decision applied); `decision_applied` when `bidirectional_sync` mapped the status/resolution onto an approve/reject of the still-`PENDING_REVIEW` query or deployment. `400` unparseable payload or missing required fields; `401` missing/stale/invalid/replayed signature; `404` unknown, inactive, or type-mismatched channel. See [docs/08-notifications.md → Ticketing inbound webhooks](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 ---
 

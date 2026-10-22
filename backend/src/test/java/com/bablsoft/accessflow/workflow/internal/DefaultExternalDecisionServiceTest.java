@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.bablsoft.accessflow.core.api.PendingReviewView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -8,6 +9,8 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
+import com.bablsoft.accessflow.deploygov.api.DeploymentExternalDecisionService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketProvenance;
 import com.bablsoft.accessflow.workflow.api.ExternalTicketDecision;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +36,7 @@ class DefaultExternalDecisionServiceTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock DeploymentExternalDecisionService deploymentExternalDecisionService;
 
     private DefaultExternalDecisionService service;
 
@@ -42,7 +46,7 @@ class DefaultExternalDecisionServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultExternalDecisionService(queryRequestLookupService,
-                queryRequestStateService, eventPublisher);
+                queryRequestStateService, eventPublisher, deploymentExternalDecisionService);
     }
 
     @Test
@@ -141,6 +145,38 @@ class DefaultExternalDecisionServiceTest {
 
         assertThat(applied).isFalse();
         verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void deploymentApproveDelegatesAsApproved() {
+        var deploymentId = UUID.randomUUID();
+        var provenance = provenance();
+        when(deploymentExternalDecisionService.applyTicketDecision(deploymentId, orgId,
+                DecisionType.APPROVED, provenance)).thenReturn(true);
+
+        var applied = service.applyDeploymentTicketDecision(deploymentId, orgId,
+                ExternalTicketDecision.APPROVE, provenance);
+
+        assertThat(applied).isTrue();
+        verifyNoInteractions(queryRequestLookupService, queryRequestStateService, eventPublisher);
+    }
+
+    @Test
+    void deploymentRejectDelegatesAsRejectedAndPassesThroughFalse() {
+        var deploymentId = UUID.randomUUID();
+        var provenance = provenance();
+        when(deploymentExternalDecisionService.applyTicketDecision(deploymentId, orgId,
+                DecisionType.REJECTED, provenance)).thenReturn(false);
+
+        var applied = service.applyDeploymentTicketDecision(deploymentId, orgId,
+                ExternalTicketDecision.REJECT, provenance);
+
+        assertThat(applied).isFalse();
+    }
+
+    private static DeploymentTicketProvenance provenance() {
+        return new DeploymentTicketProvenance("JIRA", "OPS-1", UUID.randomUUID(), "jdoe",
+                "Jira ticket OPS-1 moved to 'Done' by jdoe");
     }
 
     private PendingReviewView view(QueryStatus status) {

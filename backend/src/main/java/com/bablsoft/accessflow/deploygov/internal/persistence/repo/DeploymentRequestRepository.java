@@ -3,10 +3,12 @@ package com.bablsoft.accessflow.deploygov.internal.persistence.repo;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,6 +26,15 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
             UUID pipelineId, UUID environmentId, String version);
 
     Optional<DeploymentRequestEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    /**
+     * Row lock for the external-ticket decision (#992): a concurrent manual decision either commits
+     * first (and is seen here) or loses its own version check, so the ticket path never audits a
+     * decision its commit then fails.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from DeploymentRequestEntity r where r.id = :id")
+    Optional<DeploymentRequestEntity> findByIdForUpdate(@Param("id") UUID id);
 
     /**
      * Idempotent-trigger lookup — the exact tuple of the partial unique index
