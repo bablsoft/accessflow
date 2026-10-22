@@ -51,6 +51,18 @@ assert_body_field 1 '.justification' "ship it"
 assert_body_field 1 '.metadata.changelog' "fix things"
 assert_body_field 1 '.break_glass // "absent"' "absent"
 
+scenario "change-ticket-wait-is-logged"
+resp 1 202 '{"id":"req-ct","status":"PENDING_AI"}'
+resp 2 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true}'
+resp 3 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true,"change_ticket":{"system":"SERVICENOW","external_key":"CHG0012345","status":"Assess"}}'
+resp 4 200 '{"request_id":"req-ct","status":"APPROVED","releasable":true,"change_ticket_required":true,"change_ticket":{"external_key":"CHG0012345","status":"Implement","decision":"APPROVED"}}'
+resp 5 200 '{"id":"req-ct","status":"EXECUTED"}'
+run "$gate_script"
+assert_eq "exit code" 0 "$run_rc"
+assert_eq "confirm-execution calls" 1 "$(confirm_calls)"
+assert_log_contains "change_ticket=none linked yet"
+assert_log_contains "change_ticket=CHG0012345 (Assess)"
+
 scenario "rejected-fails-without-confirming"
 resp 1 202 '{"id":"req-2","status":"PENDING_AI"}'
 resp 2 200 '{"request_id":"req-2","status":"PENDING_REVIEW","releasable":false}'

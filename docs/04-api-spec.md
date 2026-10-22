@@ -5866,7 +5866,7 @@ rule as the other two endpoints.
 | | `effective_min_approvals` | only when the deployment would go to review — the auto-approved and routing-decided paths resolve no count |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded`, `reviewers[]` or `plan_approvers[]` | when the request would reach review |
 | `SCHEDULED_RELEASE` | `scheduled_for`, `evaluated_at` | always (`scheduled_for` omitted when none was supplied) |
-| `GATE_RELEASABILITY` | `releasable`, `status`, `frozen`, `scheduled_for` | always |
+| `GATE_RELEASABILITY` | `releasable`, `status`, `frozen`, `scheduled_for`, `change_ticket_required` | always |
 | `BREAK_GLASS` | `can_break_glass`, `environment_allows_break_glass` | always |
 
 **`FREEZE_WINDOW` reports the submission-time effect; `GATE_RELEASABILITY` reports the release-time
@@ -5876,10 +5876,13 @@ withholds releasability at the second. An unevaluable window definition counts a
 fail-closed — and is reported as such rather than as "no freeze".
 
 **`GATE_RELEASABILITY` is the real gate function.** The step calls the same
-`releasable(status, frozen, scheduled_for, at)` that
+`releasable(status, frozen, scheduled_for, at, change_ticket_required, ticket_approved)` that
 `GET /api/v1/deployment-gate` blocks on — not a reimplementation — so the
 top-level `releasable` in the response is what the pipeline would actually see at `at`. It is `false`
 for any request that has not reached `APPROVED`, which is the common case in a trace and is not an error.
+A hypothetical request has no linked change ticket yet, so on an environment with
+`change_ticket_required = true` the trace always answers `releasable: false` (#993) — exactly what a
+freshly triggered request reads at the gate until its ticket is approved.
 
 **No delegation.** `ELIGIBLE_REVIEWERS` reports the plan's approver rules or the `DEPLOYMENT_REVIEW`
 holders, minus the submitter. Review delegation (#622) deliberately does not extend to deployments, so
@@ -9122,7 +9125,7 @@ caller for every rule below.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/deployment-gate` | Poll releasability. Query params (snake_case): either `request_id=<uuid>` **or** all three of `pipeline=<name>`, `version=<v>`, `environment=<env name>` (any other combination is a `400`). Tuple resolution is case-insensitive on the pipeline and environment names and picks the **newest** request for the tuple. `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` / `DEPLOYMENT_REQUEST_NOT_FOUND` for an unknown pipeline, environment, tuple or id — and also when the request exists but the caller may not see it (never `403`; the CI wrappers treat any `404` as **not releasable**). Visibility: the submitter, a `can_trigger` grant holder on the pipeline, or a `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` holder. |
-| `POST` | `/deployment-requests/{id}/confirm-execution` | The pipeline acknowledges it proceeded once the gate answered `releasable: true`; transitions `APPROVED → EXECUTED` (`200`, the full request body; audit action `DEPLOYMENT_EXECUTED`, metadata `trigger=pipeline`). Only the submitter, a `can_trigger` holder on the pipeline, or `QUERY_ADMIN` may confirm (`403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`); only from `APPROVED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`) **and** currently releasable (`409 DEPLOYMENT_NOT_RELEASABLE`). Idempotent: confirming an already-`EXECUTED` request returns `200` and changes nothing. |
+| `POST` | `/deployment-requests/{id}/confirm-execution` | The pipeline acknowledges it proceeded once the gate answered `releasable: true`; transitions `APPROVED → EXECUTED` (`200`, the full request body; audit action `DEPLOYMENT_EXECUTED`, metadata `trigger=pipeline`; on a `change_ticket_required` environment also `change_ticket_required=true` and either `change_ticket_key` or, for break-glass, `change_ticket_bypassed=break_glass` — #993). Only the submitter, a `can_trigger` holder on the pipeline, or `QUERY_ADMIN` may confirm (`403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`); only from `APPROVED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`) **and** currently releasable (`409 DEPLOYMENT_NOT_RELEASABLE`). Idempotent: confirming an already-`EXECUTED` request returns `200` and changes nothing. |
 | `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
 
 **Gate response:**
@@ -9137,12 +9140,36 @@ caller for every rule below.
   "frozen": false,
   "freeze_reason": null,
   "scheduled_for": null,
-  "ai_risk_level": "LOW"
+  "ai_risk_level": "LOW",
+  "change_ticket_required": true,
+  "change_ticket": {
+    "system": "SERVICENOW",
+    "external_key": "CHG0012345",
+    "url": "https://acme.service-now.com/change_request.do?sys_id=…",
+    "status": "Implement",
+    "resolution": null,
+    "decision": "APPROVED"
+  }
 }
 ```
 
+`change_ticket_required` and `change_ticket` (#993) are additive — a pre-#993 CI wrapper that
+branches on `releasable` alone keeps working. `change_ticket_required` mirrors the environment's
+`change_ticket_required` flag; `change_ticket` is the linked ticket the gate judged by — the
+approved one when one exists, otherwise the newest — and is omitted when none is linked, when the
+flag is off, or for a break-glass request (nulls are not serialised). `decision` is `APPROVED`,
+`REJECTED` or absent (not yet resolved).
+
 **Releasability is one pure, fail-closed function**:
-`releasable = status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)`.
+`releasable = status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)
+&& (!change_ticket_required || ticket_approved)`.
+`ticket_approved` (#993) holds when **at least one** linked change ticket has
+`decision = APPROVED` and **none** has `decision = REJECTED`; it is computed from the
+`deployment_tickets` rows only, never from a channel's configuration. No linked ticket, only
+unresolved tickets, or a failed lookup all answer `releasable: false` — so a flagged environment
+whose request no ticketing channel opened a ticket for **never releases**. Break-glass requests skip
+this conjunct exactly as they skip the freeze check, and the bypass is recorded on the
+`DEPLOYMENT_EXECUTED` audit row (`change_ticket_bypassed = break_glass`).
 `frozen` is true when **any** enabled freeze window (`HOLD` *or* `REJECT` behaviour) is active for
 the request's `(pipeline, environment)` — deliberately stricter than "HOLD only": a `REJECT`
 window normally auto-rejects at submission, but a request approved *before* the window started

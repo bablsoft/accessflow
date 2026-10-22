@@ -12,16 +12,21 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcomeService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,6 +63,49 @@ class DeploymentGateControllerTest {
         assertThat(response.approvals().required()).isEqualTo(2);
         assertThat(response.approvals().granted()).isEqualTo(2);
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.LOW);
+    }
+
+    @Test
+    void gateResponseCarriesTheChangeTicket() {
+        var ticket = new DeploymentTicketView(UUID.randomUUID(), orgId, requestId, UUID.randomUUID(),
+                "SERVICENOW", "DEPLOYMENT_SUBMITTED", "sys-1", "CHG0012345",
+                "https://acme.example/chg", "Implement", null, "APPROVED", null, null, null);
+        when(gateService.gateByRequestId(requestId, orgId, userId, Set.of()))
+                .thenReturn(gateView(true, true, ticket));
+
+        var response = controller.gate(null, null, null, requestId, auth());
+
+        assertThat(response.changeTicketRequired()).isTrue();
+        assertThat(response.changeTicket()).isEqualTo(new DeploymentGateResponse.ChangeTicket(
+                "SERVICENOW", "CHG0012345", "https://acme.example/chg", "Implement", null,
+                "APPROVED"));
+    }
+
+    @Test
+    void gateWireShapeKeepsThePreTicketFieldsAndAddsTheTicketOnes() {
+        // Mirrors spring.jackson: SNAKE_CASE naming, nulls omitted.
+        var mapper = JsonMapper.builder()
+                .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+                .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(
+                        JsonInclude.Include.NON_NULL))
+                .build();
+        when(gateService.gateByRequestId(requestId, orgId, userId, Set.of()))
+                .thenReturn(gateView(false, true, null));
+
+        var json = mapper.readTree(mapper.writeValueAsString(
+                controller.gate(null, null, null, requestId, auth())));
+
+        assertThat(json.get("request_id").asString()).isEqualTo(requestId.toString());
+        assertThat(json.get("status").asString()).isEqualTo("APPROVED");
+        assertThat(json.get("releasable").asBoolean()).isFalse();
+        assertThat(json.get("approvals").get("required").asInt()).isEqualTo(2);
+        assertThat(json.get("approvals").get("granted").asInt()).isEqualTo(2);
+        assertThat(json.get("decisions").isArray()).isTrue();
+        assertThat(json.get("frozen").asBoolean()).isFalse();
+        assertThat(json.get("scheduled_for").asString()).isEqualTo("2026-08-24T12:00:00Z");
+        assertThat(json.get("ai_risk_level").asString()).isEqualTo("LOW");
+        assertThat(json.get("change_ticket_required").asBoolean()).isTrue();
+        assertThat(json.has("change_ticket")).isFalse();
     }
 
     @Test
@@ -128,8 +176,14 @@ class DeploymentGateControllerTest {
     }
 
     private DeploymentGateView gateView(boolean releasable) {
+        return gateView(releasable, false, null);
+    }
+
+    private DeploymentGateView gateView(boolean releasable, boolean ticketRequired,
+                                        DeploymentTicketView ticket) {
         return new DeploymentGateView(requestId, QueryStatus.APPROVED, releasable, 2, 2, List.of(),
-                false, null, Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW);
+                false, null, Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW, ticketRequired,
+                ticket);
     }
 
     private DeploymentRequestView requestView() {

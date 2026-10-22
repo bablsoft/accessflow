@@ -153,6 +153,17 @@ assert_body_field 1 '.external_run_id' "$CI_PIPELINE_ID"
 assert_body_field 1 '.run_url' "$CI_PIPELINE_URL"
 assert_body_field 1 '.commit_sha' "$CI_COMMIT_SHA"
 
+scenario "gitlab-gate-logs-the-change-ticket-wait"
+resp 1 202 '{"id":"req-ct","status":"PENDING_AI"}'
+resp 2 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true}'
+resp 3 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true,"change_ticket":{"external_key":"CHG-7"}}'
+resp 4 200 '{"request_id":"req-ct","status":"APPROVED","releasable":true}'
+resp 5 200 '{"id":"req-ct","status":"EXECUTED"}'
+run "$scripts/gitlab-deployment-gate.sh"
+assert_eq "exit code" 0 "$run_rc"
+assert_log_contains "change_ticket=none linked yet"
+assert_log_contains "change_ticket=CHG-7"
+
 scenario "gitlab-gate-404-fails-closed"
 resp 1 202 '{"id":"req-2","status":"PENDING_AI"}'
 resp 2 404 '{"title":"Not Found"}'
@@ -242,6 +253,15 @@ assert_eq "confirm-execution calls" 2 "$(confirm_calls)"
 assert_log_contains "rate limited (HTTP 429), retrying submission in 1s"
 assert_log_contains "rate limited (HTTP 429), retrying in 1s"
 assert_log_contains "confirm rate limited (HTTP 429), retrying in 1s"
+
+scenario "azure-gate-logs-the-change-ticket-wait"
+resp 1 202 '{"id":"req-ct","status":"PENDING_AI"}'
+resp 2 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true,"change_ticket":{"external_key":"CHG-8"}}'
+resp 3 200 '{"request_id":"req-ct","status":"APPROVED","releasable":true}'
+resp 4 200 '{"id":"req-ct","status":"EXECUTED"}'
+run "$scripts/azure-deployment-gate.sh"
+assert_eq "exit code" 0 "$run_rc"
+assert_log_contains "change_ticket=CHG-8"
 
 scenario "azure-gate-404-fails-closed"
 resp 1 202 '{"id":"req-7","status":"PENDING_AI"}'

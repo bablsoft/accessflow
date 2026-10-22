@@ -5488,11 +5488,15 @@ swallowed so one poisoned row cannot abort the batch.
 `FreezeWindowEvaluator` and `EffectiveDeploymentPermissionResolver`) answers
 `GET /api/v1/deployment-gate`. Releasability is one **pure, fail-closed function**
 (`DefaultDeploymentGateService.releasable`):
-`status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)`. `frozen` means
+`status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)
+&& (!change_ticket_required || ticket_approved)`. The fourth conjunct (#993) is read from the
+environment's `change_ticket_required` flag and the request's `deployment_tickets` rows only — at
+least one `decision = APPROVED`, none `REJECTED`; no row or only unresolved rows is not releasable —
+and never from a channel's configuration. `frozen` means
 **any** active freeze window — `HOLD` *or* `REJECT`, deliberately stricter than "HOLD only",
 because a request approved *before* a `REJECT` window started must not sail through mid-freeze —
 except for break-glass requests (`submission_reason = EMERGENCY_ACCESS`), which skip the freeze
-lookup entirely. The whole evaluation is wrapped so any `RuntimeException` answers not-releasable:
+lookup and the ticket conjunct entirely. The whole evaluation is wrapped so any `RuntimeException` answers not-releasable:
 no code path answers "releasable" by default. Tuple resolution (pipeline name → environment name →
 newest request, case-insensitive) 404s at every miss, and so does the visibility predicate
 (submitter ∨ `can_trigger` ∨ `DEPLOYMENT_REVIEW` ∨ `QUERY_ADMIN`) — never a 403, so an
@@ -5501,7 +5505,8 @@ under-permissioned poll reads exactly like an unknown tuple and the CI wrappers 
 `POST /deployment-requests/{id}/confirm-execution` is the pipeline's acknowledgment:
 `APPROVED → EXECUTED` through the state service, gated on the same releasable function
 (`409 DEPLOYMENT_NOT_RELEASABLE` on an approved-but-gated request), idempotent on a repeat, and
-audited as `DEPLOYMENT_EXECUTED` with `trigger=pipeline`. The mutating endpoints use an **actor**
+audited as `DEPLOYMENT_EXECUTED` with `trigger=pipeline` (plus `change_ticket_required` and
+`change_ticket_key`, or `change_ticket_bypassed=break_glass`, on a flagged environment). The mutating endpoints use an **actor**
 rule (submitter ∨ `can_trigger` holder ∨ `QUERY_ADMIN`) with a `403` — unlike the gate read,
 acting on a request is a permission matter, not an existence probe.
 

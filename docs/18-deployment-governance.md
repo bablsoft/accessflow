@@ -268,18 +268,37 @@ construction**. Ask it either by `request_id`, or by the full tuple `pipeline` +
 Releasability is one pure function whose default return is *not* releasable:
 
 ```java
-if (status != QueryStatus.APPROVED || frozen) { return false; }
+if (status != QueryStatus.APPROVED || frozen || (ticketRequired && !ticketSatisfied)) {
+    return false;
+}
 return scheduledFor == null || !scheduledFor.isAfter(now);
 ```
 
-Three conjuncts, all required: the status is **exactly `APPROVED`**, **no freeze window is
-active**, and **`scheduled_for` is null or already passed**. Everything else answers
+Four conjuncts, all required: the status is **exactly `APPROVED`**, **no freeze window is
+active**, **`scheduled_for` is null or already passed**, and — on an environment with
+`change_ticket_required = true` — **an approved change ticket is linked** (#993). Everything else answers
 `releasable: false` — a `PENDING_REVIEW` request, a rejected one, an unknown pipeline / version /
 environment tuple, a caller who may not see the request, and **any internal error**: the freeze
 evaluation is wrapped so that a thrown exception is logged and degrades to *not releasable*, never
 to an accidental yes. Note the error path reports `frozen: false` with no `freeze_reason` — it
 makes no claim about a window it could not evaluate — so `releasable`, not `frozen`, is the field
 a pipeline branches on.
+
+**The change-ticket conjunct.** It is computed from the request's `deployment_tickets` rows only,
+never from a channel's configuration: satisfied when **at least one** linked ticket has
+`decision = APPROVED` and **none** has `decision = REJECTED`. No linked ticket, tickets that are
+still unresolved, or a failed lookup all answer *not releasable*. The honest consequence: a flagged
+environment whose deployments no ServiceNow / Jira channel opens a ticket for — no ticketing
+channel, or none carrying the `DEPLOYMENT_SUBMITTED` trigger — **never releases**, and a request
+approved before its ticket flips simply waits (the release job announces it once the ticket is
+approved). Break-glass requests skip this conjunct exactly as they skip the freeze check, and the
+bypass is recorded on the `DEPLOYMENT_EXECUTED` audit row as `change_ticket_bypassed = break_glass`;
+a normal confirmation on a flagged environment records `change_ticket_key` instead. The response
+adds `change_ticket_required` and `change_ticket` (`system`, `external_key`, `url`, `status`,
+`resolution`, `decision` — the approved ticket when one exists, otherwise the newest; omitted when
+none is linked), and the CI wrappers log `change_ticket=<key>` or `change_ticket=none linked yet`
+while they wait. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
+a hypothetical request has no ticket yet.
 
 **`frozen` means any active window, `HOLD` or `REJECT`.** A `REJECT` window normally auto-rejects
 at submission, but a request approved *before* the window opened must not sail through mid-freeze.
@@ -289,8 +308,8 @@ submission.
 **Visibility failures are `404`, never `403`.** An under-permissioned poll must be
 indistinguishable from an unknown tuple, and the CI wrappers treat both identically: not
 releasable. The response carries `status`, `releasable`, `approvals: { required, granted }`, the
-decisions, `frozen` + `freeze_reason`, `scheduled_for` and `ai_risk_level` — enough for a job to
-log *why* it is still waiting.
+decisions, `frozen` + `freeze_reason`, `scheduled_for`, `ai_risk_level` and the change-ticket
+fields — enough for a job to log *why* it is still waiting.
 
 Two resolution details matter when a name is ambiguous. Pipeline names are unique per organization
 **case-sensitively**, so `deploy-api` and `Deploy-API` may coexist; the gate looks up
@@ -527,11 +546,13 @@ either. A `REJECT` window auto-rejects at the trigger and denies the first; a `H
 trigger through and withholds releasability at the second. An unevaluable window definition counts as
 an active `HOLD` — fail-closed — and is reported as such rather than as "no freeze".
 
-**The gate stage calls the real function.** `releasable(status, frozen, scheduled_for, at)` is the
-same package-private static that [`GET /deployment-gate`](#5-the-deployment-gate) blocks on, not a
-reimplementation, so the response's top-level `releasable` is what the CI job would actually see. It
-is `false` for anything short of an approved, unfrozen, due release — the common case in a trace, and
-not an error.
+**The gate stage calls the real function.** `releasable(status, frozen, scheduled_for, at,
+change_ticket_required, ticket_approved)` is the same package-private static that
+[`GET /deployment-gate`](#5-the-deployment-gate) blocks on, not a reimplementation, so the response's
+top-level `releasable` is what the CI job would actually see. It is `false` for anything short of an
+approved, unfrozen, due release — the common case in a trace, and not an error. A hypothetical request
+has no linked change ticket, so on a `change_ticket_required` environment it is always `false`; the
+step's `change_ticket_required` detail says why.
 
 **Read-only, structurally.** No `deployment_requests` row, no event, no notification, no AI call, and
 no audit row of its own beyond the `ACCESS_SIMULATION_RUN` one the endpoint writes against the
@@ -553,7 +574,10 @@ Every transition lands in the INSERT-only `audit_log`: `DEPLOYMENT_SUBMITTED`,
 `DEPLOYMENT_APPROVED`, `DEPLOYMENT_REJECTED`, `DEPLOYMENT_TIMED_OUT`, `DEPLOYMENT_CANCELLED`,
 `DEPLOYMENT_EXECUTED`, `DEPLOYMENT_OUTCOME_REPORTED`, `DEPLOYMENT_BREAK_GLASS_EXECUTED`,
 `DEPLOYMENT_BREAK_GLASS_REVIEWED` and `DEPLOYMENT_ROLLBACK_REVIEWED`, over the resource types
-`deployment_request` and `deployment_rollback_review`. Reviewer decisions are audited **per
+`deployment_request` and `deployment_rollback_review`. Change tickets add `TICKET_CREATED` and
+`TICKET_STATUS_SYNCED` rows over the `deployment_ticket` resource type (#991, #992), and on a
+`change_ticket_required` environment `DEPLOYMENT_EXECUTED` also carries `change_ticket_required`
+plus `change_ticket_key` — or `change_ticket_bypassed = break_glass` (#993). Reviewer decisions are audited **per
 verdict, before quorum**, so the record shows who decided what and when, not merely the outcome.
 System-attributed rows carry a **null actor** plus a `trigger` key naming the mechanism —
 `routing` (with `policy_id`), `environment_policy`, `freeze` (with `freeze_window_id`), `timeout`,

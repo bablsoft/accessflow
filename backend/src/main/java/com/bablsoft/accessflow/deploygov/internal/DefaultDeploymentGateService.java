@@ -18,16 +18,19 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReleasableEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentTicketEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,28 +39,35 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Map;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * The deployment gate (#693). Releasability is computed by the single pure function
- * {@link #releasable(QueryStatus, boolean, Instant, Instant)} — default answer not-releasable —
- * and every freeze/schedule evaluation is wrapped so that <em>any</em> lookup or evaluation error
- * fails closed. {@code frozen} means any active window, {@code HOLD} or {@code REJECT}: a
+ * {@link #releasable(QueryStatus, boolean, Instant, Instant, boolean, boolean)} — default answer
+ * not-releasable — and every freeze/schedule/ticket evaluation is wrapped so that <em>any</em>
+ * lookup or evaluation error fails closed. {@code frozen} means any active window, {@code HOLD} or {@code REJECT}: a
  * {@code REJECT} window normally auto-rejects at submission, but a request approved before the
  * window started must not sail through mid-freeze. Break-glass requests skip the freeze check —
- * they already bypassed it at submission.
+ * they already bypassed it at submission — and skip the change-ticket conjunct (#993) too.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultDeploymentGateService implements DeploymentGateService {
 
+    /** {@code deployment_tickets.decision} values — strings, the enum lives in notifications. */
+    private static final String APPROVED = "APPROVED";
+    private static final String REJECTED = "REJECTED";
+
     private final DeploymentRequestRepository requestRepository;
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
     private final DeploymentReviewDecisionRepository decisionRepository;
+    private final DeploymentTicketRepository ticketRepository;
     private final EffectiveDeploymentPermissionResolver permissionResolver;
     private final FreezeWindowEvaluator freezeWindowEvaluator;
     private final DeploymentRequestStateService stateService;
@@ -120,13 +130,21 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
         var environmentName = environmentRepository.findById(request.getEnvironmentId())
                 .map(DeploymentEnvironmentEntity::getName)
                 .orElse(request.getEnvironmentId().toString());
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "pipeline");
+        metadata.put("pipeline_id", request.getPipelineId().toString());
+        metadata.put("environment", environmentName);
+        metadata.put("version", request.getVersion());
+        if (evaluation.ticketRequired()) {
+            metadata.put("change_ticket_required", true);
+            if (request.getSubmissionReason() == SubmissionReason.EMERGENCY_ACCESS) {
+                metadata.put("change_ticket_bypassed", "break_glass");
+            } else {
+                metadata.put("change_ticket_key", evaluation.changeTicket().externalKey());
+            }
+        }
         auditWriter.record(AuditAction.DEPLOYMENT_EXECUTED, AuditResourceType.DEPLOYMENT_REQUEST,
-                request.getId(), organizationId, callerId,
-                Map.of("trigger", "pipeline",
-                        "pipeline_id", request.getPipelineId().toString(),
-                        "environment", environmentName,
-                        "version", request.getVersion()),
-                ipAddress);
+                request.getId(), organizationId, callerId, metadata, ipAddress);
         return requestService.detailView(request);
     }
 
@@ -157,41 +175,79 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
 
     /**
      * The one pure releasability function. The default answer is not-releasable: only an
-     * {@code APPROVED}, unfrozen request whose scheduled moment (if any) has passed opens the gate.
+     * {@code APPROVED}, unfrozen request whose scheduled moment (if any) has passed — and, on a
+     * {@code change_ticket_required} environment, whose change ticket is approved — opens the gate.
      */
     static boolean releasable(QueryStatus status, boolean frozen, Instant scheduledFor,
-                              Instant now) {
-        if (status != QueryStatus.APPROVED || frozen) {
+                              Instant now, boolean ticketRequired, boolean ticketSatisfied) {
+        if (status != QueryStatus.APPROVED || frozen || (ticketRequired && !ticketSatisfied)) {
             return false;
         }
         return scheduledFor == null || !scheduledFor.isAfter(now);
     }
 
     /**
-     * Freeze + schedule evaluation, fail closed: any {@code RuntimeException} answers
-     * not-releasable rather than propagating an accidental "yes".
+     * Freeze + schedule + change-ticket evaluation, fail closed: any {@code RuntimeException}
+     * answers not-releasable rather than propagating an accidental "yes".
      */
     GateEvaluation evaluate(DeploymentRequestEntity request, Instant now) {
         try {
+            var environment = environmentRepository.findById(request.getEnvironmentId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Environment " + request.getEnvironmentId() + " not found"));
+            boolean ticketRequired = environment.isChangeTicketRequired();
             boolean frozen = false;
             String freezeReason = null;
+            boolean ticketSatisfied = true;
+            DeploymentTicketView changeTicket = null;
             if (request.getSubmissionReason() != SubmissionReason.EMERGENCY_ACCESS) {
                 var freeze = freezeWindowEvaluator.evaluate(request.getOrganizationId(),
                         request.getPipelineId(), request.getEnvironmentId());
                 frozen = freeze.isPresent();
                 freezeReason = freeze.map(FreezeWindowEvaluator.ActiveFreeze::reason).orElse(null);
+                if (ticketRequired) {
+                    var tickets = ticketRepository.findAllByDeploymentRequestId(request.getId());
+                    ticketSatisfied = ticketApproved(tickets);
+                    changeTicket = chooseTicket(tickets);
+                }
             }
             return new GateEvaluation(
-                    releasable(request.getStatus(), frozen, request.getScheduledFor(), now),
-                    frozen, freezeReason);
+                    releasable(request.getStatus(), frozen, request.getScheduledFor(), now,
+                            ticketRequired, ticketSatisfied),
+                    frozen, freezeReason, ticketRequired, changeTicket);
         } catch (RuntimeException ex) {
             log.error("Gate evaluation failed for deployment request {} — answering not releasable",
                     request.getId(), ex);
-            return new GateEvaluation(false, false, null);
+            return new GateEvaluation(false, false, null, false, null);
         }
     }
 
-    record GateEvaluation(boolean releasable, boolean frozen, String freezeReason) {
+    /** At least one linked ticket approved and none rejected; unresolved tickets count for nothing. */
+    static boolean ticketApproved(List<DeploymentTicketEntity> tickets) {
+        boolean approved = false;
+        for (var ticket : tickets) {
+            if (REJECTED.equals(ticket.getDecision())) {
+                return false;
+            }
+            approved |= APPROVED.equals(ticket.getDecision());
+        }
+        return approved;
+    }
+
+    /** The newest approved ticket when one exists, else the newest linked ticket, else null. */
+    private static DeploymentTicketView chooseTicket(List<DeploymentTicketEntity> tickets) {
+        var newestFirst = Comparator.comparing(DeploymentTicketEntity::getCreatedAt,
+                Comparator.nullsFirst(Comparator.naturalOrder())).reversed();
+        return tickets.stream()
+                .filter(t -> APPROVED.equals(t.getDecision()))
+                .min(newestFirst)
+                .or(() -> tickets.stream().min(newestFirst))
+                .map(DefaultDeploymentTicketService::toView)
+                .orElse(null);
+    }
+
+    record GateEvaluation(boolean releasable, boolean frozen, String freezeReason,
+                          boolean ticketRequired, DeploymentTicketView changeTicket) {
     }
 
     private DeploymentGateView toGateView(DeploymentRequestEntity request) {
@@ -209,7 +265,7 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
         return new DeploymentGateView(request.getId(), request.getStatus(),
                 evaluation.releasable(), request.getRequiredApprovals(), granted, decisions,
                 evaluation.frozen(), evaluation.freezeReason(), request.getScheduledFor(),
-                aiRiskLevel);
+                aiRiskLevel, evaluation.ticketRequired(), evaluation.changeTicket());
     }
 
     /**

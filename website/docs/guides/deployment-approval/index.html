@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-30",
+      "dateModified": "2026-10-22",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-30">30 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-10-22">22 October 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -319,8 +319,9 @@
 
           <div class="docs-callout warn">
             <strong>The gate is fail-closed.</strong> A deployment is releasable only when its
-            status is <code>APPROVED</code>, no freeze window is active, and any scheduled time has
-            passed. Anything else — an error, an unreachable instance, a request the key cannot see
+            status is <code>APPROVED</code>, no freeze window is active, any scheduled time has
+            passed, and — on an environment that requires a change ticket — a linked change ticket
+            has been approved. Anything else — an error, an unreachable instance, a request the key cannot see
             — answers <em>not releasable</em>, and the CI wrappers fail the job. That is the point,
             but it has a consequence worth accepting before you start: <strong>if AccessFlow is
             down, your deployments stop.</strong>
@@ -640,7 +641,11 @@
               window closes, with no re-approval.</li>
             <li><strong>Approved, but still not releasing.</strong> Approval alone is not a green
               light. The job branches on <em>releasable</em>, which also requires no active freeze
-              window and any scheduled time to have passed.</li>
+              window and any scheduled time to have passed. If the environment requires a change
+              ticket, the log line ends in <code>change_ticket=…</code>: the release waits until
+              that ticket is approved, and <code>none linked yet</code> means no ticket was opened —
+              check that a ServiceNow or Jira channel carries the deployment trigger, or the
+              release will never go out.</li>
             <li><strong>The log says "rate limited (HTTP 429), retrying".</strong> Not a failure.
               Every API key has a per-identity request cap (120 per minute by default; a service
               account can be given its own), and the wrappers simply wait the number of seconds

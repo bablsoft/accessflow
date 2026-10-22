@@ -81,7 +81,7 @@ class DefaultDeploymentTicketService implements DeploymentTicketService {
                 .toList();
     }
 
-    private static DeploymentTicketView toView(DeploymentTicketEntity entity) {
+    static DeploymentTicketView toView(DeploymentTicketEntity entity) {
         return new DeploymentTicketView(
                 entity.getId(),
                 entity.getOrganizationId(),
