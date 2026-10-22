@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,6 +21,7 @@ import java.util.UUID;
 class DefaultDeploymentTicketService implements DeploymentTicketService {
 
     private static final String APPROVED = "APPROVED";
+    private static final String REJECTED = "REJECTED";
 
     private final DeploymentTicketRepository repository;
     private final Clock clock;
@@ -87,6 +89,24 @@ class DefaultDeploymentTicketService implements DeploymentTicketService {
                 .stream()
                 .map(DefaultDeploymentTicketService::toView)
                 .toList();
+    }
+
+    /**
+     * The ticket that explains a request's change-ticket state — the newest rejected one (it blocks
+     * the gate), else the newest approved one, else the newest linked ticket, else null. Shared by
+     * the gate (#993) and the request list/detail views (#994).
+     */
+    static DeploymentTicketView representative(List<DeploymentTicketEntity> tickets) {
+        var newestFirst = Comparator.comparing(DeploymentTicketEntity::getCreatedAt,
+                Comparator.nullsFirst(Comparator.naturalOrder())).reversed();
+        return tickets.stream()
+                .filter(t -> REJECTED.equals(t.getDecision()))
+                .min(newestFirst)
+                .or(() -> tickets.stream().filter(t -> APPROVED.equals(t.getDecision()))
+                        .min(newestFirst))
+                .or(() -> tickets.stream().min(newestFirst))
+                .map(DefaultDeploymentTicketService::toView)
+                .orElse(null);
     }
 
     static DeploymentTicketView toView(DeploymentTicketEntity entity) {

@@ -1004,6 +1004,10 @@ function ChannelFormModal({
                     value: 'QUERY_ESCALATED',
                     label: t('admin.notifications.label_ticketing_trigger_query_escalated'),
                   },
+                  {
+                    value: 'DEPLOYMENT_SUBMITTED',
+                    label: t('admin.notifications.label_ticketing_trigger_deployment_submitted'),
+                  },
                 ]}
               />
             </Form.Item>

@@ -308,6 +308,19 @@ row is read before the break-glass shortcut, so a request whose environment was 
 releasable — break-glass included. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
 a hypothetical request has no ticket yet.
 
+**In the web UI (#994).** The `change_ticket_required` switch sits on the pipeline settings
+**Environments** tab, after *Break-glass*. Its help text warns that a ServiceNow or Jira channel must
+enable the *Deployment submitted* trigger (`DEPLOYMENT_SUBMITTED`, a checkbox on both channel forms),
+or the gate never opens. The deployment detail page shows a **Change ticket** card: the key, linked to
+the ticketing system, plus the system, the status (with its resolution) and an *approved* / *rejected*
+tag. On a flagged environment with no ticket yet, the card reads "no change ticket linked yet". When an
+approved, unfrozen, not-releasable request on a flagged environment has no approved ticket, the gate
+banner reads "waiting for the change ticket" (or "the change ticket was rejected"); that message wins
+over the scheduled-time one. `/deployments` adds a **Ticket** column. The card and the column read the
+`change_ticket` summary on the deployment request body (see `docs/04-api-spec.md` → "Deployment
+requests"), not the gate, so the ticket shows while the request is still in review; the banner reads
+the gate.
+
 **`frozen` means any active window, `HOLD` or `REJECT`.** A `REJECT` window normally auto-rejects
 at submission, but a request approved *before* the window opened must not sail through mid-freeze.
 Break-glass requests skip the freeze check entirely — they already bypassed it, audibly, at

@@ -4,10 +4,12 @@ import {
   AUDIT_SINK_TYPES,
   DEPLOYMENT_OUTCOMES,
   DEPLOYMENT_ROLLBACK_REVIEW_STATUSES,
+  DEPLOYMENT_TICKET_DECISIONS,
   FREEZE_BEHAVIORS,
   PIPELINE_PROVIDERS,
   deploymentOutcomeLabel,
   deploymentRollbackReviewStatusLabel,
+  deploymentTicketDecisionLabel,
   freezeBehaviorLabel,
   isoWeekdayLabel,
   pipelineProviderLabel,
@@ -257,6 +259,7 @@ describe('deployment governance labels (#696)', () => {
     expect(FREEZE_BEHAVIORS).toEqual(['HOLD', 'REJECT']);
     expect(DEPLOYMENT_OUTCOMES).toEqual(['SUCCEEDED', 'FAILED', 'ROLLED_BACK']);
     expect(DEPLOYMENT_ROLLBACK_REVIEW_STATUSES).toEqual(['PENDING_REVIEW', 'REVIEWED']);
+    expect(DEPLOYMENT_TICKET_DECISIONS).toEqual(['APPROVED', 'REJECTED']);
   });
 
   it('resolves every label against the real bundle', async () => {
@@ -273,6 +276,9 @@ describe('deployment governance labels (#696)', () => {
     }
     for (const status of DEPLOYMENT_ROLLBACK_REVIEW_STATUSES) {
       expect(deploymentRollbackReviewStatusLabel(realT, status)).not.toContain('enums.');
+    }
+    for (const decision of DEPLOYMENT_TICKET_DECISIONS) {
+      expect(deploymentTicketDecisionLabel(realT, decision)).not.toContain('enums.');
     }
   });
 

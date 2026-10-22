@@ -56,6 +56,13 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       name: 'production',
       requiredApprovals: 1,
     });
+    // A change-ticket environment (#990): no ServiceNow / Jira is reachable from the stack, so
+    // releases here stay held — exactly the "waiting for the change ticket" state (#994).
+    await createDeploymentEnvironmentViaApi(request, adminAccessToken, pipeline.id, {
+      name: 'regulated',
+      requiredApprovals: 1,
+      changeTicketRequired: true,
+    });
 
     // The submitter is a non-admin REVIEWER: admins bypass the can_trigger check, so they
     // cannot stand in here — and REVIEWER (not ANALYST) is what makes the self-approval ban
@@ -195,6 +202,37 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     } finally {
       await reviewerCtx.close();
     }
+  });
+
+  test('an approved deployment on a change-ticket environment waits for the ticket (#994)', async ({
+    page,
+    request,
+  }) => {
+    if (!pipeline) throw new Error('pipeline not created in beforeAll');
+
+    const version = `3.0.0-${Date.now()}`;
+    const triggered = await triggerDeploymentViaApi(request, submitterToken, {
+      pipelineId: pipeline.id,
+      environment: 'regulated',
+      version,
+      externalRunId: `run-ticket-${Date.now()}`,
+    });
+    await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'PENDING_REVIEW');
+    const decision = await approveDeploymentViaApi(request, adminAccessToken, triggered.id);
+    expect(decision.ok).toBe(true);
+
+    const gate = await getDeploymentGateViaApi(request, adminAccessToken, triggered.id);
+    expect(gate.status).toBe('APPROVED');
+    expect(gate.releasable).toBe(false);
+    expect(gate.frozen).toBe(false);
+    expect(gate.change_ticket_required).toBe(true);
+    expect(gate.change_ticket ?? null).toBeNull();
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/deployments/${triggered.id}`);
+    await expect(page.getByText(/waiting for the change ticket/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/No change ticket linked yet/)).toBeVisible();
+    await expect(page.getByText(/Approved and releasable/)).toHaveCount(0);
   });
 
   // #770: the queue row navigates to the detail page, so the decision has to be reachable there

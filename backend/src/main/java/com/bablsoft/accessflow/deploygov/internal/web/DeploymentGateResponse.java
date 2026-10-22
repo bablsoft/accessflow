@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
-import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,18 +20,9 @@ public record DeploymentGateResponse(
         Instant scheduledFor,
         RiskLevel aiRiskLevel,
         boolean changeTicketRequired,
-        ChangeTicket changeTicket) {
+        DeploymentChangeTicketResponse changeTicket) {
 
     record Approvals(int required, int granted) {
-    }
-
-    record ChangeTicket(String system, String externalKey, String url, String status,
-                        String resolution, String decision) {
-
-        static ChangeTicket from(DeploymentTicketView view) {
-            return view == null ? null : new ChangeTicket(view.ticketSystem(), view.externalKey(),
-                    view.url(), view.status(), view.resolution(), view.decision());
-        }
     }
 
     static DeploymentGateResponse from(DeploymentGateView view) {
@@ -40,6 +30,6 @@ public record DeploymentGateResponse(
                 new Approvals(view.requiredApprovals(), view.grantedApprovals()),
                 view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
                 view.frozen(), view.freezeReason(), view.scheduledFor(), view.aiRiskLevel(),
-                view.changeTicketRequired(), ChangeTicket.from(view.changeTicket()));
+                view.changeTicketRequired(), DeploymentChangeTicketResponse.from(view.changeTicket()));
     }
 }

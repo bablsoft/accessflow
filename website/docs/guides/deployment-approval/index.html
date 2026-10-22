@@ -455,6 +455,13 @@
             environment; there is no admin bypass for either half. Leave it off unless you have
             somebody who genuinely needs it.
           </p>
+          <p>
+            Turn on <strong>Change ticket</strong> when releases to an environment must wait for
+            an approved ServiceNow or Jira change ticket. A ticket is opened only by a ServiceNow or
+            Jira channel that has the <strong>Deployment submitted</strong> trigger ticked. Without
+            one, a release to this environment never goes out, and the form says so next to the
+            switch.
+          </p>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
@@ -648,7 +655,10 @@
               <a href="/docs/configuration/notifications/">bi-directional status sync</a> on the
               channel. A rejected ticket blocks the release for good; submit a new deployment.
               <code>none linked yet</code> means no ticket was opened — check that a ServiceNow or
-              Jira channel carries the deployment trigger, or the release will never go out.</li>
+              Jira channel carries the deployment trigger, or the release will never go out. The
+              deployment's page in AccessFlow shows the same thing: a <strong>Change ticket</strong>
+              card with the ticket's link, status and decision, and a banner that reads
+              <em>waiting for the change ticket</em>.</li>
             <li><strong>The log says "rate limited (HTTP 429), retrying".</strong> Not a failure.
               Every API key has a per-identity request cap (120 per minute by default; a service
               account can be given its own), and the wrappers simply wait the number of seconds

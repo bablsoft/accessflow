@@ -9,6 +9,7 @@ import {
   deploymentOutcomeColor,
   driftColor,
   deploymentRollbackReviewStatusColor,
+  deploymentTicketDecisionColor,
   grantUsageRecommendationColor,
   jobExecutionStatusColor,
   standingBypassKindColor,
@@ -145,6 +146,13 @@ describe('deploymentOutcomeColor (#696)', () => {
   it('returns a distinct colour triple for each outcome', () => {
     const triples = ALL.map((o) => JSON.stringify(deploymentOutcomeColor(o)));
     expect(new Set(triples).size).toBe(ALL.length);
+  });
+});
+
+describe('deploymentTicketDecisionColor (#994)', () => {
+  it('maps an approved ticket to low risk and a rejected one to critical', () => {
+    expect(deploymentTicketDecisionColor('APPROVED').fg).toBe('var(--risk-low)');
+    expect(deploymentTicketDecisionColor('REJECTED').fg).toBe('var(--risk-crit)');
   });
 });
 

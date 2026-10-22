@@ -5066,6 +5066,8 @@ export interface DeploymentEnvironment {
   required_approvals: number | null;
   review_plan_id: string | null;
   allow_break_glass: boolean;
+  /** Releases wait for an approved ServiceNow / Jira change ticket (#990, #993). */
+  change_ticket_required: boolean;
   /** The datasource this environment's schema changes land on; null = deploy-only (#877). */
   datasource_id: string | null;
   created_at: string;
@@ -5080,6 +5082,7 @@ export interface CreateDeploymentEnvironmentInput {
   required_approvals?: number | null;
   review_plan_id?: string | null;
   allow_break_glass?: boolean;
+  change_ticket_required?: boolean;
   datasource_id?: string | null;
 }
 
@@ -5097,6 +5100,7 @@ export interface UpdateDeploymentEnvironmentInput {
   review_plan_id?: string | null;
   clear_review_plan?: boolean;
   allow_break_glass?: boolean | null;
+  change_ticket_required?: boolean | null;
   /** Null leaves the binding unchanged; `clear_datasource: true` unbinds and wins (#877). */
   datasource_id?: string | null;
   clear_datasource?: boolean;
@@ -5288,9 +5292,28 @@ export interface DeploymentRequest {
    * endpoint only — always false on the list endpoint.
    */
   can_review: boolean;
+  /** Mirrors the environment's flag (#994). */
+  change_ticket_required?: boolean;
+  /** Absent when no ticket is linked (#994). */
+  change_ticket?: DeploymentTicketRef | null;
 }
 
 export type DeploymentRequestPage = PageEnvelope<DeploymentRequest>;
+
+export type DeploymentTicketDecision = 'APPROVED' | 'REJECTED';
+
+/**
+ * The linked change ticket that explains a deployment's state (#993, #994): the newest rejected
+ * one, else the newest approved one, else the newest linked one.
+ */
+export interface DeploymentTicketRef {
+  system: 'SERVICENOW' | 'JIRA';
+  external_key: string;
+  url?: string | null;
+  status: string;
+  resolution?: string | null;
+  decision?: DeploymentTicketDecision | null;
+}
 
 export interface DeploymentRequestListFilters {
   status?: QueryStatus;
@@ -5364,6 +5387,10 @@ export interface DeploymentGateStatus {
   freeze_reason: string | null;
   scheduled_for: string | null;
   ai_risk_level: RiskLevel | null;
+  /** Mirrors the environment's flag (#993). */
+  change_ticket_required?: boolean;
+  /** The ticket the gate judged by; absent when none is linked (#993). */
+  change_ticket?: DeploymentTicketRef | null;
 }
 
 // ─── Deployment version inventory & drift (#742 API, #743 UI) ───

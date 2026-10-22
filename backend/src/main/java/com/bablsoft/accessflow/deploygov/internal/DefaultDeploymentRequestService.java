@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.SubmitDeploymentRequestCommand;
@@ -28,10 +29,12 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentSubmittedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentTicketEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,12 +45,13 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Submission, listing and cancellation of governed deployment requests (#691). Mirrors
@@ -71,6 +75,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
     private final DeploymentReviewDecisionRepository decisionRepository;
+    private final DeploymentTicketRepository ticketRepository;
     private final EffectiveDeploymentPermissionResolver permissionResolver;
     private final FreezeWindowEvaluator freezeWindowEvaluator;
     private final DeploymentRequestStateService stateService;
@@ -332,7 +337,15 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     }
 
     private PageResponse<DeploymentRequestView> toPage(Page<DeploymentRequestEntity> page) {
-        var content = page.getContent().stream().map(e -> toView(e, List.of())).toList();
+        var ids = page.getContent().stream().map(DeploymentRequestEntity::getId).toList();
+        // One ticket query per page, never one per row (#994).
+        var ticketsByRequest = ids.isEmpty() ? Map.<UUID, List<DeploymentTicketEntity>>of()
+                : ticketRepository.findAllByDeploymentRequestIdIn(ids).stream()
+                        .collect(Collectors.groupingBy(DeploymentTicketEntity::getDeploymentRequestId));
+        var content = page.getContent().stream()
+                .map(e -> toView(e, List.of(), DefaultDeploymentTicketService.representative(
+                        ticketsByRequest.getOrDefault(e.getId(), List.of()))))
+                .toList();
         return new PageResponse<>(content, page.getNumber(), page.getSize() <= 0 ? 1 : page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }
@@ -351,11 +364,15 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 .map(d -> new DeploymentReviewDecisionView(d.getId(), d.getReviewerId(),
                         d.getDecision(), d.getComment(), d.getStage(), d.getDecidedAt()))
                 .toList();
-        return toView(entity, decisions);
+        // Unlike the gate, loaded whatever the environment flag: a linked ticket is worth showing.
+        var changeTicket = DefaultDeploymentTicketService.representative(
+                ticketRepository.findAllByDeploymentRequestId(entity.getId()));
+        return toView(entity, decisions, changeTicket);
     }
 
     private DeploymentRequestView toView(DeploymentRequestEntity entity,
-                                         List<DeploymentReviewDecisionView> decisions) {
+                                         List<DeploymentReviewDecisionView> decisions,
+                                         DeploymentTicketView changeTicket) {
         var pipeline = pipelineRepository.findById(entity.getPipelineId()).orElse(null);
         var environment = environmentRepository.findById(entity.getEnvironmentId()).orElse(null);
         var analysis = entity.getAiAnalysisId() == null ? null
@@ -393,7 +410,9 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 entity.getCreatedAt(),
                 decisions,
                 entity.getOnBehalfOfUserId(),
-                onBehalfOf != null ? onBehalfOf.email() : null);
+                onBehalfOf != null ? onBehalfOf.email() : null,
+                environment != null && environment.isChangeTicketRequired(),
+                changeTicket);
     }
 
     private Map<String, Object> readMetadata(String json) {

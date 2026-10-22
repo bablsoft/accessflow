@@ -38,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
@@ -136,7 +135,7 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
             if (request.getSubmissionReason() == SubmissionReason.EMERGENCY_ACCESS) {
                 metadata.put("change_ticket_bypassed", "break_glass");
             } else {
-                // Releasable implies an APPROVED and no REJECTED ticket, so chooseTicket is non-null.
+                // Releasable implies an APPROVED and no REJECTED ticket, so the representative ticket is non-null.
                 metadata.put("change_ticket_key", evaluation.changeTicket().externalKey());
             }
         }
@@ -210,7 +209,7 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
                 if (ticketRequired) {
                     var tickets = ticketRepository.findAllByDeploymentRequestId(request.getId());
                     ticketSatisfied = ticketApproved(tickets);
-                    changeTicket = chooseTicket(tickets);
+                    changeTicket = DefaultDeploymentTicketService.representative(tickets);
                 }
             }
             return new GateEvaluation(
@@ -234,23 +233,6 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
             approved |= APPROVED.equals(ticket.getDecision());
         }
         return approved;
-    }
-
-    /**
-     * The ticket that explains the verdict: the newest rejected one (it blocks the gate), else the
-     * newest approved one, else the newest linked ticket, else null.
-     */
-    private static DeploymentTicketView chooseTicket(List<DeploymentTicketEntity> tickets) {
-        var newestFirst = Comparator.comparing(DeploymentTicketEntity::getCreatedAt,
-                Comparator.nullsFirst(Comparator.naturalOrder())).reversed();
-        return tickets.stream()
-                .filter(t -> REJECTED.equals(t.getDecision()))
-                .min(newestFirst)
-                .or(() -> tickets.stream().filter(t -> APPROVED.equals(t.getDecision()))
-                        .min(newestFirst))
-                .or(() -> tickets.stream().min(newestFirst))
-                .map(DefaultDeploymentTicketService::toView)
-                .orElse(null);
     }
 
     /** {@code environmentName} is only read on the releasable path, where the row was found. */

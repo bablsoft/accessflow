@@ -57,6 +57,7 @@ const staging: DeploymentEnvironment = {
   required_approvals: 2,
   review_plan_id: 'plan-1',
   allow_break_glass: false,
+  change_ticket_required: false,
   datasource_id: null,
   created_at: '2026-08-01T10:00:00Z',
 };
@@ -71,6 +72,7 @@ const production: DeploymentEnvironment = {
   required_approvals: null,
   review_plan_id: null,
   allow_break_glass: true,
+  change_ticket_required: true,
   datasource_id: 'ds-1',
   created_at: '2026-08-01T10:00:00Z',
 };
@@ -162,8 +164,53 @@ describe('PipelineEnvironmentsTab', () => {
       required_approvals: null,
       review_plan_id: null,
       allow_break_glass: false,
+      change_ticket_required: false,
       datasource_id: null,
     });
+  });
+
+  it('creates a change-ticket environment when the switch is on and explains the trigger', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getByRole('button', { name: /add environment/i }));
+    await screen.findByRole('dialog');
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'prod-eu' } });
+    expect(screen.getByText(/must enable the deployment trigger/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Change ticket' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(createDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(createDeploymentEnvironment.mock.calls[0]![1]).toEqual(
+      expect.objectContaining({ name: 'prod-eu', change_ticket_required: true }),
+    );
+  });
+
+  it('prefills the change-ticket switch on edit and sends it back when turned off', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('production'));
+    const toggle = screen.getByRole('switch', { name: 'Change ticket' });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ change_ticket_required: false }),
+    );
+  });
+
+  it('renders the change-ticket column', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    expect(screen.getByText('Change ticket').closest('th')).not.toBeNull();
+    // Both rows require review; production adds break-glass and the change ticket.
+    expect(screen.getAllByText('✓')).toHaveLength(4);
   });
 
   it('renders the bound datasource name and the deploy-only placeholder', async () => {

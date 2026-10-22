@@ -30,10 +30,12 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentSubmittedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentTicketEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -75,6 +77,7 @@ class DefaultDeploymentRequestServiceTest {
     private DeploymentPipelineRepository pipelineRepository;
     private DeploymentEnvironmentRepository environmentRepository;
     private DeploymentReviewDecisionRepository decisionRepository;
+    private DeploymentTicketRepository ticketRepository;
     private EffectiveDeploymentPermissionResolver permissionResolver;
     private FreezeWindowEvaluator freezeWindowEvaluator;
     private DeploymentRequestStateService stateService;
@@ -94,6 +97,7 @@ class DefaultDeploymentRequestServiceTest {
         pipelineRepository = mock(DeploymentPipelineRepository.class);
         environmentRepository = mock(DeploymentEnvironmentRepository.class);
         decisionRepository = mock(DeploymentReviewDecisionRepository.class);
+        ticketRepository = mock(DeploymentTicketRepository.class);
         permissionResolver = mock(EffectiveDeploymentPermissionResolver.class);
         freezeWindowEvaluator = mock(FreezeWindowEvaluator.class);
         stateService = mock(DeploymentRequestStateService.class);
@@ -102,7 +106,8 @@ class DefaultDeploymentRequestServiceTest {
         userQueryService = mock(UserQueryService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         service = new DefaultDeploymentRequestService(requestRepository, requestInserter,
-                pipelineRepository, environmentRepository, decisionRepository, permissionResolver,
+                pipelineRepository, environmentRepository, decisionRepository, ticketRepository,
+                permissionResolver,
                 freezeWindowEvaluator, stateService, auditWriter, aiAnalysisLookupService,
                 userQueryService, eventPublisher, JsonMapper.builder().build(), CLOCK);
 
@@ -502,6 +507,82 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(page.content()).isEmpty();
     }
 
+    @Test
+    void listLoadsTheChangeTicketsForTheWholePageInOneQuery() {
+        environment.setChangeTicketRequired(true);
+        var first = existing(QueryStatus.APPROVED);
+        var second = existing(QueryStatus.PENDING_REVIEW);
+        when(requestRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(first, second)));
+        when(ticketRepository.findAllByDeploymentRequestIdIn(List.of(first.getId(), second.getId())))
+                .thenReturn(List.of(
+                        ticket(first.getId(), "CHG001", null, NOW.minusSeconds(60)),
+                        ticket(first.getId(), "CHG002", "APPROVED", NOW.minusSeconds(120))));
+
+        var page = service.list(new DeploymentRequestListFilter(ORG, null, null, null, null, null,
+                null, null), new PageRequest(0, 20, List.of()));
+
+        verify(ticketRepository).findAllByDeploymentRequestIdIn(any());
+        verify(ticketRepository, never()).findAllByDeploymentRequestId(any());
+        var firstView = page.content().get(0);
+        assertThat(firstView.changeTicketRequired()).isTrue();
+        assertThat(firstView.changeTicket().externalKey()).isEqualTo("CHG002");
+        assertThat(firstView.changeTicket().decision()).isEqualTo("APPROVED");
+        assertThat(page.content().get(1).changeTicket()).isNull();
+    }
+
+    @Test
+    void listOfAnEmptyPageSkipsTheTicketLookup() {
+        when(requestRepository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.list(new DeploymentRequestListFilter(ORG, null, null, null, null, null, null, null),
+                new PageRequest(0, 20, List.of()));
+
+        verify(ticketRepository, never()).findAllByDeploymentRequestIdIn(any());
+    }
+
+    @Test
+    void getCarriesTheRejectedTicketOverANewerApprovedOne() {
+        environment.setChangeTicketRequired(true);
+        var entity = existing(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+        when(ticketRepository.findAllByDeploymentRequestId(entity.getId())).thenReturn(List.of(
+                ticket(entity.getId(), "CHG010", "REJECTED", NOW.minusSeconds(300)),
+                ticket(entity.getId(), "CHG011", "APPROVED", NOW.minusSeconds(10))));
+
+        var view = service.get(entity.getId(), ORG, SUBMITTER, Set.of());
+
+        assertThat(view.changeTicketRequired()).isTrue();
+        assertThat(view.changeTicket().externalKey()).isEqualTo("CHG010");
+        assertThat(view.changeTicket().ticketSystem()).isEqualTo("SERVICENOW");
+    }
+
+    @Test
+    void getWithoutTicketsOrFlagCarriesNoChangeTicket() {
+        var entity = existing(QueryStatus.PENDING_REVIEW);
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+        when(ticketRepository.findAllByDeploymentRequestId(entity.getId())).thenReturn(List.of());
+
+        var view = service.get(entity.getId(), ORG, SUBMITTER, Set.of());
+
+        assertThat(view.changeTicketRequired()).isFalse();
+        assertThat(view.changeTicket()).isNull();
+    }
+
+    @Test
+    void aMissingEnvironmentReportsNoChangeTicketRequirement() {
+        var entity = existing(QueryStatus.PENDING_REVIEW);
+        when(environmentRepository.findById(environment.getId())).thenReturn(Optional.empty());
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+
+        assertThat(service.get(entity.getId(), ORG, SUBMITTER, Set.of()).changeTicketRequired())
+                .isFalse();
+    }
+
     // ---- get ----------------------------------------------------------------------------------
 
     @Test
@@ -718,6 +799,23 @@ class DefaultDeploymentRequestServiceTest {
         entity.setName("payments-api");
         entity.setProvider(PipelineProvider.GITHUB_ACTIONS);
         entity.setActive(true);
+        return entity;
+    }
+
+    private static DeploymentTicketEntity ticket(UUID requestId, String key, String decision,
+                                                 Instant createdAt) {
+        var entity = new DeploymentTicketEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(ORG);
+        entity.setDeploymentRequestId(requestId);
+        entity.setChannelId(UUID.randomUUID());
+        entity.setTicketSystem("SERVICENOW");
+        entity.setTriggerEvent("DEPLOYMENT_SUBMITTED");
+        entity.setExternalId("sys-" + key);
+        entity.setExternalKey(key);
+        entity.setStatus("New");
+        entity.setDecision(decision);
+        entity.setCreatedAt(createdAt);
         return entity;
     }
 

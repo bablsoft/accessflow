@@ -57,6 +57,8 @@ export async function createDeploymentEnvironmentViaApi(
     tags?: string[];
     /** Binds the datasource schema changes land on (#877); omitted → deploy-only. */
     datasourceId?: string;
+    /** Releases wait for an approved ServiceNow / Jira change ticket (#990). */
+    changeTicketRequired?: boolean;
   },
 ): Promise<CreatedDeploymentEnvironment> {
   const res = await request.post(
@@ -71,6 +73,9 @@ export async function createDeploymentEnvironmentViaApi(
           ? {}
           : { required_approvals: options.requiredApprovals }),
         ...(options.requireReview === undefined ? {} : { require_review: options.requireReview }),
+        ...(options.changeTicketRequired === undefined
+          ? {}
+          : { change_ticket_required: options.changeTicketRequired }),
       },
     },
   );
@@ -179,6 +184,10 @@ export interface DeploymentGateResult {
   status: string;
   releasable: boolean;
   frozen: boolean;
+  /** Mirrors the environment flag (#993). */
+  change_ticket_required: boolean;
+  /** The backend omits nulls, so an unlinked ticket arrives absent. */
+  change_ticket?: { external_key: string; decision?: string | null } | null;
 }
 
 /** Reads the fail-closed deployment gate for a request. */

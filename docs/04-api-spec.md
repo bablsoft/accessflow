@@ -9070,6 +9070,27 @@ the trigger, `confirm-execution` and `outcome` — always reports `false`, exact
 always `[]` on the list. An id the caller
 cannot see never reaches the flag — the visibility `404` fires first.
 
+**Change ticket on every request body (#994).** Each body this resource returns — list, detail,
+trigger, `confirm-execution`, `outcome` — carries `change_ticket_required` (mirrors the environment's
+flag; `false` when the environment row is gone) and `change_ticket`, the linked ServiceNow / Jira
+ticket that explains the request's change-ticket state, chosen exactly as the gate does: the newest
+rejected ticket, else the newest approved one, else the newest linked one. It has the gate's shape
+(`system`, `external_key`, `url`, `status`, `resolution`, `decision` — `APPROVED`, `REJECTED` or
+absent until the ticketing system's callback decides it; nulls are not serialised) and is omitted when
+no ticket is linked. On ServiceNow the ticket is an incident. Unlike the gate, it is present at every status, so a reviewer
+sees the ticket while the request is still `PENDING_REVIEW`. The list loads tickets for the whole
+page in one query.
+
+```json
+"change_ticket_required": true,
+"change_ticket": {
+  "system": "SERVICENOW",
+  "external_key": "INC0010042",
+  "url": "https://acme.service-now.com/nav_to.do?uri=incident.do?sys_id=…",
+  "status": "New"
+}
+```
+
 `SubmitDeploymentRequestRequest` fields: `pipelineId` (required), `environment` (required, ≤255 —
 the environment **name** within the pipeline, because a CI job knows names, not UUIDs),
 `version` (required, ≤255 — the semantic artifact version being deployed, e.g. `2.4.1`),
