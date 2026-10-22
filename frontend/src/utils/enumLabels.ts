@@ -77,6 +77,7 @@ import type {
   RowSecurityValueType,
   DiscoveryDetector,
   DeploymentOutcome,
+  DeploymentTicketDecision,
   DeploymentRollbackReviewStatus,
   DiscoveryFindingStatus,
   CommentStatus,
@@ -965,6 +966,14 @@ export const DEPLOYMENT_OUTCOMES: readonly DeploymentOutcome[] = [
 
 export const deploymentOutcomeLabel = (t: TFunction, v: DeploymentOutcome): string =>
   t(`enums.deployment_outcome.${v}` as const);
+
+export const DEPLOYMENT_TICKET_DECISIONS: readonly DeploymentTicketDecision[] = [
+  'APPROVED',
+  'REJECTED',
+] as const;
+
+export const deploymentTicketDecisionLabel = (t: TFunction, v: DeploymentTicketDecision): string =>
+  t(`enums.deployment_ticket_decision.${v}` as const);
 
 export const DEPLOYMENT_ROLLBACK_REVIEW_STATUSES: readonly DeploymentRollbackReviewStatus[] = [
   'PENDING_REVIEW',

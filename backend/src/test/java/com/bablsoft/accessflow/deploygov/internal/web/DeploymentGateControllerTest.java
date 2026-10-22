@@ -76,7 +76,7 @@ class DeploymentGateControllerTest {
         var response = controller.gate(null, null, null, requestId, auth());
 
         assertThat(response.changeTicketRequired()).isTrue();
-        assertThat(response.changeTicket()).isEqualTo(new DeploymentGateResponse.ChangeTicket(
+        assertThat(response.changeTicket()).isEqualTo(new DeploymentChangeTicketResponse(
                 "SERVICENOW", "CHG0012345", "https://acme.example/chg", "Implement", null,
                 "APPROVED"));
     }

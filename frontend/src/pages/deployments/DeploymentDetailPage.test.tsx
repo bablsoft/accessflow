@@ -237,6 +237,97 @@ describe('DeploymentDetailPage', () => {
     expect(screen.queryByText(/Approved and releasable/)).toBeNull();
   });
 
+  it('shows the linked change ticket with its system, status and decision', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      change_ticket_required: true,
+      change_ticket: {
+        system: 'SERVICENOW',
+        external_key: 'CHG0030001',
+        url: 'https://acme.service-now.com/change_request.do?sys_id=abc',
+        status: 'Scheduled',
+        resolution: 'Approved',
+        decision: 'APPROVED',
+      },
+    });
+
+    render(wrap(<DeploymentDetailPage />));
+
+    const link = await screen.findByRole('link', { name: 'CHG0030001' });
+    expect(link).toHaveAttribute('href', 'https://acme.service-now.com/change_request.do?sys_id=abc');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('ServiceNow')).toBeInTheDocument();
+    expect(screen.getByText('Status: Scheduled (Approved)')).toBeInTheDocument();
+    expect(screen.getByText('approved')).toBeInTheDocument();
+  });
+
+  it('renders a ticket without a URL as plain text and without a decision tag', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      change_ticket_required: true,
+      change_ticket: { system: 'JIRA', external_key: 'OPS-7', status: 'To Do' },
+    });
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(await screen.findByText('OPS-7')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'OPS-7' })).toBeNull();
+    expect(screen.getByText('Status: To Do')).toBeInTheDocument();
+    expect(screen.queryByText('approved')).toBeNull();
+  });
+
+  it('says no change ticket is linked yet on a flagged environment', async () => {
+    getDeploymentRequestMock.mockResolvedValue({ ...baseRequest, change_ticket_required: true });
+    getDeploymentGateMock.mockResolvedValue({
+      ...releasableGate,
+      releasable: false,
+      change_ticket_required: true,
+    });
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(await screen.findByText(/No change ticket linked yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/waiting for the change ticket/)).toBeInTheDocument();
+  });
+
+  it('hides the change-ticket card when the environment does not require one', async () => {
+    getDeploymentRequestMock.mockResolvedValue(baseRequest);
+    getDeploymentGateMock.mockResolvedValue(releasableGate);
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await screen.findByText(/Approved and releasable/);
+    expect(screen.queryByText('Change ticket')).toBeNull();
+  });
+
+  it('explains a rejected change ticket in the banner', async () => {
+    const rejected = {
+      system: 'JIRA' as const,
+      external_key: 'OPS-9',
+      status: 'Declined',
+      decision: 'REJECTED' as const,
+    };
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      change_ticket_required: true,
+      change_ticket: rejected,
+    });
+    getDeploymentGateMock.mockResolvedValue({
+      ...releasableGate,
+      releasable: false,
+      change_ticket_required: true,
+      change_ticket: rejected,
+    });
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(await screen.findByText(/the change ticket was rejected/)).toBeInTheDocument();
+    expect(screen.getByText('rejected')).toBeInTheDocument();
+  });
+
   it("hides the cancel button on someone else's request", async () => {
     // Cancellable by state (deferred run still ahead) — only ownership withholds the button.
     getDeploymentRequestMock.mockResolvedValue({

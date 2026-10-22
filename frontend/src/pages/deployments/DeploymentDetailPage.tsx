@@ -40,8 +40,10 @@ import {
   rejectDeployment,
 } from '@/api/deploymentReviews';
 import { DriftChip } from '@/components/deployments/versionMatrixCells';
+import { ChangeTicketLink } from '@/components/deployments/ChangeTicketLink';
 import { useAuthStore } from '@/store/authStore';
 import {
+  channelTypeLabel,
   pipelineProviderLabel,
   reviewDecisionTypeLabel,
   submissionReasonLabel,
@@ -232,7 +234,14 @@ export default function DeploymentDetailPage() {
             {request.status === 'APPROVED' && gate && (
               <Alert
                 showIcon
-                type={gate.frozen ? 'warning' : gate.releasable ? 'success' : 'info'}
+                type={
+                  gate.frozen ||
+                  (gate.change_ticket_required && gate.change_ticket?.decision === 'REJECTED')
+                    ? 'warning'
+                    : gate.releasable
+                    ? 'success'
+                    : 'info'
+                }
                 title={
                   gate.frozen
                     ? gate.freeze_reason
@@ -240,6 +249,10 @@ export default function DeploymentDetailPage() {
                       : t('deploygov.detail.bannerFrozen')
                     : gate.releasable
                     ? t('deploygov.detail.bannerReleasable')
+                    : gate.change_ticket_required && gate.change_ticket?.decision === 'REJECTED'
+                    ? t('deploygov.detail.bannerTicketRejected')
+                    : gate.change_ticket_required && gate.change_ticket?.decision !== 'APPROVED'
+                    ? t('deploygov.detail.bannerWaitingTicket')
                     : gate.scheduled_for
                     ? t('deploygov.detail.bannerScheduled', { when: fmtDate(gate.scheduled_for) })
                     : t('deploygov.detail.bannerFrozen')
@@ -445,6 +458,35 @@ export default function DeploymentDetailPage() {
                     />
                   </div>
                 </DetailCard>
+
+                {(request.change_ticket_required || request.change_ticket) && (
+                  <DetailCard title={t('deploygov.detail.changeTicket')}>
+                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+                      {request.change_ticket ? (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <ChangeTicketLink ticket={request.change_ticket} />
+                            <span className="muted">
+                              {channelTypeLabel(t, request.change_ticket.system)}
+                            </span>
+                          </div>
+                          <div className="muted">
+                            {request.change_ticket.resolution
+                              ? t('deploygov.detail.changeTicketStatusResolution', {
+                                  status: request.change_ticket.status,
+                                  resolution: request.change_ticket.resolution,
+                                })
+                              : t('deploygov.detail.changeTicketStatus', {
+                                  status: request.change_ticket.status,
+                                })}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="muted">{t('deploygov.detail.changeTicketNone')}</span>
+                      )}
+                    </div>
+                  </DetailCard>
+                )}
 
                 {metadataEntries.length > 0 && (
                   <DetailCard title={t('deploygov.detail.metadataJson')}>

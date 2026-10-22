@@ -308,6 +308,8 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     await dialog.getByLabel('Password').fill(`snow-${UNIQUE_SUFFIX}`);
     await dialog.getByRole('checkbox', { name: 'Query rejected' }).check();
     await dialog.getByRole('checkbox', { name: 'Review timeout', exact: true }).check();
+    // Opens a change ticket for deployments on change-ticket environments (#991, #994).
+    await dialog.getByRole('checkbox', { name: /^Deployment submitted/ }).check();
 
     const createResponsePromise = page.waitForResponse(
       (r) =>
@@ -318,6 +320,10 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     await dialog.getByRole('button', { name: 'Create channel' }).click();
     const createResponse = await createResponsePromise;
     expect(createResponse.status()).toBe(201);
+    const sent = createResponse.request().postDataJSON() as { config: { triggers: string[] } };
+    expect(sent.config.triggers).toEqual(
+      expect.arrayContaining(['QUERY_REJECTED', 'REVIEW_TIMEOUT', 'DEPLOYMENT_SUBMITTED']),
+    );
     const body = (await createResponse.json()) as { id: string; name: string };
     created.set('servicenow', { id: body.id, name: body.name });
     expect(body.name).toBe(SERVICENOW_NAME);

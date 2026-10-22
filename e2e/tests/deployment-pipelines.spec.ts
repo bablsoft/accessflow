@@ -149,15 +149,29 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
         new URL(r.url()).pathname.endsWith(`/deployment-pipelines/${pipeline.id}/environments`),
       { timeout: 15_000 },
     );
+    // Production releases wait for an approved change ticket (#994); the switch says why.
+    await expect(prodDialog.getByText(/must enable the deployment trigger/)).toBeVisible();
+    await prodDialog.getByRole('switch', { name: 'Change ticket' }).click();
     await prodDialog.getByRole('button', { name: 'Save' }).click();
     const prodRaw = await prodResponse;
     expect(prodRaw.status()).toBe(201);
-    const prodBody = (await prodRaw.json()) as { sort_order: number; datasource_id: string | null };
+    const prodBody = (await prodRaw.json()) as {
+      sort_order: number;
+      datasource_id: string | null;
+      change_ticket_required: boolean;
+    };
     expect(prodBody.sort_order).toBe(1);
     expect(prodBody.datasource_id).toBe(datasource.id);
+    expect(prodBody.change_ticket_required).toBe(true);
     await expect(
       envPanel.locator('.ant-table-row', { hasText: 'production' }),
     ).toContainText(datasource.name);
+    await expect(envPanel.getByRole('columnheader', { name: 'Change ticket' })).toBeVisible();
+    // Production: review + change ticket; staging: review only.
+    await expect(
+      envPanel.locator('.ant-table-row', { hasText: 'production' }).getByText('✓'),
+    ).toHaveCount(2);
+    await expect(stagingRow.getByText('✓')).toHaveCount(1);
 
     // Editing the bound environment onto a taken position is refused with the server's 409 detail.
     await envPanel

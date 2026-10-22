@@ -40,6 +40,7 @@ interface EnvironmentFormValues {
   required_approvals?: number | null;
   review_plan_id?: string | null;
   allow_break_glass: boolean;
+  change_ticket_required: boolean;
   datasource_id?: string | null;
 }
 
@@ -78,6 +79,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         required_approvals: null,
         review_plan_id: null,
         allow_break_glass: false,
+        change_ticket_required: false,
         datasource_id: null,
       });
     } else {
@@ -89,6 +91,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         required_approvals: modalFor.required_approvals,
         review_plan_id: modalFor.review_plan_id,
         allow_break_glass: modalFor.allow_break_glass,
+        change_ticket_required: modalFor.change_ticket_required,
         datasource_id: modalFor.datasource_id,
       });
     }
@@ -115,6 +118,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           required_approvals: values.required_approvals ?? null,
           review_plan_id: values.review_plan_id ?? null,
           allow_break_glass: values.allow_break_glass,
+          change_ticket_required: values.change_ticket_required,
           datasource_id: values.datasource_id ?? null,
         });
       }
@@ -130,6 +134,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         review_plan_id: values.review_plan_id ?? null,
         clear_review_plan: values.review_plan_id == null,
         allow_break_glass: values.allow_break_glass,
+        change_ticket_required: values.change_ticket_required,
         datasource_id: values.datasource_id ?? null,
         clear_datasource: values.datasource_id == null,
       });
@@ -212,6 +217,13 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     {
       title: t('deploygov.settings.envAllowBreakGlass'),
       dataIndex: 'allow_break_glass',
+      width: 120,
+      align: 'center' as const,
+      render: (v: boolean) => (v ? '✓' : '—'),
+    },
+    {
+      title: t('deploygov.settings.envChangeTicketRequired'),
+      dataIndex: 'change_ticket_required',
       width: 120,
       align: 'center' as const,
       render: (v: boolean) => (v ? '✓' : '—'),
@@ -369,6 +381,14 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
             name="allow_break_glass"
             label={t('deploygov.settings.envAllowBreakGlass')}
             valuePropName="checked"
+          >
+            <Switch size="small" />
+          </Form.Item>
+          <Form.Item
+            name="change_ticket_required"
+            label={t('deploygov.settings.envChangeTicketRequired')}
+            valuePropName="checked"
+            extra={t('deploygov.settings.envChangeTicketRequiredHelp')}
           >
             <Switch size="small" />
           </Form.Item>

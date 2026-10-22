@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingAction;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingConditions;
@@ -18,6 +19,9 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.PropertyNamingStrategies;
 
 import java.time.Instant;
 import java.time.LocalTime;
@@ -298,6 +302,63 @@ class DeploygovWebModelsTest {
         // resolved — it must never claim the caller may decide (#770).
         assertThat(response.canReview()).isFalse();
         assertThat(DeploymentRequestResponse.from(view, true).canReview()).isTrue();
+    }
+
+    @Test
+    void deploymentRequestResponseMapsTheChangeTicketSummary() {
+        var ticket = new DeploymentTicketView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), "JIRA", "DEPLOYMENT_SUBMITTED", "10001", "OPS-7",
+                "https://jira.example.com/browse/OPS-7", "Done", "Approved", "APPROVED",
+                Instant.now(), Instant.now(), Instant.now());
+        var view = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.APPROVED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, true, ticket);
+
+        var response = DeploymentRequestResponse.from(view);
+
+        assertThat(response.changeTicketRequired()).isTrue();
+        assertThat(response.changeTicket()).isEqualTo(new DeploymentChangeTicketResponse("JIRA",
+                "OPS-7", "https://jira.example.com/browse/OPS-7", "Done", "Approved", "APPROVED"));
+        assertThat(DeploymentChangeTicketResponse.from(null)).isNull();
+    }
+
+    @Test
+    void deploymentRequestWireShapeCarriesTheChangeTicketInSnakeCase() {
+        // Mirrors spring.jackson: SNAKE_CASE naming, nulls omitted.
+        var mapper = JsonMapper.builder()
+                .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+                .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(
+                        JsonInclude.Include.NON_NULL))
+                .build();
+        var ticket = new DeploymentTicketView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), "SERVICENOW", "DEPLOYMENT_SUBMITTED", "sys-1", "INC0010042",
+                null, "New", null, null, null, Instant.now(), Instant.now());
+        var flagged = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.PENDING_REVIEW,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, true, ticket);
+
+        var json = mapper.readTree(mapper.writeValueAsString(DeploymentRequestResponse.from(flagged)));
+
+        assertThat(json.get("change_ticket_required").asBoolean()).isTrue();
+        var wire = json.get("change_ticket");
+        assertThat(wire.get("system").asString()).isEqualTo("SERVICENOW");
+        assertThat(wire.get("external_key").asString()).isEqualTo("INC0010042");
+        assertThat(wire.get("status").asString()).isEqualTo("New");
+        assertThat(wire.has("decision")).isFalse();
+        assertThat(wire.has("url")).isFalse();
+
+        var unflagged = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "dev", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.PENDING_REVIEW,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null);
+        var plain = mapper.readTree(mapper.writeValueAsString(DeploymentRequestResponse.from(unflagged)));
+        assertThat(plain.get("change_ticket_required").asBoolean()).isFalse();
+        assertThat(plain.has("change_ticket")).isFalse();
     }
 
     @Test

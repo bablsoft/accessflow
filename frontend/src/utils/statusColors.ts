@@ -7,6 +7,7 @@ import type {
   DecisionStepOutcome,
   DeploymentOutcome,
   DeploymentRollbackReviewStatus,
+  DeploymentTicketDecision,
   GrantUsageRecommendation,
   JobExecutionStatus,
   QueryStatus,
@@ -219,6 +220,15 @@ export const deploymentOutcomeColor = (outcome: DeploymentOutcome): ColorTriple 
       return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
     case 'ROLLED_BACK':
       return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+  }
+};
+
+export const deploymentTicketDecisionColor = (decision: DeploymentTicketDecision): ColorTriple => {
+  switch (decision) {
+    case 'APPROVED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'REJECTED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
   }
 };
 

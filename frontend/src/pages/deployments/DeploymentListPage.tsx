@@ -15,6 +15,7 @@ import {
   listPipelineEnvironmentVersions,
 } from '@/api/deploymentVersions';
 import { DriftChip } from '@/components/deployments/versionMatrixCells';
+import { ChangeTicketLink } from '@/components/deployments/ChangeTicketLink';
 import { deploymentOutcomeLabel, enumOptions, queryStatusLabel } from '@/utils/enumLabels';
 import { deploymentOutcomeColor } from '@/utils/statusColors';
 import { timeAgo } from '@/utils/dateFormat';
@@ -153,6 +154,17 @@ export default function DeploymentListPage() {
           </Tag>
         );
       },
+    },
+    {
+      title: t('deploygov.deployments.ticket'),
+      key: 'change_ticket',
+      width: 160,
+      render: (_v, r) =>
+        r.change_ticket ? (
+          <ChangeTicketLink ticket={r.change_ticket} />
+        ) : (
+          <span className="muted">—</span>
+        ),
     },
     {
       title: t('deploygov.versions.drift'),

@@ -44,7 +44,11 @@ public record DeploymentRequestResponse(
         boolean canReview,
         /** The human an API-key submitter acted for (#874); null for a human submission. */
         UUID onBehalfOfUserId,
-        String onBehalfOfEmail) {
+        String onBehalfOfEmail,
+        /** Mirrors the environment's flag (#994). */
+        boolean changeTicketRequired,
+        /** The linked change ticket that explains the request's state, or null (#994). */
+        DeploymentChangeTicketResponse changeTicket) {
 
     /** Every path but the detail read: reviewer eligibility is a detail-read concern, never computed here. */
     static DeploymentRequestResponse from(DeploymentRequestView view) {
@@ -61,6 +65,8 @@ public record DeploymentRequestResponse(
                 view.scheduledFor(), view.outcome(), view.outcomeReportedAt(), view.outcomeDetail(),
                 view.createdAt(),
                 view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
-                canReview, view.onBehalfOfUserId(), view.onBehalfOfEmail());
+                canReview, view.onBehalfOfUserId(), view.onBehalfOfEmail(),
+                view.changeTicketRequired(),
+                DeploymentChangeTicketResponse.from(view.changeTicket()));
     }
 }

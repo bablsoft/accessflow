@@ -171,6 +171,32 @@ describe('DeploymentListPage', () => {
     expect(screen.getByText('1 deployments')).toBeInTheDocument();
   });
 
+  it('shows the linked change ticket with its decision in the ticket column', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(
+      pageOf([
+        {
+          ...baseRequest,
+          change_ticket_required: true,
+          change_ticket: {
+            system: 'JIRA',
+            external_key: 'OPS-42',
+            url: 'https://jira.example.com/browse/OPS-42',
+            status: 'Done',
+            decision: 'APPROVED',
+          },
+        },
+      ]),
+    );
+
+    render(wrap(<DeploymentListPage />));
+
+    const link = await screen.findByText('OPS-42');
+    expect(link.closest('a')).toHaveAttribute('href', 'https://jira.example.com/browse/OPS-42');
+    expect(link.closest('a')).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('approved')).toBeInTheDocument();
+    expect(screen.getAllByText('Ticket').length).toBeGreaterThan(0);
+  });
+
   it('does not ask for pipelines without DEPLOYMENT_PIPELINE_MANAGE and still fills the filter from rows', async () => {
     listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
 
