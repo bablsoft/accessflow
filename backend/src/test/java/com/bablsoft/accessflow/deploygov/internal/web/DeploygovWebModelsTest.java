@@ -421,7 +421,7 @@ class DeploygovWebModelsTest {
                 DecisionType.APPROVED, "lgtm", 1, Instant.parse("2026-08-24T11:00:00Z"));
         var view = new DeploymentGateView(requestId, QueryStatus.APPROVED, true, 2, 1,
                 List.of(decision), true, "change freeze",
-                Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW);
+                Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW, false, null);
 
         var response = DeploymentGateResponse.from(view);
 
@@ -434,12 +434,14 @@ class DeploygovWebModelsTest {
         assertThat(response.frozen()).isTrue();
         assertThat(response.freezeReason()).isEqualTo("change freeze");
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.LOW);
+        assertThat(response.changeTicketRequired()).isFalse();
+        assertThat(response.changeTicket()).isNull();
     }
 
     @Test
     void gateViewDefendsItsDecisionsList() {
         var view = new DeploymentGateView(UUID.randomUUID(), QueryStatus.APPROVED, false, 1, 0,
-                null, false, null, null, null);
+                null, false, null, null, null, false, null);
 
         assertThat(view.decisions()).isEmpty();
     }

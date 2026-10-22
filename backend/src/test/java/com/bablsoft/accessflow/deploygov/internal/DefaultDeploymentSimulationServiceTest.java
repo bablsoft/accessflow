@@ -520,6 +520,28 @@ class DefaultDeploymentSimulationServiceTest {
         assertThat(gate.outcome()).isEqualTo(StepOutcome.ALLOW);
         assertThat(gate.details()).containsEntry("releasable", true)
                 .containsEntry("status", "APPROVED")
+                .containsEntry("frozen", false)
+                .containsEntry("change_ticket_required", false);
+    }
+
+    @Test
+    void aChangeTicketEnvironmentNeverSimulatesReleasable() {
+        // A hypothetical request has no linked ticket, so the #993 conjunct is unmet.
+        var flagged = new DeploymentEnvironmentView(environmentId, pipelineId, "production", 1,
+                true, null, null, false, null, List.of(), null, true);
+        when(pipelineLookupService.findEnvironment(pipelineId, environmentId))
+                .thenReturn(Optional.of(flagged));
+        when(decisionEvaluator.evaluate(any())).thenReturn(new DeploymentDecision(
+                DeploymentDecisionKind.ENVIRONMENT_APPROVED, QueryStatus.APPROVED, null, null,
+                decision(QueryStatus.APPROVED).trace()));
+
+        var result = service.simulate(organizationId, input());
+
+        assertThat(result.releasable()).isFalse();
+        var gate = step(result.steps(), DeploymentDecisionStepKind.GATE_RELEASABILITY);
+        assertThat(gate.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(gate.details()).containsEntry("change_ticket_required", true)
+                .containsEntry("status", "APPROVED")
                 .containsEntry("frozen", false);
     }
 

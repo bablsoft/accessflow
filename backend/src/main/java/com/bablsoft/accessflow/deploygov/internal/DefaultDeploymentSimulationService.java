@@ -113,9 +113,11 @@ class DefaultDeploymentSimulationService implements DeploymentSimulationService 
         steps.add(scheduleStep(input.scheduledFor(), at));
         // The gate's own function, not a copy: a HOLD window and a REJECT window both count as
         // frozen at release time, which is why `freeze != null` rather than a behaviour check.
+        // A hypothetical request has no linked change ticket yet, so the ticket conjunct is unmet.
         boolean releasable = DefaultDeploymentGateService.releasable(decision.nextStatus(),
-                freeze != null, input.scheduledFor(), at);
-        steps.add(gateStep(releasable, decision.nextStatus(), freeze != null, input.scheduledFor()));
+                freeze != null, input.scheduledFor(), at, environment.changeTicketRequired(), false);
+        steps.add(gateStep(releasable, decision.nextStatus(), freeze != null, input.scheduledFor(),
+                environment.changeTicketRequired()));
         steps.add(breakGlassStep(permission, environment));
         return new DeploymentSimulationResult(steps, decision.nextStatus(), releasable, at,
                 List.copyOf(caveats));
@@ -334,12 +336,13 @@ class DefaultDeploymentSimulationService implements DeploymentSimulationService 
     // ── 8. The gate ───────────────────────────────────────────────────────────
 
     private static DecisionTraceStep gateStep(boolean releasable, QueryStatus status, boolean frozen,
-                                              Instant scheduledFor) {
+                                              Instant scheduledFor, boolean changeTicketRequired) {
         var details = new LinkedHashMap<String, Object>();
         details.put("releasable", releasable);
         details.put("status", status == null ? null : status.name());
         details.put("frozen", frozen);
         details.put("scheduled_for", scheduledFor);
+        details.put("change_ticket_required", changeTicketRequired);
         return DecisionTraceStep.of(DeploymentDecisionStepKind.GATE_RELEASABILITY,
                 releasable ? StepOutcome.ALLOW : StepOutcome.DENY,
                 releasable ? "deploygov.simulation.gate.releasable"

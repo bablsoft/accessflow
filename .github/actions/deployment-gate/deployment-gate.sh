@@ -244,6 +244,10 @@ while [ "$SECONDS" -lt "$deadline" ]; do
   fi
   scheduled_for="$(jq -r '.scheduled_for // empty' <<<"$gate")"
   if [ -n "$scheduled_for" ]; then waiting+=" scheduled_for=$scheduled_for"; fi
+  # The environment requires an approved change ticket (#993): say which one we wait on.
+  if [ "$(jq -r '.change_ticket_required // false' <<<"$gate")" = "true" ]; then
+    waiting+=" change_ticket=$(jq -r 'if .change_ticket then "\(.change_ticket.external_key) (\(.change_ticket.status // "unknown")\(if .change_ticket.decision then ", \(.change_ticket.decision)" else "" end))" else "none linked yet" end' <<<"$gate")"
+  fi
   echo "$waiting, waiting ${interval_s}s…"
   sleep "$interval_s"
 done

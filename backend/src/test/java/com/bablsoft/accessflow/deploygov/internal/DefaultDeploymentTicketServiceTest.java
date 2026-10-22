@@ -136,8 +136,25 @@ class DefaultDeploymentTicketServiceTest {
     }
 
     @Test
-    void updateStatusWithNullDecisionClearsIt() {
+    void updateStatusWithNullDecisionKeepsAnApproval() {
         var entity = ticket("APPROVED", EARLIER);
+        when(repository.findByChannelIdAndExternalId(channelId, "sys-id-1"))
+                .thenReturn(Optional.of(entity));
+        when(repository.save(entity)).thenReturn(entity);
+
+        var view = service.updateStatus(channelId, "sys-id-1", "Implement", null, null)
+                .orElseThrow();
+
+        assertThat(view.status()).isEqualTo("Implement");
+        assertThat(view.resolution()).isNull();
+        assertThat(view.decision()).isEqualTo("APPROVED");
+        assertThat(view.decidedAt()).isEqualTo(EARLIER);
+        assertThat(view.updatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void updateStatusWithNullDecisionClearsARejection() {
+        var entity = ticket("REJECTED", EARLIER);
         when(repository.findByChannelIdAndExternalId(channelId, "sys-id-1"))
                 .thenReturn(Optional.of(entity));
         when(repository.save(entity)).thenReturn(entity);

@@ -21,9 +21,11 @@ public interface DeploymentTicketService {
     /**
      * Applies an inbound status update to the ticket identified by {@code (channelId, externalId)}.
      * {@code decision} ({@code APPROVED} / {@code REJECTED} / null) is the caller's mapping of the
-     * status onto the channel's approve/reject lists and always replaces the stored one;
-     * {@code decidedAt} is stamped when the decision changes to a non-null value, kept when the
-     * same decision is re-sent, and cleared with a null decision. Returns the updated view, or
+     * status onto the channel's approve/reject lists and replaces the stored one, except that an
+     * {@code APPROVED} decision is sticky: a null decision leaves it (and {@code decidedAt}) in
+     * place, so only a {@code REJECTED} mapping overrides an approval (#993). {@code decidedAt} is
+     * stamped when the decision changes to a non-null value, kept when the same decision is
+     * re-sent, and cleared when a null decision clears a {@code REJECTED} one. Returns the updated view, or
      * empty when no such ticket is linked (unknown tickets are ignored, not an error).
      */
     Optional<DeploymentTicketView> updateStatus(UUID channelId, String externalId, String status,

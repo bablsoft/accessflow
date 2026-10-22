@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,10 +106,19 @@ class DeploymentTicketPersistenceIntegrationTest {
         assertThat(updated.decision()).isEqualTo("APPROVED");
         assertThat(updated.decidedAt()).isNotNull();
 
+        // Sticky approval: a later unmapped status (null decision) keeps APPROVED and decidedAt.
+        var progressed = ticketService.updateStatus(channelId, recorded.externalId(), "Review",
+                null, null).orElseThrow();
+        assertThat(progressed.status()).isEqualTo("Review");
+        assertThat(progressed.decision()).isEqualTo("APPROVED");
+        // Postgres keeps microseconds; the first view may carry the clock's nanoseconds (Linux).
+        assertThat(progressed.decidedAt().truncatedTo(ChronoUnit.MICROS))
+                .isEqualTo(updated.decidedAt().truncatedTo(ChronoUnit.MICROS));
+
         var listed = ticketService.listByDeploymentRequest(request.getId(), organizationId);
         assertThat(listed).singleElement().satisfies(view -> {
             assertThat(view.externalKey()).isEqualTo("CHG0030012");
-            assertThat(view.status()).isEqualTo("Implement");
+            assertThat(view.status()).isEqualTo("Review");
             assertThat(view.decision()).isEqualTo("APPROVED");
         });
         assertThat(ticketService.listByDeploymentRequest(request.getId(), UUID.randomUUID()))

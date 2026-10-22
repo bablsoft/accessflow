@@ -12,6 +12,8 @@ import java.util.UUID;
  * fail-closed pure function; {@code frozen}/{@code freezeReason} describe the winning freeze
  * window when one is active (always {@code false}/{@code null} for a break-glass request — the
  * freeze check is skipped). {@code aiRiskLevel} is null when no analysis produced a risk.
+ * {@code changeTicketRequired} mirrors the environment flag (#993); {@code changeTicket} is the
+ * linked ticket the gate judged by — rejected first, else approved, else the newest — or null.
  */
 public record DeploymentGateView(
         UUID requestId,
@@ -23,7 +25,9 @@ public record DeploymentGateView(
         boolean frozen,
         String freezeReason,
         Instant scheduledFor,
-        RiskLevel aiRiskLevel) {
+        RiskLevel aiRiskLevel,
+        boolean changeTicketRequired,
+        DeploymentTicketView changeTicket) {
 
     public DeploymentGateView {
         decisions = decisions == null ? List.of() : List.copyOf(decisions);

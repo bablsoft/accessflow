@@ -20,10 +20,12 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentReleasableEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentTicketEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,6 +60,7 @@ class DefaultDeploymentGateServiceTest {
     private DeploymentPipelineRepository pipelineRepository;
     private DeploymentEnvironmentRepository environmentRepository;
     private DeploymentReviewDecisionRepository decisionRepository;
+    private DeploymentTicketRepository ticketRepository;
     private EffectiveDeploymentPermissionResolver permissionResolver;
     private FreezeWindowEvaluator freezeWindowEvaluator;
     private DeploymentRequestStateService stateService;
@@ -72,6 +76,7 @@ class DefaultDeploymentGateServiceTest {
         pipelineRepository = mock(DeploymentPipelineRepository.class);
         environmentRepository = mock(DeploymentEnvironmentRepository.class);
         decisionRepository = mock(DeploymentReviewDecisionRepository.class);
+        ticketRepository = mock(DeploymentTicketRepository.class);
         permissionResolver = mock(EffectiveDeploymentPermissionResolver.class);
         freezeWindowEvaluator = mock(FreezeWindowEvaluator.class);
         stateService = mock(DeploymentRequestStateService.class);
@@ -80,31 +85,59 @@ class DefaultDeploymentGateServiceTest {
         aiAnalysisLookupService = mock(AiAnalysisLookupService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         service = new DefaultDeploymentGateService(requestRepository, pipelineRepository,
-                environmentRepository, decisionRepository, permissionResolver,
+                environmentRepository, decisionRepository, ticketRepository, permissionResolver,
                 freezeWindowEvaluator, stateService, requestService, auditWriter,
                 aiAnalysisLookupService, eventPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
+        // Any environment the evaluation looks up defaults to an unflagged one.
+        when(environmentRepository.findById(any())).thenAnswer(invocation ->
+                Optional.of(environment(UUID.randomUUID())));
     }
 
     // --- the pure function -------------------------------------------------------------------
 
     @Test
     void releasableOnlyForAnUnfrozenApprovedRequestPastItsSchedule() {
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false, null, NOW))
-                .isTrue();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false,
-                NOW.minusSeconds(1), NOW)).isTrue();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false, NOW, NOW))
-                .isTrue();
+        assertThat(releasable(QueryStatus.APPROVED, false, null)).isTrue();
+        assertThat(releasable(QueryStatus.APPROVED, false, NOW.minusSeconds(1))).isTrue();
+        assertThat(releasable(QueryStatus.APPROVED, false, NOW)).isTrue();
+        assertThat(releasable(QueryStatus.PENDING_REVIEW, false, null)).isFalse();
+        assertThat(releasable(QueryStatus.REJECTED, false, null)).isFalse();
+        assertThat(releasable(QueryStatus.EXECUTED, false, null)).isFalse();
+        assertThat(releasable(QueryStatus.APPROVED, true, null)).isFalse();
+        assertThat(releasable(QueryStatus.APPROVED, false, NOW.plusSeconds(1))).isFalse();
+    }
+
+    @Test
+    void releasableRequiresASatisfiedTicketOnlyWhenTheEnvironmentRequiresOne() {
+        // Flag off: the satisfied argument is irrelevant.
+        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false, null, NOW,
+                false, false)).isTrue();
+        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false, null, NOW,
+                true, false)).isFalse();
+        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false, null, NOW,
+                true, true)).isTrue();
+        // A satisfied ticket never overrides another conjunct.
+        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, true, null, NOW,
+                true, true)).isFalse();
         assertThat(DefaultDeploymentGateService.releasable(QueryStatus.PENDING_REVIEW, false, null,
-                NOW)).isFalse();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.REJECTED, false, null, NOW))
+                NOW, true, true)).isFalse();
+    }
+
+    @Test
+    void ticketApprovedNeedsOneApprovalAndNoRejection() {
+        assertThat(DefaultDeploymentGateService.ticketApproved(List.of())).isFalse();
+        assertThat(DefaultDeploymentGateService.ticketApproved(tickets("APPROVED"))).isTrue();
+        assertThat(DefaultDeploymentGateService.ticketApproved(tickets(null, "APPROVED")))
+                .isTrue();
+        assertThat(DefaultDeploymentGateService.ticketApproved(tickets("APPROVED", "REJECTED")))
                 .isFalse();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.EXECUTED, false, null, NOW))
-                .isFalse();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, true, null, NOW))
-                .isFalse();
-        assertThat(DefaultDeploymentGateService.releasable(QueryStatus.APPROVED, false,
-                NOW.plusSeconds(1), NOW)).isFalse();
+        assertThat(DefaultDeploymentGateService.ticketApproved(tickets(null, null))).isFalse();
+        assertThat(DefaultDeploymentGateService.ticketApproved(tickets("REJECTED"))).isFalse();
+    }
+
+    private static boolean releasable(QueryStatus status, boolean frozen, Instant scheduledFor) {
+        return DefaultDeploymentGateService.releasable(status, frozen, scheduledFor, NOW, false,
+                false);
     }
 
     // --- gate by tuple -----------------------------------------------------------------------
@@ -341,6 +374,177 @@ class DefaultDeploymentGateServiceTest {
                 .isEqualTo(RiskLevel.HIGH);
     }
 
+    // --- change ticket (#993) ----------------------------------------------------------------
+
+    @Test
+    void gateWithFlagOffReportsNoTicketAndNeverLooksOne() {
+        var request = approvedById();
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isTrue();
+        assertThat(view.changeTicketRequired()).isFalse();
+        assertThat(view.changeTicket()).isNull();
+        verify(ticketRepository, never()).findAllByDeploymentRequestId(any());
+    }
+
+    @Test
+    void gateWithFlagOnAndNoTicketIsNotReleasable() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId())).thenReturn(List.of());
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isFalse();
+        assertThat(view.changeTicketRequired()).isTrue();
+        assertThat(view.changeTicket()).isNull();
+        assertThat(view.frozen()).isFalse();
+    }
+
+    @Test
+    void gateWithFlagOnAndAnApprovedTicketIsReleasableAndSurfacesIt() {
+        var request = approvedById();
+        requireTicket(request);
+        var pending = ticket(null, "CHG-2", NOW);
+        var approved = ticket("APPROVED", "CHG-1", NOW.minusSeconds(60));
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId()))
+                .thenReturn(List.of(pending, approved));
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isTrue();
+        assertThat(view.changeTicket().externalKey()).isEqualTo("CHG-1");
+        assertThat(view.changeTicket().decision()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void gateWithFlagOnAndAnApprovedPlusRejectedTicketIsNotReleasable() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId())).thenReturn(List.of(
+                ticket("REJECTED", "CHG-2", NOW.minusSeconds(60)), ticket("APPROVED", "CHG-1", NOW)));
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isFalse();
+        // The rejected ticket is the blocker, so it is the one surfaced.
+        assertThat(view.changeTicket().externalKey()).isEqualTo("CHG-2");
+    }
+
+    @Test
+    void gateWithFlagOnAndOnlyUnresolvedTicketsIsNotReleasableAndShowsTheNewest() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId())).thenReturn(List.of(
+                ticket(null, "CHG-OLD", NOW.minusSeconds(60)), ticket(null, "CHG-NEW", NOW)));
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isFalse();
+        assertThat(view.changeTicket().externalKey()).isEqualTo("CHG-NEW");
+    }
+
+    @Test
+    void gateFailsClosedWhenTheTicketLookupThrows() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId()))
+                .thenThrow(new IllegalStateException("boom"));
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isFalse();
+        assertThat(view.frozen()).isFalse();
+        assertThat(view.changeTicketRequired()).isFalse();
+        assertThat(view.changeTicket()).isNull();
+    }
+
+    @Test
+    void gateFailsClosedWhenTheEnvironmentIsGone() {
+        var request = approvedById();
+        when(environmentRepository.findById(request.getEnvironmentId())).thenReturn(Optional.empty());
+
+        assertThat(service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of())
+                .releasable()).isFalse();
+    }
+
+    @Test
+    void breakGlassSkipsTheTicketConjunct() {
+        var request = approvedById();
+        request.setSubmissionReason(SubmissionReason.EMERGENCY_ACCESS);
+        requireTicket(request);
+
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isTrue();
+        assertThat(view.changeTicketRequired()).isTrue();
+        assertThat(view.changeTicket()).isNull();
+        verify(ticketRepository, never()).findAllByDeploymentRequestId(any());
+    }
+
+    @Test
+    void confirmExecutionAuditsTheApprovedTicketKey() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId()))
+                .thenReturn(List.of(ticket("APPROVED", "CHG-1", NOW)));
+
+        service.confirmExecution(request.getId(), ORG, request.getSubmittedBy(), Set.of(), null);
+
+        assertThat(executedMetadata(request))
+                .containsEntry("trigger", "pipeline")
+                .containsEntry("change_ticket_required", true)
+                .containsEntry("change_ticket_key", "CHG-1")
+                .doesNotContainKey("change_ticket_bypassed");
+    }
+
+    @Test
+    void confirmExecutionAuditsTheBreakGlassTicketBypass() {
+        var request = approvedById();
+        request.setSubmissionReason(SubmissionReason.EMERGENCY_ACCESS);
+        requireTicket(request);
+
+        service.confirmExecution(request.getId(), ORG, request.getSubmittedBy(), Set.of(), null);
+
+        assertThat(executedMetadata(request))
+                .containsEntry("change_ticket_required", true)
+                .containsEntry("change_ticket_bypassed", "break_glass")
+                .doesNotContainKey("change_ticket_key");
+    }
+
+    @Test
+    void confirmExecutionRefusesAFlaggedRequestWithoutAnApprovedTicket() {
+        var request = approvedById();
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId()))
+                .thenReturn(List.of(ticket(null, "CHG-1", NOW)));
+
+        assertThatThrownBy(() -> service.confirmExecution(request.getId(), ORG,
+                request.getSubmittedBy(), Set.of(), null))
+                .isInstanceOf(DeploymentNotReleasableException.class);
+        verify(stateService, never()).apply(any(), any());
+    }
+
+    @Test
+    void markReleasableAnnouncesOnceAfterTheTicketFlips() {
+        var request = request(QueryStatus.APPROVED);
+        when(requestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        stubNoFreeze(request);
+        requireTicket(request);
+        when(ticketRepository.findAllByDeploymentRequestId(request.getId()))
+                .thenReturn(List.of(ticket(null, "CHG-1", NOW)))
+                .thenReturn(List.of(ticket("APPROVED", "CHG-1", NOW)));
+
+        assertThat(service.markReleasable(request.getId())).isFalse();
+        assertThat(request.getReleaseNotifiedAt()).isNull();
+        assertThat(service.markReleasable(request.getId())).isTrue();
+        assertThat(service.markReleasable(request.getId())).isFalse();
+
+        verify(eventPublisher).publishEvent(any(DeploymentReleasableEvent.class));
+        assertThat(request.getReleaseNotifiedAt()).isEqualTo(NOW);
+    }
+
     // --- gate by request id ------------------------------------------------------------------
 
     @Test
@@ -379,7 +583,8 @@ class DefaultDeploymentGateServiceTest {
         verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_EXECUTED),
                 eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(request.getId()), eq(ORG),
                 eq(request.getSubmittedBy()), metadata.capture(), eq("1.2.3.4"));
-        assertThat(metadata.getValue()).containsEntry("trigger", "pipeline");
+        assertThat(metadata.getValue()).containsEntry("trigger", "pipeline")
+                .doesNotContainKey("change_ticket_required");
         verify(requestService).detailView(request);
     }
 
@@ -540,6 +745,46 @@ class DefaultDeploymentGateServiceTest {
         entity.setStatus(status);
         entity.setRequiredApprovals(2);
         return entity;
+    }
+
+    private DeploymentRequestEntity approvedById() {
+        var request = request(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(request.getId(), ORG))
+                .thenReturn(Optional.of(request));
+        stubNoFreeze(request);
+        return request;
+    }
+
+    private void requireTicket(DeploymentRequestEntity request) {
+        var environment = environment(request.getPipelineId());
+        environment.setId(request.getEnvironmentId());
+        environment.setChangeTicketRequired(true);
+        when(environmentRepository.findById(request.getEnvironmentId()))
+                .thenReturn(Optional.of(environment));
+    }
+
+    private static DeploymentTicketEntity ticket(String decision, String key, Instant createdAt) {
+        var ticket = new DeploymentTicketEntity();
+        ticket.setId(UUID.randomUUID());
+        ticket.setTicketSystem("SERVICENOW");
+        ticket.setExternalKey(key);
+        ticket.setStatus("Assess");
+        ticket.setDecision(decision);
+        ticket.setCreatedAt(createdAt);
+        return ticket;
+    }
+
+    private static List<DeploymentTicketEntity> tickets(String... decisions) {
+        return Arrays.stream(decisions).map(d -> ticket(d, "CHG", NOW)).toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executedMetadata(DeploymentRequestEntity request) {
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_EXECUTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(request.getId()), eq(ORG),
+                eq(request.getSubmittedBy()), metadata.capture(), any());
+        return metadata.getValue();
     }
 
     private void stubNoFreeze(DeploymentRequestEntity request) {

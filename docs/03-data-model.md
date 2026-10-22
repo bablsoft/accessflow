@@ -1948,7 +1948,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |
 | `AUDIT_SINK_CREATED` / `AUDIT_SINK_UPDATED` / `AUDIT_SINK_DELETED` | Admin creates / updates / deletes an external audit sink via the `/admin/audit-sinks` CRUD endpoints (#628). Resource: `audit_sink`. Written best-effort; metadata carries the sink name + type, never secrets. Deliveries themselves are deliberately **not** audited per batch — that would feed back into the stream being drained. |
 | `DEPLOYMENT_BREAK_GLASS_EXECUTED` | A break-glass deployment is force-approved (`PENDING_AI → APPROVED`, #692). Resource: `deployment_request`. Metadata: `pipeline_id`, `environment`, `version`, and the bypassed freeze window (`bypassed_freeze_window_id`, `bypassed_freeze_behavior`) when one was active. |
-| `DEPLOYMENT_EXECUTED` | The pipeline confirms it proceeded once the gate answered releasable (`APPROVED → EXECUTED`, #693). Resource: `deployment_request`. Metadata: `trigger: "pipeline"`, `pipeline_id`, `environment`, `version`. |
+| `DEPLOYMENT_EXECUTED` | The pipeline confirms it proceeded once the gate answered releasable (`APPROVED → EXECUTED`, #693). Resource: `deployment_request`. Metadata: `trigger: "pipeline"`, `pipeline_id`, `environment`, `version`; on a `change_ticket_required` environment also `change_ticket_required: true` and either `change_ticket_key` (the approved ticket's external key) or, for a break-glass request, `change_ticket_bypassed: "break_glass"` (#993). |
 | `DEPLOYMENT_OUTCOME_REPORTED` | The pipeline reports the post-execution outcome (#693). Resource: `deployment_request`. Metadata: `outcome`, `trigger: "pipeline"`, and `rollback_review_opened: true` when a `ROLLED_BACK` outcome opened a follow-up review. |
 | `DEPLOYMENT_ROLLBACK_REVIEWED` | A reviewer acknowledges a rollback follow-up review (#693). Resource: `deployment_rollback_review`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. |
 | `DEPLOYMENT_SUBMITTED` | A governed deployment is triggered (#695). Resource: `deployment_request`. Actor = the submitter, `ip_address` = the trigger's caller IP. Metadata: `pipeline_id`, `environment`, `version`. Written for every non-replay, non-break-glass submission — including ones a freeze window rejects a moment later. |
@@ -2982,7 +2982,9 @@ entity and no fixed semantics on tag values.
 shape as `allow_break_glass`. It marks an environment whose deployments must carry an approved
 external change ticket (see `deployment_tickets` below). Since #991 the flag makes a ServiceNow /
 Jira channel carrying the `DEPLOYMENT_SUBMITTED` trigger open a change ticket for the deployment;
-the inbound decision sync (#992) and the gate conjunct (#993) land in later sub-issues of the epic.
+since #992 the inbound decision sync stamps `deployment_tickets.decision`, and since #993 the
+deployment gate refuses to release a flagged environment's request until one linked ticket is
+`APPROVED` and none is `REJECTED` (break-glass exempt, audited).
 
 ### deployment_freeze_windows
 
@@ -3168,9 +3170,13 @@ for unambiguous inbound resolution; `idx_deployment_tickets_request` on `deploym
 
 **Decision stamping.** "Approved ticket" is a persisted fact on the row, not a live evaluation of
 channel config: every status update writes `decision` as mapped by the caller from the channel's
-approve/reject status lists (a status in neither list writes `NULL`). `decided_at` is set to the
-update time when `decision` changes to a non-null value, kept when the same decision is re-sent,
-and cleared with it — a reopened ticket no longer counts as decided.
+approve/reject status lists (a status in neither list maps to `NULL`). **An `APPROVED` stamp is
+sticky** (#993): a later status that maps to `NULL` leaves it — and `decided_at` — in place, because
+a change keeps moving after approval (*Scheduled* → *Implement* → *Closed*) and the gate must not
+close behind it; only a `REJECTED` mapping overrides an approval. `decided_at` is set to the update
+time when `decision` changes to a non-null value, kept when the same decision is re-sent, and
+cleared when a `NULL` mapping clears a `REJECTED` stamp — a reopened rejected ticket no longer counts
+as decided.
 
 ---
 
