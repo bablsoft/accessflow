@@ -300,10 +300,10 @@ none is linked), and the CI wrappers add `change_ticket=<key>` plus the ticket's
 GitHub action also prints the ticket status) or `change_ticket=none linked yet` to their waiting line. AccessFlow only learns a
 ticket's verdict from the ticketing system's signed callback (#992), so without that callback a
 linked ticket never reads as approved, and a `REJECTED` ticket blocks the request for good (the
-response then shows the rejected ticket). The gate reads the *current* `decision` stamp: a later
-callback whose status matches neither the channel's approve nor reject list clears it, so list the
-change's post-approval states (for example ServiceNow's *Scheduled* / *Implement*) as approve
-statuses, or a request approved at the gate can be refused at confirm-execution. The environment
+response then shows the rejected ticket). An approval is **sticky**: a later callback whose status
+matches neither the channel's approve nor reject list (a change moving on to *Scheduled* /
+*Implement* / *Closed*) keeps the ticket `APPROVED`, so a release that opened stays open; only a
+status in the reject list overrides it, and that closes the gate again. The environment
 row is read before the break-glass shortcut, so a request whose environment was deleted is not
 releasable — break-glass included. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
 a hypothetical request has no ticket yet.

@@ -19,6 +19,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DefaultDeploymentTicketService implements DeploymentTicketService {
 
+    private static final String APPROVED = "APPROVED";
+
     private final DeploymentTicketRepository repository;
     private final Clock clock;
 
@@ -58,6 +60,12 @@ class DefaultDeploymentTicketService implements DeploymentTicketService {
                     var now = clock.instant();
                     entity.setStatus(status);
                     entity.setResolution(resolution);
+                    if (decision == null && APPROVED.equals(entity.getDecision())) {
+                        // Sticky approval (#993): a change keeps moving after CAB approval
+                        // (Scheduled → Implement → Closed), and the gate must not close behind it.
+                        entity.setUpdatedAt(now);
+                        return toView(repository.save(entity));
+                    }
                     if (decision == null) {
                         entity.setDecidedAt(null);
                     } else if (!Objects.equals(decision, entity.getDecision())) {

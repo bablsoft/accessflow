@@ -3170,9 +3170,13 @@ for unambiguous inbound resolution; `idx_deployment_tickets_request` on `deploym
 
 **Decision stamping.** "Approved ticket" is a persisted fact on the row, not a live evaluation of
 channel config: every status update writes `decision` as mapped by the caller from the channel's
-approve/reject status lists (a status in neither list writes `NULL`). `decided_at` is set to the
-update time when `decision` changes to a non-null value, kept when the same decision is re-sent,
-and cleared with it — a reopened ticket no longer counts as decided.
+approve/reject status lists (a status in neither list maps to `NULL`). **An `APPROVED` stamp is
+sticky** (#993): a later status that maps to `NULL` leaves it — and `decided_at` — in place, because
+a change keeps moving after approval (*Scheduled* → *Implement* → *Closed*) and the gate must not
+close behind it; only a `REJECTED` mapping overrides an approval. `decided_at` is set to the update
+time when `decision` changes to a non-null value, kept when the same decision is re-sent, and
+cleared when a `NULL` mapping clears a `REJECTED` stamp — a reopened rejected ticket no longer counts
+as decided.
 
 ---
 
