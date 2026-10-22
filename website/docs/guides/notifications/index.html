@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-23",
+      "dateModified": "2026-10-22",
       "url": "https://accessflow.io/docs/guides/notifications/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/notifications/",
       "image": "https://accessflow.io/og-image.png",
@@ -279,7 +279,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Set up email and chat notifications.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-23">23 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-10-22">22 October 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -486,6 +486,16 @@
             <em>complete</em> approve; <em>rejected</em>, <em>declined</em> and <em>cancelled</em>
             reject. Matching is case-insensitive, and a decision already made in AccessFlow wins —
             a late ticket resolution cannot overturn it.
+          </p>
+          <p>
+            The same webhook also handles change tickets AccessFlow opens for a deployment (when
+            the target environment requires a change ticket and the channel has the deployment
+            trigger). With sync on, resolving the change ticket approves or rejects the deployment
+            waiting for review. Even with sync off, AccessFlow keeps the ticket's approved or
+            rejected verdict on its own link to the ticket.
+            The ticket's <em>actor</em> is just a name AccessFlow cannot match to a user, so it
+            cannot stop someone approving their own change ticket. If that matters to you, leave
+            sync off for that channel and approve deployments in AccessFlow.
           </p>
           <p>
             Channel-by-channel field reference, message formats and the full event list:

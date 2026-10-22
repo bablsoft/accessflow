@@ -6,6 +6,9 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryTicketView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketProvenance;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelConfigException;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
@@ -34,6 +37,11 @@ import java.util.UUID;
  * {@code bidirectional_sync} and the new status/resolution matches the channel's approve/reject
  * lists, the still-pending query is decided through the workflow's
  * {@link ExternalDecisionService}.
+ *
+ * <p>Deployment change tickets (#992): when no {@code query_tickets} row matches, the callback is
+ * resolved against {@code deployment_tickets}. The mapped decision is stamped on that row on every
+ * verified callback, independent of {@code bidirectional_sync} (the deployment gate reads it);
+ * the still-pending deployment itself is decided only when sync is on.
  */
 @Service
 @RequiredArgsConstructor
@@ -53,6 +61,7 @@ public class TicketingInboundService {
     private final TicketingRequestVerifier verifier;
     private final TicketingReplayGuard replayGuard;
     private final QueryTicketService queryTicketService;
+    private final DeploymentTicketService deploymentTicketService;
     private final ExternalDecisionService externalDecisionService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
@@ -90,28 +99,57 @@ public class TicketingInboundService {
         var resolution = blankToNull(payload.path("resolution").asString(""));
         var actor = blankToNull(payload.path("actor").asString(""));
 
+        var decision = mapDecision(config, status, resolution);
         var updated = queryTicketService.updateStatus(channelId, externalId, status, resolution);
         if (updated.isEmpty()) {
-            log.debug("Ticketing webhook for channel {} references unknown ticket {}", channelId,
-                    externalId);
-            return InboundResult.of(200, "ignored");
+            return handleDeploymentTicket(system, channel, config, externalId, status, resolution,
+                    actor, decision);
         }
         var ticket = updated.get();
         writeSyncedAudit(channel, ticket, status, resolution, actor);
 
-        if (!config.bidirectionalSync()) {
-            return InboundResult.of(200, "synced");
-        }
-        var decision = mapDecision(config, status, resolution);
-        if (decision == null) {
+        if (!config.bidirectionalSync() || decision == null) {
             return InboundResult.of(200, "synced");
         }
         var applied = externalDecisionService.applyTicketDecision(
                 ticket.queryRequestId(),
                 ticket.organizationId(),
                 decision,
-                decisionReason(system, ticket, status, resolution, actor));
+                decisionReason(system, ticket.externalKey(), status, resolution, actor));
         return InboundResult.of(200, applied ? "decision_applied" : "synced");
+    }
+
+    private InboundResult handleDeploymentTicket(NotificationChannelType system,
+                                                 NotificationChannelEntity channel,
+                                                 TicketingChannelConfig config, String externalId,
+                                                 String status, String resolution, String actor,
+                                                 ExternalTicketDecision decision) {
+        var updated = deploymentTicketService.updateStatus(channel.getId(), externalId, status,
+                resolution, toDecisionStamp(decision));
+        if (updated.isEmpty()) {
+            log.debug("Ticketing webhook for channel {} references unknown ticket {}",
+                    channel.getId(), externalId);
+            return InboundResult.of(200, "ignored");
+        }
+        var ticket = updated.get();
+        writeDeploymentSyncedAudit(channel, ticket, status, resolution, actor);
+
+        if (!config.bidirectionalSync() || decision == null) {
+            return InboundResult.of(200, "synced");
+        }
+        var provenance = new DeploymentTicketProvenance(system.name(), ticket.externalKey(),
+                channel.getId(), actor,
+                decisionReason(system, ticket.externalKey(), status, resolution, actor));
+        var applied = externalDecisionService.applyDeploymentTicketDecision(
+                ticket.deploymentRequestId(), ticket.organizationId(), decision, provenance);
+        return InboundResult.of(200, applied ? "decision_applied" : "synced");
+    }
+
+    private static String toDecisionStamp(ExternalTicketDecision decision) {
+        if (decision == null) {
+            return null;
+        }
+        return decision == ExternalTicketDecision.APPROVE ? "APPROVED" : "REJECTED";
     }
 
     private TicketingChannelConfig decodeConfig(NotificationChannelType system,
@@ -145,11 +183,11 @@ public class TicketingInboundService {
                 .anyMatch(candidate -> candidate.trim().toLowerCase(Locale.ROOT).equals(normalized));
     }
 
-    private static String decisionReason(NotificationChannelType system, QueryTicketView ticket,
+    private static String decisionReason(NotificationChannelType system, String externalKey,
                                          String status, String resolution, String actor) {
         var sb = new StringBuilder();
         sb.append(system == NotificationChannelType.SERVICENOW ? "ServiceNow" : "Jira")
-                .append(" ticket ").append(ticket.externalKey())
+                .append(" ticket ").append(externalKey)
                 .append(" moved to '").append(status).append('\'');
         if (resolution != null) {
             sb.append(" (").append(resolution).append(')');
@@ -186,6 +224,40 @@ public class TicketingInboundService {
                     null));
         } catch (RuntimeException ex) {
             log.error("Failed to write TICKET_STATUS_SYNCED audit row for ticket {}",
+                    ticket.externalKey(), ex);
+        }
+    }
+
+    private void writeDeploymentSyncedAudit(NotificationChannelEntity channel,
+                                            DeploymentTicketView ticket, String status,
+                                            String resolution, String actor) {
+        try {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("ticket_system", channel.getChannelType().name());
+            metadata.put("channel_id", channel.getId().toString());
+            metadata.put("external_key", ticket.externalKey());
+            metadata.put("deployment_request_id", ticket.deploymentRequestId().toString());
+            metadata.put("status", status);
+            if (ticket.decision() != null) {
+                metadata.put("decision", ticket.decision());
+            }
+            if (resolution != null) {
+                metadata.put("resolution", resolution);
+            }
+            if (actor != null) {
+                metadata.put("actor", actor);
+            }
+            auditLogService.record(new AuditEntry(
+                    AuditAction.TICKET_STATUS_SYNCED,
+                    AuditResourceType.DEPLOYMENT_TICKET,
+                    ticket.deploymentRequestId(),
+                    ticket.organizationId(),
+                    null,
+                    metadata,
+                    null,
+                    null));
+        } catch (RuntimeException ex) {
+            log.error("Failed to write TICKET_STATUS_SYNCED audit row for deployment ticket {}",
                     ticket.externalKey(), ex);
         }
     }

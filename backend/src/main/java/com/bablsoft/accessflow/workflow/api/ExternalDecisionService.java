@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketProvenance;
+
 import java.util.UUID;
 
 /**
@@ -21,4 +23,14 @@ public interface ExternalDecisionService {
      */
     boolean applyTicketDecision(UUID queryRequestId, UUID organizationId,
                                 ExternalTicketDecision decision, String reason);
+
+    /**
+     * The deployment twin of {@link #applyTicketDecision} (#992): transitions a
+     * {@code PENDING_REVIEW} deployment to {@code APPROVED} or {@code REJECTED}, system-attributed.
+     * Returns {@code false} (without throwing) when the deployment does not exist, belongs to
+     * another organization, or is no longer in {@code PENDING_REVIEW}.
+     */
+    boolean applyDeploymentTicketDecision(UUID deploymentRequestId, UUID organizationId,
+                                          ExternalTicketDecision decision,
+                                          DeploymentTicketProvenance provenance);
 }

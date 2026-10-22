@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
+import com.bablsoft.accessflow.deploygov.api.DeploymentExternalDecisionService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentTicketProvenance;
 import com.bablsoft.accessflow.workflow.api.ExternalDecisionService;
 import com.bablsoft.accessflow.workflow.api.ExternalTicketDecision;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +22,8 @@ import java.util.UUID;
 /**
  * External-ticket decisions (AF-453). Publishes the existing auto-decision core events so the
  * downstream audit and notification listeners fire exactly as they do for routing-policy
- * decisions — the {@code reason} carries the ticket provenance.
+ * decisions — the {@code reason} carries the ticket provenance. Deployment tickets (#992) are
+ * delegated to deploygov's {@link DeploymentExternalDecisionService}.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,6 +33,7 @@ class DefaultExternalDecisionService implements ExternalDecisionService {
     private final QueryRequestLookupService queryRequestLookupService;
     private final QueryRequestStateService queryRequestStateService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeploymentExternalDecisionService deploymentExternalDecisionService;
 
     @Override
     @Transactional
@@ -58,5 +63,15 @@ class DefaultExternalDecisionService implements ExternalDecisionService {
         log.info("Applied external ticket decision {} to query {} ({})", decision, queryRequestId,
                 reason);
         return true;
+    }
+
+    @Override
+    public boolean applyDeploymentTicketDecision(UUID deploymentRequestId, UUID organizationId,
+                                                 ExternalTicketDecision decision,
+                                                 DeploymentTicketProvenance provenance) {
+        var mapped = decision == ExternalTicketDecision.APPROVE
+                ? DecisionType.APPROVED : DecisionType.REJECTED;
+        return deploymentExternalDecisionService.applyTicketDecision(deploymentRequestId,
+                organizationId, mapped, provenance);
     }
 }
