@@ -156,13 +156,13 @@ assert_body_field 1 '.commit_sha' "$CI_COMMIT_SHA"
 scenario "gitlab-gate-logs-the-change-ticket-wait"
 resp 1 202 '{"id":"req-ct","status":"PENDING_AI"}'
 resp 2 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true}'
-resp 3 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true,"change_ticket":{"external_key":"CHG-7"}}'
+resp 3 200 '{"request_id":"req-ct","status":"APPROVED","releasable":false,"change_ticket_required":true,"change_ticket":{"external_key":"CHG-7","decision":"REJECTED"}}'
 resp 4 200 '{"request_id":"req-ct","status":"APPROVED","releasable":true}'
 resp 5 200 '{"id":"req-ct","status":"EXECUTED"}'
 run "$scripts/gitlab-deployment-gate.sh"
 assert_eq "exit code" 0 "$run_rc"
 assert_log_contains "change_ticket=none linked yet"
-assert_log_contains "change_ticket=CHG-7"
+assert_log_contains "change_ticket=CHG-7 REJECTED"
 
 scenario "gitlab-gate-404-fails-closed"
 resp 1 202 '{"id":"req-2","status":"PENDING_AI"}'

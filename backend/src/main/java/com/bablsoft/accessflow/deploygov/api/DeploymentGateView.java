@@ -13,7 +13,7 @@ import java.util.UUID;
  * window when one is active (always {@code false}/{@code null} for a break-glass request — the
  * freeze check is skipped). {@code aiRiskLevel} is null when no analysis produced a risk.
  * {@code changeTicketRequired} mirrors the environment flag (#993); {@code changeTicket} is the
- * linked ticket the gate judged by — the approved one when present, else the newest — or null.
+ * linked ticket the gate judged by — rejected first, else approved, else the newest — or null.
  */
 public record DeploymentGateView(
         UUID requestId,

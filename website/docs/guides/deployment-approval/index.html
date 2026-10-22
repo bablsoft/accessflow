@@ -642,10 +642,13 @@
             <li><strong>Approved, but still not releasing.</strong> Approval alone is not a green
               light. The job branches on <em>releasable</em>, which also requires no active freeze
               window and any scheduled time to have passed. If the environment requires a change
-              ticket, the log line ends in <code>change_ticket=…</code>: the release waits until
-              that ticket is approved, and <code>none linked yet</code> means no ticket was opened —
-              check that a ServiceNow or Jira channel carries the deployment trigger, or the
-              release will never go out.</li>
+              ticket, the waiting line includes <code>change_ticket=…</code>. A ticket key means the
+              release waits until AccessFlow hears that the ticket was approved — which only happens
+              through the ticketing system's callback, so set up
+              <a href="/docs/configuration/notifications/">bi-directional status sync</a> on the
+              channel. A rejected ticket blocks the release for good; submit a new deployment.
+              <code>none linked yet</code> means no ticket was opened — check that a ServiceNow or
+              Jira channel carries the deployment trigger, or the release will never go out.</li>
             <li><strong>The log says "rate limited (HTTP 429), retrying".</strong> Not a failure.
               Every API key has a per-identity request cap (120 per minute by default; a service
               account can be given its own), and the wrappers simply wait the number of seconds

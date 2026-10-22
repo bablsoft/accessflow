@@ -142,7 +142,7 @@ steps:
           if [ "$cc" = "429" ]; then d=$(delay); echo "  confirm rate limited (HTTP 429), retrying in ${d}s..."; sleep "$d"; continue; fi
           echo "##vso[task.logissue type=error]confirm-execution failed HTTP $cc: $cb"; exit 1
         fi
-        tk=$(jq -r 'if .change_ticket_required == true then (.change_ticket.external_key // "none linked yet") else empty end' <<<"$gate")
+        tk=$(jq -r 'if .change_ticket_required == true then (if .change_ticket then .change_ticket.external_key + (if .change_ticket.decision then " " + .change_ticket.decision else "" end) else "none linked yet" end) else empty end' <<<"$gate")
         echo "  status=$st releasable=false${tk:+ change_ticket=$tk}, waiting ${int}s..."; sleep "$int"
       done
       echo "##vso[task.logissue type=error]timed out after $AF_WAIT_TIMEOUT waiting for deployment request $rid"; exit 1

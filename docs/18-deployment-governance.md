@@ -295,9 +295,17 @@ approved). Break-glass requests skip this conjunct exactly as they skip the free
 bypass is recorded on the `DEPLOYMENT_EXECUTED` audit row as `change_ticket_bypassed = break_glass`;
 a normal confirmation on a flagged environment records `change_ticket_key` instead. The response
 adds `change_ticket_required` and `change_ticket` (`system`, `external_key`, `url`, `status`,
-`resolution`, `decision` — the approved ticket when one exists, otherwise the newest; omitted when
-none is linked), and the CI wrappers log `change_ticket=<key>` or `change_ticket=none linked yet`
-while they wait. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
+`resolution`, `decision` — a rejected ticket first, else an approved one, else the newest; omitted when
+none is linked), and the CI wrappers add `change_ticket=<key>` plus the ticket's decision once it has one (the
+GitHub action also prints the ticket status) or `change_ticket=none linked yet` to their waiting line. AccessFlow only learns a
+ticket's verdict from the ticketing system's signed callback (#992), so without that callback a
+linked ticket never reads as approved, and a `REJECTED` ticket blocks the request for good (the
+response then shows the rejected ticket). The gate reads the *current* `decision` stamp: a later
+callback whose status matches neither the channel's approve nor reject list clears it, so list the
+change's post-approval states (for example ServiceNow's *Scheduled* / *Implement*) as approve
+statuses, or a request approved at the gate can be refused at confirm-execution. The environment
+row is read before the break-glass shortcut, so a request whose environment was deleted is not
+releasable — break-glass included. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
 a hypothetical request has no ticket yet.
 
 **`frozen` means any active window, `HOLD` or `REJECT`.** A `REJECT` window normally auto-rejects

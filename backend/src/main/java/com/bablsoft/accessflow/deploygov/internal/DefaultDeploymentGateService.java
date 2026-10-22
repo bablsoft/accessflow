@@ -22,7 +22,6 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReleasableEvent;
-import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentTicketEntity;
@@ -127,19 +126,17 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
         }
         stateService.apply(request, QueryStatus.EXECUTED);
         // Metadata keys mirror DEPLOYMENT_BREAK_GLASS_EXECUTED (#692): `environment` is the name.
-        var environmentName = environmentRepository.findById(request.getEnvironmentId())
-                .map(DeploymentEnvironmentEntity::getName)
-                .orElse(request.getEnvironmentId().toString());
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("trigger", "pipeline");
         metadata.put("pipeline_id", request.getPipelineId().toString());
-        metadata.put("environment", environmentName);
+        metadata.put("environment", evaluation.environmentName());
         metadata.put("version", request.getVersion());
         if (evaluation.ticketRequired()) {
             metadata.put("change_ticket_required", true);
             if (request.getSubmissionReason() == SubmissionReason.EMERGENCY_ACCESS) {
                 metadata.put("change_ticket_bypassed", "break_glass");
             } else {
+                // Releasable implies an APPROVED and no REJECTED ticket, so chooseTicket is non-null.
                 metadata.put("change_ticket_key", evaluation.changeTicket().externalKey());
             }
         }
@@ -193,8 +190,13 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
     GateEvaluation evaluate(DeploymentRequestEntity request, Instant now) {
         try {
             var environment = environmentRepository.findById(request.getEnvironmentId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Environment " + request.getEnvironmentId() + " not found"));
+                    .orElse(null);
+            if (environment == null) {
+                // A deleted environment is a steady state, not a fault: no stack trace per tick.
+                log.warn("Environment {} of deployment request {} no longer exists — answering not"
+                        + " releasable", request.getEnvironmentId(), request.getId());
+                return NOT_RELEASABLE;
+            }
             boolean ticketRequired = environment.isChangeTicketRequired();
             boolean frozen = false;
             String freezeReason = null;
@@ -214,11 +216,11 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
             return new GateEvaluation(
                     releasable(request.getStatus(), frozen, request.getScheduledFor(), now,
                             ticketRequired, ticketSatisfied),
-                    frozen, freezeReason, ticketRequired, changeTicket);
+                    frozen, freezeReason, ticketRequired, changeTicket, environment.getName());
         } catch (RuntimeException ex) {
             log.error("Gate evaluation failed for deployment request {} — answering not releasable",
                     request.getId(), ex);
-            return new GateEvaluation(false, false, null, false, null);
+            return NOT_RELEASABLE;
         }
     }
 
@@ -234,21 +236,32 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
         return approved;
     }
 
-    /** The newest approved ticket when one exists, else the newest linked ticket, else null. */
+    /**
+     * The ticket that explains the verdict: the newest rejected one (it blocks the gate), else the
+     * newest approved one, else the newest linked ticket, else null.
+     */
     private static DeploymentTicketView chooseTicket(List<DeploymentTicketEntity> tickets) {
         var newestFirst = Comparator.comparing(DeploymentTicketEntity::getCreatedAt,
                 Comparator.nullsFirst(Comparator.naturalOrder())).reversed();
         return tickets.stream()
-                .filter(t -> APPROVED.equals(t.getDecision()))
+                .filter(t -> REJECTED.equals(t.getDecision()))
                 .min(newestFirst)
+                .or(() -> tickets.stream().filter(t -> APPROVED.equals(t.getDecision()))
+                        .min(newestFirst))
                 .or(() -> tickets.stream().min(newestFirst))
                 .map(DefaultDeploymentTicketService::toView)
                 .orElse(null);
     }
 
+    /** {@code environmentName} is only read on the releasable path, where the row was found. */
     record GateEvaluation(boolean releasable, boolean frozen, String freezeReason,
-                          boolean ticketRequired, DeploymentTicketView changeTicket) {
+                          boolean ticketRequired, DeploymentTicketView changeTicket,
+                          String environmentName) {
     }
+
+    /** The error path makes no claim: not frozen, no ticket requirement reported. */
+    private static final GateEvaluation NOT_RELEASABLE =
+            new GateEvaluation(false, false, null, false, null, null);
 
     private DeploymentGateView toGateView(DeploymentRequestEntity request) {
         var evaluation = evaluate(request, clock.instant());

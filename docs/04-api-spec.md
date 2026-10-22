@@ -9147,7 +9147,6 @@ caller for every rule below.
     "external_key": "CHG0012345",
     "url": "https://acme.service-now.com/change_request.do?sys_id=…",
     "status": "Implement",
-    "resolution": null,
     "decision": "APPROVED"
   }
 }
@@ -9155,8 +9154,10 @@ caller for every rule below.
 
 `change_ticket_required` and `change_ticket` (#993) are additive — a pre-#993 CI wrapper that
 branches on `releasable` alone keeps working. `change_ticket_required` mirrors the environment's
-`change_ticket_required` flag; `change_ticket` is the linked ticket the gate judged by — the
-approved one when one exists, otherwise the newest — and is omitted when none is linked, when the
+`change_ticket_required` flag (it reads `false` on the fail-closed error path, which makes no
+claim — like `frozen`); `change_ticket` is the linked ticket the gate judged by — the
+newest rejected one when one exists (it is the blocker), else the newest approved one, otherwise the
+newest — and is omitted when none is linked, when the
 flag is off, or for a break-glass request (nulls are not serialised). `decision` is `APPROVED`,
 `REJECTED` or absent (not yet resolved).
 

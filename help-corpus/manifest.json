@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "911fbc503d08",
-  "generatedAt": "2026-10-22T09:52:57.783Z",
-  "sourceCommit": "63321066a4d4d3882c88095bd22ad68b4e942a05",
+  "corpusVersion": "304d5b2d9043",
+  "generatedAt": "2026-10-22T09:55:15.213Z",
+  "sourceCommit": "c96a84b8ae8607cce27d901bea6a484af38394c8",
   "chunkCount": 608,
-  "sha256": "911fbc503d0862fb8225acf26374127c5a46b177c1f75c646a26842f66f62a6c",
+  "sha256": "304d5b2d90433c3fb4e9880e363a55e734a3fd3f21c2b62954ad1abeaa704662",
   "quickReferenceSha256": "2eaa3d1f2e024c2049bf0f8a699c2208a88c1e20ad06e9503257fdcf6fea0746",
   "sources": [
     {
@@ -261,7 +261,7 @@
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "section": "Guides",
       "chunks": 12,
-      "sha256": "2e44ef790b9ff7941d27d704f711886be9ef6511ff65250920c956340713caf1"
+      "sha256": "9570578a1b23a82bec8ea71d6a33ecc8fcbfeff8fa233438d5c6912085d33ee0"
     },
     {
       "path": "website/docs/guides/first-query/index.html",

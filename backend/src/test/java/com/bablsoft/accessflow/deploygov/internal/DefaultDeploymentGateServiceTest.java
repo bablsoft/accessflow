@@ -423,10 +423,13 @@ class DefaultDeploymentGateServiceTest {
         var request = approvedById();
         requireTicket(request);
         when(ticketRepository.findAllByDeploymentRequestId(request.getId())).thenReturn(List.of(
-                ticket("APPROVED", "CHG-1", NOW.minusSeconds(60)), ticket("REJECTED", "CHG-2", NOW)));
+                ticket("REJECTED", "CHG-2", NOW.minusSeconds(60)), ticket("APPROVED", "CHG-1", NOW)));
 
-        assertThat(service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of())
-                .releasable()).isFalse();
+        var view = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(), Set.of());
+
+        assertThat(view.releasable()).isFalse();
+        // The rejected ticket is the blocker, so it is the one surfaced.
+        assertThat(view.changeTicket().externalKey()).isEqualTo("CHG-2");
     }
 
     @Test
