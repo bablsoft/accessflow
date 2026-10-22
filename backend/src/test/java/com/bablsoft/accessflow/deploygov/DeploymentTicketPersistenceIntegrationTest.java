@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,7 +111,9 @@ class DeploymentTicketPersistenceIntegrationTest {
                 null, null).orElseThrow();
         assertThat(progressed.status()).isEqualTo("Review");
         assertThat(progressed.decision()).isEqualTo("APPROVED");
-        assertThat(progressed.decidedAt()).isEqualTo(updated.decidedAt());
+        // Postgres keeps microseconds; the first view may carry the clock's nanoseconds (Linux).
+        assertThat(progressed.decidedAt().truncatedTo(ChronoUnit.MICROS))
+                .isEqualTo(updated.decidedAt().truncatedTo(ChronoUnit.MICROS));
 
         var listed = ticketService.listByDeploymentRequest(request.getId(), organizationId);
         assertThat(listed).singleElement().satisfies(view -> {
