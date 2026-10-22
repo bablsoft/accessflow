@@ -53,26 +53,6 @@ public record DeploymentRequestView(
         /** The linked change ticket that explains the request's state, or null (#994). */
         DeploymentTicketView changeTicket) {
 
-    /** Backward-compatible constructor without the #994 change-ticket summary. */
-    public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
-                                 UUID environmentId, String environmentName, UUID submittedBy,
-                                 String submittedByEmail, String version, String commitSha,
-                                 String artifactRef, String runUrl, String externalRunId,
-                                 Map<String, Object> metadata, QueryStatus status,
-                                 SubmissionReason submissionReason, String justification,
-                                 UUID aiAnalysisId, RiskLevel aiRiskLevel, Integer aiRiskScore,
-                                 String aiSummary, int requiredApprovals, Instant scheduledFor,
-                                 DeploymentOutcome outcome, Instant outcomeReportedAt,
-                                 String outcomeDetail, Instant createdAt,
-                                 List<DeploymentReviewDecisionView> decisions,
-                                 UUID onBehalfOfUserId, String onBehalfOfEmail) {
-        this(id, pipelineId, pipelineName, provider, environmentId, environmentName, submittedBy,
-                submittedByEmail, version, commitSha, artifactRef, runUrl, externalRunId, metadata,
-                status, submissionReason, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
-                aiSummary, requiredApprovals, scheduledFor, outcome, outcomeReportedAt, outcomeDetail,
-                createdAt, decisions, onBehalfOfUserId, onBehalfOfEmail, false, null);
-    }
-
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
                                  UUID environmentId, String environmentName, UUID submittedBy,
