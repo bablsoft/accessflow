@@ -21,10 +21,12 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 > Azure / generic-curl CI wrappers (#694), the notification and audit fan-out (#695), and the web
 > UI (#696). The multi-environment version-tracking foundation — environment tags and the
 > per-environment deployed-version projection (#741) — landed after v2.4, followed by the
-> read-only version inventory & drift API (#742, section 9 below) and the version-matrix UI
+> read-only version inventory & drift API (#742, section 10 below) and the version-matrix UI
 > (#743): the org-wide matrix at `/deployment-versions`, the per-pipeline matrix and
 > environment-history drawer, drift badges on the deployment list and detail pages, and the tags
-> field on the environment editor.
+> field on the environment editor. v2.8 adds change tickets (epic #989, #990–#994, section 7
+> below): a flagged environment opens a ServiceNow / Jira change ticket per deployment, syncs its
+> verdict back, and the gate waits for it.
 
 ---
 
@@ -33,7 +35,10 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 ```
 com.bablsoft.accessflow.deploygov/
 ├── api/         # PipelineProvider, FreezeBehavior, DeploymentOutcome, DeploymentRoutingAction,
-│                # DeploymentRollbackReviewStatus, thirteen service interfaces, view + command records,
+│                # DeploymentRollbackReviewStatus, seventeen service interfaces (incl.
+│                # DeploymentTicketService + DeploymentExternalDecisionService, #990/#992),
+│                # view + command records (DeploymentTicketView, RecordDeploymentTicketCommand,
+│                # DeploymentTicketProvenance),
 │                # the exception hierarchy (JDK + project types only)
 ├── events/      # DeploymentSubmitted/AnalysisCompleted/AnalysisSkipped/AnalysisFailed/
 │                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent
@@ -47,6 +52,7 @@ com.bablsoft.accessflow.deploygov/
     │                                # DeploymentReviewDecisionEntity, DeploymentRollbackReviewEntity,
     │                                # DeploymentRoutingPolicyEntity,
     │                                # DeploymentEnvironmentVersionEntity (#741),
+    │                                # DeploymentTicketEntity (#990),
     │                                # the two grant entities + repos
     ├── routing/     # DeploymentRoutingPolicyEngine
     ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
@@ -80,8 +86,10 @@ UUID with no foreign key, so past requests, decisions and rollback reviews survi
 
 **Environments** are the ordered promotion targets under a pipeline — `dev`, `staging`,
 `production` — each with a `sort_order`, a `require_review` flag, optional `required_approvals`
-and `review_plan_id` **overrides** that win over the pipeline's, and an `allow_break_glass`
-opt-in that defaults to `false`. Approval count resolves in a fixed precedence:
+and `review_plan_id` **overrides** that win over the pipeline's, an `allow_break_glass`
+opt-in that defaults to `false`, and a `change_ticket_required` flag (default `false`, #990) that
+makes releases wait for an approved ServiceNow / Jira change ticket — see
+[section 7](#7-change-tickets-epic-989). Approval count resolves in a fixed precedence:
 `environment.required_approvals` → the resolved plan's `minApprovalsRequired()` → 1. Plan
 resolution follows the same shape: the environment override wins over the pipeline's.
 
@@ -111,7 +119,7 @@ reverts to previous (single-level undo — a second consecutive rollback leaves 
 version honestly unknown); an outcome for a non-current request changes nothing. The projection
 is a **read model only** — it never feeds gate, approval, or routing decisions, and history
 stays derived from `deployment_requests`. The read API over it — the version matrices, history,
-and the drift indicator — is section 9 below (#742), surfaced in the web UI by #743.
+and the drift indicator — is section 10 below (#742), surfaced in the web UI by #743.
 
 **Who may trigger** is a per-pipeline grant, not a functional permission. Both a per-user table
 and a per-group table carry `can_trigger`, `can_break_glass` and an optional `expires_at`, and
@@ -299,27 +307,18 @@ adds `change_ticket_required` and `change_ticket` (`system`, `external_key`, `ur
 none is linked), and the CI wrappers add `change_ticket=<key>` plus the ticket's decision once it has one (the
 GitHub action also prints the ticket status) or `change_ticket=none linked yet` to their waiting line. AccessFlow only learns a
 ticket's verdict from the ticketing system's signed callback (#992), so without that callback a
-linked ticket never reads as approved, and a `REJECTED` ticket blocks the request for good (the
-response then shows the rejected ticket). An approval is **sticky**: a later callback whose status
+linked ticket never reads as approved, and a `REJECTED` ticket blocks the request while it stays
+rejected (the response then shows the rejected ticket). Unlike an approval, a rejection is not
+sticky: a later callback matching neither list clears it, and one matching the approve list turns
+it `APPROVED` — though with `bidirectional_sync` on, the rejection has usually already rejected the
+deployment itself, which is terminal. An approval is **sticky**: a later callback whose status
 matches neither the channel's approve nor reject list (a change moving on to *Scheduled* /
 *Implement* / *Closed*) keeps the ticket `APPROVED`, so a release that opened stays open; only a
 status in the reject list overrides it, and that closes the gate again. The environment
 row is read before the break-glass shortcut, so a request whose environment was deleted is not
-releasable — break-glass included. A [decision trace](#10-decision-trace-af-967) for a flagged environment always reports *not releasable*:
-a hypothetical request has no ticket yet.
-
-**In the web UI (#994).** The `change_ticket_required` switch sits on the pipeline settings
-**Environments** tab, after *Break-glass*. Its help text warns that a ServiceNow or Jira channel must
-enable the *Deployment submitted* trigger (`DEPLOYMENT_SUBMITTED`, a checkbox on both channel forms),
-or the gate never opens. The deployment detail page shows a **Change ticket** card: the key, linked to
-the ticketing system, plus the system, the status (with its resolution) and an *approved* / *rejected*
-tag. On a flagged environment with no ticket yet, the card reads "no change ticket linked yet". When an
-approved, unfrozen, not-releasable request on a flagged environment has no approved ticket, the gate
-banner reads "waiting for the change ticket" (or "the change ticket was rejected"); that message wins
-over the scheduled-time one. `/deployments` adds a **Ticket** column. The card and the column read the
-`change_ticket` summary on the deployment request body (see `docs/04-api-spec.md` → "Deployment
-requests"), not the gate, so the ticket shows while the request is still in review; the banner reads
-the gate.
+releasable — break-glass included. A [decision trace](#11-decision-trace-af-967) for a flagged environment always reports *not releasable*:
+a hypothetical request has no ticket yet. How tickets open, sync and decide — and what they
+cannot do — is [section 7](#7-change-tickets-epic-989).
 
 **`frozen` means any active window, `HOLD` or `REJECT`.** A `REJECT` window normally auto-rejects
 at submission, but a request approved *before* the window opened must not sail through mid-freeze.
@@ -383,7 +382,96 @@ the **gate**, so the release proceeds the instant the window closes with no re-a
 
 ---
 
-## 7. Outcome reporting & rollback follow-up reviews
+## 7. Change tickets (epic #989)
+
+Regulated change processes — ITIL change management, SOX change control, most release policies —
+want a release recorded in ServiceNow or Jira, approved *there*, and only then allowed out. An
+environment can demand exactly that. Change tickets reuse the existing ServiceNow and Jira
+notification channels ([08-notifications.md → Deployment change tickets](08-notifications.md#deployment-change-tickets-991));
+there is no new channel type, notification event type or module.
+
+**The environment flag (#990).** `deployment_environments.change_ticket_required` (`BOOLEAN NOT
+NULL DEFAULT FALSE`) marks an environment whose releases must carry an approved change ticket. It
+is set through the same environment create / update endpoints as `require_review` and
+`allow_break_glass`, and it takes effect **immediately**: from that moment the gate refuses every
+release to the environment until an approved ticket is linked — so configure the ticketing channel
+(and its inbound callback) *before* turning the flag on, or releases there stop.
+
+**When a ticket opens (#991).** Both conditions are required: the target environment has
+`change_ticket_required = true`, **and** a ServiceNow or Jira channel enables the
+`DEPLOYMENT_SUBMITTED` trigger. The ticket opens at the **first** of `DEPLOYMENT_SUBMITTED` (the
+`PENDING_REVIEW` transition) or `DEPLOYMENT_APPROVED` — the second because a routing or
+environment-policy auto-approval never passes through review, and a flagged environment whose
+deployments auto-approve would otherwise wait for a ticket that never opens. Break-glass deploys
+open **no** ticket: they publish no submission event, and `DEPLOYMENT_BREAK_GLASS_EXECUTED` is not a
+ticketing trigger. Creation is asynchronous, on the channel's usual `+30 s / +2 min / +10 min`
+retries, and is audited as `TICKET_CREATED` on the `deployment_ticket` resource.
+
+**One ticket per deployment per channel.** The link lives in `deployment_tickets`, owned by this
+module ([03-data-model.md](03-data-model.md) → `deployment_tickets`), never in core's
+`query_tickets`. Its unique key is `(channel_id, deployment_request_id)` with no event dimension,
+so whichever of the two opening events arrives second is a no-op. Two channels carrying the trigger
+open two tickets.
+
+**The persisted decision versus the deployment decision (#992).** A ServiceNow Business Rule or
+Jira Automation rule posts signed status callbacks to the channel's inbound webhook. The
+`external_id` is resolved against query tickets first, then deployment tickets. For a deployment
+ticket, every verified callback **stamps** `deployment_tickets.decision` — `REJECTED` when the
+status matches the channel's `reject_statuses` (checked first), `APPROVED` when it matches
+`approve_statuses` — whether or not the channel has `bidirectional_sync`. An `APPROVED` stamp is
+**sticky**: a later status matching neither list (the change moving on to *Scheduled*,
+*Implement*, *Closed*) keeps it; only a reject status overrides it. A `REJECTED` stamp is not
+sticky — a later status matching neither list clears it back to undecided. Separately, only when
+`bidirectional_sync = true` does the mapped verdict also **decide** a deployment still in
+`PENDING_REVIEW`, through `workflow.api.ExternalDecisionService.applyDeploymentTicketDecision`
+→ `deploygov.api.DeploymentExternalDecisionService`. That decision is system-attributed like
+routing and timeout: no `deployment_review_decisions` row, a null-actor `DEPLOYMENT_APPROVED` /
+`DEPLOYMENT_REJECTED` audit row with `trigger = ticket` plus `ticket_system`, `external_key`,
+`channel_id` and `actor`, and a `DeploymentDecidedEvent` reason of `ticket:<SYSTEM>:<external_key>`,
+so the submitter is notified as for any other verdict. A reviewer who decided first wins; the late
+callback still stamps the ticket but decides nothing. Leaving sync **off** is how an organisation
+requires *both* an AccessFlow approval and a ticket approval: the ticket's state still syncs and
+still satisfies the gate, but only an AccessFlow reviewer decides.
+
+**The gate (#993).** On a flagged environment the gate's fourth conjunct holds only when at least
+one linked ticket is `APPROVED` and none is `REJECTED`, read from `deployment_tickets` rows only —
+see [section 5](#5-the-deployment-gate) for the full function. No ticket row yet, unresolved
+tickets, or a failed lookup all answer *not releasable*, so a flagged environment that no channel
+opens tickets for **never releases**, and a request approved before its ticket is approved simply
+waits — `ScheduledDeploymentReleaseJob` announces it once, on its next tick after the ticket flips.
+Break-glass skips the conjunct as it skips the freeze check, and `confirm-execution` records the
+bypass on its `DEPLOYMENT_EXECUTED` row as `change_ticket_bypassed = break_glass`; a normal
+confirmation on a flagged environment records `change_ticket_key` instead.
+
+**In the web UI (#994).** The *Change ticket* switch sits on the pipeline settings
+**Environments** tab, after *Break-glass*. Its help text warns that a ServiceNow or Jira channel must
+enable the *Deployment submitted* trigger (a checkbox on both channel forms), or the gate never
+opens. The deployment detail page shows a **Change ticket** card: the key, linked to the ticketing
+system, plus the system, the status (with its resolution) and an *approved* / *rejected* tag. On a
+flagged environment with no ticket yet, the card reads "no change ticket linked yet". When an
+approved, unfrozen, not-releasable request on a flagged environment has no approved ticket, the gate
+banner reads "waiting for the change ticket" (or "the change ticket was rejected"); that message wins
+over the scheduled-time one. `/deployments` adds a **Ticket** column. The card and the column read the
+`change_ticket` summary on the deployment request body (see `docs/04-api-spec.md` → "Deployment
+requests"), not the gate, so the ticket shows while the request is still in review; the banner reads
+the gate.
+
+**Limits.**
+
+- **AccessFlow never writes back to the ticket.** Outbound is create-only: a deployment that is
+  cancelled, rejected or timed out leaves its ServiceNow incident or Jira issue open, and an
+  executed deployment does not close it. Close tickets in the ticketing system.
+- **The self-approval ban does not reach the ticket.** The callback's `actor` is a free-text display
+  name assembled by the Business Rule or Automation rule; AccessFlow cannot map it to a user, so a
+  submitter who approves their own change ticket is not stopped. The actor is recorded in the audit
+  row and the decision reason. Where that matters, keep `bidirectional_sync = false` on the channel
+  so a ticket can satisfy the gate but never decide the deployment.
+- **AccessFlow only learns a verdict from the signed callback.** Without the inbound rule configured,
+  a linked ticket never reads as approved and the flagged environment never releases.
+
+---
+
+## 8. Outcome reporting & rollback follow-up reviews
 
 After the deploy runs, the pipeline reports what happened:
 `POST /api/v1/deployment-requests/{id}/outcome` with `SUCCEEDED`, `FAILED` or `ROLLED_BACK`.
@@ -414,7 +502,7 @@ break-glass deployment that later rolls back must still get its own follow-up.
 
 ---
 
-## 8. CI wrappers & service-account setup
+## 9. CI wrappers & service-account setup
 
 Every provider integration follows the same four beats — **submit idempotently by run id → poll the
 gate → confirm execution → report the outcome** — and every one of them **fails the job** on a
@@ -463,7 +551,7 @@ longer than your longest queued run. Full reference: [22-service-accounts.md](22
 
 ---
 
-## 9. Version inventory & drift (#742)
+## 10. Version inventory & drift (#742)
 
 Once deployments flow through the gate, the tracking projection (section 1) can answer the
 operational question the epic promised: **which version runs where right now** — including the
@@ -526,7 +614,7 @@ who can never decide their own deployment, is told so in place of the buttons.
 
 ---
 
-## 10. Decision trace (AF-967)
+## 11. Decision trace (AF-967)
 
 The sharpest of the three explainers, because a deployment is blocked by the **gate** rather than by
 the decision, and the freeze-window / plan-approver / break-glass interaction is not visible on any
@@ -632,7 +720,7 @@ deploygov read:
 | **Pending deployment approvals** tile → `/reviews?tab=deployments` | `pending_deployment_approvals_count` | `DEPLOYMENT_REVIEW` |
 | **My recent deployments** widget | `recent_deployments` (`DeploymentRequestService#list`) | `QUERY_SUBMIT_SELECT` |
 | **Pending deployment approvals** widget | `recent_pending_deployment_approvals` (`DeploymentReviewService#listPending`) | `DEPLOYMENT_REVIEW` |
-| **Environment versions** widget → `/deployment-versions` | the drifted rows of the [§ 9 version inventory](#9-version-inventory--drift-742) | `DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` |
+| **Environment versions** widget → `/deployment-versions` | the drifted rows of the [§ 10 version inventory](#10-version-inventory--drift-742) | `DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` |
 
 Everything a user sees here is **their own**: the recent feed and the open count filter on
 `submittedByUserId = me`, so a `DEPLOYMENT_REVIEW` holder who could list the whole organization

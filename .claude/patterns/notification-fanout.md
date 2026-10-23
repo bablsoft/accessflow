@@ -24,7 +24,7 @@ frontend. **Verified 2026-08-12** (#625) — re-derive rather than trust these l
 | **Email — subject args** | `notifications/internal/strategy/EmailNotificationStrategy.java` | 235 | ⚠️ **silent** — has a `default` |
 | **Ticket body** | `notifications/internal/strategy/TicketDescriptionBuilder.java` | 21 | ⚠️ **silent** — has a `default` |
 | Dispatcher / channel scope | `notifications/internal/NotificationDispatcher.java` | `resolveChannels` | org-wide events must be listed explicitly |
-| PagerDuty / ticketing triggers | `internal/codec/{PagerDutyTrigger,TicketingTrigger}.java` | | absent ⇒ never pages / never opens a ticket (usually right) |
+| PagerDuty / ticketing triggers | `internal/codec/{PagerDutyTrigger,TicketingTrigger}.java` | | absent ⇒ never pages / never opens a ticket (usually right). A `TicketingTrigger` may map **several** event types — `DEPLOYMENT_SUBMITTED` (#991) opens on `DEPLOYMENT_SUBMITTED` *or* `DEPLOYMENT_APPROVED` — so check every trigger's event set, not just its name. The ticket headline in `strategy/TicketDescriptionBuilder.java` has explicit deployment cases and a `default` that drops the "on <datasource>" suffix when the context has none (deployment-aware) — a new event that can open a ticket still wants its own case |
 | Thymeleaf template | `backend/src/main/resources/templates/email/<event>.html` | | silent |
 | i18n subject/body | `i18n/messages.properties` + 6 locales | | `MessagesParityTest` |
 | **Frontend — in-app label** | `frontend/src/components/common/NotificationBell.tsx` (`labelFor` switch + `routeForNotification`) | | ⚠️ **silent** — has a `default` returning `notifications.events.fallback` |

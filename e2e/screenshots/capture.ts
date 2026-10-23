@@ -408,6 +408,8 @@ async function seedData() {
         tags: [...tags],
         requiredApprovals: 1,
         requireReview: true,
+        // #990: show the change-ticket column with a value, and the detail page's ticket card.
+        changeTicketRequired: name === 'production',
       });
     }
 
@@ -458,9 +460,11 @@ async function seedData() {
 
     // A rolled-back deployment so the review hub's Rollbacks tab (/reviews?tab=rollbacks) is populated:
     // reviewer triggers -> admin approves -> confirm execution -> report ROLLED_BACK.
+    // Staging, not production: production requires a change ticket and no ticketing channel is
+    // seeded, so its gate stays closed and confirm-execution would 409.
     const rolled = await triggerDeploymentViaApi(api, reviewerToken, {
       pipelineId: pipeline.id,
-      environment: 'production',
+      environment: 'staging',
       version: 'v4.11.2',
       externalRunId: `ci-run-${RUN_SUFFIX}-rollback`,
       justification: 'Ship the search relevance rebuild.',

@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-10-22",
+      "dateModified": "2026-10-23",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -282,7 +282,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-10-22">22 October 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-10-23">23 October 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -653,7 +653,7 @@
               release waits until AccessFlow hears that the ticket was approved — which only happens
               through the ticketing system's callback, so set up
               <a href="/docs/configuration/notifications/">bi-directional status sync</a> on the
-              channel. A rejected ticket blocks the release for good; submit a new deployment.
+              channel. A rejected ticket blocks the release while it stays rejected, and with sync on it also rejects a deployment still awaiting review; then submit a new deployment.
               <code>none linked yet</code> means no ticket was opened — check that a ServiceNow or
               Jira channel carries the deployment trigger, or the release will never go out. The
               deployment's page in AccessFlow shows the same thing: a <strong>Change ticket</strong>

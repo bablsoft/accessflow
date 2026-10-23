@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "f0e3b7ec8b69",
-  "generatedAt": "2026-10-22T11:54:39.535Z",
-  "sourceCommit": "b007a2af18ea170974e18beb92f471ca3d34ebdb",
-  "chunkCount": 608,
-  "sha256": "f0e3b7ec8b69d6a3a56fec8449ab73da08da9341f6b2596e87a551d8ab498288",
+  "corpusVersion": "d309bf469cb0",
+  "generatedAt": "2026-10-23T08:12:16.769Z",
+  "sourceCommit": "7bc919e2798ca1f2ee0916526b29cf5af8e4b72b",
+  "chunkCount": 609,
+  "sha256": "d309bf469cb00cb7a56bad3a1d23b853338c6f95e09d36306a422a7e3549b31b",
   "quickReferenceSha256": "2eaa3d1f2e024c2049bf0f8a699c2208a88c1e20ad06e9503257fdcf6fea0746",
   "sources": [
     {
@@ -213,7 +213,7 @@
       "url": "https://accessflow.io/docs/configuration/notifications/",
       "section": "Reference",
       "chunks": 6,
-      "sha256": "7b4a6bed919ad2ff7eea30b90f59edc571c92bacbc39abc16860920a4067f08c"
+      "sha256": "432112bf26997b1633dc4a35dca1efd2597666f7655708463dc652d96b804117"
     },
     {
       "path": "website/docs/configuration/review-workflows/index.html",
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 26,
-      "sha256": "22c91b3d555267d7ae5b5a6b740a277e17c1f29fcf3b6e8a9110c7a1e2e6f6e9"
+      "sha256": "1930c6b2999267c6e9f121ad23c4a6d6592ed0311b95ead13743622376d6a040"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -261,7 +261,7 @@
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "section": "Guides",
       "chunks": 12,
-      "sha256": "8d34f57ff26af782149c896343f7170dce952598e8b9e008593334804edea33a"
+      "sha256": "9151d8bfb759c7e6b29cea588d194c4232341009adf1a00554b6524d87d49ddf"
     },
     {
       "path": "website/docs/guides/first-query/index.html",
@@ -380,8 +380,8 @@
       "title": "Deployment approval governance — gate every CI/CD release",
       "url": "https://accessflow.io/features/deployment-governance/",
       "section": "Features",
-      "chunks": 8,
-      "sha256": "4f21e72c9859b9677e2b4f3492fad889c0d0976ba2ab0f6fb298415e91a25cf1"
+      "chunks": 9,
+      "sha256": "fb9445946e3dac83f2177dca35dd5a679484af921e9c202a0212433d6f23b5ba"
     },
     {
       "path": "website/features/index.html",
@@ -389,7 +389,7 @@
       "url": "https://accessflow.io/features/",
       "section": "Features",
       "chunks": 17,
-      "sha256": "973cfa594a72d8ea526128afb5f9c3b623b262582f9f3d0af389f020dc248745"
+      "sha256": "bde2db396556e4c100354352c2936dfe91d73a93b43099c55c35dc0619a6dfae"
     },
     {
       "path": "website/index.html",
@@ -397,7 +397,7 @@
       "url": "https://accessflow.io/",
       "section": "Overview",
       "chunks": 19,
-      "sha256": "47f4c131679fca979388d540b8de729d4922b15f0948557f0ee2fca30dd6ec91"
+      "sha256": "61c04853c135f455f24c8abfb01ac1cf7c305e55f3ecb1d2893fcf85bc6bf715"
     },
     {
       "path": "website/security/index.html",

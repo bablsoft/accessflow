@@ -2047,6 +2047,8 @@ Sensitive `config` fields encrypted with AES-256-GCM and masked on read:
 
 ## query_tickets
 
+> See also [`deployment_tickets`](#deployment_tickets) — the deployment change-ticket sibling (#990), owned by `deploygov` rather than core, with one ticket per deployment per channel and a persisted `decision`.
+
 Tickets auto-created in an external ticketing system (ServiceNow incident / Jira issue, AF-453) for workflow events on a query, plus the state last synced back by the signed inbound webhook. Owned by the core module so both notifications (writer) and workflow (query-detail reader) can reach it without a module cycle.
 
 | Column | Type / Notes |
@@ -3144,7 +3146,7 @@ plus the state last synced back by the signed inbound webhook — the deployment
 read and written only through `deploygov.api.DeploymentTicketService`. Rows are written by the
 ticketing channels when they open a change ticket (#991, see
 [docs/08-notifications.md → Deployment change tickets](08-notifications.md#deployment-change-tickets-991));
-the inbound status sync (#992) and the gate that reads `decision` (#993) land in later sub-issues.
+the inbound status sync stamps `decision` (#992) and the deployment gate reads it (#993) — see below.
 
 | Column | Type / Notes |
 |--------|-------------|
