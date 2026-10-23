@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-10-21",
+      "dateModified": "2026-10-23",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -275,7 +275,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-10-21">21 October 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-10-23">23 October 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -1009,7 +1009,9 @@ APPROVED → FAILED (execution error)</pre>
             <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
             pipeline's settings page carries seven tabs. Alongside <strong>General</strong> and the
             <strong>CI setup</strong> snippet sit <strong>Environments</strong> (promotion
-            order, tags, required approvals, review-plan override, break-glass opt-in),
+            order, tags, required approvals, review-plan override, break-glass opt-in, and whether
+            releases wait for an approved
+            <a href="/docs/guides/deployment-approval/#guide-deployment-environments">change ticket</a>),
             <strong>Versions</strong> (which version each environment is running — see below),
             <strong>Permissions</strong> (per-user and per-group <code>can_trigger</code> /
             <code>can_break_glass</code> grants with an optional expiry — a user's effective grant is
@@ -1047,10 +1049,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-environments-dark.webp"
-                   alt="The Environments tab of a deployment pipeline settings page, listing ordered environments with their tags, required approval count, review requirement, review-plan override and break-glass opt-in."
+                   alt="The Environments tab of a deployment pipeline settings page, listing ordered environments with their tags, required approval count, review requirement, review-plan override, break-glass opt-in and change-ticket requirement."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override and break-glass opt-in, per environment.</figcaption>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override, break-glass opt-in and change-ticket requirement, per environment.</figcaption>
           </figure>
           <p>
             <strong>Environment tags.</strong> Each environment can carry short free-form

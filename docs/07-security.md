@@ -23,6 +23,7 @@ The `SecurityConfiguration` `permitAll()` list is short and intentional. Every o
 - `/api-docs/**`, `/swagger-ui/**`, `/actuator/health`, `/actuator/info` — docs + probes.
 - `/ws` — WebSocket upgrade (auth happens in `JwtHandshakeInterceptor`, not here).
 - `/api/v1/integrations/slack/actions`, `/api/v1/integrations/slack/commands` — inbound Slack callbacks. JWT-exempt because Slack cannot attach an `Authorization` header to these server-to-server posts; they are authenticated instead by the `X-Slack-Signature` HMAC inside the controller (see [Slack request verification](#slack-request-verification-af-362)). The self-service linking endpoints (`/api/v1/integrations/slack/link-codes`, `/api/v1/integrations/slack/link`) stay JWT-authenticated.
+- `/api/v1/integrations/servicenow/webhook/{channelId}`, `/api/v1/integrations/jira/webhook/{channelId}` — inbound ticket status callbacks (AF-453). JWT-exempt for the same reason; authenticated inside the controller by `X-AccessFlow-Signature: sha256=HMAC-SHA256(webhook_secret, "v1:{timestamp}:{rawBody}")` over the channel's encrypted secret, compared in constant time, with `X-AccessFlow-Timestamp` held to `accessflow.notifications.ticketing.signature-tolerance` (default `PT5M`) and a Redis replay guard (`TicketingReplayGuard`) refusing a second sighting of a signature. See [08-notifications.md → Ticketing inbound webhooks](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 ### Two-factor authentication (TOTP)
 
@@ -1745,6 +1746,19 @@ the freeze at submission. The rollback follow-up worklist
 (`/api/v1/deployment-rollback-reviews`) is JWT-side `PERM_DEPLOYMENT_REVIEW`, and the
 deployment's submitter can never acknowledge their own rollback — the same "never the submitter"
 rule as break-glass, enforced in the service.
+
+**Change tickets (epic #989).** A deployment's ServiceNow / Jira change ticket syncs back through
+the **same** inbound webhook as a query ticket — same endpoint, HMAC signature, timestamp
+tolerance, replay guard and JWT exemption; the `external_id` is matched against query tickets
+first, then deployment tickets. The gate's change-ticket conjunct reads only the persisted
+`deployment_tickets.decision`, never live channel configuration, and fails closed (no ticket,
+an unresolved ticket or a lookup error is *not releasable*). One control boundary is documented
+rather than enforced: the callback's `actor` is free text that AccessFlow cannot map to a user, so
+**the never-approve-your-own-request rule does not cover a ticket approval** — a submitter who
+approves their own change ticket is not stopped. The actor is recorded in the audit row; the
+compensating control is `bidirectional_sync = false` on the channel, under which a ticket can
+satisfy the gate but only an AccessFlow reviewer decides the deployment. See
+[18-deployment-governance.md → 7. Change tickets](18-deployment-governance.md#7-change-tickets-epic-989).
 
 ---
 

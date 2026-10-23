@@ -8988,8 +8988,8 @@ land on, validated through the org-scoped datasource lookup so a missing or cros
 DATASOURCE_NOT_FOUND`; `null` = deploy-only — #877), and — #741 — `tags` (string array, ≤10 tags
 of ≤32 chars each; free-form labels with no fixed semantics — customer, region, tier. The service
 trims, drops blanks and de-duplicates), and — #990 — `changeTicketRequired` (default `false`;
-marks an environment whose deployments must carry an approved external change ticket — stored
-only for now, the gate does not read it yet). Environment responses include `tags`,
+marks an environment whose deployments must carry an approved external change ticket — since
+#993 the gate refuses to release until one is linked; see "Deployment gate" below). Environment responses include `tags`,
 `datasourceId` and `changeTicketRequired`; on the update body `changeTicketRequired = null` (or
 omitted) leaves it unchanged.
 On the **update** body `tags = null` (or omitted) leaves the tag list unchanged; an explicit `[]`

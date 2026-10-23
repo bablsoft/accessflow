@@ -391,7 +391,7 @@ connector, carrying the simulated user, the AI outcome, the risk level and the s
 deliberately no request path, headers or body.
 
 Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#decision-traces-for-api-calls-and-deployments-af-967).
-The deployment sibling is [§10 of docs/18](18-deployment-governance.md#10-decision-trace-af-967);
+The deployment sibling is [§11 of docs/18](18-deployment-governance.md#11-decision-trace-af-967);
 the query one is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
 
 ---
