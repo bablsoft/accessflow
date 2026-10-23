@@ -129,6 +129,17 @@ class DefaultDeploymentNotificationLookupService implements DeploymentNotificati
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findDecidedReviewerUserIds(UUID deploymentRequestId) {
+        return decisionRepository
+                .findByDeploymentRequestIdOrderByStageAscDecidedAtAsc(deploymentRequestId)
+                .stream()
+                .map(d -> d.getReviewerId())
+                .distinct()
+                .toList();
+    }
+
     /** The environment's plan override wins over the pipeline's — same rule as review/routing. */
     private ReviewPlanSnapshot resolvePlan(DeploymentRequestEntity request) {
         var pipeline = pipelineRepository.findById(request.getPipelineId()).orElse(null);

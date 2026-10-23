@@ -3021,6 +3021,7 @@
       "fallback": "Neue Benachrichtigung",
       "REVIEW_ESCALATED": "Noch keine Entscheidung zu {{datasource}} — an Sie eskaliert",
       "REVIEW_NUDGE": "Erinnerung: Eine Abfrage zu {{datasource}} wartet auf Ihre Prüfung",
+      "REVIEW_NUDGE_deployment": "Erinnerung: Ein Deployment auf {{pipeline}} wartet auf Ihre Prüfung",
       "SENSITIVE_RESULT_EXPORTED": "Sensible Daten ({{classifications}}) aus {{datasource}} exportiert",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} hat ein Deployment von {{version}} nach {{environment}} auf {{pipeline}} eingereicht",
       "DEPLOYMENT_SUBMITTED_no_submitter": "Neues Deployment wartet auf Prüfung auf {{pipeline}}",

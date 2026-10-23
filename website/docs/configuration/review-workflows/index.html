@@ -453,6 +453,15 @@ APPROVED → FAILED (execution error)</pre>
             recorded on the request group and nothing more — no notification and no queue badge
             yet, since grouped requests have no notification path at all.
           </p>
+          <p>
+            <strong>Deployments</strong> use the review plan set on the target environment, or the
+            pipeline's when the environment has none. An idle deployment review is escalated to the
+            reviewers who have not decided plus your organization's admins, and reminders reach those
+            reviewers alone &mdash; never the person who triggered the deployment. Both arrive in
+            the in-app bell and on every active notification channel of the organization, but not by
+            email. As with other requests, only an escalation pages, and only on PagerDuty channels
+            that enable the <code>REVIEW_STALLED</code> trigger; neither opens a ticket.
+          </p>
         </section>
 
 <section class="docs-section">
@@ -1147,7 +1156,10 @@ APPROVED → FAILED (execution error)</pre>
             deployments awaiting review are checked against their review plan's approval timeout,
             default <code>PT5M</code>) and <code>ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK</code> (how often
             approved deployments are scanned to announce that they have become releasable, default
-            <code>PT1M</code>). Every transition lands in the
+            <code>PT1M</code>) and <code>ACCESSFLOW_DEPLOYGOV_ESCALATION_POLL_INTERVAL</code> (how
+            often idle deployment reviews are checked for
+            <a href="#cfg-review-escalation">escalation and reminders</a>, default
+            <code>PT5M</code>). Every transition lands in the
             <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
           </p>
         </section>

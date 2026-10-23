@@ -3021,6 +3021,7 @@
       "fallback": "Новое уведомление",
       "REVIEW_ESCALATED": "Решения по {{datasource}} всё ещё нет — передано вам",
       "REVIEW_NUDGE": "Напоминание: запрос к {{datasource}} ждёт вашей проверки",
+      "REVIEW_NUDGE_deployment": "Напоминание: развертывание на {{pipeline}} ждёт вашей проверки",
       "SENSITIVE_RESULT_EXPORTED": "Чувствительные данные ({{classifications}}) экспортированы из {{datasource}}",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} отправил развертывание {{version}} в {{environment}} на {{pipeline}}",
       "DEPLOYMENT_SUBMITTED_no_submitter": "Новое развертывание ожидает проверки на {{pipeline}}",

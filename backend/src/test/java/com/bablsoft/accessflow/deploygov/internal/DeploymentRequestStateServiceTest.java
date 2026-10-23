@@ -1,9 +1,13 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
@@ -17,14 +21,20 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -299,6 +309,87 @@ class DeploymentRequestStateServiceTest {
 
         assertThatThrownBy(() -> service.markTimedOut(id))
                 .isInstanceOf(DeploymentRequestNotFoundException.class);
+    }
+
+    @Test
+    void markEscalatedStampsAuditsAndPublishesOnce() {
+        var entity = request(QueryStatus.PENDING_REVIEW);
+        when(repository.findByIdForUpdate(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markEscalated(entity.getId(), NOW)).isTrue();
+
+        assertThat(entity.getEscalatedAt()).isEqualTo(NOW);
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        verify(repository).save(entity);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_REVIEW_ESCALATED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(entity.getId()),
+                eq(entity.getOrganizationId()), isNull(),
+                eq(Map.of("trigger", "escalation", "pipeline_id",
+                        entity.getPipelineId().toString())),
+                isNull());
+        verify(eventPublisher).publishEvent(new DeploymentReviewEscalatedEvent(entity.getId()));
+
+        // A second pass (another replica, the next tick) finds the stamp and does nothing.
+        assertThat(service.markEscalated(entity.getId(), NOW.plusSeconds(300))).isFalse();
+        assertThat(entity.getEscalatedAt()).isEqualTo(NOW);
+        verify(repository).save(entity);
+        verify(eventPublisher).publishEvent(any(DeploymentReviewEscalatedEvent.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"APPROVED", "REJECTED", "TIMED_OUT", "CANCELLED", "PENDING_AI"})
+    void markEscalatedIsANoOpOnceTheRequestLeftReview(QueryStatus status) {
+        var entity = request(status);
+        when(repository.findByIdForUpdate(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markEscalated(entity.getId(), NOW)).isFalse();
+
+        assertThat(entity.getEscalatedAt()).isNull();
+        verify(repository, never()).save(any());
+        verifyNoInteractions(auditWriter, eventPublisher);
+    }
+
+    @Test
+    void markEscalatedIsANoOpForAMissingRow() {
+        var id = UUID.randomUUID();
+        when(repository.findByIdForUpdate(id)).thenReturn(Optional.empty());
+
+        assertThat(service.markEscalated(id, NOW)).isFalse();
+        assertThat(service.markNudged(id, NOW)).isFalse();
+        verifyNoInteractions(auditWriter, eventPublisher);
+    }
+
+    @Test
+    void markNudgedStampsEveryTimeWhileInReview() {
+        var entity = request(QueryStatus.PENDING_REVIEW);
+        entity.setEscalatedAt(NOW.minusSeconds(3600));
+        when(repository.findByIdForUpdate(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markNudged(entity.getId(), NOW)).isTrue();
+        assertThat(entity.getLastNudgedAt()).isEqualTo(NOW);
+        assertThat(service.markNudged(entity.getId(), NOW.plusSeconds(3600))).isTrue();
+        assertThat(entity.getLastNudgedAt()).isEqualTo(NOW.plusSeconds(3600));
+
+        verify(auditWriter, times(2)).record(
+                eq(AuditAction.DEPLOYMENT_REVIEW_NUDGED), eq(AuditResourceType.DEPLOYMENT_REQUEST),
+                eq(entity.getId()), eq(entity.getOrganizationId()), isNull(),
+                eq(Map.of("trigger", "nudge", "pipeline_id", entity.getPipelineId().toString())),
+                isNull());
+        verify(eventPublisher, times(2))
+                .publishEvent(new DeploymentReviewNudgedEvent(entity.getId()));
+    }
+
+    @Test
+    void markNudgedIsANoOpAfterADecision() {
+        var entity = request(QueryStatus.APPROVED);
+        when(repository.findByIdForUpdate(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markNudged(entity.getId(), NOW)).isFalse();
+
+        assertThat(entity.getLastNudgedAt()).isNull();
+        verify(repository, never()).save(any());
+        verify(auditWriter, never()).record(any(), any(), any(), any(), any(), anyMap(), any());
+        verifyNoInteractions(eventPublisher);
     }
 
     private static DeploymentRequestEntity request(QueryStatus status) {

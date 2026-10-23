@@ -3021,6 +3021,7 @@
       "fallback": "Nueva notificación",
       "REVIEW_ESCALATED": "Aún sin decisión sobre {{datasource}}: escalado a ti",
       "REVIEW_NUDGE": "Recordatorio: una consulta en {{datasource}} espera tu revisión",
+      "REVIEW_NUDGE_deployment": "Recordatorio: un despliegue en {{pipeline}} espera tu revisión",
       "SENSITIVE_RESULT_EXPORTED": "Datos sensibles ({{classifications}}) exportados desde {{datasource}}",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} envió un despliegue de {{version}} a {{environment}} en {{pipeline}}",
       "DEPLOYMENT_SUBMITTED_no_submitter": "Nuevo despliegue esperando revisión en {{pipeline}}",

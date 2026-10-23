@@ -517,6 +517,11 @@ accessflow:
     # became releasable (HOLD freeze ended, scheduled_for arrived) and announces each one once via
     # DeploymentReleasableEvent. ShedLock makes this safe under horizontal scaling.
     release-check: ${ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK:PT1M}
+    # How often DeploymentReviewEscalationJob (#985) escalates PENDING_REVIEW deployment requests
+    # idle past their resolved review plan's escalation_after_hours and re-nudges undecided
+    # reviewers on nudge_interval_hours. Notify-only. ShedLock makes this safe under horizontal
+    # scaling.
+    escalation-poll-interval: ${ACCESSFLOW_DEPLOYGOV_ESCALATION_POLL_INTERVAL:PT5M}
   sqlreview:
     # How long an organization's custom SQL review rules (#1009) are cached before they are re-read.
     # An edit evicts the cache at once on the replica that made it; this bounds how long the other

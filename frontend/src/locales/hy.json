@@ -3021,6 +3021,7 @@
       "fallback": "Նոր ծանուցում",
       "REVIEW_ESCALATED": "{{datasource}}-ի համար դեռ որոշում չկա — բարձրացվել է Ձեզ",
       "REVIEW_NUDGE": "Հիշեցում. {{datasource}}-ի հարցումը սպասում է Ձեր ստուգմանը",
+      "REVIEW_NUDGE_deployment": "Հիշեցում. {{pipeline}}-ի տեղակայումը սպասում է Ձեր ստուգմանը",
       "SENSITIVE_RESULT_EXPORTED": "Զգայուն տվյալներ ({{classifications}}) արտահանվել են {{datasource}}-ից",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} ներկայացրեց {{version}}-ի տեղակայում դեպի {{environment}}՝ {{pipeline}} փիփլայնում",
       "DEPLOYMENT_SUBMITTED_no_submitter": "Նոր տեղակայում սպասում է վերանայման {{pipeline}}-ում",

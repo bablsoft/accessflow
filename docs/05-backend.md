@@ -2538,6 +2538,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ReviewEscalationJob` | workflow | `reviewEscalationJob` | `accessflow.workflow.escalation-poll-interval` | `PT5M` |
 | `ApiReviewEscalationJob` | apigov | `apiReviewEscalationJob` | `accessflow.apigov.escalation-poll-interval` | `PT5M` |
 | `GroupReviewEscalationJob` | requestgroups | `groupReviewEscalationJob` | `accessflow.requestgroups.escalation-poll-interval` | `PT5M` |
+| `DeploymentReviewEscalationJob` | deploygov | `deploymentReviewEscalationJob` | `accessflow.deploygov.escalation-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
 | `RecurringQueryRunJob` | workflow | `recurringQueryRunJob` | `accessflow.workflow.recurring-run-poll-interval` | `PT1M` |
 | `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
@@ -2628,9 +2629,10 @@ the `scheduling` module; no job class is touched, and the only new module edge i
 
 Until a request is decided, the only thing that ever happened to it was the hard
 `approval_timeout_hours` auto-reject — so a stalled approval chain was silent right up to the point
-the submitter was rejected. Three jobs close that gap, one per request type because each table is
+the submitter was rejected. Four jobs close that gap, one per request type because each table is
 owned by a different module (the same reason `ApiRequestTimeoutJob` sits beside `QueryTimeoutJob`):
-`ReviewEscalationJob`, `ApiReviewEscalationJob`, `GroupReviewEscalationJob`.
+`ReviewEscalationJob`, `ApiReviewEscalationJob`, `GroupReviewEscalationJob`, and
+`DeploymentReviewEscalationJob` (#985).
 
 Each pass does two things against the request's review plan: **escalate** once past
 `escalation_after_hours`, and **nudge** undecided reviewers every `nudge_interval_hours`. Both
@@ -2671,7 +2673,22 @@ query-shaped mail with an empty SQL-preview block. Note the pre-existing consequ
 channels are resolved by *datasource*, an API-request context resolves none, so those escalations
 reach the in-app bell and the system-SMTP fallback but not a configured Slack/PagerDuty channel.
 
-All three jobs inject `java.time.Clock` rather than calling `Instant.now()`, per
+**Deployment reviews (#985)** resolve the plan the way the timeout does — the environment's
+`review_plan_id`, else the pipeline's — and stamp `deployment_requests.escalated_at` /
+`last_nudged_at` through `DeploymentRequestStateService.markEscalated` / `markNudged`, each writing a
+system audit row (`DEPLOYMENT_REVIEW_ESCALATED` / `DEPLOYMENT_REVIEW_NUDGED`, null actor,
+`trigger=escalation|nudge`). Deployment review is single-stage, so "the stage that is blocked" is
+simply the eligible reviewers (`DeploymentNotificationLookupService.findEligibleReviewerUserIds`)
+minus anyone who already recorded a decision (`findDecidedReviewerUserIds`); an escalation adds
+every active org admin, and the submitter is never a recipient of either. The context builder
+spells both types out — its `deploymentRecipients` switch's `default` is the submitter, so falling
+through would send the reminder to exactly the wrong person. Like every deployment event they fan
+out to **all active org channels** (a pipeline has no plan-channel binding, and a lookup by the
+pipeline id would find nothing), so PagerDuty's `REVIEW_STALLED` pages for a stalled deployment
+too. And like API requests they **do not email**: the two templates are query-shaped, so
+`EmailNotificationStrategy` skips them on a deployment context.
+
+All four jobs inject `java.time.Clock` rather than calling `Instant.now()`, per
 `.claude/patterns/scheduled-job.md`. `QueryTimeoutJob` and `ScheduledQueryRunJob` predate that rule
 and still deviate, which is precisely why their "is it due yet" logic cannot be unit-tested.
 

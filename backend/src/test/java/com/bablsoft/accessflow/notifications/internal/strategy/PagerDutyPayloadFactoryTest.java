@@ -115,6 +115,20 @@ class PagerDutyPayloadFactoryTest {
                 .isNotEqualTo(risk.get("dedup_key").asString());
     }
 
+    /** #985: a stalled deployment review pages through REVIEW_STALLED and names the pipeline. */
+    @Test
+    void stalledDeploymentReviewSummaryNamesThePipelineNotAQuery() {
+        var config = new PagerDutyChannelConfig("k", PagerDutySeverity.CRITICAL,
+                EnumSet.of(PagerDutyTrigger.REVIEW_STALLED));
+
+        var tree = objectMapper.readTree(factory.buildEventBody(
+                deploymentContext(NotificationEventType.REVIEW_ESCALATED, UUID.randomUUID()),
+                config));
+
+        assertThat(tree.get("payload").get("summary").asString())
+                .isEqualTo("AccessFlow: a deployment on pipeline payments has had no review decision");
+    }
+
     /** #695: the only deployment event that can page must not read "for a query". */
     @Test
     void deploymentBreakGlassSummaryNamesThePipelineNotAQuery() {
@@ -167,8 +181,14 @@ class PagerDutyPayloadFactoryTest {
     }
 
     private NotificationContext deploymentContext(UUID deploymentRequestId) {
+        return deploymentContext(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                deploymentRequestId);
+    }
+
+    private NotificationContext deploymentContext(NotificationEventType eventType,
+                                                  UUID deploymentRequestId) {
         return new NotificationContext(
-                NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                eventType,
                 orgId,
                 null,
                 null, null, null, null,

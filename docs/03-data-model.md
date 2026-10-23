@@ -1954,6 +1954,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DEPLOYMENT_SUBMITTED` | A governed deployment is triggered (#695). Resource: `deployment_request`. Actor = the submitter, `ip_address` = the trigger's caller IP. Metadata: `pipeline_id`, `environment`, `version`. Written for every non-replay, non-break-glass submission — including ones a freeze window rejects a moment later. |
 | `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | A deployment decision lands (#695). Reviewer verdicts are written at the controller with the caller's IP + user-agent, one row per decision (before quorum, mirroring apigov). System decisions carry a **null actor** and a `trigger` naming the mechanism: `routing` (+ `policy_id`), `freeze` (+ `freeze_window_id`), `ticket` (+ `ticket_system`, `external_key`, `channel_id`, `actor` — a synced ServiceNow / Jira change ticket decided it, #992), or `environment_policy` (approved because the environment needs no review). Resource: `deployment_request`. |
 | `DEPLOYMENT_TIMED_OUT` | The review timeout auto-rejected a deployment past its window (#695, via `DeploymentTimeoutJob`). Resource: `deployment_request`. Null actor; metadata `trigger: "timeout"`, `pipeline_id`, `version`. |
+| `DEPLOYMENT_REVIEW_ESCALATED` / `DEPLOYMENT_REVIEW_NUDGED` | `DeploymentReviewEscalationJob` escalated a deployment review idle past its plan's `escalation_after_hours`, or re-nudged its undecided reviewers on `nudge_interval_hours` (#985). Resource: `deployment_request`. Null actor; metadata `trigger: "escalation"` / `"nudge"`, `pipeline_id`. Notify-only — written once per stamp of `escalated_at` / `last_nudged_at`. |
 | `DEPLOYMENT_CANCELLED` | The submitter cancelled a pending or scheduled-approved deployment (#695). Resource: `deployment_request`. Written at the controller with IP + user-agent, only after the service accepted the cancel. |
 | `HELP_AGENT_CONFIG_UPDATED` | An admin saved the in-app help agent's settings (#901). Resource: `help_agent_config`. Metadata carries only what changed: `enabled`, `ai_config_bound` (plus `ai_config_id` when it is bound — audit metadata rejects null values, so an unbind reads as the flag going false), `retrieval_enabled`, `retention_days`, `send_user_context`. |
 | `SCHEMA_CHANGE_PROMOTION_SUBMITTED` | A schema change set was promoted to an environment (#880). Resource: `schema_change_promotion`. Actor = the promoter, with the request's IP + user-agent. Metadata: `change_set_id`, `environment_id`, `environment_name`, `datasource_id`, `request_group_id`, `statement_count`, `statements_checksum`. Written only after every gate check passed and the row was persisted. |
@@ -3026,6 +3027,7 @@ collision.
 | `outcome_reported_at` / `outcome_detail` | — | |
 | `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows — including those a `FAILED` outcome later flipped to `FAILED` — were backfilled with `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time. |
 | `review_started_at` | TIMESTAMPTZ | Nullable (V203, #984) — stamped by the state service on entry to `PENDING_REVIEW` (only reachable from `PENDING_AI`), off the same `Clock` as `executed_at`; a redelivered transition never restamps. The approval-latency and timeout-rate axis of the deployment metrics. **No backfill**: the instant is unknown for older rows, which the metrics treat as described in `docs/04-api-spec.md` → "Deployment metrics". |
+| `escalated_at` / `last_nudged_at` | TIMESTAMPTZ | Nullable (V204, #985) — the idle-reviewer cursors of `DeploymentReviewEscalationJob`, mirroring `query_requests` / `api_requests` (V144, #622). `escalated_at` is stamped once when the request has sat in `PENDING_REVIEW` past its resolved plan's `escalation_after_hours`; `last_nudged_at` on every `nudge_interval_hours` reminder. Both clocks run from `created_at`, the same baseline as the timeout. Notify-only — nothing on the eligibility or decision path reads them. |
 | `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
@@ -3037,7 +3039,10 @@ AND scheduled_for IS NOT NULL` backing the deferred-run scan, a partial
 `idx_deployment_requests_release_scan` on `(scheduled_for) WHERE status = 'APPROVED' AND
 release_notified_at IS NULL` (V154) backing the release-announcement scan, a partial
 `idx_deployment_requests_executed_versions` on `(pipeline_id, version) WHERE executed_at IS NOT
-NULL` (V157) backing the #742 grouped drift projection, and the **partial
+NULL` (V157) backing the #742 grouped drift projection, the partials
+`idx_deployment_requests_escalation_scan` on `(created_at) WHERE status = 'PENDING_REVIEW' AND
+escalated_at IS NULL` and `idx_deployment_requests_nudge_scan` on `(created_at) WHERE status =
+'PENDING_REVIEW'` (V204) backing the #985 escalation and nudge scans, and the **partial
 unique** `uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version,
 external_run_id) WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates
 a second request.

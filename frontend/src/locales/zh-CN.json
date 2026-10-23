@@ -3021,6 +3021,7 @@
       "fallback": "新通知",
       "REVIEW_ESCALATED": "{{datasource}} 上的请求仍未处理 — 已升级给您",
       "REVIEW_NUDGE": "提醒：{{datasource}} 上的查询等待您审核",
+      "REVIEW_NUDGE_deployment": "提醒：{{pipeline}} 上的部署等待您审核",
       "SENSITIVE_RESULT_EXPORTED": "敏感数据（{{classifications}}）已从 {{datasource}} 导出",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} 在 {{pipeline}} 上提交了到 {{environment}} 的 {{version}} 部署",
       "DEPLOYMENT_SUBMITTED_no_submitter": "{{pipeline}} 上有新的部署等待审核",

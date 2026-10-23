@@ -187,8 +187,11 @@ class PagerDutyPayloadFactory {
             // #622: distinct from QUERY_ESCALATED — this one means nobody decided in time.
             // (REVIEW_NUDGE has no PagerDutyTrigger and so never reaches here: a reminder is not
             // an incident.)
-            case REVIEW_ESCALATED ->
-                    "AccessFlow: a query on " + datasource + " has had no review decision";
+            // #985: a deployment review escalates through the same type; datasource is the pipeline.
+            case REVIEW_ESCALATED -> ctx.deploymentRequestId() != null
+                    ? "AccessFlow: a deployment on pipeline " + datasource
+                            + " has had no review decision"
+                    : "AccessFlow: a query on " + datasource + " has had no review decision";
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
             case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             case BREAK_GLASS_EXECUTED -> "AccessFlow: break-glass query executed on " + datasource;

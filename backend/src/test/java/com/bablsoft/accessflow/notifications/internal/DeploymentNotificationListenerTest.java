@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.events.DeploymentBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,5 +133,19 @@ class DeploymentNotificationListenerTest {
         verify(dispatcher, never()).dispatchDeployment(
                 org.mockito.ArgumentMatchers.eq(NotificationEventType.DEPLOYMENT_APPROVED),
                 any(), any(), any());
+    }
+
+    @Test
+    void reviewEscalationReusesTheSharedEventType() {
+        listener.onReviewEscalated(new DeploymentReviewEscalatedEvent(requestId));
+        verify(dispatcher).dispatchDeployment(NotificationEventType.REVIEW_ESCALATED, requestId,
+                null, null);
+    }
+
+    @Test
+    void reviewNudgeReusesTheSharedEventType() {
+        listener.onReviewNudged(new DeploymentReviewNudgedEvent(requestId));
+        verify(dispatcher).dispatchDeployment(NotificationEventType.REVIEW_NUDGE, requestId,
+                null, null);
     }
 }

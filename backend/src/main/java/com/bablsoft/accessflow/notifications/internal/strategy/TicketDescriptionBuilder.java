@@ -24,7 +24,7 @@ final class TicketDescriptionBuilder {
             case QUERY_REJECTED -> "Query rejected on " + datasource;
             case QUERY_ESCALATED -> "Query escalated for review on " + datasource;
             case REVIEW_ESCALATED -> "Review escalated — no decision yet on " + datasource;
-            case REVIEW_NUDGE -> "Reminder: query awaiting review on " + datasource;
+            case REVIEW_NUDGE -> "Reminder: request awaiting review on " + datasource;
             case REVIEW_TIMEOUT -> "Query review timed out on " + datasource;
             // #882: no TicketingTrigger maps these, so they never open a ticket today — spelled out
             // so one added later renders a real headline rather than the enum name.

@@ -3021,6 +3021,7 @@
       "fallback": "New notification",
       "REVIEW_ESCALATED": "No decision yet on {{datasource}} — escalated to you",
       "REVIEW_NUDGE": "Reminder: a query on {{datasource}} awaits your review",
+      "REVIEW_NUDGE_deployment": "Reminder: a deployment on {{pipeline}} awaits your review",
       "SENSITIVE_RESULT_EXPORTED": "Sensitive data ({{classifications}}) exported from {{datasource}}",
       "DEPLOYMENT_SUBMITTED": "{{submitter}} submitted a deployment of {{version}} to {{environment}} on {{pipeline}}",
       "DEPLOYMENT_SUBMITTED_no_submitter": "New deployment awaiting review on {{pipeline}}",

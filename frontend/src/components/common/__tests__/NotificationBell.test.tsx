@@ -168,6 +168,41 @@ describe('NotificationBell', () => {
     },
   );
 
+  it.each([
+    ['REVIEW_ESCALATED' as const, /No decision yet on payments-pipeline/],
+    ['REVIEW_NUDGE' as const, /Reminder: a deployment on payments-pipeline awaits your review/],
+  ])(
+    'renders a deployment %s and routes it to the deployments tab (#985)',
+    async (eventType, expectedText) => {
+      fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+      markNotificationReadMock.mockResolvedValue(undefined);
+      listNotificationsMock.mockResolvedValue(
+        page([
+          {
+            id: 'n-dep',
+            event_type: eventType,
+            query_request_id: null,
+            api_request_id: null,
+            deployment_request_id: 'd-31',
+            payload: { datasource: 'payments-pipeline' },
+            read: false,
+            created_at: new Date().toISOString(),
+            read_at: null,
+          },
+        ]),
+      );
+
+      render(wrap(<NotificationBell />));
+      fireEvent.click(screen.getByLabelText('Notifications'));
+      const text = await screen.findByText(expectedText);
+      const row = text.closest('.ant-list-item');
+      if (!row) throw new Error('list row not found');
+      fireEvent.click(row);
+
+      await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/reviews?tab=deployments'));
+    },
+  );
+
   it('clicking an unread row marks it read and navigates to the linked query', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });
     markNotificationReadMock.mockResolvedValue(undefined);

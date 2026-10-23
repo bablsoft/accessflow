@@ -28,4 +28,11 @@ public interface DeploymentNotificationLookupService {
 
     /** The reviewers who granted the deployment — an APPROVED review decision on the request. */
     List<UUID> findApproverUserIds(UUID deploymentRequestId);
+
+    /**
+     * Every reviewer who has recorded a decision of any kind on the request (#985) — the set a
+     * review nudge or escalation subtracts from the eligible reviewers, so only the people the
+     * deployment is still waiting on are reminded.
+     */
+    List<UUID> findDecidedReviewerUserIds(UUID deploymentRequestId);
 }
