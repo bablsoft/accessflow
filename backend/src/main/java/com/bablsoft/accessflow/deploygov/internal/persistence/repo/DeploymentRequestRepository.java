@@ -100,6 +100,36 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
     List<UUID> findStalePendingReviewIds(@Param("now") Instant now);
 
     /**
+     * Escalation scan (#985): {@code PENDING_REVIEW} requests past their resolved plan's
+     * {@code escalation_after_hours}, not yet escalated. Same plan resolution and clock
+     * ({@code created_at}) as {@link #findStalePendingReviewIds}, so escalation precedes the timeout.
+     */
+    @Query(value = """
+            SELECT r.id FROM deployment_requests r
+            JOIN deployment_environments e ON e.id = r.environment_id
+            JOIN deployment_pipelines p ON p.id = r.pipeline_id
+            JOIN review_plans rp ON rp.id = COALESCE(e.review_plan_id, p.review_plan_id)
+            WHERE r.status = 'PENDING_REVIEW'::query_status
+              AND r.escalated_at IS NULL
+              AND rp.escalation_after_hours IS NOT NULL
+              AND r.created_at + (rp.escalation_after_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findEscalationDueIds(@Param("now") Instant now);
+
+    /** Nudge scan (#985): requests due a reminder on their resolved plan's nudge cadence. */
+    @Query(value = """
+            SELECT r.id FROM deployment_requests r
+            JOIN deployment_environments e ON e.id = r.environment_id
+            JOIN deployment_pipelines p ON p.id = r.pipeline_id
+            JOIN review_plans rp ON rp.id = COALESCE(e.review_plan_id, p.review_plan_id)
+            WHERE r.status = 'PENDING_REVIEW'::query_status
+              AND rp.nudge_interval_hours IS NOT NULL
+              AND COALESCE(r.last_nudged_at, r.created_at)
+                  + (rp.nudge_interval_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findNudgeDueIds(@Param("now") Instant now);
+
+    /**
      * Release-announcement scan (#693): {@code APPROVED} requests not yet announced whose
      * scheduled moment (if any) has passed. Backed by the partial index
      * {@code idx_deployment_requests_release_scan} (V154); the per-row freeze evaluation happens in

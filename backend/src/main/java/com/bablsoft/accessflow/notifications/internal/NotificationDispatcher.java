@@ -396,6 +396,9 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.DEPLOYMENT_REJECTED
                 || eventType == NotificationEventType.DEPLOYMENT_OUTCOME_FAILED
                 || eventType == NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED
+                // #985: the shared REVIEW_ESCALATED / REVIEW_NUDGE on a deployment carry the
+                // pipeline in datasourceId, so they fan out org-wide like every deployment event.
+                || ctx.deploymentRequestId() != null
                 // #882: schema-change events carry the pipeline, not a datasource, in datasourceId
                 // — a plan-channel lookup would find nothing, so they fan out org-wide too.
                 || eventType == NotificationEventType.SCHEMA_CHANGE_PROMOTION_SUBMITTED

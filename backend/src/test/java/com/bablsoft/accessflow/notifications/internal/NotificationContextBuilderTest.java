@@ -697,6 +697,79 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void deploymentNudgeRemindsOnlyTheUndecidedEligibleReviewers() {
+        var deploymentRequestId = UUID.randomUUID();
+        var undecided = user(UUID.randomUUID(), "waiting@example.com", UserRoleType.REVIEWER);
+        var decided = user(UUID.randomUUID(), "done@example.com", UserRoleType.REVIEWER);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(deploymentLookup.findEligibleReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(undecided.id(), decided.id(), submitterId));
+        when(deploymentLookup.findDecidedReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(decided.id()));
+        when(userQuery.findByIds(List.of(undecided.id()))).thenReturn(List.of(undecided));
+
+        var ctx = builder.buildDeployment(NotificationEventType.REVIEW_NUDGE,
+                deploymentRequestId, null, null).orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(undecided.id());
+        assertThat(ctx.deploymentRequestId()).isEqualTo(deploymentRequestId);
+    }
+
+    @Test
+    void deploymentEscalationAddsActiveAdminsButNeverTheSubmitter() {
+        var deploymentRequestId = UUID.randomUUID();
+        var undecided = user(UUID.randomUUID(), "waiting@example.com", UserRoleType.REVIEWER);
+        var decided = user(UUID.randomUUID(), "done@example.com", UserRoleType.REVIEWER);
+        var admin = user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN);
+        var inactiveAdmin = new UserView(UUID.randomUUID(), "gone@example.com", "Gone",
+                UserRoleType.ADMIN, orgId, false, AuthProviderType.LOCAL,
+                "h", null, null, false, Instant.now());
+        // The submitter is an admin here, and must still not be told about their own deployment.
+        var submitterAdmin = user(submitterId, "dev@example.com", UserRoleType.ADMIN);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(submitterAdmin));
+        when(deploymentLookup.findEligibleReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(undecided.id(), decided.id()));
+        when(deploymentLookup.findDecidedReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(decided.id()));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin, inactiveAdmin, submitterAdmin));
+        when(userQuery.findByIds(List.of(undecided.id(), admin.id(), inactiveAdmin.id())))
+                .thenReturn(List.of(undecided, admin, inactiveAdmin));
+
+        var ctx = builder.buildDeployment(NotificationEventType.REVIEW_ESCALATED,
+                deploymentRequestId, null, null).orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(undecided.id(), admin.id())
+                .doesNotContain(submitterId, decided.id());
+    }
+
+    @Test
+    void deploymentNudgeWithEveryoneDecidedNotifiesNobody() {
+        var deploymentRequestId = UUID.randomUUID();
+        var reviewer = UUID.randomUUID();
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(deploymentLookup.findEligibleReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(reviewer));
+        when(deploymentLookup.findDecidedReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(reviewer));
+
+        var ctx = builder.buildDeployment(NotificationEventType.REVIEW_NUDGE,
+                deploymentRequestId, null, null).orElseThrow();
+
+        assertThat(ctx.recipients()).isEmpty();
+    }
+
+    @Test
     void buildDeploymentEmptyWhenRequestMissing() {
         var deploymentRequestId = UUID.randomUUID();
         when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.empty());

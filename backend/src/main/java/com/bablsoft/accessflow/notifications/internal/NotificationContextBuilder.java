@@ -45,6 +45,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -510,7 +511,9 @@ class NotificationContextBuilder {
      * {@code justification}, and the run provenance / change-ticket inputs in {@code deployment}
      * (#991). {@code reviewUrl} deep-links the deployment detail page.
      * SUBMITTED fans out to the eligible reviewers, OUTCOME_FAILED to the reviewers who approved,
-     * BREAK_GLASS_EXECUTED to every active org admin, and APPROVED/REJECTED to the submitter.
+     * BREAK_GLASS_EXECUTED to every active org admin, REVIEW_NUDGE to the eligible reviewers who
+     * have not decided, REVIEW_ESCALATED to those plus every active org admin (#985, never the
+     * submitter), and APPROVED/REJECTED to the submitter.
      */
     Optional<NotificationContext> buildDeployment(NotificationEventType eventType,
                                                   UUID deploymentRequestId,
@@ -569,6 +572,17 @@ class NotificationContextBuilder {
             // The reviewers who granted the deployment learn it failed or was rolled back.
             case DEPLOYMENT_OUTCOME_FAILED -> toActiveRecipients(
                     deploymentNotificationLookupService.findApproverUserIds(view.id()));
+            // #985: a nudge reminds the eligible reviewers who have not decided yet; an escalation
+            // adds every active org admin, because the point is that those reviewers did not act.
+            // Notify-only — neither widens who may decide, and the submitter is never included.
+            case REVIEW_NUDGE -> toActiveRecipients(undecidedDeploymentReviewers(view));
+            case REVIEW_ESCALATED -> {
+                var ids = new LinkedHashSet<>(undecidedDeploymentReviewers(view));
+                userQueryService.findByOrganizationAndRole(view.organizationId(), UserRoleType.ADMIN)
+                        .forEach(admin -> ids.add(admin.id()));
+                ids.remove(view.submittedByUserId());
+                yield toActiveRecipients(List.copyOf(ids));
+            }
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> userQueryService
                     .findByOrganizationAndRole(view.organizationId(), UserRoleType.ADMIN)
                     .stream()
@@ -580,6 +594,15 @@ class NotificationContextBuilder {
                     .map(u -> List.of(toRecipient(u)))
                     .orElse(List.of());
         };
+    }
+
+    private List<UUID> undecidedDeploymentReviewers(DeploymentNotificationView view) {
+        var decided = Set.copyOf(
+                deploymentNotificationLookupService.findDecidedReviewerUserIds(view.id()));
+        return deploymentNotificationLookupService.findEligibleReviewerUserIds(view.id()).stream()
+                .filter(id -> !decided.contains(id))
+                .filter(id -> !id.equals(view.submittedByUserId()))
+                .toList();
     }
 
     /**

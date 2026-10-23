@@ -250,6 +250,19 @@ but not releasable until that instant passes. **`DeploymentTimeoutJob`**
 resolved review plan's `approval_timeout_hours` has elapsed, moving them to `TIMED_OUT`. A request
 whose resolved plan is absent never times out.
 
+**Escalation and nudges (#985)** are the warning shots before that timeout, the deployment twin of
+the query and API-request behaviour from #622. **`DeploymentReviewEscalationJob`**
+(`accessflow.deploygov.escalation-poll-interval`, default `PT5M`) reads the same resolved plan's
+`escalation_after_hours` and `nudge_interval_hours` (both nullable, null = off). Once a request has
+sat in `PENDING_REVIEW` past `escalation_after_hours` — measured from `created_at`, the timeout's own
+clock, so the escalation always comes first — it is stamped `escalated_at` once and a
+`REVIEW_ESCALATED` notification goes to the eligible reviewers who have not decided **plus every
+active org admin**. Every `nudge_interval_hours` after submission (or the last nudge) a
+`REVIEW_NUDGE` reminds those undecided reviewers alone. The submitter is never a recipient. Both
+paths are **notify-only**: neither widens who may decide, touches the self-approval rule, or
+decides anything, and the stamps are re-checked under a row lock so a decision racing the scan, or a
+second replica, never produces a stray notification.
+
 **The state machine is enforced**, not merely documented. `DeploymentRequestStateService` is the
 single transition chokepoint and rejects anything not on this list:
 
@@ -701,6 +714,7 @@ is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
 
 Every transition lands in the INSERT-only `audit_log`: `DEPLOYMENT_SUBMITTED`,
 `DEPLOYMENT_APPROVED`, `DEPLOYMENT_REJECTED`, `DEPLOYMENT_TIMED_OUT`, `DEPLOYMENT_CANCELLED`,
+`DEPLOYMENT_REVIEW_ESCALATED`, `DEPLOYMENT_REVIEW_NUDGED`,
 `DEPLOYMENT_EXECUTED`, `DEPLOYMENT_OUTCOME_REPORTED`, `DEPLOYMENT_BREAK_GLASS_EXECUTED`,
 `DEPLOYMENT_BREAK_GLASS_REVIEWED` and `DEPLOYMENT_ROLLBACK_REVIEWED`, over the resource types
 `deployment_request` and `deployment_rollback_review`. Change tickets add `TICKET_CREATED` and
@@ -710,6 +724,7 @@ plus `change_ticket_key` — or `change_ticket_bypassed = break_glass` (#993). R
 verdict, before quorum**, so the record shows who decided what and when, not merely the outcome.
 System-attributed rows carry a **null actor** plus a `trigger` key naming the mechanism —
 `routing` (with `policy_id`), `environment_policy`, `freeze` (with `freeze_window_id`), `timeout`,
+`escalation` / `nudge` (#985),
 `ticket` (a synced change-ticket resolution, with `ticket_system`, `external_key`, `channel_id`,
 `actor` — #992), or `pipeline`. A failed audit write is logged and swallowed rather than breaking the governed
 operation.
@@ -725,6 +740,13 @@ approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_
 bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
 mutually-exclusive target column alongside queries and API requests. The frontend additionally
 receives a `deployment.status_changed` WebSocket event on every transition.
+
+Idle reviews (#985) reuse the shared **`REVIEW_ESCALATED`** and **`REVIEW_NUDGE`** types rather than
+adding deployment-specific ones: the nudge reaches the undecided eligible reviewers, the escalation
+those plus every active org admin. Like the five above they fan out org-wide, so
+`PagerDutyTrigger.REVIEW_STALLED` now pages for a stalled deployment review exactly as it already
+does for queries and API requests (a nudge never pages). They deliver in-app and over chat but not
+by email — the two email templates are query-shaped.
 
 ---
 

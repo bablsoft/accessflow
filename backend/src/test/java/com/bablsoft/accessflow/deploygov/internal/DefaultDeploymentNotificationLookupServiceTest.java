@@ -255,6 +255,20 @@ class DefaultDeploymentNotificationLookupServiceTest {
         assertThat(service.findApproverUserIds(requestId)).containsExactly(approverA, approverB);
     }
 
+    @Test
+    void decidedReviewerIdsIncludeEveryDecisionKind() {
+        var approver = UUID.randomUUID();
+        var rejecter = UUID.randomUUID();
+        when(decisionRepository.findByDeploymentRequestIdOrderByStageAscDecidedAtAsc(requestId))
+                .thenReturn(List.of(
+                        decision(approver, DecisionType.APPROVED),
+                        decision(rejecter, DecisionType.REJECTED),
+                        decision(approver, DecisionType.APPROVED)));
+
+        assertThat(service.findDecidedReviewerUserIds(requestId))
+                .containsExactly(approver, rejecter);
+    }
+
     private DeploymentRequestEntity request() {
         var entity = new DeploymentRequestEntity();
         entity.setId(requestId);

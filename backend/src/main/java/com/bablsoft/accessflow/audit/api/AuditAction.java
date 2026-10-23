@@ -277,6 +277,10 @@ public enum AuditAction {
     DEPLOYMENT_APPROVED,
     DEPLOYMENT_REJECTED,
     DEPLOYMENT_TIMED_OUT,
+    /** #985: a deployment review idle past its plan's escalation_after_hours was escalated. */
+    DEPLOYMENT_REVIEW_ESCALATED,
+    /** #985: undecided deployment reviewers were re-nudged on the plan's nudge_interval_hours. */
+    DEPLOYMENT_REVIEW_NUDGED,
     DEPLOYMENT_CANCELLED,
     /** #695: a deployment break-glass retro-review acknowledged (was generic BREAK_GLASS_REVIEWED). */
     DEPLOYMENT_BREAK_GLASS_REVIEWED,

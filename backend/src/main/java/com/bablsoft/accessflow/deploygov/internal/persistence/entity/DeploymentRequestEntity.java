@@ -121,6 +121,13 @@ public class DeploymentRequestEntity {
     @Column(name = "release_notified_at")
     private Instant releaseNotifiedAt;
 
+    // #985: idle-reviewer cursors stamped by DeploymentReviewEscalationJob; notify-only.
+    @Column(name = "escalated_at")
+    private Instant escalatedAt;
+
+    @Column(name = "last_nudged_at")
+    private Instant lastNudgedAt;
+
     @Column(name = "submitted_ip", length = 45)
     private String submittedIp;
 

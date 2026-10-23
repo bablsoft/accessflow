@@ -30,7 +30,7 @@ class TicketDescriptionBuilderTest {
         assertThat(TicketDescriptionBuilder.summary(ctx(NotificationEventType.REVIEW_ESCALATED)))
                 .isEqualTo("[AccessFlow] Review escalated — no decision yet on Production");
         assertThat(TicketDescriptionBuilder.summary(ctx(NotificationEventType.REVIEW_NUDGE)))
-                .isEqualTo("[AccessFlow] Reminder: query awaiting review on Production");
+                .isEqualTo("[AccessFlow] Reminder: request awaiting review on Production");
     }
 
     @Test

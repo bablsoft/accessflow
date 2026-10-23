@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "d309bf469cb0",
-  "generatedAt": "2026-10-23T08:12:16.769Z",
-  "sourceCommit": "7bc919e2798ca1f2ee0916526b29cf5af8e4b72b",
+  "corpusVersion": "90bcb86484a8",
+  "generatedAt": "2026-10-23T12:14:40.412Z",
+  "sourceCommit": "5a2d2be37d9bc483fbad32a05eba2fe4dc3948af",
   "chunkCount": 609,
-  "sha256": "d309bf469cb00cb7a56bad3a1d23b853338c6f95e09d36306a422a7e3549b31b",
+  "sha256": "90bcb86484a89d3495704adc6428726a5f25f5182ae3704e8e35675eba63d677",
   "quickReferenceSha256": "2eaa3d1f2e024c2049bf0f8a699c2208a88c1e20ad06e9503257fdcf6fea0746",
   "sources": [
     {
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 26,
-      "sha256": "1930c6b2999267c6e9f121ad23c4a6d6592ed0311b95ead13743622376d6a040"
+      "sha256": "386fd770c7ef3aa23edda130c55f0799168bed0733ad6e7d66ab6b32db07b97d"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -421,7 +421,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 92,
-      "sha256": "525c527a5154d90269a02e3a5ba170a65a79c231c8eb63a5fb5bdf0b0465f56c"
+      "sha256": "3f4a82a2e282b8b6d4648af10c9a72d2b834c332ea53ec23b7d0f4d603ce4efe"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
+import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.PagerDutyTrigger;
 import com.bablsoft.accessflow.notifications.internal.codec.TicketingTrigger;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Covers the #695 deployment-event fan-out sites the compiler cannot: the five Thymeleaf
@@ -184,5 +187,29 @@ class DeploymentNotificationTest {
             "DEPLOYMENT_OUTCOME_FAILED", "DEPLOYMENT_BREAK_GLASS_EXECUTED"})
     void everyDeploymentEventRoutesToItsOwnEmailTemplate(NotificationEventType event) {
         assertThat(EmailNotificationStrategy.hasTemplateFor(event)).isTrue();
+    }
+
+    /**
+     * #985: a deployment review reuses REVIEW_ESCALATED / REVIEW_NUDGE, whose email templates are
+     * query-shaped (SQL preview, query type), so a deployment context never mails them — while the
+     * same types on a query context still do, and the deployment events with their own templates
+     * keep mailing.
+     */
+    @ParameterizedTest
+    @EnumSource(names = {"REVIEW_ESCALATED", "REVIEW_NUDGE"})
+    void sharedReviewRemindersNeverMailForADeployment(NotificationEventType event) {
+        assertThat(EmailNotificationStrategy.hasTemplateFor(context(event, UUID.randomUUID())))
+                .isFalse();
+        assertThat(EmailNotificationStrategy.hasTemplateFor(context(event, null))).isTrue();
+        assertThat(EmailNotificationStrategy.hasTemplateFor(context(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, UUID.randomUUID()))).isTrue();
+    }
+
+    private static NotificationContext context(NotificationEventType event,
+                                               UUID deploymentRequestId) {
+        var ctx = mock(NotificationContext.class);
+        when(ctx.eventType()).thenReturn(event);
+        when(ctx.deploymentRequestId()).thenReturn(deploymentRequestId);
+        return ctx;
     }
 }

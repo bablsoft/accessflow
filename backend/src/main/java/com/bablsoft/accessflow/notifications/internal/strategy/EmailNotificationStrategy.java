@@ -73,7 +73,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             return;
         }
         var template = templateName(ctx.eventType());
-        if (template == null || ctx.apiRequestId() != null) {
+        if (template == null || !queryShapedTemplateFits(ctx)) {
             log.debug("No email template for event {} on this request kind; skipping delivery",
                     ctx.eventType());
             return;
@@ -141,10 +141,21 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
      * shared between queries and API requests: they carry an email template on the query path, but
      * API-request events deliver in-app and over chat only (AF-500). Without this the recipient
      * would get a query-shaped mail with an empty SQL-preview block and "Query type: —", because
-     * {@code buildApiRequest} has no SQL to put there.
+     * {@code buildApiRequest} has no SQL to put there. Deployment reviews (#985) reuse the same two
+     * types and are excluded for the same reason; the deployment events with their own templates
+     * still mail.
      */
     public static boolean hasTemplateFor(NotificationContext ctx) {
-        return ctx.apiRequestId() == null && hasTemplateFor(ctx.eventType());
+        return queryShapedTemplateFits(ctx) && hasTemplateFor(ctx.eventType());
+    }
+
+    private static boolean queryShapedTemplateFits(NotificationContext ctx) {
+        if (ctx.apiRequestId() != null) {
+            return false;
+        }
+        var sharedReviewReminder = ctx.eventType() == NotificationEventType.REVIEW_ESCALATED
+                || ctx.eventType() == NotificationEventType.REVIEW_NUDGE;
+        return !(sharedReviewReminder && ctx.deploymentRequestId() != null);
     }
 
     @Override

@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -130,5 +133,46 @@ public class DeploymentRequestStateService {
         eventPublisher.publishEvent(new DeploymentDecidedEvent(id, QueryStatus.TIMED_OUT,
                 "review_timeout"));
         return true;
+    }
+
+    /**
+     * Stamps {@code escalated_at} (#985), called per row by {@code DeploymentReviewEscalationJob}.
+     * Re-checks status and the prior stamp under a row lock, so a decision racing the scan produces
+     * no stray notification and a sibling replica cannot double-fire. Notify-only: eligibility, the
+     * self-approval rule and the decision path never read the stamp.
+     */
+    @Transactional
+    public boolean markEscalated(UUID id, Instant at) {
+        var entity = repository.findByIdForUpdate(id).orElse(null);
+        if (entity == null || entity.getStatus() != QueryStatus.PENDING_REVIEW
+                || entity.getEscalatedAt() != null) {
+            return false;
+        }
+        entity.setEscalatedAt(at);
+        repository.save(entity);
+        recordReminder(AuditAction.DEPLOYMENT_REVIEW_ESCALATED, entity, "escalation");
+        eventPublisher.publishEvent(new DeploymentReviewEscalatedEvent(id));
+        return true;
+    }
+
+    /** Stamps {@code last_nudged_at} (#985); a no-op once the request has left review. */
+    @Transactional
+    public boolean markNudged(UUID id, Instant at) {
+        var entity = repository.findByIdForUpdate(id).orElse(null);
+        if (entity == null || entity.getStatus() != QueryStatus.PENDING_REVIEW) {
+            return false;
+        }
+        entity.setLastNudgedAt(at);
+        repository.save(entity);
+        recordReminder(AuditAction.DEPLOYMENT_REVIEW_NUDGED, entity, "nudge");
+        eventPublisher.publishEvent(new DeploymentReviewNudgedEvent(id));
+        return true;
+    }
+
+    private void recordReminder(AuditAction action, DeploymentRequestEntity entity, String trigger) {
+        auditWriter.record(action, AuditResourceType.DEPLOYMENT_REQUEST, entity.getId(),
+                entity.getOrganizationId(), null,
+                Map.of("trigger", trigger, "pipeline_id", entity.getPipelineId().toString()),
+                null);
     }
 }

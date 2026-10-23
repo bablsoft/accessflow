@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.events.DeploymentBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +20,10 @@ import org.springframework.stereotype.Component;
  * deployment that a routing policy auto-decides never pings them. A decided deployment alerts the
  * submitter ({@code TIMED_OUT} folds into {@code DEPLOYMENT_REJECTED} with its
  * {@code review_timeout} reason); a {@code FAILED} or {@code ROLLED_BACK} outcome alerts the
- * reviewers who approved it; a break-glass release alerts every org admin. Break-glass publishes no
- * {@code DeploymentDecidedEvent}, so the submitter never self-notifies on that path. Delivery is
- * best-effort and never blocks the deployment flow.
+ * reviewers who approved it; a break-glass release alerts every org admin; an idle review is
+ * escalated / nudged via the shared {@code REVIEW_ESCALATED} / {@code REVIEW_NUDGE} types (#985).
+ * Break-glass publishes no {@code DeploymentDecidedEvent}, so the submitter never self-notifies on
+ * that path. Delivery is best-effort and never blocks the deployment flow.
  */
 @Component
 @RequiredArgsConstructor
@@ -56,6 +59,20 @@ class DeploymentNotificationListener {
     @ApplicationModuleListener
     void onBreakGlassExecuted(DeploymentBreakGlassExecutedEvent event) {
         dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                event.deploymentRequestId(), null, null);
+    }
+
+    // #985: reuse the #622 event types rather than adding deployment-specific ones; the context
+    // builder resolves recipients (undecided reviewers, plus admins on escalation).
+    @ApplicationModuleListener
+    void onReviewEscalated(DeploymentReviewEscalatedEvent event) {
+        dispatcher.dispatchDeployment(NotificationEventType.REVIEW_ESCALATED,
+                event.deploymentRequestId(), null, null);
+    }
+
+    @ApplicationModuleListener
+    void onReviewNudged(DeploymentReviewNudgedEvent event) {
+        dispatcher.dispatchDeployment(NotificationEventType.REVIEW_NUDGE,
                 event.deploymentRequestId(), null, null);
     }
 
