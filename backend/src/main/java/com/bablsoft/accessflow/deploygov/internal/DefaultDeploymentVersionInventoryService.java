@@ -8,11 +8,9 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundExcept
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentVersionListFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentVersionView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
-import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentVersionDriftView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentVersionHistoryEntryView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentVersionInventoryService;
-import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentVersionEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
@@ -61,14 +59,14 @@ public class DefaultDeploymentVersionInventoryService implements DeploymentVersi
     private final DeploymentEnvironmentRepository environmentRepository;
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentRequestRepository requestRepository;
-    private final EffectiveDeploymentPermissionResolver permissionResolver;
+    private final DeploymentPipelineVisibility visibility;
 
     @Override
     @Transactional(readOnly = true)
     public List<DeploymentEnvironmentVersionView> pipelineMatrix(UUID pipelineId,
                                                                  UUID organizationId, UUID callerId,
                                                                  Set<Permission> callerPermissions) {
-        var pipeline = requireVisiblePipeline(pipelineId, organizationId, callerId,
+        var pipeline = visibility.requireVisible(pipelineId, organizationId, callerId,
                 callerPermissions);
         var environments = environmentRepository
                 .findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId);
@@ -164,7 +162,7 @@ public class DefaultDeploymentVersionInventoryService implements DeploymentVersi
                                                                    UUID callerId,
                                                                    Set<Permission> callerPermissions,
                                                                    PageRequest pageRequest) {
-        requireVisiblePipeline(pipelineId, organizationId, callerId, callerPermissions);
+        visibility.requireVisible(pipelineId, organizationId, callerId, callerPermissions);
         environmentRepository.findById(environmentId)
                 .filter(env -> env.getPipelineId().equals(pipelineId))
                 .orElseThrow(() -> new DeploymentEnvironmentNotFoundException(environmentId));
@@ -175,36 +173,6 @@ public class DefaultDeploymentVersionInventoryService implements DeploymentVersi
                 : requestRepository.findByPipelineIdAndEnvironmentIdAndStatusOrderByCreatedAtDesc(
                         pipelineId, environmentId, status, pageable);
         return toPage(page);
-    }
-
-    /**
-     * Inventory visibility — 404 on failure, never 403, exactly like the gate: an
-     * under-permissioned read must look like an unknown pipeline, so the endpoints are not an
-     * existence oracle. {@code QUERY_ADMIN} is accepted alongside the two functional permissions,
-     * matching every other deploygov view-all predicate.
-     */
-    private DeploymentPipelineEntity requireVisiblePipeline(UUID pipelineId, UUID organizationId,
-                                                            UUID callerId,
-                                                            Set<Permission> callerPermissions) {
-        var pipeline = pipelineRepository.findByIdAndOrganizationId(pipelineId, organizationId)
-                .orElseThrow(() -> new DeploymentPipelineNotFoundException(pipelineId));
-        if (canViewAll(callerPermissions) || canTrigger(pipelineId, callerId)) {
-            return pipeline;
-        }
-        throw new DeploymentPipelineNotFoundException(pipelineId);
-    }
-
-    private static boolean canViewAll(Set<Permission> callerPermissions) {
-        return callerPermissions != null
-                && (callerPermissions.contains(Permission.DEPLOYMENT_PIPELINE_MANAGE)
-                        || callerPermissions.contains(Permission.DEPLOYMENT_REVIEW)
-                        || callerPermissions.contains(Permission.QUERY_ADMIN));
-    }
-
-    private boolean canTrigger(UUID pipelineId, UUID callerId) {
-        return permissionResolver.resolve(pipelineId, callerId)
-                .map(EffectiveDeploymentPermission::canTrigger)
-                .orElse(false);
     }
 
     /**

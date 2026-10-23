@@ -22,6 +22,7 @@ import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentPipelineNameExce
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentFreezeWindowException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRoutingPolicyException;
+import com.bablsoft.accessflow.deploygov.api.InvalidDeploymentMetricsPeriodException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -163,6 +164,12 @@ class DeploygovExceptionHandler {
     ProblemDetail handleGateQueryInvalid(DeploymentGateQueryInvalidException ex) {
         return problem(HttpStatus.BAD_REQUEST, msg("error.deployment_gate_query_invalid"),
                 "DEPLOYMENT_GATE_QUERY_INVALID");
+    }
+
+    @ExceptionHandler(InvalidDeploymentMetricsPeriodException.class)
+    ProblemDetail handleMetricsPeriodInvalid(InvalidDeploymentMetricsPeriodException ex) {
+        return problem(HttpStatus.BAD_REQUEST, msg("error.deployment_metrics_period_invalid"),
+                "DEPLOYMENT_METRICS_PERIOD_INVALID");
     }
 
     @ExceptionHandler(DeploymentNotReleasableException.class)

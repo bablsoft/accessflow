@@ -60,7 +60,8 @@ class DefaultDeploymentVersionInventoryServiceTest {
         requestRepository = mock(DeploymentRequestRepository.class);
         permissionResolver = mock(EffectiveDeploymentPermissionResolver.class);
         service = new DefaultDeploymentVersionInventoryService(versionRepository,
-                environmentRepository, pipelineRepository, requestRepository, permissionResolver);
+                environmentRepository, pipelineRepository, requestRepository,
+                new DeploymentPipelineVisibility(pipelineRepository, permissionResolver));
         when(permissionResolver.resolve(any(), any())).thenReturn(Optional.empty());
     }
 

@@ -111,6 +111,10 @@ public class DeploymentRequestEntity {
     @Column(name = "executed_at")
     private Instant executedAt;
 
+    // #984: stamped once on entry to PENDING_REVIEW; the approval-latency axis of the metrics.
+    @Column(name = "review_started_at")
+    private Instant reviewStartedAt;
+
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
 

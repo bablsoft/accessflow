@@ -9096,7 +9096,9 @@ the environment **name** within the pipeline, because a CI job knows names, not 
 `version` (required, ≤255 — the semantic artifact version being deployed, e.g. `2.4.1`),
 `commitSha` (≤64), `artifactRef`, `runUrl`, `externalRunId` (the provider-side run identifier;
 supplying it is what makes the trigger idempotent), `metadata` (free-form JSON object — changelog,
-commit list, diff summary; this is what the AI analyzes), `justification`, `scheduledFor`
+commit list, diff summary; this is what the AI analyzes. The one key AccessFlow itself reads is
+`commit_timestamp` — an offset-qualified ISO-8601 instant, e.g. `git show -s --format=%cI` — which
+starts the lead-time clock of the deployment metrics, #984), `justification`, `scheduledFor`
 (ISO-8601 instant; an `APPROVED` deployment stays non-releasable at the gate (#693) until the
 instant passes, and the submitter may still cancel until then), `breakGlass` (boolean, default
 `false` — see below; mutually exclusive with `scheduledFor`, the combination is a `400`
@@ -9305,6 +9307,71 @@ addressable by environment id and open to `can_trigger` holders under the 404-ne
   "executed_at": "…"
 }
 ```
+
+### Deployment metrics (#984, epic #983)
+
+DORA metrics plus the approval-SLA half, **computed at read time** over `deployment_requests` and
+`deployment_review_decisions` — no metrics table, no snapshot job. JWT-side. Both endpoints share
+the visibility rules of the version inventory above: the per-pipeline endpoint is open to
+**`DEPLOYMENT_PIPELINE_MANAGE`**, **`DEPLOYMENT_REVIEW`**, **`QUERY_ADMIN`** and effective
+`can_trigger` holders and answers `404 DEPLOYMENT_PIPELINE_NOT_FOUND` (never `403`) to anyone
+else; the org-wide endpoint is functional-permission-only.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-pipelines/{id}/metrics` | Metrics for one pipeline. `404` when the pipeline is unknown, in another org, or not visible to the caller. |
+| `GET` | `/deployment-metrics` | Metrics across the org's pipelines. **`DEPLOYMENT_PIPELINE_MANAGE`**, **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** only (a trigger-only user gets `403`). Extra optional filter `pipeline_id` — a pipeline in another org simply yields empty metrics. |
+
+**Query parameters (both, snake_case):**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `from` | ISO-8601 instant | Window start, inclusive. Default: `to` minus 30 days. |
+| `to` | ISO-8601 instant | Window end, exclusive. Default: now — or `from` plus 30 days when only `from` is given. |
+| `environment` | string | Environment name, case-insensitive (the version-matrix filter shape). On the org-wide endpoint it matches that name on every pipeline. An unknown name yields empty metrics, not `404`. |
+
+`from >= to`, or a window longer than **366 days**, is `400 DEPLOYMENT_METRICS_PERIOD_INVALID`.
+
+**Response:**
+
+```json
+{
+  "period": { "from": "2026-09-23T00:00:00Z", "to": "2026-10-23T00:00:00Z" },
+  "deployment_frequency": { "total": 42, "per_day": 1.4 },
+  "lead_time": { "p50_seconds": 5400, "p95_seconds": 86400, "sample_size": 42, "source": "MIXED" },
+  "change_failure_rate": { "rate": 0.0952, "failed": 3, "rolled_back": 1, "unreported": 5, "executed": 42 },
+  "time_to_restore": { "p50_seconds": 1800, "p95_seconds": 7200, "restored": 3, "open_incidents": 1 },
+  "approval_latency": { "p50_seconds": 900, "p95_seconds": 14400, "sample_size": 30 },
+  "timeout_rate": { "rate": 0.0312, "timed_out": 1, "entered_review": 32 },
+  "break_glass_count": 2,
+  "daily": [
+    { "date": "2026-09-23", "deployments": 2, "failed": 0, "rolled_back": 0 }
+  ]
+}
+```
+
+Percentiles are null on an empty sample (never `0`); `rate` fields are null when the
+denominator is `0`; `lead_time.source` is null when the sample is empty. Like every response,
+null fields are **omitted** from the JSON rather than serialised as `null`, so treat a missing
+`p50_seconds` / `rate` / `source` as "no data". `daily` has one entry
+per UTC day the window touches, zero-filled. Seconds are rounded to whole numbers.
+
+**Metric definitions.** Each metric is windowed `[from, to)` on its own time axis; day buckets
+are UTC days (`date_trunc('day', ts AT TIME ZONE 'UTC')`), independent of the server's zone.
+
+| Metric | Definition |
+|---|---|
+| Deployment frequency | count of rows with `executed_at` in the window (an `EXECUTED → FAILED` flip keeps its `executed_at`, so it still counts as a deployment); `per_day` = `total` ÷ window length in days |
+| Lead time (p50/p95) | `metadata->>'commit_timestamp'` (ISO-8601, documented key), falling back to `created_at`, → `executed_at`. Send an offset-qualified ISO-8601 instant: the value is read by PostgreSQL's `timestamptz` parser, so a value without an offset is interpreted in the database session's zone, and a value it cannot parse falls back to `created_at`. A commit timestamp later than `executed_at` counts as a `0`-second sample. `source` is `COMMIT_TIMESTAMP` (every sample used the commit timestamp), `SUBMITTED_AT` (none did) or `MIXED` |
+| Change failure rate | rows with `outcome IN (FAILED, ROLLED_BACK)` ÷ rows with `executed_at` in the window; an unreported outcome counts as not-failed, and the `unreported` count is returned so the UI can caveat |
+| Time to restore (p50/p95) | for each `FAILED`/`ROLLED_BACK` outcome reported in the window: `outcome_reported_at` → the `executed_at` of the next request (executed after the failed one) on the same pipeline + environment whose outcome is `SUCCEEDED`; unrestored incidents are excluded from the percentiles and returned as `open_incidents`. A success that executed before the failure was reported counts as a `0`-second restore |
+| Approval latency (p50/p95) | `review_started_at` → the request's last `deployment_review_decisions.decided_at`, windowed on that last decision; only requests a human finished deciding (status `APPROVED`, `REJECTED`, `EXECUTED` or `FAILED` with a decision row — a request still in review, timed out or cancelled after a partial approval is left out) — routing auto-approvals and break-glass never waited on anyone; requests decided through a change ticket (#992, system-attributed, no decision row) and rows that pre-date `review_started_at` are excluded too |
+| Timeout rate | `TIMED_OUT` ÷ requests that entered review (`review_started_at IS NOT NULL`, or for rows pre-dating the column: a decision row exists or status is `TIMED_OUT`), windowed on `created_at` |
+| Break-glass count | rows with `submission_reason = 'EMERGENCY_ACCESS'` in the window, by `created_at` |
+
+Lead time depends on the pipeline putting `commit_timestamp` in its submission `metadata` (for
+example `git show -s --format=%cI`); the CI wrappers pass `metadata` through verbatim and author
+no keys of their own, so most installs start on the `created_at` fallback.
 
 ### Deployment reviews (#692)
 

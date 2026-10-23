@@ -168,6 +168,54 @@ class DeploymentRequestStateServiceTest {
         assertThat(entity.getExecutedAt()).isEqualTo(original);
     }
 
+    // #984: the approval-latency axis.
+    @Test
+    void enteringPendingReviewStampsReviewStartedAtFromTheClock() {
+        var entity = request(QueryStatus.PENDING_AI);
+
+        service.apply(entity, QueryStatus.PENDING_REVIEW);
+
+        assertThat(entity.getReviewStartedAt()).isEqualTo(NOW);
+        assertThat(entity.getExecutedAt()).isNull();
+    }
+
+    @Test
+    void reapplyingPendingReviewDoesNotRestampReviewStartedAt() {
+        var entity = request(QueryStatus.PENDING_REVIEW);
+        var original = NOW.minusSeconds(3600);
+        entity.setReviewStartedAt(original);
+
+        service.apply(entity, QueryStatus.PENDING_REVIEW);
+
+        assertThat(entity.getReviewStartedAt()).isEqualTo(original);
+        verify(repository, never()).save(entity);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "PENDING_AI,APPROVED",
+            "PENDING_AI,REJECTED",
+            "PENDING_AI,CANCELLED",
+            "PENDING_REVIEW,APPROVED",
+            "PENDING_REVIEW,REJECTED",
+            "PENDING_REVIEW,TIMED_OUT",
+            "PENDING_REVIEW,CANCELLED",
+            "APPROVED,EXECUTED",
+            "APPROVED,FAILED",
+            "APPROVED,TIMED_OUT",
+            "APPROVED,CANCELLED",
+            "EXECUTED,FAILED",
+    })
+    void otherTransitionsNeverTouchReviewStartedAt(QueryStatus from, QueryStatus to) {
+        var entity = request(from);
+        var original = from == QueryStatus.PENDING_AI ? null : NOW.minusSeconds(60);
+        entity.setReviewStartedAt(original);
+
+        service.apply(entity, to);
+
+        assertThat(entity.getReviewStartedAt()).isEqualTo(original);
+    }
+
     @ParameterizedTest
     @CsvSource({
             "PENDING_AI,APPROVED",
