@@ -205,7 +205,10 @@ function renderMessage(
     case 'REVIEW_ESCALATED':
       return t('notifications.events.REVIEW_ESCALATED', { datasource });
     case 'REVIEW_NUDGE':
-      return t('notifications.events.REVIEW_NUDGE', { datasource });
+      // #985 — a deployment nudge carries the pipeline name in the `datasource` payload field.
+      return item.deployment_request_id
+        ? t('notifications.events.REVIEW_NUDGE_deployment', { pipeline: datasource })
+        : t('notifications.events.REVIEW_NUDGE', { datasource });
     case 'AI_HIGH_RISK':
       return t('notifications.events.AI_HIGH_RISK', { datasource });
     case 'API_REQUEST_SUBMITTED':
@@ -330,8 +333,12 @@ export function routeForNotification(item: UserNotification): string | null {
   // #622 escalations and nudges are the only event types raised for BOTH queries and API
   // requests, so unlike every branch below them the event name alone does not say which queue the
   // recipient needs — `api_request_id` does. Without this check a stalled API request would send
-  // the reviewer to the SQL queue, where it does not appear.
+  // the reviewer to the SQL queue, where it does not appear. Deployment reviews (#985) reuse the
+  // same two types and carry `deployment_request_id`.
   if (item.event_type === 'REVIEW_ESCALATED' || item.event_type === 'REVIEW_NUDGE') {
+    if (item.deployment_request_id) {
+      return reviewHubPath('deployments');
+    }
     return item.api_request_id ? reviewHubPath('api') : reviewHubPath('queries');
   }
   // Reviewer-targeted: lands on the review queue, not the submitter-only detail page.

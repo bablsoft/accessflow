@@ -457,9 +457,10 @@ APPROVED → FAILED (execution error)</pre>
             <strong>Deployments</strong> use the review plan set on the target environment, or the
             pipeline's when the environment has none. An idle deployment review is escalated to the
             reviewers who have not decided plus your organization's admins, and reminders reach those
-            reviewers alone &mdash; never the person who triggered the deployment. Deployment
-            escalations and reminders arrive in the in-app bell and on every active chat channel of
-            the organization, PagerDuty included, but not by email.
+            reviewers alone &mdash; never the person who triggered the deployment. Both arrive in
+            the in-app bell and on every active notification channel of the organization, but not by
+            email. As with other requests, only an escalation pages, and only on PagerDuty channels
+            that enable the <code>REVIEW_STALLED</code> trigger; neither opens a ticket.
           </p>
         </section>
 

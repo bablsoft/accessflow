@@ -108,6 +108,24 @@ class EmailNotificationStrategyTest {
         verify(sender, times(2)).send(any(MimeMessage.class));
     }
 
+    /** #985: a deployment review reminder never renders the query-shaped template. */
+    @Test
+    void deliverSkipsADeploymentReviewReminder() {
+        for (var eventType : List.of(NotificationEventType.REVIEW_ESCALATED,
+                NotificationEventType.REVIEW_NUDGE)) {
+            var ctx = mock(NotificationContext.class);
+            when(ctx.eventType()).thenReturn(eventType);
+            when(ctx.deploymentRequestId()).thenReturn(UUID.randomUUID());
+            when(ctx.recipients()).thenReturn(List.of(
+                    new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+
+            strategy.deliver(ctx, channel());
+        }
+
+        verify(templateEngine, never()).process(anyString(), any());
+        verify(sender, never()).send(any(MimeMessage.class));
+    }
+
     @Test
     void deliverSkipsWhenRecipientsEmpty() {
         var ctx = ctx(NotificationEventType.QUERY_APPROVED, List.of());

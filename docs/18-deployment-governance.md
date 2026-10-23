@@ -260,8 +260,9 @@ clock, so the escalation always comes first — it is stamped `escalated_at` onc
 active org admin**. Every `nudge_interval_hours` after submission (or the last nudge) a
 `REVIEW_NUDGE` reminds those undecided reviewers alone. The submitter is never a recipient. Both
 paths are **notify-only**: neither widens who may decide, touches the self-approval rule, or
-decides anything, and the stamps are re-checked under a row lock so a decision racing the scan, or a
-second replica, never produces a stray notification.
+decides anything. Both stamps re-check the status under a row lock, so a decision racing the scan
+never produces a stray notification; the escalation also re-checks its own stamp, so it fires once
+even across replicas, while a duplicate nudge is kept out by the job's ShedLock.
 
 **The state machine is enforced**, not merely documented. `DeploymentRequestStateService` is the
 single transition chokepoint and rejects anything not on this list:
