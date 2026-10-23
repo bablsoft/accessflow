@@ -93,6 +93,11 @@ public class DeploymentRequestStateService {
             // from restamping or double-shifting.
             entity.setExecutedAt(clock.instant());
         }
+        if (next == QueryStatus.PENDING_REVIEW) {
+            // #984: the approval-latency axis. PENDING_REVIEW is only reachable from PENDING_AI,
+            // and the same-status early return keeps a redelivery from restamping.
+            entity.setReviewStartedAt(clock.instant());
+        }
         repository.save(entity);
         if (next == QueryStatus.EXECUTED) {
             // #741: maintain the per-environment deployed-version projection in this transaction.

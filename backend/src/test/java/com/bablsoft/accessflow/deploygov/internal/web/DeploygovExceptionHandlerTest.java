@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundExcept
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentSortOrderConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
+import com.bablsoft.accessflow.deploygov.api.InvalidDeploymentMetricsPeriodException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcomeConflictException;
@@ -230,6 +231,15 @@ class DeploygovExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_GATE_QUERY_INVALID");
         assertThat(pd.getDetail()).isEqualTo("error.deployment_gate_query_invalid");
+    }
+
+    @Test
+    void metricsPeriodInvalidIs400() {
+        var pd = handler.handleMetricsPeriodInvalid(new InvalidDeploymentMetricsPeriodException());
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_METRICS_PERIOD_INVALID");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_metrics_period_invalid");
     }
 
     @Test

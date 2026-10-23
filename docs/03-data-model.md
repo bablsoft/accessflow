@@ -3025,6 +3025,7 @@ collision.
 | `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. A `FAILED` outcome also flips `status` `EXECUTED → FAILED` (#693). |
 | `outcome_reported_at` / `outcome_detail` | — | |
 | `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows — including those a `FAILED` outcome later flipped to `FAILED` — were backfilled with `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time. |
+| `review_started_at` | TIMESTAMPTZ | Nullable (V203, #984) — stamped by the state service on entry to `PENDING_REVIEW` (only reachable from `PENDING_AI`), off the same `Clock` as `executed_at`; a redelivered transition never restamps. The approval-latency and timeout-rate axis of the deployment metrics. **No backfill**: the instant is unknown for older rows, which the metrics treat as described in `docs/04-api-spec.md` → "Deployment metrics". |
 | `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
