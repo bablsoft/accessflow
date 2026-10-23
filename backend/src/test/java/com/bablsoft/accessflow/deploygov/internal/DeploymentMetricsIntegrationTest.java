@@ -220,16 +220,83 @@ class DeploymentMetricsIntegrationTest {
     }
 
     @Test
-    void theStateServiceStampsReviewStartedAt() {
-        var pending = request(prod, "K", QueryStatus.PENDING_AI, "2026-10-07T09:00:00Z");
+    void aRequestDecidedThroughTheRealStateServiceIsAnApprovalLatencySample() {
+        var own = pipeline();
+        var env = environment(own, "prod", 0);
+        var pending = request(env, "K", QueryStatus.PENDING_AI, "2026-10-07T09:00:00Z");
 
         transactionTemplate.executeWithoutResult(status ->
                 stateService.apply(stateService.require(pending.getId()),
                         QueryStatus.PENDING_REVIEW));
+        var reviewStartedAt = requestRepository.findById(pending.getId()).orElseThrow()
+                .getReviewStartedAt();
+        assertThat(reviewStartedAt).isNotNull();
+        decision(pending, reviewStartedAt.plusSeconds(300).toString());
+        transactionTemplate.executeWithoutResult(status ->
+                stateService.apply(stateService.require(pending.getId()), QueryStatus.APPROVED));
 
-        var reloaded = requestRepository.findById(pending.getId()).orElseThrow();
-        assertThat(reloaded.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
-        assertThat(reloaded.getReviewStartedAt()).isNotNull();
+        var view = metricsService.pipelineMetrics(own.getId(), org.getId(), reviewer.getId(),
+                Set.of(Permission.DEPLOYMENT_REVIEW), new DeploymentMetricsFilter(
+                        reviewStartedAt.minusSeconds(3600), reviewStartedAt.plusSeconds(3600),
+                        null, null));
+        assertThat(view.approvalLatency().sampleSize()).isEqualTo(1);
+        assertThat(view.approvalLatency().p50Seconds()).isEqualTo(300L);
+    }
+
+    /**
+     * Second pipeline, same window:
+     * <pre>
+     *   X1 exec 10-01 10:00 FAILED      reported 10:10, commit "2026-02-30T00:00:00Z" (invalid → created_at)
+     *   X2 exec 10-01 11:00 FAILED      reported 11:10, commit 11:30Z — after execution, clamps to 0
+     *   X3 exec 10-01 12:00 SUCCEEDED   commit without an offset (→ created_at); restores X1 and X2
+     *   Y1 exec 10-02 10:00 ROLLED_BACK reported 13:00, commit "infinity" (→ created_at)
+     *   Y2 exec 10-02 12:00 SUCCEEDED   commit "now" (→ created_at); restores Y1 before it was reported
+     *   P  PENDING_REVIEW with one partial approval · Q TIMED_OUT after one partial approval
+     * </pre>
+     */
+    @Test
+    void restoreChainsPoisonedCommitTimestampsAndPartialApprovals() {
+        var own = pipeline();
+        var env = environment(own, "prod", 0);
+        executed(env, "x1", "2026-10-01T09:30:00Z", "2026-10-01T10:00:00Z",
+                DeploymentOutcome.FAILED, "2026-10-01T10:10:00Z",
+                "{\"commit_timestamp\": \"2026-02-30T00:00:00Z\"}");
+        executed(env, "x2", "2026-10-01T10:30:00Z", "2026-10-01T11:00:00Z",
+                DeploymentOutcome.FAILED, "2026-10-01T11:10:00Z",
+                "{\"commit_timestamp\": \"2026-10-01T11:30:00Z\"}");
+        executed(env, "x3", "2026-10-01T11:30:00Z", "2026-10-01T12:00:00Z",
+                DeploymentOutcome.SUCCEEDED, "2026-10-01T12:05:00Z",
+                "{\"commit_timestamp\": \"2026-10-01T11:00:00\"}");
+        executed(env, "y1", "2026-10-02T09:30:00Z", "2026-10-02T10:00:00Z",
+                DeploymentOutcome.ROLLED_BACK, "2026-10-02T13:00:00Z",
+                "{\"commit_timestamp\": \"infinity\"}");
+        executed(env, "y2", "2026-10-02T11:30:00Z", "2026-10-02T12:00:00Z",
+                DeploymentOutcome.SUCCEEDED, "2026-10-02T12:05:00Z",
+                "{\"commit_timestamp\": \"now\"}");
+        var p = request(env, "p", QueryStatus.PENDING_REVIEW, "2026-10-03T09:00:00Z");
+        reviewed(p, "2026-10-03T09:01:00Z", "2026-10-03T09:10:00Z");
+        var q = request(env, "q", QueryStatus.TIMED_OUT, "2026-10-03T10:00:00Z");
+        reviewed(q, "2026-10-03T10:01:00Z", "2026-10-03T10:10:00Z");
+
+        var view = metricsService.pipelineMetrics(own.getId(), org.getId(), reviewer.getId(),
+                Set.of(Permission.DEPLOYMENT_REVIEW),
+                new DeploymentMetricsFilter(FROM, TO, null, null));
+
+        // Samples 1800, 0, 1800, 1800, 1800 — only X2's commit timestamp was accepted.
+        assertThat(view.leadTime().sampleSize()).isEqualTo(5);
+        assertThat(view.leadTime().p50Seconds()).isEqualTo(1800L);
+        assertThat(view.leadTime().p95Seconds()).isEqualTo(1800L);
+        assertThat(view.leadTime().source()).isEqualTo(LeadTimeSource.MIXED);
+        // X1 → X3 6600 s, X2 → X3 3000 s, Y1 → Y2 clamped to 0: samples 0, 3000, 6600.
+        assertThat(view.timeToRestore().restored()).isEqualTo(3);
+        assertThat(view.timeToRestore().openIncidents()).isZero();
+        assertThat(view.timeToRestore().p50Seconds()).isEqualTo(3000L);
+        assertThat(view.timeToRestore().p95Seconds()).isEqualTo(6240L);
+        // Neither partially approved request is a human decision.
+        assertThat(view.approvalLatency().sampleSize()).isZero();
+        assertThat(view.approvalLatency().p50Seconds()).isNull();
+        assertThat(view.timeoutRate().enteredReview()).isEqualTo(2);
+        assertThat(view.timeoutRate().timedOut()).isEqualTo(1);
     }
 
     @Test
@@ -304,9 +371,14 @@ class DeploymentMetricsIntegrationTest {
     }
 
     private DeploymentEnvironmentEntity environment(String name, int sortOrder) {
+        return environment(pipeline, name, sortOrder);
+    }
+
+    private DeploymentEnvironmentEntity environment(DeploymentPipelineEntity owner, String name,
+                                                    int sortOrder) {
         var entity = new DeploymentEnvironmentEntity();
         entity.setId(UUID.randomUUID());
-        entity.setPipelineId(pipeline.getId());
+        entity.setPipelineId(owner.getId());
         entity.setName(name);
         entity.setSortOrder(sortOrder);
         entity.setTags(new String[0]);
@@ -319,7 +391,7 @@ class DeploymentMetricsIntegrationTest {
         var entity = new DeploymentRequestEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(org.getId());
-        entity.setPipelineId(pipeline.getId());
+        entity.setPipelineId(environment.getPipelineId());
         entity.setEnvironmentId(environment.getId());
         entity.setSubmittedBy(submitter.getId());
         entity.setVersion(version);
@@ -335,7 +407,7 @@ class DeploymentMetricsIntegrationTest {
         var entity = new DeploymentRequestEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(org.getId());
-        entity.setPipelineId(pipeline.getId());
+        entity.setPipelineId(environment.getPipelineId());
         entity.setEnvironmentId(environment.getId());
         entity.setSubmittedBy(submitter.getId());
         entity.setVersion(version);

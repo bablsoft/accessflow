@@ -620,14 +620,15 @@ who can never decide their own deployment, is told so in place of the buttons.
 deployment frequency, lead time, change failure rate, time to restore, approval latency, timeout
 rate and the break-glass count **at read time** over `deployment_requests` and
 `deployment_review_decisions` — no metrics table and no snapshot job, the same stance the version
-inventory takes. Visibility is the inventory's: the per-pipeline endpoint answers 404, never 403,
-and also opens to `can_trigger` holders; the org-wide endpoint needs `DEPLOYMENT_PIPELINE_MANAGE`,
-`DEPLOYMENT_REVIEW` or `QUERY_ADMIN`. Day buckets are UTC days whatever the server zone.
+inventory takes. Visibility is the inventory's: the per-pipeline endpoint opens to `DEPLOYMENT_PIPELINE_MANAGE`,
+`DEPLOYMENT_REVIEW`, `QUERY_ADMIN` and `can_trigger` holders and answers 404, never 403, to anyone
+else; the org-wide endpoint needs one of the three permissions. Day buckets are UTC days whatever the server zone.
 
 Approval latency needs the instant a request entered review, so the state service stamps
 `deployment_requests.review_started_at` on entry to `PENDING_REVIEW` (V203). Older rows are not
 backfilled and are left out of approval latency. Lead time starts at the `commit_timestamp` key of
-the submission `metadata` when the pipeline sends one (`git show -s --format=%cI`), otherwise at
+the submission `metadata` when the pipeline sends one as an offset-qualified ISO-8601 instant
+(`git show -s --format=%cI`), otherwise at
 submission — the response's `lead_time.source` says which. The metric definitions, parameters and
 response are in [`docs/04-api-spec.md`](04-api-spec.md) → "Deployment metrics".
 

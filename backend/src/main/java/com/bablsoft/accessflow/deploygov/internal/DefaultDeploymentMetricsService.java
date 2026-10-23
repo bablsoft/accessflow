@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -91,11 +92,16 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
     private Period period(DeploymentMetricsFilter filter) {
         var from = filter == null ? null : filter.from();
         var to = filter == null ? null : filter.to();
-        if (to == null) {
-            to = from == null ? clock.instant() : from.plus(DEFAULT_WINDOW);
-        }
-        if (from == null) {
-            from = to.minus(DEFAULT_WINDOW);
+        try {
+            if (to == null) {
+                to = from == null ? clock.instant() : from.plus(DEFAULT_WINDOW);
+            }
+            if (from == null) {
+                from = to.minus(DEFAULT_WINDOW);
+            }
+        } catch (DateTimeException ex) {
+            // A bound within 30 days of Instant.MIN/MAX: unrepresentable default, not a 500.
+            throw new InvalidDeploymentMetricsPeriodException();
         }
         if (!from.isBefore(to) || Duration.between(from, to).compareTo(MAX_WINDOW) > 0) {
             throw new InvalidDeploymentMetricsPeriodException();

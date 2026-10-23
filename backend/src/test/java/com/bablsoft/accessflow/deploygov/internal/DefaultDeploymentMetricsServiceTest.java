@@ -126,6 +126,16 @@ class DefaultDeploymentMetricsServiceTest {
         verifyNoInteractions(metricsRepository);
     }
 
+    @Test
+    void anUnrepresentableDefaultBoundIsRejectedNotAServerError() {
+        assertThatThrownBy(() -> service.organizationMetrics(ORG_ID,
+                filter(Instant.MAX.minusSeconds(60), null, null, null)))
+                .isInstanceOf(InvalidDeploymentMetricsPeriodException.class);
+        assertThatThrownBy(() -> service.organizationMetrics(ORG_ID,
+                filter(null, Instant.MIN.plusSeconds(60), null, null)))
+                .isInstanceOf(InvalidDeploymentMetricsPeriodException.class);
+    }
+
     // -------------------------------------------------------------- visibility
 
     @ParameterizedTest

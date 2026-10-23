@@ -21,21 +21,21 @@ class DeploymentMetricsRepositoryImpl implements DeploymentMetricsRepository {
     private static final String PIPELINE_FRAGMENT = " AND r.pipeline_id = :pipelineId";
     private static final String ENVIRONMENT_FRAGMENT = " AND r.environment_id IN (:environmentIds)";
 
-    // A malformed commit_timestamp falls back to created_at instead of failing the cast.
+    // af_try_parse_iso_instant (V203) returns NULL for anything but an offset-qualified ISO-8601
+    // instant, so a malformed commit_timestamp falls back to created_at. A commit timestamp later
+    // than the execution clamps to 0 rather than producing a negative sample.
     private static final String EXECUTION_SQL = """
             SELECT count(*),
                    count(*) FILTER (WHERE x.outcome = 'FAILED'::deployment_outcome),
                    count(*) FILTER (WHERE x.outcome = 'ROLLED_BACK'::deployment_outcome),
                    count(*) FILTER (WHERE x.outcome IS NULL),
                    count(*) FILTER (WHERE x.commit_ts IS NOT NULL),
-                   percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM
-                       (x.executed_at - COALESCE(x.commit_ts, x.created_at)))),
-                   percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM
-                       (x.executed_at - COALESCE(x.commit_ts, x.created_at))))
+                   percentile_cont(0.5) WITHIN GROUP (ORDER BY GREATEST(0, extract(epoch FROM
+                       (x.executed_at - COALESCE(x.commit_ts, x.created_at))))),
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY GREATEST(0, extract(epoch FROM
+                       (x.executed_at - COALESCE(x.commit_ts, x.created_at)))))
             FROM (SELECT r.outcome, r.executed_at, r.created_at,
-                         CASE WHEN pg_input_is_valid(r.metadata ->> 'commit_timestamp', 'timestamptz')
-                              THEN CAST(r.metadata ->> 'commit_timestamp' AS timestamptz)
-                         END AS commit_ts
+                         af_try_parse_iso_instant(r.metadata ->> 'commit_timestamp') AS commit_ts
                   FROM deployment_requests r
                   WHERE r.organization_id = :organizationId%s
                     AND r.executed_at >= :from AND r.executed_at < :to) x
@@ -63,6 +63,9 @@ class DeploymentMetricsRepositoryImpl implements DeploymentMetricsRepository {
                     AND r.outcome_reported_at >= :from AND r.outcome_reported_at < :to) x
             """;
 
+    // Only requests a human finished deciding: a status reached through the review flow. A
+    // request still in review (or timed out / cancelled) after a partial approval is left out —
+    // its last decision is not the decision.
     private static final String APPROVAL_SQL = """
             SELECT count(*),
                    percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM
@@ -75,6 +78,8 @@ class DeploymentMetricsRepositoryImpl implements DeploymentMetricsRepository {
                   WHERE r.organization_id = :organizationId%s
                     AND r.review_started_at IS NOT NULL
                     AND r.submission_reason <> 'EMERGENCY_ACCESS'::submission_reason
+                    AND r.status IN ('APPROVED'::query_status, 'REJECTED'::query_status,
+                                     'EXECUTED'::query_status, 'FAILED'::query_status)
                   GROUP BY r.id, r.review_started_at) x
             WHERE x.last_decided_at >= :from AND x.last_decided_at < :to
             """;
