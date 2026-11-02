@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentMetricsView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsView;
@@ -102,7 +103,46 @@ class DeploymentMetricsControllerTest {
     }
 
     @Test
-    void onlyTheOrganizationWideEndpointCarriesAFunctionalGate() throws NoSuchMethodException {
+    void environmentMetricsMapsEveryEntryWithoutTheDailySeries() {
+        var environmentId = UUID.randomUUID();
+        when(metricsService.environmentMetrics(orgId,
+                new DeploymentMetricsFilter(FROM, TO, "prod", pipelineId)))
+                .thenReturn(new DeploymentEnvironmentMetricsView(
+                        new DeploymentMetricsView.Period(FROM, TO),
+                        List.of(new DeploymentEnvironmentMetricsView.EnvironmentMetrics(
+                                pipelineId, "payments", environmentId, "prod", view()))));
+
+        var response = controller.environmentMetrics(FROM, TO, "prod", pipelineId, auth());
+
+        assertThat(response.period().from()).isEqualTo(FROM);
+        assertThat(response.period().to()).isEqualTo(TO);
+        assertThat(response.environments()).singleElement().satisfies(row -> {
+            assertThat(row.pipelineId()).isEqualTo(pipelineId);
+            assertThat(row.pipelineName()).isEqualTo("payments");
+            assertThat(row.environmentId()).isEqualTo(environmentId);
+            assertThat(row.environmentName()).isEqualTo("prod");
+            assertThat(row.deploymentFrequency().total()).isEqualTo(4);
+            assertThat(row.leadTime().source()).isEqualTo(LeadTimeSource.MIXED);
+            assertThat(row.changeFailureRate().rate()).isEqualTo(0.5);
+            assertThat(row.timeToRestore().p50Seconds()).isEqualTo(300L);
+            assertThat(row.approvalLatency().p50Seconds()).isNull();
+            assertThat(row.timeoutRate().timedOut()).isEqualTo(1);
+            assertThat(row.breakGlassCount()).isEqualTo(2);
+        });
+    }
+
+    @Test
+    void theBreakdownEndpointCarriesTheOrganizationWideGate() throws NoSuchMethodException {
+        var method = DeploymentMetricsController.class.getDeclaredMethod(
+                "environmentMetrics", Instant.class, Instant.class, String.class, UUID.class,
+                Authentication.class);
+        assertThat(method.getAnnotation(PreAuthorize.class).value())
+                .contains("PERM_DEPLOYMENT_PIPELINE_MANAGE", "PERM_DEPLOYMENT_REVIEW",
+                        "PERM_QUERY_ADMIN");
+    }
+
+    @Test
+    void thePerPipelineEndpointCarriesNoFunctionalGate() throws NoSuchMethodException {
         assertThat(DeploymentMetricsController.class.getAnnotation(PreAuthorize.class)).isNull();
         var pipelineMethod = DeploymentMetricsController.class.getDeclaredMethod(
                 "pipelineMetrics", UUID.class, Instant.class, Instant.class, String.class,

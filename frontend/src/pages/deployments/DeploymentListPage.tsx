@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Input, Select, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { DeploymentUnitOutlined, SearchOutlined } from '@ant-design/icons';
+import { DeploymentUnitOutlined, FundOutlined, SearchOutlined } from '@ant-design/icons';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -267,6 +267,13 @@ export default function DeploymentListPage() {
           onClick={() => navigate(`/deployment-versions/${pipeline}`)}
         >
           {t('deploygov.versions.viewMatrix')}
+        </Button>
+        <Button
+          icon={<FundOutlined />}
+          disabled={pipeline === 'all'}
+          onClick={() => navigate(`/deployment-metrics/${pipeline}`)}
+        >
+          {t('deploygov.metrics.viewMetrics')}
         </Button>
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11 }}>

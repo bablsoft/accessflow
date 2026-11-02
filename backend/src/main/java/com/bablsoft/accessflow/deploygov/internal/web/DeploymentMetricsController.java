@@ -23,7 +23,8 @@ import java.util.UUID;
  * Read-time DORA and approval-SLA metrics (#984). Like the version inventory, carries
  * <strong>no class-level {@code @PreAuthorize}</strong>: the per-pipeline endpoint is open to
  * effective {@code can_trigger} holders and the service answers 404, never 403. Only the
- * org-wide endpoint carries a method-level functional gate.
+ * org-wide endpoints (the aggregate and its per-environment breakdown, #987) carry a
+ * method-level functional gate.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -74,6 +75,29 @@ class DeploymentMetricsController {
             Authentication authentication) {
         var caller = claims(authentication);
         return DeploymentMetricsResponse.from(metricsService.organizationMetrics(
+                caller.organizationId(),
+                new DeploymentMetricsFilter(from, to, environment, pipelineId)));
+    }
+
+    @GetMapping("/deployment-metrics/environments")
+    @PreAuthorize("hasAnyAuthority('PERM_DEPLOYMENT_PIPELINE_MANAGE',"
+            + "'PERM_DEPLOYMENT_REVIEW','PERM_QUERY_ADMIN')")
+    @Operation(summary = "DORA and approval-SLA metrics per pipeline and environment over [from, to)")
+    @ApiResponse(responseCode = "200", description = "One entry per in-scope environment")
+    @ApiResponse(responseCode = "400",
+            description = "from >= to, or the window spans more than 366 days")
+    @ApiResponse(responseCode = "403",
+            description = "Caller holds none of the required permissions")
+    DeploymentEnvironmentMetricsResponse environmentMetrics(
+            @RequestParam(name = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(name = "to", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(name = "environment", required = false) String environment,
+            @RequestParam(name = "pipeline_id", required = false) UUID pipelineId,
+            Authentication authentication) {
+        var caller = claims(authentication);
+        return DeploymentEnvironmentMetricsResponse.from(metricsService.environmentMetrics(
                 caller.organizationId(),
                 new DeploymentMetricsFilter(from, to, environment, pipelineId)));
     }

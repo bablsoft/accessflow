@@ -40,6 +40,11 @@ vi.mock('@/components/deployments/PipelineEnvironmentsTab', () => ({
 vi.mock('@/components/deployments/PipelineVersionsTab', () => ({
   PipelineVersionsTab: () => <div>versions tab</div>,
 }));
+vi.mock('@/components/deployments/DeploymentMetricsPanel', () => ({
+  DeploymentMetricsPanel: ({ pipelineId }: { pipelineId: string }) => (
+    <div>metrics tab for {pipelineId}</div>
+  ),
+}));
 vi.mock('@/components/deployments/PipelinePermissionsTab', () => ({
   PipelinePermissionsTab: () => null,
 }));
@@ -97,7 +102,7 @@ describe('DeploymentPipelineSettingsPage', () => {
     listAiConfigs.mockResolvedValue([]);
   });
 
-  it('shows the pipeline name in the header and all eight tabs', async () => {
+  it('shows the pipeline name in the header and all nine tabs', async () => {
     render(wrap(<DeploymentPipelineSettingsPage />));
 
     expect(await screen.findByText('Prod Deploy')).toBeInTheDocument();
@@ -106,6 +111,7 @@ describe('DeploymentPipelineSettingsPage', () => {
       'General',
       'Environments',
       'Versions',
+      'Metrics',
       'Permissions',
       'Freeze windows',
       'Routing policies',
@@ -185,6 +191,13 @@ describe('DeploymentPipelineSettingsPage', () => {
         'true',
       ),
     );
+  });
+
+  it('opens the Metrics tab from the URL with the panel fixed to this pipeline', async () => {
+    render(wrap(<DeploymentPipelineSettingsPage />, '/admin/deployment-pipelines/pipe-1?tab=metrics'));
+
+    const panel = await screen.findByRole('tabpanel');
+    expect(within(panel).getByText('metrics tab for pipe-1')).toBeInTheDocument();
   });
 
   it('opens the Simulate tab from the URL, scoped to its own panel', async () => {

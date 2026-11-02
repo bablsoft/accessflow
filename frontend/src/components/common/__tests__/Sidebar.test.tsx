@@ -436,6 +436,25 @@ describe('Sidebar — deployment governance (#696)', () => {
   });
 });
 
+describe('Sidebar — deployment metrics (#987)', () => {
+  const only = (permissions: AuthUser['permissions']) => ({ ...readonlyUser, permissions });
+
+  it.each([['DEPLOYMENT_PIPELINE_MANAGE'], ['DEPLOYMENT_REVIEW'], ['QUERY_ADMIN']] as const)(
+    'shows the metrics entry to a %s holder',
+    (permission) => {
+      expandAll();
+      renderSidebar(only([...SYSTEM_ROLE_PERMISSIONS.READONLY, permission]));
+      expect(link(screen, 'Deployment Metrics')).toBeInTheDocument();
+    },
+  );
+
+  it('hides the metrics entry without any of the three permissions', () => {
+    expandAll();
+    renderSidebar(readonlyUser);
+    expect(screen.queryByRole('link', { name: /Deployment Metrics/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Sidebar — schema changes (#883)', () => {
   it('shows the change sets and drift entries to an admin', () => {
     expandAll();

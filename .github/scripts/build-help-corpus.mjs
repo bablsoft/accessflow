@@ -525,6 +525,8 @@ const ROUTES = [
   ['/reviews?tab=deployments', 'The deployment queue; ?tab=rollbacks is the rollback worklist.', 'the Deployments tab of the Review queue — the older /deployment-reviews URL redirects here'],
   ['/deployment-versions', 'What version each environment is running, and where it has drifted.'],
   ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.', 'open a pipeline from Version Matrix'],
+  ['/deployment-metrics', 'DORA metrics and approval SLA: deployment frequency, lead time, change failure rate, time to restore, approval latency, timeouts and break-glass, per environment.'],
+  ['/deployment-metrics/:pipelineId', 'The same metrics for one pipeline.', 'the Metrics button on Deployments, or the Metrics tab of a pipeline'],
   ['/access-requests', 'Ask for access to a datasource, or track a request already made.'],
   ['/lifecycle/erasure', 'Right-to-erasure requests over personal data.'],
   ['/lifecycle/erasure-reviews', 'Review queue for erasure requests.'],

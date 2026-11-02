@@ -9388,7 +9388,7 @@ addressable by environment id and open to `can_trigger` holders under the 404-ne
 ### Deployment metrics (#984, epic #983)
 
 DORA metrics plus the approval-SLA half, **computed at read time** over `deployment_requests` and
-`deployment_review_decisions` — no metrics table, no snapshot job. JWT-side. Both endpoints share
+`deployment_review_decisions` — no metrics table, no snapshot job. JWT-side. The endpoints share
 the visibility rules of the version inventory above: the per-pipeline endpoint is open to
 **`DEPLOYMENT_PIPELINE_MANAGE`**, **`DEPLOYMENT_REVIEW`**, **`QUERY_ADMIN`** and effective
 `can_trigger` holders and answers `404 DEPLOYMENT_PIPELINE_NOT_FOUND` (never `403`) to anyone
@@ -9398,14 +9398,15 @@ else; the org-wide endpoint is functional-permission-only.
 |--------|------|-------------|
 | `GET` | `/deployment-pipelines/{id}/metrics` | Metrics for one pipeline. `404` when the pipeline is unknown, in another org, or not visible to the caller. |
 | `GET` | `/deployment-metrics` | Metrics across the org's pipelines. **`DEPLOYMENT_PIPELINE_MANAGE`**, **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** only (a trigger-only user gets `403`). Extra optional filter `pipeline_id` — a pipeline in another org simply yields empty metrics. |
+| `GET` | `/deployment-metrics/environments` | The same metrics broken down per (pipeline, environment) — #987. Same permissions and filters as `/deployment-metrics` (`pipeline_id` included; a trigger-only user gets `403`). Unpaginated: every environment of every in-scope pipeline is listed, zero-activity ones included, ordered by pipeline name, then environment `sort_order`, then name. |
 
-**Query parameters (both, snake_case):**
+**Query parameters (all three, snake_case):**
 
 | Param | Type | Description |
 |-------|------|-------------|
 | `from` | ISO-8601 instant | Window start, inclusive. Default: `to` minus 30 days. |
 | `to` | ISO-8601 instant | Window end, exclusive. Default: now — or `from` plus 30 days when only `from` is given. |
-| `environment` | string | Environment name, case-insensitive (the version-matrix filter shape). On the org-wide endpoint it matches that name on every pipeline. An unknown name yields empty metrics, not `404`. |
+| `environment` | string | Environment name, case-insensitive (the version-matrix filter shape). On the two org-wide endpoints it matches that name on every pipeline. An unknown name yields empty metrics, not `404`. |
 
 `from >= to`, or a window longer than **366 days**, is `400 DEPLOYMENT_METRICS_PERIOD_INVALID`.
 
@@ -9426,6 +9427,33 @@ else; the org-wide endpoint is functional-permission-only.
   ]
 }
 ```
+
+**Response of `/deployment-metrics/environments` (#987)** — one entry per environment, each the
+blocks above narrowed to exactly that environment (the same computation the org-wide endpoint
+runs with `pipeline_id` + that environment). Entries carry no `period` or `daily`; the window is
+reported once at the top level:
+
+```json
+{
+  "period": { "from": "2026-09-23T00:00:00Z", "to": "2026-10-23T00:00:00Z" },
+  "environments": [
+    {
+      "pipeline_id": "…", "pipeline_name": "payments-api",
+      "environment_id": "…", "environment_name": "production",
+      "deployment_frequency": { "total": 12, "per_day": 0.4 },
+      "lead_time": { "p50_seconds": 5400, "p95_seconds": 86400, "sample_size": 12, "source": "SUBMITTED_AT" },
+      "change_failure_rate": { "rate": 0.0833, "failed": 1, "rolled_back": 0, "unreported": 2, "executed": 12 },
+      "time_to_restore": { "p50_seconds": 1800, "p95_seconds": 1800, "restored": 1, "open_incidents": 0 },
+      "approval_latency": { "p50_seconds": 900, "p95_seconds": 3600, "sample_size": 10 },
+      "timeout_rate": { "rate": 0.0, "timed_out": 0, "entered_review": 10 },
+      "break_glass_count": 0
+    }
+  ]
+}
+```
+
+`environment` matches the environment name case-insensitively; an unknown name, or a
+`pipeline_id` in another org, yields `"environments": []`.
 
 Percentiles are null on an empty sample (never `0`); `rate` fields are null when the
 denominator is `0`; `lead_time.source` is null when the sample is empty. Like every response,

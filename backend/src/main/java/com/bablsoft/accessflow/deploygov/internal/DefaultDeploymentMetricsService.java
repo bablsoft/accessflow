@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
 import com.bablsoft.accessflow.core.api.Permission;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentMetricsView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentMetricsView.EnvironmentMetrics;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsView;
@@ -15,11 +17,13 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsView.TimeoutRate;
 import com.bablsoft.accessflow.deploygov.api.InvalidDeploymentMetricsPeriodException;
 import com.bablsoft.accessflow.deploygov.api.LeadTimeSource;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentMetricsRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentMetricsRepository.DailyStats;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentMetricsRepository.ExecutionStats;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentMetricsScope;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -52,6 +57,7 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
 
     private final DeploymentMetricsRepository metricsRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
+    private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentPipelineVisibility visibility;
     private final Clock clock;
 
@@ -92,6 +98,39 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
                 period.from(), period.to()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public DeploymentEnvironmentMetricsView environmentMetrics(UUID organizationId,
+                                                               DeploymentMetricsFilter filter) {
+        var period = period(filter);
+        var pipelineId = filter == null ? null : filter.pipelineId();
+        var pipelines = pipelineId != null
+                ? pipelineRepository.findByIdAndOrganizationId(pipelineId, organizationId)
+                        .stream().toList()
+                : pipelineRepository.findAllByOrganizationId(organizationId).stream()
+                        .sorted(Comparator.comparing(DeploymentPipelineEntity::getName,
+                                String.CASE_INSENSITIVE_ORDER)
+                                .thenComparing(DeploymentPipelineEntity::getId))
+                        .toList();
+        var name = hasEnvironment(filter) ? filter.environment().trim() : null;
+        var environments = new ArrayList<EnvironmentMetrics>();
+        for (var pipeline : pipelines) {
+            for (var environment : environmentRepository
+                    .findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.getId())) {
+                if (name != null && !name.equalsIgnoreCase(environment.getName())) {
+                    continue;
+                }
+                // No daily series per row: the breakdown never renders one, and skipping it saves
+                // one of the five queries each environment costs.
+                var metrics = compute(new DeploymentMetricsScope(organizationId, pipeline.getId(),
+                        List.of(environment.getId()), period.from(), period.to()), false);
+                environments.add(new EnvironmentMetrics(pipeline.getId(), pipeline.getName(),
+                        environment.getId(), environment.getName(), metrics));
+            }
+        }
+        return new DeploymentEnvironmentMetricsView(period, environments);
+    }
+
     private Period period(DeploymentMetricsFilter filter) {
         var from = filter == null ? null : filter.from();
         var to = filter == null ? null : filter.to();
@@ -117,6 +156,10 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
     }
 
     private DeploymentMetricsView compute(DeploymentMetricsScope scope) {
+        return compute(scope, true);
+    }
+
+    private DeploymentMetricsView compute(DeploymentMetricsScope scope, boolean withDaily) {
         var period = new Period(scope.from(), scope.to());
         if (scope.environmentIds() != null && scope.environmentIds().isEmpty()) {
             // The name matched no environment: nothing can be in scope, so skip the queries.
@@ -126,7 +169,7 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
         var restore = metricsRepository.restoreStats(scope);
         var approval = metricsRepository.approvalStats(scope);
         var review = metricsRepository.reviewStats(scope);
-        var daily = metricsRepository.daily(scope);
+        var daily = withDaily ? zeroFill(period, metricsRepository.daily(scope)) : List.<DailyBucket>of();
         return new DeploymentMetricsView(
                 period,
                 frequency(execution.executed(), period),
@@ -143,7 +186,7 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
                 new TimeoutRate(rate(review.timedOut(), review.enteredReview()),
                         review.timedOut(), review.enteredReview()),
                 review.breakGlass(),
-                zeroFill(period, daily));
+                daily);
     }
 
     private static DeploymentMetricsView empty(Period period) {

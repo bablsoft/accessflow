@@ -59,4 +59,20 @@ public interface DeploymentMetricsService {
      * @throws InvalidDeploymentMetricsPeriodException {@code from >= to} or a window over 366 days
      */
     DeploymentMetricsView organizationMetrics(UUID organizationId, DeploymentMetricsFilter filter);
+
+    /**
+     * {@link #organizationMetrics} once per environment of every in-scope pipeline, zero-activity
+     * environments included (#987), ordered by pipeline name, then environment sort order, then
+     * name. Each entry's {@code daily} is empty — the breakdown carries no day series — and each
+     * costs four queries, which is why the endpoint stays unpaginated only because environments
+     * are admin-curated and few. {@link DeploymentMetricsFilter#pipelineId()} narrows to one pipeline (a foreign id
+     * yields no environments) and {@link DeploymentMetricsFilter#environment()} to the
+     * environments carrying that name, case-insensitively;
+     * {@link DeploymentMetricsFilter#environmentId()} is ignored. Functional permission is enforced
+     * at the web layer.
+     *
+     * @throws InvalidDeploymentMetricsPeriodException {@code from >= to} or a window over 366 days
+     */
+    DeploymentEnvironmentMetricsView environmentMetrics(UUID organizationId,
+                                                        DeploymentMetricsFilter filter);
 }
