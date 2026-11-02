@@ -132,9 +132,18 @@ public class DefaultApiRequestService implements ApiRequestService {
         }
         // The override *count* only — audit rows are long-retention, and an override value is
         // submitter-authored input that may be sensitive in its own right.
+        var metadata = new HashMap<String, Object>();
+        metadata.put("verb", command.verb());
+        metadata.put("write", write);
+        metadata.put("variable_override_count", variableOverrides.size());
+        if (command.replayOf() != null) {
+            metadata.put("trigger", "replay");
+            metadata.put("original_api_request_id", command.replayOf().originalApiRequestId().toString());
+            metadata.put("dropped_variable_override_count",
+                    command.replayOf().droppedVariableOverrideCount());
+        }
         audit(AuditAction.API_REQUEST_SUBMITTED, entity, command.submittedIp(), command.submittedUserAgent(),
-                Map.of("verb", command.verb(), "write", write,
-                        "variable_override_count", variableOverrides.size()));
+                metadata);
         eventPublisher.publishEvent(new ApiRequestSubmittedEvent(entity.getId()));
         return new ApiRequestSubmissionResult(entity.getId(), entity.getStatus());
     }

@@ -571,4 +571,49 @@ class DefaultApiRequestServiceTest {
 
         verify(variableLookupService, org.mockito.Mockito.never()).overridableNames(any(), any());
     }
+
+    /** #886: a replay's provenance rides on the one API_REQUEST_SUBMITTED row. */
+    @Test
+    void submitReplayCarriesReplayProvenanceInAuditMetadata() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        var sourceId = UUID.randomUUID();
+        var base = cmd("POST", SubmissionReason.USER_SUBMITTED);
+        var replay = new SubmitApiRequestCommand(base.connectorId(), base.organizationId(),
+                base.submitterUserId(), base.admin(), base.operationId(), base.verb(), base.requestPath(),
+                base.requestHeaders(), base.queryParams(), base.bodyType(), base.requestContentType(),
+                base.requestBody(), base.formFields(), base.binaryFilename(), base.variableOverrides(),
+                base.justification(), base.scheduledFor(), base.submissionReason(), base.submittedIp(),
+                base.submittedUserAgent(), null,
+                new com.bablsoft.accessflow.apigov.api.ApiRequestReplayProvenance(sourceId, 2));
+
+        service.submit(replay);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(com.bablsoft.accessflow.audit.api.AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(com.bablsoft.accessflow.audit.api.AuditAction.API_REQUEST_SUBMITTED);
+        assertThat(entry.metadata())
+                .containsEntry("trigger", "replay")
+                .containsEntry("original_api_request_id", sourceId.toString())
+                .containsEntry("dropped_variable_override_count", 2)
+                .containsEntry("verb", "POST");
+    }
+
+    @Test
+    void plainSubmitCarriesNoReplayMetadata() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.submit(cmd("POST", SubmissionReason.USER_SUBMITTED));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(com.bablsoft.accessflow.audit.api.AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().metadata())
+                .doesNotContainKeys("trigger", "original_api_request_id", "dropped_variable_override_count");
+    }
 }

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
+import com.bablsoft.accessflow.apigov.api.ApiRequestReplayService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -42,6 +43,7 @@ class ApiRequestController {
     private final ApiRequestService requestService;
     private final ApiAssistService assistService;
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private final ApiRequestReplayService replayService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -115,6 +117,25 @@ class ApiRequestController {
     void cancel(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         requestService.cancel(id, caller.organizationId(), caller.userId());
+    }
+
+    @PostMapping("/{id}/replay")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Replay a terminal API request as a new governed submission")
+    @ApiResponse(responseCode = "202", description = "New request accepted for governance")
+    @ApiResponse(responseCode = "403", description = "No permission on the connector")
+    @ApiResponse(responseCode = "404", description = "Request not found, or the caller is not its submitter")
+    @ApiResponse(responseCode = "409", description = "Request is not terminal")
+    @ApiResponse(responseCode = "422", description = "Operation no longer available, or validation failed")
+    ApiRequestReplayResponse replay(@PathVariable UUID id, Authentication authentication,
+                                    RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var result = replayService.replay(new ApiRequestReplayService.ReplayCommand(id,
+                caller.organizationId(), caller.userId(), isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent(),
+                onBehalfOfPrincipalService.current().orElse(null)));
+        return ApiRequestReplayResponse.from(requestService.get(result.newApiRequestId(),
+                caller.organizationId(), caller.userId(), caller.permissions()),
+                result.droppedVariableOverrideCount());
     }
 
     @PostMapping("/{id}/execute")

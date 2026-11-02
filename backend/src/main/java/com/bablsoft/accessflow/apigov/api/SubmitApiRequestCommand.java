@@ -36,7 +36,24 @@ public record SubmitApiRequestCommand(
         String submittedIp,
         String submittedUserAgent,
         /** The human an API-key caller acts for (#874); null for a human submission. */
-        UUID onBehalfOfUserId) {
+        UUID onBehalfOfUserId,
+        /** Set when this submission replays a recorded request (#886); null otherwise. */
+        ApiRequestReplayProvenance replayOf) {
+
+    /** Backward-compatible constructor without the #886 replay provenance. */
+    public SubmitApiRequestCommand(UUID connectorId, UUID organizationId, UUID submitterUserId,
+                                   boolean admin, String operationId, String verb, String requestPath,
+                                   Map<String, String> requestHeaders, Map<String, String> queryParams,
+                                   ApiBodyType bodyType, String requestContentType, String requestBody,
+                                   List<ApiFormField> formFields, String binaryFilename,
+                                   Map<String, String> variableOverrides, String justification,
+                                   Instant scheduledFor, SubmissionReason submissionReason,
+                                   String submittedIp, String submittedUserAgent, UUID onBehalfOfUserId) {
+        this(connectorId, organizationId, submitterUserId, admin, operationId, verb, requestPath,
+                requestHeaders, queryParams, bodyType, requestContentType, requestBody, formFields,
+                binaryFilename, variableOverrides, justification, scheduledFor, submissionReason,
+                submittedIp, submittedUserAgent, onBehalfOfUserId, null);
+    }
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public SubmitApiRequestCommand(UUID connectorId, UUID organizationId, UUID submitterUserId,
@@ -50,6 +67,6 @@ public record SubmitApiRequestCommand(
         this(connectorId, organizationId, submitterUserId, admin, operationId, verb, requestPath,
                 requestHeaders, queryParams, bodyType, requestContentType, requestBody, formFields,
                 binaryFilename, variableOverrides, justification, scheduledFor, submissionReason,
-                submittedIp, submittedUserAgent, null);
+                submittedIp, submittedUserAgent, null, null);
     }
 }

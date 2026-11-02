@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorMaskingPolicyExcept
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
+import com.bablsoft.accessflow.apigov.api.ApiReplayOperationUnavailableException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
@@ -128,6 +129,14 @@ class ApiGovExceptionHandler {
         var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_request_validation"),
                 "API_REQUEST_VALIDATION_ERROR");
         pd.setProperty("reason", ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(ApiReplayOperationUnavailableException.class)
+    ProblemDetail handleReplayOperationUnavailable(ApiReplayOperationUnavailableException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_replay_operation_unavailable"),
+                "API_REPLAY_OPERATION_UNAVAILABLE");
+        pd.setProperty("operationId", ex.operationId());
         return pd;
     }
 
