@@ -208,12 +208,13 @@ AF-567), writes a prominent
 `@SchedulerLock`-guarded.
 
 **Replay** (`POST /api/v1/api-requests/{id}/replay`, #886) clones a terminal request into a new
-submission through the same `submit` path — the caller is the submitter, `scheduled_for` is null and
-the reason is `USER_SUBMITTED` even for a break-glass source, so permission, the filtered operation
-catalog (else `422 API_REPLAY_OPERATION_UNAVAILABLE`) and the connector state are all re-checked.
-Variable overrides survive only where the caller may still override that name (the rest are dropped
-and counted). Provenance rides on the new row's `API_REQUEST_SUBMITTED` audit metadata
-(`trigger=replay`, `original_api_request_id`); there is no column and no new audit action.
+submission through the same `submit` path. The caller is the submitter, `scheduled_for` is null, and
+the reason is `USER_SUBMITTED` even for a break-glass source. Because it goes through `submit`, the
+caller's permission and the connector state are re-checked. Before that, the replay service checks
+that the stored operation is still in the filtered catalog (else
+`422 API_REPLAY_OPERATION_UNAVAILABLE`). Variable overrides survive only where the caller may still
+override that name; the rest are dropped and counted. Provenance rides on the new row's `API_REQUEST_SUBMITTED` audit metadata
+(`trigger=replay`, `original_api_request_id`, `dropped_variable_override_count`); there is no column and no new audit action.
 
 **Text-to-API** (`POST /api/v1/api-requests/generate`) turns plain English into a concrete call
 draft via `ApiCallAnalyzer.generateApiCall`, enabled only for connectors with a parsed schema and

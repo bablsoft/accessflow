@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.Permission;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +46,7 @@ class DefaultApiRequestReplayService implements ApiRequestReplayService {
     private final EffectiveApiConnectorPermissionResolver permissionResolver;
     private final ApiConnectorVariableLookupService variableLookupService;
     private final ApiRequestService requestService;
+    private final ApigovRequestProperties requestProperties;
     private final MessageSource messageSource;
     private final ObjectMapper objectMapper;
 
@@ -123,12 +126,20 @@ class DefaultApiRequestReplayService implements ApiRequestReplayService {
         var overridable = variableLookupService.overridableNames(source.getConnectorId(),
                 command.organizationId());
         var carried = new LinkedHashMap<String, String>();
+        // Values are re-validated here too, so a since-tightened limit drops the override instead of
+        // failing the whole replay in submit.
         stored.forEach((name, value) -> {
-            if (overridable.contains(name)) {
+            if (overridable.contains(name) && isValidValue(value)) {
                 carried.put(name, value);
             }
         });
         return carried;
+    }
+
+    private boolean isValidValue(String value) {
+        var safe = value == null ? "" : value;
+        return safe.getBytes(StandardCharsets.UTF_8).length <= requestProperties.maxVariableValueBytes()
+                && !DefaultApiConnectorVariableResolutionService.containsControlCharacters(safe);
     }
 
     private Map<String, String> readMap(String json) {

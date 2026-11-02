@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestSubmissionResult;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
@@ -68,7 +69,8 @@ class DefaultApiRequestReplayServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiRequestReplayService(requestRepository, schemaService, permissionResolver,
-                variableLookupService, requestService, messageSource, JsonMapper.builder().build());
+                variableLookupService, requestService, new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8),
+                messageSource, JsonMapper.builder().build());
         lenient().when(messageSource.getMessage(eq("replay.api_justification"), any(), any()))
                 .thenAnswer(i -> "Replay of API request " + ((Object[]) i.getArgument(1))[0]);
         lenient().when(requestService.submit(any()))
@@ -343,5 +345,21 @@ class DefaultApiRequestReplayServiceTest {
         service.replay(command(Set.of()));
 
         assertThat(submitted().formFields()).isEmpty();
+    }
+
+    @Test
+    void overrideValuesThatNoLongerValidateAreDroppedAndCounted() {
+        var src = source(QueryStatus.EXECUTED);
+        // The limit in setUp is 8 bytes: "toolongvalue" exceeds it, "a\nb" carries a control character.
+        src.setVariableOverrides("{\"tenant\":\"t1\",\"region\":\"toolongvalue\",\"tier\":\"a\\nb\"}");
+        stub(src);
+        when(permissionResolver.resolve(connectorId, callerId)).thenReturn(Optional.of(grant(true)));
+        when(variableLookupService.overridableNames(connectorId, orgId))
+                .thenReturn(Set.of("tenant", "region", "tier"));
+
+        var result = service.replay(command(Set.of()));
+
+        assertThat(result.droppedVariableOverrideCount()).isEqualTo(2);
+        assertThat(submitted().variableOverrides()).containsExactlyEntriesOf(Map.of("tenant", "t1"));
     }
 }

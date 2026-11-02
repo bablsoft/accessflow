@@ -122,11 +122,13 @@ class ApiRequestReplayIntegrationTest {
         assertThat(requestRepository.findById(source.getId()).orElseThrow().getStatus())
                 .isEqualTo(QueryStatus.EXECUTED);
 
+        // Every audit row the request wrote — the replay adds no row of its own beside the submission.
         var audit = jdbcTemplate.queryForList(
                 "select action, resource_id, metadata::text as metadata from audit_log "
-                        + "where organization_id = ? and action = ?",
-                org.getId(), AuditAction.API_REQUEST_SUBMITTED.name());
+                        + "where organization_id = ? and action like 'API_REQUEST_%'",
+                org.getId());
         assertThat(audit).hasSize(1);
+        assertThat(audit.get(0).get("action")).hasToString(AuditAction.API_REQUEST_SUBMITTED.name());
         assertThat(audit.get(0).get("resource_id")).hasToString(replayed.getId().toString());
         assertThat(String.valueOf(audit.get(0).get("metadata")))
                 .contains("\"trigger\": \"replay\"")
