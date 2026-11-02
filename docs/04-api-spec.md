@@ -3652,7 +3652,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `GET` | `/admin/compliance/reports/classified-access` | Classified-data access report over a period *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/regulatory-audit-trail` | DDL/DELETE regulatory audit trail with approvers *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/retention-adherence` | Retention + erasure lifecycle runs over a period *(AUDITOR or ADMIN)* |
-| `GET` | `/admin/compliance/reports/deployment-metrics` | DORA + approval-SLA metrics per pipeline × environment over a period (#986) *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/reports/deployment-metrics` | DORA + approval-SLA metrics per pipeline × environment over a period (#986) *(`COMPLIANCE_REPORT_VIEW` — AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/export` | Signed PDF/CSV compliance export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/signing-certificate` | Public key to verify a signed export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/anomalies` | List behavioural anomalies with filters (UBA, AF-383) *(AUDITOR or ADMIN)* |
@@ -6485,7 +6485,7 @@ The body is streamed via `StreamingResponseBody` — the backend reads the resul
 
 ### Compliance Reporting (`/admin/compliance`) *(AUDITOR or ADMIN)* — AF-459
 
-Pre-built compliance reports computed over a period — the query reports from the immutable `query_snapshots` forensic record, the deployment-metrics report (#986) at read time from live `deployment_requests` rows. All endpoints require `hasAnyRole('AUDITOR','ADMIN')` (otherwise 403). Reports are read-only.
+Pre-built compliance reports computed over a period — the query reports from the immutable `query_snapshots` forensic record, the deployment-metrics report (#986) at read time from live `deployment_requests` rows. All endpoints require the `COMPLIANCE_REPORT_VIEW` permission — held by the `AUDITOR` and `ADMIN` system roles — (otherwise 403). Reports are read-only.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -9002,7 +9002,7 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
-## Deployment Governance (#688–#742, epic #682)
+## Deployment Governance (#688–#742, epic #682; #984–#987, epic #983)
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
@@ -9010,7 +9010,9 @@ surface (#688), the **deployment request pipeline** — trigger → AI risk → 
 — the **admin routing-policy CRUD** (#691), the **reviewer decision endpoints, break-glass
 deploys and scheduled-deploy semantics** (#692), the **deployment gate, execution
 confirmation, outcome reporting and rollback follow-up reviews** (#693), and the read-only
-**version inventory & drift** surface over the #741 tracking foundation (#742).
+**version inventory & drift** surface over the #741 tracking foundation (#742), and the read-only
+**DORA metrics** surface — deployment frequency, lead time, change failure rate, time to restore,
+approval latency, timeout rate and break-glass count, computed at read time (#984, #987; epic #983).
 
 Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
 `/admin/deployment-routing-policies` requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission.
@@ -9467,7 +9469,7 @@ are UTC days (`date_trunc('day', ts AT TIME ZONE 'UTC')`), independent of the se
 | Metric | Definition |
 |---|---|
 | Deployment frequency | count of rows with `executed_at` in the window (an `EXECUTED → FAILED` flip keeps its `executed_at`, so it still counts as a deployment); `per_day` = `total` ÷ window length in days |
-| Lead time (p50/p95) | `metadata->>'commit_timestamp'` (ISO-8601, documented key), falling back to `created_at`, → `executed_at`. Send an offset-qualified ISO-8601 instant: the value is read by PostgreSQL's `timestamptz` parser, so a value without an offset is interpreted in the database session's zone, and a value it cannot parse falls back to `created_at`. A commit timestamp later than `executed_at` counts as a `0`-second sample. `source` is `COMMIT_TIMESTAMP` (every sample used the commit timestamp), `SUBMITTED_AT` (none did) or `MIXED` |
+| Lead time (p50/p95) | `metadata->>'commit_timestamp'` (ISO-8601, documented key), falling back to `created_at`, → `executed_at`. Send an offset-qualified ISO-8601 instant (`Z`, `±hh`, `±hhmm` or `±hh:mm`): the value is read by `af_try_parse_iso_instant` (V203), so a value without an offset, or one it cannot parse, falls back to `created_at` rather than being guessed in some zone. A commit timestamp later than `executed_at` counts as a `0`-second sample. `source` is `COMMIT_TIMESTAMP` (every sample used the commit timestamp), `SUBMITTED_AT` (none did) or `MIXED` |
 | Change failure rate | rows with `outcome IN (FAILED, ROLLED_BACK)` ÷ rows with `executed_at` in the window; an unreported outcome counts as not-failed, and the `unreported` count is returned so the UI can caveat |
 | Time to restore (p50/p95) | for each `FAILED`/`ROLLED_BACK` outcome reported in the window: `outcome_reported_at` → the `executed_at` of the next request (executed after the failed one) on the same pipeline + environment whose outcome is `SUCCEEDED`; unrestored incidents are excluded from the percentiles and returned as `open_incidents`. A success that executed before the failure was reported counts as a `0`-second restore |
 | Approval latency (p50/p95) | `review_started_at` → the request's last `deployment_review_decisions.decided_at`, windowed on that last decision; only requests a human finished deciding (status `APPROVED`, `REJECTED`, `EXECUTED` or `FAILED` with a decision row — a request still in review, timed out or cancelled after a partial approval is left out) — routing auto-approvals and break-glass never waited on anyone; requests decided through a change ticket (#992, system-attributed, no decision row) and rows that pre-date `review_started_at` are excluded too |

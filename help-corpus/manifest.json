@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "0a01dbf0564a",
-  "generatedAt": "2026-11-02T09:53:33.386Z",
-  "sourceCommit": "9abd87589a6dcbcef1d05c166ff7707232c14506",
-  "chunkCount": 609,
-  "sha256": "0a01dbf0564a011453e3f0c37cd92eed863b76a7a9d28d79c009a56fabdb74d7",
+  "corpusVersion": "ab595a9726ce",
+  "generatedAt": "2026-11-02T12:59:00.750Z",
+  "sourceCommit": "f80764020ba38dd49c1b5566601ec71e5a3b7a22",
+  "chunkCount": 611,
+  "sha256": "ab595a9726ce70341f945e635b6967b8121f9247177baaef33355d7fe3e418ba",
   "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
   "sources": [
     {
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 26,
-      "sha256": "9af18f9885360db6f805017bf53e37503afa7b24d7b8f0752e1fd7e187ea9446"
+      "sha256": "eb5c002f078fdbd4a099cec033fa097a9969c024b87fbd58b2c6074aad5e8453"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -260,8 +260,8 @@
       "title": "Gate a deployment pipeline",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "section": "Guides",
-      "chunks": 12,
-      "sha256": "9151d8bfb759c7e6b29cea588d194c4232341009adf1a00554b6524d87d49ddf"
+      "chunks": 13,
+      "sha256": "61ce63098165752c568a5f9d8eb9a05abac2adb40b87798dee2af7fd03cd1366"
     },
     {
       "path": "website/docs/guides/first-query/index.html",
@@ -380,8 +380,8 @@
       "title": "Deployment approval governance — gate every CI/CD release",
       "url": "https://accessflow.io/features/deployment-governance/",
       "section": "Features",
-      "chunks": 9,
-      "sha256": "fb9445946e3dac83f2177dca35dd5a679484af921e9c202a0212433d6f23b5ba"
+      "chunks": 10,
+      "sha256": "9cf26abb127c5ef55654006d629333ecbace4be7343dbbab0c93ff6096a7034b"
     },
     {
       "path": "website/features/index.html",
@@ -397,7 +397,7 @@
       "url": "https://accessflow.io/",
       "section": "Overview",
       "chunks": 19,
-      "sha256": "61c04853c135f455f24c8abfb01ac1cf7c305e55f3ecb1d2893fcf85bc6bf715"
+      "sha256": "188bab13bdb718d4a5e07ac7b375fa20c053602e05b62ebc0f1c0059e97b8116"
     },
     {
       "path": "website/security/index.html",
