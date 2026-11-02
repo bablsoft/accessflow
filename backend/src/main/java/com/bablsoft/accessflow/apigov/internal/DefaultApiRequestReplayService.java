@@ -13,7 +13,6 @@ import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
 import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
-import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import lombok.RequiredArgsConstructor;
@@ -53,9 +52,11 @@ class DefaultApiRequestReplayService implements ApiRequestReplayService {
     @Override
     @Transactional
     public ReplayResult replay(ReplayCommand command) {
+        // Submitter only, even for QUERY_VIEW_ALL: no read surface shows the stored headers, body or
+        // form files, so another user's replay would resend input (e.g. a typed API key) unseen.
         var source = requestRepository
                 .findByIdAndOrganizationId(command.originalApiRequestId(), command.organizationId())
-                .filter(r -> canView(r, command))
+                .filter(r -> r.getSubmittedBy().equals(command.callerUserId()))
                 .orElseThrow(() -> new ApiRequestNotFoundException(command.originalApiRequestId()));
         if (!TERMINAL.contains(source.getStatus())) {
             throw new IllegalApiRequestStateException(source.getStatus(),
@@ -92,13 +93,6 @@ class DefaultApiRequestReplayService implements ApiRequestReplayService {
                 command.onBehalfOfUserId(),
                 new ApiRequestReplayProvenance(source.getId(), dropped)));
         return new ReplayResult(result.id(), result.status(), dropped);
-    }
-
-    private static boolean canView(ApiRequestEntity source, ReplayCommand command) {
-        // Same rule as ApiRequestService.get: the submitter, or "View all query history".
-        return source.getSubmittedBy().equals(command.callerUserId())
-                || (command.callerPermissions() != null
-                        && command.callerPermissions().contains(Permission.QUERY_VIEW_ALL));
     }
 
     private void requireOperationAvailable(ApiRequestEntity source) {

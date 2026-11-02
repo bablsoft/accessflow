@@ -59,20 +59,24 @@ class ApiRequestReplayIntegrationTest {
     private ApiConnectorEntity connector;
     private UserEntity analyst;
     private UserEntity otherAnalyst;
+    private UserEntity admin;
     private String analystToken;
     private String otherAnalystToken;
+    private String adminToken;
 
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
         var suffix = UUID.randomUUID().toString().substring(0, 8);
         org = saveOrg("ApiReplay " + suffix, "api-replay-" + suffix);
-        analyst = saveUser("analyst-replay-" + suffix + "@example.com");
-        otherAnalyst = saveUser("other-replay-" + suffix + "@example.com");
+        analyst = saveUser("analyst-replay-" + suffix + "@example.com", UserRoleType.ANALYST);
+        otherAnalyst = saveUser("other-replay-" + suffix + "@example.com", UserRoleType.ANALYST);
+        admin = saveUser("admin-replay-" + suffix + "@example.com", UserRoleType.ADMIN);
         connector = saveConnector("replay-api-" + suffix);
         givenPermission(analyst);
         analystToken = generateToken(analyst);
         otherAnalystToken = generateToken(otherAnalyst);
+        adminToken = generateToken(admin);
     }
 
     /** Scoped to this class's own rows — the Testcontainers database is shared. */
@@ -87,7 +91,7 @@ class ApiRequestReplayIntegrationTest {
         jdbcTemplate.update("delete from api_requests where organization_id = ?", org.getId());
         permissionRepository.deleteAll(permissionRepository.findByConnectorId(connector.getId()));
         connectorRepository.deleteById(connector.getId());
-        userRepository.deleteAllById(List.of(analyst.getId(), otherAnalyst.getId()));
+        userRepository.deleteAllById(List.of(analyst.getId(), otherAnalyst.getId(), admin.getId()));
         organizationRepository.deleteById(org.getId());
         connector = null;
     }
@@ -161,6 +165,20 @@ class ApiRequestReplayIntegrationTest {
                 .isEqualTo("API_REQUEST_NOT_FOUND");
     }
 
+    /** An admin can read the source, but may not resend headers and body it never saw. */
+    @Test
+    void anAdminCannotReplaySomeoneElsesRequest() {
+        var source = saveSource(QueryStatus.EXECUTED);
+
+        var result = mvc.post().uri("/api/v1/api-requests/{id}/replay", source.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("API_REQUEST_NOT_FOUND");
+    }
+
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     private ApiRequestEntity saveSource(QueryStatus status) {
@@ -190,13 +208,13 @@ class ApiRequestReplayIntegrationTest {
         return organizationRepository.save(entity);
     }
 
-    private UserEntity saveUser(String email) {
+    private UserEntity saveUser(String email, UserRoleType role) {
         var entity = new UserEntity();
         entity.setId(UUID.randomUUID());
         entity.setEmail(email);
         entity.setDisplayName(email);
         entity.setPasswordHash("x");
-        entity.setRole(UserRoleType.ANALYST);
+        entity.setRole(role);
         entity.setAuthProvider(AuthProviderType.LOCAL);
         entity.setActive(true);
         entity.setOrganization(org);

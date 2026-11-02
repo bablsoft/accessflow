@@ -124,15 +124,14 @@ class ApiRequestController {
     @Operation(summary = "Replay a terminal API request as a new governed submission")
     @ApiResponse(responseCode = "202", description = "New request accepted for governance")
     @ApiResponse(responseCode = "403", description = "No permission on the connector")
-    @ApiResponse(responseCode = "404", description = "Request not found or not visible to the caller")
+    @ApiResponse(responseCode = "404", description = "Request not found, or the caller is not its submitter")
     @ApiResponse(responseCode = "409", description = "Request is not terminal")
     @ApiResponse(responseCode = "422", description = "Operation no longer available, or validation failed")
     ApiRequestReplayResponse replay(@PathVariable UUID id, Authentication authentication,
                                     RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var result = replayService.replay(new ApiRequestReplayService.ReplayCommand(id,
-                caller.organizationId(), caller.userId(), isAdmin(caller), caller.permissions(),
-                auditContext.ipAddress(), auditContext.userAgent(),
+                caller.organizationId(), caller.userId(), isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent(),
                 onBehalfOfPrincipalService.current().orElse(null)));
         return ApiRequestReplayResponse.from(requestService.get(result.newApiRequestId(),
                 caller.organizationId(), caller.userId(), caller.permissions()),

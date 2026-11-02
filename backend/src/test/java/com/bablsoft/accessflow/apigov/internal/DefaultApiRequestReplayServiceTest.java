@@ -16,7 +16,6 @@ import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
-import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import org.junit.jupiter.api.BeforeEach;
@@ -103,8 +102,8 @@ class DefaultApiRequestReplayServiceTest {
         return e;
     }
 
-    private ReplayCommand command(Set<Permission> permissions) {
-        return new ReplayCommand(sourceId, orgId, callerId, false, permissions, "1.2.3.4", "ua", null);
+    private ReplayCommand command() {
+        return new ReplayCommand(sourceId, orgId, callerId, false, "1.2.3.4", "ua", null);
     }
 
     private ResolvedApiConnectorPermission grant(boolean canOverride) {
@@ -128,7 +127,7 @@ class DefaultApiRequestReplayServiceTest {
         when(schemaService.listOperations(connectorId, orgId)).thenReturn(List.of(
                 new ApiOperation("createCharge", "POST", "/charges", null, true, null, null)));
 
-        var result = service.replay(command(Set.of()));
+        var result = service.replay(command());
 
         assertThat(result.newApiRequestId()).isEqualTo(newId);
         assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
@@ -165,12 +164,10 @@ class DefaultApiRequestReplayServiceTest {
     void breakGlassSourceIsReplayedAsAnOrdinarySubmissionByTheCaller() {
         var src = source(QueryStatus.EXECUTED);
         src.setSubmissionReason(SubmissionReason.EMERGENCY_ACCESS);
-        src.setSubmittedBy(otherUserId);
         stub(src);
         var alice = UUID.randomUUID();
 
-        service.replay(new ReplayCommand(sourceId, orgId, callerId, true,
-                Set.of(Permission.QUERY_VIEW_ALL), "1.2.3.4", "ua", alice));
+        service.replay(new ReplayCommand(sourceId, orgId, callerId, true, "1.2.3.4", "ua", alice));
 
         var cmd = submitted();
         assertThat(cmd.submitterUserId()).isEqualTo(callerId);
@@ -185,7 +182,7 @@ class DefaultApiRequestReplayServiceTest {
     void everyTerminalStatusIsReplayable(QueryStatus status) {
         stub(source(status));
 
-        service.replay(command(Set.of()));
+        service.replay(command());
 
         verify(requestService).submit(any());
     }
@@ -195,7 +192,7 @@ class DefaultApiRequestReplayServiceTest {
     void nonTerminalSourceIsAnIllegalState(QueryStatus status) {
         stub(source(status));
 
-        assertThatThrownBy(() -> service.replay(command(Set.of())))
+        assertThatThrownBy(() -> service.replay(command()))
                 .isInstanceOf(IllegalApiRequestStateException.class)
                 .satisfies(ex -> assertThat(((IllegalApiRequestStateException) ex).currentStatus())
                         .isEqualTo(status));
@@ -206,32 +203,23 @@ class DefaultApiRequestReplayServiceTest {
     void sourceInAnotherOrganizationIsNotFound() {
         when(requestRepository.findByIdAndOrganizationId(sourceId, orgId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.replay(command(Set.of())))
+        assertThatThrownBy(() -> service.replay(command()))
                 .isInstanceOf(ApiRequestNotFoundException.class);
     }
 
+    /** Not even an admin may replay another user's request: it would resend input they never saw. */
     @Test
-    void someoneElsesSourceIsNotFoundWithoutViewAll() {
+    void someoneElsesSourceIsNotFoundEvenForAnAdmin() {
         var src = source(QueryStatus.EXECUTED);
         src.setSubmittedBy(otherUserId);
         stub(src);
 
-        assertThatThrownBy(() -> service.replay(command(Set.of(Permission.QUERY_SUBMIT_SELECT))))
+        assertThatThrownBy(() -> service.replay(command()))
                 .isInstanceOf(ApiRequestNotFoundException.class);
-        assertThatThrownBy(() -> service.replay(command(null)))
+        assertThatThrownBy(() -> service.replay(
+                new ReplayCommand(sourceId, orgId, callerId, true, "1.2.3.4", "ua", null)))
                 .isInstanceOf(ApiRequestNotFoundException.class);
         verify(requestService, never()).submit(any());
-    }
-
-    @Test
-    void viewAllHolderCanReplaySomeoneElsesSource() {
-        var src = source(QueryStatus.FAILED);
-        src.setSubmittedBy(otherUserId);
-        stub(src);
-
-        service.replay(command(Set.of(Permission.QUERY_VIEW_ALL)));
-
-        assertThat(submitted().submitterUserId()).isEqualTo(callerId);
     }
 
     @Test
@@ -240,7 +228,7 @@ class DefaultApiRequestReplayServiceTest {
         when(schemaService.listOperations(connectorId, orgId)).thenReturn(List.of(
                 new ApiOperation("listCharges", "GET", "/charges", null, false, null, null)));
 
-        assertThatThrownBy(() -> service.replay(command(Set.of())))
+        assertThatThrownBy(() -> service.replay(command()))
                 .isInstanceOf(ApiReplayOperationUnavailableException.class)
                 .satisfies(ex -> assertThat(((ApiReplayOperationUnavailableException) ex).operationId())
                         .isEqualTo("createCharge"));
@@ -252,7 +240,7 @@ class DefaultApiRequestReplayServiceTest {
         stub(source(QueryStatus.EXECUTED));
         when(schemaService.listOperations(connectorId, orgId)).thenReturn(List.of());
 
-        service.replay(command(Set.of()));
+        service.replay(command());
 
         verify(requestService).submit(any());
     }
@@ -263,7 +251,7 @@ class DefaultApiRequestReplayServiceTest {
         src.setOperationId(null);
         stub(src);
 
-        service.replay(command(Set.of()));
+        service.replay(command());
 
         verifyNoInteractions(schemaService);
         assertThat(submitted().operationId()).isNull();
@@ -276,7 +264,7 @@ class DefaultApiRequestReplayServiceTest {
         stub(src);
         when(permissionResolver.resolve(connectorId, callerId)).thenReturn(Optional.empty());
 
-        var result = service.replay(command(Set.of()));
+        var result = service.replay(command());
 
         assertThat(result.droppedVariableOverrideCount()).isEqualTo(2);
         var cmd = submitted();
@@ -292,7 +280,7 @@ class DefaultApiRequestReplayServiceTest {
         stub(src);
         when(permissionResolver.resolve(connectorId, callerId)).thenReturn(Optional.of(grant(false)));
 
-        var result = service.replay(command(Set.of()));
+        var result = service.replay(command());
 
         assertThat(result.droppedVariableOverrideCount()).isEqualTo(1);
         assertThat(submitted().variableOverrides()).isEmpty();
@@ -306,7 +294,7 @@ class DefaultApiRequestReplayServiceTest {
         when(permissionResolver.resolve(connectorId, callerId)).thenReturn(Optional.of(grant(true)));
         when(variableLookupService.overridableNames(connectorId, orgId)).thenReturn(Set.of("tenant", "tier"));
 
-        var result = service.replay(command(Set.of()));
+        var result = service.replay(command());
 
         assertThat(result.droppedVariableOverrideCount()).isEqualTo(1);
         var cmd = submitted();
@@ -325,7 +313,7 @@ class DefaultApiRequestReplayServiceTest {
         src.setVariableOverrides(" ");
         stub(src);
 
-        service.replay(command(Set.of()));
+        service.replay(command());
 
         var cmd = submitted();
         assertThat(cmd.requestHeaders()).isEmpty();
@@ -342,7 +330,7 @@ class DefaultApiRequestReplayServiceTest {
         src.setFormFields(null);
         stub(src);
 
-        service.replay(command(Set.of()));
+        service.replay(command());
 
         assertThat(submitted().formFields()).isEmpty();
     }
@@ -357,7 +345,7 @@ class DefaultApiRequestReplayServiceTest {
         when(variableLookupService.overridableNames(connectorId, orgId))
                 .thenReturn(Set.of("tenant", "region", "tier"));
 
-        var result = service.replay(command(Set.of()));
+        var result = service.replay(command());
 
         assertThat(result.droppedVariableOverrideCount()).isEqualTo(2);
         assertThat(submitted().variableOverrides()).containsExactlyEntriesOf(Map.of("tenant", "t1"));

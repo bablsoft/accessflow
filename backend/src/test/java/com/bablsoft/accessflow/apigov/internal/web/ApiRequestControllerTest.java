@@ -218,7 +218,6 @@ class ApiRequestControllerTest {
         assertThat(command.organizationId()).isEqualTo(orgId);
         assertThat(command.callerUserId()).isEqualTo(userId);
         assertThat(command.admin()).isFalse();
-        assertThat(command.callerPermissions()).isEqualTo(permissions);
         assertThat(command.ipAddress()).isEqualTo("1.2.3.4");
         assertThat(command.userAgent()).isEqualTo("ua");
         assertThat(command.onBehalfOfUserId()).isEqualTo(alice);

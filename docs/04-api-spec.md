@@ -8949,7 +8949,7 @@ covers exactly what will execute.
 | `POST` | `/api-requests/{id}/execute` | Submitter executes an APPROVED request against the upstream target. |
 | `POST` | `/api-requests/analyze` | Debounced AI risk preview of a draft call. |
 | `POST` | `/api-requests/generate` | Text-to-API: plain English → draft call (schema connectors with `text_to_api_enabled` only). |
-| `POST` | `/api-requests/{id}/replay` | Clone a **terminal** request into a new governed submission (`202`, #886); the response adds `dropped_variable_override_count` — see below. |
+| `POST` | `/api-requests/{id}/replay` | **Submitter only.** Clone a **terminal** request into a new governed submission (`202`, #886); the response adds `dropped_variable_override_count` — see below. |
 
 ### POST /api-requests/{id}/replay — Response 202
 
@@ -8959,7 +8959,7 @@ Clones a recorded API request that has reached a **terminal** status (`EXECUTED`
 POST /api/v1/api-requests/{id}/replay  → 202 Accepted
 ```
 
-A replay is a new submission, never a re-execution: the stored connector, operation, verb, path, headers, query params, body composition (`body_type`, `request_content_type`, `request_body`, `form_fields`, `binary_filename`) and variable overrides are re-submitted through the ordinary `POST /api-requests` pipeline (AI → routing → review). Once approved, the new request executes like any other — through `POST /api-requests/{id}/execute` or at its schedule. The source row is never modified. The **caller** becomes the submitter (so the self-approval guard applies), `scheduled_for` is `null`, and `submission_reason` is `USER_SUBMITTED` even when the source was break-glass. The justification is not copied: the server sets a localized one ("Replay of API request {id}"). Connector credentials and resolved dynamic variables are never copied — they are resolved at execution time.
+A replay is a new submission, never a re-execution: the stored connector, operation, verb, path, headers, query params, body composition (`body_type`, `request_content_type`, `request_body`, `form_fields`, `binary_filename`) and variable overrides are re-submitted through the ordinary `POST /api-requests` pipeline (AI → routing → review). Once approved, the new request executes like any other — through `POST /api-requests/{id}/execute` or at its schedule. The source row is never modified. The **caller** becomes the submitter (so the self-approval guard applies), `scheduled_for` is `null`, and `submission_reason` is `USER_SUBMITTED` even when the source was break-glass. The justification is not copied: the server sets a localized one ("Replay of API request {id}"). Connector credentials and resolved dynamic variables are never copied — they are resolved at execution time. Only the original submitter may replay, because headers and body the submitter typed are copied as they are.
 
 Everything is re-checked against the present: the caller's connector permission (read/write/`allowed_operations`), the connector being active, and — when the source names an operation and the connector has a parsed schema — the operation still being in the connector's **current, filtered** catalog. Stored variable overrides are carried only when the caller's grant has `can_override_variables`, the name is still overridable, and the value still passes the length and control-character checks; any other override is **dropped** (never a failure), and the count is reported.
 
@@ -8974,7 +8974,7 @@ The replay writes exactly one audit row — the new request's `API_REQUEST_SUBMI
 
 **Errors:**
 - `401 UNAUTHORIZED` — missing or invalid JWT.
-- `404 API_REQUEST_NOT_FOUND` — the source does not exist in the caller's organization, or the caller may not see it (only the submitter or a holder of `QUERY_VIEW_ALL` — "View all query history" — can).
+- `404 API_REQUEST_NOT_FOUND` — the source does not exist in the caller's organization, or the caller is not its submitter. Unlike `GET /api-requests/{id}`, `QUERY_VIEW_ALL` does not widen this: no read surface shows the stored headers, body or form files, so replaying another user's request would resend input — a typed API key, say — the caller never saw, under the caller's name.
 - `409 API_REQUEST_INVALID_STATE` — the source is not terminal (`currentStatus`).
 - `422 API_REPLAY_OPERATION_UNAVAILABLE` — the source's operation is no longer in the connector's catalog (`operationId`).
 - Anything `POST /api-requests` raises for the new submission: `403 API_REQUEST_PERMISSION_DENIED`, `422 API_REQUEST_VALIDATION_ERROR`, `404 API_CONNECTOR_NOT_FOUND`.
