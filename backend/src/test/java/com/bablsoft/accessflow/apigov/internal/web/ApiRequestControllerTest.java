@@ -37,6 +37,7 @@ class ApiRequestControllerTest {
     private ApiAssistService assistService;
     private ApiRequestController controller;
     private OnBehalfOfPrincipalService onBehalfOfPrincipalService;
+    private com.bablsoft.accessflow.apigov.api.ApiRequestReplayService replayService;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -49,7 +50,9 @@ class ApiRequestControllerTest {
         requestService = mock(ApiRequestService.class);
         assistService = mock(ApiAssistService.class);
         onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
-        controller = new ApiRequestController(requestService, assistService, onBehalfOfPrincipalService);
+        replayService = mock(com.bablsoft.accessflow.apigov.api.ApiRequestReplayService.class);
+        controller = new ApiRequestController(requestService, assistService, onBehalfOfPrincipalService,
+                replayService);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -190,5 +193,34 @@ class ApiRequestControllerTest {
                 .thenReturn(new ApiAssistService.GeneratedApiCallView("draft"));
         var r = controller.generate(new GenerateApiCallRequest(connectorId, "p", "en"), auth(UserRoleType.ANALYST));
         assertThat(r.draft()).isEqualTo("draft");
+    }
+
+    @Test
+    void replayReturnsNewRequestWithDroppedCountAndForwardsCaller() {
+        var sourceId = UUID.randomUUID();
+        var alice = UUID.randomUUID();
+        when(onBehalfOfPrincipalService.current()).thenReturn(Optional.of(alice));
+        when(replayService.replay(any())).thenReturn(
+                new com.bablsoft.accessflow.apigov.api.ApiRequestReplayService.ReplayResult(
+                        requestId, QueryStatus.PENDING_AI, 3));
+        var permissions = SystemRolePermissions.of(UserRoleType.ANALYST);
+        when(requestService.get(requestId, orgId, userId, permissions)).thenReturn(view());
+
+        var response = controller.replay(sourceId, auth(UserRoleType.ANALYST), auditContext);
+
+        assertThat(response.request().id()).isEqualTo(requestId);
+        assertThat(response.droppedVariableOverrideCount()).isEqualTo(3);
+        var captor = ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.apigov.api.ApiRequestReplayService.ReplayCommand.class);
+        verify(replayService).replay(captor.capture());
+        var command = captor.getValue();
+        assertThat(command.originalApiRequestId()).isEqualTo(sourceId);
+        assertThat(command.organizationId()).isEqualTo(orgId);
+        assertThat(command.callerUserId()).isEqualTo(userId);
+        assertThat(command.admin()).isFalse();
+        assertThat(command.callerPermissions()).isEqualTo(permissions);
+        assertThat(command.ipAddress()).isEqualTo("1.2.3.4");
+        assertThat(command.userAgent()).isEqualTo("ua");
+        assertThat(command.onBehalfOfUserId()).isEqualTo(alice);
     }
 }

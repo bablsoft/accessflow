@@ -88,4 +88,15 @@ class ApiGovExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
         assertThat(pd.getProperties()).containsEntry("error", "API_REVIEWER_NOT_ELIGIBLE");
     }
+
+    @Test
+    void replayOperationUnavailableIs422WithOperationId() {
+        var pd = handler.handleReplayOperationUnavailable(
+                new com.bablsoft.accessflow.apigov.api.ApiReplayOperationUnavailableException("createCharge"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_replay_operation_unavailable");
+        assertThat(pd.getProperties()).containsEntry("error", "API_REPLAY_OPERATION_UNAVAILABLE");
+        assertThat(pd.getProperties()).containsEntry("operationId", "createCharge");
+    }
 }
