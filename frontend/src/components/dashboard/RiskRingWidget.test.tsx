@@ -45,8 +45,12 @@ describe('RiskRingWidget', () => {
     // Await the legend (rendered from loaded data) before asserting on the chart stub —
     // the ring chart also renders during the loading phase with zero rings.
     expect(await screen.findByText('High')).toBeInTheDocument();
-    expect(screen.getByTestId('bklit-ring-chart')).toHaveAttribute('data-rings', '2');
-    expect(screen.getByTestId('bklit-ring-center')).toHaveTextContent('10');
+    const chart = screen.getByTestId('bklit-ring-chart');
+    expect(chart).toHaveAttribute('data-rings', '2');
+    expect(chart).toHaveAttribute('data-total', '10');
+    // The vendored RingChart draws no arcs without geometryScrubbing (or <Ring> children).
+    expect(chart).toHaveAttribute('data-geometry-scrubbing', 'true');
+    expect(screen.getByTestId('bklit-ring-center')).toHaveTextContent('analyzed');
     // Legend rows: summed count per level.
     expect(screen.getByText('8')).toBeInTheDocument();
   });
