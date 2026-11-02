@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-10-23",
+      "dateModified": "2026-11-02",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -275,7 +275,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-10-23">23 October 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-02">2 November 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -1151,6 +1151,20 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption>Pipeline settings → <strong>CI setup</strong> — snippets for GitHub Actions, GitLab CI, Azure Pipelines and curl, each carrying the pipeline id the job gates on.</figcaption>
           </figure>
+          <p>
+            <strong>Measure it.</strong> <strong>Deployment Metrics</strong> in the sidebar (for
+            admins, deployment reviewers and anyone who manages pipelines) shows deployment
+            frequency, lead time, change failure rate, time to restore, approval latency, timeout
+            rate and break-glass deploys for a chosen period, as tiles and a daily chart above a
+            breakdown per pipeline and environment. Each pipeline's settings page carries the same
+            view as a <strong>Metrics</strong> tab, and anyone allowed to trigger a pipeline reaches it
+            from <strong>Deployments</strong>. Days are counted in UTC. Lead time starts at the
+            commit when the pipeline sends a <code>commit_timestamp</code> in its release metadata
+            (see <a href="/docs/guides/deployment-approval/#guide-deployment-ci">step 7 of the
+            deployment guide</a>), and at the request otherwise. For evidence, export the same numbers
+            as the signed <a href="/docs/configuration/audit-compliance/#compliance-reports">deployment
+            metrics compliance report</a>.
+          </p>
           <p>
             <strong>Tune it.</strong> <code>ACCESSFLOW_DEPLOYGOV_TIMEOUT_CHECK</code> (how often
             deployments awaiting review are checked against their review plan's approval timeout,

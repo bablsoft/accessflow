@@ -5518,7 +5518,9 @@ override wins; a plan-less request never times out, mirroring `QueryTimeoutJob`)
 native query with an explicit `::query_status` cast; each row goes through the transactional
 `DeploymentRequestStateService.markTimedOut` (state re-check → `TIMED_OUT` →
 `DeploymentDecidedEvent(id, TIMED_OUT, "review_timeout")`), and a per-row `RuntimeException` is
-swallowed so one poisoned row cannot abort the batch.
+swallowed so one poisoned row cannot abort the batch. The warning shots before that timeout —
+**`DeploymentReviewEscalationJob`** (#985) — are described under
+["Review escalation and nudges (#622)"](#review-escalation-and-nudges-622) → "Deployment reviews".
 
 ### Gate & outcome reporting (#693)
 
@@ -5633,6 +5635,44 @@ endpoint contract, row shape, and the full drift rules are in
   `DeploymentRequestStateService.apply` on the `APPROVED → EXECUTED` transition — same
   transaction and `Clock` as the tracker's `deployed_at`; pre-existing executed rows were
   backfilled with `COALESCE(outcome_reported_at, updated_at)`.
+
+### Deployment metrics & module properties (epic #983)
+
+**`deploygov/api/DeploymentMetricsService`** (+ `DefaultDeploymentMetricsService`) computes the
+DORA and approval-SLA metrics **at read time** — no metrics table, no snapshot job — behind
+`DeploymentMetricsController` (`GET /deployment-pipelines/{id}/metrics`, `GET /deployment-metrics`,
+`GET /deployment-metrics/environments`). The definitions, the `commit_timestamp` contract and the
+UI are narrated in [18-deployment-governance.md §10a](18-deployment-governance.md#10a-dora-metrics--approval-slas-epic-983);
+the endpoint contract is in [04-api-spec.md](04-api-spec.md) → "Deployment metrics". The
+module-level points:
+
+- **Native SQL in `internal/persistence/repo/DeploymentMetricsRepositoryImpl`**, the
+  `QueryRequestStatsRepositoryImpl` `percentile_cont(...) WITHIN GROUP` shape, with explicit
+  `::query_status` / `::deployment_outcome` / `::submission_reason` casts (a JPQL enum literal
+  fails against the PG enum columns) and every value bound. Day buckets are
+  `date_trunc('day', ts AT TIME ZONE 'UTC')` — never a bare `date_trunc`, which buckets in the
+  pgjdbc session zone.
+- **`commit_timestamp` is parsed in SQL by `af_try_parse_iso_instant`** (V203), which returns
+  `NULL` for anything but an offset-qualified ISO-8601 instant, so a malformed value degrades to
+  the `created_at` fallback instead of failing the read; `lead_time.source` reports which start
+  was used.
+- **`deployment_requests.review_started_at`** (V203) is stamped by
+  `DeploymentRequestStateService.apply` on entry to `PENDING_REVIEW`, beside the `executed_at`
+  stamp; it is not backfilled.
+- **Visibility reuses the version inventory's** package-private `DeploymentPipelineVisibility`
+  (404-never-403, `can_trigger` included) on the per-pipeline read; the org-wide reads are
+  `@PreAuthorize`-gated. The window is `[from, to)`, default the trailing 30 days, capped at 366
+  (`400 DEPLOYMENT_METRICS_PERIOD_INVALID`).
+- **The `compliance` module consumes `organizationMetrics`** for the signed `DEPLOYMENT_METRICS`
+  report (#986, see "Compliance reporting (AF-459)" above) and never re-derives a value;
+  `deploygov` never imports `compliance`.
+
+**`internal/config/DeploygovProperties`** (#985) is the module's one `@ConfigurationProperties`
+record, prefix `accessflow.deploygov`: `timeout-check` (`PT5M`), `release-check` (`PT1M`) and
+`escalation-poll-interval` (`PT5M`), registered by `DeploygovConfiguration`. The three jobs read
+the same keys through their `@Scheduled` placeholders — the record is their typed home, not a
+second source. It keeps exactly one constructor with the defaults in the compact body: a second
+constructor on a `@ConfigurationProperties` record silently unbinds every property.
 
 ## Schema change governance (schemachange module, epic #870)
 

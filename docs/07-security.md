@@ -1760,6 +1760,22 @@ compensating control is `bidirectional_sync = false` on the channel, under which
 satisfy the gate but only an AccessFlow reviewer decides the deployment. See
 [18-deployment-governance.md → 7. Change tickets](18-deployment-governance.md#7-change-tickets-epic-989).
 
+**Metrics and idle-review escalation (epic #983).** The read-only metrics endpoints follow the
+version inventory's visibility rule. `GET /api/v1/deployment-pipelines/{id}/metrics` carries no
+`@PreAuthorize`; the service opens it to `DEPLOYMENT_PIPELINE_MANAGE`, `DEPLOYMENT_REVIEW`,
+`QUERY_ADMIN` and effective `can_trigger` holders and answers **404, never 403**, to everyone
+else, so a caller cannot probe which pipelines exist. The org-wide `GET /api/v1/deployment-metrics`
+and `GET /api/v1/deployment-metrics/environments` are **functional-permission-only**
+(`@PreAuthorize` on the three permissions — a trigger-only caller gets 403), because they span
+every pipeline in the organization. The signed `DEPLOYMENT_METRICS` compliance export is a
+`COMPLIANCE_REPORT_VIEW` read: an auditor sees every pipeline's metrics without holding any
+deployment permission — aggregate numbers only, never request detail. Escalation and nudges
+(`DeploymentReviewEscalationJob`, #985) are **notify-only**: they never widen who may decide a
+deployment, never touch the self-approval ban or plan-approver eligibility, and never decide
+anything. An escalation adds every active org admin as a *recipient*, not as an eligible
+reviewer, and it pages PagerDuty through `REVIEW_STALLED` like a stalled query review. See
+[18-deployment-governance.md → 10a](18-deployment-governance.md#10a-dora-metrics--approval-slas-epic-983).
+
 ---
 
 ## Schema change promotion security (#880)

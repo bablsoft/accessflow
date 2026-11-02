@@ -26,7 +26,11 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 > environment-history drawer, drift badges on the deployment list and detail pages, and the tags
 > field on the environment editor. v2.8 adds change tickets (epic #989, #990–#994, section 7
 > below): a flagged environment opens a ServiceNow / Jira change ticket per deployment, syncs its
-> verdict back, and the gate waits for it.
+> verdict back, and the gate waits for it. It also adds DORA metrics and approval SLAs (epic #983,
+> #984–#987, section 10a below): deployment frequency, lead time, change failure rate, time to
+> restore, approval latency and timeout rate computed at read time, escalation and nudges for idle
+> deployment reviews, a signed `DEPLOYMENT_METRICS` compliance export, and the
+> `/deployment-metrics` page.
 
 ---
 
@@ -35,13 +39,15 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 ```
 com.bablsoft.accessflow.deploygov/
 ├── api/         # PipelineProvider, FreezeBehavior, DeploymentOutcome, DeploymentRoutingAction,
-│                # DeploymentRollbackReviewStatus, seventeen service interfaces (incl.
-│                # DeploymentTicketService + DeploymentExternalDecisionService, #990/#992),
+│                # DeploymentRollbackReviewStatus, LeadTimeSource, eighteen service interfaces
+│                # (incl. DeploymentTicketService + DeploymentExternalDecisionService, #990/#992,
+│                # DeploymentMetricsService, #984), DeploymentMetricsFilter + metrics views,
 │                # view + command records (DeploymentTicketView, RecordDeploymentTicketCommand,
 │                # DeploymentTicketProvenance),
 │                # the exception hierarchy (JDK + project types only)
 ├── events/      # DeploymentSubmitted/AnalysisCompleted/AnalysisSkipped/AnalysisFailed/
-│                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent
+│                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent,
+│                # ReviewEscalated/ReviewNudged (#985)
 └── internal/
     ├── Default*Service (one per api/ interface), DeploymentRequestStateService,
     │   DeploymentReviewStateMachine, EffectiveDeploymentPermissionResolver,
@@ -54,9 +60,12 @@ com.bablsoft.accessflow.deploygov/
     │                                # DeploymentEnvironmentVersionEntity (#741),
     │                                # DeploymentTicketEntity (#990),
     │                                # the two grant entities + repos
+    │                                # DeploymentMetricsRepositoryImpl (native SQL, #984)
+    ├── config/      # DeploygovProperties (accessflow.deploygov.*), DeploygovConfiguration (#985)
     ├── routing/     # DeploymentRoutingPolicyEngine
-    ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
-    └── web/         # nine controllers, request/response records,
+    ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob,
+    │                # DeploymentReviewEscalationJob (#985)
+    └── web/         # ten controllers (incl. DeploymentMetricsController, #984), request/response records,
                      # DeploygovExceptionHandler, SpringPageableAdapter
 ```
 
@@ -628,38 +637,80 @@ who can never decide their own deployment, is told so in place of the buttons.
 
 ---
 
-## 10a. DORA metrics read API (#984, epic #983)
+## 10a. DORA metrics & approval SLAs (epic #983)
 
-`GET /api/v1/deployment-pipelines/{id}/metrics` and `GET /api/v1/deployment-metrics` compute
-deployment frequency, lead time, change failure rate, time to restore, approval latency, timeout
-rate and the break-glass count **at read time** over `deployment_requests` and
-`deployment_review_decisions` — no metrics table and no snapshot job, the same stance the version
-inventory takes. Visibility is the inventory's: the per-pipeline endpoint opens to `DEPLOYMENT_PIPELINE_MANAGE`,
-`DEPLOYMENT_REVIEW`, `QUERY_ADMIN` and `can_trigger` holders and answers 404, never 403, to anyone
-else; the org-wide endpoint needs one of the three permissions. Day buckets are UTC days whatever the server zone.
+Deployments already record every instant the four DORA metrics need — when a release was asked
+for, when it entered review, when the gate opened and what the pipeline reported afterwards — so
+the metrics are **computed at read time** over `deployment_requests` and
+`deployment_review_decisions`: no metrics table, no snapshot job, no materialised view, the same
+stance the version inventory (section 10) takes. Three read-only endpoints serve them
+([04-api-spec.md](04-api-spec.md) → "Deployment metrics" for parameters and the full response):
 
-Approval latency needs the instant a request entered review, so the state service stamps
-`deployment_requests.review_started_at` on entry to `PENDING_REVIEW` (V203). Older rows are not
-backfilled and are left out of approval latency. Lead time starts at the `commit_timestamp` key of
-the submission `metadata` when the pipeline sends one as an offset-qualified ISO-8601 instant
-(`git show -s --format=%cI`), otherwise at
-submission — the response's `lead_time.source` says which. The metric definitions, parameters and
-response are in [`docs/04-api-spec.md`](04-api-spec.md) → "Deployment metrics".
+- **`GET /deployment-pipelines/{id}/metrics`** (#984) — the metrics for one pipeline, optionally
+  narrowed to one environment by name.
+- **`GET /deployment-metrics`** (#984) — the same metrics across every pipeline in the
+  organization, filterable by pipeline and environment.
+- **`GET /deployment-metrics/environments`** (#987) — the same blocks once per (pipeline,
+  environment), each computed by the same narrowed read, so a breakdown row never disagrees with
+  the org-wide endpoint filtered to that pair.
 
-`GET /api/v1/deployment-metrics/environments` (#987) returns the same blocks once per (pipeline,
-environment), each computed by the same narrowed read, so a breakdown row never disagrees with the
-org-wide endpoint filtered to that pair. The `/deployment-metrics` page (#987) renders the
-org-wide numbers as tiles, a daily area chart and a change-failure ring above that breakdown
-table; the pipeline settings page carries the same panel as a *Metrics* tab, and
-`/deployment-metrics/:pipelineId` is the unguarded per-pipeline route a `can_trigger` holder
-reaches from `/deployments`.
+Every read takes a `[from, to)` window (default the trailing 30 days, at most 366 days — anything
+else is `400 DEPLOYMENT_METRICS_PERIOD_INVALID`), and day buckets are **UTC days** whatever the
+server's zone. **Visibility is the version inventory's** — see section 10: the per-pipeline
+endpoint answers 404, never 403, and also opens to effective `can_trigger` holders; the two
+org-wide endpoints are functional-permission-only.
 
-For audit evidence, the same numbers export as a **signed compliance report** (#986):
-`ComplianceReportType.DEPLOYMENT_METRICS` lists one row per (pipeline, environment) over a period,
-computed by `DeploymentMetricsService.organizationMetrics`, and renders through the existing signed
-PDF/CSV export at `GET /api/v1/admin/compliance/reports/export?type=DEPLOYMENT_METRICS` (hash, RSA
-signature, `COMPLIANCE_REPORT_EXPORTED` audit row). It is a `COMPLIANCE_REPORT_VIEW` read — the
-auditor sees every pipeline without holding any deployment permission. See
+**Metric definitions** (the epic's definitions, reproduced from
+[04-api-spec.md](04-api-spec.md) → "Deployment metrics"):
+
+| Metric | Definition |
+|---|---|
+| Deployment frequency | count of rows with `executed_at` in the window (an `EXECUTED → FAILED` flip keeps its `executed_at`, so it still counts as a deployment); `per_day` = `total` ÷ window length in days |
+| Lead time (p50/p95) | `metadata->>'commit_timestamp'` (ISO-8601, documented key), falling back to `created_at`, → `executed_at`. Send an offset-qualified ISO-8601 instant (`Z`, `±hh`, `±hhmm` or `±hh:mm`): the value is read by `af_try_parse_iso_instant` (V203), so a value without an offset, or one it cannot parse, falls back to `created_at` rather than being guessed in some zone. A commit timestamp later than `executed_at` counts as a `0`-second sample. `source` is `COMMIT_TIMESTAMP` (every sample used the commit timestamp), `SUBMITTED_AT` (none did) or `MIXED` |
+| Change failure rate | rows with `outcome IN (FAILED, ROLLED_BACK)` ÷ rows with `executed_at` in the window; an unreported outcome counts as not-failed, and the `unreported` count is returned so the UI can caveat |
+| Time to restore (p50/p95) | for each `FAILED`/`ROLLED_BACK` outcome reported in the window: `outcome_reported_at` → the `executed_at` of the next request (executed after the failed one) on the same pipeline + environment whose outcome is `SUCCEEDED`; unrestored incidents are excluded from the percentiles and returned as `open_incidents`. A success that executed before the failure was reported counts as a `0`-second restore |
+| Approval latency (p50/p95) | `review_started_at` → the request's last `deployment_review_decisions.decided_at`, windowed on that last decision; only requests a human finished deciding (status `APPROVED`, `REJECTED`, `EXECUTED` or `FAILED` with a decision row — a request still in review, timed out or cancelled after a partial approval is left out) — routing auto-approvals and break-glass never waited on anyone; requests decided through a change ticket (#992, system-attributed, no decision row) and rows that pre-date `review_started_at` are excluded too |
+| Timeout rate | `TIMED_OUT` ÷ requests that entered review (`review_started_at IS NOT NULL`, or for rows pre-dating the column: a decision row exists or status is `TIMED_OUT`), windowed on `created_at` |
+| Break-glass count | rows with `submission_reason = 'EMERGENCY_ACCESS'` in the window, by `created_at` |
+
+**Sending `commit_timestamp`.** Lead time is only as honest as its start. The CI wrappers pass the
+submission `metadata` through verbatim and author no keys of their own, so a pipeline that wants
+commit-to-production lead time writes the commit instant into the JSON file it already hands the
+wrapper — the `metadata-file` input of `.github/actions/deployment-gate`, `AF_METADATA_FILE` for
+the GitLab `.accessflow_deployment_gate` job, the `metadataFile` parameter of the Azure template:
+
+```bash
+jq -n --arg ts "$(git show -s --format=%cI HEAD)" '{commit_timestamp: $ts}' > deploy-metadata.json
+```
+
+`%cI` is strict ISO-8601 with an offset, which is what the reader requires. Without the key, lead
+time falls back to submission time, and the response's `lead_time.source` says which start was
+used (`SUBMITTED_AT`, `COMMIT_TIMESTAMP` or `MIXED`) — most installs start on the fallback.
+
+**The columns behind it.** Approval latency needs the instant a request entered review, so the
+state service stamps `deployment_requests.review_started_at` on entry to `PENDING_REVIEW` (V203,
+#984) — off the same chokepoint and `Clock` that stamps `executed_at`. Older rows are not
+backfilled and are left out of approval latency. The approval-SLA half — `escalated_at` and
+`last_nudged_at` (V204, #985), stamped by `DeploymentReviewEscalationJob` — is described in
+section 4 ("Escalation and nudges"); escalation is notify-only and never moves a metric.
+
+**UI (#987).** The `/deployment-metrics` page (sidebar: *Deployment Metrics*, for
+`DEPLOYMENT_PIPELINE_MANAGE`, `DEPLOYMENT_REVIEW` and `QUERY_ADMIN`) renders the org-wide numbers as
+tiles, a daily area chart and a change-failure ring above the per-environment breakdown table, with
+pipeline, environment and period filters. The pipeline settings page carries the same panel as a
+*Metrics* tab, and `/deployment-metrics/:pipelineId` is the per-pipeline route a `can_trigger`
+holder reaches from `/deployments` (the *Metrics* button); a caller the pipeline is not visible to sees
+the 404 as a not-found state.
+
+**Compliance export (#986).** For audit evidence the same numbers export as a **signed compliance
+report**: `ComplianceReportType.DEPLOYMENT_METRICS` lists one row per (pipeline, environment) over
+a period, computed by `DeploymentMetricsService.organizationMetrics` (never re-derived), and
+renders through the existing signed PDF/CSV export at
+`GET /api/v1/admin/compliance/reports/export?type=DEPLOYMENT_METRICS` (SHA-256 hash, RSA
+signature, `COMPLIANCE_REPORT_EXPORTED` audit row). It is not datasource-scoped — a
+`datasourceId` is ignored — and it is a `COMPLIANCE_REPORT_VIEW` read, so the auditor sees every
+pipeline without holding any deployment permission; the auditor page shows it as its third tab,
+*Deployment metrics (DORA)*. The PDF is a plain table, no charts. See
 [`docs/04-api-spec.md`](04-api-spec.md) → "GET /admin/compliance/reports/deployment-metrics".
 
 ---

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Deployment approval governance for CI/CD — AccessFlow</title>
-  <meta name="description" content="Gate every CI/CD release and schema change behind approval: pipelines, environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollbacks." />
+  <meta name="description" content="Gate CI/CD releases and schema changes behind approval: AI release-risk scoring, a fail-closed gate, freeze windows, rollbacks and DORA delivery metrics." />
 
   <link rel="canonical" href="https://accessflow.io/features/deployment-governance/" />
   <meta name="robots" content="index, follow" />
@@ -28,7 +28,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Deployment approval governance for CI/CD — AccessFlow" />
-  <meta property="og:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollback follow-ups and schema changes." />
+  <meta property="og:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollbacks, schema changes and DORA metrics." />
   <meta property="og:url" content="https://accessflow.io/features/deployment-governance/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -38,7 +38,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Deployment approval governance for CI/CD — AccessFlow" />
-  <meta name="twitter:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollback follow-ups and schema changes." />
+  <meta name="twitter:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollbacks, schema changes and DORA metrics." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="icon" href="/favicon.ico" sizes="32x32" />
@@ -57,11 +57,11 @@
         "breadcrumb": { "@id": "https://accessflow.io/features/deployment-governance/#breadcrumb" },
         "headline": "Deployment approval governance — gate every CI/CD release",
         "name": "Deployment approval governance for CI/CD — AccessFlow",
-        "description": "Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollback follow-ups and schema changes.",
+        "description": "Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows, rollbacks, schema changes and DORA metrics.",
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-10-23",
+        "dateModified": "2026-11-02",
         "url": "https://accessflow.io/features/deployment-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/deployment-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -203,6 +203,7 @@
             <a href="#freeze">Freeze windows and break-glass</a>
             <a href="#outcome">After the deploy</a>
             <a href="#versions">Which version is where</a>
+            <a href="#metrics">How your releases are doing</a>
             <a href="#schema-changes">Schema changes, environment by environment</a>
             <a href="#ci">One step in your pipeline</a>
             <p class="docs-toc-label">More capabilities</p>
@@ -290,6 +291,13 @@
           <p>A matrix lists every environment you deploy to, the version it is running now, the one it was running before, when it got there, and how that deploy ended. It answers the question the gate cannot: not whether a release may go out, but what is already out there.</p>
           <p>Each row also says how far behind it has fallen, counted two ways — how many newer releases have gone out since it last moved, and how many days passed between its deploy and the newest one. "Behind" is a plain comparison against the newest release that succeeded on that pipeline, not an attempt to parse your version numbers, so it works whether you ship <code>2.4.1</code>, a date, or a commit hash. Nothing is scheduled and nothing is alerted on: the comparison is made when you look.</p>
           <p>Environments carry short tags of your choosing — up to ten each, a customer, a region, a tier — and the matrix filters on them. That is what turns one application deployed for many customers into a single readable view: one environment per customer, all tagged alike, all lined up beside their versions. Each environment also keeps its own history, newest first, and a rolled-back environment says what it reverted to rather than quietly showing a version it is no longer running.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="metrics">
+          <h2>How your releases are doing</h2>
+          <p>Because every release already passes through the gate, AccessFlow can tell you how delivery is going without another tool: how often you deploy, how long a change takes to reach an environment, how many deploys fail or are rolled back, how long it takes to recover, and how long releases wait for approval — the four DORA (DevOps Research and Assessment) delivery measures plus the approval half your auditors ask about. The numbers come from the requests themselves, worked out when you look rather than collected by a background job, per pipeline and per environment, over any period up to a year.</p>
+          <p>Lead time is only as honest as its starting point. If your pipeline sends the commit time along with the release, lead time runs from the commit; if not, it runs from the moment the release was requested, and the page says which. Failures count only once the pipeline reports them, and the page tells you how many releases never reported an outcome, so a quiet pipeline is not mistaken for a perfect one.</p>
+          <p>The same figures leave as a signed report an auditor can verify on their own, one line per pipeline and environment. And because a review nobody looks at hurts approval time, a review plan can set reminders for the reviewers who have not answered and, after a set number of hours, an escalation to your admins — and to on-call paging, if you route stalled reviews there — while the person who asked can still never approve their own release, and nobody new gains the right to approve. <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">Deployment pipeline docs →</a></p>
         </section>
 
         <section class="docs-section scroll-pad" id="schema-changes">
