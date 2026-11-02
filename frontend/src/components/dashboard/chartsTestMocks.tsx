@@ -23,17 +23,26 @@ export function bklitChartMocks() {
     Grid: () => null,
     XAxis: () => null,
     ChartTooltip: () => null,
-    RingChart: ({ data, children }: { data: Array<{ label: string; value: number }>; children?: ReactNode }) => (
-      <div data-testid="bklit-ring-chart" data-rings={data.length}>
+    RingChart: ({
+      data,
+      children,
+      geometryScrubbing,
+    }: {
+      data: Array<{ label: string; value: number }>;
+      children?: ReactNode;
+      geometryScrubbing?: boolean;
+    }) => (
+      <div
+        data-testid="bklit-ring-chart"
+        data-rings={data.length}
+        data-total={data.reduce((s, d) => s + d.value, 0)}
+        data-geometry-scrubbing={String(geometryScrubbing ?? false)}
+      >
         {children}
       </div>
     ),
-    RingCenter: ({ children }: { children?: unknown }) => (
-      <div data-testid="bklit-ring-center">
-        {typeof children === 'function'
-          ? (children as (p: Record<string, unknown>) => ReactNode)({})
-          : (children as ReactNode)}
-      </div>
+    RingCenter: ({ defaultLabel }: { defaultLabel?: string }) => (
+      <div data-testid="bklit-ring-center">{defaultLabel}</div>
     ),
     HeatmapChart: ({ data, children, status }: { data: unknown[]; children?: ReactNode; status?: string }) => (
       <div data-testid="bklit-heatmap-chart" data-columns={data.length} data-status={status ?? 'ready'}>

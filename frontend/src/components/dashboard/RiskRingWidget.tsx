@@ -28,7 +28,7 @@ export function RiskRingWidget() {
     queryFn: () => fetchMyQueryTrends(filters),
   });
 
-  const { rings, total } = useMemo(() => {
+  const rings = useMemo(() => {
     const sums = new Map<RiskLevel, number>();
     for (const b of trendsQuery.data?.risk_by_day ?? []) {
       sums.set(b.risk_level, (sums.get(b.risk_level) ?? 0) + b.count);
@@ -42,7 +42,7 @@ export function RiskRingWidget() {
         color: riskColor(level).fg,
       }),
     );
-    return { rings: data, total: sum };
+    return data;
   }, [trendsQuery.data, t]);
 
   if (trendsQuery.isError) {
@@ -60,17 +60,10 @@ export function RiskRingWidget() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
       <div style={{ width: 190, height: 190, flex: 'none' }}>
-        <RingChart data={rings} strokeWidth={10} ringGap={5} baseInnerRadius={46}>
-          <RingCenter>
-            {() => (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 22, fontWeight: 600 }}>{total}</div>
-                <div className="muted" style={{ fontSize: 11 }}>
-                  {t('dashboard.risk_mix.total')}
-                </div>
-              </div>
-            )}
-          </RingCenter>
+        {/* geometryScrubbing: the vendored RingChart draws arcs only in this mode or from
+            explicit <Ring> children, which the barrel does not export. */}
+        <RingChart data={rings} strokeWidth={10} ringGap={5} baseInnerRadius={46} geometryScrubbing>
+          <RingCenter defaultLabel={t('dashboard.risk_mix.total')} />
         </RingChart>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 120 }}>
