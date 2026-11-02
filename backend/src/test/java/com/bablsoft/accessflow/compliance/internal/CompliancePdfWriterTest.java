@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.compliance.api.Approver;
 import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportType;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
 import com.bablsoft.accessflow.core.api.DataClassification;
@@ -99,5 +100,34 @@ class CompliancePdfWriterTest {
         try (var doc = Loader.loadPDF(pdf)) {
             assertThat(doc.getNumberOfPages()).isGreaterThan(1);
         }
+    }
+
+    @Test
+    void rendersDeploymentMetricsPdfAsAPlainTable() throws IOException {
+        var pipelineId = UUID.randomUUID();
+        var envId = UUID.randomUUID();
+        var report = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, UUID.randomUUID(),
+                t, t.plusSeconds(86_400), t, null, List.of(), List.of(), List.of(),
+                List.of(new DeploymentMetricsReportRow(pipelineId, "payments, api", envId, "prod", 8,
+                600L, 3600L, "MIXED", 0.125, 1, 0, 2, 120L, 900L, 1, 60L, 300L, 0.00005, 1, 2),
+                        new DeploymentMetricsReportRow(pipelineId, "payments", envId, "dev", 0, null,
+                null, null, null, 0, 0, 0, null, null, 0, null, null, null, 0, 0)),
+                false);
+
+        var text = extractText(writer.write(report));
+
+        assertThat(text).contains("Compliance Report - Deployment Metrics (DORA)");
+        assertThat(text).contains("payments, api").contains("prod").contains("dev");
+        assertThat(text).contains("600 / 3600").contains("0.125").contains("1 / 0");
+    }
+
+    @Test
+    void rendersEmptyDeploymentMetricsPdf() throws IOException {
+        var report = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, UUID.randomUUID(),
+                t, t.plusSeconds(86_400), t, null, List.of(), List.of(), List.of(), List.of(), false);
+
+        var text = extractText(writer.write(report));
+
+        assertThat(text).contains("Deployment Metrics (DORA)").contains("No records for the selected period.");
     }
 }

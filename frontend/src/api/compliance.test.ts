@@ -46,6 +46,22 @@ describe('api/compliance', () => {
     });
   });
 
+  it('routes the deployment-metrics report without a datasource scope', async () => {
+    get.mockResolvedValue({ data: { type: 'DEPLOYMENT_METRICS' } });
+
+    await api.fetchComplianceReport('DEPLOYMENT_METRICS', { ...params, datasourceId: 'ds-1' });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/compliance/reports/deployment-metrics', {
+      params: { from: params.from, to: params.to },
+    });
+  });
+
+  it('rejects an unknown report type', () => {
+    expect(() =>
+      api.fetchComplianceReport('NOPE' as unknown as Parameters<typeof api.fetchComplianceReport>[0], params),
+    ).toThrow('Unknown compliance report type: NOPE');
+  });
+
   it('fetches the signing certificate', async () => {
     get.mockResolvedValue({ data: { algorithm: 'SHA256withRSA', public_key_pem: 'PEM' } });
 

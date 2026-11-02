@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "173b44541520",
-  "generatedAt": "2026-10-23T12:34:13.526Z",
-  "sourceCommit": "418094f1c1cfee54b6a09e62b7520dc074671d33",
+  "corpusVersion": "e14444563e12",
+  "generatedAt": "2026-11-02T08:05:12.608Z",
+  "sourceCommit": "c29b01b6f7fd91af0dc51b42e6b3109033ada72c",
   "chunkCount": 609,
-  "sha256": "173b445415206c47920480c781f1a10a76d91e9077e715a28c899e347a91e189",
+  "sha256": "e14444563e12c205341fea90a855364774090a75da29701a82b3b51549c22737",
   "quickReferenceSha256": "2eaa3d1f2e024c2049bf0f8a699c2208a88c1e20ad06e9503257fdcf6fea0746",
   "sources": [
     {
@@ -181,7 +181,7 @@
       "url": "https://accessflow.io/docs/configuration/audit-compliance/",
       "section": "Reference",
       "chunks": 8,
-      "sha256": "aef6e6cfac82615842925d518e85c14ba43c074f0d6e272494869a8bdf898124"
+      "sha256": "955a717566bed3d162f1227e6ac50a88b6aa8a5d5eee8c081a088441e4632451"
     },
     {
       "path": "website/docs/configuration/auth/index.html",
@@ -421,7 +421,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 92,
-      "sha256": "3f4a82a2e282b8b6d4648af10c9a72d2b834c332ea53ec23b7d0f4d603ce4efe"
+      "sha256": "05414f2d516375c5187fdaacf6c4024c36286abf989005482af5dc121688ee0e"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "6ee1ee626f3fb9c7ff4c1f8fe16c158bc0f15de93ac49390cdfd8ff0e0893baf"
+      "sha256": "431e007a188ba8f02ce4fa2810b2b0fbb68ad8d7b92f61be74b97f1ce8cfcf96"
     }
   ]
 }

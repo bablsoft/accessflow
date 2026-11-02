@@ -11,6 +11,7 @@ import { queryTypeLabel, dataClassificationLabel } from '@/utils/enumLabels';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { downloadBlob } from '@/utils/downloadBlob';
+import { formatDurationCompact } from '@/utils/accessTtl';
 import {
   complianceKeys,
   exportComplianceReport,
@@ -20,14 +21,45 @@ import {
 import type {
   ClassifiedAccessRow,
   ComplianceReportFormat,
+  ComplianceReport,
   ComplianceReportType,
+  DeploymentMetricsReportRow,
   RegulatoryAuditTrailRow,
 } from '@/types/api';
 
 const { Text } = Typography;
 
+function reportRows(type: ComplianceReportType, report: ComplianceReport | undefined): unknown[] {
+  switch (type) {
+    case 'CLASSIFIED_ACCESS':
+      return report?.classified_access ?? [];
+    case 'REGULATORY_AUDIT_TRAIL':
+      return report?.audit_trail ?? [];
+    case 'DEPLOYMENT_METRICS':
+      return report?.deployment_metrics ?? [];
+    default: {
+      const unreachable: never = type;
+      throw new Error(`Unknown compliance report type: ${String(unreachable)}`);
+    }
+  }
+}
+
+function seconds(value: number | null | undefined): string {
+  return value == null ? '—' : formatDurationCompact(value * 1000);
+}
+
+function percentiles(p50: number | null | undefined, p95: number | null | undefined): string {
+  return p50 == null && p95 == null ? '—' : `${seconds(p50)} / ${seconds(p95)}`;
+}
+
+function percent(rate: number | null | undefined, language: string): string {
+  return rate == null
+    ? '—'
+    : new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 1 }).format(rate);
+}
+
 export default function AuditorDashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { message } = App.useApp();
   const [type, setType] = useState<ComplianceReportType>('CLASSIFIED_ACCESS');
   const [range, setRange] = useState<[Dayjs, Dayjs]>(() => [dayjs().subtract(90, 'day'), dayjs()]);
@@ -122,11 +154,89 @@ export default function AuditorDashboardPage() {
     },
   ];
 
-  const rows =
-    type === 'CLASSIFIED_ACCESS'
-      ? report.data?.classified_access ?? []
-      : report.data?.audit_trail ?? [];
+  const deploymentColumns: ColumnsType<DeploymentMetricsReportRow> = [
+    { title: t('auditor.col_pipeline'), dataIndex: 'pipeline_name' },
+    { title: t('auditor.col_environment'), dataIndex: 'environment_name' },
+    { title: t('auditor.col_deployments'), dataIndex: 'deployments' },
+    {
+      title: t('auditor.col_lead_time'),
+      key: 'lead_time',
+      render: (_: unknown, r: DeploymentMetricsReportRow) =>
+        percentiles(r.lead_time_p50_seconds, r.lead_time_p95_seconds),
+    },
+    {
+      title: t('auditor.col_change_failure_rate'),
+      key: 'change_failure_rate',
+      render: (_: unknown, r: DeploymentMetricsReportRow) =>
+        t('auditor.change_failure_value', {
+          rate: percent(r.change_failure_rate, i18n.language),
+          failed: r.failed,
+          rolledBack: r.rolled_back,
+        }),
+    },
+    {
+      title: t('auditor.col_time_to_restore'),
+      key: 'time_to_restore',
+      render: (_: unknown, r: DeploymentMetricsReportRow) =>
+        percentiles(r.time_to_restore_p50_seconds, r.time_to_restore_p95_seconds),
+    },
+    { title: t('auditor.col_open_incidents'), dataIndex: 'open_incidents' },
+    {
+      title: t('auditor.col_approval_latency'),
+      key: 'approval_latency',
+      render: (_: unknown, r: DeploymentMetricsReportRow) =>
+        percentiles(r.approval_latency_p50_seconds, r.approval_latency_p95_seconds),
+    },
+    {
+      title: t('auditor.col_timeout_rate'),
+      key: 'timeout_rate',
+      render: (_: unknown, r: DeploymentMetricsReportRow) => percent(r.timeout_rate, i18n.language),
+    },
+    { title: t('auditor.col_break_glass'), dataIndex: 'break_glass_count' },
+  ];
+
+  const rows = reportRows(type, report.data);
   const isEmpty = !report.isLoading && rows.length === 0;
+
+  const table = () => {
+    switch (type) {
+      case 'CLASSIFIED_ACCESS':
+        return (
+          <Table<ClassifiedAccessRow>
+            rowKey="query_request_id"
+            columns={classifiedColumns}
+            dataSource={report.data?.classified_access ?? []}
+            pagination={{ pageSize: 20 }}
+            size="small"
+          />
+        );
+      case 'REGULATORY_AUDIT_TRAIL':
+        return (
+          <Table<RegulatoryAuditTrailRow>
+            rowKey="query_request_id"
+            columns={trailColumns}
+            dataSource={report.data?.audit_trail ?? []}
+            pagination={{ pageSize: 20 }}
+            size="small"
+          />
+        );
+      case 'DEPLOYMENT_METRICS':
+        return (
+          <Table<DeploymentMetricsReportRow>
+            rowKey={(r) => `${r.pipeline_id}:${r.environment_id}`}
+            columns={deploymentColumns}
+            dataSource={report.data?.deployment_metrics ?? []}
+            pagination={{ pageSize: 20 }}
+            scroll={{ x: 'max-content' }}
+            size="small"
+          />
+        );
+      default: {
+        const unreachable: never = type;
+        throw new Error(`Unknown compliance report type: ${String(unreachable)}`);
+      }
+    }
+  };
 
   return (
     <div>
@@ -162,6 +272,7 @@ export default function AuditorDashboardPage() {
             options={[
               { label: t('auditor.tab_classified_access'), value: 'CLASSIFIED_ACCESS' },
               { label: t('auditor.tab_regulatory_trail'), value: 'REGULATORY_AUDIT_TRAIL' },
+              { label: t('auditor.tab_deployment_metrics'), value: 'DEPLOYMENT_METRICS' },
             ]}
           />
           <DatePicker.RangePicker
@@ -181,23 +292,16 @@ export default function AuditorDashboardPage() {
         {report.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
         ) : isEmpty ? (
-          <EmptyState title={t('auditor.empty_title')} description={t('auditor.empty_description')} />
-        ) : type === 'CLASSIFIED_ACCESS' ? (
-          <Table<ClassifiedAccessRow>
-            rowKey="query_request_id"
-            columns={classifiedColumns}
-            dataSource={report.data?.classified_access ?? []}
-            pagination={{ pageSize: 20 }}
-            size="small"
+          <EmptyState
+            title={t('auditor.empty_title')}
+            description={t(
+              type === 'DEPLOYMENT_METRICS'
+                ? 'auditor.empty_description_deployments'
+                : 'auditor.empty_description',
+            )}
           />
         ) : (
-          <Table<RegulatoryAuditTrailRow>
-            rowKey="query_request_id"
-            columns={trailColumns}
-            dataSource={report.data?.audit_trail ?? []}
-            pagination={{ pageSize: 20 }}
-            size="small"
-          />
+          table()
         )}
       </Space>
     </div>

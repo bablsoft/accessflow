@@ -194,6 +194,22 @@ class DeploymentMetricsIntegrationTest {
     }
 
     @Test
+    void organizationMetricsNarrowByEnvironmentIdAndStayOrgScoped() {
+        var prodView = metricsService.organizationMetrics(org.getId(),
+                new DeploymentMetricsFilter(FROM, TO, null, pipeline.getId(), prod.getId()));
+        assertThat(prodView.deploymentFrequency().total()).isEqualTo(4);
+
+        var stagingView = metricsService.organizationMetrics(org.getId(),
+                new DeploymentMetricsFilter(FROM, TO, null, pipeline.getId(), staging.getId()));
+        assertThat(stagingView.deploymentFrequency().total()).isEqualTo(1);
+        assertThat(stagingView.changeFailureRate().unreported()).isEqualTo(1);
+
+        var foreign = metricsService.organizationMetrics(UUID.randomUUID(),
+                new DeploymentMetricsFilter(FROM, TO, null, null, prod.getId()));
+        assertThat(foreign.deploymentFrequency().total()).isZero();
+    }
+
+    @Test
     void dailyBucketsAreUtcWhateverTheSessionTimeZone() {
         var view = transactionTemplate.execute(status -> {
             entityManager.createNativeQuery("SET LOCAL TIME ZONE 'Pacific/Auckland'")

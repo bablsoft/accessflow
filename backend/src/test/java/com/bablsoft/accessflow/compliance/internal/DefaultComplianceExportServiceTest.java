@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.compliance.api.ComplianceReportFormat;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportRequest;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportService;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportType;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.security.api.ExportSignatureService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -122,5 +123,38 @@ class DefaultComplianceExportServiceTest {
                 service.export(orgId, request(), ComplianceReportFormat.CSV, actorId, null, null))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("audit chain write failed");
+    }
+
+    @Test
+    void deploymentMetricsCsvExportIsSignedAndAuditedWithoutADatasourceScope() {
+        var request = new ComplianceReportRequest(ComplianceReportType.DEPLOYMENT_METRICS, from, to,
+                UUID.randomUUID());
+        var report = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, orgId, from, to,
+                Instant.parse("2026-07-02T09:00:00Z"), null, List.of(), List.of(), List.of(),
+                List.of(new DeploymentMetricsReportRow(UUID.randomUUID(), "payments",
+                        UUID.randomUUID(), "prod", 3, 60L, 120L, "COMMIT_TIMESTAMP", 0.5, 1, 0, 0,
+                        null, null, 1, null, null, null, 0, 0)),
+                false);
+        when(reportService.generate(orgId, request)).thenReturn(report);
+        when(csvWriter.write(report)).thenReturn("pipeline_id\r\n".getBytes());
+        when(signatureService.sign(any())).thenReturn("sig");
+        when(signatureService.algorithm()).thenReturn("SHA256withRSA");
+
+        var export = service.export(orgId, request, ComplianceReportFormat.CSV, actorId, null, null);
+
+        assertThat(export.filename()).startsWith("compliance-deployment-metrics-").endsWith(".csv");
+        assertThat(export.signatureBase64()).isEqualTo("sig");
+        assertThat(export.contentSha256Hex()).hasSize(64);
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.COMPLIANCE_REPORT_EXPORTED);
+        assertThat(entry.metadata())
+                .containsEntry("report_type", "DEPLOYMENT_METRICS")
+                .containsEntry("format", "CSV")
+                .containsEntry("content_sha256", export.contentSha256Hex())
+                .containsEntry("signature", "sig")
+                .containsEntry("row_count", 1)
+                .doesNotContainKey("datasource_id");
     }
 }

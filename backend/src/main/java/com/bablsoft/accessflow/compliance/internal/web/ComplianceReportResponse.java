@@ -24,6 +24,7 @@ public record ComplianceReportResponse(
         List<ClassifiedAccessRow> classifiedAccess,
         List<RegulatoryAuditTrailRow> auditTrail,
         List<RetentionAdherenceRow> retentionAdherence,
+        List<DeploymentMetricsRow> deploymentMetrics,
         int rowCount,
         boolean truncated) {
 
@@ -75,6 +76,29 @@ public record ComplianceReportResponse(
             Instant createdAt) {
     }
 
+    public record DeploymentMetricsRow(
+            UUID pipelineId,
+            String pipelineName,
+            UUID environmentId,
+            String environmentName,
+            long deployments,
+            Long leadTimeP50Seconds,
+            Long leadTimeP95Seconds,
+            String leadTimeSource,
+            Double changeFailureRate,
+            long failed,
+            long rolledBack,
+            long unreported,
+            Long timeToRestoreP50Seconds,
+            Long timeToRestoreP95Seconds,
+            long openIncidents,
+            Long approvalLatencyP50Seconds,
+            Long approvalLatencyP95Seconds,
+            Double timeoutRate,
+            long timedOut,
+            long breakGlassCount) {
+    }
+
     public static ComplianceReportResponse from(ComplianceReport report) {
         var classified = report.classifiedAccess().stream()
                 .map(r -> new ClassifiedAccessRow(
@@ -102,8 +126,18 @@ public record ComplianceReportResponse(
                         r.status(), r.method(), r.affectedRows(), r.policyId(),
                         r.deletionRequestId(), r.finishedAt(), r.createdAt()))
                 .toList();
+        var deployments = report.deploymentMetrics().stream()
+                .map(r -> new DeploymentMetricsRow(
+                        r.pipelineId(), r.pipelineName(), r.environmentId(), r.environmentName(),
+                        r.deployments(), r.leadTimeP50Seconds(), r.leadTimeP95Seconds(),
+                        r.leadTimeSource(), r.changeFailureRate(), r.failed(), r.rolledBack(),
+                        r.unreported(), r.timeToRestoreP50Seconds(), r.timeToRestoreP95Seconds(),
+                        r.openIncidents(), r.approvalLatencyP50Seconds(),
+                        r.approvalLatencyP95Seconds(), r.timeoutRate(), r.timedOut(),
+                        r.breakGlassCount()))
+                .toList();
         return new ComplianceReportResponse(report.type(), report.organizationId(),
                 report.periodFrom(), report.periodTo(), report.generatedAt(), report.datasourceId(),
-                classified, trail, retention, report.rowCount(), report.truncated());
+                classified, trail, retention, deployments, report.rowCount(), report.truncated());
     }
 }

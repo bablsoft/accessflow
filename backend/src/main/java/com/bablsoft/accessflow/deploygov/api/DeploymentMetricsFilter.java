@@ -8,11 +8,18 @@ import java.util.UUID;
  * bound the window is the trailing 30 days, a lone bound spans 30 days from it ({@code [from, to)}
  * either way), {@code environment} is a
  * case-insensitive environment name, and {@code pipelineId} narrows the org-wide read only (the
- * per-pipeline read ignores it).
+ * per-pipeline read ignores it). {@code environmentId} also narrows the org-wide read only, to
+ * exactly that environment, and takes precedence over {@code environment} — the exact selector a
+ * caller holding the id needs, since names are unique per pipeline only case-sensitively (#986).
  */
 public record DeploymentMetricsFilter(
         Instant from,
         Instant to,
         String environment,
-        UUID pipelineId) {
+        UUID pipelineId,
+        UUID environmentId) {
+
+    public DeploymentMetricsFilter(Instant from, Instant to, String environment, UUID pipelineId) {
+        this(from, to, environment, pipelineId, null);
+    }
 }

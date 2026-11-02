@@ -3249,7 +3249,7 @@
   },
   "auditor": {
     "title": "Compliance reports",
-    "subtitle": "Signed, tamper-evident reports over executed queries",
+    "subtitle": "Signed, tamper-evident reports over executed queries and deployments",
     "tab_classified_access": "Classified data access",
     "tab_regulatory_trail": "Regulatory audit trail",
     "period": "Reporting period",
@@ -3270,7 +3270,20 @@
     "col_rows_affected": "Rows",
     "col_sql": "SQL",
     "col_effective_sql": "Effective SQL",
-    "col_approvers": "Approvers"
+    "col_approvers": "Approvers",
+    "tab_deployment_metrics": "Deployment metrics (DORA)",
+    "empty_description_deployments": "No deployment environments exist in this organization yet.",
+    "col_pipeline": "Pipeline",
+    "col_environment": "Environment",
+    "col_deployments": "Deployments",
+    "col_lead_time": "Lead time p50 / p95",
+    "col_change_failure_rate": "Change failure rate",
+    "change_failure_value": "{{rate}} ({{failed}} failed, {{rolledBack}} rolled back)",
+    "col_time_to_restore": "Time to restore p50 / p95",
+    "col_open_incidents": "Open incidents",
+    "col_approval_latency": "Approval latency p50 / p95",
+    "col_timeout_rate": "Timeout rate",
+    "col_break_glass": "Break-glass"
   },
   "enums": {
     "query_status": {

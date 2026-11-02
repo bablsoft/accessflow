@@ -3,11 +3,13 @@ package com.bablsoft.accessflow.compliance.internal;
 import com.bablsoft.accessflow.compliance.api.Approver;
 import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
 import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +31,7 @@ class ComplianceCsvWriter {
             case CLASSIFIED_ACCESS -> writeClassifiedAccess(sb, report.classifiedAccess());
             case REGULATORY_AUDIT_TRAIL -> writeAuditTrail(sb, report.auditTrail());
             case RETENTION_ADHERENCE -> writeRetentionAdherence(sb, report.retentionAdherence());
+            case DEPLOYMENT_METRICS -> writeDeploymentMetrics(sb, report.deploymentMetrics());
         }
         return sb.toString().getBytes(UTF_8);
     }
@@ -88,6 +91,43 @@ class ComplianceCsvWriter {
                     str(row.finishedAt()),
                     str(row.createdAt())));
         }
+    }
+
+    private void writeDeploymentMetrics(StringBuilder sb, List<DeploymentMetricsReportRow> rows) {
+        writeRow(sb, List.of("pipeline_id", "pipeline_name", "environment_id", "environment_name",
+                "deployments", "lead_time_p50_seconds", "lead_time_p95_seconds", "lead_time_source",
+                "change_failure_rate", "failed", "rolled_back", "unreported",
+                "time_to_restore_p50_seconds", "time_to_restore_p95_seconds", "open_incidents",
+                "approval_latency_p50_seconds", "approval_latency_p95_seconds", "timeout_rate",
+                "timed_out", "break_glass_count"));
+        for (var row : rows) {
+            writeRow(sb, List.of(
+                    str(row.pipelineId()),
+                    nullToEmpty(row.pipelineName()),
+                    str(row.environmentId()),
+                    nullToEmpty(row.environmentName()),
+                    str(row.deployments()),
+                    str(row.leadTimeP50Seconds()),
+                    str(row.leadTimeP95Seconds()),
+                    nullToEmpty(row.leadTimeSource()),
+                    decimal(row.changeFailureRate()),
+                    str(row.failed()),
+                    str(row.rolledBack()),
+                    str(row.unreported()),
+                    str(row.timeToRestoreP50Seconds()),
+                    str(row.timeToRestoreP95Seconds()),
+                    str(row.openIncidents()),
+                    str(row.approvalLatencyP50Seconds()),
+                    str(row.approvalLatencyP95Seconds()),
+                    decimal(row.timeoutRate()),
+                    str(row.timedOut()),
+                    str(row.breakGlassCount())));
+        }
+    }
+
+    /** A rate as a plain decimal ({@code 0.125}) — never scientific notation or a percent. */
+    static String decimal(Double value) {
+        return value == null ? "" : BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
     }
 
     private static String formatMatched(List<MatchedClassification> matched) {

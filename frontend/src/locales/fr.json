@@ -4229,7 +4229,7 @@
   },
   "auditor": {
     "title": "Rapports de conformité",
-    "subtitle": "Rapports signés et infalsifiables sur les requêtes exécutées",
+    "subtitle": "Rapports signés et infalsifiables sur les requêtes exécutées et les déploiements",
     "tab_classified_access": "Accès aux données classifiées",
     "tab_regulatory_trail": "Piste d'audit réglementaire",
     "period": "Période du rapport",
@@ -4250,7 +4250,20 @@
     "col_rows_affected": "Lignes",
     "col_sql": "SQL",
     "col_effective_sql": "SQL effectif",
-    "col_approvers": "Approbateurs"
+    "col_approvers": "Approbateurs",
+    "tab_deployment_metrics": "Métriques de déploiement (DORA)",
+    "empty_description_deployments": "Aucun environnement de déploiement n'existe encore dans cette organisation.",
+    "col_pipeline": "Pipeline",
+    "col_environment": "Environnement",
+    "col_deployments": "Déploiements",
+    "col_lead_time": "Délai de livraison p50 / p95",
+    "col_change_failure_rate": "Taux d'échec des changements",
+    "change_failure_value": "{{rate}} ({{failed}} en échec, {{rolledBack}} annulés)",
+    "col_time_to_restore": "Temps de restauration p50 / p95",
+    "col_open_incidents": "Incidents ouverts",
+    "col_approval_latency": "Latence d'approbation p50 / p95",
+    "col_timeout_rate": "Taux d'expiration",
+    "col_break_glass": "Break-glass"
   },
   "anomalies": {
     "title": "Anomalies",

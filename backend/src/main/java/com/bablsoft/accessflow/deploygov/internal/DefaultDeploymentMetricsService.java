@@ -80,7 +80,10 @@ public class DefaultDeploymentMetricsService implements DeploymentMetricsService
                                                      DeploymentMetricsFilter filter) {
         var period = period(filter);
         List<UUID> environmentIds = null;
-        if (hasEnvironment(filter)) {
+        if (filter != null && filter.environmentId() != null) {
+            // Org scope is enforced by the queries, so a foreign id simply matches nothing.
+            environmentIds = List.of(filter.environmentId());
+        } else if (hasEnvironment(filter)) {
             environmentIds = environmentRepository.findIdsByOrganizationIdAndNameIgnoreCase(
                     organizationId, filter.environment().trim());
         }

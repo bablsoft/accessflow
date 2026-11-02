@@ -18,5 +18,10 @@ public enum ComplianceReportType {
      * Retention-adherence / deletion-history: lifecycle runs (retention + erasure actions) over the
      * period, for proof of data retirement (AF-499).
      */
-    RETENTION_ADHERENCE
+    RETENTION_ADHERENCE,
+    /**
+     * DORA + approval-SLA deployment metrics, one row per (pipeline, environment) over the period,
+     * computed by {@code deploygov.api.DeploymentMetricsService} (#986). Not datasource-scoped.
+     */
+    DEPLOYMENT_METRICS
 }

@@ -1605,7 +1605,8 @@ The `compliance` module produces pre-built compliance reports and signed exports
 read-only module that depends only on other modules' `api` packages — `workflow.api` (snapshot period
 query), `core.api` (`DataClassificationAdminService`, `DatasourceAdminService`, `UserAdminService`),
 `audit.api` (`AuditLogService.record` + the new `COMPLIANCE_REPORT_EXPORTED` / `compliance_report`
-enum values), and `security.api` (`ExportSignatureService`). Nothing depends back on `compliance`, so it
+enum values), and `security.api` (`ExportSignatureService`) — later also `lifecycle.api` (AF-499) and `deploygov.api` (#986). Only
+`notifications` depends back on `compliance` (#626), and none of those modules reach it, so it
 introduces no module cycle. (It cannot live in `audit`: `workflow` already depends on `audit.api`, so an
 `audit → workflow.api` edge would cycle — hence a separate module.)
 
@@ -2940,6 +2941,26 @@ compliance suite: `DefaultComplianceReportService` reads `lifecycle_runs` over t
 `lifecycle.api.LifecycleRunLookupService` (compliance → lifecycle.api, acyclic) and renders the
 deletion-history rows to the existing signed PDF/CSV export. Served at
 `GET /admin/compliance/reports/retention-adherence` (+ the generic signed `…/export?type=…`).
+
+**Deployment-metrics compliance report (#986, epic #983).** A `ComplianceReportType.DEPLOYMENT_METRICS`
+turns the read-time DORA numbers into signed audit evidence. `DefaultComplianceReportService` walks
+every pipeline of the organization (`deploygov.api.DeploymentPipelineAdminService.list`, paged, sorted
+by name) and its environments in ladder order, and for each (pipeline, environment) pair calls
+`deploygov.api.DeploymentMetricsService.organizationMetrics` narrowed to that pipeline id and
+environment **id** (`DeploymentMetricsFilter.environmentId`, added for this — the name filter matches
+case-insensitively while names are unique per pipeline only case-sensitively, so `Prod` and `prod`
+would otherwise share one merged figure) — the compliance module copies the view onto a
+`DeploymentMetricsReportRow` and never re-derives a metric. Environments are listed through
+`deploygov.api.DeploymentEnvironmentLookupService` (a pipeline deleted mid-report lists none, rather
+than throwing inside the shared read-only transaction). The pair count is capped at `accessflow.compliance.max-rows` (pairs past the cap
+are not computed, `truncated` is set). The report is not datasource-scoped: a request's `datasourceId`
+is ignored and the report (hence the `COMPLIANCE_REPORT_EXPORTED` metadata) carries none. An empty
+window and a window over the metrics service's 366-day cap both surface as `INVALID_REPORT_PERIOD`,
+checked before any pipeline is read so the answer does not depend on whether the organization has any. The new
+`compliance → deploygov.api` edge is acyclic — deploygov depends on neither `compliance` nor
+`notifications`, the only module that depends on `compliance`. Served at
+`GET /admin/compliance/reports/deployment-metrics` (+ `…/export?type=DEPLOYMENT_METRICS`); the CSV
+writes rates as plain decimals and null percentiles as empty cells, the PDF is a plain table.
 
 **Lifecycle notifications.** Approving an erasure publishes `ErasureRequestApprovedEvent`; the
 notifications module's `NotificationListener` consumes it and dispatches an `ERASURE_APPROVED`

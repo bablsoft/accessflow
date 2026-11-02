@@ -4,8 +4,9 @@ import { expandNavSection } from '../helpers/nav';
 
 
 // AF-459 covers the auditor compliance dashboard (/admin/auditor):
-//   1. the sidebar "Compliance reports" link routes to the dashboard and both report tabs render
+//   1. the sidebar "Compliance reports" link routes to the dashboard and all three report tabs render
 //   2. exporting hits the signed-export endpoint with the compliance filename + signature headers
+//   3. the deployment-metrics (DORA) tab (#986) loads its report and exports a signed CSV
 //
 // The dashboard is gated to AUDITOR + ADMIN; ADMIN is the role the e2e bootstrap seeds, so the
 // browser flow runs as ADMIN. The AUDITOR-vs-other-role gating (403 for ANALYST/READONLY, 200 for
@@ -24,7 +25,7 @@ async function waitForClassifiedReport(page: Page): Promise<void> {
 }
 
 test.describe.serial('auditor compliance dashboard', () => {
-  test('sidebar link opens the dashboard with both report tabs', async ({ page }) => {
+  test('sidebar link opens the dashboard with all three report tabs', async ({ page }) => {
     await login(page);
     await expandNavSection(page, 'Security & Access', 'Audit & compliance');
     await page.getByRole('link', { name: 'Compliance reports' }).click();
@@ -34,6 +35,7 @@ test.describe.serial('auditor compliance dashboard', () => {
     await expect(page.getByRole('heading', { name: 'Compliance reports' })).toBeVisible();
     await expect(page.getByText('Classified data access')).toBeVisible();
     await expect(page.getByText('Regulatory audit trail')).toBeVisible();
+    await expect(page.getByText('Deployment metrics (DORA)')).toBeVisible();
     await expect(page.getByRole('button', { name: /Export signed PDF/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Export CSV/i })).toBeVisible();
   });
@@ -84,5 +86,50 @@ test.describe.serial('auditor compliance dashboard', () => {
     );
     await page.getByText('Regulatory audit trail').click();
     await trailResponse;
+  });
+
+  test('deployment-metrics tab loads its report and exports a signed CSV', async ({ page }) => {
+    await login(page);
+    await page.goto('/admin/auditor');
+    await waitForClassifiedReport(page);
+
+    const metricsResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/admin\/compliance\/reports\/deployment-metrics(\?|$)/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+    // The Segmented control's radio input is hidden; click its visible item label instead.
+    await page.locator('.ant-segmented-item', { hasText: 'Deployment metrics (DORA)' }).click();
+    await metricsResponse;
+    // Other specs may create pipelines in the shared stack, so accept the table or its empty state.
+    await expect(
+      page
+        .getByRole('columnheader', { name: 'Lead time p50 / p95' })
+        .or(page.getByText('No deployment environments exist in this organization yet.'))
+        .first(),
+    ).toBeVisible();
+
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === 'GET' &&
+          /\/api\/v1\/admin\/compliance\/reports\/export(\?|$)/.test(r.url()) &&
+          r.url().includes('type=DEPLOYMENT_METRICS') &&
+          r.url().includes('format=CSV'),
+        { timeout: 15_000 },
+      ),
+      page.getByRole('button', { name: /Export CSV/i }).click(),
+    ]);
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type'] ?? '').toMatch(/^text\/csv/);
+    expect(response.headers()['content-disposition'] ?? '').toMatch(
+      /attachment;\s*filename="compliance-deployment-metrics-\d{8}T\d{6}Z\.csv"/,
+    );
+    expect(response.headers()['x-accessflow-signature'] ?? '').not.toBe('');
+    expect(response.headers()['x-accessflow-content-sha256'] ?? '').toMatch(/^[0-9a-f]{64}$/);
+    expect(await response.text()).toMatch(/^pipeline_id,pipeline_name,environment_id,environment_name,/);
   });
 });

@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-24",
+      "dateModified": "2026-11-02",
       "url": "https://accessflow.io/docs/configuration/audit-compliance/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/audit-compliance/",
       "image": "https://accessflow.io/og-image.png",
@@ -272,7 +272,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Audit & compliance.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-24">24 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-02">2 November 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -389,14 +389,18 @@
 <section class="docs-section">
 <h2 id="compliance-reports">Compliance reports &amp; signed exports</h2>
           <p>
-            <strong>What it is.</strong> Ready-made compliance reporting with audit-grade exports. Two
-            pre-built reports answer common auditor questions over a chosen period:
+            <strong>What it is.</strong> Ready-made compliance reporting with audit-grade exports.
+            Pre-built reports answer common auditor questions over a chosen period:
             <strong>classified-data access</strong> (which executed queries touched PII / PCI / PHI /
             GDPR / FINANCIAL / SENSITIVE data, joined to your data-classification tags) and a
             <strong>regulatory audit trail</strong> of DDL / DELETE operations with the approvers'
             names and, where a row-security filter or a soft-delete rule rewrote the statement, the
             <em>effective SQL</em> that actually ran (filter values shown as <code>?</code>, never
-            stored). Use it to hand a regulator or internal auditor evidence they can verify themselves.
+            stored). A third report covers software delivery: <strong>deployment metrics
+            (DORA, after the DevOps Research and Assessment delivery measures)</strong> lists every
+            deployment pipeline and environment with its deployment count, lead time, change failure
+            rate, time to restore, approval latency and break-glass count for the period. Use them
+            to hand a regulator or internal auditor evidence they can verify themselves.
           </p>
           <p>
             <strong>Configure it.</strong> Build and export reports from the compliance dashboard at
@@ -410,7 +414,9 @@
           <p>
             <strong>Tune it.</strong> <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (largest
             window, default <code>P366D</code>) and <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (row
-            cap before a report is marked truncated, default <code>50000</code>). Signing reuses
+            cap before a report is marked truncated, default <code>50000</code>; for deployment
+            metrics it caps pipeline-and-environment rows). Deployment metrics never span more than
+            366 days, whatever the period setting. Signing reuses
             <code>JWT_PRIVATE_KEY</code> — no extra secret required.
           </p>
           <figure class="docs-figure">
@@ -420,7 +426,7 @@
                    alt="The read-only AccessFlow Auditor dashboard with the compliance report builder for classified-data-access and regulatory audit-trail reports over a chosen period."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/auditor</code> — the read-only Auditor role builds and signs compliance reports over the immutable query snapshots.</figcaption>
+            <figcaption><code>/admin/auditor</code> — the read-only Auditor role builds and signs compliance reports over a chosen period.</figcaption>
           </figure>
         </section>
 

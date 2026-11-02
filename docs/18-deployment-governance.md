@@ -646,6 +646,14 @@ the submission `metadata` when the pipeline sends one as an offset-qualified ISO
 submission — the response's `lead_time.source` says which. The metric definitions, parameters and
 response are in [`docs/04-api-spec.md`](04-api-spec.md) → "Deployment metrics".
 
+For audit evidence, the same numbers export as a **signed compliance report** (#986):
+`ComplianceReportType.DEPLOYMENT_METRICS` lists one row per (pipeline, environment) over a period,
+computed by `DeploymentMetricsService.organizationMetrics`, and renders through the existing signed
+PDF/CSV export at `GET /api/v1/admin/compliance/reports/export?type=DEPLOYMENT_METRICS` (hash, RSA
+signature, `COMPLIANCE_REPORT_EXPORTED` audit row). It is a `COMPLIANCE_REPORT_VIEW` read — the
+auditor sees every pipeline without holding any deployment permission. See
+[`docs/04-api-spec.md`](04-api-spec.md) → "GET /admin/compliance/reports/deployment-metrics".
+
 ---
 
 ## 11. Decision trace (AF-967)

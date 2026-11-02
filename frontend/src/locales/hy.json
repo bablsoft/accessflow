@@ -4229,7 +4229,7 @@
   },
   "auditor": {
     "title": "Համապատասխանության հաշվետվություններ",
-    "subtitle": "Ստորագրված, կեղծումից պաշտպանված հաշվետվություններ կատարված հարցումների վերաբերյալ",
+    "subtitle": "Ստորագրված, կեղծումից պաշտպանված հաշվետվություններ կատարված հարցումների և տեղակայումների վերաբերյալ",
     "tab_classified_access": "Դասակարգված տվյալների հասանելիություն",
     "tab_regulatory_trail": "Կարգավորող աուդիտի հետք",
     "period": "Հաշվետվության ժամանակահատված",
@@ -4250,7 +4250,20 @@
     "col_rows_affected": "Տողեր",
     "col_sql": "SQL",
     "col_effective_sql": "Փաստացի SQL",
-    "col_approvers": "Հաստատողներ"
+    "col_approvers": "Հաստատողներ",
+    "tab_deployment_metrics": "Տեղակայման ցուցանիշներ (DORA)",
+    "empty_description_deployments": "Այս կազմակերպությունում դեռ տեղակայման միջավայրեր չկան։",
+    "col_pipeline": "Խողովակաշար",
+    "col_environment": "Միջավայր",
+    "col_deployments": "Տեղակայումներ",
+    "col_lead_time": "Կատարման ժամանակ p50 / p95",
+    "col_change_failure_rate": "Փոփոխությունների ձախողման տոկոս",
+    "change_failure_value": "{{rate}} ({{failed}} ձախողված, {{rolledBack}} հետ գլորված)",
+    "col_time_to_restore": "Վերականգնման ժամանակ p50 / p95",
+    "col_open_incidents": "Բաց միջադեպեր",
+    "col_approval_latency": "Հաստատման ուշացում p50 / p95",
+    "col_timeout_rate": "Ժամկետանցի տոկոս",
+    "col_break_glass": "Break-glass"
   },
   "anomalies": {
     "title": "Անոմալիաներ",

@@ -4229,7 +4229,7 @@
   },
   "auditor": {
     "title": "Informes de cumplimiento",
-    "subtitle": "Informes firmados y a prueba de manipulaciones sobre consultas ejecutadas",
+    "subtitle": "Informes firmados y a prueba de manipulaciones sobre consultas ejecutadas y despliegues",
     "tab_classified_access": "Acceso a datos clasificados",
     "tab_regulatory_trail": "Rastro de auditoría regulatoria",
     "period": "Período del informe",
@@ -4250,7 +4250,20 @@
     "col_rows_affected": "Filas",
     "col_sql": "SQL",
     "col_effective_sql": "SQL efectivo",
-    "col_approvers": "Aprobadores"
+    "col_approvers": "Aprobadores",
+    "tab_deployment_metrics": "Métricas de despliegue (DORA)",
+    "empty_description_deployments": "Todavía no hay entornos de despliegue en esta organización.",
+    "col_pipeline": "Pipeline",
+    "col_environment": "Entorno",
+    "col_deployments": "Despliegues",
+    "col_lead_time": "Tiempo de entrega p50 / p95",
+    "col_change_failure_rate": "Tasa de fallos de cambios",
+    "change_failure_value": "{{rate}} ({{failed}} fallidos, {{rolledBack}} revertidos)",
+    "col_time_to_restore": "Tiempo de restauración p50 / p95",
+    "col_open_incidents": "Incidentes abiertos",
+    "col_approval_latency": "Latencia de aprobación p50 / p95",
+    "col_timeout_rate": "Tasa de expiración",
+    "col_break_glass": "Break-glass"
   },
   "anomalies": {
     "title": "Anomalías",

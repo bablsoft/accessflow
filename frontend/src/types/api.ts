@@ -2496,7 +2496,7 @@ export interface OrganizationDataClassification {
 
 // --- AF-459: compliance reporting ---
 
-export type ComplianceReportType = 'CLASSIFIED_ACCESS' | 'REGULATORY_AUDIT_TRAIL';
+export type ComplianceReportType = 'CLASSIFIED_ACCESS' | 'REGULATORY_AUDIT_TRAIL' | 'DEPLOYMENT_METRICS';
 export type ComplianceReportFormat = 'PDF' | 'CSV';
 
 export interface MatchedClassification {
@@ -2539,6 +2539,33 @@ export interface RegulatoryAuditTrailRow {
   effective_sql?: string | null;
 }
 
+/**
+ * One (pipeline, environment) pair of the DEPLOYMENT_METRICS compliance report (#986). Null
+ * percentiles / rates / lead-time source are omitted on the wire.
+ */
+export interface DeploymentMetricsReportRow {
+  pipeline_id: string;
+  pipeline_name: string;
+  environment_id: string;
+  environment_name: string;
+  deployments: number;
+  lead_time_p50_seconds?: number | null;
+  lead_time_p95_seconds?: number | null;
+  lead_time_source?: 'COMMIT_TIMESTAMP' | 'SUBMITTED_AT' | 'MIXED' | null;
+  change_failure_rate?: number | null;
+  failed: number;
+  rolled_back: number;
+  unreported: number;
+  time_to_restore_p50_seconds?: number | null;
+  time_to_restore_p95_seconds?: number | null;
+  open_incidents: number;
+  approval_latency_p50_seconds?: number | null;
+  approval_latency_p95_seconds?: number | null;
+  timeout_rate?: number | null;
+  timed_out: number;
+  break_glass_count: number;
+}
+
 export interface ComplianceReport {
   type: ComplianceReportType;
   organization_id: string;
@@ -2548,6 +2575,7 @@ export interface ComplianceReport {
   datasource_id: string | null;
   classified_access: ClassifiedAccessRow[];
   audit_trail: RegulatoryAuditTrailRow[];
+  deployment_metrics: DeploymentMetricsReportRow[];
   row_count: number;
   truncated: boolean;
 }
