@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.compliance.api.Approver;
 import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportType;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
 import com.bablsoft.accessflow.core.api.DataClassification;
@@ -58,6 +59,28 @@ class ComplianceReportResponseTest {
                 .isEqualTo("DELETE FROM t WHERE tenant = ?");
         assertThat(response.auditTrail().getFirst().approvers().getFirst().displayName())
                 .isEqualTo("Rev");
+        assertThat(response.classifiedAccess()).isEmpty();
+    }
+
+    @Test
+    void mapsDeploymentMetricsReport() {
+        var pipelineId = UUID.randomUUID();
+        var envId = UUID.randomUUID();
+        var report = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, UUID.randomUUID(),
+                Instant.EPOCH, Instant.EPOCH.plusSeconds(60), Instant.EPOCH, null, List.of(),
+                List.of(), List.of(),
+                List.of(new DeploymentMetricsReportRow(pipelineId, "payments", envId, "prod", 8,
+                        600L, 3600L, "MIXED", 0.125, 1, 2, 3, 120L, 900L, 4, 60L, 300L, 0.25, 5, 6)),
+                true);
+
+        var response = ComplianceReportResponse.from(report);
+
+        assertThat(response.rowCount()).isEqualTo(1);
+        assertThat(response.truncated()).isTrue();
+        assertThat(response.deploymentMetrics()).containsExactly(
+                new ComplianceReportResponse.DeploymentMetricsRow(pipelineId, "payments", envId,
+                        "prod", 8, 600L, 3600L, "MIXED", 0.125, 1, 2, 3, 120L, 900L, 4, 60L, 300L,
+                        0.25, 5, 6));
         assertThat(response.classifiedAccess()).isEmpty();
     }
 }

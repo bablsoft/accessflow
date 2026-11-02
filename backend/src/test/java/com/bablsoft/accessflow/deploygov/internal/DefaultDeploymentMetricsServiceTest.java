@@ -232,6 +232,20 @@ class DefaultDeploymentMetricsServiceTest {
     }
 
     @Test
+    void anOrganizationEnvironmentIdNarrowsToExactlyThatEnvironmentAndBeatsTheName() {
+        var environmentId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+
+        service.organizationMetrics(ORG_ID,
+                new DeploymentMetricsFilter(FROM, TO, "prod", pipelineId, environmentId));
+
+        var scope = capturedScope();
+        assertThat(scope.environmentIds()).containsExactly(environmentId);
+        assertThat(scope.pipelineId()).isEqualTo(pipelineId);
+        verifyNoInteractions(environmentRepository);
+    }
+
+    @Test
     void anUnknownOrganizationEnvironmentYieldsEmptyMetrics() {
         when(environmentRepository.findIdsByOrganizationIdAndNameIgnoreCase(ORG_ID, "nope"))
                 .thenReturn(List.of());

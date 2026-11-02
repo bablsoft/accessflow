@@ -46,8 +46,40 @@ function classifiedReport(): ComplianceReport {
       },
     ],
     audit_trail: [],
+    deployment_metrics: [],
     row_count: 1,
     truncated: false,
+  };
+}
+
+function deploymentReport(): ComplianceReport {
+  return {
+    ...classifiedReport(),
+    type: 'DEPLOYMENT_METRICS',
+    classified_access: [],
+    deployment_metrics: [
+      {
+        pipeline_id: 'p-1',
+        pipeline_name: 'payments-api',
+        environment_id: 'e-1',
+        environment_name: 'production',
+        deployments: 48,
+        lead_time_p50_seconds: 5400,
+        lead_time_p95_seconds: 90_000,
+        lead_time_source: 'MIXED',
+        change_failure_rate: 0.125,
+        failed: 4,
+        rolled_back: 2,
+        unreported: 3,
+        open_incidents: 1,
+        approval_latency_p50_seconds: 900,
+        approval_latency_p95_seconds: 14_400,
+        timeout_rate: 0.02,
+        timed_out: 1,
+        break_glass_count: 7,
+      },
+    ],
+    row_count: 1,
   };
 }
 
@@ -157,5 +189,79 @@ describe('AuditorDashboardPage', () => {
       ),
     );
     expect(createUrl).toHaveBeenCalled();
+  });
+
+  it('renders the deployment-metrics tab with DORA columns', async () => {
+    fetchComplianceReportMock.mockImplementation(async (type: string) =>
+      type === 'DEPLOYMENT_METRICS' ? deploymentReport() : classifiedReport(),
+    );
+
+    render(wrap(<AuditorDashboardPage />));
+    await waitFor(() => expect(screen.getByText('alice@example.com')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Deployment metrics (DORA)'));
+
+    await waitFor(() => expect(screen.getByText('payments-api')).toBeInTheDocument());
+    expect(fetchComplianceReportMock).toHaveBeenCalledWith('DEPLOYMENT_METRICS', expect.anything());
+    expect(screen.getByText('production')).toBeInTheDocument();
+    expect(screen.getAllByText('Lead time p50 / p95').length).toBeGreaterThan(0);
+    expect(screen.getByText('1h 30m / 1d 1h')).toBeInTheDocument();
+    expect(screen.getByText('12.5% (4 failed, 2 rolled back)')).toBeInTheDocument();
+    expect(screen.getByText('15m / 4h')).toBeInTheDocument();
+    expect(screen.getByText('2%')).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
+    // No restore sample: the percentile cell renders the placeholder, never "0".
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('shows the deployment empty state when no pipeline exists', async () => {
+    fetchComplianceReportMock.mockImplementation(async (type: string) =>
+      type === 'DEPLOYMENT_METRICS'
+        ? { ...deploymentReport(), deployment_metrics: [], row_count: 0 }
+        : classifiedReport(),
+    );
+
+    render(wrap(<AuditorDashboardPage />));
+    await waitFor(() => expect(screen.getByText('alice@example.com')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Deployment metrics (DORA)'));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('No deployment environments exist in this organization yet.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('renders placeholders for a pipeline with no deployments', async () => {
+    const empty = deploymentReport();
+    const row = empty.deployment_metrics[0]!;
+    empty.deployment_metrics = [
+      {
+        pipeline_id: row.pipeline_id,
+        pipeline_name: row.pipeline_name,
+        environment_id: row.environment_id,
+        environment_name: row.environment_name,
+        deployments: 0,
+        failed: 0,
+        rolled_back: 0,
+        unreported: 0,
+        open_incidents: 0,
+        timed_out: 0,
+        break_glass_count: 0,
+      },
+    ];
+    fetchComplianceReportMock.mockImplementation(async (type: string) =>
+      type === 'DEPLOYMENT_METRICS' ? empty : classifiedReport(),
+    );
+
+    render(wrap(<AuditorDashboardPage />));
+    await waitFor(() => expect(screen.getByText('alice@example.com')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Deployment metrics (DORA)'));
+
+    await waitFor(() => expect(screen.getByText('payments-api')).toBeInTheDocument());
+    expect(screen.getByText('— (0 failed, 0 rolled back)')).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(4);
   });
 });

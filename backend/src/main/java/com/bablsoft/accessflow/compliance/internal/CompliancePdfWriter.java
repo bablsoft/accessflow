@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.compliance.internal;
 import com.bablsoft.accessflow.compliance.api.Approver;
 import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
 import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
@@ -52,6 +53,7 @@ class CompliancePdfWriter {
                 case CLASSIFIED_ACCESS -> drawClassifiedAccess(canvas, report.classifiedAccess());
                 case REGULATORY_AUDIT_TRAIL -> drawAuditTrail(canvas, report.auditTrail());
                 case RETENTION_ADHERENCE -> drawRetentionAdherence(canvas, report.retentionAdherence());
+                case DEPLOYMENT_METRICS -> drawDeploymentMetrics(canvas, report.deploymentMetrics());
             }
             canvas.close();
             doc.save(out);
@@ -66,6 +68,7 @@ class CompliancePdfWriter {
             case CLASSIFIED_ACCESS -> "Compliance Report - Classified Data Access";
             case REGULATORY_AUDIT_TRAIL -> "Compliance Report - Regulatory Audit Trail";
             case RETENTION_ADHERENCE -> "Compliance Report - Retention Adherence";
+            case DEPLOYMENT_METRICS -> "Compliance Report - Deployment Metrics (DORA)";
         };
         c.text(bold, TITLE_SIZE, MARGIN, title);
         c.advance(TITLE_SIZE + 6f);
@@ -123,6 +126,33 @@ class CompliancePdfWriter {
                     str(row.affectedRows())));
         }
         drawTable(c, headers, weights, data);
+    }
+
+    private void drawDeploymentMetrics(Canvas c, List<DeploymentMetricsReportRow> rows)
+            throws IOException {
+        var headers = List.of("Pipeline", "Environment", "Deploys", "Lead time p50/p95 (s)",
+                "Change failure rate", "Failed/Rolled back", "Time to restore p50/p95 (s)",
+                "Open incidents", "Approval p50/p95 (s)", "Timeout rate", "Break-glass");
+        float[] weights = {2.5f, 2f, 1f, 2f, 1.5f, 1.5f, 2f, 1.2f, 2f, 1.3f, 1.2f};
+        var data = new ArrayList<List<String>>();
+        for (var row : rows) {
+            data.add(List.of(
+                    nullToEmpty(row.pipelineName()), nullToEmpty(row.environmentName()),
+                    str(row.deployments()),
+                    pair(row.leadTimeP50Seconds(), row.leadTimeP95Seconds()),
+                    ComplianceCsvWriter.decimal(row.changeFailureRate()),
+                    row.failed() + " / " + row.rolledBack(),
+                    pair(row.timeToRestoreP50Seconds(), row.timeToRestoreP95Seconds()),
+                    str(row.openIncidents()),
+                    pair(row.approvalLatencyP50Seconds(), row.approvalLatencyP95Seconds()),
+                    ComplianceCsvWriter.decimal(row.timeoutRate()),
+                    str(row.breakGlassCount())));
+        }
+        drawTable(c, headers, weights, data);
+    }
+
+    private static String pair(Long p50, Long p95) {
+        return p50 == null && p95 == null ? "" : str(p50) + " / " + str(p95);
     }
 
     private void drawTable(Canvas c, List<String> headers, float[] weights,

@@ -3651,6 +3651,8 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `GET` | `/admin/audit-log/verify` | Verify the HMAC hash chain for the caller's org (tamper detection) |
 | `GET` | `/admin/compliance/reports/classified-access` | Classified-data access report over a period *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/regulatory-audit-trail` | DDL/DELETE regulatory audit trail with approvers *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/reports/retention-adherence` | Retention + erasure lifecycle runs over a period *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/reports/deployment-metrics` | DORA + approval-SLA metrics per pipeline × environment over a period (#986) *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/export` | Signed PDF/CSV compliance export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/signing-certificate` | Public key to verify a signed export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/anomalies` | List behavioural anomalies with filters (UBA, AF-383) *(AUDITOR or ADMIN)* |
@@ -6483,12 +6485,14 @@ The body is streamed via `StreamingResponseBody` — the backend reads the resul
 
 ### Compliance Reporting (`/admin/compliance`) *(AUDITOR or ADMIN)* — AF-459
 
-Pre-built compliance reports computed over a period from the immutable `query_snapshots` forensic record. All endpoints require `hasAnyRole('AUDITOR','ADMIN')` (otherwise 403). Reports are read-only.
+Pre-built compliance reports computed over a period — the query reports from the immutable `query_snapshots` forensic record, the deployment-metrics report (#986) at read time from live `deployment_requests` rows. All endpoints require `hasAnyRole('AUDITOR','ADMIN')` (otherwise 403). Reports are read-only.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/admin/compliance/reports/classified-access` | Executed queries that touched classified (PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE) objects over a period |
 | `GET` | `/admin/compliance/reports/regulatory-audit-trail` | Executed DDL/DELETE operations with approver names over a period |
+| `GET` | `/admin/compliance/reports/retention-adherence` | Retention + erasure lifecycle runs over a period (see "Retention-adherence compliance report") |
+| `GET` | `/admin/compliance/reports/deployment-metrics` | DORA + approval-SLA metrics per pipeline × environment over a period (#986) |
 | `GET` | `/admin/compliance/reports/export` | Render a report as a digitally-signed PDF or CSV |
 | `GET` | `/admin/compliance/signing-certificate` | Public key + algorithm to verify a signed export offline |
 
@@ -6533,7 +6537,7 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 
 #### GET /admin/compliance/reports/export — Signed export
 
-**Query parameters**: `type` (`CLASSIFIED_ACCESS` | `REGULATORY_AUDIT_TRAIL`), `format` (`PDF` | `CSV`), plus `from` / `to` / `datasourceId`.
+**Query parameters**: `type` (`CLASSIFIED_ACCESS` | `REGULATORY_AUDIT_TRAIL` | `RETENTION_ADHERENCE` | `DEPLOYMENT_METRICS`), `format` (`PDF` | `CSV`), plus `from` / `to` / `datasourceId` (`datasourceId` is ignored for `DEPLOYMENT_METRICS`).
 
 **Response**:
 - `200 OK`; `Content-Type: application/pdf` or `text/csv; charset=utf-8`.
@@ -6546,6 +6550,79 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 The `REGULATORY_AUDIT_TRAIL` export carries the effective executed statement (#937) next to the submitted one: the CSV has an `effective_sql` column right after `sql_text` (empty when no rewrite occurred), and the PDF an **Effective SQL** column. Bound values are always `?`.
 
 **Tamper-evidence** — every export writes a `COMPLIANCE_REPORT_EXPORTED` audit row (`resource_type=compliance_report`) whose `metadata` carries `report_type`, `format`, `period_from`, `period_to`, `datasource_id`, `row_count`, `truncated`, `content_sha256`, `signature`, and `signature_algorithm`, chaining the export's hash into the tamper-evident audit log. The audit write is integrity-critical — if it fails, the export fails.
+
+#### GET /admin/compliance/reports/deployment-metrics — Response 200 (#986, epic #983)
+
+The DORA numbers from "Deployment metrics" as signed audit evidence. **One row per
+(pipeline, environment)** in the organization — every pipeline, active or not, with its
+environments in ladder order, pipelines sorted by name — each computed by
+`deploygov.api.DeploymentMetricsService.organizationMetrics` narrowed to that pipeline and
+environment over `[from, to)`. The compliance module never re-derives a metric, so every value
+(time axis per metric, `null` percentile on an empty sample, `null` rate on a zero denominator)
+means exactly what the deployment-metrics endpoints document.
+
+**Query parameters**: `from`, `to` (both required). There is no `datasourceId` — a deployment
+pipeline is not scoped to a datasource — and the export endpoint ignores one for this type, so the
+`COMPLIANCE_REPORT_EXPORTED` row never records a datasource scope. Requires
+`COMPLIANCE_REPORT_VIEW` (otherwise `403`).
+
+**Response 400** `INVALID_REPORT_PERIOD`: a missing bound, `from` not strictly before `to` (the
+metrics window cannot be empty), a window over `accessflow.compliance.max-report-period`, or a
+window over the metrics service's own 366-day cap.
+
+```json
+{
+  "type": "DEPLOYMENT_METRICS",
+  "organization_id": "…",
+  "period_from": "2026-07-01T00:00:00Z",
+  "period_to": "2026-10-01T00:00:00Z",
+  "generated_at": "2026-10-02T09:00:00Z",
+  "classified_access": [],
+  "audit_trail": [],
+  "retention_adherence": [],
+  "deployment_metrics": [
+    {
+      "pipeline_id": "…",
+      "pipeline_name": "payments-api",
+      "environment_id": "…",
+      "environment_name": "production",
+      "deployments": 48,
+      "lead_time_p50_seconds": 5400,
+      "lead_time_p95_seconds": 86400,
+      "lead_time_source": "MIXED",
+      "change_failure_rate": 0.125,
+      "failed": 4,
+      "rolled_back": 2,
+      "unreported": 3,
+      "time_to_restore_p50_seconds": 1800,
+      "time_to_restore_p95_seconds": 7200,
+      "open_incidents": 1,
+      "approval_latency_p50_seconds": 900,
+      "approval_latency_p95_seconds": 14400,
+      "timeout_rate": 0.02,
+      "timed_out": 1,
+      "break_glass_count": 0
+    }
+  ],
+  "row_count": 1,
+  "truncated": false
+}
+```
+
+Null fields are omitted on the wire (`lead_time_source` too, when the pair had no deployment).
+`truncated` is `true` when the organization has more (pipeline, environment) pairs than
+`accessflow.compliance.max-rows`; pairs past the cap are not computed.
+
+**CSV export** (`GET /admin/compliance/reports/export?type=DEPLOYMENT_METRICS&format=CSV`) — the
+same signed export as every other type, with this header, in this order:
+
+```
+pipeline_id,pipeline_name,environment_id,environment_name,deployments,lead_time_p50_seconds,lead_time_p95_seconds,lead_time_source,change_failure_rate,failed,rolled_back,unreported,time_to_restore_p50_seconds,time_to_restore_p95_seconds,open_incidents,approval_latency_p50_seconds,approval_latency_p95_seconds,timeout_rate,timed_out,break_glass_count
+```
+
+A `null` percentile, rate or `lead_time_source` is an empty cell; rates are plain decimals
+(`0.125`), never percent strings or scientific notation. The PDF (`format=PDF`) is a plain table
+of the same rows (no charts) titled *Compliance Report - Deployment Metrics (DORA)*.
 
 #### GET /admin/compliance/signing-certificate — Response 200
 

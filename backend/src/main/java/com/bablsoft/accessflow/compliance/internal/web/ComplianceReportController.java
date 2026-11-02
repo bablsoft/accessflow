@@ -98,6 +98,22 @@ class ComplianceReportController {
         return ComplianceReportResponse.from(reportService.generate(organizationId, request));
     }
 
+    @GetMapping("/reports/deployment-metrics")
+    @Operation(summary = "DORA + approval-SLA deployment metrics per pipeline x environment over a "
+            + "period (#986)", description = "Not datasource-scoped: there is no datasourceId "
+            + "parameter, and the export endpoint ignores one for this report type.")
+    @ApiResponse(responseCode = "200", description = "Deployment-metrics report")
+    @ApiResponse(responseCode = "400", description = "Invalid reporting period")
+    @ApiResponse(responseCode = "403", description = "Caller is not an AUDITOR or ADMIN")
+    ComplianceReportResponse deploymentMetrics(
+            @Parameter(description = "Inclusive lower bound of the metrics window") @RequestParam Instant from,
+            @Parameter(description = "Exclusive upper bound of the metrics window") @RequestParam Instant to,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
+        var request = new ComplianceReportRequest(ComplianceReportType.DEPLOYMENT_METRICS, from,
+                to, null);
+        return ComplianceReportResponse.from(reportService.generate(organizationId, request));
+    }
+
     @GetMapping("/reports/export")
     @Operation(summary = "Render a compliance report as a digitally-signed PDF or CSV; the export "
             + "hash is chained into the audit log")
@@ -109,8 +125,8 @@ class ComplianceReportController {
             @Parameter(description = "Export format") @RequestParam ComplianceReportFormat format,
             @Parameter(description = "Inclusive lower bound on executedAt") @RequestParam Instant from,
             @Parameter(description = "Exclusive upper bound on executedAt") @RequestParam Instant to,
-            @Parameter(description = "Optional datasource scope") @RequestParam(required = false)
-            UUID datasourceId,
+            @Parameter(description = "Optional datasource scope (ignored for DEPLOYMENT_METRICS)")
+            @RequestParam(required = false) UUID datasourceId,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @AuthenticationPrincipal(expression = "userId") UUID callerUserId,
             RequestAuditContext auditContext,

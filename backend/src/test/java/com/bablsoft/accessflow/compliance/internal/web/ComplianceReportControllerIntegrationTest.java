@@ -21,6 +21,13 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.deploygov.api.CreateDeploymentEnvironmentCommand;
+import com.bablsoft.accessflow.deploygov.api.CreateDeploymentPipelineCommand;
+import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
+import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.workflow.internal.persistence.entity.QuerySnapshotEntity;
 import com.bablsoft.accessflow.workflow.internal.persistence.repo.QuerySnapshotRepository;
@@ -58,6 +65,8 @@ class ComplianceReportControllerIntegrationTest {
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired JwtService jwtService;
+    @Autowired DeploymentPipelineAdminService pipelineAdminService;
+    @Autowired DeploymentRequestRepository deploymentRequestRepository;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -192,6 +201,125 @@ class ComplianceReportControllerIntegrationTest {
         assertThat(result.getResponse().getContentAsString())
                 .startsWith("query_request_id,datasource_id,datasource_name")
                 .contains("customers.ssn:PII");
+    }
+
+    @Test
+    void auditorGetsDeploymentMetricsPerPipelineAndEnvironment() {
+        var pipeline = seedPipelineWithEnvironment();
+
+        var result = mvc.get().uri("/api/v1/admin/compliance/reports/deployment-metrics?" + PERIOD)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + auditorToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.type").asString()
+                .isEqualTo("DEPLOYMENT_METRICS");
+        assertThat(result).bodyJson().extractingPath("$.row_count").asNumber().isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.deployment_metrics[0].pipeline_id")
+                .asString().isEqualTo(pipeline.toString());
+        assertThat(result).bodyJson().extractingPath("$.deployment_metrics[0].environment_name")
+                .asString().isEqualTo("prod");
+        assertThat(result).bodyJson().extractingPath("$.deployment_metrics[0].deployments")
+                .asNumber().isEqualTo(0);
+    }
+
+    @Test
+    void deploymentMetricsRejectsAnEmptyWindow() {
+        var result = mvc.get().uri("/api/v1/admin/compliance/reports/deployment-metrics"
+                        + "?from=2026-06-01T00:00:00Z&to=2026-06-01T00:00:00Z")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + auditorToken)
+                .exchange();
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("INVALID_REPORT_PERIOD");
+    }
+
+    @Test
+    void deploymentMetricsForbiddenForAnalyst() {
+        var result = mvc.get().uri("/api/v1/admin/compliance/reports/deployment-metrics?" + PERIOD)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void deploymentMetricsCsvExportIsSigned() throws Exception {
+        var pipeline = seedPipelineWithEnvironment();
+
+        var result = mvc.get().uri("/api/v1/admin/compliance/reports/export"
+                        + "?type=DEPLOYMENT_METRICS&format=CSV&datasourceId=" + datasource.getId()
+                        + "&" + PERIOD)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + auditorToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result.getResponse().getContentType()).startsWith("text/csv");
+        assertThat(result.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                .matches("attachment; filename=\"compliance-deployment-metrics-\\d{8}T\\d{6}Z\\.csv\"");
+        assertThat(result.getResponse().getHeader("X-AccessFlow-Signature")).isNotBlank();
+        assertThat(result.getResponse().getHeader("X-AccessFlow-Content-SHA256")).hasSize(64);
+        assertThat(result.getResponse().getContentAsString())
+                .startsWith("pipeline_id,pipeline_name,environment_id,environment_name,deployments,")
+                .contains(pipeline + ",");
+
+        var audit = mvc.get().uri("/api/v1/admin/audit-log?action=COMPLIANCE_REPORT_EXPORTED")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(audit).bodyJson().extractingPath("$.content[0].metadata.report_type").asString()
+                .isEqualTo("DEPLOYMENT_METRICS");
+        assertThat(audit).bodyJson().doesNotHavePath("$.content[0].metadata.datasource_id");
+    }
+
+    @Test
+    void deploymentMetricsKeepCaseOnlyDistinctEnvironmentsApart() {
+        var pipeline = pipelineAdminService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "payments-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null, null, null,
+                false, null));
+        var upper = pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("Prod", null, true, null, null, false,
+                        List.of(), null, false));
+        var lower = pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("prod", null, true, null, null, false,
+                        List.of(), null, false));
+        executedDeployment(pipeline.id(), upper.id(), "1.0.0");
+        executedDeployment(pipeline.id(), lower.id(), "1.0.1");
+
+        var result = mvc.get().uri("/api/v1/admin/compliance/reports/deployment-metrics?" + PERIOD)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + auditorToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.row_count").asNumber().isEqualTo(2);
+        assertThat(result).bodyJson().extractingPath("$.deployment_metrics[0].deployments")
+                .asNumber().isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.deployment_metrics[1].deployments")
+                .asNumber().isEqualTo(1);
+    }
+
+    private void executedDeployment(UUID pipelineId, UUID environmentId, String version) {
+        var entity = new DeploymentRequestEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(org.getId());
+        entity.setPipelineId(pipelineId);
+        entity.setEnvironmentId(environmentId);
+        entity.setSubmittedBy(submitter.getId());
+        entity.setVersion(version);
+        entity.setStatus(QueryStatus.EXECUTED);
+        entity.setOutcome(DeploymentOutcome.SUCCEEDED);
+        entity.setOutcomeReportedAt(Instant.parse("2026-06-01T10:05:00Z"));
+        entity.setExecutedAt(Instant.parse("2026-06-01T10:00:00Z"));
+        entity.setCreatedAt(Instant.parse("2026-06-01T09:00:00Z"));
+        deploymentRequestRepository.saveAndFlush(entity);
+    }
+
+    private UUID seedPipelineWithEnvironment() {
+        var pipeline = pipelineAdminService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "payments-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null, null, null,
+                false, null));
+        pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("prod", null, true, null, null, false,
+                        List.of(), null, false));
+        return pipeline.id();
     }
 
     @Test

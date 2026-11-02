@@ -4229,7 +4229,7 @@
   },
   "auditor": {
     "title": "Compliance-Berichte",
-    "subtitle": "Signierte, manipulationssichere Berichte über ausgeführte Abfragen",
+    "subtitle": "Signierte, manipulationssichere Berichte über ausgeführte Abfragen und Deployments",
     "tab_classified_access": "Zugriff auf klassifizierte Daten",
     "tab_regulatory_trail": "Regulatorischer Prüfpfad",
     "period": "Berichtszeitraum",
@@ -4250,7 +4250,20 @@
     "col_rows_affected": "Zeilen",
     "col_sql": "SQL",
     "col_effective_sql": "Effektives SQL",
-    "col_approvers": "Genehmiger"
+    "col_approvers": "Genehmiger",
+    "tab_deployment_metrics": "Deployment-Kennzahlen (DORA)",
+    "empty_description_deployments": "In dieser Organisation gibt es noch keine Deployment-Umgebungen.",
+    "col_pipeline": "Pipeline",
+    "col_environment": "Umgebung",
+    "col_deployments": "Deployments",
+    "col_lead_time": "Durchlaufzeit p50 / p95",
+    "col_change_failure_rate": "Änderungsfehlerrate",
+    "change_failure_value": "{{rate}} ({{failed}} fehlgeschlagen, {{rolledBack}} zurückgerollt)",
+    "col_time_to_restore": "Wiederherstellungszeit p50 / p95",
+    "col_open_incidents": "Offene Vorfälle",
+    "col_approval_latency": "Freigabelatenz p50 / p95",
+    "col_timeout_rate": "Timeout-Rate",
+    "col_break_glass": "Break-Glass"
   },
   "anomalies": {
     "title": "Anomalien",

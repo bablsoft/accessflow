@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.compliance.internal;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportRequest;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportService;
+import com.bablsoft.accessflow.compliance.api.DeploymentMetricsReportRow;
 import com.bablsoft.accessflow.compliance.api.InvalidReportPeriodException;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
 import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
@@ -12,7 +13,16 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.UserAdminService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentLookupService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsFilter;
+import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentMetricsView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
+import com.bablsoft.accessflow.deploygov.api.InvalidDeploymentMetricsPeriodException;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +33,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +48,10 @@ class DefaultComplianceReportService implements ComplianceReportService {
 
     private static final Set<QueryType> REGULATORY_TYPES = Set.of(QueryType.DDL, QueryType.DELETE);
     private static final int DATASOURCE_NAME_PAGE_SIZE = 1000;
+    private static final int PIPELINE_PAGE_SIZE = 100;
+    // Mirrors the deployment-metrics service's own window cap, so an organization without any
+    // pipeline gets the same 400 as one with pipelines when the operator raised max-report-period.
+    private static final Duration DEPLOYMENT_METRICS_MAX_PERIOD = Duration.ofDays(366);
     private static final String INVALID_PERIOD = "error.invalid_report_period";
 
     private final QuerySnapshotService snapshotService;
@@ -45,6 +60,9 @@ class DefaultComplianceReportService implements ComplianceReportService {
     private final UserAdminService userAdminService;
     private final ReviewDecisionsParser reviewDecisionsParser;
     private final com.bablsoft.accessflow.lifecycle.api.LifecycleRunLookupService lifecycleRunLookupService;
+    private final DeploymentPipelineAdminService pipelineAdminService;
+    private final DeploymentEnvironmentLookupService environmentLookupService;
+    private final DeploymentMetricsService deploymentMetricsService;
     private final ComplianceProperties properties;
     private final Clock clock;
 
@@ -56,7 +74,93 @@ class DefaultComplianceReportService implements ComplianceReportService {
             case CLASSIFIED_ACCESS -> classifiedAccess(organizationId, request, cap);
             case REGULATORY_AUDIT_TRAIL -> regulatoryTrail(organizationId, request, cap);
             case RETENTION_ADHERENCE -> retentionAdherence(organizationId, request, cap);
+            case DEPLOYMENT_METRICS -> deploymentMetrics(organizationId, request, cap);
         };
+    }
+
+    /**
+     * One row per (pipeline, environment), each computed by the deploygov metrics service narrowed
+     * to that pair — the compliance module never re-derives a metric. Not datasource-scoped, so the
+     * request's {@code datasourceId} is ignored and the report carries none.
+     */
+    private ComplianceReport deploymentMetrics(UUID organizationId, ComplianceReportRequest request,
+                                               int cap) {
+        if (!request.from().isBefore(request.to()) || Duration.between(request.from(), request.to())
+                .compareTo(DEPLOYMENT_METRICS_MAX_PERIOD) > 0) {
+            throw new InvalidReportPeriodException(INVALID_PERIOD);
+        }
+        var rows = new ArrayList<DeploymentMetricsReportRow>();
+        boolean truncated = false;
+        try {
+            for (var pipeline : pipelines(organizationId)) {
+                // The pipeline came from the org-scoped listing; a pipeline deleted since then
+                // simply lists no environments.
+                for (var environment : environmentLookupService.listByPipeline(pipeline.id())) {
+                    if (rows.size() == cap) {
+                        truncated = true;
+                        break;
+                    }
+                    var metrics = deploymentMetricsService.organizationMetrics(organizationId,
+                            new DeploymentMetricsFilter(request.from(), request.to(), null,
+                                    pipeline.id(), environment.id()));
+                    rows.add(toRow(pipeline, environment, metrics));
+                }
+                if (truncated) {
+                    break;
+                }
+            }
+        } catch (InvalidDeploymentMetricsPeriodException ex) {
+            throw new InvalidReportPeriodException(INVALID_PERIOD);
+        }
+        return new ComplianceReport(request.type(), organizationId, request.from(), request.to(),
+                Instant.now(clock), null, List.of(), List.of(), List.of(), rows, truncated);
+    }
+
+    private List<DeploymentPipelineView> pipelines(UUID organizationId) {
+        var pipelines = new ArrayList<DeploymentPipelineView>();
+        // The database sort only keeps paging stable; the report order is the in-memory sort below.
+        for (int page = 0; ; page++) {
+            var result = pipelineAdminService.list(organizationId, PageRequest.of(page,
+                    PIPELINE_PAGE_SIZE, SortOrder.asc("name"), SortOrder.asc("id")));
+            pipelines.addAll(result.content());
+            if (page + 1 >= result.totalPages()) {
+                break;
+            }
+        }
+        pipelines.sort(Comparator.comparing(DeploymentPipelineView::name,
+                String.CASE_INSENSITIVE_ORDER).thenComparing(DeploymentPipelineView::id));
+        return pipelines;
+    }
+
+    private static DeploymentMetricsReportRow toRow(DeploymentPipelineView pipeline,
+                                                    DeploymentEnvironmentView environment,
+                                                    DeploymentMetricsView metrics) {
+        var leadTime = metrics.leadTime();
+        var failure = metrics.changeFailureRate();
+        var restore = metrics.timeToRestore();
+        var approval = metrics.approvalLatency();
+        var timeout = metrics.timeoutRate();
+        return new DeploymentMetricsReportRow(
+                pipeline.id(),
+                pipeline.name(),
+                environment.id(),
+                environment.name(),
+                metrics.deploymentFrequency().total(),
+                leadTime.p50Seconds(),
+                leadTime.p95Seconds(),
+                leadTime.source() == null ? null : leadTime.source().name(),
+                failure.rate(),
+                failure.failed(),
+                failure.rolledBack(),
+                failure.unreported(),
+                restore.p50Seconds(),
+                restore.p95Seconds(),
+                restore.openIncidents(),
+                approval.p50Seconds(),
+                approval.p95Seconds(),
+                timeout.rate(),
+                timeout.timedOut(),
+                metrics.breakGlassCount());
     }
 
     private ComplianceReport retentionAdherence(UUID organizationId, ComplianceReportRequest request,

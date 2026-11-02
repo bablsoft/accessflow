@@ -54,13 +54,32 @@ export async function fetchRegulatoryAuditTrail(
   return data;
 }
 
+/** Not datasource-scoped (#986): only the period is sent. */
+export async function fetchDeploymentMetricsReport(
+  params: ComplianceReportParams,
+): Promise<ComplianceReport> {
+  const { data } = await apiClient.get<ComplianceReport>(`${BASE}/reports/deployment-metrics`, {
+    params: { from: params.from, to: params.to },
+  });
+  return data;
+}
+
 export function fetchComplianceReport(
   type: ComplianceReportType,
   params: ComplianceReportParams,
 ): Promise<ComplianceReport> {
-  return type === 'CLASSIFIED_ACCESS'
-    ? fetchClassifiedAccessReport(params)
-    : fetchRegulatoryAuditTrail(params);
+  switch (type) {
+    case 'CLASSIFIED_ACCESS':
+      return fetchClassifiedAccessReport(params);
+    case 'REGULATORY_AUDIT_TRAIL':
+      return fetchRegulatoryAuditTrail(params);
+    case 'DEPLOYMENT_METRICS':
+      return fetchDeploymentMetricsReport(params);
+    default: {
+      const unreachable: never = type;
+      throw new Error(`Unknown compliance report type: ${String(unreachable)}`);
+    }
+  }
 }
 
 export async function fetchSigningCertificate(): Promise<ComplianceSigningCertificate> {

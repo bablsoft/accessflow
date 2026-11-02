@@ -43,4 +43,22 @@ class ComplianceReportTest {
 
         assertThat(report.auditTrail()).isEmpty();
     }
+
+    @Test
+    void deploymentMetricsListDefaultsToEmptyAndCountsTowardRowCount() {
+        var empty = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, UUID.randomUUID(),
+                Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, null, null, null, null, false);
+        assertThat(empty.deploymentMetrics()).isEmpty();
+        assertThat(empty.retentionAdherence()).isEmpty();
+
+        var row = new DeploymentMetricsReportRow(UUID.randomUUID(), "p", UUID.randomUUID(), "prod",
+                1, null, null, null, null, 0, 0, 0, null, null, 0, null, null, null, 0, 0);
+        var mutable = new ArrayList<DeploymentMetricsReportRow>(List.of(row));
+        var report = new ComplianceReport(ComplianceReportType.DEPLOYMENT_METRICS, UUID.randomUUID(),
+                Instant.EPOCH, Instant.EPOCH, Instant.EPOCH, null, null, null, null, mutable, false);
+        mutable.clear();
+
+        assertThat(report.deploymentMetrics()).containsExactly(row);
+        assertThat(report.rowCount()).isEqualTo(1);
+    }
 }

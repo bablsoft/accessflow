@@ -53,7 +53,7 @@ public interface DeploymentMetricsService {
 
     /**
      * Metrics across the organization's pipelines, optionally narrowed by
-     * {@link DeploymentMetricsFilter#pipelineId()}. The caller's functional permission is
+     * {@link DeploymentMetricsFilter#pipelineId()} and {@link DeploymentMetricsFilter#environmentId()}. The caller's functional permission is
      * enforced at the web layer; this read is plain org-scoped.
      *
      * @throws InvalidDeploymentMetricsPeriodException {@code from >= to} or a window over 366 days
