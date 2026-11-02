@@ -16,6 +16,7 @@ import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { PipelineEnvironmentsTab } from '@/components/deployments/PipelineEnvironmentsTab';
 import { PipelineVersionsTab } from '@/components/deployments/PipelineVersionsTab';
+import { DeploymentMetricsPanel } from '@/components/deployments/DeploymentMetricsPanel';
 import { PipelinePermissionsTab } from '@/components/deployments/PipelinePermissionsTab';
 import { PipelineFreezeWindowsTab } from '@/components/deployments/PipelineFreezeWindowsTab';
 import { PipelineRoutingPoliciesTab } from '@/components/deployments/PipelineRoutingPoliciesTab';
@@ -168,6 +169,7 @@ const TAB_KEYS = [
   'general',
   'environments',
   'versions',
+  'metrics',
   'permissions',
   'freeze-windows',
   'routing-policies',
@@ -247,6 +249,11 @@ export function DeploymentPipelineSettingsPage() {
                 key: 'versions',
                 label: t('deploygov.settings.tabVersions'),
                 children: <PipelineVersionsTab pipelineId={pipeline.id} />,
+              },
+              {
+                key: 'metrics',
+                label: t('deploygov.settings.tabMetrics'),
+                children: <DeploymentMetricsPanel pipelineId={pipeline.id} />,
               },
               {
                 key: 'permissions',

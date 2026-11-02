@@ -2551,7 +2551,7 @@ export interface DeploymentMetricsReportRow {
   deployments: number;
   lead_time_p50_seconds?: number | null;
   lead_time_p95_seconds?: number | null;
-  lead_time_source?: 'COMMIT_TIMESTAMP' | 'SUBMITTED_AT' | 'MIXED' | null;
+  lead_time_source?: LeadTimeSource | null;
   change_failure_rate?: number | null;
   failed: number;
   rolled_back: number;
@@ -5277,6 +5277,94 @@ export interface DeploymentDecision {
   comment: string | null;
   stage: number;
   decided_at: string;
+}
+
+/** Which start instant the lead-time sample used (#984). */
+export type LeadTimeSource = 'COMMIT_TIMESTAMP' | 'SUBMITTED_AT' | 'MIXED';
+
+/**
+ * Read-time DORA + approval-SLA metrics (#984). The backend omits null fields, so every
+ * percentile, rate and `lead_time.source` is optional — a missing value means "no data".
+ */
+export interface DeploymentMetricsPeriod {
+  from: string;
+  to: string;
+}
+
+export interface DeploymentMetricsFrequency {
+  total: number;
+  per_day: number;
+}
+
+export interface DeploymentMetricsLeadTime {
+  p50_seconds?: number | null;
+  p95_seconds?: number | null;
+  sample_size: number;
+  source?: LeadTimeSource | null;
+}
+
+export interface DeploymentMetricsChangeFailureRate {
+  rate?: number | null;
+  failed: number;
+  rolled_back: number;
+  unreported: number;
+  executed: number;
+}
+
+export interface DeploymentMetricsTimeToRestore {
+  p50_seconds?: number | null;
+  p95_seconds?: number | null;
+  restored: number;
+  open_incidents: number;
+}
+
+export interface DeploymentMetricsApprovalLatency {
+  p50_seconds?: number | null;
+  p95_seconds?: number | null;
+  sample_size: number;
+}
+
+export interface DeploymentMetricsTimeoutRate {
+  rate?: number | null;
+  timed_out: number;
+  entered_review: number;
+}
+
+/** One zero-filled UTC day of the window. */
+export interface DeploymentMetricsDaily {
+  date: string;
+  deployments: number;
+  failed: number;
+  rolled_back: number;
+}
+
+/** The metric blocks shared by the aggregate read and each breakdown entry. */
+export interface DeploymentMetricsBlocks {
+  deployment_frequency: DeploymentMetricsFrequency;
+  lead_time: DeploymentMetricsLeadTime;
+  change_failure_rate: DeploymentMetricsChangeFailureRate;
+  time_to_restore: DeploymentMetricsTimeToRestore;
+  approval_latency: DeploymentMetricsApprovalLatency;
+  timeout_rate: DeploymentMetricsTimeoutRate;
+  break_glass_count: number;
+}
+
+export interface DeploymentMetrics extends DeploymentMetricsBlocks {
+  period: DeploymentMetricsPeriod;
+  daily: DeploymentMetricsDaily[];
+}
+
+/** One (pipeline, environment) entry of `GET /deployment-metrics/environments` (#987). */
+export interface DeploymentEnvironmentMetrics extends DeploymentMetricsBlocks {
+  pipeline_id: string;
+  pipeline_name: string;
+  environment_id: string;
+  environment_name: string;
+}
+
+export interface DeploymentEnvironmentMetricsBreakdown {
+  period: DeploymentMetricsPeriod;
+  environments: DeploymentEnvironmentMetrics[];
 }
 
 export interface DeploymentRequest {

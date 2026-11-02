@@ -77,6 +77,7 @@ import type {
   RowSecurityValueType,
   DiscoveryDetector,
   DeploymentOutcome,
+  LeadTimeSource,
   DeploymentTicketDecision,
   DeploymentRollbackReviewStatus,
   DiscoveryFindingStatus,
@@ -966,6 +967,9 @@ export const DEPLOYMENT_OUTCOMES: readonly DeploymentOutcome[] = [
 
 export const deploymentOutcomeLabel = (t: TFunction, v: DeploymentOutcome): string =>
   t(`enums.deployment_outcome.${v}` as const);
+
+export const leadTimeSourceLabel = (t: TFunction, v: LeadTimeSource): string =>
+  t(`enums.lead_time_source.${v}` as const);
 
 export const DEPLOYMENT_TICKET_DECISIONS: readonly DeploymentTicketDecision[] = [
   'APPROVED',

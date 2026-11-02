@@ -55,6 +55,7 @@ Where things are in the app
   Workflow → Deployments
     Deployments · /deployments · needs QUERY_SUBMIT_SELECT — Deployment requests raised by CI/CD pipelines.
     Version Matrix · /deployment-versions · needs DEPLOYMENT_PIPELINE_MANAGE, DEPLOYMENT_REVIEW or QUERY_ADMIN — What version each environment is running, and where it has drifted.
+    Deployment Metrics · /deployment-metrics · needs DEPLOYMENT_PIPELINE_MANAGE, DEPLOYMENT_REVIEW or QUERY_ADMIN — DORA metrics and approval SLA: deployment frequency, lead time, change failure rate, time to restore, approval latency, timeouts and break-glass, per environment.
 
   Workflow → Request groups
     Request Groups · /request-groups · needs QUERY_SUBMIT_SELECT — Grouped requests that bundle ordered query and API-call members.
@@ -202,6 +203,7 @@ Screens with no menu entry
   /deployments/:id — One deployment request: what it releases, its analysis and its decisions. How you get there: open a row in Deployments.
   /reviews?tab=deployments — The deployment queue; ?tab=rollbacks is the rollback worklist. How you get there: the Deployments tab of the Review queue — the older /deployment-reviews URL redirects here.
   /deployment-versions/:pipelineId — The same matrix for one pipeline, plus per-environment history. How you get there: open a pipeline from Version Matrix.
+  /deployment-metrics/:pipelineId — The same metrics for one pipeline. How you get there: the Metrics button on Deployments, or the Metrics tab of a pipeline.
   /profile — Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link. How you get there: the user menu behind your avatar, top right.
   /setup — First-run wizard. Shown until an active admin exists. How you get there: shown automatically on a fresh install, until an active administrator exists; there is no menu entry for it.
   /login — Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO. How you get there: where anyone who is not signed in is sent.

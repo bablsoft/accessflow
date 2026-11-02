@@ -117,6 +117,8 @@ const DeploymentListPage = lazy(() => import('@/pages/deployments/DeploymentList
 const DeploymentDetailPage = lazy(() => import('@/pages/deployments/DeploymentDetailPage'));
 const DeploymentVersionsPage = lazy(() => import('@/pages/deployments/DeploymentVersionsPage'));
 const PipelineVersionsPage = lazy(() => import('@/pages/deployments/PipelineVersionsPage'));
+const DeploymentMetricsPage = lazy(() => import('@/pages/deployments/DeploymentMetricsPage'));
+const PipelineMetricsPage = lazy(() => import('@/pages/deployments/PipelineMetricsPage'));
 const ServiceAccountsPage = lazy(() =>
   import('@/pages/admin/service-accounts/ServiceAccountsPage').then((m) => ({
     default: m.ServiceAccountsPage,
@@ -287,6 +289,31 @@ export function App() {
             element={
               <Suspense fallback={null}>
                 <PipelineVersionsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/deployment-metrics"
+            element={
+              <AuthGuard
+                requirePermission={[
+                  'DEPLOYMENT_PIPELINE_MANAGE',
+                  'DEPLOYMENT_REVIEW',
+                  'QUERY_ADMIN',
+                ]}
+              >
+                <Suspense fallback={null}>
+                  <DeploymentMetricsPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          {/* Unguarded for the same reason as /deployment-versions/:pipelineId (#987). */}
+          <Route
+            path="/deployment-metrics/:pipelineId"
+            element={
+              <Suspense fallback={null}>
+                <PipelineMetricsPage />
               </Suspense>
             }
           />

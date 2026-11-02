@@ -8,6 +8,7 @@ import {
   FREEZE_BEHAVIORS,
   PIPELINE_PROVIDERS,
   deploymentOutcomeLabel,
+  leadTimeSourceLabel,
   deploymentRollbackReviewStatusLabel,
   deploymentTicketDecisionLabel,
   freezeBehaviorLabel,
@@ -279,6 +280,9 @@ describe('deployment governance labels (#696)', () => {
     }
     for (const decision of DEPLOYMENT_TICKET_DECISIONS) {
       expect(deploymentTicketDecisionLabel(realT, decision)).not.toContain('enums.');
+    }
+    for (const source of ['COMMIT_TIMESTAMP', 'SUBMITTED_AT', 'MIXED'] as const) {
+      expect(leadTimeSourceLabel(realT, source)).not.toContain('enums.');
     }
   });
 

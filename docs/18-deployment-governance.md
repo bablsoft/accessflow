@@ -646,6 +646,14 @@ the submission `metadata` when the pipeline sends one as an offset-qualified ISO
 submission — the response's `lead_time.source` says which. The metric definitions, parameters and
 response are in [`docs/04-api-spec.md`](04-api-spec.md) → "Deployment metrics".
 
+`GET /api/v1/deployment-metrics/environments` (#987) returns the same blocks once per (pipeline,
+environment), each computed by the same narrowed read, so a breakdown row never disagrees with the
+org-wide endpoint filtered to that pair. The `/deployment-metrics` page (#987) renders the
+org-wide numbers as tiles, a daily area chart and a change-failure ring above that breakdown
+table; the pipeline settings page carries the same panel as a *Metrics* tab, and
+`/deployment-metrics/:pipelineId` is the unguarded per-pipeline route a `can_trigger` holder
+reaches from `/deployments`.
+
 For audit evidence, the same numbers export as a **signed compliance report** (#986):
 `ComplianceReportType.DEPLOYMENT_METRICS` lists one row per (pipeline, environment) over a period,
 computed by `DeploymentMetricsService.organizationMetrics`, and renders through the existing signed

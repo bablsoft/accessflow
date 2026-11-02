@@ -294,4 +294,21 @@ describe('DeploymentListPage', () => {
     fireEvent.click(button);
     expect(navigateMock).toHaveBeenCalledWith('/deployment-versions/pipe-1');
   });
+
+  it('offers the per-pipeline metrics once a pipeline is selected', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
+
+    render(wrap(<DeploymentListPage />));
+    await screen.findByText('2.4.1');
+
+    const button = screen.getByRole('button', { name: /^fund metrics$/i });
+    expect(button).toBeDisabled();
+
+    fireEvent.mouseDown(screen.getByLabelText('Pipeline'));
+    fireEvent.click(await screen.findByTitle('Checkout Service'));
+
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    expect(navigateMock).toHaveBeenCalledWith('/deployment-metrics/pipe-1');
+  });
 });

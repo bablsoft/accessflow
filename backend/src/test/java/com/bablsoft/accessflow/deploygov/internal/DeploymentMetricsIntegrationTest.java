@@ -210,6 +210,32 @@ class DeploymentMetricsIntegrationTest {
     }
 
     @Test
+    void theEnvironmentBreakdownEqualsTheNarrowedOrganizationReadPerEnvironment() {
+        var breakdown = metricsService.environmentMetrics(org.getId(),
+                new DeploymentMetricsFilter(FROM, TO, null, null));
+
+        assertThat(breakdown.environments())
+                .extracting(row -> row.environmentName())
+                .containsExactly("staging", "prod");
+        for (var row : breakdown.environments()) {
+            var narrowed = metricsService.organizationMetrics(org.getId(),
+                    new DeploymentMetricsFilter(FROM, TO, null, row.pipelineId(),
+                            row.environmentId()));
+            assertThat(row.metrics()).usingRecursiveComparison().ignoringFields("daily")
+                    .isEqualTo(narrowed);
+            assertThat(row.metrics().daily()).isEmpty();
+            assertThat(row.pipelineName()).isEqualTo(pipeline.getName());
+        }
+
+        var named = metricsService.environmentMetrics(org.getId(),
+                new DeploymentMetricsFilter(FROM, TO, "PROD", null));
+        assertThat(named.environments()).singleElement().satisfies(row -> {
+            assertThat(row.environmentId()).isEqualTo(prod.getId());
+            assertThat(row.metrics().deploymentFrequency().total()).isEqualTo(4);
+        });
+    }
+
+    @Test
     void dailyBucketsAreUtcWhateverTheSessionTimeZone() {
         var view = transactionTemplate.execute(status -> {
             entityManager.createNativeQuery("SET LOCAL TIME ZONE 'Pacific/Auckland'")
@@ -344,6 +370,21 @@ class DeploymentMetricsIntegrationTest {
                 .isEqualTo("MIXED");
         assertThat(orgWide).bodyJson().extractingPath("$.daily[2].date").asString()
                 .isEqualTo("2026-10-03");
+
+        var breakdownDenied = mvc.get().uri("/api/v1/deployment-metrics/environments?" + window)
+                .header(API_KEY_HEADER, analystKey).exchange();
+        assertThat(breakdownDenied).hasStatus(403);
+
+        var breakdown = mvc.get()
+                .uri("/api/v1/deployment-metrics/environments?" + window + "&pipeline_id="
+                        + pipeline.getId())
+                .header(API_KEY_HEADER, reviewerKey).exchange();
+        assertThat(breakdown).hasStatus(200);
+        assertThat(breakdown).bodyJson().extractingPath("$.environments[1].environment_name")
+                .asString().isEqualTo("prod");
+        assertThat(breakdown).bodyJson()
+                .extractingPath("$.environments[1].deployment_frequency.total").isEqualTo(4);
+        assertThat(breakdown).bodyJson().doesNotHavePath("$.environments[0].daily");
 
         var inverted = mvc.get()
                 .uri("/api/v1/deployment-pipelines/" + pipeline.getId()

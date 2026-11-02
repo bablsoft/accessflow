@@ -47,6 +47,7 @@ import {
   CheckSquareOutlined,
   BlockOutlined,
   DeploymentUnitOutlined,
+  FundOutlined,
   GatewayOutlined,
   RobotOutlined,
   RocketOutlined,
@@ -155,6 +156,7 @@ export function Sidebar({
           items: [
             { id: 'deployments', to: '/deployments', label: t('nav.deployments'), icon: <RocketOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
             { id: 'deployment-versions', to: '/deployment-versions', label: t('nav.deploymentVersions'), icon: <DeploymentUnitOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'] },
+            { id: 'deployment-metrics', to: '/deployment-metrics', label: t('nav.deploymentMetrics'), icon: <FundOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'] },
           ],
         },
         {

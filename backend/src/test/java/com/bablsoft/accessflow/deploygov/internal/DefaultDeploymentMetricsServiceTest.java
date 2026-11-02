@@ -37,8 +37,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -65,6 +68,7 @@ class DefaultDeploymentMetricsServiceTest {
         pipelineRepository = mock(DeploymentPipelineRepository.class);
         permissionResolver = mock(EffectiveDeploymentPermissionResolver.class);
         service = new DefaultDeploymentMetricsService(metricsRepository, environmentRepository,
+                pipelineRepository,
                 new DeploymentPipelineVisibility(pipelineRepository, permissionResolver),
                 Clock.fixed(NOW, ZoneOffset.UTC));
         pipeline = new DeploymentPipelineEntity();
@@ -262,6 +266,95 @@ class DefaultDeploymentMetricsServiceTest {
         verifyNoInteractions(environmentRepository);
     }
 
+    // --------------------------------------------------------------- breakdown
+
+    @Test
+    void theBreakdownListsEveryEnvironmentOrderedByPipelineNameEachNarrowedToItself() {
+        var zeta = pipeline("zeta");
+        var alpha = pipeline("Alpha");
+        when(pipelineRepository.findAllByOrganizationId(ORG_ID)).thenReturn(List.of(zeta, alpha));
+        var alphaProd = environment(alpha, "prod");
+        var alphaStaging = environment(alpha, "staging");
+        var zetaProd = environment(zeta, "prod");
+        when(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(alpha.getId()))
+                .thenReturn(List.of(alphaStaging, alphaProd));
+        when(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(zeta.getId()))
+                .thenReturn(List.of(zetaProd));
+
+        var view = service.environmentMetrics(ORG_ID, filter(FROM, TO, null, null));
+
+        assertThat(view.period().from()).isEqualTo(FROM);
+        assertThat(view.period().to()).isEqualTo(TO);
+        assertThat(view.environments())
+                .extracting(row -> row.pipelineName() + "/" + row.environmentName())
+                .containsExactly("Alpha/staging", "Alpha/prod", "zeta/prod");
+        var captor = ArgumentCaptor.forClass(DeploymentMetricsScope.class);
+        verify(metricsRepository, times(3)).executionStats(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(DeploymentMetricsScope::pipelineId,
+                        DeploymentMetricsScope::environmentIds)
+                .containsExactly(
+                        tuple(alpha.getId(),
+                                List.of(alphaStaging.getId())),
+                        tuple(alpha.getId(),
+                                List.of(alphaProd.getId())),
+                        tuple(zeta.getId(),
+                                List.of(zetaProd.getId())));
+        verify(metricsRepository, never()).daily(any());
+        assertThat(view.environments()).allSatisfy(row -> assertThat(row.metrics().daily()).isEmpty());
+        assertThat(captor.getAllValues()).allSatisfy(scope -> {
+            assertThat(scope.organizationId()).isEqualTo(ORG_ID);
+            assertThat(scope.from()).isEqualTo(FROM);
+            assertThat(scope.to()).isEqualTo(TO);
+        });
+    }
+
+    @Test
+    void theBreakdownPipelineFilterReadsOnlyThatOrgScopedPipeline() {
+        var prod = environment(pipeline, "prod");
+        when(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.getId()))
+                .thenReturn(List.of(prod));
+
+        var view = service.environmentMetrics(ORG_ID, filter(FROM, TO, null, pipeline.getId()));
+
+        assertThat(view.environments()).singleElement()
+                .satisfies(row -> assertThat(row.environmentId()).isEqualTo(prod.getId()));
+        verify(pipelineRepository, never()).findAllByOrganizationId(any());
+    }
+
+    @Test
+    void aForeignBreakdownPipelineYieldsNoEnvironments() {
+        var foreign = UUID.randomUUID();
+        when(pipelineRepository.findByIdAndOrganizationId(foreign, ORG_ID))
+                .thenReturn(Optional.empty());
+
+        var view = service.environmentMetrics(ORG_ID, filter(FROM, TO, null, foreign));
+
+        assertThat(view.environments()).isEmpty();
+        verifyNoInteractions(metricsRepository);
+    }
+
+    @Test
+    void theBreakdownEnvironmentNameFilterIsCaseInsensitiveAndTrimmed() {
+        when(pipelineRepository.findAllByOrganizationId(ORG_ID)).thenReturn(List.of(pipeline));
+        pipeline.setName("payments");
+        when(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.getId()))
+                .thenReturn(List.of(environment(pipeline, "staging"),
+                        environment(pipeline, "Prod")));
+
+        var view = service.environmentMetrics(ORG_ID, filter(FROM, TO, "  prod ", null));
+
+        assertThat(view.environments()).extracting(row -> row.environmentName())
+                .containsExactly("Prod");
+    }
+
+    @Test
+    void theBreakdownValidatesThePeriodBeforeReading() {
+        assertThatThrownBy(() -> service.environmentMetrics(ORG_ID, filter(TO, FROM, null, null)))
+                .isInstanceOf(InvalidDeploymentMetricsPeriodException.class);
+        verifyNoInteractions(pipelineRepository, metricsRepository);
+    }
+
     // ----------------------------------------------------------------- shaping
 
     @Test
@@ -344,6 +437,23 @@ class DefaultDeploymentMetricsServiceTest {
         var captor = ArgumentCaptor.forClass(DeploymentMetricsScope.class);
         verify(metricsRepository).executionStats(captor.capture());
         return captor.getValue();
+    }
+
+    private static DeploymentPipelineEntity pipeline(String name) {
+        var entity = new DeploymentPipelineEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(ORG_ID);
+        entity.setName(name);
+        return entity;
+    }
+
+    private static DeploymentEnvironmentEntity environment(DeploymentPipelineEntity pipeline,
+                                                           String name) {
+        var entity = new DeploymentEnvironmentEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setPipelineId(pipeline.getId());
+        entity.setName(name);
+        return entity;
     }
 
     private static DeploymentMetricsFilter filter(Instant from, Instant to, String environment,
