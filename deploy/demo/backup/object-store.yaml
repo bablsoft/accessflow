@@ -1,0 +1,30 @@
+# WAL and base backups of accessflow-db in the Cloudflare R2 bucket accessflow-demo-db-backups, through the Barman Cloud
+# plugin (a cluster add-on). Credentials come from the sealed Secret accessflow-r2-backup, a token scoped to
+# that bucket.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: accessflow-demo-db-backups
+spec:
+  retentionPolicy: 30d
+  configuration:
+    destinationPath: s3://accessflow-demo-db-backups/
+    endpointURL: https://10a837e2f84620ea1d487d2fa4932bbf.r2.cloudflarestorage.com
+    s3Credentials:
+      accessKeyId:
+        name: accessflow-r2-backup
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: accessflow-r2-backup
+        key: ACCESS_SECRET_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+  instanceSidecarConfiguration:
+    env:
+      # R2 rejects the CRC checksums recent boto3 sends by default.
+      - name: AWS_REQUEST_CHECKSUM_CALCULATION
+        value: when_required
+      - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+        value: when_required

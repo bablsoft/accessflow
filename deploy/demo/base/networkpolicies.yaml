@@ -1,0 +1,77 @@
+# k3s enforces NetworkPolicy. Everything in the namespace is closed to inbound traffic except:
+#   - Traefik (kube-system) → backend and frontend
+#   - backend → PostgreSQL, Redis and the sample MongoDB
+#   - the CloudNativePG operator (cnpg-system) → PostgreSQL
+# Kubelet probes come from the node itself, which kube-router always admits.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-traefik-to-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: accessflow
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: accessflow-db
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: accessflow
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 5432
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: accessflow-db
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-redis-and-mongodb
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values: ["redis", "mongodb"]
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: accessflow
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 6379
+        - port: 27017

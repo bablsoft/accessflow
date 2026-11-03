@@ -1,0 +1,16 @@
+# The public demo's infrastructure on the shared k3s cluster (namespace accessflow, owned by that
+# cluster's admin): PostgreSQL through CloudNativePG, the middlewares and network policies the Ingress
+# and pods rely on, and the sealed secrets. The application itself is the Helm release `accessflow`
+# (charts/accessflow, values-demo.yaml) and the sample MongoDB the release `mongodb`
+# (mongodb-values.yaml). docs/09-deployment.md → "The public demo environment".
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: accessflow
+resources:
+  - postgres/cluster.yaml
+  - postgres/datasource-alias.yaml
+  - ingress-middlewares.yaml
+  - networkpolicies.yaml
+  - sealed/accessflow-db.yaml
+  - sealed/accessflow-audit-db.yaml
+  - sealed/mongodb-auth.yaml
