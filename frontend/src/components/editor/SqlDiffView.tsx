@@ -1,11 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { MergeView } from '@codemirror/merge';
-import { EditorState, type Extension } from '@codemirror/state';
-import { EditorView, lineNumbers } from '@codemirror/view';
+import { useMemo } from 'react';
 import { sql, PostgreSQL, MySQL, StandardSQL } from '@codemirror/lang-sql';
-import { syntaxHighlighting } from '@codemirror/language';
 import type { DbType } from '@/types/api';
-import { accessflowHighlight, editorTheme } from './codemirrorTheme';
+import { MergeDiffView } from './MergeDiffView';
 
 interface SqlDiffViewProps {
   /** Left pane — the older / base version. */
@@ -33,49 +29,16 @@ export function SqlDiffView({
   oldLabel,
   newLabel,
 }: SqlDiffViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return undefined;
-
-    const shared: Extension[] = [
-      lineNumbers(),
-      sql({ dialect: dialectFor(dbType) }),
-      syntaxHighlighting(accessflowHighlight),
-      editorTheme,
-      EditorView.editable.of(false),
-      EditorState.readOnly.of(true),
-      EditorView.lineWrapping,
-    ];
-
-    const view = new MergeView({
-      a: {
-        doc: oldValue,
-        extensions: [...shared, EditorView.contentAttributes.of({ 'aria-label': oldLabel ?? 'old version' })],
-      },
-      b: {
-        doc: newValue,
-        extensions: [...shared, EditorView.contentAttributes.of({ 'aria-label': newLabel ?? 'new version' })],
-      },
-      parent: containerRef.current,
-      gutter: true,
-      highlightChanges: true,
-      collapseUnchanged: { margin: 3, minSize: 6 },
-    });
-
-    return () => view.destroy();
-  }, [oldValue, newValue, dbType, oldLabel, newLabel]);
-
+  const extensions = useMemo(() => [sql({ dialect: dialectFor(dbType) })], [dbType]);
   return (
-    <div
-      ref={containerRef}
-      data-testid="sql-diff-view"
-      style={{
-        height,
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        overflow: 'auto',
-      }}
+    <MergeDiffView
+      oldValue={oldValue}
+      newValue={newValue}
+      extensions={extensions}
+      height={height}
+      oldLabel={oldLabel}
+      newLabel={newLabel}
+      testId="sql-diff-view"
     />
   );
 }

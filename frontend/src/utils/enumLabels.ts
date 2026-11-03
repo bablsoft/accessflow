@@ -21,6 +21,7 @@ import type {
   ApiVariableEncoding,
   ApiVariableKind,
   ApiProtocol,
+  ApiResponseDiffKind,
   DelegationScopeKind,
   PrincipalType,
   ReviewDelegationStatus,
@@ -162,6 +163,9 @@ export const submissionReasonLabel = (t: TFunction, v: SubmissionReason): string
 
 export const reviewDecisionTypeLabel = (t: TFunction, v: ReviewDecisionType): string =>
   t(`enums.decision_type.${v}` as const);
+
+export const apiResponseDiffKindLabel = (t: TFunction, v: ApiResponseDiffKind): string =>
+  t(`enums.api_response_diff_kind.${v}` as const);
 
 export const commentStatusLabel = (t: TFunction, v: CommentStatus): string =>
   t(`enums.comment_status.${v}` as const);

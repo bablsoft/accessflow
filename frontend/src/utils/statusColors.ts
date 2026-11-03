@@ -1,5 +1,6 @@
 import type {
   AccessGrantStatus,
+  ApiResponseDiffKind,
   AttestationCampaignStatus,
   AttestationItemDecision,
   BehaviorAnomalyStatus,
@@ -344,5 +345,17 @@ export const schemaDriftFindingStatusColor = (status: SchemaDriftFindingStatus):
       return WARN;
     case 'RESOLVED':
       return GOOD;
+  }
+};
+
+/** Response diff entry (#888): added reads as good, removed as bad, a changed value as a warning. */
+export const apiResponseDiffKindColor = (kind: ApiResponseDiffKind): ColorTriple => {
+  switch (kind) {
+    case 'ADDED':
+      return GOOD;
+    case 'REMOVED':
+      return BAD;
+    case 'CHANGED':
+      return WARN;
   }
 };

@@ -42,6 +42,7 @@ import {
   optimizationTypeLabel,
   queryTemplateChangeLabel,
   reviewDecisionTypeLabel,
+  apiResponseDiffKindLabel,
   roleLabel,
   submissionReasonLabel,
   SQL_REVIEW_SEVERITIES,
@@ -355,5 +356,13 @@ describe('job execution labels', () => {
     expect(JOB_EXECUTION_STATUSES).toEqual(['RUNNING', 'SUCCESS', 'FAILED']);
     expect(jobExecutionStatusLabel(t, 'FAILED')).toBe('enums.job_execution_status.FAILED');
     expect(jobCadenceTypeLabel(t, 'CRON')).toBe('enums.job_cadence_type.CRON');
+  });
+});
+
+describe('apiResponseDiffKindLabel', () => {
+  it('maps each response diff kind to its enum translation key', () => {
+    expect(apiResponseDiffKindLabel(t, 'ADDED')).toBe('enums.api_response_diff_kind.ADDED');
+    expect(apiResponseDiffKindLabel(t, 'REMOVED')).toBe('enums.api_response_diff_kind.REMOVED');
+    expect(apiResponseDiffKindLabel(t, 'CHANGED')).toBe('enums.api_response_diff_kind.CHANGED');
   });
 });

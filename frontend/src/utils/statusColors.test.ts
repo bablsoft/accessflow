@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  apiResponseDiffKindColor,
   accessGrantStatusColor,
   anomalyStatusColor,
   attestationCampaignStatusColor,
@@ -209,5 +210,13 @@ describe('jobExecutionStatusColor', () => {
       expect(c.border).toMatch(/^var\(--/);
     }
     expect(new Set([success.fg, failed.fg, running.fg, abandoned.fg]).size).toBe(4);
+  });
+});
+
+describe('apiResponseDiffKindColor', () => {
+  it('gives every diff kind a distinct token colour', () => {
+    const colors = (['ADDED', 'REMOVED', 'CHANGED'] as const).map(apiResponseDiffKindColor);
+    for (const c of colors) expect(c.fg).toMatch(/^var\(--/);
+    expect(new Set(colors.map((c) => c.fg)).size).toBe(3);
   });
 });

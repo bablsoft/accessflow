@@ -218,6 +218,20 @@ override that name; the rest are dropped and counted. Provenance rides on the ne
 `API_REQUEST_SUBMITTED` audit metadata (`trigger=replay`, `original_api_request_id`,
 `dropped_variable_override_count`); there is no column and no new audit action.
 
+**Response diff** (`GET /api/v1/api-requests/{id}/diff?against=previous|<id>`, #887) compares the
+stored, masked response snapshots of two `EXECUTED` runs of the same connector + operation key
+structurally (JSON or XML; anything else is `422 API_RESPONSE_DIFF_UNSUPPORTED`). It is read-only —
+it never calls the upstream API, never re-masks or unmasks, and writes no audit row — and follows the
+detail endpoint's visibility on both sides (404-never-403). Full contract in `docs/04-api-spec.md`.
+
+**UI (#888):** the API request detail page puts both on a finished request. The submitter of a
+terminal request sees **Replay** (confirm modal → navigate to the new request; a toast reports
+dropped overrides). An executed request with a snapshot shows a **Compare to previous run** card —
+the status-code pair, duration and size deltas, an added / removed / changed entries table, a
+side-by-side view of the two bounded previews, and an input to compare against a specific request
+id. The card states that it compares masked snapshots, so a masking-policy change between runs shows
+up as `CHANGED` entries; there is no reveal affordance.
+
 **Text-to-API** (`POST /api/v1/api-requests/generate`) turns plain English into a concrete call
 draft via `ApiCallAnalyzer.generateApiCall`, enabled only for connectors with a parsed schema and
 `text_to_api_enabled`. A debounced risk preview is at `POST /api/v1/api-requests/analyze`.
