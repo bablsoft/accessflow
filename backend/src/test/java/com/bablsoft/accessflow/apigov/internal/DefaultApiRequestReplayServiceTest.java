@@ -68,7 +68,7 @@ class DefaultApiRequestReplayServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiRequestReplayService(requestRepository, schemaService, permissionResolver,
-                variableLookupService, requestService, new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8),
+                variableLookupService, requestService, new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8, 500),
                 messageSource, JsonMapper.builder().build());
         lenient().when(messageSource.getMessage(eq("replay.api_justification"), any(), any()))
                 .thenAnswer(i -> "Replay of API request " + ((Object[]) i.getArgument(1))[0]);

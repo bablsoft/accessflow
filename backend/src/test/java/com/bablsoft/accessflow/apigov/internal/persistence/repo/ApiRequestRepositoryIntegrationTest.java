@@ -65,4 +65,82 @@ class ApiRequestRepositoryIntegrationTest {
 
         assertThat(staleIds).contains(stale.getId()).doesNotContain(fresh.getId());
     }
+
+    private ApiRequestEntity run(UUID orgId, UUID connectorId, UUID submittedBy, String operationId,
+                                 QueryStatus status, String snapshot, Instant createdAt) {
+        var e = newRequest(status);
+        e.setOrganizationId(orgId);
+        e.setConnectorId(connectorId);
+        e.setSubmittedBy(submittedBy);
+        e.setOperationId(operationId);
+        e.setResponseSnapshot(snapshot);
+        e.setCreatedAt(createdAt);
+        return e;
+    }
+
+    @Test
+    void previousRunByOperationPicksTheNewestEarlierExecutedRunWithASnapshot() {
+        var org = UUID.randomUUID();
+        var connector = UUID.randomUUID();
+        var user = UUID.randomUUID();
+        var now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        var current = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now);
+        var older = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now.minusSeconds(300));
+        var newest = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now.minusSeconds(60));
+        var noSnapshot = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, null, now.minusSeconds(10));
+        var failed = run(org, connector, user, "listOrders", QueryStatus.FAILED, "{}", now.minusSeconds(20));
+        var later = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now.plusSeconds(60));
+        var otherOperation = run(org, connector, user, "getOrder", QueryStatus.EXECUTED, "{}", now.minusSeconds(5));
+        var otherOrg = run(UUID.randomUUID(), connector, user, "listOrders", QueryStatus.EXECUTED, "{}",
+                now.minusSeconds(5));
+        repository.saveAll(java.util.List.of(current, older, newest, noSnapshot, failed, later, otherOperation,
+                otherOrg));
+
+        var previous = repository.findPreviousRunByOperation(org, connector, "listOrders", now, current.getId(),
+                null);
+
+        assertThat(previous).map(ApiRequestEntity::getId).contains(newest.getId());
+    }
+
+    @Test
+    void previousRunIsScopedToTheSubmitterWhenGiven() {
+        var org = UUID.randomUUID();
+        var connector = UUID.randomUUID();
+        var user = UUID.randomUUID();
+        var now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        var current = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now);
+        var mine = run(org, connector, user, "listOrders", QueryStatus.EXECUTED, "{}", now.minusSeconds(300));
+        var someoneElses = run(org, connector, UUID.randomUUID(), "listOrders", QueryStatus.EXECUTED, "{}",
+                now.minusSeconds(60));
+        repository.saveAll(java.util.List.of(current, mine, someoneElses));
+
+        assertThat(repository.findPreviousRunByOperation(org, connector, "listOrders", now, current.getId(), user))
+                .map(ApiRequestEntity::getId).contains(mine.getId());
+        assertThat(repository.findPreviousRunByOperation(org, connector, "listOrders", now, current.getId(), null))
+                .map(ApiRequestEntity::getId).contains(someoneElses.getId());
+    }
+
+    @Test
+    void previousRunByVerbAndPathOnlyMatchesFreeFormCalls() {
+        var org = UUID.randomUUID();
+        var connector = UUID.randomUUID();
+        var user = UUID.randomUUID();
+        var now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        var current = run(org, connector, user, null, QueryStatus.EXECUTED, "{}", now);
+        var freeForm = run(org, connector, user, null, QueryStatus.EXECUTED, "{}", now.minusSeconds(300));
+        var withOperation = run(org, connector, user, "listThings", QueryStatus.EXECUTED, "{}",
+                now.minusSeconds(60));
+        var otherPath = run(org, connector, user, null, QueryStatus.EXECUTED, "{}", now.minusSeconds(30));
+        otherPath.setRequestPath("/v1/other");
+        var otherVerb = run(org, connector, user, null, QueryStatus.EXECUTED, "{}", now.minusSeconds(20));
+        otherVerb.setVerb("POST");
+        repository.saveAll(java.util.List.of(current, freeForm, withOperation, otherPath, otherVerb));
+
+        var previous = repository.findPreviousRunByVerbAndPath(org, connector, "GET", "/v1/things", now,
+                current.getId(), null);
+
+        assertThat(previous).map(ApiRequestEntity::getId).contains(freeForm.getId());
+        assertThat(repository.findPreviousRunByVerbAndPath(org, connector, "GET", "/v1/things",
+                now.minusSeconds(300), freeForm.getId(), null)).isEmpty();
+    }
 }

@@ -13,10 +13,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * embedded inline in the detail view; the full body is served by the download endpoint.
  * {@code maxVariableValueBytes} caps a single resolved dynamic-variable value (AF-613) — a digest or
  * nonce is tens of bytes, so a large value means a runaway expression or an abusive override.
+ * {@code maxDiffEntries} caps the entries returned by the response diff (#887).
  */
 @ConfigurationProperties("accessflow.apigov")
 public record ApigovRequestProperties(long maxRequestBodyBytes, long maxResponseBytes,
-                                      long responsePreviewBytes, int maxVariableValueBytes) {
+                                      long responsePreviewBytes, int maxVariableValueBytes,
+                                      int maxDiffEntries) {
 
     public ApigovRequestProperties {
         if (maxRequestBodyBytes <= 0) {
@@ -30,6 +32,9 @@ public record ApigovRequestProperties(long maxRequestBodyBytes, long maxResponse
         }
         if (maxVariableValueBytes <= 0) {
             maxVariableValueBytes = 8192;
+        }
+        if (maxDiffEntries <= 0) {
+            maxDiffEntries = 500;
         }
     }
 }

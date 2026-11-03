@@ -13,6 +13,9 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.ApiReplayOperationUnavailableException;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffIncompatibleException;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffNotAvailableException;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffUnsupportedException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
@@ -138,6 +141,33 @@ class ApiGovExceptionHandler {
                 "API_REPLAY_OPERATION_UNAVAILABLE");
         pd.setProperty("operationId", ex.operationId());
         return pd;
+    }
+
+    @ExceptionHandler(ApiResponseDiffNotAvailableException.class)
+    ProblemDetail handleResponseDiffNotAvailable(ApiResponseDiffNotAvailableException ex) {
+        var pd = problem(HttpStatus.NOT_FOUND, msg("error.api_response_diff_not_available"),
+                "API_RESPONSE_DIFF_NOT_AVAILABLE");
+        pd.setProperty("apiRequestId", ex.apiRequestId());
+        return pd;
+    }
+
+    @ExceptionHandler(ApiResponseDiffIncompatibleException.class)
+    ProblemDetail handleResponseDiffIncompatible(ApiResponseDiffIncompatibleException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_response_diff_incompatible"),
+                "API_RESPONSE_DIFF_INCOMPATIBLE");
+    }
+
+    @ExceptionHandler(ApiResponseDiffUnsupportedException.class)
+    ProblemDetail handleResponseDiffUnsupported(ApiResponseDiffUnsupportedException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_response_diff_unsupported"),
+                "API_RESPONSE_DIFF_UNSUPPORTED");
+        pd.setProperty("contentType", ex.contentType());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidDiffAgainstException.class)
+    ProblemDetail handleInvalidDiffAgainst(InvalidDiffAgainstException ex) {
+        return problem(HttpStatus.BAD_REQUEST, msg("error.validation_failed"), "VALIDATION_ERROR");
     }
 
     @ExceptionHandler(ApiExecutionException.class)

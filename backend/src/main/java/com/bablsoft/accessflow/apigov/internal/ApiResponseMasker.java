@@ -10,8 +10,6 @@ import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -19,8 +17,6 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
@@ -32,8 +28,6 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
 
-import java.io.IOException;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -203,7 +197,7 @@ public class ApiResponseMasker {
         }
     }
 
-    private static boolean looksLikeXml(String contentType, String body) {
+    static boolean looksLikeXml(String contentType, String body) {
         if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("xml")) {
             return true;
         }
@@ -230,13 +224,8 @@ public class ApiResponseMasker {
 
     private static Document parseXml(String body, ResolvedApiMask mask) {
         try {
-            var factory = DocumentBuilderFactory.newInstance();
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setExpandEntityReferences(false);
-            return factory.newDocumentBuilder().parse(new InputSource(new StringReader(body)));
-        } catch (ParserConfigurationException | SAXException | IOException ex) {
+            return SecureXmlParsers.parse(body);
+        } catch (SecureXmlParsers.XmlParseException ex) {
             throw new MaskingFailedException(mask, "XML body could not be parsed");
         }
     }

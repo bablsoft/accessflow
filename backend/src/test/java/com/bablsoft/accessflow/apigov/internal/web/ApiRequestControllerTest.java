@@ -6,6 +6,12 @@ import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestSubmissionResult;
 import com.bablsoft.accessflow.apigov.api.ApiRequestView;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffCommand;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffEntry;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffFormat;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffKind;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffService;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffView;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -25,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -38,6 +45,7 @@ class ApiRequestControllerTest {
     private ApiRequestController controller;
     private OnBehalfOfPrincipalService onBehalfOfPrincipalService;
     private com.bablsoft.accessflow.apigov.api.ApiRequestReplayService replayService;
+    private ApiResponseDiffService diffService;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -51,8 +59,9 @@ class ApiRequestControllerTest {
         assistService = mock(ApiAssistService.class);
         onBehalfOfPrincipalService = mock(OnBehalfOfPrincipalService.class);
         replayService = mock(com.bablsoft.accessflow.apigov.api.ApiRequestReplayService.class);
+        diffService = mock(ApiResponseDiffService.class);
         controller = new ApiRequestController(requestService, assistService, onBehalfOfPrincipalService,
-                replayService);
+                replayService, diffService);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -221,5 +230,53 @@ class ApiRequestControllerTest {
         assertThat(command.ipAddress()).isEqualTo("1.2.3.4");
         assertThat(command.userAgent()).isEqualTo("ua");
         assertThat(command.onBehalfOfUserId()).isEqualTo(alice);
+    }
+
+    private ApiResponseDiffView diffView(UUID previousId) {
+        return new ApiResponseDiffView(requestId, previousId, ApiResponseDiffFormat.JSON, 200, 200, null, 4L,
+                0, 0, 1, false, false,
+                List.of(new ApiResponseDiffEntry("total", ApiResponseDiffKind.CHANGED, "1", "2")));
+    }
+
+    @Test
+    void diffDefaultsToPreviousAndForwardsCaller() {
+        var previousId = UUID.randomUUID();
+        when(diffService.diff(any())).thenReturn(diffView(previousId));
+
+        var response = controller.diff(requestId, "previous", auth(UserRoleType.ANALYST));
+
+        assertThat(response.previousId()).isEqualTo(previousId);
+        assertThat(response.durationMsDelta()).isNull();
+        assertThat(response.bytesDelta()).isEqualTo(4L);
+        assertThat(response.entries()).singleElement()
+                .satisfies(e -> {
+                    assertThat(e.path()).isEqualTo("total");
+                    assertThat(e.kind()).isEqualTo(ApiResponseDiffKind.CHANGED);
+                    assertThat(e.before()).isEqualTo("1");
+                    assertThat(e.after()).isEqualTo("2");
+                });
+        var captor = ArgumentCaptor.forClass(ApiResponseDiffCommand.class);
+        verify(diffService).diff(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(new ApiResponseDiffCommand(requestId, null, orgId, userId,
+                SystemRolePermissions.of(UserRoleType.ANALYST)));
+    }
+
+    @Test
+    void diffParsesAnExplicitAgainstId() {
+        var against = UUID.randomUUID();
+        when(diffService.diff(any())).thenReturn(diffView(against));
+
+        controller.diff(requestId, against.toString(), auth(UserRoleType.REVIEWER));
+
+        var captor = ArgumentCaptor.forClass(ApiResponseDiffCommand.class);
+        verify(diffService).diff(captor.capture());
+        assertThat(captor.getValue().againstApiRequestId()).isEqualTo(against);
+    }
+
+    @Test
+    void diffRejectsAMalformedAgainst() {
+        var authentication = auth(UserRoleType.ANALYST);
+        assertThatThrownBy(() -> controller.diff(requestId, "latest", authentication))
+                .isInstanceOf(InvalidDiffAgainstException.class);
     }
 }

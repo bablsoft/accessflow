@@ -8950,6 +8950,7 @@ covers exactly what will execute.
 | `POST` | `/api-requests/analyze` | Debounced AI risk preview of a draft call. |
 | `POST` | `/api-requests/generate` | Text-to-API: plain English → draft call (schema connectors with `text_to_api_enabled` only). |
 | `POST` | `/api-requests/{id}/replay` | **Submitter only.** Clone a **terminal** request into a new governed submission (`202`, #886); the response adds `dropped_variable_override_count` — see below. |
+| `GET` | `/api-requests/{id}/diff` | Structural JSON / XML diff of this request's stored (masked) response snapshot against the previous run of the same connector + operation, or against `?against=<id>` (#887). Same visibility guard as the detail endpoint — see below. |
 
 ### POST /api-requests/{id}/replay — Response 202
 
@@ -8978,6 +8979,61 @@ The replay writes exactly one audit row — the new request's `API_REQUEST_SUBMI
 - `409 API_REQUEST_INVALID_STATE` — the source is not terminal (`currentStatus`).
 - `422 API_REPLAY_OPERATION_UNAVAILABLE` — the source's operation is no longer in the connector's catalog (`operationId`).
 - Anything `POST /api-requests` raises for the new submission: `403 API_REQUEST_PERMISSION_DENIED`, `422 API_REQUEST_VALIDATION_ERROR`, `404 API_CONNECTOR_NOT_FOUND`.
+
+### GET /api-requests/{id}/diff — Response 200
+
+Compares the **stored, masked** response snapshot of an API request with another run of the same connector and operation (#887). Backend for the "Compare responses" card on the API request detail page.
+
+```
+GET /api/v1/api-requests/{id}/diff?against=previous   → 200 OK   (default)
+GET /api/v1/api-requests/{id}/diff?against=<uuid>     → 200 OK
+```
+
+- `against=previous` (the default) — the server picks the **previous run**: the newest `EXECUTED` request in the organization with the same `connector_id` and the same operation key (`operation_id` when set; for a free-form call, `operation_id IS NULL` with the same `verb` and `request_path`), created before this one and with a stored response snapshot. It is derived at read time; nothing is stamped at execution. A caller without `QUERY_VIEW_ALL` (ANALYST, READONLY) only ever gets one of their **own** earlier runs as "previous"; REVIEWER and ADMIN match across the organization.
+- `against=<uuid>` — compare with a specific request. It must be visible to the caller and satisfy the same rule (same connector + operation key, `EXECUTED`, created earlier, snapshot present), otherwise `422 API_RESPONSE_DIFF_INCOMPATIBLE`. A malformed value is `400`.
+
+Authorization mirrors `GET /api-requests/{id}` on **both** sides: the submitter, or a holder of `QUERY_VIEW_ALL` (REVIEWER, ADMIN). A side the caller may not see reads as `404 API_REQUEST_NOT_FOUND`, never `403`.
+
+```json
+{
+  "current_id": "uuid",
+  "previous_id": "uuid",
+  "format": "JSON",
+  "status_code_current": 200,
+  "status_code_previous": 200,
+  "duration_ms_delta": -35,
+  "bytes_delta": 12,
+  "added_count": 1,
+  "removed_count": 0,
+  "changed_count": 2,
+  "truncated": false,
+  "either_response_truncated": false,
+  "entries": [
+    { "path": "data.items[2]", "kind": "ADDED", "before": null, "after": "{\"id\":7}" },
+    { "path": "data.total", "kind": "CHANGED", "before": "2", "after": "3" },
+    { "path": "data.status", "kind": "CHANGED", "before": "\"open\"", "after": "\"closed\"" }
+  ]
+}
+```
+
+- `format` — `JSON` or `XML`, chosen from the current side's `response_content_type` (contains `json` / `xml`), falling back to the body's shape. Any other content type is `422 API_RESPONSE_DIFF_UNSUPPORTED`, as is a body on either side that does not parse in that format — its `contentType` is that of the side that failed. When the automatically chosen previous run is the one that does not parse (say an HTML error page from an upstream outage), pick a different run with `against=<id>`.
+- `entries[]` — `kind` is `ADDED`, `REMOVED` or `CHANGED`. An added or removed subtree is **one** entry at its root, and a change of JSON type (`1` → `"1"`) is `CHANGED`. `before` / `after` are `null` on the side where the path does not exist and are clipped to 1024 characters:
+  - **JSON** — the value as compact JSON, so a string keeps its quotes (`"\"a\""`) and a subtree is its whole JSON text.
+  - **XML** — the attribute value, the element's own text, or, for an added or removed element, its full text content.
+- `path` — **JSON:** object keys joined with `.`, array elements as `name[i]` (arrays compare by index), a root array as `[i]`, and `$` when the root itself changed (a root scalar, or object ↔ array). **XML:** one `name[i]` segment per element including the root (the index counts same-named siblings), `@attr` for attributes and `#text` for an element's own text, e.g. `order[0].total[0].#text`. These paths are not masking-policy field refs: a `JSON_PATH` policy has no array indexes (`data.items.email`, not `data.items[2].email`), so drop the `[i]` segments before reusing a path in a policy.
+- `truncated` — `true` when more than `ACCESSFLOW_APIGOV_MAX_DIFF_ENTRIES` (default `500`) entries differ; only the first ones are returned and the three counts describe the returned entries.
+- `either_response_truncated` — `true` when either stored body was cut at the response storage cap (`response_truncated`). Such a body usually fails to parse, which is why a diff of it is often `422 API_RESPONSE_DIFF_UNSUPPORTED`.
+- `status_code_current` / `status_code_previous` — the upstream HTTP status of each run. `duration_ms_delta` and `bytes_delta` are `current - previous`, `null` when either side lacks the number. Every key is always present, with `null` where not applicable.
+
+The diff reads the stored snapshots only — it never calls the upstream API, never re-masks and never unmasks. A masking-policy change between the two runs therefore shows up as `CHANGED` entries on the masked paths (for example a value on one side and its masked form on the other). A snapshot that masking replaced entirely because a policy could not be applied (fail-closed redaction) is not JSON or XML, so diffing it is `422 API_RESPONSE_DIFF_UNSUPPORTED`. No audit row is written.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `400 VALIDATION_ERROR` — `against` is neither `previous` nor a UUID.
+- `404 API_REQUEST_NOT_FOUND` — either side does not exist in the caller's organization or is not visible to the caller.
+- `404 API_RESPONSE_DIFF_NOT_AVAILABLE` — this request has no stored response snapshot, or (`against=previous`) there is no previous run to compare with. Carries `apiRequestId`.
+- `422 API_RESPONSE_DIFF_INCOMPATIBLE` — the explicit `against` request is not a comparable earlier run (different connector or operation, not `EXECUTED`, not earlier, or no snapshot).
+- `422 API_RESPONSE_DIFF_UNSUPPORTED` — the response is neither JSON nor XML, or a side does not parse. Carries `contentType`.
 
 ### API reviews
 
@@ -10072,6 +10128,9 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_REQUEST_PERMISSION_DENIED` | 403 | Caller lacks read/write/break-glass on the connector. |
 | `API_REQUEST_VALIDATION_ERROR` | 422 | The call failed validation against the connector schema (`reason`). |
 | `API_REPLAY_OPERATION_UNAVAILABLE` | 422 | A replayed request's operation is no longer in the connector's catalog (`operationId`, #886). |
+| `API_RESPONSE_DIFF_NOT_AVAILABLE` | 404 | The API request has no stored response snapshot, or there is no previous run to diff against (`apiRequestId`, #887). |
+| `API_RESPONSE_DIFF_INCOMPATIBLE` | 422 | The `against` request is not an earlier `EXECUTED` run of the same connector + operation with a stored snapshot (#887). |
+| `API_RESPONSE_DIFF_UNSUPPORTED` | 422 | A response being diffed is neither JSON nor XML, or does not parse (`contentType`, #887). |
 | `API_EXECUTION_FAILED` | 502 | The upstream API call could not be executed (`reason`). |
 | `SCIM_TOKEN_NOT_FOUND` | 404 | Unknown SCIM token id for the caller's organization (#621). |
 | `SCIM_TOKEN_NAME_CONFLICT` | 409 | A SCIM token with that name already exists in the org (#621). |

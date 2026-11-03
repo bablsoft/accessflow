@@ -56,7 +56,7 @@ class DefaultApiConnectorVariableResolutionServiceTest {
         messages.setUseCodeAsDefaultMessage(true);
         service = new DefaultApiConnectorVariableResolutionService(variableRepository,
                 encryptionService, new ApiVariableEvaluator(Clock.fixed(NOW, ZoneOffset.UTC)),
-                new ApigovRequestProperties(1L, 1L, 1L, 8192), messages);
+                new ApigovRequestProperties(1L, 1L, 1L, 8192, 500), messages);
         // The stored secret is AES-encrypted; the test double is an identity transform.
         when(encryptionService.decrypt(anyString())).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -214,7 +214,7 @@ class DefaultApiConnectorVariableResolutionServiceTest {
         messages.setUseCodeAsDefaultMessage(true);
         var tiny = new DefaultApiConnectorVariableResolutionService(variableRepository,
                 encryptionService, new ApiVariableEvaluator(Clock.fixed(NOW, ZoneOffset.UTC)),
-                new ApigovRequestProperties(1L, 1L, 1L, 4), messages);
+                new ApigovRequestProperties(1L, 1L, 1L, 4, 500), messages);
         stored(variable("v", ApiVariableKind.CONSTANT, "far too long"));
 
         assertThatThrownBy(() -> tiny.resolve(orgId, connectorId, context("", Map.of()), Map.of()))

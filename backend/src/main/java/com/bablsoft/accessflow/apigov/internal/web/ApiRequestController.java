@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.api.ApiRequestReplayService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffCommand;
+import com.bablsoft.accessflow.apigov.api.ApiResponseDiffService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -40,10 +42,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class ApiRequestController {
 
+    private static final String PREVIOUS = "previous";
+
     private final ApiRequestService requestService;
     private final ApiAssistService assistService;
     private final OnBehalfOfPrincipalService onBehalfOfPrincipalService;
     private final ApiRequestReplayService replayService;
+    private final ApiResponseDiffService diffService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -107,6 +112,21 @@ class ApiRequestController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .contentType(parseMediaType(payload.contentType()))
                 .body(payload.content());
+    }
+
+    @GetMapping("/{id}/diff")
+    @Operation(summary = "Structural diff of this request's stored response against the previous run or another run")
+    @ApiResponse(responseCode = "200", description = "Diff")
+    @ApiResponse(responseCode = "400", description = "against is neither 'previous' nor a UUID")
+    @ApiResponse(responseCode = "404",
+            description = "A side is not found or not visible, or there is nothing to compare")
+    @ApiResponse(responseCode = "422", description = "Incomparable runs, or a response that is not JSON / XML")
+    ApiResponseDiffResponse diff(@PathVariable UUID id,
+                                 @RequestParam(defaultValue = PREVIOUS) String against,
+                                 Authentication authentication) {
+        var caller = claims(authentication);
+        return ApiResponseDiffResponse.from(diffService.diff(new ApiResponseDiffCommand(id,
+                parseAgainst(against), caller.organizationId(), caller.userId(), caller.permissions())));
     }
 
     @PostMapping("/{id}/cancel")
@@ -185,6 +205,17 @@ class ApiRequestController {
             return MediaType.parseMediaType(contentType);
         } catch (RuntimeException ex) {
             return MediaType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
+    private static UUID parseAgainst(String against) {
+        if (PREVIOUS.equals(against)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(against);
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidDiffAgainstException(against);
         }
     }
 

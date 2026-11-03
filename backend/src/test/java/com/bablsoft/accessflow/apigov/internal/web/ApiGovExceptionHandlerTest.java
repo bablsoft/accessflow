@@ -99,4 +99,46 @@ class ApiGovExceptionHandlerTest {
         assertThat(pd.getProperties()).containsEntry("error", "API_REPLAY_OPERATION_UNAVAILABLE");
         assertThat(pd.getProperties()).containsEntry("operationId", "createCharge");
     }
+
+    @Test
+    void responseDiffNotAvailableIs404WithApiRequestId() {
+        var id = java.util.UUID.randomUUID();
+        var pd = handler.handleResponseDiffNotAvailable(
+                new com.bablsoft.accessflow.apigov.api.ApiResponseDiffNotAvailableException(id));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_response_diff_not_available");
+        assertThat(pd.getProperties()).containsEntry("error", "API_RESPONSE_DIFF_NOT_AVAILABLE");
+        assertThat(pd.getProperties()).containsEntry("apiRequestId", id);
+    }
+
+    @Test
+    void responseDiffIncompatibleIs422() {
+        var pd = handler.handleResponseDiffIncompatible(
+                new com.bablsoft.accessflow.apigov.api.ApiResponseDiffIncompatibleException(
+                        java.util.UUID.randomUUID(), java.util.UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_response_diff_incompatible");
+        assertThat(pd.getProperties()).containsEntry("error", "API_RESPONSE_DIFF_INCOMPATIBLE");
+    }
+
+    @Test
+    void responseDiffUnsupportedIs422WithContentType() {
+        var pd = handler.handleResponseDiffUnsupported(
+                new com.bablsoft.accessflow.apigov.api.ApiResponseDiffUnsupportedException("text/csv"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_response_diff_unsupported");
+        assertThat(pd.getProperties()).containsEntry("error", "API_RESPONSE_DIFF_UNSUPPORTED");
+        assertThat(pd.getProperties()).containsEntry("contentType", "text/csv");
+    }
+
+    @Test
+    void invalidDiffAgainstIs400() {
+        var pd = handler.handleInvalidDiffAgainst(new InvalidDiffAgainstException("latest"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "VALIDATION_ERROR");
+    }
 }
