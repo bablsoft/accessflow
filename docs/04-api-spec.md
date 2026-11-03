@@ -8982,7 +8982,7 @@ The replay writes exactly one audit row — the new request's `API_REQUEST_SUBMI
 
 ### GET /api-requests/{id}/diff — Response 200
 
-Compares the **stored, masked** response snapshot of an API request with another run of the same connector and operation (#887). Backend for the "Compare responses" card on the API request detail page.
+Compares the **stored, masked** response snapshot of an API request with another run of the same connector and operation (#887). Backend for the "Compare to previous run" card on the API request detail page.
 
 ```
 GET /api/v1/api-requests/{id}/diff?against=previous   → 200 OK   (default)

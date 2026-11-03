@@ -191,6 +191,20 @@ describe('ApiResponseDiffCard', () => {
     expect(getApiResponseDiffMock).toHaveBeenCalledTimes(2);
   });
 
+  it('reports an unknown pasted request id instead of the empty state', async () => {
+    getApiResponseDiffMock.mockResolvedValueOnce(diff());
+    getApiResponseDiffMock.mockRejectedValueOnce(
+      axiosError(404, { error: 'API_REQUEST_NOT_FOUND', detail: 'API request not found' }),
+    );
+    render(wrap(<ApiResponseDiffCard request={request()} />));
+    await screen.findByText('"DOWN"');
+    const input = screen.getByPlaceholderText('Previous run, or paste a request ID');
+    fireEvent.change(input, { target: { value: 'r-missing' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 });
+    expect(await screen.findByText(/No request with that ID/)).toBeInTheDocument();
+    expect(screen.queryByText('No previous run found to compare against')).toBeNull();
+  });
+
   it('does not fetch for a request that has not executed', () => {
     render(wrap(<ApiResponseDiffCard request={request({ status: 'FAILED' })} />));
     expect(getApiResponseDiffMock).not.toHaveBeenCalled();

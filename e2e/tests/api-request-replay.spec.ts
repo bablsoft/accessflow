@@ -94,9 +94,8 @@ test.describe.serial('api request replay and response diff (#888)', () => {
     });
     const newId = page.url().split('/').pop() ?? '';
     expect(newId).not.toBe(secondRunId);
-    // The replay is a fresh submission: it never arrives executed.
-    await expect(page.locator('.af-pill').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Compare to previous run')).toHaveCount(0);
+    // The new request carries the server-set justification naming its source.
+    await expect(page.getByText(`Replay of API request ${secondRunId}`)).toBeVisible({ timeout: 15_000 });
 
     const res = await request.get(`${apiBase()}/api/v1/api-requests/${newId}`, {
       headers: { Authorization: `Bearer ${submitterToken}` },

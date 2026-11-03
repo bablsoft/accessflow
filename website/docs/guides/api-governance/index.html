@@ -485,17 +485,20 @@
               <code>ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES</code> and
               <code>ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES</code>; review timeout with
               <code>ACCESSFLOW_APIGOV_REVIEW_TIMEOUT</code>.</li>
-            <li id="guide-api-replay"><strong>Replaying a call and comparing responses</strong> —
-              once a request has finished, the person who submitted it can press
-              <em>Replay</em> on its page. That creates a new request under their name, which goes
-              through analysis and review again before it runs; the original is left as it was.
-              Variable values they may no longer set are dropped, and a message says how many. On a
-              request that ran, the <em>Compare to previous run</em> card lists what changed in the
-              response since the last run of the same call: which fields were added, removed or
-              changed, how the status code, duration and size moved, and the two responses side by
-              side. It compares the stored, masked responses, so a change to a masking rule
-              between runs shows up as a changed value. You can also paste another request's ID to
-              compare against that run instead.</li>
+            <li id="guide-api-replay"><strong>Replaying a call</strong> — once a request has
+              finished, the person who submitted it can press <em>Replay</em> on its page. That
+              creates a new request under their name, checked like any new call — analysis, routing
+              and review, as the connector requires — before it runs. The original is left as it
+              was. Override values they are no longer allowed to set are dropped, and a message says
+              how many.</li>
+            <li id="guide-api-compare"><strong>Comparing a response with the last run</strong> — on
+              a request that ran, the <em>Compare to previous run</em> card lists which fields were
+              added, removed or changed since the last run of the same call, and how the status code,
+              duration and size moved. Below that, it shows short previews of both responses side by
+              side. Only JSON and XML responses can be compared. The card compares the stored, masked
+              responses, so a change to a masking rule between runs shows up as a changed value. To
+              compare with a different run, paste that request's ID; it must be an earlier run of the
+              same call.</li>
             <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>

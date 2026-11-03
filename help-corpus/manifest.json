@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "6316c08508ec",
-  "generatedAt": "2026-11-03T09:25:15.894Z",
-  "sourceCommit": "f44bb4612b8ac5a55019d3a6e5cc82e5260eedcf",
+  "corpusVersion": "a32fe56545e1",
+  "generatedAt": "2026-11-03T09:27:54.702Z",
+  "sourceCommit": "c5a4ac84022e0bec81f42267473473fc3ae02129",
   "chunkCount": 611,
-  "sha256": "6316c08508ecf6c99a13382ef5a328fae1103a2da8a70a166a5af48b8cb9c121",
+  "sha256": "a32fe56545e13478ed79636597bb55ce690639513c5395320b737d2645998ab7",
   "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
   "sources": [
     {
@@ -245,7 +245,7 @@
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "section": "Guides",
       "chunks": 8,
-      "sha256": "07f9778a1c67e32aa60d464ad11806940cefc04acd434370f7b61c3d36a2ba75"
+      "sha256": "ad0326dde692096b31a00814662ca6649a4ea12ab66597896432e46d5943ee3a"
     },
     {
       "path": "website/docs/guides/datasource/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "2871af2cb9a5c8b1e1a07965f97be884db42364b175181ad66fc1a711e3da886"
+      "sha256": "5e9d008f722e8d6ec0290be688d402a439f550ed00bde8243c30801008d6d14b"
     }
   ]
 }

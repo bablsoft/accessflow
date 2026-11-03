@@ -55,8 +55,10 @@ export function ApiResponseDiffCard({ request }: Props) {
   const errorBody = isAxiosError<{ error?: string; detail?: string }>(diffQuery.error)
     ? diffQuery.error.response
     : undefined;
-  const is404 = errorBody?.status === 404;
   const errorCode = errorBody?.data?.error;
+  // Only "nothing to compare" is an empty state; a 404 for a pasted request id is an input error.
+  const isEmpty =
+    errorBody?.status === 404 && (errorCode === 'API_RESPONSE_DIFF_NOT_AVAILABLE' || against === PREVIOUS);
   const errorDetail = errorBody?.data?.detail;
 
   const columns: TableColumnsType<ApiResponseDiffEntry> = [
@@ -113,12 +115,12 @@ export function ApiResponseDiffCard({ request }: Props) {
           onSearch={(value) => setAgainst(value.trim() || PREVIOUS)}
         />
         {diffQuery.isLoading && <Skeleton active title={false} paragraph={{ rows: 2 }} />}
-        {!diffQuery.isLoading && is404 && (
+        {!diffQuery.isLoading && isEmpty && (
           <div className="muted" style={{ fontSize: 13 }}>
             {t('apiGov.requests.diffEmpty')}
           </div>
         )}
-        {!diffQuery.isLoading && diffQuery.isError && !is404 && (
+        {!diffQuery.isLoading && diffQuery.isError && !isEmpty && (
           <Alert
             type={errorBody?.status === 422 ? 'info' : 'warning'}
             showIcon
@@ -127,7 +129,9 @@ export function ApiResponseDiffCard({ request }: Props) {
                 ? t('apiGov.requests.diffUnsupported')
                 : errorCode === 'API_RESPONSE_DIFF_INCOMPATIBLE'
                   ? t('apiGov.requests.diffIncompatible')
-                  : t('apiGov.requests.diffError')
+                  : errorCode === 'API_REQUEST_NOT_FOUND'
+                    ? t('apiGov.requests.diffAgainstNotFound')
+                    : t('apiGov.requests.diffError')
             }
             description={errorDetail}
           />

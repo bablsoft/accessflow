@@ -152,6 +152,7 @@ describe('ApiRequestDetailPage', () => {
         mocks.getApiRequest.mockResolvedValue(request({ status, response_snapshot: null }));
         render(wrap(<ApiRequestDetailPage />));
         expect(await screen.findByText('Replay')).toBeInTheDocument();
+        expect(screen.queryByTestId('diff-card')).toBeNull();
       },
     );
 
