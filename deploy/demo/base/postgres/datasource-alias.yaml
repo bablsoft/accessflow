@@ -1,0 +1,16 @@
+# The demo's own "Postgres" datasource (saved in the demo database) connects to accessflow-postgresql,
+# the Bitnami subchart's Service before the demo moved to CloudNativePG. This keeps that name pointing
+# at the primary.
+apiVersion: v1
+kind: Service
+metadata:
+  name: accessflow-postgresql
+spec:
+  type: ClusterIP
+  selector:
+    cnpg.io/cluster: accessflow-db
+    cnpg.io/instanceRole: primary
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432

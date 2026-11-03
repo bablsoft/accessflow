@@ -14,4 +14,23 @@ config:
 ingress:
   className: traefik
   hosts:
-    - host: demo.accessflow.bablsoft.com
+    - host: demo.accessflow.bablsoft.com  # The middlewares come from deploy/demo/base; Cloudflare's SSL mode is Full (strict).
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: accessflow-cloudflare-only@kubernetescrd,accessflow-redirect-https@kubernetescrd
+  tls:
+    enabled: true
+    secretName: accessflow-tls
+
+# --- PostgreSQL: the CloudNativePG cluster accessflow-db from deploy/demo, not the bundled subchart.
+# Its Secrets (accessflow-db, accessflow-audit-db) are sealed there too.
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: accessflow-db-rw
+  existingSecret: accessflow-db
+
+audit:
+  db:
+    existingSecret: accessflow-audit-db

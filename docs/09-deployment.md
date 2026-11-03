@@ -253,14 +253,37 @@ files are sourced from GitHub; they're excluded from the packaged chart via
 ### The public demo environment
 
 [`values-demo.yaml`](../charts/accessflow/values-demo.yaml) is the override behind the public
-demo at `https://demo.accessflow.bablsoft.com` — one replica per tier, Traefik ingress, and the
-public base URL. It is deployed by the manually-dispatched
+demo at `https://demo.accessflow.bablsoft.com` — one replica per tier, Traefik ingress with a
+cert-manager certificate behind the Cloudflare proxy, and the public base URL. The demo runs on a k3s
+cluster it shares with other products, in the namespace `accessflow`, which that cluster's admin owns
+together with its quota and the deployer account.
+
+Its infrastructure is in [`deploy/demo/`](../deploy/demo/), applied by hand with
+`kubectl apply -k deploy/demo` (or `deploy/demo/base` until the backup secret is sealed):
+
+- **PostgreSQL** is the CloudNativePG cluster `accessflow-db`, not the bundled subchart
+  (`postgresql.enabled: false`, `externalDatabase.host: accessflow-db-rw`). Its `initdb` creates the
+  `vector` extension, and `managed.roles` creates the audit writer `accessflow_audit`. Both passwords
+  are sealed Secrets (`accessflow-db`, `accessflow-audit-db`).
+- **The `accessflow-postgresql` Service** points at the primary, because the demo's own "Postgres"
+  datasource still connects to that name.
+- **Backups.** WAL is archived and a base backup is taken every night to the R2 bucket
+  `accessflow-demo-db-backups`.
+- **Middlewares and network policies** that the Ingress and the pods rely on.
+- **The sample MongoDB** that the "MongoDb" datasource queries. It is its own Helm release, `mongodb`,
+  installed from [`mongodb-values.yaml`](../deploy/demo/mongodb-values.yaml).
+
+The Secret `accessflow-secrets` (`ENCRYPTION_KEY`, `JWT_PRIVATE_KEY`) is the chart's own and is never
+regenerated. Moving the demo to another cluster means copying it as-is, Helm labels included, before the
+first install. Without it, every stored datasource password is unreadable.
+
+The application is deployed by the manually-dispatched
 [`deploy-demo.yml`](../.github/workflows/deploy-demo.yml) workflow into release `accessflow`,
 namespace `accessflow`:
 
 ```bash
 helm upgrade --install accessflow charts/accessflow \
-  --namespace accessflow --create-namespace \
+  --namespace accessflow \
   --values charts/accessflow/values-demo.yaml \
   --set image.backend.tag="$VERSION" --set image.frontend.tag="$VERSION" \
   --atomic --wait --timeout 15m
@@ -317,7 +340,7 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 
    | Name | Kind | Value |
    |---|---|---|
-   | `DEMO_KUBECONFIG` | secret | kubeconfig, base64-encoded or pasted raw; RBAC limited to the `accessflow` namespace |
+   | `DEMO_KUBECONFIG` | secret | kubeconfig of the cluster's `accessflow-deployer` account, base64-encoded or pasted raw; RBAC limited to the `accessflow` namespace (so the workflow never passes `--create-namespace`) |
    | `ACCESSFLOW_DEMO_API_KEY` | secret | the `af_…` key from step 2 |
    | `ACCESSFLOW_DEMO_URL` | variable | `https://demo.accessflow.bablsoft.com` |
    | `ACCESSFLOW_DEMO_PIPELINE_ID` | variable | the pipeline UUID from step 3 |

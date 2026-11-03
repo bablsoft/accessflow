@@ -146,7 +146,7 @@ jobs:
           # --wait keeps the job alive until the new backend serves again, which the outcome step
           # needs; --atomic rolls back a failed upgrade so the demo stays up.
           if helm upgrade --install accessflow charts/accessflow \
-              --namespace accessflow --create-namespace \
+              --namespace accessflow \
               --values charts/accessflow/values-demo.yaml \
               --set image.backend.tag="$VERSION" \
               --set image.frontend.tag="$VERSION" \

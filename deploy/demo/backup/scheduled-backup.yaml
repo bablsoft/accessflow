@@ -1,0 +1,15 @@
+# A base backup every night at 01:30 UTC; WAL is archived in between, so any point in the last 30 days
+# can be restored.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: accessflow-db-nightly
+spec:
+  schedule: "0 30 1 * * *"
+  backupOwnerReference: self
+  immediate: true
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: accessflow-db

@@ -1,0 +1,11 @@
+# The base plus WAL archiving and nightly base backups to the R2 bucket accessflow-demo-db-backups.
+# Apply the base alone until backup/sealed/accessflow-r2-backup.yaml exists.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: accessflow
+resources:
+  - base
+  - backup
+patches:
+  # Turns WAL archiving on in the base's Cluster.
+  - path: backup/archive.yaml

@@ -1,0 +1,13 @@
+# serverName is this cluster's folder in the bucket. A restored cluster archives under a new name; never
+# reuse one another cluster wrote.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: accessflow-db
+spec:
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: accessflow-demo-db-backups
+        serverName: accessflow-db

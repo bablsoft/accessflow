@@ -1,0 +1,50 @@
+# PostgreSQL 18 run by the CloudNativePG operator. initdb creates the database accessflow owned by
+# accessflow (the chart's externalDatabase, password in the sealed Secret accessflow-db); managed.roles
+# creates the INSERT-only audit writer accessflow_audit (audit.db.existingSecret). The standard image ships
+# pgvector, whose extension only a superuser may create.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: accessflow-db
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.6-standard-trixie@sha256:79be0d10e78b7ac4520cf6c5db199a8bb7f6de53b3229f47e90cab5865528a0d
+  primaryUpdateStrategy: unsupervised
+
+  bootstrap:
+    initdb:
+      database: accessflow
+      owner: accessflow
+      secret:
+        name: accessflow-db
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
+
+  managed:
+    roles:
+      - name: accessflow_audit
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        passwordSecret:
+          name: accessflow-audit-db
+
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: 128MB
+      timezone: UTC
+
+  storage:
+    size: 10Gi
+    storageClass: local-path
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
