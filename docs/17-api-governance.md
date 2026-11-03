@@ -27,10 +27,15 @@ com.bablsoft.accessflow.apigov/
 │                # ApiConnectorAdminService, ApiSchemaService, exceptions (JDK + project types only)
 └── internal/
     ├── DefaultApiConnectorAdminService, DefaultApiSchemaService
+    ├── DefaultApiRequestReplayService   # replay a terminal request as a new submission (§8)
+    ├── DefaultApiResponseDiffService,   # structural diff of two stored response snapshots (§8)
+    │   ApiResponseStructuralDiffer      #   pure JSON / XML differ
+    ├── SecureXmlParsers                 # the one hardened XML parser — masking and the diff
     ├── persistence/{entity,repo}/   # ApiConnectorEntity, ApiSchemaEntity,
     │                                 # ApiConnectorUserPermissionEntity + repos
     ├── schema/      # ApiSchemaParser SPI + OpenApi/GraphQl/Proto/Wsdl/Postman parsers + SchemaParserRegistry
-    ├── client/      # ApiConnectorProber (test-connection); per-protocol execution clients (planned)
+    ├── client/      # ApiCallExecutor (REST/SOAP/GraphQL over the JDK HTTP client; gRPC not yet wired),
+    │                # ApiConnectorAuthApplier, ApiConnectorProber (test-connection)
     └── web/         # ApiConnectorController, ApiSchemaController, DTOs, exception handler, audit writer
 ```
 
@@ -207,30 +212,9 @@ AF-567), writes a prominent
 (TIMED_OUT) requests that sit in PENDING_REVIEW past `accessflow.apigov.review-timeout`. Both are
 `@SchedulerLock`-guarded.
 
-**Replay** (`POST /api/v1/api-requests/{id}/replay`, #886) clones a terminal request into a new
-submission through the same `submit` path. Only the original submitter may replay — even a
-`QUERY_VIEW_ALL` holder gets `404` — because the stored headers and body, which no read surface shows,
-are resent as they are. The new request has no schedule (`scheduled_for` is null), and the reason is `USER_SUBMITTED` even for a break-glass source. Because it goes through `submit`, the
-caller's permission and the connector state are re-checked. Before that, the replay service checks
-that the stored operation is still in the filtered catalog (else
-`422 API_REPLAY_OPERATION_UNAVAILABLE`). Variable overrides survive only where the caller may still
-override that name; the rest are dropped and counted. Provenance rides on the new row's
-`API_REQUEST_SUBMITTED` audit metadata (`trigger=replay`, `original_api_request_id`,
-`dropped_variable_override_count`); there is no column and no new audit action.
-
-**Response diff** (`GET /api/v1/api-requests/{id}/diff?against=previous|<id>`, #887) compares the
-stored, masked response snapshots of two `EXECUTED` runs of the same connector + operation key
-structurally (JSON or XML; anything else is `422 API_RESPONSE_DIFF_UNSUPPORTED`). It is read-only —
-it never calls the upstream API, never re-masks or unmasks, and writes no audit row — and follows the
-detail endpoint's visibility on both sides (404-never-403). Full contract in `docs/04-api-spec.md`.
-
-**UI (#888):** the API request detail page puts both on a finished request. The submitter of a
-terminal request sees **Replay** (confirm modal → navigate to the new request; a toast reports
-dropped overrides). An executed request with a snapshot shows a **Compare to previous run** card —
-the status-code pair, duration and size deltas, an added / removed / changed entries table, a
-side-by-side view of the two bounded previews, and an input to compare against a specific request
-id. The card states that it compares masked snapshots, so a masking-policy change between runs shows
-up as `CHANGED` entries; there is no reveal affordance.
+**Replay and response diff** work on a finished request: the submitter can re-submit a terminal
+request as a new governed call, and an executed request's stored response can be compared with the
+previous run of the same call. Both are described in [§8](#8-replay--response-diff-epic-885).
 
 **Text-to-API** (`POST /api/v1/api-requests/generate`) turns plain English into a concrete call
 draft via `ApiCallAnalyzer.generateApiCall`, enabled only for connectors with a parsed schema and
@@ -418,6 +402,120 @@ deliberately no request path, headers or body.
 Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#decision-traces-for-api-calls-and-deployments-af-967).
 The deployment sibling is [§11 of docs/18](18-deployment-governance.md#11-decision-trace-af-967);
 the query one is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
+
+---
+
+## 8. Replay & response diff (epic #885)
+
+Two things a requester wants once a call has finished: run it again, and see what changed in the
+answer. Both are deliberately narrow. A replay is a **new submission** that goes back through
+review; it never re-executes the old row. The diff compares the **stored, masked** snapshots; it
+never calls the upstream API.
+
+### Replay (#886)
+
+`POST /api/v1/api-requests/{id}/replay` (empty body, `202`), implemented by
+`DefaultApiRequestReplayService`:
+
+1. **Source.** The request must exist in the caller's organization **and the caller must be its
+   submitter** — anyone else, a `QUERY_VIEW_ALL` holder included, gets `404 API_REQUEST_NOT_FOUND`.
+   No read surface shows the stored headers, body or form files, so letting another user replay
+   would resend input they never saw (a typed API key, say) under their name. The source must be
+   terminal (`EXECUTED`, `FAILED`, `REJECTED`, `TIMED_OUT`, `CANCELLED`), else
+   `409 API_REQUEST_INVALID_STATE`.
+2. **Operation.** When the source names an operation and the connector has a parsed schema, the
+   operation must still be in the connector's **current, filtered** catalog (the AF-614 import
+   filter applies), else `422 API_REPLAY_OPERATION_UNAVAILABLE`. A free-form call skips this.
+3. **Overrides.** Stored variable overrides (AF-613) are carried only when the caller's effective
+   grant still has `can_override_variables`, the name is still overridable on the connector, and the
+   value still passes the length (`ACCESSFLOW_APIGOV_MAX_VARIABLE_VALUE_BYTES`) and control-character
+   checks. Anything else is **dropped, never a failure**; the response reports
+   `dropped_variable_override_count` and the UI shows it in a toast.
+4. **Submit.** Connector, operation, verb, path, headers, query params and the body composition are
+   handed to the ordinary `submit` path, so the caller's connector permission (read / write /
+   `allowed_operations`) and the connector being active are re-checked exactly as `submit` checks
+   them (a `QUERY_ADMIN` holder skips the permission check there, as on any submission), and the new request
+   runs AI → routing → review like any other. The caller is the submitter (the self-approval ban
+   applies), `scheduled_for` is null, `submission_reason` is `USER_SUBMITTED` even for a break-glass
+   source, and the justification is a server-set, localized "Replay of API request {id}".
+
+What is **never** copied: connector credentials and resolved dynamic variables. The command has no
+field for them; they are decrypted and resolved at execution time of the new request, against the
+connector as it is then. The source row is never modified.
+
+**Provenance** is not a column. The replay writes exactly one audit row — the new request's
+`API_REQUEST_SUBMITTED` — whose metadata carries `trigger=replay`, `original_api_request_id` and
+`dropped_variable_override_count`. There is no separate audit action.
+
+### Response diff (#887)
+
+`GET /api/v1/api-requests/{id}/diff?against=previous|<uuid>`, implemented by
+`DefaultApiResponseDiffService` over the pure `ApiResponseStructuralDiffer`.
+
+**Which run is "previous".** Derived at read time, never stamped at execution: the newest
+`EXECUTED` request in the organization with the same `connector_id` and the same operation key
+(`operation_id`, or — for a free-form call — `operation_id IS NULL` with the same `verb` and
+`request_path`), created before this one, with a stored snapshot. A caller without
+`QUERY_VIEW_ALL` only ever gets one of their **own** earlier runs; REVIEWER and ADMIN match across
+the organization. `against=<uuid>` names a run explicitly: it must be visible to the caller and be
+an earlier `EXECUTED` run of the same connector + operation key with a snapshot, else
+`422 API_RESPONSE_DIFF_INCOMPATIBLE`. Both sides follow the detail endpoint's visibility rule and
+read as `404 API_REQUEST_NOT_FOUND`, never `403`. When there is nothing to compare — this request
+has no stored snapshot, or no previous run exists (a first run, say) — the answer is
+`404 API_RESPONSE_DIFF_NOT_AVAILABLE`, which the UI shows as the card's empty state.
+
+**The algorithm.** The format comes from the current side's `response_content_type` (contains
+`json` / `xml`), falling back to the body's shape; anything else, or a side that does not parse, is
+`422 API_RESPONSE_DIFF_UNSUPPORTED`. XML is parsed by `SecureXmlParsers` — the same hardened parser
+masking uses (no DOCTYPE, no external entities). Each difference is one entry `ADDED` / `REMOVED` /
+`CHANGED`:
+
+- **JSON paths** — object keys joined with `.`, array elements as `name[i]` (arrays compare by
+  index), a root array as `[i]`, and `$` when the root itself changed.
+- **XML paths** — one `name[i]` segment per element (the index counts same-named siblings), `@attr`
+  for attributes, `#text` for an element's own text: `order[0].total[0].#text`.
+- An added or removed subtree is **one** entry at its root; a JSON type change (`1` → `"1"`) is
+  `CHANGED`. `before` / `after` are clipped to 1024 characters.
+- At most `ACCESSFLOW_APIGOV_MAX_DIFF_ENTRIES` entries (default `500`) are returned; beyond it the
+  response sets `truncated`, and the counts describe the returned entries.
+
+```json
+{
+  "current_id": "uuid", "previous_id": "uuid", "format": "JSON",
+  "status_code_current": 200, "status_code_previous": 200,
+  "duration_ms_delta": -35, "bytes_delta": 12,
+  "added_count": 1, "removed_count": 0, "changed_count": 2,
+  "truncated": false, "either_response_truncated": false,
+  "entries": [
+    { "path": "data.items[2]", "kind": "ADDED", "before": null, "after": "{\"id\":7}" },
+    { "path": "data.total", "kind": "CHANGED", "before": "2", "after": "3" },
+    { "path": "data.status", "kind": "CHANGED", "before": "\"open\"", "after": "\"closed\"" }
+  ]
+}
+```
+
+**The masking caveat.** The snapshots are stored already masked, and the diff never re-masks or
+unmasks. A masking-policy change between the two runs therefore shows up as `CHANGED` entries on the
+masked paths — a value on one side, its masked form on the other — and a body that masking replaced
+entirely (fail-closed redaction) is not JSON or XML, so it is `422`. A diff path is not a masking
+field ref: `JSON_PATH` policies have no `[i]` segments. The diff writes no audit row.
+
+### UI (#888)
+
+The API request detail page shows **Replay** to the submitter of a terminal request (confirm modal,
+then navigation to the new request) and, on an executed request with a snapshot, a **Compare to
+previous run** card: the status-code pair, duration and size deltas, the added / removed / changed
+entries, the two bounded previews side by side, and an input to compare against a specific request
+id. The card says it compares masked snapshots; there is no reveal affordance.
+
+### Out of scope
+
+Replaying against a different connector, replaying grouped requests (`requestgroups` members are
+not `api_requests` rows), order-insensitive array diffing (arrays compare by index, so a reordered
+list reads as changes), and diffs of text, CSV or other non-JSON / non-XML bodies.
+
+Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#post-api-requestsidreplay--response-202)
+and [the diff endpoint](04-api-spec.md#get-api-requestsiddiff--response-200).
 
 ---
 

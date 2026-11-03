@@ -2868,6 +2868,12 @@ rows inserted in one transaction would tie exactly. `(sort_order, created_at, id
 Governed API calls (migration V101), mirroring `query_requests`. Reuses the shared `query_status` /
 `submission_reason` enum types.
 
+> **Replay and response diff (#886, #887) add no columns.** A replay is an ordinary new row; its
+> provenance (`trigger=replay`, `original_api_request_id`, `dropped_variable_override_count`) lives in
+> the `API_REQUEST_SUBMITTED` row's `audit_log.metadata`. The diff's "previous run" is a read-time
+> lookup on `(connector_id, status = EXECUTED)` plus the operation key and `created_at` — nothing is
+> stamped at execution. See [docs/17 §8](17-api-governance.md#8-replay--response-diff-epic-885).
+
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | UUID PK | |
