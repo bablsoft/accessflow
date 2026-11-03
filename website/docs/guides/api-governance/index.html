@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-28",
+      "dateModified": "2026-11-03",
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/api-governance/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Govern an outbound API call.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-28">28 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -485,6 +485,17 @@
               <code>ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES</code> and
               <code>ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES</code>; review timeout with
               <code>ACCESSFLOW_APIGOV_REVIEW_TIMEOUT</code>.</li>
+            <li id="guide-api-replay"><strong>Replaying a call and comparing responses</strong> —
+              once a request has finished, the person who submitted it can press
+              <em>Replay</em> on its page. That creates a new request under their name, which goes
+              through analysis and review again before it runs; the original is left as it was.
+              Variable values they may no longer set are dropped, and a message says how many. On a
+              request that ran, the <em>Compare to previous run</em> card lists what changed in the
+              response since the last run of the same call: which fields were added, removed or
+              changed, how the status code, duration and size moved, and the two responses side by
+              side. It compares the stored, masked responses, so a change to a masking rule
+              between runs shows up as a changed value. You can also paste another request's ID to
+              compare against that run instead.</li>
             <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>

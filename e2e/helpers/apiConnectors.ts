@@ -160,3 +160,55 @@ export async function waitForApiRequestStatus(
   }
   throw new Error(`API request ${requestId} never reached ${wanted} (last=${last})`);
 }
+
+/** Polls until routing has settled the request out of PENDING_AI and returns the status it landed on (#888). */
+export async function waitForApiRequestRouted(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+  timeoutMs = 15_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.get(`${apiBase()}/api/v1/api-requests/${requestId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok()) {
+      last = ((await res.json()) as { status: string }).status;
+      if (last !== 'PENDING_AI') return last;
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  throw new Error(`API request ${requestId} never left PENDING_AI (last=${last})`);
+}
+
+/** Approves a PENDING_REVIEW API request as a reviewer who did not submit it (#888). */
+export async function approveApiReviewViaApi(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+): Promise<void> {
+  const res = await request.post(`${apiBase()}/api/v1/api-reviews/${requestId}/approve`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { comment: null },
+  });
+  if (!res.ok()) {
+    throw new Error(`Approve API request failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+/** Executes an APPROVED API request as its submitter and returns the post-execution status (#888). */
+export async function executeApiRequestViaApi(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+): Promise<string> {
+  const res = await request.post(`${apiBase()}/api/v1/api-requests/${requestId}/execute`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Execute API request failed: ${res.status()} ${await res.text()}`);
+  }
+  return ((await res.json()) as { status: string }).status;
+}

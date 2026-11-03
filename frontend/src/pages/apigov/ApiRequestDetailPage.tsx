@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
 import { Alert, App, Button, Card, Descriptions, Empty, Input, Modal, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { DownloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ExperimentOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -18,14 +18,25 @@ import {
   executeApiRequest,
   getApiRequest,
   rejectApiReview,
+  replayApiRequest,
 } from '@/api/apiRequests';
 import { useAuthStore } from '@/store/authStore';
 import { reviewDecisionTypeLabel, submissionReasonLabel } from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
-import { apiErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage, apiReplayErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
-import type { ApiReviewDecision } from '@/types/api';
+import type { ApiReviewDecision, QueryStatus } from '@/types/api';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
+import { ApiResponseDiffCard } from './ApiResponseDiffCard';
+
+// A replay (#886) clones a finished call; the server answers 409 for anything still in flight.
+const REPLAYABLE_STATUSES: ReadonlySet<QueryStatus> = new Set([
+  'EXECUTED',
+  'FAILED',
+  'REJECTED',
+  'TIMED_OUT',
+  'CANCELLED',
+]);
 
 export default function ApiRequestDetailPage() {
   const { t } = useTranslation();
@@ -36,6 +47,7 @@ export default function ApiRequestDetailPage() {
   const user = useAuthStore((s) => s.user);
   const [decisionFor, setDecisionFor] = useState<'approve' | 'reject' | null>(null);
   const [comment, setComment] = useState('');
+  const [replayOpen, setReplayOpen] = useState(false);
 
   const requestQuery = useQuery({
     queryKey: apiRequestKeys.detail(id),
@@ -96,7 +108,27 @@ export default function ApiRequestDetailPage() {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
+  const replayMutation = useMutation({
+    mutationFn: () => replayApiRequest(id),
+    onSuccess: (data) => {
+      setReplayOpen(false);
+      queryClient.invalidateQueries({ queryKey: apiRequestKeys.lists() });
+      message.success(t('apiGov.requests.replaySuccess'));
+      if (data.dropped_variable_override_count > 0) {
+        message.warning(
+          t('apiGov.requests.replayDroppedOverrides', { dropped: data.dropped_variable_override_count }),
+        );
+      }
+      navigate(`/api-requests/${data.id}`);
+    },
+    onError: (err) => showApiError(message, err, apiReplayErrorMessage),
+  });
+
   const request = requestQuery.data;
+
+  // Only the original submitter may replay (#886) — the stored headers and body are resent as-is.
+  const canReplay =
+    request != null && REPLAYABLE_STATUSES.has(request.status) && request.submitted_by === user?.id;
 
   const canDecide =
     request != null &&
@@ -132,7 +164,16 @@ export default function ApiRequestDetailPage() {
       <PageHeader
         title={request?.connector_name ?? t('apiGov.requests.title')}
         subtitle={request ? `${request.verb} ${request.request_path}` : undefined}
-        actions={<Button onClick={() => navigate('/api-requests')}>{t('common.back')}</Button>}
+        actions={
+          <>
+            <Button onClick={() => navigate('/api-requests')}>{t('common.back')}</Button>
+            {canReplay && (
+              <Button icon={<ExperimentOutlined />} onClick={() => setReplayOpen(true)}>
+                {t('apiGov.requests.replayButton')}
+              </Button>
+            )}
+          </>
+        }
       />
       <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
@@ -366,6 +407,10 @@ export default function ApiRequestDetailPage() {
               </DetailCard>
             )}
 
+            {request.status === 'EXECUTED' && request.response_snapshot && (
+              <ApiResponseDiffCard request={request} />
+            )}
+
             <DetailCard title={t('apiGov.requests.decisions')}>
               <div style={{ padding: 14 }}>
                 <Table<ApiReviewDecision>
@@ -394,6 +439,18 @@ export default function ApiRequestDetailPage() {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
         />
+      </Modal>
+      <Modal
+        open={replayOpen}
+        title={t('apiGov.requests.replayModalTitle')}
+        onCancel={() => setReplayOpen(false)}
+        onOk={() => replayMutation.mutate()}
+        okText={t('apiGov.requests.replaySubmit')}
+        okButtonProps={{ loading: replayMutation.isPending }}
+        cancelText={t('common.cancel')}
+        destroyOnHidden
+      >
+        <p>{t('apiGov.requests.replayModalBody')}</p>
       </Modal>
     </div>
   );

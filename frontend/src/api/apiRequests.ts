@@ -4,6 +4,8 @@ import type {
   ApiDecisionResponse,
   ApiRequest,
   ApiRequestPage,
+  ApiRequestReplayResponse,
+  ApiResponseDiff,
   GeneratedApiCall,
   PendingApiReviewPage,
   QueryStatus,
@@ -39,6 +41,8 @@ export const apiRequestKeys = {
   list: (filters: ApiRequestListFilters) => ['api-requests', 'list', filters] as const,
   details: () => ['api-requests', 'detail'] as const,
   detail: (id: string) => ['api-requests', 'detail', id] as const,
+  // Nested under the detail key so invalidating a request's detail also refreshes its diff.
+  diff: (id: string, against: string) => ['api-requests', 'detail', id, 'diff', against] as const,
   reviewQueues: () => ['api-reviews', 'queue'] as const,
   reviewQueue: (filters: ApiReviewListFilters) => ['api-reviews', 'queue', filters] as const,
 };
@@ -90,6 +94,16 @@ export async function cancelApiRequest(id: string): Promise<void> {
 
 export async function executeApiRequest(id: string): Promise<ApiRequest> {
   const { data } = await apiClient.post<ApiRequest>(`${BASE}/${id}/execute`);
+  return data;
+}
+
+export async function replayApiRequest(id: string): Promise<ApiRequestReplayResponse> {
+  const { data } = await apiClient.post<ApiRequestReplayResponse>(`${BASE}/${id}/replay`);
+  return data;
+}
+
+export async function getApiResponseDiff(id: string, against = 'previous'): Promise<ApiResponseDiff> {
+  const { data } = await apiClient.get<ApiResponseDiff>(`${BASE}/${id}/diff`, { params: { against } });
   return data;
 }
 

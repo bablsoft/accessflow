@@ -6,6 +6,7 @@ import {
   auditSinkErrorMessage,
   decisionHookErrorMessage,
   queryReplayErrorMessage,
+  apiReplayErrorMessage,
   rolesErrorMessage,
   serviceAccountErrorMessage,
 } from './apiErrors';
@@ -241,5 +242,39 @@ describe('decisionHookErrorMessage (#945)', () => {
   it('falls back to the generic message for unknown errors', () => {
     expect(decisionHookErrorMessage({})).toMatch(/decision hook/i);
     expect(decisionHookErrorMessage(new Error('boom'))).toBe('boom');
+  });
+});
+
+describe('apiReplayErrorMessage', () => {
+  it('maps API_REPLAY_OPERATION_UNAVAILABLE to a friendly message', () => {
+    const msg = apiReplayErrorMessage(axiosError(422, { error: 'API_REPLAY_OPERATION_UNAVAILABLE' }));
+    expect(msg).toMatch(/no longer in the connector's catalog/i);
+  });
+
+  it('maps API_REQUEST_INVALID_STATE to a friendly message', () => {
+    const msg = apiReplayErrorMessage(axiosError(409, { error: 'API_REQUEST_INVALID_STATE' }));
+    expect(msg).toMatch(/only finished requests/i);
+  });
+
+  it('maps API_REQUEST_PERMISSION_DENIED to a friendly message', () => {
+    const msg = apiReplayErrorMessage(axiosError(403, { error: 'API_REQUEST_PERMISSION_DENIED' }));
+    expect(msg).toMatch(/no longer have permission/i);
+  });
+
+  it('passes the server detail through for other codes', () => {
+    const msg = apiReplayErrorMessage(
+      axiosError(422, { error: 'API_REQUEST_VALIDATION_ERROR', detail: 'path is too long' }),
+    );
+    expect(msg).toBe('path is too long');
+  });
+
+  it('falls back to the title, then the axios message', () => {
+    expect(apiReplayErrorMessage(axiosError(500, { title: 'Server error' }))).toBe('Server error');
+    expect(apiReplayErrorMessage(axiosError(500, {}))).toBe('Request failed');
+  });
+
+  it('uses the error message, then the generic message, for non-axios errors', () => {
+    expect(apiReplayErrorMessage(new Error('boom'))).toBe('boom');
+    expect(apiReplayErrorMessage('nope')).toMatch(/could not replay the api request/i);
   });
 });

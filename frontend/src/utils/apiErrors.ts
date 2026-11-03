@@ -409,6 +409,26 @@ export function queryReplayErrorMessage(err: unknown): string {
   return i18n.t('errors.query_replay_generic');
 }
 
+export function apiReplayErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'API_REPLAY_OPERATION_UNAVAILABLE') {
+      return i18n.t('errors.api_replay_operation_unavailable');
+    }
+    if (code === 'API_REQUEST_INVALID_STATE') return i18n.t('errors.api_replay_invalid_state');
+    if (code === 'API_REQUEST_PERMISSION_DENIED') {
+      return i18n.t('errors.api_replay_permission_denied');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.api_replay_generic');
+}
+
 export function textToSqlErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

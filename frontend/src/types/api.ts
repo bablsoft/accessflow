@@ -4159,6 +4159,39 @@ export interface ApiRequest {
   decisions: ApiReviewDecision[];
 }
 
+/** POST /api-requests/{id}/replay (#886): the new request plus the overrides that were dropped. */
+export interface ApiRequestReplayResponse extends ApiRequest {
+  dropped_variable_override_count: number;
+}
+
+export type ApiResponseDiffKind = 'ADDED' | 'REMOVED' | 'CHANGED';
+
+export type ApiResponseDiffFormat = 'JSON' | 'XML';
+
+export interface ApiResponseDiffEntry {
+  path: string;
+  kind: ApiResponseDiffKind;
+  before?: string | null;
+  after?: string | null;
+}
+
+/** GET /api-requests/{id}/diff (#887): structural diff of two stored, masked response snapshots. */
+export interface ApiResponseDiff {
+  current_id: string;
+  previous_id: string;
+  format: ApiResponseDiffFormat;
+  status_code_current?: number | null;
+  status_code_previous?: number | null;
+  duration_ms_delta?: number | null;
+  bytes_delta?: number | null;
+  added_count: number;
+  removed_count: number;
+  changed_count: number;
+  truncated: boolean;
+  either_response_truncated: boolean;
+  entries: ApiResponseDiffEntry[];
+}
+
 export interface ApiRequestPage {
   content: ApiRequest[];
   page: number;
