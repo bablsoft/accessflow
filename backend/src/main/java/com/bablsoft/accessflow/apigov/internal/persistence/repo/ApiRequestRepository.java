@@ -68,4 +68,51 @@ public interface ApiRequestRepository extends JpaRepository<ApiRequestEntity, UU
                   + (rp.nudge_interval_hours || ' hours')::interval < :now
             """, nativeQuery = true)
     List<UUID> findNudgeDueIds(@Param("now") Instant now);
+
+    // #887: the previous run of the same connector + operation, for the response diff. A null
+    // :submittedBy matches the whole organization (QUERY_VIEW_ALL callers); otherwise only the
+    // caller's own runs, so "previous" is always a row the caller may see.
+    @Query(value = """
+            SELECT * FROM api_requests
+            WHERE organization_id = :organizationId
+              AND connector_id = :connectorId
+              AND operation_id = :operationId
+              AND status = 'EXECUTED'::query_status
+              AND response_snapshot IS NOT NULL
+              AND created_at < :before
+              AND id <> :currentId
+              AND (CAST(:submittedBy AS uuid) IS NULL OR submitted_by = CAST(:submittedBy AS uuid))
+            ORDER BY created_at DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<ApiRequestEntity> findPreviousRunByOperation(@Param("organizationId") UUID organizationId,
+                                                          @Param("connectorId") UUID connectorId,
+                                                          @Param("operationId") String operationId,
+                                                          @Param("before") Instant before,
+                                                          @Param("currentId") UUID currentId,
+                                                          @Param("submittedBy") UUID submittedBy);
+
+    /** As {@link #findPreviousRunByOperation} for a free-form call: no operation id, same verb + path. */
+    @Query(value = """
+            SELECT * FROM api_requests
+            WHERE organization_id = :organizationId
+              AND connector_id = :connectorId
+              AND operation_id IS NULL
+              AND verb = :verb
+              AND request_path = :requestPath
+              AND status = 'EXECUTED'::query_status
+              AND response_snapshot IS NOT NULL
+              AND created_at < :before
+              AND id <> :currentId
+              AND (CAST(:submittedBy AS uuid) IS NULL OR submitted_by = CAST(:submittedBy AS uuid))
+            ORDER BY created_at DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<ApiRequestEntity> findPreviousRunByVerbAndPath(@Param("organizationId") UUID organizationId,
+                                                            @Param("connectorId") UUID connectorId,
+                                                            @Param("verb") String verb,
+                                                            @Param("requestPath") String requestPath,
+                                                            @Param("before") Instant before,
+                                                            @Param("currentId") UUID currentId,
+                                                            @Param("submittedBy") UUID submittedBy);
 }

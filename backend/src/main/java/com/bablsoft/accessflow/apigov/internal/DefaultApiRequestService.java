@@ -178,17 +178,10 @@ public class DefaultApiRequestService implements ApiRequestService {
     public ApiRequestView get(UUID id, UUID organizationId, UUID userId,
                               Set<Permission> callerPermissions) {
         var entity = require(id, organizationId);
-        // Per docs/07-security.md role matrix, REVIEWER and ADMIN both have "View all query history";
-        // the same parity applies to API requests. Everyone else can only read their own rows.
-        if (!canViewAll(callerPermissions) && !entity.getSubmittedBy().equals(userId)) {
+        if (!ApiRequestVisibility.canView(entity, userId, callerPermissions)) {
             throw new ApiRequestNotFoundException(id);
         }
         return toDetailView(entity);
-    }
-
-    private static boolean canViewAll(Set<Permission> callerPermissions) {
-        return callerPermissions != null
-                && callerPermissions.contains(Permission.QUERY_VIEW_ALL);
     }
 
     @Override
@@ -362,8 +355,7 @@ public class DefaultApiRequestService implements ApiRequestService {
     public ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId,
                                                Set<Permission> callerPermissions) {
         var entity = require(id, organizationId);
-        // Same view guard as get(): submitter, REVIEWER, or ADMIN.
-        if (!canViewAll(callerPermissions) && !entity.getSubmittedBy().equals(userId)) {
+        if (!ApiRequestVisibility.canView(entity, userId, callerPermissions)) {
             throw new ApiRequestNotFoundException(id);
         }
         var snapshot = entity.getResponseSnapshot();

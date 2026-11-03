@@ -67,7 +67,7 @@ class ApiExecutionServiceTest {
                 encryptionService, authApplier, oauth2TokenService, executor, responseMasker,
                 maskingResolutionService, stateService,
                 eventPublisher, JsonMapper.builder().build(), variableResolutionService,
-                new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L, 8192));
+                new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L, 8192, 500));
         lenient().when(maskingResolutionService.resolveApplicable(any(), any(), any()))
                 .thenReturn(java.util.List.of());
         // No connector variables configured: the resolver is a no-op and the composed call is
