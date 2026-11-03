@@ -1648,6 +1648,19 @@ posture as the query proxy:
   variables, and the scheduled run executes against the new config. The identical gap already exists
   for `default_headers`, masking policies and auth credentials, so it is documented rather than fixed
   here alone; `API_CONNECTOR_VARIABLE_UPDATED` audit rows make the change traceable.
+- **Replay copies input, never secrets (#886).** `POST /api-requests/{id}/replay` re-submits the
+  stored path, headers, query params, body and overrides as a **new** request; the replay command has
+  no field for connector credentials or resolved variable values, which are decrypted and resolved
+  only when the new request executes. It is **submitter-only** (anyone else, `QUERY_VIEW_ALL`
+  included, gets `404`), because the stored headers and body — a typed API key, say — are shown on no
+  read surface and must not be resent under another name. The new request is permission-checked for
+  the replaying caller exactly as any submission is (admins exempt, as there), re-enters AI → routing → review, and keeps the self-approval ban; overrides the
+  caller may no longer set are dropped. See [docs/17 §8](17-api-governance.md#8-replay--response-diff-epic-885).
+- **The response diff never unmasks (#887).** `GET /api-requests/{id}/diff` applies the detail
+  view's visibility rule to **both** sides (submitter or `QUERY_VIEW_ALL`; otherwise `404`, never
+  `403`, so it cannot probe for another user's runs), compares the already-masked stored snapshots,
+  never re-masks, unmasks or calls the upstream API, and parses XML with the same hardened
+  `SecureXmlParsers` as masking (no DOCTYPE, no external entities).
 
 ---
 

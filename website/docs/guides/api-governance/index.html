@@ -468,6 +468,9 @@
             with the same approve and reject controls as queries, and the same rule that nobody
             decides their own request.
             Approved calls execute and the response — masked — appears on the request page.
+            Once a call has finished, the same page lets you
+            <a href="#guide-api-replay">replay it</a> as a new request that is reviewed again, and
+            <a href="#guide-api-compare">compare its response with the previous run</a>.
             Everyone's own requests are listed under <strong>API Requests</strong>.
           </p>
         </section>
@@ -498,7 +501,9 @@
               side. Only JSON and XML responses can be compared. The card compares the stored, masked
               responses, so a change to a masking rule between runs shows up as a changed value. To
               compare with a different run, paste that request's ID; it must be an earlier run of the
-              same call.</li>
+              same call. Reviewers and admins compare against anyone's earlier run; everyone else
+              compares only against their own, so a colleague's run of the same call is not
+              offered.</li>
             <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>

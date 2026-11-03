@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "a32fe56545e1",
-  "generatedAt": "2026-11-03T09:27:54.702Z",
-  "sourceCommit": "c5a4ac84022e0bec81f42267473473fc3ae02129",
-  "chunkCount": 611,
-  "sha256": "a32fe56545e13478ed79636597bb55ce690639513c5395320b737d2645998ab7",
+  "corpusVersion": "c979874794a7",
+  "generatedAt": "2026-11-03T10:46:28.394Z",
+  "sourceCommit": "d53f9326cbcba748eb412f274555af9c97176dfd",
+  "chunkCount": 612,
+  "sha256": "c979874794a715225414cc0c57db624ca3d97afdb7a3b666f42a2e941ab75ddb",
   "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
   "sources": [
     {
@@ -244,8 +244,8 @@
       "title": "Govern an outbound API call",
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "section": "Guides",
-      "chunks": 8,
-      "sha256": "ad0326dde692096b31a00814662ca6649a4ea12ab66597896432e46d5943ee3a"
+      "chunks": 9,
+      "sha256": "ccaefef1d79063d83fd3e491710986a255852c979d8b246fc63305c200f220e2"
     },
     {
       "path": "website/docs/guides/datasource/index.html",
@@ -365,7 +365,7 @@
       "url": "https://accessflow.io/features/api-access-governance/",
       "section": "Features",
       "chunks": 6,
-      "sha256": "88106454b7edaf7041588bf3e37f2fedee8a75bd13c8f4ca3d353adb756cec57"
+      "sha256": "7400c7b343a71d5c88c99d39ff302388338dbadd88769823373a94e3368ea70b"
     },
     {
       "path": "website/features/database-access-governance/index.html",

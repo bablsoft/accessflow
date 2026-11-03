@@ -4940,7 +4940,13 @@ injection, response cap = min(per-connector `max_response_bytes`, system `max-re
 ceiling), **dynamic-variable resolution + substitution** (AF-613, below), recursive dot-path response
 masking via `ColumnMasker`, immutable masked snapshot stored in full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
 (`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
-(`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. gRPC call
+(`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. **Replay**
+(`DefaultApiRequestReplayService`, #886) re-submits a terminal request through the same `submit` path
+as a new request — submitter-only, re-checked against the current permission, catalog and overridable
+variables, provenance in audit metadata. **Response diff** (`DefaultApiResponseDiffService` over the
+pure `ApiResponseStructuralDiffer`, #887) compares two stored masked snapshots of the same connector +
+operation structurally (JSON / XML), picking the previous run at read time; see
+[docs/17 §8](17-api-governance.md#8-replay--response-diff-epic-885). gRPC call
 **execution** is the one piece not yet wired (REST/SOAP/GraphQL execute over the JDK HTTP client).
 Cross-module references are bare UUIDs (like `access`); `apigov.api` is JDK + project types only.
 Full design: [docs/17-api-governance.md](17-api-governance.md).

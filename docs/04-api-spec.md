@@ -8754,8 +8754,9 @@ never a silent mutation of the query under review.
 
 Governs outbound API targets (REST / SOAP / GraphQL / gRPC) with the same review/approval/audit
 machinery as a database query. This section covers the **connector + schema + permission**
-foundation; the governed-call pipeline (`/api/v1/api-requests/**` submit → AI risk → review →
-execute, text-to-API, break-glass) lands in a follow-up and will be documented here when it does.
+foundation and the governed-call pipeline built on it: `/api/v1/api-requests/**` submit → AI risk →
+routing → review → execute, text-to-API, break-glass, replay of a finished request (#886) and the
+structural diff of two stored responses (#887). Design: [docs/17-api-governance.md](17-api-governance.md).
 
 ### Connectors
 

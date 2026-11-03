@@ -61,7 +61,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-15",
+        "dateModified": "2026-11-03",
         "url": "https://accessflow.io/features/api-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/api-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -269,6 +269,7 @@
           <h2>The same review pipeline as a query</h2>
           <p>A submitted call takes the identical lifecycle to a database query: pending AI, pending review, approved, executed. Permission is checked first — a non-admin needs an active connector grant with the matching read or write capability, and their grant can be scoped to specific operations. If the connector has a schema, a named operation must exist in the catalog; free-form calls are accepted but always routed to review.</p>
           <p>Then the AI analyzer scores the call, routing policies apply auto-approve, auto-reject, escalate or extra-approval rules, and the connector's review plan decides who signs off. As with queries, the submitter can never approve their own call, and decisions are idempotent. Approved calls execute with the connector's auth and headers injected, the response capped at a configured size, and the result stored as a snapshot you can download. Break-glass, scheduled execution, W3C trace-context propagation and natural-language text-to-API are all available on the same request.</p>
+          <p>Once a call has finished, the person who sent it can replay it as a new request that goes through review again, and compare its response with the previous run of the same call to see which fields were added, removed or changed — still masked, and without calling the API again.</p>
           <p>For the team-level version of this — the integration and backend engineers whose problem this actually is — see <a href="/use-cases/#api">the API access use case</a>. The mechanics of routing, delegation and escalation are shared with <a href="/features/database-access-governance/#review">database review workflows</a>.</p>
         </section>
 
