@@ -62,7 +62,7 @@
         "description": "Seven access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, outbound API calls, and production deploys.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-15",
+        "dateModified": "2026-11-04",
         "url": "https://accessflow.io/use-cases/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -423,7 +423,7 @@
           <h2>The same governance for your APIs</h2>
           <div class="uc-row">
             <div class="uc-copy">
-              <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring.</p>
+              <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring. gRPC calls can be registered and reviewed today; running them is still to come.</p>
               <p>An API connector is registered much like a datasource: you point AccessFlow at an OpenAPI document, a WSDL, a GraphQL or protobuf schema — or a Postman collection, for teams with no spec at all — it ingests the operations, and a grant can then be narrowed from the whole connector down to a named subset of them. From there the vocabulary is the one your reviewers already know — the same review plans, the same break-glass permission, the same scheduling, and an audit trail that mirrors the query one action for action — so governing an outbound call costs no new process.</p>
               <ul class="uc-benefits">
                 <li>One connector catalog for third-party and internal APIs, with schema ingestion</li>
@@ -441,7 +441,7 @@
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
                   <div class="uc-mock-line"><span class="k">POST</span><span class="v">mutation refundCharge(…) · payments-gql</span><span class="pill pending">PENDING</span></div>
-                  <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill executed">EXECUTED</span></div>
+                  <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill pending">PENDING</span></div>
                 </div>
                 <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
               </div>
