@@ -89,6 +89,7 @@ jobs:
               - 'engines/**'
               - 'backend/**'
               - 'connectors/**'
+              - '.github/scripts/check-engine-pins.mjs'
               - '.github/workflows/ci.yml'
             e2e:
               - 'e2e/**'

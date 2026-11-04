@@ -138,6 +138,10 @@ Automation discovers plugins by looping `engines/*/` — zero workflow edits per
   `engines/*/`, then runs [`.github/scripts/check-engine-pins.mjs`](../.github/scripts/check-engine-pins.mjs),
   which compares each built `engines/<id>/target/*-all.jar` against
   `connectors/<id>/connector.json` → `driver.sha256` + `driver.fileName` and **fails on drift**.
+  It also fails any jar over **95 MiB**: the release pushes the jars to `gh-pages`, and GitHub
+  rejects any file over 100 MiB, so a dependency bump that crosses the line fails on its own PR
+  instead of at release time. Trim the shade (see `engines/snowflake/README.md`) rather than
+  raising the ceiling.
 - **Release** (`release.yml`): the `prepare` job rebuilds every plugin and re-verifies the pins,
   then hands the jars to the `publish` job as an `engine-jars` artifact (so the published bytes are
   exactly the ones the pin check approved, never a rebuild). `publish` uploads all `*-all.jar`

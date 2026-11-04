@@ -68,11 +68,13 @@ scenario "gitlab-provision-updates-and-retries-a-429-put"
 resp 1 200 '{"content":[{"id":"ds-2","name":"ci-db"}]}'
 resp 2 429 '{"title":"Too Many Requests"}'
 resp 3 200 '{"id":"ds-2","name":"ci-db"}'
-AF_RETRY_TIMEOUT="1s" run "$scripts/gitlab-provision-datasource.sh"
+AF_RETRY_TIMEOUT="3s" run "$scripts/gitlab-provision-datasource.sh"
 assert_eq "exit code" 0 "$run_rc"
 assert_eq "update calls" 2 "$(calls 'PUT .*/datasources/ds-2$')"
-# No header → the 5s fallback, capped at the 1s left before the retry-timeout deadline.
-assert_log_contains "rate limited (HTTP 429), retrying PUT in 1s"
+# No header → the 5s fallback, capped at the time left before the 3s retry-timeout deadline. A 1s
+# timeout raced `date +%s` ticking over during the lookup, which left no time to retry at all.
+assert_log_contains "rate limited (HTTP 429), retrying PUT in"
+assert_log_not_contains "retrying PUT in 5s"
 assert_log_contains "Datasource ci-db provisioned: ds-2"
 
 scenario "gitlab-provision-429-past-retry-timeout-fails"

@@ -1,0 +1,7 @@
+net.snowflake.client.jdbc.internal.grpc.internal.PickFirstLoadBalancerProvider
+net.snowflake.client.jdbc.internal.grpc.grpclb.GrpclbLoadBalancerProvider
+net.snowflake.client.jdbc.internal.grpc.util.SecretRoundRobinLoadBalancerProvider$Provider
+net.snowflake.client.jdbc.internal.grpc.util.OutlierDetectionLoadBalancerProvider
+net.snowflake.client.jdbc.internal.grpc.util.RandomSubsettingLoadBalancerProvider
+net.snowflake.client.jdbc.internal.grpc.protobuf.services.internal.HealthCheckingRoundRobinLoadBalancerProvider
+net.snowflake.client.jdbc.internal.grpc.rls.RlsLoadBalancerProvider

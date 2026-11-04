@@ -4,13 +4,19 @@
 // engines/<id>/target/*-all.jar must match connectors/<id>/connector.json -> driver.{sha256,fileName}.
 // Drift means the engine (or a core.api type it compiles against) changed without bumping the
 // plugin version and re-pinning — see docs/15-engine-sdk.md. Run AFTER building engines/*.
+// Also enforces a size ceiling: the release pushes every jar to gh-pages, and GitHub rejects any
+// file over 100 MiB, so a driver bump that crosses it must fail here, not at release time.
 // Exits non-zero (listing every problem) when anything is off.
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const ENGINES = path.resolve(process.cwd(), 'engines');
 const CONNECTORS = path.resolve(process.cwd(), 'connectors');
+
+// 5 MiB below GitHub's hard 100 MiB per-file limit, so the next bump warns before it breaks.
+const MAX_JAR_BYTES = 95 * 1024 * 1024;
+const mib = (bytes) => (bytes / 1024 / 1024).toFixed(2);
 
 const problems = [];
 const fail = (id, msg) => problems.push(`[${id}] ${msg}`);
@@ -48,6 +54,10 @@ for (const id of engineDirs) {
     continue;
   }
   const jarName = jars[0];
+  const size = statSync(path.join(targetDir, jarName)).size;
+  if (size > MAX_JAR_BYTES) {
+    fail(id, `${jarName} is ${mib(size)} MiB, over the ${mib(MAX_JAR_BYTES)} MiB ceiling — the release cannot push it to gh-pages (GitHub rejects files over 100 MiB); trim the shaded jar`);
+  }
   const built = createHash('sha256')
     .update(readFileSync(path.join(targetDir, jarName)))
     .digest('hex');
@@ -72,7 +82,7 @@ for (const id of engineDirs) {
     fail(id, `fileName pin drift — built ${jarName}, pinned ${driver.fileName ?? '(none)'}`);
   }
   if (problems.length === 0 || !problems.some((p) => p.startsWith(`[${id}]`))) {
-    console.log(`${id}: ${jarName} = ${built}`);
+    console.log(`${id}: ${jarName} = ${built} (${mib(size)} MiB)`);
   }
 }
 
