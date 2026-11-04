@@ -8,7 +8,7 @@
   </url>
   <url>
     <loc>https://accessflow.io/features/</loc>
-    <lastmod>2026-10-23</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -20,7 +20,7 @@
   </url>
   <url>
     <loc>https://accessflow.io/features/api-access-governance/</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -158,7 +158,7 @@
   </url>
   <url>
     <loc>https://accessflow.io/use-cases/</loc>
-    <lastmod>2026-09-15</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -182,25 +182,25 @@
   </url>
   <url>
     <loc>https://accessflow.io/compare/accessflow-vs-bytebase/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://accessflow.io/compare/accessflow-vs-hoop-dev/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://accessflow.io/compare/open-source-strongdm-alternative/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://accessflow.io/compare/open-source-teleport-database-access-alternative/</loc>
-    <lastmod>2026-09-28</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -260,7 +260,7 @@
   </url>
   <url>
     <loc>https://accessflow.io/docs/guides/api-governance/</loc>
-    <lastmod>2026-11-03</lastmod>
+    <lastmod>2026-11-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

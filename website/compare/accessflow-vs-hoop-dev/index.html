@@ -62,7 +62,7 @@
         "description": "AccessFlow and hoop.dev compared from hoop.dev's own docs: a proxy you submit statements to versus a gateway your clients connect through, and where hoop.dev wins.",
         "inLanguage": "en",
         "datePublished": "2026-09-16",
-        "dateModified": "2026-09-28",
+        "dateModified": "2026-11-04",
         "url": "https://accessflow.io/compare/accessflow-vs-hoop-dev/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": {
@@ -323,7 +323,7 @@
                 <tr><td>Terraform provider</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>MCP server for AI agents</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes, for every engine, through the same review pipeline</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: an MCP gateway with policies, and a built-in MCP server</td></tr>
                 <tr><td>Governed API calls and CI/CD deployment gates</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Yes: outbound REST, SOAP and GraphQL calls (gRPC targets can be registered and reviewed but not yet executed), and a fail-closed deployment gate for pipelines</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>HTTP traffic can pass through the gateway or sidecar under guardrails and masking; per-call approval and deployment gates: Not documented</td></tr>
-                <tr><td>Schema migrations and GitOps</td><td><span class="cmp-mark cmp-no" role="img" aria-label="Not available">✕</span>No</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Schema migrations and GitOps</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Partly: reviewed schema change sets promoted environment by environment, with a drift scan; no migrations as code, pull-request flow or rollback</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
                 <tr><td>SSH, Kubernetes or desktop access</td><td><span class="cmp-mark cmp-no" role="img" aria-label="Not available">✕</span>No</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: SSH, Kubernetes, remote desktop, AWS CLI and more through the gateway</td></tr>
               </tbody>
             </table>
@@ -375,7 +375,7 @@
 
         <section class="docs-section scroll-pad" id="sources">
           <h2>Sources</h2>
-          <p>Checked on <time datetime="2026-09-28">28 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <p>Updated on <time datetime="2026-11-04">4 November 2026</time>; hoop.dev's documentation was last checked on 28 September 2026. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
           <ul class="docs-link-list">
             <li><a href="https://github.com/hoophq/hoop" rel="nofollow noopener">hoop.dev repository</a> — the MIT licence, the sidecar and gateway positioning, and the supported protocol table</li>
             <li><a href="https://hoop.dev/pricing" rel="nofollow noopener">hoop.dev pricing</a> — the open-source tier, its per-process rule caps and the Enterprise licence</li>
