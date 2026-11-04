@@ -62,7 +62,7 @@
         "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
         "inLanguage": "en",
         "datePublished": "2026-09-03",
-        "dateModified": "2026-10-01",
+        "dateModified": "2026-11-04",
         "url": "https://accessflow.io/changelog/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -197,6 +197,7 @@
           <summary>On this page</summary>
           <nav class="docs-toc">
             <p class="docs-toc-label">Releases</p>
+            <a href="#v2-8-0">v2.8.0</a>
             <a href="#v2-7-0">v2.7.0</a>
             <a href="#v2-6-0">v2.6.0</a>
             <a href="#v2-5-0">v2.5.0</a>
@@ -247,6 +248,20 @@
             <a href="/roadmap/" class="btn btn-ghost">What's planned next</a>
           </div>
         </header>
+
+        <section class="docs-section scroll-pad" id="v2-8-0">
+          <h2>v2.8.0 — Deployments accountable end to end: change tickets, DORA/SLA metrics, API replay &amp; diff, custom SQL review rules</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-11-04">4 November 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.8.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Change tickets for deployments.</strong> An environment can now require an approved change ticket before anything is released to it. A ServiceNow or Jira channel opens one ticket per deployment when it reaches review or is approved automatically, and the ticket system's signed status updates are recorded against it — with two-way sync switched on, approving or rejecting the ticket approves or rejects the deployment too, credited to the ticketing system in the audit log. The deployment gate stays closed on that environment until a linked ticket is approved and none is rejected; break-glass can bypass it, and that is recorded. The deployment page shows the ticket and its status, and the deployment list gains a ticket column. AccessFlow never writes back to the ticket, and because a ticket's approver cannot be matched to an AccessFlow user, leaving two-way sync off is how you stop someone approving their own change.</li>
+            <li><strong>DORA metrics and approval deadlines for deployments.</strong> Deployment frequency, lead time (measured from the commit when the pipeline sends its time, otherwise from submission), change failure rate, time to restore, approval wait time, timeout rate and break-glass count — per pipeline and per environment, over any period up to a year. They are worked out on demand from the deployment history, shown on a new deployment metrics page and on each pipeline's Metrics tab, and exportable as a signed compliance report from the auditor page. Deployment reviews that sit idle are now escalated to admins, and reviewers who have not decided get reminders, on the same schedule as query reviews — so the PagerDuty alert for a stalled review now covers deployments too.</li>
+            <li><strong>Replay an API call and compare its response.</strong> A finished API call can be sent again as a brand-new request that goes through analysis, routing and review again, checked against today's permissions and operations — overrides the requester may no longer set are dropped, and credentials are never copied. Its response can also be compared with the previous run of the same call, showing which fields were added, removed or changed, along with status, timing and size differences. The comparison uses the stored, masked responses, never calls the API again and never reveals a masked value.</li>
+            <li><strong>SQL review rules your team writes itself.</strong> Admins can add rules of their own next to the eighteen built-in ones, without code: a rule is a set of conditions on the parsed query — what kind of statement it is, which tables, columns and functions it touches, whether it lacks a filter, a row limit or an ordering, and more — or a pattern matched against its text, with a message that names what it found. Each rule is tried against sample SQL before it is switched on, then set per environment exactly like a built-in, so a blocking finding sends the query to a reviewer and never rejects it. Up to 50 per organisation, every change audited, and manageable from Terraform.</li>
+          </ul>
+        </section>
 
         <section class="docs-section scroll-pad" id="v2-7-0">
           <h2>v2.7.0 — Identities for machines, finer data-access controls, and governed schema changes</h2>
@@ -578,7 +593,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
           </a>
         </span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.7 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.8 generally available</span>
       </div>
     </div>
   </footer>

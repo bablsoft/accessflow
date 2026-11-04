@@ -268,9 +268,9 @@
 
 ---
 
-## v2.8 🚧 in progress
+## v2.8 ✅ released
 
-**Theme:** Deployments accountable end to end — change tickets, DORA/SLA metrics, API replay & diff, verified no-AI operation, custom SQL review rules.
+**Theme:** Deployments accountable end to end — change tickets, DORA/SLA metrics, API replay & diff, custom SQL review rules.
 
 - **Deployment change tickets** — an environment can require an approved change ticket before anything is released to it. A ServiceNow or Jira channel carrying the new *Deployment submitted* trigger opens one ticket per deployment when it reaches review, or when it is auto-approved; the ticket's signed status callback records the verdict on the link and — when the channel has bi-directional sync on — approves or rejects the deployment itself, attributed to the ticketing system in the audit log. The fail-closed deployment gate gains a fourth condition: on a flagged environment it answers releasable only once a linked ticket is approved and none is rejected, with break-glass bypassing it under an audit record. The deployment page shows a Change ticket card and the list a Ticket column. AccessFlow never writes back to the ticket, and because a ticket's approver cannot be matched to a user, keeping sync off is how to stop a submitter approving their own change (epic #989 — #990–#995) — see [docs/18-deployment-governance.md](18-deployment-governance.md#7-change-tickets-epic-989)
 

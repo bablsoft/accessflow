@@ -62,7 +62,7 @@
         "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-11-03",
+        "dateModified": "2026-11-04",
         "url": "https://accessflow.io/roadmap/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -241,7 +241,7 @@
         <section class="docs-section scroll-pad" id="available">
           <h2>Available now</h2>
           <p>
-            Everything in this grid is generally available today in v2.7 — self-hosted with Docker
+            Everything in this grid is generally available today in v2.8 — self-hosted with Docker
             Compose or Helm, and governed by the same review pipeline and tamper-evident audit log
             throughout. The map itself is driven by community input and adapter contributions.
           </p>
@@ -300,6 +300,7 @@
               <li>Table, column and query-shape deny-lists · configurable masking strategies</li>
               <li>External policy decision hook — your own policy service can escalate or reject, never approve</li>
               <li>Effective-permission explorer — everything one person can do on a datasource, and where it comes from</li>
+              <li>Custom SQL review rules — written by your own admins without code, tested on sample SQL first</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -308,6 +309,7 @@
               <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
               <li>Operation catalog · response masking · text-to-API</li>
               <li>Decision trace for a hypothetical API call — never contacts the governed API</li>
+              <li>Replay a finished call as a new reviewed request · compare its response with the previous run</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -323,6 +325,8 @@
               <li>Dashboard widgets for pending reviews, recent deployments and environment drift</li>
               <li>Schema change sets — written once, promoted environment by environment, locked on first promotion</li>
               <li>Opt-in schema drift scan — tables, columns and foreign keys compared, never written</li>
+              <li>Change tickets — an environment can wait for an approved ServiceNow or Jira ticket</li>
+              <li>DORA metrics — deployment frequency, lead time, failure rate, time to restore — and review deadlines</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -384,31 +388,20 @@
             does, version by version since v1.0.
           </p>
           <p>
-            The two most recent shipped themes: <strong>v2.6</strong> answers from what AccessFlow
-            already knows: the query editor offers draft queries mined from the organisation's own
-            approved history, a catalog of named SQL review rules checks every query as it is typed,
-            an effective-access explainer traces why a request would be approved, routed or held, a
-            policy simulator replays a draft rule against past traffic before it is saved, and an
-            in-app help assistant answers questions from the documentation shipped with the running
-            version. <strong>v2.7</strong> gives CI pipelines and AI agents service accounts of their
-            own — API-key only, limited to chosen tools, rate-limited, and recording the person they
-            act for; lets an access grant deny tables, columns and query shapes as precisely as it
-            allows them, with per-table row limits, warehouse scan caps and per-person data budgets;
-            hands undecided queries to the organisation's own policy service, which can escalate or
-            reject but never approve; and governs database schema changes written once and promoted
-            environment by environment, reaching production only after they applied cleanly in every
-            environment below it, with an opt-in scan that reports schema drift.
-          </p>
-          <p>
-            <strong>v2.8 is in development</strong> and is not in the grid above yet. Among the
-            things it adds: SQL review rules your own team writes without code — built from
-            conditions such as the kind of statement, the tables a query touches and the clauses it
-            lacks, tested against sample SQL first, and checked as each query is typed just like the
-            built-in ones. And change tickets for deployments: an environment can require an
-            approved ServiceNow or Jira ticket, opened automatically for each deployment, before
-            anything is released to it. For API calls, a finished call can be replayed as a new
-            request that is reviewed again, and its response compared with the previous run of the
-            same call.
+            The two most recent shipped themes: <strong>v2.7</strong> gives CI pipelines and AI agents
+            service accounts of their own — API-key only, limited to chosen tools, rate-limited, and
+            recording the person they act for; lets an access grant deny tables, columns and query
+            shapes as precisely as it allows them, with per-table row limits, warehouse scan caps and
+            per-person data budgets; hands undecided queries to the organisation's own policy service,
+            which can escalate or reject but never approve; and governs database schema changes written
+            once and promoted environment by environment, with an opt-in scan that reports schema
+            drift. <strong>v2.8</strong> makes deployments accountable end to end: an environment can
+            wait for an approved ServiceNow or Jira change ticket, opened automatically for each
+            deployment, before anything is released to it; deployment frequency, lead time, failure
+            rate and time to restore are measured per pipeline and exportable as signed evidence, while
+            idle deployment reviews are escalated. It also lets a finished API call be replayed as a
+            new reviewed request and its response compared with the previous run, and lets admins write
+            SQL review rules of their own without code.
           </p>
           <p>
             What shipped when, release by release, is in
@@ -523,7 +516,7 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
           </a>
         </span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.7 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.8 generally available</span>
       </div>
     </div>
   </footer>
