@@ -5,10 +5,12 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.jar.JarFile;
@@ -31,6 +33,10 @@ class ShadedJarServiceLoaderIT {
 
     private static final String SERVICE_FILE =
             "META-INF/services/com.bablsoft.accessflow.core.api.QueryEngine";
+    /** Packages the shade filters drop from the driver to stay under GitHub's 100 MiB limit. */
+    private static final List<String> DROPPED_PACKAGES = List.of(
+            "net/snowflake/client/jdbc/internal/grpc/xds/",
+            "net/snowflake/client/jdbc/internal/grpc/googleapis/");
 
     @Test
     void shadedJarContainsRegistrationBundledDriverAndNoHostClasses() throws Exception {
@@ -51,6 +57,49 @@ class ShadedJarServiceLoaderIT {
             assertThat(entries).noneMatch(e -> e.startsWith("io/netty/"));
             assertThat(entries).noneMatch(e -> e.startsWith("org/springframework/"));
             assertThat(entries).noneMatch(e -> e.startsWith("com/bablsoft/accessflow/core/"));
+        }
+    }
+
+    @Test
+    void trimmedDriverLeavesNoReferenceToADroppedPackage() throws Exception {
+        try (var jar = new JarFile(shadedJar().toFile())) {
+            var entries = new LinkedHashSet<String>();
+            jar.stream().forEach(e -> entries.add(e.getName()));
+            for (var dropped : DROPPED_PACKAGES) {
+                assertThat(entries).noneMatch(e -> e.startsWith(dropped));
+            }
+            assertThat(entries).noneMatch(e -> e.contains("windows") || e.contains("_aix_"));
+
+            // A kept class naming a dropped one fails with NoClassDefFoundError the first time that
+            // path runs; a provider line naming one makes ServiceLoader throw at the first gRPC
+            // lookup. Both are caught here when a driver bump adds such a reference.
+            for (var entry : entries) {
+                if (!entry.endsWith(".class")) {
+                    continue;
+                }
+                String bytecode;
+                try (var in = jar.getInputStream(jar.getEntry(entry))) {
+                    bytecode = new String(in.readAllBytes(), StandardCharsets.ISO_8859_1);
+                }
+                for (var dropped : DROPPED_PACKAGES) {
+                    assertThat(bytecode).as("%s references %s", entry, dropped).doesNotContain(dropped);
+                }
+            }
+            var services = entries.stream()
+                    .filter(e -> e.startsWith("META-INF/services/net.snowflake.client.jdbc.internal."))
+                    .filter(e -> !e.endsWith("/"))
+                    .toList();
+            assertThat(services).isNotEmpty();
+            for (var service : services) {
+                try (var in = jar.getInputStream(jar.getEntry(service))) {
+                    new String(in.readAllBytes(), StandardCharsets.UTF_8).lines()
+                            .map(String::strip)
+                            .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                            .forEach(provider -> assertThat(entries)
+                                    .as("%s lists %s", service, provider)
+                                    .contains(provider.replace('.', '/') + ".class"));
+                }
+            }
         }
     }
 

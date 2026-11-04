@@ -686,7 +686,7 @@ so branch protection requires exactly **one** check.
 
 - Area jobs: `backend`, `frontend` (includes the `website/` guards), `helm`, `e2e` (3-variant
   matrix), `connectors`, `help-corpus` (regenerates the bundle, fails on drift), `engines`
-  (10-engine matrix, fails on SHA pin drift), `terraform`, `actions`. Each runs only when its
+  (10-engine matrix, fails on SHA pin drift or a jar over 95 MiB), `terraform`, `actions`. Each runs only when its
   paths changed.
 - **`CI / CI Gate` is the only check to mark required.** It `needs` every area job with
   `if: always()` and passes when each is `success` or `skipped`. Never require an individual

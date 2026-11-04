@@ -1,0 +1,3 @@
+net.snowflake.client.jdbc.internal.grpc.internal.DnsNameResolverProvider
+net.snowflake.client.jdbc.internal.grpc.grpclb.SecretGrpclbNameResolverProvider$Provider
+net.snowflake.client.jdbc.internal.grpc.netty.shaded.io.grpc.netty.UdsNameResolverProvider

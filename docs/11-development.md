@@ -351,7 +351,7 @@ GitHub branch protection doesn't support "conditional required status checks" â€
 | `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails when `help-corpus/` no longer matches the documentation it is generated from. Its paths filter also watches `frontend/src/App.tsx`, `frontend/src/locales/en.json`, `frontend/src/components/common/Sidebar.tsx` and `frontend/src/utils/reviewHubTabs.ts`, because the bundle's menu labels and control names are derived from them (#925) â€” renaming a menu entry fails this job until the bundle is regenerated. |
 | `e2e` | `needs.changes.outputs.e2e == 'true'` | Playwright, across the three compose stacks (main, setup, SSO). |
 | `connectors` | `needs.changes.outputs.connectors == 'true'` | `node .github/scripts/validate-connectors.mjs` over the connector catalog. |
-| `engines` | `needs.changes.outputs.engines == 'true'` | Ten-engine matrix: builds each plugin and fails on connector SHA-256 pin drift. |
+| `engines` | `needs.changes.outputs.engines == 'true'` | Ten-engine matrix: builds each plugin and fails on connector SHA-256 pin drift or a shaded jar over 95 MiB (GitHub's 100 MiB per-file limit for the `gh-pages` push). |
 | `terraform` | `needs.changes.outputs.terraform == 'true'` | Go build/vet/test plus the provider acceptance stack. |
 | `actions` | `needs.changes.outputs.actions == 'true'` | `actionlint` over every workflow, plus the composite-action and CI-template smoke tests. |
 | `gate` | `if: always()` after every area job | Walks `needs.<area>.result` and exits non-zero unless every area job is `success` or `skipped`. |

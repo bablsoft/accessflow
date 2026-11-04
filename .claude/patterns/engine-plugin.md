@@ -91,7 +91,8 @@ public final class RedisQueryEngine implements QueryEngine {
       `shasum -a 256 engines/<id>/target/*-all.jar` → update `url`, `fileName` and `sha256` in
       `connectors/<id>/connector.json`.
 - [ ] `node .github/scripts/check-engine-pins.mjs <id>` and
-      `node .github/scripts/validate-connectors.mjs` both clean.
+      `node .github/scripts/validate-connectors.mjs` both clean (the pin check also fails a jar over
+      95 MiB — the release pushes jars to `gh-pages`, where GitHub rejects files over 100 MiB).
 - [ ] Engine id added to the `engines` matrix in `.github/workflows/ci.yml:424`.
 
 Build order — the plugin compiles against the *installed* plain jar, so this comes first:

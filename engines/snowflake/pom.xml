@@ -12,7 +12,7 @@
       (connectors/snowflake/connector.json) pins this version + the SHA-256 of the shaded JAR; bump
       them together whenever the engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.4</version>
+    <version>1.0.5</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow Snowflake Query Engine</name>
@@ -168,6 +168,26 @@
                                         <exclude>META-INF/MANIFEST.MF</exclude>
                                         <exclude>META-INF/LICENSE*</exclude>
                                         <exclude>META-INF/NOTICE*</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- Keep the JAR under GitHub's 100 MiB per-file push limit (the
+                                     release publishes it to gh-pages): drop the driver's gRPC xDS
+                                     stack and the google-c2p resolver built on it — only Google
+                                     Cloud Storage's opt-in gRPC/DirectPath transport loads them —
+                                     and the Windows/AIX natives. The two gRPC provider files are
+                                     replaced by trimmed copies under src/main/resources so
+                                     ServiceLoader never names a dropped class. -->
+                                <filter>
+                                    <artifact>net.snowflake:snowflake-jdbc</artifact>
+                                    <excludes>
+                                        <exclude>net/snowflake/client/jdbc/internal/grpc/xds/**</exclude>
+                                        <exclude>net/snowflake/client/jdbc/internal/grpc/googleapis/**</exclude>
+                                        <exclude>META-INF/services/net.snowflake.client.jdbc.internal.grpc.xds.*</exclude>
+                                        <exclude>META-INF/services/net.snowflake.client.jdbc.internal.grpc.LoadBalancerProvider</exclude>
+                                        <exclude>META-INF/services/net.snowflake.client.jdbc.internal.grpc.NameResolverProvider</exclude>
+                                        <exclude>META-INF/native/*windows*</exclude>
+                                        <exclude>minicore/*windows*</exclude>
+                                        <exclude>minicore/*aix*</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

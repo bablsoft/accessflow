@@ -67,6 +67,18 @@ Snowflake driver is itself a self-contained fat jar that already relocates its t
 dependencies under `net/snowflake/client/jdbc/internal/*`, so nothing can collide across the
 classloader boundary. The whitelist also keeps the host's provided Spring tree out of the JAR.
 
+The driver is **trimmed** to keep the JAR under GitHub's 100 MiB per-file limit (the release
+publishes it to the `gh-pages` branch): the shade drops the driver's gRPC xDS stack and the
+`google-c2p` resolver (`grpc/googleapis`) built on it — only Google Cloud Storage's opt-in
+gRPC/DirectPath transport uses them; the driver's GCS stage client uses the HTTP transport — and
+the Windows/AIX Netty, Conscrypt and `minicore` natives (`minicore` is optional telemetry, so it is
+simply absent there; the `zstd-jni` natives stay). The driver's two gRPC provider files are
+replaced by trimmed copies in `src/main/resources/META-INF/services/` (the upstream lists minus the
+`grpc.xds.*` and `grpc.googleapis.*` entries). The shaded-jar IT fails if a class's bytecode names
+a dropped package by its internal (slash) name, or a listed provider is missing; the two kept
+classes that name xDS reflectively (`AltsProtocolNegotiator`, `AdminInterface`) already tolerate
+its absence. `check-engine-pins.mjs` fails any engine JAR over 95 MiB.
+
 **No live-database IT.** There is no free Snowflake emulator (LocalStack's Snowflake emulation is
 a Pro feature), so the test suite is: exhaustive unit tests for the tokenizer / classifier /
 row-security applier / result mapper / settings / key parser / exception translator, executor and
