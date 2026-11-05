@@ -61,7 +61,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-11-03",
+        "dateModified": "2026-11-04",
         "url": "https://accessflow.io/features/api-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/api-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -245,7 +245,7 @@
 
         <section class="docs-section scroll-pad" id="connectors">
           <h2>Register the API, not the credential</h2>
-          <p>An admin registers a connector: a name, a protocol — REST, SOAP, GraphQL or gRPC — a base URL, any default headers, a per-call timeout, and an auth method. Auth can be an API key, a bearer token, basic credentials, OAuth2, a custom header, or mTLS. Whatever the secret is, it is AES-256-GCM encrypted before storage and never returned by any endpoint; read views expose only which method is configured and whether a credential exists. From that point on nobody on the team needs the token, because nobody is the one making the call.</p>
+          <p>An admin registers a connector: a name, a protocol — REST, SOAP, GraphQL or gRPC — a base URL, any default headers, a per-call timeout, and an auth method. Auth can be an API key, a bearer token, basic credentials, OAuth2, a custom header, or mTLS. Whatever the secret is, it is AES-256-GCM encrypted before storage and never returned by any endpoint; read views expose only which method is configured and whether a credential exists. From that point on nobody on the team needs the token, because nobody is the one making the call. One limit today: a gRPC connector can be registered, its schema loaded and its calls reviewed, but AccessFlow does not run gRPC calls yet. REST, SOAP and GraphQL calls run in full.</p>
           <p>OAuth2 connectors go a step further and mint the token themselves rather than relying on one pasted in by hand. AccessFlow supports the client-credentials, refresh-token and resource-owner-password grants, caches the token until just before it expires, and refreshes it on expiry or on a single upstream 401. A test-connection probe checks reachability at setup time — and for OAuth2 connectors performs a live token fetch, so a wrong token endpoint surfaces during configuration rather than during an incident.</p>
           <figure class="docs-figure">
             <picture>

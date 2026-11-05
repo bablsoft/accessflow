@@ -1648,9 +1648,6 @@ footer {
   .hero-meta { gap: 16px; }
   .review-row { grid-template-columns: 1fr auto; gap: 8px; }
   .review-row .id, .review-row .who { display: none; }
-  /* long identifiers wrap instead of pushing the page wide */
-  .docs-section li > code,
-  .docs-section p > code { white-space: normal; overflow-wrap: anywhere; }
   /* roomier tap targets on touch screens */
   .docs-toc a { padding: 10px 12px; }
   .copy-btn { padding: 8px 12px; font-size: 12px; }
@@ -2008,6 +2005,13 @@ img, table, pre { max-width: 100%; }
   border-radius: 3px;
   border: 1px solid var(--line);
   white-space: nowrap;
+}
+
+/* long identifiers wrap instead of pushing the page wide; must follow the nowrap base rule */
+@media (max-width: 720px) {
+  .docs-section li > code,
+  .docs-section p > code { white-space: normal; }
+  .docs-content :not(pre) > code { overflow-wrap: anywhere; }
 }
 
 .docs-section strong {
