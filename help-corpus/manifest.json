@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "231e806b9952",
-  "generatedAt": "2026-11-04T09:38:29.051Z",
-  "sourceCommit": "97e78e1a15a374210e422a6cac701d3603f49b75",
+  "corpusVersion": "0108cf42c408",
+  "generatedAt": "2026-11-04T12:20:07.821Z",
+  "sourceCommit": "7da9329e9de81632b80bfb643feff2642996eca4",
   "chunkCount": 613,
-  "sha256": "231e806b995272f9ede976681661522df29b7569d05ea0c3ec38f616c43b46f4",
+  "sha256": "0108cf42c408c83b0fdd84fec7b625c376c52eff54ce26eee0d59e88863efc00",
   "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
   "sources": [
     {
@@ -245,7 +245,7 @@
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "cb5c882280c012a72e9ae42069fca37265b4891be57dff1d3f4786a929326acc"
+      "sha256": "094552f92cbaaf746213e83c77f67a67101cd2d16f1853eaf8479159c3f6b4e6"
     },
     {
       "path": "website/docs/guides/datasource/index.html",
@@ -325,7 +325,7 @@
       "url": "https://accessflow.io/docs/iac/",
       "section": "Reference",
       "chunks": 9,
-      "sha256": "103ac8366c7b02984e4b433b68218858527d06a23090198e3886ef6828ea03bf"
+      "sha256": "cc6903e7432337e42e5b705cde5f4e595168744962bea69ba4f9ec0012cc9dcd"
     },
     {
       "path": "website/docs/index.html",
@@ -365,7 +365,7 @@
       "url": "https://accessflow.io/features/api-access-governance/",
       "section": "Features",
       "chunks": 6,
-      "sha256": "ff94f1add909beee99f56f5ccda6da88de84acc49169c3e121f28466a4c15eba"
+      "sha256": "0792cf036c57ac5e49659a7a171faa877a36d694d45a3a57e5a2e5912ab983d2"
     },
     {
       "path": "website/features/database-access-governance/index.html",
@@ -389,7 +389,7 @@
       "url": "https://accessflow.io/features/",
       "section": "Features",
       "chunks": 17,
-      "sha256": "451047afde6e315fe073236a8545b37e26690cc6f5b04f1401d6b700ccd7bfb8"
+      "sha256": "0516561a759f69ca839c73b1fc7f5d79bbc986293289e59e598b959e585c9d79"
     },
     {
       "path": "website/index.html",
@@ -397,7 +397,7 @@
       "url": "https://accessflow.io/",
       "section": "Overview",
       "chunks": 19,
-      "sha256": "4f37dbf5af8025aa5eae2334ef7aabba15cd012380b07b5b3347259139ffe7b6"
+      "sha256": "cfb2404b43504c324d4ee25479eefb919e9cb1cee96eed9e17880d80efdbf64f"
     },
     {
       "path": "website/security/index.html",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/use-cases/",
       "section": "Use cases",
       "chunks": 8,
-      "sha256": "d2d18fd64cf19c44aba5aac258a2a6ce623115e65a9362270fb7d392fc642d87"
+      "sha256": "ceab3e054a0389bdebd99ffafd64e1e0a543aa05fe4f329e506f1188041274bc"
     },
     {
       "path": "docs/09-deployment.md",
