@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorView;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
@@ -40,6 +41,9 @@ public record ApiConnectorResponse(
         long maxResponseBytes,
         boolean active,
         boolean schemaPresent,
+        Integer healthCheckIntervalMinutes,
+        ApiConnectorHealthStatus lastProbeStatus,
+        Instant lastProbeAt,
         Instant createdAt) {
 
     static ApiConnectorResponse from(ApiConnectorView v) {
@@ -50,6 +54,7 @@ public record ApiConnectorResponse(
                 v.oauth2ClientSecretConfigured(), v.oauth2RefreshTokenConfigured(),
                 v.oauth2PasswordConfigured(), v.reviewPlanId(),
                 v.aiAnalysisEnabled(), v.aiConfigId(), v.textToApiEnabled(), v.requireReviewReads(),
-                v.requireReviewWrites(), v.maxResponseBytes(), v.active(), v.schemaPresent(), v.createdAt());
+                v.requireReviewWrites(), v.maxResponseBytes(), v.active(), v.schemaPresent(),
+                v.healthCheckIntervalMinutes(), v.lastProbeStatus(), v.lastProbeAt(), v.createdAt());
     }
 }

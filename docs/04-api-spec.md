@@ -8798,13 +8798,18 @@ stored value unchanged. The read view returns the non-secret config plus the boo
 `oauth2ClientSecretConfigured`, `oauth2RefreshTokenConfigured`, `oauth2PasswordConfigured` — the
 secrets themselves are never returned.
 
+**Connector health (read-only, #891).** The connector read view also returns
+`healthCheckIntervalMinutes` (`null` = not monitored), `lastProbeStatus`
+(`UNKNOWN`/`HEALTHY`/`UNHEALTHY`, `UNKNOWN` until a probe has run) and `lastProbeAt`. No request
+accepts them yet — the scheduled probe and its write side follow in #893/#894.
+
 ### Schemas & operations
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`/`POSTMAN_COLLECTION`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. Optional `filter` object (AF-614) narrows the governed catalog at import — see **Operation import filter** below. See **Postman collection import** below for the `POSTMAN_COLLECTION` specifics (#612). |
 | `POST` | `/api-connectors/{id}/schemas/preview` | **Admin** (AF-614). Dry-runs the same body's `filter` against the parsed document **without persisting**. Returns `{ totalCount, keptCount, excluded[] }` so the admin sees what a pattern drops before committing. |
-| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). Each row carries `operationCount` (post-filter), `totalOperationCount` (pre-filter), `operationFilter` (null when unset), and `detectedAuthMethod` (the auth type the document itself declared — Postman collections carry one; `null` for every other schema type). |
+| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). Each row carries `operationCount` (post-filter), `totalOperationCount` (pre-filter), `operationFilter` (null when unset), `detectedAuthMethod` (the auth type the document itself declared — Postman collections carry one; `null` for every other schema type), and the read-only refresh fields (#891) `refreshIntervalMinutes` (`null` = never refreshed), `currentRevisionId`, `lastRefreshAt`, `lastRefreshError` — no request accepts them yet. |
 | `PUT` | `/api-connectors/{id}/schemas/{schemaId}/filter` | **Admin** (AF-614). Replaces a schema's operation filter **without re-uploading the document** and recomputes `operationCount` from the stored full catalog. Body is the filter object. |
 | `DELETE` | `/api-connectors/{id}/schemas/{schemaId}` | **Admin.** Delete a schema (`204`). |
 | `GET` | `/api-connectors/{id}/operations` | The **governed** operation catalog from the connector's latest schema (post-filter) — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification), plus `tags` / `deprecated` (OpenAPI-only, null elsewhere). Filtered-out operations are unreachable here, and therefore also from `/api-editor`, text-to-API, and the `allowedOperations` grant picker. |

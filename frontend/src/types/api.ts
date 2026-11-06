@@ -3788,6 +3788,8 @@ export interface ApiFormField {
   content_type?: string | null;
 }
 
+export type ApiConnectorHealthStatus = 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY';
+
 export interface ApiConnector {
   id: string;
   name: string;
@@ -3818,6 +3820,10 @@ export interface ApiConnector {
   max_response_bytes: number;
   active: boolean;
   schema_present: boolean;
+  /** Scheduled-health opt-in; absent/null = not monitored. */
+  health_check_interval_minutes?: number | null;
+  last_probe_status?: ApiConnectorHealthStatus;
+  last_probe_at?: string | null;
   created_at: string;
 }
 
@@ -3955,6 +3961,11 @@ export interface ApiSchema {
   operation_filter: ApiOperationFilter | null;
   /** Auth type the uploaded document declared (Postman collections carry one); never a credential. */
   detected_auth_method: ApiAuthMethod | null;
+  /** Scheduled-refresh opt-in; absent/null = never refreshed. */
+  refresh_interval_minutes?: number | null;
+  current_revision_id?: string | null;
+  last_refresh_at?: string | null;
+  last_refresh_error?: string | null;
   created_at: string;
 }
 

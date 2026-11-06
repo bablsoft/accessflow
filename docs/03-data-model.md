@@ -2685,7 +2685,8 @@ Governed outbound API targets, per organization. Enums (`snake_case`, no `_enum`
 (`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
 plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 (`CLIENT_CREDENTIALS`/`REFRESH_TOKEN`/`PASSWORD`) and `oauth2_client_auth`
-(`CLIENT_SECRET_BASIC`/`CLIENT_SECRET_POST`).
+(`CLIENT_SECRET_BASIC`/`CLIENT_SECRET_POST`), and `api_connector_health_status`
+(`UNKNOWN`/`HEALTHY`/`UNHEALTHY`, V205, #891).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -2709,6 +2710,10 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `require_review_reads` / `require_review_writes` | BOOLEAN | Map safe vs mutating methods to review. |
 | `max_response_bytes` | BIGINT | Per-connector response-size cap. Default 10 MiB (AF-521; raised from 1 MiB). Effective cap = min of this and the system-wide `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` ceiling. |
 | `is_active` | BOOLEAN | Default true. |
+| `health_check_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled connector-health opt-in: `NULL` = not monitored (the default for every existing row). Nothing reads or writes it yet — the probe job and its write side follow in #893/#894. |
+| `last_probe_status` | `api_connector_health_status` | `UNKNOWN` / `HEALTHY` / `UNHEALTHY` (V205, #891). Default `UNKNOWN`; existing rows read back `UNKNOWN`. |
+| `last_probe_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled probe finished. |
+| `consecutive_probe_failures` | INTEGER | Default `0` (V205, #891). Planned: run length of failed probes, reset on success (no writer yet). |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_schemas (AF-500)
@@ -2727,7 +2732,73 @@ added by V122, #612).
 | `operation_filter` | JSONB | Nullable (AF-614). Import-time operation filter — `includePaths`/`excludePaths`, `includeVerbs`/`excludeVerbs`, `includeOperationIds`/`excludeOperationIds`, `includeTags`/`excludeTags` (all string arrays), `excludeDeprecated` (bool). Applied on the read path by `listOperations`; re-editable without re-uploading. `NULL` = no filter = pre-AF-614 behaviour. |
 | `operation_count` | INTEGER | **Post-filter** (kept) operation count. Equals the full catalog size when `operation_filter` is `NULL`. |
 | `detected_auth_method` | `api_auth_method` | Nullable (V123, #612). The auth scheme the uploaded document itself declared — Postman collections carry one; `NULL` for every other schema type and for rows predating the column. A hint telling the admin what to configure on the connector; **no credential value from the document is ever stored**. |
+| `refresh_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled schema-refresh opt-in for a `source_url` schema: `NULL` = never refreshed (the default for every existing row). Nothing reads or writes it yet — the refresh job follows in #893/#894. |
+| `current_revision_id` | UUID | Nullable (V205, #891). Pointer to the `api_schema_revisions` row the admin last accepted — no FK, stamped only by the (later) accept endpoint. A refresh job **never** rewrites `parsed_operations`. |
+| `last_refresh_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled refresh ran. |
+| `last_refresh_error` | TEXT | Nullable (V205, #891). Planned: fetch/parse error of the last refresh, `NULL` after a successful one (no writer yet). |
 | `created_at` | TIMESTAMPTZ | |
+
+## api_schema_revisions (#891)
+
+Append-only, hash-deduplicated history of a schema's parsed catalog (V205, epic #890). A refresh
+that fetches content already seen bumps `last_seen_at` on the existing row instead of inserting.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `schema_id` | UUID | FK → `api_schemas` `ON DELETE CASCADE`. |
+| `connector_id` | UUID | Denormalized owning connector (no FK — the schema FK already cascades). |
+| `content_hash` | CHAR(64) | SHA-256 hex over the canonical parsed-catalog JSON. `UNIQUE (schema_id, content_hash)` (`uq_api_schema_revisions_hash`). |
+| `raw_content` | TEXT | Nullable. The fetched document. |
+| `parsed_operations` | JSONB | Complete `ApiOperation[]` catalog of this revision. Default `[]`. |
+| `operation_count` | INTEGER | Full (pre-filter) catalog size. Default `0`. |
+| `fetched_at` | TIMESTAMPTZ | First time this content was fetched. |
+| `last_seen_at` | TIMESTAMPTZ | Most recent fetch that returned this content. |
+| `accepted_at` / `accepted_by` | TIMESTAMPTZ / UUID | Nullable. Set when an admin accepts the revision; `accepted_by` is a bare UUID (no FK). |
+| `version` | BIGINT | Optimistic lock (`@Version`), default `0` — a refresh bumping `last_seen_at` and an admin accept never overwrite each other. |
+
+Index `idx_api_schema_revisions_schema (schema_id, fetched_at DESC)`.
+
+## api_schema_drift_findings (#891)
+
+One row per operation-level difference between a fetched revision and the accepted catalog (V205,
+epic #890). Enums `api_schema_drift_kind` (`OPERATION_ADDED` / `OPERATION_REMOVED` /
+`SHAPE_CHANGED` / `DEPRECATED` / `CLASSIFICATION_FLIPPED`) and `api_schema_drift_status` (`OPEN` /
+`ACCEPTED` / `DISMISSED`).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID (no FK), org-scoped. |
+| `connector_id` | UUID | Owning connector (no FK — cascades via the schema). |
+| `schema_id` | UUID | FK → `api_schemas` `ON DELETE CASCADE`. |
+| `revision_id` | UUID | FK → `api_schema_revisions` `ON DELETE CASCADE`. |
+| `kind` | `api_schema_drift_kind` | |
+| `operation_id` | VARCHAR(512) | The catalog operation the finding is about. |
+| `detail` | JSONB | Before/after projection of the operation and the affected grant ids. Default `{}`. |
+| `affected_grant_count` | INTEGER | Grants naming the operation. Default `0`. |
+| `status` | `api_schema_drift_status` | Default `OPEN`. |
+| `created_at` | TIMESTAMPTZ | |
+| `resolved_at` / `resolved_by` | TIMESTAMPTZ / UUID | Nullable. `resolved_by` is a bare UUID (no FK). |
+| `version` | BIGINT | Optimistic lock (`@Version`), default `0` — a drift scan and an admin accept/dismiss both write `status`, so a stale save fails instead of overwriting. |
+
+Index `idx_api_schema_drift_findings_connector (connector_id, status, created_at DESC)`.
+
+## api_connector_health_checks (#891)
+
+History of scheduled connector probes (V205, epic #890); the latest outcome is summarised on
+`api_connectors.last_probe_*`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
+| `checked_at` | TIMESTAMPTZ | |
+| `success` | BOOLEAN | |
+| `message` | TEXT | Nullable. Failure reason or probe summary. |
+| `duration_ms` | INTEGER | Default `0`. |
+
+Index `idx_api_connector_health_checks_connector (connector_id, checked_at DESC)`.
 
 ## api_connector_user_permissions (AF-500)
 

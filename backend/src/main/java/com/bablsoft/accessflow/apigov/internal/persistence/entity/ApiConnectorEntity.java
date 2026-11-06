@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.apigov.internal.persistence.entity;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
@@ -129,6 +130,21 @@ public class ApiConnectorEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    // Scheduled-health opt-in (#891): NULL = not monitored.
+    @Column(name = "health_check_interval_minutes")
+    private Integer healthCheckIntervalMinutes;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "last_probe_status", nullable = false, columnDefinition = "api_connector_health_status")
+    private ApiConnectorHealthStatus lastProbeStatus = ApiConnectorHealthStatus.UNKNOWN;
+
+    @Column(name = "last_probe_at")
+    private Instant lastProbeAt;
+
+    @Column(name = "consecutive_probe_failures", nullable = false)
+    private int consecutiveProbeFailures = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

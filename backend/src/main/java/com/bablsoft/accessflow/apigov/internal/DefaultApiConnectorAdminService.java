@@ -436,7 +436,8 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 configured(e.getOauth2ClientSecretEncrypted()), configured(e.getOauth2RefreshTokenEncrypted()),
                 configured(e.getOauth2PasswordEncrypted()), e.getReviewPlanId(), e.isAiAnalysisEnabled(),
                 e.getAiConfigId(), e.isTextToApiEnabled(), e.isRequireReviewReads(), e.isRequireReviewWrites(),
-                e.getMaxResponseBytes(), e.isActive(), schemaPresent, e.getCreatedAt());
+                e.getMaxResponseBytes(), e.isActive(), schemaPresent, e.getHealthCheckIntervalMinutes(),
+                e.getLastProbeStatus(), e.getLastProbeAt(), e.getCreatedAt());
     }
 
     private static boolean configured(String encrypted) {

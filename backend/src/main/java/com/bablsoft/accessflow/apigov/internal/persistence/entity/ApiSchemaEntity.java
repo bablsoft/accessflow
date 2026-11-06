@@ -61,6 +61,20 @@ public class ApiSchemaEntity {
     @Column(name = "detected_auth_method", columnDefinition = "api_auth_method")
     private ApiAuthMethod detectedAuthMethod;
 
+    // Scheduled-refresh opt-in (#891): NULL = never refreshed. current_revision_id is stamped only
+    // by the accept endpoint; no job ever rewrites parsed_operations.
+    @Column(name = "refresh_interval_minutes")
+    private Integer refreshIntervalMinutes;
+
+    @Column(name = "current_revision_id")
+    private UUID currentRevisionId;
+
+    @Column(name = "last_refresh_at")
+    private Instant lastRefreshAt;
+
+    @Column(name = "last_refresh_error", columnDefinition = "text")
+    private String lastRefreshError;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }
