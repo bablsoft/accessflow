@@ -15,11 +15,16 @@ public record ApiSchemaResponse(
         int totalOperationCount,
         OperationFilterResponse operationFilter,
         ApiAuthMethod detectedAuthMethod,
+        Integer refreshIntervalMinutes,
+        UUID currentRevisionId,
+        Instant lastRefreshAt,
+        String lastRefreshError,
         Instant createdAt) {
 
     static ApiSchemaResponse from(ApiSchemaView v) {
         return new ApiSchemaResponse(v.id(), v.schemaType(), v.sourceUrl(), v.operationCount(),
                 v.totalOperationCount(), OperationFilterResponse.from(v.operationFilter()),
-                v.detectedAuthMethod(), v.createdAt());
+                v.detectedAuthMethod(), v.refreshIntervalMinutes(), v.currentRevisionId(), v.lastRefreshAt(),
+                v.lastRefreshError(), v.createdAt());
     }
 }

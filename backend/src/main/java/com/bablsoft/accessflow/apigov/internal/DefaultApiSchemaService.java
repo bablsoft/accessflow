@@ -175,7 +175,8 @@ public class DefaultApiSchemaService implements ApiSchemaService {
     private ApiSchemaView toView(ApiSchemaEntity e) {
         return new ApiSchemaView(e.getId(), e.getConnectorId(), e.getSchemaType(), e.getSourceUrl(),
                 e.getOperationCount(), totalOperationCount(e), readFilter(e), e.getDetectedAuthMethod(),
-                e.getCreatedAt());
+                e.getRefreshIntervalMinutes(), e.getCurrentRevisionId(), e.getLastRefreshAt(),
+                e.getLastRefreshError(), e.getCreatedAt());
     }
 
     /** Array length only — avoids materializing every {@link ApiOperation} just to count them. */

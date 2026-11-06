@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -250,6 +251,46 @@ class DefaultApiSchemaServiceTest {
         assertThat(view.operationCount()).isEqualTo(1);
         assertThat(view.totalOperationCount()).isEqualTo(2);
         assertThat(schema.getOperationFilter()).contains("/internal/**");
+    }
+
+    @Test
+    void viewExposesRefreshAndRevisionColumns() {
+        connectorExists();
+        var schema = new ApiSchemaEntity();
+        schema.setId(UUID.randomUUID());
+        schema.setConnectorId(connectorId);
+        schema.setSchemaType(ApiSchemaType.OPENAPI);
+        var revisionId = UUID.randomUUID();
+        var refreshedAt = Instant.parse("2026-11-01T10:00:00Z");
+        schema.setRefreshIntervalMinutes(30);
+        schema.setCurrentRevisionId(revisionId);
+        schema.setLastRefreshAt(refreshedAt);
+        schema.setLastRefreshError("timeout");
+        when(schemaRepository.findByConnectorIdOrderByCreatedAtDesc(connectorId)).thenReturn(List.of(schema));
+
+        var view = service.list(connectorId, orgId).get(0);
+
+        assertThat(view.refreshIntervalMinutes()).isEqualTo(30);
+        assertThat(view.currentRevisionId()).isEqualTo(revisionId);
+        assertThat(view.lastRefreshAt()).isEqualTo(refreshedAt);
+        assertThat(view.lastRefreshError()).isEqualTo("timeout");
+    }
+
+    @Test
+    void viewLeavesRefreshColumnsNullByDefault() {
+        connectorExists();
+        var schema = new ApiSchemaEntity();
+        schema.setId(UUID.randomUUID());
+        schema.setConnectorId(connectorId);
+        schema.setSchemaType(ApiSchemaType.OPENAPI);
+        when(schemaRepository.findByConnectorIdOrderByCreatedAtDesc(connectorId)).thenReturn(List.of(schema));
+
+        var view = service.list(connectorId, orgId).get(0);
+
+        assertThat(view.refreshIntervalMinutes()).isNull();
+        assertThat(view.currentRevisionId()).isNull();
+        assertThat(view.lastRefreshAt()).isNull();
+        assertThat(view.lastRefreshError()).isNull();
     }
 
     @Test

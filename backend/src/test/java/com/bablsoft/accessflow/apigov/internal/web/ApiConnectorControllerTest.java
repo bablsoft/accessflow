@@ -66,7 +66,9 @@ class ApiConnectorControllerTest {
                 com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth.CLIENT_SECRET_BASIC,
                 false, false, false,
                 null, true, null, false, false,
-                true, 2048L, true, false, Instant.now());
+                true, 2048L, true, false,
+                15, com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus.UNHEALTHY, Instant.now(),
+                Instant.now());
     }
 
     @Test
@@ -93,7 +95,12 @@ class ApiConnectorControllerTest {
     @Test
     void getAdminVsUserRoutes() {
         when(service.getForAdmin(connectorId, orgId)).thenReturn(view());
-        assertThat(controller.get(connectorId, auth(UserRoleType.ADMIN)).id()).isEqualTo(connectorId);
+        var adminView = controller.get(connectorId, auth(UserRoleType.ADMIN));
+        assertThat(adminView.id()).isEqualTo(connectorId);
+        assertThat(adminView.healthCheckIntervalMinutes()).isEqualTo(15);
+        assertThat(adminView.lastProbeStatus())
+                .isEqualTo(com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus.UNHEALTHY);
+        assertThat(adminView.lastProbeAt()).isNotNull();
 
         when(service.getForUser(connectorId, orgId, userId)).thenReturn(view());
         assertThat(controller.get(connectorId, auth(UserRoleType.ANALYST)).id()).isEqualTo(connectorId);

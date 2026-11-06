@@ -39,5 +39,8 @@ public record ApiConnectorView(
         long maxResponseBytes,
         boolean active,
         boolean schemaPresent,
+        Integer healthCheckIntervalMinutes,
+        ApiConnectorHealthStatus lastProbeStatus,
+        Instant lastProbeAt,
         Instant createdAt) {
 }

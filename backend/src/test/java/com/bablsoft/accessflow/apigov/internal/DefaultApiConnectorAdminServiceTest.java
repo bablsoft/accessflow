@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
@@ -168,6 +169,29 @@ class DefaultApiConnectorAdminServiceTest {
         when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.of(perm));
 
         assertThat(service.getForUser(entity.getId(), orgId, userId).id()).isEqualTo(entity.getId());
+    }
+
+    @Test
+    void viewExposesHealthColumnsWithUnknownDefault() {
+        var entity = persistedConnector();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+
+        var defaults = service.getForAdmin(entity.getId(), orgId);
+
+        assertThat(defaults.healthCheckIntervalMinutes()).isNull();
+        assertThat(defaults.lastProbeStatus()).isEqualTo(ApiConnectorHealthStatus.UNKNOWN);
+        assertThat(defaults.lastProbeAt()).isNull();
+
+        var probedAt = Instant.parse("2026-11-01T10:00:00Z");
+        entity.setHealthCheckIntervalMinutes(5);
+        entity.setLastProbeStatus(ApiConnectorHealthStatus.HEALTHY);
+        entity.setLastProbeAt(probedAt);
+
+        var monitored = service.getForAdmin(entity.getId(), orgId);
+
+        assertThat(monitored.healthCheckIntervalMinutes()).isEqualTo(5);
+        assertThat(monitored.lastProbeStatus()).isEqualTo(ApiConnectorHealthStatus.HEALTHY);
+        assertThat(monitored.lastProbeAt()).isEqualTo(probedAt);
     }
 
     @Test

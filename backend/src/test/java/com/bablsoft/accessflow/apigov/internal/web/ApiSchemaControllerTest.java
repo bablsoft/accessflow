@@ -55,9 +55,11 @@ class ApiSchemaControllerTest {
         return authentication;
     }
 
+    private final UUID revisionId = UUID.randomUUID();
+
     private ApiSchemaView schemaView() {
         return new ApiSchemaView(UUID.randomUUID(), connectorId, ApiSchemaType.OPENAPI, null, 3, 5,
-                OperationFilter.EMPTY, null, Instant.now());
+                OperationFilter.EMPTY, null, 60, revisionId, Instant.now(), "fetch failed", Instant.now());
     }
 
     @Test
@@ -108,7 +110,12 @@ class ApiSchemaControllerTest {
     void listMapsViews() {
         when(schemaService.list(connectorId, orgId)).thenReturn(List.of(schemaView()));
 
-        assertThat(controller.list(connectorId, auth(UserRoleType.ADMIN))).hasSize(1);
+        var listed = controller.list(connectorId, auth(UserRoleType.ADMIN));
+        assertThat(listed).hasSize(1);
+        assertThat(listed.get(0).refreshIntervalMinutes()).isEqualTo(60);
+        assertThat(listed.get(0).currentRevisionId()).isEqualTo(revisionId);
+        assertThat(listed.get(0).lastRefreshAt()).isNotNull();
+        assertThat(listed.get(0).lastRefreshError()).isEqualTo("fetch failed");
     }
 
     @Test
