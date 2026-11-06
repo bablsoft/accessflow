@@ -2,6 +2,13 @@ package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
+import com.bablsoft.accessflow.apigov.api.AcceptedApiSchemaRevision;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftFindingView;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftKind;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftStatus;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRefreshResult;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionService;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionView;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaView;
@@ -32,6 +39,7 @@ import static org.mockito.Mockito.when;
 class ApiSchemaControllerTest {
 
     private ApiSchemaService schemaService;
+    private ApiSchemaRevisionService revisionService;
     private ApiConnectorAdminService connectorService;
     private AuditLogService auditLogService;
     private ApiSchemaController controller;
@@ -46,7 +54,9 @@ class ApiSchemaControllerTest {
         schemaService = mock(ApiSchemaService.class);
         connectorService = mock(ApiConnectorAdminService.class);
         auditLogService = mock(AuditLogService.class);
-        controller = new ApiSchemaController(schemaService, connectorService, new ApiGovAuditWriter(auditLogService));
+        revisionService = mock(ApiSchemaRevisionService.class);
+        controller = new ApiSchemaController(schemaService, revisionService, connectorService,
+                new ApiGovAuditWriter(auditLogService));
     }
 
     private Authentication auth(UserRoleType role) {
@@ -64,11 +74,12 @@ class ApiSchemaControllerTest {
 
     @Test
     void uploadReturnsResponseAndAudits() {
-        when(schemaService.upload(eq(connectorId), eq(orgId), eq(ApiSchemaType.OPENAPI), eq("spec"), any(), any()))
+        when(schemaService.upload(eq(connectorId), eq(orgId), eq(ApiSchemaType.OPENAPI), eq("spec"), any(), any(), eq(30)))
                 .thenReturn(schemaView());
 
         var response = controller.upload(connectorId,
-                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null), auth(UserRoleType.ADMIN),
+                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", "https://example.test/s", null, 30),
+                auth(UserRoleType.ADMIN),
                 auditContext);
 
         assertThat(response.operationCount()).isEqualTo(3);
@@ -84,7 +95,7 @@ class ApiSchemaControllerTest {
                         new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null))));
 
         var response = controller.preview(connectorId,
-                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null), auth(UserRoleType.ADMIN));
+                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null, null), auth(UserRoleType.ADMIN));
 
         assertThat(response.totalCount()).isEqualTo(2);
         assertThat(response.keptCount()).isEqualTo(1);
@@ -143,6 +154,125 @@ class ApiSchemaControllerTest {
         controller.operations(connectorId, auth(UserRoleType.ANALYST));
 
         verify(connectorService).getForUser(connectorId, orgId, userId);
+    }
+
+    @Test
+    void uploadRequestNeedsContentOrSourceUrl() {
+        assertThat(new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "", "https://x.test/s", null, null)
+                .isContentOrSourceUrlPresent()).isTrue();
+        assertThat(new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null, null)
+                .isContentOrSourceUrlPresent()).isTrue();
+        assertThat(new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, " ", " ", null, null)
+                .isContentOrSourceUrlPresent()).isFalse();
+        assertThat(new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, null, null, null, null)
+                .isContentOrSourceUrlPresent()).isFalse();
+    }
+
+    @Test
+    void refreshMapsTheResultWithoutAuditing() {
+        var schemaId = UUID.randomUUID();
+        when(revisionService.refresh(connectorId, orgId, schemaId))
+                .thenReturn(new ApiSchemaRefreshResult(revisionId, 2, false));
+
+        var response = controller.refresh(connectorId, schemaId, auth(UserRoleType.ADMIN));
+
+        assertThat(response.revisionId()).isEqualTo(revisionId);
+        assertThat(response.findingCount()).isEqualTo(2);
+        assertThat(response.unchanged()).isFalse();
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    void updateRefreshPolicyAuditsAndReturnsTheSchema() {
+        var schemaId = UUID.randomUUID();
+        when(revisionService.updateRefreshPolicy(connectorId, orgId, schemaId, 60)).thenReturn(schemaView());
+
+        var response = controller.updateRefreshPolicy(connectorId, schemaId,
+                new UpdateApiSchemaRefreshPolicyRequest(60), auth(UserRoleType.ADMIN), auditContext);
+
+        assertThat(response.refreshIntervalMinutes()).isEqualTo(60);
+        verify(auditLogService).record(org.mockito.ArgumentMatchers.argThat(e -> e != null
+                && e.action() == AuditAction.API_SCHEMA_UPLOADED
+                && "refresh_policy_updated".equals(e.metadata().get("action"))));
+    }
+
+    @Test
+    void revisionsMapsViews() {
+        var schemaId = UUID.randomUUID();
+        when(revisionService.listRevisions(connectorId, orgId, schemaId)).thenReturn(List.of(revisionView()));
+
+        var listed = controller.revisions(connectorId, schemaId, auth(UserRoleType.ADMIN));
+
+        assertThat(listed).singleElement().satisfies(r -> {
+            assertThat(r.id()).isEqualTo(revisionId);
+            assertThat(r.contentHash()).isEqualTo("a".repeat(64));
+            assertThat(r.operationCount()).isEqualTo(4);
+        });
+    }
+
+    @Test
+    void acceptAuditsTheRevisionAndReturnsTheSchema() {
+        var schemaId = UUID.randomUUID();
+        when(revisionService.accept(connectorId, orgId, schemaId, revisionId, userId))
+                .thenReturn(new AcceptedApiSchemaRevision(schemaView(), revisionView()));
+
+        var response = controller.accept(connectorId, schemaId, revisionId, auth(UserRoleType.ADMIN), auditContext);
+
+        assertThat(response.currentRevisionId()).isEqualTo(revisionId);
+        verify(auditLogService).record(org.mockito.ArgumentMatchers.argThat(e -> e != null
+                && e.action() == AuditAction.API_SCHEMA_REVISION_ACCEPTED
+                && revisionId.equals(e.metadata().get("revision_id"))
+                && ("a".repeat(64)).equals(e.metadata().get("content_hash"))
+                && Integer.valueOf(3).equals(e.metadata().get("operation_count"))));
+    }
+
+    @Test
+    void findingsMapViewsAndPassTheStatusFilter() {
+        var before = new ApiOperation("createPet", "POST", "/pets", null, true, null, null);
+        var grant = UUID.randomUUID();
+        when(revisionService.listFindings(connectorId, orgId, ApiSchemaDriftStatus.OPEN)).thenReturn(List.of(
+                new ApiSchemaDriftFindingView(UUID.randomUUID(), UUID.randomUUID(), revisionId,
+                        ApiSchemaDriftKind.OPERATION_REMOVED, "createPet", before, null, 1, List.of(grant),
+                        List.of(), ApiSchemaDriftStatus.OPEN, Instant.now(), null, null)));
+
+        var listed = controller.findings(connectorId, ApiSchemaDriftStatus.OPEN, auth(UserRoleType.ADMIN));
+
+        assertThat(listed).singleElement().satisfies(f -> {
+            assertThat(f.kind()).isEqualTo(ApiSchemaDriftKind.OPERATION_REMOVED);
+            assertThat(f.before().operationId()).isEqualTo("createPet");
+            assertThat(f.after()).isNull();
+            assertThat(f.affectedUserGrantIds()).containsExactly(grant);
+        });
+    }
+
+    @Test
+    void findingsMapTheAfterSide() {
+        var after = new ApiOperation("deletePet", "DELETE", "/pets/{id}", null, true, null, null);
+        when(revisionService.listFindings(connectorId, orgId, null)).thenReturn(List.of(
+                new ApiSchemaDriftFindingView(UUID.randomUUID(), UUID.randomUUID(), revisionId,
+                        ApiSchemaDriftKind.OPERATION_ADDED, "deletePet", null, after, 0, List.of(), List.of(),
+                        ApiSchemaDriftStatus.OPEN, Instant.now(), null, null)));
+
+        var listed = controller.findings(connectorId, null, auth(UserRoleType.ADMIN));
+
+        assertThat(listed.getFirst().before()).isNull();
+        assertThat(listed.getFirst().after().operationId()).isEqualTo("deletePet");
+    }
+
+    @Test
+    void dismissAuditsOnlyWhenTheFindingChanged() {
+        var findingId = UUID.randomUUID();
+        when(revisionService.dismissFinding(connectorId, orgId, findingId, userId)).thenReturn(true, false);
+
+        controller.dismiss(connectorId, findingId, auth(UserRoleType.ADMIN), auditContext);
+        controller.dismiss(connectorId, findingId, auth(UserRoleType.ADMIN), auditContext);
+
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(auditEntry(AuditAction.API_SCHEMA_DRIFT_DISMISSED));
+    }
+
+    private ApiSchemaRevisionView revisionView() {
+        return new ApiSchemaRevisionView(revisionId, UUID.randomUUID(), "a".repeat(64), 4, Instant.now(),
+                Instant.now(), null, null);
     }
 
     private static AuditEntry auditEntry(AuditAction action) {

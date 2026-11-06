@@ -17,7 +17,11 @@ import com.bablsoft.accessflow.apigov.api.ApiResponseDiffIncompatibleException;
 import com.bablsoft.accessflow.apigov.api.ApiResponseDiffNotAvailableException;
 import com.bablsoft.accessflow.apigov.api.ApiResponseDiffUnsupportedException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftFindingNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaNotRefreshableException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionAlreadyAcceptedException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorVariableException;
@@ -57,6 +61,30 @@ class ApiGovExceptionHandler {
     @ExceptionHandler(ApiSchemaNotFoundException.class)
     ProblemDetail handleSchemaNotFound(ApiSchemaNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, msg("error.api_schema_not_found"), "API_SCHEMA_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ApiSchemaNotRefreshableException.class)
+    ProblemDetail handleSchemaNotRefreshable(ApiSchemaNotRefreshableException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_schema_not_refreshable"),
+                "API_SCHEMA_NOT_REFRESHABLE");
+    }
+
+    @ExceptionHandler(ApiSchemaRevisionNotFoundException.class)
+    ProblemDetail handleSchemaRevisionNotFound(ApiSchemaRevisionNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.api_schema_revision_not_found"),
+                "API_SCHEMA_REVISION_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ApiSchemaRevisionAlreadyAcceptedException.class)
+    ProblemDetail handleSchemaRevisionAlreadyAccepted(ApiSchemaRevisionAlreadyAcceptedException ex) {
+        return problem(HttpStatus.CONFLICT, msg("error.api_schema_revision_already_accepted"),
+                "API_SCHEMA_REVISION_ALREADY_ACCEPTED");
+    }
+
+    @ExceptionHandler(ApiSchemaDriftFindingNotFoundException.class)
+    ProblemDetail handleSchemaDriftFindingNotFound(ApiSchemaDriftFindingNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.api_schema_drift_finding_not_found"),
+                "API_SCHEMA_DRIFT_FINDING_NOT_FOUND");
     }
 
     @ExceptionHandler(ApiConnectorPermissionNotFoundException.class)
