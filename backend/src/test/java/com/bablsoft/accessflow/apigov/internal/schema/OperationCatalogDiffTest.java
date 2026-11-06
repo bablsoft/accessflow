@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftKind;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
@@ -215,9 +216,20 @@ class OperationCatalogDiffTest {
     }
 
     @Test
+    void contentHashKeysOperationsLikeTheDiff() {
+        var first = op("a");
+        var dup = withVerbPath(op("a"), "DELETE", "/gone", true);
+        var idless = new ApiOperation(null, "GET", "/x", null, false, null, null);
+        assertThat(diff.contentHash(List.of(first, dup))).isEqualTo(diff.contentHash(List.of(first)));
+        assertThat(diff.contentHash(List.of(dup, first))).isEqualTo(diff.contentHash(List.of(dup)));
+        assertThat(diff.contentHash(List.of(idless, first))).isEqualTo(diff.contentHash(List.of(first)));
+    }
+
+    @Test
     void contentHashIsIndependentOfMapperInclusionConfig() {
         var nonNull = JsonMapper.builder()
                 .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
+                .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                 .build();
         var other = new OperationCatalogDiff(nonNull);
         var ops = List.of(op("a"), new ApiOperation("b", "POST", "/b", null, true, null, null, null, null));

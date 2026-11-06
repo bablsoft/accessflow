@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -28,12 +29,10 @@ import java.util.TreeSet;
 @Component
 public class OperationCatalogDiff {
 
+    // Kind order is ApiSchemaDriftKind declaration order, so emission order in compare() is irrelevant.
     private static final Comparator<OperationDiffFinding> ORDER =
             Comparator.comparing(OperationDiffFinding::operationId)
                     .thenComparing(f -> f.kind().ordinal());
-
-    private static final Comparator<ApiOperation> BY_ID =
-            Comparator.comparing(ApiOperation::operationId, Comparator.nullsFirst(Comparator.naturalOrder()));
 
     private final ObjectMapper objectMapper;
 
@@ -64,17 +63,14 @@ public class OperationCatalogDiff {
     }
 
     /**
-     * SHA-256 (lower-case hex) over the canonical JSON of a catalog: operations sorted by id, fields
-     * in {@link ApiOperation} declaration order, nulls written explicitly. Built as an explicit tree so
+     * SHA-256 (lower-case hex) over the canonical JSON of a catalog: keyed exactly as {@link #diff}
+     * keys it (first occurrence per id, id-less operations dropped), sorted by id, fields in
+     * {@link ApiOperation} declaration order, nulls written explicitly. Built as an explicit tree so
      * the value does not depend on the mapper's inclusion or property-ordering configuration.
      */
     public String contentHash(List<ApiOperation> operations) {
-        var sorted = (operations == null ? List.<ApiOperation>of() : operations).stream()
-                .filter(Objects::nonNull)
-                .sorted(BY_ID)
-                .toList();
         var array = objectMapper.createArrayNode();
-        sorted.forEach(op -> array.add(canonical(op)));
+        new TreeMap<>(index(operations)).values().forEach(op -> array.add(canonical(op)));
         var json = objectMapper.writeValueAsString(array);
         return HexFormat.of().formatHex(sha256().digest(json.getBytes(StandardCharsets.UTF_8)));
     }

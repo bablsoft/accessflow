@@ -8,7 +8,7 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftKind;
  * {@link ApiSchemaDriftKind#OPERATION_ADDED}, {@code after} is {@code null} for
  * {@link ApiSchemaDriftKind#OPERATION_REMOVED}; both are set for every other kind.
  */
-record OperationDiffFinding(
+public record OperationDiffFinding(
         ApiSchemaDriftKind kind,
         String operationId,
         ApiOperation before,
