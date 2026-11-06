@@ -2748,7 +2748,7 @@ that fetches content already seen bumps `last_seen_at` on the existing row inste
 | `id` | UUID PK | |
 | `schema_id` | UUID | FK → `api_schemas` `ON DELETE CASCADE`. |
 | `connector_id` | UUID | Denormalized owning connector (no FK — the schema FK already cascades). |
-| `content_hash` | CHAR(64) | SHA-256 hex over the canonical parsed-catalog JSON. `UNIQUE (schema_id, content_hash)` (`uq_api_schema_revisions_hash`). |
+| `content_hash` | CHAR(64) | SHA-256 hex over the canonical parsed-catalog JSON, computed only by `apigov.internal.schema.OperationCatalogDiff.contentHash` (#892). `UNIQUE (schema_id, content_hash)` (`uq_api_schema_revisions_hash`). |
 | `raw_content` | TEXT | Nullable. The fetched document. |
 | `parsed_operations` | JSONB | Complete `ApiOperation[]` catalog of this revision. Default `[]`. |
 | `operation_count` | INTEGER | Full (pre-filter) catalog size. Default `0`. |

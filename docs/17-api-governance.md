@@ -148,6 +148,21 @@ The catalog is cached on `api_schemas.parsed_operations` and re-parsed on each u
 documents are rejected `422 API_SCHEMA_PARSE_ERROR`. The editor reads it via
 `GET /api-connectors/{id}/operations`.
 
+**Catalog diff (#892, epic #890).** `internal/schema/OperationCatalogDiff` is the pure comparison the
+schema-refresh job builds drift findings from — two `ApiOperation` lists in, a sorted
+`OperationDiffFinding` list out, no Spring state, repository, clock or I/O. Operations are keyed by
+`operationId` (first occurrence wins on a duplicate). An id on one side only is `OPERATION_ADDED` /
+`OPERATION_REMOVED`; a matched pair independently yields `CLASSIFICATION_FLIPPED` (`write` changed),
+at most one `SHAPE_CHANGED` (`verb` or `path` changed, or a request/response shape known on **both**
+sides differs — compared as JSON trees, so key order and whitespace do not count, or as trimmed
+strings when either side is not JSON), and `DEPRECATED` (`deprecated` became `true`). A `null` shape
+is *unknown*, never a change — OpenAPI, GraphQL and WSDL parse no shapes today. Un-deprecation and
+`summary` / `tags` edits produce nothing. Output is ordered by `operationId`, then by kind. The diff
+never applies an operation filter; the caller filters both sides first. The same class owns
+`contentHash` — the value stored in `api_schema_revisions.content_hash`: SHA-256 (lower-case hex)
+over an explicitly built JSON array of the operations sorted by id, fields in record order, nulls
+written out, so the hash does not depend on the `ObjectMapper`'s inclusion settings.
+
 ## 3. Sharing connectivity with the team
 
 `api_connector_user_permissions` grants a user access to a connector: `can_read` (safe methods),
