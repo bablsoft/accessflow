@@ -2,6 +2,8 @@ package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftStatus;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaView;
 import com.bablsoft.accessflow.audit.api.AuditAction;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +40,7 @@ import java.util.UUID;
 class ApiSchemaController {
 
     private final ApiSchemaService schemaService;
+    private final ApiSchemaRevisionService revisionService;
     private final ApiConnectorAdminService connectorService;
     private final ApiGovAuditWriter auditWriter;
 
@@ -46,13 +50,15 @@ class ApiSchemaController {
     @Operation(summary = "Upload and parse a schema for a connector")
     @ApiResponse(responseCode = "201", description = "Schema uploaded and parsed")
     @ApiResponse(responseCode = "404", description = "Connector not found")
-    @ApiResponse(responseCode = "422", description = "Schema could not be parsed")
+    @ApiResponse(responseCode = "400", description = "Neither content nor a source URL, or an invalid refresh interval")
+    @ApiResponse(responseCode = "422", description = "Schema could not be fetched or parsed, or a refresh "
+            + "interval was given without a source URL")
     ApiSchemaResponse upload(@PathVariable UUID connectorId,
                              @Valid @RequestBody UploadApiSchemaRequest body,
                              Authentication authentication, RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var view = schemaService.upload(connectorId, caller.organizationId(), body.schemaType(),
-                body.rawContent(), body.sourceUrl(), body.toFilter());
+                body.rawContent(), body.sourceUrl(), body.toFilter(), body.refreshIntervalMinutes());
         auditFilterChange(connectorId, caller, view, "uploaded", auditContext);
         return ApiSchemaResponse.from(view);
     }
@@ -128,6 +134,103 @@ class ApiSchemaController {
                 .toList();
     }
 
+    @PostMapping("/schemas/{schemaId}/refresh")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "Re-fetch a schema's source URL now and record drift without changing the catalog")
+    @ApiResponse(responseCode = "200", description = "Refresh outcome")
+    @ApiResponse(responseCode = "404", description = "Connector or schema not found")
+    @ApiResponse(responseCode = "422", description = "Schema has no source URL, or could not be fetched or parsed")
+    ApiSchemaRefreshResponse refresh(@PathVariable UUID connectorId, @PathVariable UUID schemaId,
+                                     Authentication authentication) {
+        var caller = claims(authentication);
+        return ApiSchemaRefreshResponse.from(
+                revisionService.refresh(connectorId, caller.organizationId(), schemaId));
+    }
+
+    @PutMapping("/schemas/{schemaId}/refresh-policy")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "Set or clear a schema's scheduled refresh interval")
+    @ApiResponse(responseCode = "200", description = "Refresh policy updated")
+    @ApiResponse(responseCode = "400", description = "Invalid refresh interval")
+    @ApiResponse(responseCode = "404", description = "Connector or schema not found")
+    @ApiResponse(responseCode = "422", description = "Schema has no source URL")
+    ApiSchemaResponse updateRefreshPolicy(@PathVariable UUID connectorId, @PathVariable UUID schemaId,
+                                          @Valid @RequestBody UpdateApiSchemaRefreshPolicyRequest body,
+                                          Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var view = revisionService.updateRefreshPolicy(connectorId, caller.organizationId(), schemaId,
+                body.refreshIntervalMinutes());
+        auditFilterChange(connectorId, caller, view, "refresh_policy_updated", auditContext);
+        return ApiSchemaResponse.from(view);
+    }
+
+    @GetMapping("/schemas/{schemaId}/revisions")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "List a schema's fetched revisions, newest first")
+    @ApiResponse(responseCode = "200", description = "Revision list")
+    @ApiResponse(responseCode = "404", description = "Connector or schema not found")
+    List<ApiSchemaRevisionResponse> revisions(@PathVariable UUID connectorId, @PathVariable UUID schemaId,
+                                              Authentication authentication) {
+        var caller = claims(authentication);
+        return revisionService.listRevisions(connectorId, caller.organizationId(), schemaId).stream()
+                .map(ApiSchemaRevisionResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/schemas/{schemaId}/revisions/{revisionId}/accept")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "Accept a fetched revision as the schema's governed catalog")
+    @ApiResponse(responseCode = "200", description = "Revision accepted; the updated schema")
+    @ApiResponse(responseCode = "404", description = "Connector, schema or revision not found")
+    @ApiResponse(responseCode = "409", description = "Revision already accepted")
+    ApiSchemaResponse accept(@PathVariable UUID connectorId, @PathVariable UUID schemaId,
+                             @PathVariable UUID revisionId, Authentication authentication,
+                             RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var accepted = revisionService.accept(connectorId, caller.organizationId(), schemaId, revisionId,
+                caller.userId());
+        var metadata = new HashMap<String, Object>();
+        metadata.put("schema_id", schemaId);
+        metadata.put("revision_id", revisionId);
+        metadata.put("content_hash", accepted.revision().contentHash());
+        metadata.put("operation_count", accepted.schema().operationCount());
+        metadata.put("total_operation_count", accepted.schema().totalOperationCount());
+        auditWriter.record(AuditAction.API_SCHEMA_REVISION_ACCEPTED, AuditResourceType.API_CONNECTOR,
+                connectorId, caller, metadata, auditContext);
+        return ApiSchemaResponse.from(accepted.schema());
+    }
+
+    @GetMapping("/drift-findings")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "List schema drift findings across a connector's schemas, newest first")
+    @ApiResponse(responseCode = "200", description = "Finding list")
+    @ApiResponse(responseCode = "404", description = "Connector not found")
+    List<ApiSchemaDriftFindingResponse> findings(@PathVariable UUID connectorId,
+                                                 @RequestParam(required = false) ApiSchemaDriftStatus status,
+                                                 Authentication authentication) {
+        var caller = claims(authentication);
+        return revisionService.listFindings(connectorId, caller.organizationId(), status).stream()
+                .map(ApiSchemaDriftFindingResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/drift-findings/{findingId}/dismiss")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "Dismiss an open schema drift finding")
+    @ApiResponse(responseCode = "204", description = "Finding dismissed (or no longer open)")
+    @ApiResponse(responseCode = "404", description = "Connector or finding not found")
+    void dismiss(@PathVariable UUID connectorId, @PathVariable UUID findingId,
+                 Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        if (revisionService.dismissFinding(connectorId, caller.organizationId(), findingId, caller.userId())) {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("finding_id", findingId);
+            auditWriter.record(AuditAction.API_SCHEMA_DRIFT_DISMISSED, AuditResourceType.API_CONNECTOR,
+                    connectorId, caller, metadata, auditContext);
+        }
+    }
+
     private void auditFilterChange(UUID connectorId, JwtClaims caller, ApiSchemaView view,
                                    String action, RequestAuditContext auditContext) {
         var metadata = new HashMap<String, Object>();
@@ -136,6 +239,10 @@ class ApiSchemaController {
         metadata.put("operation_count", view.operationCount());
         metadata.put("total_operation_count", view.totalOperationCount());
         metadata.put("excluded_count", view.totalOperationCount() - view.operationCount());
+        metadata.put("refresh_enabled", view.refreshIntervalMinutes() != null);
+        if (view.refreshIntervalMinutes() != null) {
+            metadata.put("refresh_interval_minutes", view.refreshIntervalMinutes());
+        }
         var filter = OperationFilterResponse.from(view.operationFilter());
         if (filter != null) {
             metadata.put("filter", filter);

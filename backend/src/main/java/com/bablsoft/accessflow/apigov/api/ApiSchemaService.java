@@ -12,8 +12,14 @@ import java.util.UUID;
  */
 public interface ApiSchemaService {
 
+    /**
+     * {@code refreshIntervalMinutes} opts a {@code sourceUrl} schema into the scheduled refresh
+     * ({@code null} = never); passing it without a {@code sourceUrl} throws
+     * {@link ApiSchemaNotRefreshableException}.
+     */
     ApiSchemaView upload(UUID connectorId, UUID organizationId, ApiSchemaType schemaType,
-                         String rawContent, String sourceUrl, OperationFilter filter);
+                         String rawContent, String sourceUrl, OperationFilter filter,
+                         Integer refreshIntervalMinutes);
 
     List<ApiSchemaView> list(UUID connectorId, UUID organizationId);
 

@@ -14,4 +14,6 @@ public interface ApiSchemaRevisionRepository extends JpaRepository<ApiSchemaRevi
     Optional<ApiSchemaRevisionEntity> findFirstBySchemaIdOrderByFetchedAtDesc(UUID schemaId);
 
     Optional<ApiSchemaRevisionEntity> findBySchemaIdAndContentHash(UUID schemaId, String contentHash);
+
+    Optional<ApiSchemaRevisionEntity> findByIdAndSchemaId(UUID id, UUID schemaId);
 }

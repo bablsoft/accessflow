@@ -2538,6 +2538,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
 | `ReviewEscalationJob` | workflow | `reviewEscalationJob` | `accessflow.workflow.escalation-poll-interval` | `PT5M` |
 | `ApiReviewEscalationJob` | apigov | `apiReviewEscalationJob` | `accessflow.apigov.escalation-poll-interval` | `PT5M` |
+| `ApiSchemaRefreshJob` | apigov | `apiSchemaRefreshJob` | `accessflow.apigov.schema-refresh-poll-interval` | `PT15M` |
 | `GroupReviewEscalationJob` | requestgroups | `groupReviewEscalationJob` | `accessflow.requestgroups.escalation-poll-interval` | `PT5M` |
 | `DeploymentReviewEscalationJob` | deploygov | `deploymentReviewEscalationJob` | `accessflow.deploygov.escalation-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
@@ -4970,7 +4971,7 @@ use the same `*`-only syntax as the routing-policy table globs. `ApiOperation` c
 tripping `FAIL_ON_NULL_FOR_PRIMITIVES`); both are OpenAPI-only — for GraphQL SDL / WSDL / gRPC proto
 the operation-id glob is the load-bearing dimension since `path` is synthesized.
 `POST .../schemas/preview` dry-runs a filter (kept/excluded counts + the dropped operations) without
-persisting or auditing. Upload **and** filter edits both write `API_SCHEMA_UPLOADED` audit metadata
+persisting or auditing. Upload, filter edits **and** refresh-policy changes (#893, `action=refresh_policy_updated`) all write `API_SCHEMA_UPLOADED` audit metadata
 carrying the filter, `total_operation_count`, and `excluded_count` (the edit path is distinguished by
 `action=filter_updated`). An absent/empty filter is exactly the pre-AF-614 behaviour.
 
@@ -5099,6 +5100,46 @@ message, so a submitter cannot enumerate which variables hold secrets; values ar
 rejected outright if they contain CR, LF or NUL (request splitting). Grouped requests (AF-501)
 deliberately do not accept overrides — connector variables still resolve for a grouped member, but
 the group-item shape carries no override field.
+
+**Schema refresh & drift (#893, epic #890).** A schema uploaded by `sourceUrl` can opt into a
+scheduled refresh with `refresh_interval_minutes` (`NULL` = never). `ApiSchemaRefreshJob`
+(`internal/scheduled/`) selects the opted-in rows whose connector is active, keeps the ones whose
+`last_refresh_at + interval` has passed (never-refreshed = due), and calls
+`ApiSchemaRevisionService.refresh` for each inside its own `try`, so one bad upstream never stops the
+batch. The fetch goes through `internal/schema/SchemaSourceFetcher` — the same http(s)-only, 15 s,
+5 MiB code path upload and the filter preview use — and runs **outside** any database transaction.
+The result is then parsed and hashed with `OperationCatalogDiff.contentHash` over the full catalog:
+
+- **Equal to the current catalog** — nothing is stored, and every finding still `OPEN` is resolved
+  as `DISMISSED` with no `resolved_by`: the upstream has come back to the governed document.
+- **Seen before** — `UNIQUE (schema_id, content_hash)` forces the existing revision row to be reused
+  (its `last_seen_at` is bumped). It is diffed again unless it already has findings created since the
+  current revision was accepted (any findings at all when nothing has been accepted yet). That keeps a
+  steady drifted upstream quiet while still reporting a rollback-and-redeploy, or a newer revision
+  whose findings an accept of an older one closed.
+- Either way the schema's `last_refresh_at` / `last_refresh_error` move, through a targeted `UPDATE`
+  rather than a whole-row write, so a refresh can never write back a stale catalog over a concurrent
+  accept or filter edit. A concurrent refresh that loses the race on the unique constraint returns
+  *unchanged*. The `UNIQUE (schema_id, content_hash)` constraint would
+  refuse a duplicate anyway.
+- **New** — insert an `api_schema_revisions` row (the parser's sanitized document as `raw_content`),
+  apply the schema's operation filter to **both** sides, diff them, and write one
+  `api_schema_drift_findings` row per finding. An `OPERATION_REMOVED` finding also lists the user and
+  group grants whose `allowed_operations` names the operation (`affected_grant_count` plus
+  `detail.affected_grants`); the grants are never modified, and pending JIT access requests are not
+  scanned. `ApiSchemaDriftDetectedEvent` is published once per new revision with at least one finding.
+- **Failed** — a fetch or parse failure writes `last_refresh_error` (truncated to 1,024 characters) in its own
+  transaction and produces no revision and no finding: an upstream outage is not drift.
+
+The governed catalog changes only on **accept**, which overwrites `parsed_operations`, `raw_content`
+and `operation_count` on the **existing** `api_schemas` row — same id, filter kept — stamps
+`current_revision_id`, and marks every open finding of the schema `ACCEPTED`. It takes a row lock
+on the schema, so two accepts serialize; `409` means the revision already is the governed one, and
+an earlier revision may be accepted again. A new row is never
+inserted, because `listOperations` reads the newest schema by `created_at` and the swap would be
+silent. Accept is audited as `API_SCHEMA_REVISION_ACCEPTED`, and a dismiss that changed an open finding
+as `API_SCHEMA_DRIFT_DISMISSED`; endpoints are in [docs/04-api-spec.md](04-api-spec.md) → *Schemas &
+operations*.
 
 ## Request chaining & grouping (AF-501)
 

@@ -5,7 +5,11 @@ import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaDriftFindingNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaNotRefreshableException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionAlreadyAcceptedException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaRevisionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +46,36 @@ class ApiGovExceptionHandlerTest {
     void schemaNotFoundIs404() {
         var pd = handler.handleSchemaNotFound(new ApiSchemaNotFoundException(UUID.randomUUID()));
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    void schemaNotRefreshableIs422() {
+        var pd = handler.handleSchemaNotRefreshable(new ApiSchemaNotRefreshableException(UUID.randomUUID()));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_NOT_REFRESHABLE");
+    }
+
+    @Test
+    void schemaRevisionNotFoundIs404() {
+        var pd = handler.handleSchemaRevisionNotFound(new ApiSchemaRevisionNotFoundException(UUID.randomUUID()));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_REVISION_NOT_FOUND");
+    }
+
+    @Test
+    void schemaRevisionAlreadyAcceptedIs409() {
+        var pd = handler.handleSchemaRevisionAlreadyAccepted(
+                new ApiSchemaRevisionAlreadyAcceptedException(UUID.randomUUID()));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_REVISION_ALREADY_ACCEPTED");
+    }
+
+    @Test
+    void schemaDriftFindingNotFoundIs404() {
+        var pd = handler.handleSchemaDriftFindingNotFound(
+                new ApiSchemaDriftFindingNotFoundException(UUID.randomUUID()));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_DRIFT_FINDING_NOT_FOUND");
     }
 
     @Test
