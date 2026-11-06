@@ -36,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -53,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -118,7 +120,9 @@ class DefaultApiSchemaRevisionServiceTest {
         schema.setParsedOperations(codec.writeOperations(current));
         schema.setOperationCount(current.size());
         schema.setRawContent("old-doc");
-        when(schemaRepository.findByIdAndConnectorId(schemaId, connectorId)).thenReturn(Optional.of(schema));
+        lenient().when(schemaRepository.findByIdAndConnectorId(schemaId, connectorId)).thenReturn(Optional.of(schema));
+        lenient().when(schemaRepository.findByIdAndConnectorIdForUpdate(schemaId, connectorId))
+                .thenReturn(Optional.of(schema));
         return schema;
     }
 
@@ -151,28 +155,105 @@ class DefaultApiSchemaRevisionServiceTest {
                 .containsExactly(tuple(ApiSchemaDriftKind.OPERATION_REMOVED, "createPet"));
         // The governed catalog itself is untouched by a refresh.
         assertThat(codec.readOperations(schema.getParsedOperations())).containsExactly(listPets, createPet);
-        assertThat(schema.getLastRefreshAt()).isEqualTo(NOW);
+        verify(schemaRepository).updateRefreshOutcome(schemaId, NOW, null);
     }
 
     @Test
-    void anUnchangedHashBumpsLastSeenAtOnly() {
+    void anAlreadyReportedRevisionBumpsLastSeenAtOnly() {
         connectorExists();
-        var schema = schema(URL, List.of(listPets));
-        schema.setLastRefreshError("old failure");
+        schema(URL, List.of(listPets));
         upstreamServes(List.of(listPets, createPet));
-        var existing = new ApiSchemaRevisionEntity();
-        existing.setLastSeenAt(NOW.minusSeconds(3600));
-        when(revisionRepository.findBySchemaIdAndContentHash(schemaId,
-                catalogDiff.contentHash(List.of(listPets, createPet)))).thenReturn(Optional.of(existing));
+        var existing = revision(List.of(listPets, createPet));
+        when(revisionRepository.findBySchemaIdAndContentHash(schemaId, existing.getContentHash()))
+                .thenReturn(Optional.of(existing));
+        when(findingRepository.existsByRevisionId(existing.getId())).thenReturn(true);
 
         var result = service.refresh(connectorId, orgId, schemaId);
 
         assertThat(result.unchanged()).isTrue();
         assertThat(result.revisionId()).isNull();
         assertThat(existing.getLastSeenAt()).isEqualTo(NOW);
-        assertThat(schema.getLastRefreshError()).isNull();
+        verify(schemaRepository).updateRefreshOutcome(schemaId, NOW, null);
         verify(revisionRepository, never()).save(any());
-        verifyNoInteractions(findingRepository, eventPublisher);
+        verify(findingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void aRevisionSeenBeforeTheLastAcceptIsReportedAgainAfterARollback() {
+        // v1 → v2 (accepted) → v1 (accepted) → v2 again: the v2 revision row exists and was accepted
+        // once, but nothing has been reported against the current v1 catalog.
+        connectorExists();
+        var schema = schema(URL, List.of(listPets));
+        var currentRevision = revision(List.of(listPets));
+        currentRevision.setAcceptedAt(NOW.minusSeconds(60));
+        schema.setCurrentRevisionId(currentRevision.getId());
+        when(revisionRepository.findById(currentRevision.getId())).thenReturn(Optional.of(currentRevision));
+        var v2 = revision(List.of(listPets, createPet));
+        v2.setAcceptedAt(NOW.minusSeconds(600));
+        when(revisionRepository.findBySchemaIdAndContentHash(schemaId, v2.getContentHash())).thenReturn(Optional.of(v2));
+        when(findingRepository.existsByRevisionIdAndCreatedAtGreaterThanEqual(v2.getId(), NOW.minusSeconds(60)))
+                .thenReturn(false);
+        upstreamServes(List.of(listPets, createPet));
+
+        var result = service.refresh(connectorId, orgId, schemaId);
+
+        assertThat(result.unchanged()).isFalse();
+        assertThat(result.revisionId()).isEqualTo(v2.getId());
+        assertThat(savedFindings()).extracting(ApiSchemaDriftFindingEntity::getKind,
+                        ApiSchemaDriftFindingEntity::getRevisionId)
+                .containsExactly(tuple(ApiSchemaDriftKind.OPERATION_ADDED, v2.getId()));
+        verify(revisionRepository, never()).save(any());
+        verify(eventPublisher).publishEvent(new ApiSchemaDriftDetectedEvent(schemaId, connectorId, orgId,
+                v2.getId(), 1));
+    }
+
+    @Test
+    void aReusedRevisionWithNoVisibleDifferenceIsUnchanged() {
+        connectorExists();
+        var schema = schema(URL, List.of(listPets));
+        schema.setOperationFilter(codec.writeFilter(
+                new OperationFilter(null, List.of("/internal/**"), null, null, null, null, null, null, false)));
+        var hidden = List.of(listPets, new ApiOperation("purge", "POST", "/internal/purge", null, true, null, null));
+        var existing = revision(hidden);
+        when(revisionRepository.findBySchemaIdAndContentHash(schemaId, existing.getContentHash()))
+                .thenReturn(Optional.of(existing));
+        upstreamServes(hidden);
+
+        var result = service.refresh(connectorId, orgId, schemaId);
+
+        assertThat(result.unchanged()).isTrue();
+        verify(findingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void returningToTheGovernedCatalogResolvesOpenFindings() {
+        connectorExists();
+        schema(URL, List.of(listPets));
+        upstreamServes(List.of(listPets));
+        var stale = finding(ApiSchemaDriftStatus.OPEN);
+        when(findingRepository.findBySchemaIdAndStatus(schemaId, ApiSchemaDriftStatus.OPEN)).thenReturn(List.of(stale));
+
+        var result = service.refresh(connectorId, orgId, schemaId);
+
+        assertThat(result.unchanged()).isTrue();
+        assertThat(stale.getStatus()).isEqualTo(ApiSchemaDriftStatus.DISMISSED);
+        assertThat(stale.getResolvedAt()).isEqualTo(NOW);
+        assertThat(stale.getResolvedBy()).isNull();
+    }
+
+    @Test
+    void aConcurrentRefreshThatStoredTheRevisionFirstIsUnchanged() {
+        connectorExists();
+        schema(URL, List.of(listPets));
+        upstreamServes(List.of(createPet));
+        when(revisionRepository.save(any())).thenThrow(new DataIntegrityViolationException("uq_api_schema_revisions_hash"));
+
+        var result = service.refresh(connectorId, orgId, schemaId);
+
+        assertThat(result.unchanged()).isTrue();
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -185,7 +266,8 @@ class DefaultApiSchemaRevisionServiceTest {
 
         assertThat(result.unchanged()).isTrue();
         verify(revisionRepository, never()).save(any());
-        verifyNoInteractions(findingRepository, eventPublisher);
+        verify(findingRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -285,15 +367,13 @@ class DefaultApiSchemaRevisionServiceTest {
     @Test
     void aFetchFailureRecordsTheErrorAndProducesNothing() {
         connectorExists();
-        var schema = schema(URL, List.of(listPets));
-        when(schemaRepository.findById(schemaId)).thenReturn(Optional.of(schema));
+        schema(URL, List.of(listPets));
         when(sourceFetcher.fetch(URL)).thenThrow(new ApiSchemaFetchException("Schema URL returned HTTP 502"));
 
         assertThatThrownBy(() -> service.refresh(connectorId, orgId, schemaId))
                 .isInstanceOf(ApiSchemaFetchException.class);
 
-        assertThat(schema.getLastRefreshError()).isEqualTo("Schema URL returned HTTP 502");
-        assertThat(schema.getLastRefreshAt()).isEqualTo(NOW);
+        verify(schemaRepository).updateRefreshOutcome(schemaId, NOW, "Schema URL returned HTTP 502");
         verify(revisionRepository, never()).save(any());
         verifyNoInteractions(findingRepository, eventPublisher, parserRegistry);
     }
@@ -301,8 +381,7 @@ class DefaultApiSchemaRevisionServiceTest {
     @Test
     void aParseFailureRecordsATruncatedErrorAndProducesNothing() {
         connectorExists();
-        var schema = schema(URL, List.of(listPets));
-        when(schemaRepository.findById(schemaId)).thenReturn(Optional.of(schema));
+        schema(URL, List.of(listPets));
         when(sourceFetcher.fetch(URL)).thenReturn("garbage");
         when(parserRegistry.parse(ApiSchemaType.OPENAPI, "garbage"))
                 .thenThrow(new ApiSchemaParseException("x".repeat(5000)));
@@ -310,7 +389,8 @@ class DefaultApiSchemaRevisionServiceTest {
         assertThatThrownBy(() -> service.refresh(connectorId, orgId, schemaId))
                 .isInstanceOf(ApiSchemaParseException.class);
 
-        assertThat(schema.getLastRefreshError()).hasSize(DefaultApiSchemaRevisionService.MAX_ERROR_LENGTH);
+        verify(schemaRepository).updateRefreshOutcome(schemaId, NOW,
+                "x".repeat(DefaultApiSchemaRevisionService.MAX_ERROR_LENGTH));
         verify(revisionRepository, never()).save(any());
         verifyNoInteractions(findingRepository, eventPublisher);
     }
@@ -318,14 +398,13 @@ class DefaultApiSchemaRevisionServiceTest {
     @Test
     void aFailureWithoutAMessageStillRecordsAnError() {
         connectorExists();
-        var schema = schema(URL, List.of(listPets));
-        when(schemaRepository.findById(schemaId)).thenReturn(Optional.of(schema));
+        schema(URL, List.of(listPets));
         when(sourceFetcher.fetch(URL)).thenThrow(new ApiSchemaFetchException(null));
 
         assertThatThrownBy(() -> service.refresh(connectorId, orgId, schemaId))
                 .isInstanceOf(ApiSchemaFetchException.class);
 
-        assertThat(schema.getLastRefreshError()).isEqualTo("Schema refresh failed");
+        verify(schemaRepository).updateRefreshOutcome(schemaId, NOW, "Schema refresh failed");
     }
 
     @Test
@@ -479,11 +558,29 @@ class DefaultApiSchemaRevisionServiceTest {
     }
 
     @Test
-    void acceptingTwiceIsAConflict() {
+    void anEarlierAcceptedRevisionCanBeAcceptedAgain() {
         connectorExists();
-        schema(URL, List.of(listPets));
+        var schema = schema(URL, List.of(listPets));
+        schema.setCurrentRevisionId(UUID.randomUUID());
+        var revision = revision(List.of(createPet));
+        revision.setAcceptedAt(NOW.minusSeconds(3600));
+        when(revisionRepository.findByIdAndSchemaId(revision.getId(), schemaId)).thenReturn(Optional.of(revision));
+        when(schemaRepository.save(schema)).thenReturn(schema);
+        when(revisionRepository.save(revision)).thenReturn(revision);
+
+        service.accept(connectorId, orgId, schemaId, revision.getId(), adminId);
+
+        assertThat(schema.getCurrentRevisionId()).isEqualTo(revision.getId());
+        assertThat(revision.getAcceptedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void acceptingTheGovernedRevisionIsAConflict() {
+        connectorExists();
+        var schema = schema(URL, List.of(listPets));
         var revision = revision(List.of(createPet));
         revision.setAcceptedAt(NOW.minusSeconds(60));
+        schema.setCurrentRevisionId(revision.getId());
         when(revisionRepository.findByIdAndSchemaId(revision.getId(), schemaId)).thenReturn(Optional.of(revision));
 
         assertThatThrownBy(() -> service.accept(connectorId, orgId, schemaId, revision.getId(), adminId))

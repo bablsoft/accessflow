@@ -239,6 +239,10 @@ class ApiSchemaController {
         metadata.put("operation_count", view.operationCount());
         metadata.put("total_operation_count", view.totalOperationCount());
         metadata.put("excluded_count", view.totalOperationCount() - view.operationCount());
+        metadata.put("refresh_enabled", view.refreshIntervalMinutes() != null);
+        if (view.refreshIntervalMinutes() != null) {
+            metadata.put("refresh_interval_minutes", view.refreshIntervalMinutes());
+        }
         var filter = OperationFilterResponse.from(view.operationFilter());
         if (filter != null) {
             metadata.put("filter", filter);

@@ -152,7 +152,7 @@ documents are rejected `422 API_SCHEMA_PARSE_ERROR`. The editor reads it via
 `ApiOperation` lists and returns a sorted list of `OperationDiffFinding` records — `(kind,
 operationId, before, after)`, where `before` is `null` for an added operation and `after` is `null`
 for a removed one. It holds no mutable state and touches no repository, clock or I/O. The
-schema-refresh job (#893) will build drift findings from it; today only its tests call it.
+schema-refresh job (#893) builds drift findings from it — see [docs/05-backend.md](05-backend.md) → *Schema refresh & drift*.
 
 - Operations are keyed by `operationId`. On a duplicate id the first occurrence wins; an operation
   with no id is ignored.

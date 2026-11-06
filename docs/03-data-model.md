@@ -2732,10 +2732,10 @@ added by V122, #612).
 | `operation_filter` | JSONB | Nullable (AF-614). Import-time operation filter — `includePaths`/`excludePaths`, `includeVerbs`/`excludeVerbs`, `includeOperationIds`/`excludeOperationIds`, `includeTags`/`excludeTags` (all string arrays), `excludeDeprecated` (bool). Applied on the read path by `listOperations`; re-editable without re-uploading. `NULL` = no filter = pre-AF-614 behaviour. |
 | `operation_count` | INTEGER | **Post-filter** (kept) operation count. Equals the full catalog size when `operation_filter` is `NULL`. |
 | `detected_auth_method` | `api_auth_method` | Nullable (V123, #612). The auth scheme the uploaded document itself declared — Postman collections carry one; `NULL` for every other schema type and for rows predating the column. A hint telling the admin what to configure on the connector; **no credential value from the document is ever stored**. |
-| `refresh_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled schema-refresh opt-in for a `source_url` schema: `NULL` = never refreshed (the default for every existing row). Nothing reads or writes it yet — the refresh job follows in #893/#894. |
-| `current_revision_id` | UUID | Nullable (V205, #891). Pointer to the `api_schema_revisions` row the admin last accepted — no FK, stamped only by the (later) accept endpoint. A refresh job **never** rewrites `parsed_operations`. |
-| `last_refresh_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled refresh ran. |
-| `last_refresh_error` | TEXT | Nullable (V205, #891). Planned: fetch/parse error of the last refresh, `NULL` after a successful one (no writer yet). |
+| `refresh_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled schema-refresh opt-in for a `source_url` schema: `NULL` = never refreshed (the default for every existing row). Read by `ApiSchemaRefreshJob` (#893), written on upload and by `PUT …/refresh-policy`; only valid with a `source_url`. |
+| `current_revision_id` | UUID | Nullable (V205, #891). Pointer to the `api_schema_revisions` row the admin last accepted — no FK, stamped only by the accept endpoint (#893). A refresh job **never** rewrites `parsed_operations`. |
+| `last_refresh_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last refresh (scheduled or manual) ran, successful or not. |
+| `last_refresh_error` | TEXT | Nullable (V205, #891). Fetch/parse error of the last refresh (#893, truncated to 1,024 characters), `NULL` after a successful one. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_schema_revisions (#891)

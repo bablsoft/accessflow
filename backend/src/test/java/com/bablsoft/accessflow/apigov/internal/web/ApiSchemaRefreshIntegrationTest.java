@@ -187,6 +187,43 @@ class ApiSchemaRefreshIntegrationTest {
     }
 
     @Test
+    void anUpstreamRollbackAndRedeployIsReportedEveryTime() {
+        var connector = saveConnector(true);
+        var schemaId = upload(connector, 5);
+
+        served.set(V2);
+        var v2 = revisionService.refresh(connector.getId(), org.getId(), schemaId);
+        assertThat(v2.findingCount()).isEqualTo(2);
+        assertThat(accept(connector, schemaId, v2.revisionId())).hasStatus(200);
+
+        served.set(V1);
+        var v1 = revisionService.refresh(connector.getId(), org.getId(), schemaId);
+        assertThat(v1.unchanged()).isFalse();
+        assertThat(v1.findingCount()).isEqualTo(2);
+        assertThat(accept(connector, schemaId, v1.revisionId())).hasStatus(200);
+        assertThat(operationIds(connector)).containsExactlyInAnyOrder("listPets", "createPet");
+
+        // The v2 revision row already exists and was accepted once — it must still be reported and
+        // be acceptable again, or the catalog would silently stay on v1 while the upstream serves v2.
+        served.set(V2);
+        var redeploy = revisionService.refresh(connector.getId(), org.getId(), schemaId);
+        assertThat(redeploy.revisionId()).isEqualTo(v2.revisionId());
+        assertThat(redeploy.findingCount()).isEqualTo(2);
+        assertThat(revisionService.refresh(connector.getId(), org.getId(), schemaId).unchanged()).isTrue();
+        assertThat(accept(connector, schemaId, v2.revisionId())).hasStatus(200);
+        assertThat(operationIds(connector)).containsExactlyInAnyOrder("listPets", "deletePet");
+        assertThat(accept(connector, schemaId, v2.revisionId())).hasStatus(409);
+
+        // Back on the governed document: nothing new, and open drift is resolved.
+        served.set(V1);
+        revisionService.refresh(connector.getId(), org.getId(), schemaId);
+        served.set(V2);
+        assertThat(revisionService.refresh(connector.getId(), org.getId(), schemaId).unchanged()).isTrue();
+        assertThat(get("/api/v1/api-connectors/%s/drift-findings?status=OPEN".formatted(connector.getId()),
+                adminToken)).bodyJson().extractingPath("$.length()").asNumber().isEqualTo(0);
+    }
+
+    @Test
     void anUpstreamFailureIsRecordedAndProducesNoRevision() {
         var connector = saveConnector(true);
         var schemaId = upload(connector, 5);
@@ -257,6 +294,12 @@ class ApiSchemaRefreshIntegrationTest {
                 .exchange();
         assertThat(result).hasStatus(201);
         return schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(connector.getId()).orElseThrow().getId();
+    }
+
+    private org.springframework.test.web.servlet.assertj.MvcTestResult accept(ApiConnectorEntity connector,
+                                                                         UUID schemaId, UUID revisionId) {
+        return post("/api/v1/api-connectors/%s/schemas/%s/revisions/%s/accept"
+                .formatted(connector.getId(), schemaId, revisionId), adminToken);
     }
 
     private List<String> operationIds(ApiConnectorEntity connector) {

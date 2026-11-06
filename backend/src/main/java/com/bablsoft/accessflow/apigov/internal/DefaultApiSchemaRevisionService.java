@@ -36,6 +36,7 @@ import com.bablsoft.accessflow.apigov.internal.schema.SchemaParserRegistry;
 import com.bablsoft.accessflow.apigov.internal.schema.SchemaSourceFetcher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -131,39 +132,54 @@ public class DefaultApiSchemaRevisionService implements ApiSchemaRevisionService
             throw ex;
         }
         var stored = parsed.sanitizedContent() != null ? parsed.sanitizedContent() : content;
-        return transactionTemplate.execute(status ->
-                persist(connectorId, source.organizationId(), schemaId, parsed.operations(), stored));
+        try {
+            return transactionTemplate.execute(status ->
+                    persist(connectorId, source.organizationId(), schemaId, parsed.operations(), stored));
+        } catch (DataIntegrityViolationException ex) {
+            // A concurrent refresh of the same schema stored this revision first.
+            log.info("Concurrent refresh of API schema {} already stored this revision", schemaId);
+            return ApiSchemaRefreshResult.unchangedResult();
+        }
     }
 
     private ApiSchemaRefreshResult persist(UUID connectorId, UUID organizationId, UUID schemaId,
                                            List<ApiOperation> candidate, String rawContent) {
+        // Read only: the schema row is never dirtied here, so a racing accept or filter edit is never
+        // overwritten by a stale whole-row UPDATE.
         var schema = requireSchema(connectorId, schemaId);
         var now = clock.instant();
-        schema.setLastRefreshAt(now);
-        schema.setLastRefreshError(null);
+        schemaRepository.updateRefreshOutcome(schemaId, now, null);
         var hash = catalogDiff.contentHash(candidate);
         var existing = revisionRepository.findBySchemaIdAndContentHash(schemaId, hash);
-        if (existing.isPresent()) {
-            // Seen before (the newest revision, an older one, or the accepted catalog): no new row, and
-            // the unique (schema_id, content_hash) constraint would refuse one anyway.
-            existing.get().setLastSeenAt(now);
-            return ApiSchemaRefreshResult.unchangedResult();
-        }
+        existing.ifPresent(revision -> revision.setLastSeenAt(now));
         var current = codec.readOperations(schema.getParsedOperations());
         if (hash.equals(catalogDiff.contentHash(current))) {
+            // The upstream serves the governed catalog: any drift still open no longer exists.
+            resolveOpenFindings(schemaId, now);
             return ApiSchemaRefreshResult.unchangedResult();
         }
-        var revision = new ApiSchemaRevisionEntity();
-        revision.setId(UUID.randomUUID());
-        revision.setSchemaId(schemaId);
-        revision.setConnectorId(connectorId);
-        revision.setContentHash(hash);
-        revision.setRawContent(rawContent);
-        revision.setParsedOperations(codec.writeOperations(candidate));
-        revision.setOperationCount(candidate.size());
-        revision.setFetchedAt(now);
-        revision.setLastSeenAt(now);
-        revisionRepository.save(revision);
+        ApiSchemaRevisionEntity revision;
+        if (existing.isPresent()) {
+            // The unique (schema_id, content_hash) constraint forces reuse of the row. It is re-diffed
+            // unless it was already reported against the current catalog — after a rollback, or after
+            // an older revision was accepted, the same document is fresh drift again.
+            revision = existing.get();
+            if (reportedSinceLastAccept(schema, revision.getId())) {
+                return ApiSchemaRefreshResult.unchangedResult();
+            }
+        } else {
+            revision = new ApiSchemaRevisionEntity();
+            revision.setId(UUID.randomUUID());
+            revision.setSchemaId(schemaId);
+            revision.setConnectorId(connectorId);
+            revision.setContentHash(hash);
+            revision.setRawContent(rawContent);
+            revision.setParsedOperations(codec.writeOperations(candidate));
+            revision.setOperationCount(candidate.size());
+            revision.setFetchedAt(now);
+            revision.setLastSeenAt(now);
+            revisionRepository.save(revision);
+        }
 
         var filter = codec.readFilter(schema);
         var findings = catalogDiff.diff(filterMatcher.apply(current, filter), filterMatcher.apply(candidate, filter));
@@ -174,8 +190,28 @@ public class DefaultApiSchemaRevisionService implements ApiSchemaRevisionService
         if (!findings.isEmpty()) {
             eventPublisher.publishEvent(new ApiSchemaDriftDetectedEvent(schemaId, connectorId, organizationId,
                     revision.getId(), findings.size()));
+        } else if (existing.isPresent()) {
+            return ApiSchemaRefreshResult.unchangedResult();
         }
         return new ApiSchemaRefreshResult(revision.getId(), findings.size(), false);
+    }
+
+    /** Whether {@code revisionId} already has findings computed against the current catalog. */
+    private boolean reportedSinceLastAccept(ApiSchemaEntity schema, UUID revisionId) {
+        var lastAcceptedAt = schema.getCurrentRevisionId() == null ? null
+                : revisionRepository.findById(schema.getCurrentRevisionId())
+                        .map(ApiSchemaRevisionEntity::getAcceptedAt).orElse(null);
+        return lastAcceptedAt == null
+                ? findingRepository.existsByRevisionId(revisionId)
+                : findingRepository.existsByRevisionIdAndCreatedAtGreaterThanEqual(revisionId, lastAcceptedAt);
+    }
+
+    /** System resolution: no {@code resolved_by}. */
+    private void resolveOpenFindings(UUID schemaId, Instant now) {
+        for (var finding : findingRepository.findBySchemaIdAndStatus(schemaId, ApiSchemaDriftStatus.OPEN)) {
+            finding.setStatus(ApiSchemaDriftStatus.DISMISSED);
+            finding.setResolvedAt(now);
+        }
     }
 
     private ApiSchemaDriftFindingEntity toFindingEntity(OperationDiffFinding finding, UUID organizationId,
@@ -217,10 +253,8 @@ public class DefaultApiSchemaRevisionService implements ApiSchemaRevisionService
         var now = clock.instant();
         var error = message == null ? "Schema refresh failed" : message;
         var truncated = error.length() > MAX_ERROR_LENGTH ? error.substring(0, MAX_ERROR_LENGTH) : error;
-        transactionTemplate.executeWithoutResult(status -> schemaRepository.findById(schemaId).ifPresent(schema -> {
-            schema.setLastRefreshAt(now);
-            schema.setLastRefreshError(truncated);
-        }));
+        transactionTemplate.executeWithoutResult(status ->
+                schemaRepository.updateRefreshOutcome(schemaId, now, truncated));
     }
 
     @Override
@@ -262,10 +296,13 @@ public class DefaultApiSchemaRevisionService implements ApiSchemaRevisionService
     public AcceptedApiSchemaRevision accept(UUID connectorId, UUID organizationId, UUID schemaId,
                                             UUID revisionId, UUID acceptedBy) {
         requireConnector(connectorId, organizationId);
-        var schema = requireSchema(connectorId, schemaId);
+        var schema = schemaRepository.findByIdAndConnectorIdForUpdate(schemaId, connectorId)
+                .orElseThrow(() -> new ApiSchemaNotFoundException(schemaId));
         var revision = revisionRepository.findByIdAndSchemaId(revisionId, schemaId)
                 .orElseThrow(() -> new ApiSchemaRevisionNotFoundException(revisionId));
-        if (revision.getAcceptedAt() != null) {
+        // Only the governed revision is "already accepted": after a rollback an earlier revision may be
+        // accepted again. The row lock above makes this check race-free.
+        if (revisionId.equals(schema.getCurrentRevisionId())) {
             throw new ApiSchemaRevisionAlreadyAcceptedException(revisionId);
         }
         var now = clock.instant();
@@ -277,7 +314,8 @@ public class DefaultApiSchemaRevisionService implements ApiSchemaRevisionService
         schema.setCurrentRevisionId(revisionId);
         revision.setAcceptedAt(now);
         revision.setAcceptedBy(acceptedBy);
-        // Every open finding was computed against a catalog that no longer exists.
+        // Every open finding was computed against a catalog that no longer exists. A newer revision the
+        // upstream still serves is re-diffed against the new catalog on the next refresh.
         for (var finding : findingRepository.findBySchemaIdAndStatus(schemaId, ApiSchemaDriftStatus.OPEN)) {
             finding.setStatus(ApiSchemaDriftStatus.ACCEPTED);
             finding.setResolvedAt(now);
