@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.CreateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -56,7 +57,18 @@ public record CreateApiConnectorRequest(
         @Min(value = 1, message = "{validation.api_connector.max_response_bytes.min}")
         Long maxResponseBytes,
         @Min(value = 1, message = "{validation.api_connector.health_check_interval.min}")
-        Integer healthCheckIntervalMinutes) {
+        Integer healthCheckIntervalMinutes,
+        @Min(value = 0, message = "{validation.api_connector.calls_per_minute.min}")
+        Integer callsPerMinute,
+        @Min(value = 0, message = "{validation.api_connector.calls_per_day.min}")
+        Integer callsPerDay,
+        @Min(value = 0, message = "{validation.api_connector.per_user_share_percent.min}")
+        @Max(value = 100, message = "{validation.api_connector.per_user_share_percent.max}")
+        Integer perUserSharePercent,
+        @Min(value = 0, message = "{validation.api_connector.cost_per_call_micros.min}")
+        Long costPerCallMicros,
+        @Min(value = 0, message = "{validation.api_connector.monthly_budget_micros.min}")
+        Long monthlyBudgetMicros) {
 
     CreateApiConnectorCommand toCommand(UUID organizationId) {
         return new CreateApiConnectorCommand(organizationId, name, protocol, baseUrl, defaultHeaders,
@@ -64,6 +76,6 @@ public record CreateApiConnectorRequest(
                 oauth2ClientSecret, oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username,
                 oauth2Password, oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled,
                 aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
-                healthCheckIntervalMinutes);
+                healthCheckIntervalMinutes, callsPerMinute, callsPerDay, perUserSharePercent, costPerCallMicros, monthlyBudgetMicros);
     }
 }

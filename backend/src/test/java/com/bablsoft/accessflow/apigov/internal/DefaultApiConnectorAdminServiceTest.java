@@ -92,7 +92,7 @@ class DefaultApiConnectorAdminServiceTest {
                 Map.of("X-Env", "test"), null, 5000, true, ApiAuthMethod.BEARER_TOKEN,
                 Map.of("token", "sk_live_secret"),
                 null, null, null, null, null, null, null, null, null, null,
-                null, true, null, false, false, true, 2048L, null);
+                null, true, null, false, false, true, 2048L, null, null, null, null, null, null);
     }
 
     @Test
@@ -124,7 +124,7 @@ class DefaultApiConnectorAdminServiceTest {
         var cmd = new CreateApiConnectorCommand(orgId, "Open", ApiProtocol.REST, "https://x", null, null,
                 null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Open")).thenReturn(false);
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -234,7 +234,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null));
+                null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null, null, null, null, null, null));
 
         assertThat(view.name()).isEqualTo("Renamed");
         assertThat(view.active()).isFalse();
@@ -370,7 +370,7 @@ class DefaultApiConnectorAdminServiceTest {
                 null, null, null, null, ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS, null,
                 "https://idp/token", "client-1", "secret-1", "read write", "aud-1", null, null, null,
                 Oauth2GrantType.CLIENT_CREDENTIALS, Oauth2ClientAuth.CLIENT_SECRET_POST,
-                null, true, null, false, false, true, 2048L, null);
+                null, true, null, false, false, true, 2048L, null, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Okta API")).thenReturn(false);
         when(encryptionService.encrypt("secret-1")).thenReturn("ENC-SECRET");
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -399,7 +399,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, "new-secret", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         verify(encryptionService).encrypt("new-secret");
@@ -415,7 +415,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 "https://idp/new", null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         assertThat(entity.getOauth2ClientSecretEncrypted()).isEqualTo("EXISTING");
@@ -748,13 +748,13 @@ class DefaultApiConnectorAdminServiceTest {
         return new CreateApiConnectorCommand(orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
                 null, null, null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
-                reviewPlanId, true, null, false, false, true, 2048L, null);
+                reviewPlanId, true, null, false, false, true, 2048L, null, null, null, null, null, null);
     }
 
     private static UpdateApiConnectorCommand updateReviewPlanCommand(UUID reviewPlanId, Boolean clearReviewPlan) {
         return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
-                reviewPlanId, clearReviewPlan, null, null, null, null, null, null, null, null, null);
+                reviewPlanId, clearReviewPlan, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private static ReviewPlanSnapshot planSnapshot(UUID planId, UUID organizationId) {
@@ -783,7 +783,7 @@ class DefaultApiConnectorAdminServiceTest {
         var cmd = new CreateApiConnectorCommand(orgId, "Monitored", ApiProtocol.REST, "https://x", null, null,
                 null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, 5);
+                null, null, null, null, null, null, null, 5, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Monitored")).thenReturn(false);
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -830,6 +830,90 @@ class DefaultApiConnectorAdminServiceTest {
     private static UpdateApiConnectorCommand healthCommand(Integer interval, Boolean clear) {
         return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, interval, clear);
+                null, null, null, null, null, null, null, null, null, interval, clear, null, null, null, null, null);
+    }
+
+    @Test
+    void createStoresRateLimitsAndBudgetAndZeroOrNegativeMeansUnlimited() {
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Limited")).thenReturn(false);
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.create(limitsCreateCommand("Limited", 60, 1_000, 25, 1_500L, 9_000_000L));
+
+        assertThat(view.callsPerMinute()).isEqualTo(60);
+        assertThat(view.callsPerDay()).isEqualTo(1_000);
+        assertThat(view.perUserSharePercent()).isEqualTo(25);
+        assertThat(view.costPerCallMicros()).isEqualTo(1_500L);
+        assertThat(view.monthlyBudgetMicros()).isEqualTo(9_000_000L);
+
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Unlimited")).thenReturn(false);
+        var unlimited = service.create(limitsCreateCommand("Unlimited", 0, -1, 0, 0L, -5L));
+
+        assertThat(unlimited.callsPerMinute()).isNull();
+        assertThat(unlimited.callsPerDay()).isNull();
+        assertThat(unlimited.perUserSharePercent()).isNull();
+        assertThat(unlimited.costPerCallMicros()).isNull();
+        assertThat(unlimited.monthlyBudgetMicros()).isNull();
+    }
+
+    @Test
+    void createWithoutLimitsStoresUnlimited() {
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Plain")).thenReturn(false);
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.create(limitsCreateCommand("Plain", null, null, null, null, null));
+
+        assertThat(view.callsPerMinute()).isNull();
+        assertThat(view.monthlyBudgetMicros()).isNull();
+    }
+
+    @Test
+    void updateRateLimitsNullLeavesUnchangedZeroClearsAndValueSets() {
+        var entity = persistedConnector();
+        entity.setCallsPerMinute(10);
+        entity.setCallsPerDay(100);
+        entity.setPerUserSharePercent(50);
+        entity.setCostPerCallMicros(7L);
+        entity.setMonthlyBudgetMicros(70L);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var unchanged = service.update(entity.getId(), orgId, limitsUpdateCommand(null, null, null, null, null));
+        assertThat(unchanged.callsPerMinute()).isEqualTo(10);
+        assertThat(unchanged.callsPerDay()).isEqualTo(100);
+        assertThat(unchanged.perUserSharePercent()).isEqualTo(50);
+        assertThat(unchanged.costPerCallMicros()).isEqualTo(7L);
+        assertThat(unchanged.monthlyBudgetMicros()).isEqualTo(70L);
+
+        var cleared = service.update(entity.getId(), orgId, limitsUpdateCommand(0, 0, 0, 0L, 0L));
+        assertThat(cleared.callsPerMinute()).isNull();
+        assertThat(cleared.callsPerDay()).isNull();
+        assertThat(cleared.perUserSharePercent()).isNull();
+        assertThat(cleared.costPerCallMicros()).isNull();
+        assertThat(cleared.monthlyBudgetMicros()).isNull();
+
+        var set = service.update(entity.getId(), orgId, limitsUpdateCommand(5, 50, 100, 3L, 30L));
+        assertThat(set.callsPerMinute()).isEqualTo(5);
+        assertThat(set.callsPerDay()).isEqualTo(50);
+        assertThat(set.perUserSharePercent()).isEqualTo(100);
+        assertThat(set.costPerCallMicros()).isEqualTo(3L);
+        assertThat(set.monthlyBudgetMicros()).isEqualTo(30L);
+    }
+
+    private CreateApiConnectorCommand limitsCreateCommand(String name, Integer callsPerMinute, Integer callsPerDay,
+                                                          Integer share, Long cost, Long budget) {
+        return new CreateApiConnectorCommand(orgId, name, ApiProtocol.REST, "https://x", null, null,
+                null, null, ApiAuthMethod.NONE, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                callsPerMinute, callsPerDay, share, cost, budget);
+    }
+
+    private static UpdateApiConnectorCommand limitsUpdateCommand(Integer callsPerMinute, Integer callsPerDay,
+                                                                 Integer share, Long cost, Long budget) {
+        return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                callsPerMinute, callsPerDay, share, cost, budget);
     }
 }
