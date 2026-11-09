@@ -11,7 +11,8 @@ import java.util.UUID;
  * unassigning a plan goes through {@code clearReviewPlan} (mirrors the datasource update's
  * {@code clearAiConfig} convention); when true it wins over {@code reviewPlanId}.
  * {@code healthCheckIntervalMinutes} / {@code clearHealthCheck} follow the same shape (#894);
- * clearing also forgets the probe status and failure streak.
+ * clearing also forgets the probe status and failure streak. The rate-limit and budget fields
+ * (#971) are null to leave the stored value unchanged and {@code 0} to clear it (no clear flag).
  */
 public record UpdateApiConnectorCommand(
         String name,
@@ -42,5 +43,10 @@ public record UpdateApiConnectorCommand(
         Long maxResponseBytes,
         Boolean active,
         Integer healthCheckIntervalMinutes,
-        Boolean clearHealthCheck) {
+        Boolean clearHealthCheck,
+        Integer callsPerMinute,
+        Integer callsPerDay,
+        Integer perUserSharePercent,
+        Long costPerCallMicros,
+        Long monthlyBudgetMicros) {
 }

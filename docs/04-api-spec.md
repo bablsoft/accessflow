@@ -8813,6 +8813,14 @@ same request, and it also resets `lastProbeStatus` to `UNKNOWN`, `lastProbeAt` t
 failure streak to `0`. `lastProbeStatus`, `lastProbeAt` and the failure streak are written only by
 the scheduled probe — a connector update never changes them.
 
+**Rate limits and budgets (#971, epic #970).** Create, update and the read view carry five optional
+fields: `callsPerMinute`, `callsPerDay`, `perUserSharePercent`, `costPerCallMicros` and
+`monthlyBudgetMicros` — cost is an integer number of micros of one unlabelled accounting unit, with
+no currency. A field absent from the read view (responses omit nulls) means unlimited. Each field is
+`≥ 0` on the wire and the share is at most `100` (a negative value, or a share above `100`, is `400`). On create, `0` or an omitted field stores no limit; on
+update, an omitted field is unchanged and `0` clears the limit — there is no `clear*` flag. The
+limits are stored but not yet enforced (#972 / #973).
+
 ### Schemas & operations
 
 | Method | Path | Description |
@@ -8979,7 +8987,7 @@ covers exactly what will execute.
 |--------|------|-------------|
 | `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?` (#517), `bodyType?` (`NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY`, default `RAW`; #517), `requestContentType?` (for `RAW`), `requestBody?` (raw text or base64 for `BINARY`), `formFields?` (`[{key,type,value,filename,contentType}]` for form bodies; file parts base64), `binaryFilename?`, `variableOverrides?` (AF-613; per-request values for connector variables marked `overridable` — requires `canOverrideVariables` on the connector grant, max 32 entries, each bounded by `ACCESSFLOW_APIGOV_MAX_VARIABLE_VALUE_BYTES` and rejected if it contains CR/LF/NUL; a name outside the connector's overridable set is `422` with a uniform message so the set cannot be enumerated), `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). The total encoded body is capped by `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (`422` when exceeded). A W3C `trace_id`/`span_id` is generated. Runs AI → routing → review. |
 | `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. Optional filters: `status`, `connector_id`, `verb`, `submitted_by` (admin-only, #517), `trace_id`, `span_id` (#517), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). The response carries `submittedByEmail`, `bodyType`, `traceId`, `spanId`, and `responseContentType`. |
-| `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. Readable by the **submitter, a REVIEWER, or an ADMIN** in the org (parity with query detail / "View all query history"); anyone else gets `404`. |
+| `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. Readable by the **submitter, a REVIEWER, or an ADMIN** in the org (parity with query detail / "View all query history"); anyone else gets `404`. The view also returns three read-only fields (#971): `throttledUntil` (when a rate-limited `APPROVED` request may next run; absent when not throttled), `throttleCount` and `costMicros` (the charge recorded on execution; absent when not charged). |
 | `GET` | `/api-requests/{id}/response` | Download the full stored (masked, size-capped) response snapshot as an attachment in its captured `Content-Type` (#517). Same access guard as the detail endpoint (submitter / REVIEWER / ADMIN); `409` if no response is stored. |
 | `POST` | `/api-requests/{id}/cancel` | Submitter cancels a pending (or scheduled-and-approved) request (`204`). |
 | `POST` | `/api-requests/{id}/execute` | Submitter executes an APPROVED request against the upstream target. |

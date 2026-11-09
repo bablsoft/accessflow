@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -52,7 +53,18 @@ public record UpdateApiConnectorRequest(
         Boolean active,
         @Min(value = 1, message = "{validation.api_connector.health_check_interval.min}")
         Integer healthCheckIntervalMinutes,
-        Boolean clearHealthCheck) {
+        Boolean clearHealthCheck,
+        @Min(value = 0, message = "{validation.api_connector.calls_per_minute.min}")
+        Integer callsPerMinute,
+        @Min(value = 0, message = "{validation.api_connector.calls_per_day.min}")
+        Integer callsPerDay,
+        @Min(value = 0, message = "{validation.api_connector.per_user_share_percent.min}")
+        @Max(value = 100, message = "{validation.api_connector.per_user_share_percent.max}")
+        Integer perUserSharePercent,
+        @Min(value = 0, message = "{validation.api_connector.cost_per_call_micros.min}")
+        Long costPerCallMicros,
+        @Min(value = 0, message = "{validation.api_connector.monthly_budget_micros.min}")
+        Long monthlyBudgetMicros) {
 
     UpdateApiConnectorCommand toCommand() {
         return new UpdateApiConnectorCommand(name, baseUrl, defaultHeaders, traceHeaderMapping, timeoutMs,
@@ -60,6 +72,7 @@ public record UpdateApiConnectorRequest(
                 oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username, oauth2Password,
                 oauth2GrantType, oauth2ClientAuth, reviewPlanId, clearReviewPlan, aiAnalysisEnabled,
                 aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
-                active, healthCheckIntervalMinutes, clearHealthCheck);
+                active, healthCheckIntervalMinutes, clearHealthCheck,
+                callsPerMinute, callsPerDay, perUserSharePercent, costPerCallMicros, monthlyBudgetMicros);
     }
 }

@@ -9,7 +9,8 @@ import java.util.UUID;
  * {@code client-id}/{@code client-secret}/{@code token-url}/{@code scopes}, {@code client-cert}/
  * {@code client-key}); the implementation serializes and AES-256-GCM encrypts it. Never persisted in
  * the clear, never echoed back. {@code healthCheckIntervalMinutes} opts the connector into the
- * scheduled health probe (#894); null leaves it unmonitored.
+ * scheduled health probe (#894); null leaves it unmonitored. The rate-limit and budget fields
+ * (#971) store no limit when null or {@code <= 0}.
  */
 public record CreateApiConnectorCommand(
         UUID organizationId,
@@ -39,5 +40,10 @@ public record CreateApiConnectorCommand(
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
         Long maxResponseBytes,
-        Integer healthCheckIntervalMinutes) {
+        Integer healthCheckIntervalMinutes,
+        Integer callsPerMinute,
+        Integer callsPerDay,
+        Integer perUserSharePercent,
+        Long costPerCallMicros,
+        Long monthlyBudgetMicros) {
 }

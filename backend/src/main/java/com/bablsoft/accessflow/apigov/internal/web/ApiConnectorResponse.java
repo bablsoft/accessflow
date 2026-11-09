@@ -44,7 +44,12 @@ public record ApiConnectorResponse(
         Integer healthCheckIntervalMinutes,
         ApiConnectorHealthStatus lastProbeStatus,
         Instant lastProbeAt,
-        Instant createdAt) {
+        Instant createdAt,
+        Integer callsPerMinute,
+        Integer callsPerDay,
+        Integer perUserSharePercent,
+        Long costPerCallMicros,
+        Long monthlyBudgetMicros) {
 
     static ApiConnectorResponse from(ApiConnectorView v) {
         return new ApiConnectorResponse(v.id(), v.name(), v.protocol(), v.baseUrl(), v.defaultHeaders(),
@@ -55,6 +60,8 @@ public record ApiConnectorResponse(
                 v.oauth2PasswordConfigured(), v.reviewPlanId(),
                 v.aiAnalysisEnabled(), v.aiConfigId(), v.textToApiEnabled(), v.requireReviewReads(),
                 v.requireReviewWrites(), v.maxResponseBytes(), v.active(), v.schemaPresent(),
-                v.healthCheckIntervalMinutes(), v.lastProbeStatus(), v.lastProbeAt(), v.createdAt());
+                v.healthCheckIntervalMinutes(), v.lastProbeStatus(), v.lastProbeAt(), v.createdAt(),
+                v.callsPerMinute(), v.callsPerDay(), v.perUserSharePercent(), v.costPerCallMicros(),
+                v.monthlyBudgetMicros());
     }
 }

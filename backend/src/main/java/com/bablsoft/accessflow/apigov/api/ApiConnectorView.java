@@ -6,7 +6,8 @@ import java.util.UUID;
 
 /**
  * Read view of an API connector. Never carries the auth secret — only {@code authMethod} and a
- * {@code hasCredentials} flag indicating whether secret material is stored.
+ * {@code hasCredentials} flag indicating whether secret material is stored. A null rate-limit or
+ * budget field (#971) means unlimited.
  */
 public record ApiConnectorView(
         UUID id,
@@ -42,5 +43,10 @@ public record ApiConnectorView(
         Integer healthCheckIntervalMinutes,
         ApiConnectorHealthStatus lastProbeStatus,
         Instant lastProbeAt,
-        Instant createdAt) {
+        Instant createdAt,
+        Integer callsPerMinute,
+        Integer callsPerDay,
+        Integer perUserSharePercent,
+        Long costPerCallMicros,
+        Long monthlyBudgetMicros) {
 }

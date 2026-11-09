@@ -155,6 +155,11 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setRequireReviewWrites(command.requireReviewWrites() == null || command.requireReviewWrites());
         entity.setMaxResponseBytes(command.maxResponseBytes() != null ? command.maxResponseBytes() : 10_485_760L);
         entity.setHealthCheckIntervalMinutes(command.healthCheckIntervalMinutes());
+        entity.setCallsPerMinute(positiveOrNull(command.callsPerMinute()));
+        entity.setCallsPerDay(positiveOrNull(command.callsPerDay()));
+        entity.setPerUserSharePercent(positiveOrNull(command.perUserSharePercent()));
+        entity.setCostPerCallMicros(positiveOrNull(command.costPerCallMicros()));
+        entity.setMonthlyBudgetMicros(positiveOrNull(command.monthlyBudgetMicros()));
         entity.setActive(true);
         return toView(connectorRepository.save(entity));
     }
@@ -252,6 +257,22 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
             entity.setHealthCheckIntervalMinutes(null);
         } else if (command.healthCheckIntervalMinutes() != null) {
             entity.setHealthCheckIntervalMinutes(command.healthCheckIntervalMinutes());
+        }
+        // Rate limits and budget (#971): null = unchanged, 0 = clear.
+        if (command.callsPerMinute() != null) {
+            entity.setCallsPerMinute(positiveOrNull(command.callsPerMinute()));
+        }
+        if (command.callsPerDay() != null) {
+            entity.setCallsPerDay(positiveOrNull(command.callsPerDay()));
+        }
+        if (command.perUserSharePercent() != null) {
+            entity.setPerUserSharePercent(positiveOrNull(command.perUserSharePercent()));
+        }
+        if (command.costPerCallMicros() != null) {
+            entity.setCostPerCallMicros(positiveOrNull(command.costPerCallMicros()));
+        }
+        if (command.monthlyBudgetMicros() != null) {
+            entity.setMonthlyBudgetMicros(positiveOrNull(command.monthlyBudgetMicros()));
         }
         var saved = connectorRepository.save(entity);
         if (clearHealthCheck) {
@@ -457,7 +478,18 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 configured(e.getOauth2PasswordEncrypted()), e.getReviewPlanId(), e.isAiAnalysisEnabled(),
                 e.getAiConfigId(), e.isTextToApiEnabled(), e.isRequireReviewReads(), e.isRequireReviewWrites(),
                 e.getMaxResponseBytes(), e.isActive(), schemaPresent, e.getHealthCheckIntervalMinutes(),
-                e.getLastProbeStatus(), e.getLastProbeAt(), e.getCreatedAt());
+                e.getLastProbeStatus(), e.getLastProbeAt(), e.getCreatedAt(), e.getCallsPerMinute(),
+                e.getCallsPerDay(), e.getPerUserSharePercent(), e.getCostPerCallMicros(),
+                e.getMonthlyBudgetMicros());
+    }
+
+    /** A limit of {@code 0} or less (or none) is stored as NULL = unlimited (#971). */
+    private static Integer positiveOrNull(Integer value) {
+        return value == null || value <= 0 ? null : value;
+    }
+
+    private static Long positiveOrNull(Long value) {
+        return value == null || value <= 0 ? null : value;
     }
 
     private static boolean configured(String encrypted) {

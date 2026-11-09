@@ -112,6 +112,16 @@ public class ApiRequestEntity {
     @Column(name = "scheduled_for")
     private Instant scheduledFor;
 
+    // Rate-limit deferral (#971): a throttled request stays APPROVED until throttled_until.
+    @Column(name = "throttled_until")
+    private Instant throttledUntil;
+
+    @Column(name = "throttle_count", nullable = false)
+    private int throttleCount = 0;
+
+    @Column(name = "cost_micros")
+    private Long costMicros;
+
     @Column(name = "required_approvals", nullable = false)
     private int requiredApprovals = 1;
 

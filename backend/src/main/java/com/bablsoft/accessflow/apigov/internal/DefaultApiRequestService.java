@@ -347,7 +347,8 @@ public class DefaultApiRequestService implements ApiRequestService {
                 e.getResponseStatusCode(), e.getResponseDurationMs(),
                 e.getResponseBytes(), e.isResponseTruncated(), snapshotPreview, previewTruncated,
                 e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions,
-                e.getOnBehalfOfUserId(), onBehalfOfEmail);
+                e.getOnBehalfOfUserId(), onBehalfOfEmail, e.getThrottledUntil(), e.getThrottleCount(),
+                e.getCostMicros());
     }
 
     @Override

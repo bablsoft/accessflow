@@ -2714,6 +2714,11 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `last_probe_status` | `api_connector_health_status` | `UNKNOWN` / `HEALTHY` / `UNHEALTHY` (V205, #891). Default `UNKNOWN`; existing rows read back `UNKNOWN`. Written only by the scheduled probe (#894) through a targeted `UPDATE` — the entity maps it `updatable = false`, so a connector edit never writes back a stale value. `clearHealthCheck` resets it to `UNKNOWN`. |
 | `last_probe_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled probe finished. Written only by the scheduled probe (#894). |
 | `consecutive_probe_failures` | INTEGER | Default `0` (V205, #891). Run length of failed scheduled probes, reset to `0` on success or `clearHealthCheck` (#894). The connector flips to `UNHEALTHY` when it reaches `ACCESSFLOW_APIGOV_HEALTH_FAILURE_THRESHOLD`. |
+| `calls_per_minute` / `calls_per_day` | INTEGER | Nullable (V206, #971). Connector-wide call-rate limits; `NULL` = unlimited (the default for every existing row). `CHECK > 0` when set. Set through the connector create / update requests, where `0` clears the limit. Not yet enforced — the limiter lands in #972. |
+| `per_user_share_percent` | INTEGER | Nullable (V206, #971). The share of each connector-wide limit one user may consume; `NULL` = no per-user cap. `CHECK BETWEEN 1 AND 100`. |
+| `cost_per_call_micros` | BIGINT | Nullable (V206, #971). Accounting cost of one executed call, in **micros of one unlabelled unit** (no currency, no FX); `NULL` = calls cost nothing. `CHECK >= 0`. |
+| `monthly_budget_micros` | BIGINT | Nullable (V206, #971). Month-to-date spend ceiling in the same unit; `NULL` = no budget. `CHECK > 0` when set. |
+| `budget_exceeded_notified_month` | DATE | Nullable (V206, #971). First day of the UTC month in which the budget-exhausted notification was last sent — the one-shot-per-month guard (the `deployment_requests.release_notified_at` precedent). Never settable through the connector API; the entity maps it `updatable = false` and the accrual path (#973) writes it through a targeted `UPDATE`. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_schemas (AF-500)
@@ -2967,6 +2972,9 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 | `status` | `query_status` | Lifecycle. |
 | `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
 | `justification` / `ai_analysis_id` / `scheduled_for` / `required_approvals` | — | |
+| `throttled_until` | TIMESTAMPTZ | Nullable (V206, #971). When an `APPROVED` request deferred by a connector rate limit may next be retried. A throttled request **stays `APPROVED`** — there is no `THROTTLED` status, and the shared `query_status` enum is untouched. Partial index `idx_api_requests_throttled ON (throttled_until) WHERE status = 'APPROVED' AND throttled_until IS NOT NULL` backs the retry scan (#972). |
+| `throttle_count` | INTEGER NOT NULL DEFAULT 0 | V206, #971. How many times the request has been deferred by a rate limit. |
+| `cost_micros` | BIGINT | Nullable (V206, #971). Snapshot of the connector's `cost_per_call_micros` charged when the request executed; `NULL` = not charged. Written by #973. |
 | `trace_id` / `span_id` | TEXT | W3C trace context ids generated at submit, propagated as `traceparent` on execution, and filterable (#517, AF-517). Indexed `(organization_id, trace_id)` and `(organization_id, span_id)`. |
 | `response_status_code` / `response_duration_ms` / `response_bytes` / `response_truncated` | — | Execution metadata. |
 | `response_snapshot` | TEXT | Size-capped, field-masked response body (immutable). |
@@ -2974,6 +2982,28 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 | `error_message` / `submitted_ip` / `submitted_user_agent` | — | |
 | `version` | BIGINT | `@Version` optimistic lock. |
 | `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+## api_connector_usage_daily (#971)
+
+Daily per-user usage and spend rollup per connector, the read model behind connector budgets and the
+usage endpoint (epic #970). One row per `(connector, user, UTC date)`; the day boundary is computed in
+Java from the injected `Clock`, never with `date_trunc` (which buckets in the session time zone).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID (no FK), the `grant_usage_summary` convention for a derived rollup. |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE` — a deleted connector takes its rollup with it. |
+| `user_id` | UUID | Bare UUID (no FK). |
+| `usage_date` | DATE | UTC calendar day. |
+| `calls` / `failed_calls` / `throttled_calls` | BIGINT NOT NULL DEFAULT 0 | Executed, failed and rate-limit-deferred calls that day. |
+| `spend_micros` | BIGINT NOT NULL DEFAULT 0 | Sum of `api_requests.cost_micros` that day. Nothing writes the table yet — accrual lands in #973. |
+| `updated_at` | TIMESTAMPTZ NOT NULL | |
+
+`UNIQUE (connector_id, user_id, usage_date)` is the upsert target; indexed `(organization_id,
+connector_id, usage_date)`. No `@Version`: rows are written only by one atomic `INSERT … ON CONFLICT
+… DO UPDATE SET calls = calls + EXCLUDED.calls, …` that adds deltas, so concurrent writers never lose
+an increment.
 
 ## api_review_decisions (AF-500)
 

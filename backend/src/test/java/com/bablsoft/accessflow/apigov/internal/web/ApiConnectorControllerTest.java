@@ -77,7 +77,7 @@ class ApiConnectorControllerTest {
                 null, true, null, false, false,
                 true, 2048L, true, false,
                 15, com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus.UNHEALTHY, Instant.now(),
-                Instant.now());
+                Instant.now(), 60, 1_000, 25, 1_500L, 9_000_000L);
     }
 
     @Test
@@ -116,12 +116,25 @@ class ApiConnectorControllerTest {
     }
 
     @Test
+    void responseCarriesRateLimitsAndBudget() {
+        when(service.getForAdmin(connectorId, orgId)).thenReturn(view());
+
+        var response = controller.get(connectorId, auth(UserRoleType.ADMIN));
+
+        assertThat(response.callsPerMinute()).isEqualTo(60);
+        assertThat(response.callsPerDay()).isEqualTo(1_000);
+        assertThat(response.perUserSharePercent()).isEqualTo(25);
+        assertThat(response.costPerCallMicros()).isEqualTo(1_500L);
+        assertThat(response.monthlyBudgetMicros()).isEqualTo(9_000_000L);
+    }
+
+    @Test
     void createReturnsResponseAndAudits() {
         when(service.create(any())).thenReturn(view());
         var body = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
                 Map.of(), null, 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"),
                 null, null, null, null, null, null, null, null, null, null,
-                null, true, null, false, false, true, 2048L, null);
+                null, true, null, false, false, true, 2048L, null, null, null, null, null, null);
 
         var response = controller.create(body, auth(UserRoleType.ADMIN), auditContext);
 
@@ -134,7 +147,7 @@ class ApiConnectorControllerTest {
         when(service.update(eq(connectorId), eq(orgId), any())).thenReturn(view());
         var body = new UpdateApiConnectorRequest("Stripe",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         controller.update(connectorId, body, auth(UserRoleType.ADMIN), auditContext);
 
@@ -294,19 +307,19 @@ class ApiConnectorControllerTest {
             var create = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
                     Map.of(), null, 5000, true, ApiAuthMethod.NONE, null,
                     null, null, null, null, null, null, null, null, null, null,
-                    null, true, null, false, false, true, 2048L, 0);
+                    null, true, null, false, false, true, 2048L, 0, null, null, null, null, null);
             assertThat(validator.validate(create))
                     .anyMatch(v -> v.getPropertyPath().toString().equals("healthCheckIntervalMinutes"));
 
             var update = new UpdateApiConnectorRequest(null,
                     null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, null, null, null, null, null, null);
             assertThat(validator.validate(update))
                     .anyMatch(v -> v.getPropertyPath().toString().equals("healthCheckIntervalMinutes"));
 
             var valid = new UpdateApiConnectorRequest(null,
                     null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null, null, null, null, null, null);
             assertThat(validator.validate(valid)).isEmpty();
         }
     }

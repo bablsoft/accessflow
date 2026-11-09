@@ -78,6 +78,31 @@ class ApiRequestControllerTest {
     }
 
     @Test
+    void responseCarriesThrottleAndCostFields() {
+        var until = Instant.parse("2026-11-09T12:00:00Z");
+        var v = new ApiRequestView(requestId, connectorId, "Stripe", userId, "u@acme.test", null, "POST",
+                "/charges", true, QueryStatus.APPROVED, SubmissionReason.USER_SUBMITTED, "need", null, null,
+                null, null, com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, java.util.Map.of(), null, null, null,
+                null, null, null, false, null, false, null, null, Instant.now(), List.of(), null, null,
+                until, 3, 1_500L);
+
+        var response = ApiRequestResponse.from(v);
+
+        assertThat(response.throttledUntil()).isEqualTo(until);
+        assertThat(response.throttleCount()).isEqualTo(3);
+        assertThat(response.costMicros()).isEqualTo(1_500L);
+    }
+
+    @Test
+    void responseDefaultsThrottleFieldsForTheLegacyConstructor() {
+        var response = ApiRequestResponse.from(view());
+
+        assertThat(response.throttledUntil()).isNull();
+        assertThat(response.throttleCount()).isZero();
+        assertThat(response.costMicros()).isNull();
+    }
+
+    @Test
     void submitReturnsDetail() {
         when(requestService.submit(any())).thenReturn(new ApiRequestSubmissionResult(requestId, QueryStatus.PENDING_AI));
         when(requestService.get(eq(requestId), eq(orgId), eq(userId),

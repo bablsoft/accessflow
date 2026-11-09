@@ -46,7 +46,10 @@ public record ApiRequestResponse(
         List<ApiReviewDecisionView> decisions,
         /** The human an API-key submitter acted for (#874); null for a human submission. */
         UUID onBehalfOfUserId,
-        String onBehalfOfEmail) {
+        String onBehalfOfEmail,
+        Instant throttledUntil,
+        int throttleCount,
+        Long costMicros) {
 
     static ApiRequestResponse from(ApiRequestView v) {
         return new ApiRequestResponse(v.id(), v.connectorId(), v.connectorName(), v.submittedBy(),
@@ -56,6 +59,7 @@ public record ApiRequestResponse(
                 v.spanId(),
                 v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(), v.responseTruncated(),
                 v.responseSnapshot(), v.responseSnapshotPreviewTruncated(), v.responseContentType(),
-                v.errorMessage(), v.createdAt(), v.decisions(), v.onBehalfOfUserId(), v.onBehalfOfEmail());
+                v.errorMessage(), v.createdAt(), v.decisions(), v.onBehalfOfUserId(), v.onBehalfOfEmail(),
+                v.throttledUntil(), v.throttleCount(), v.costMicros());
     }
 }

@@ -57,7 +57,12 @@ public record ApiRequestView(
         List<ApiReviewDecisionView> decisions,
         /** The human an API-key submitter acted for (#874); null for a human submission. */
         UUID onBehalfOfUserId,
-        String onBehalfOfEmail) {
+        String onBehalfOfEmail,
+        /** When a rate-limited APPROVED request may next run (#971); null when not throttled. */
+        Instant throttledUntil,
+        int throttleCount,
+        /** The charge recorded when the request executed (#971); null when not charged. */
+        Long costMicros) {
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public ApiRequestView(UUID id, UUID connectorId, String connectorName, UUID submittedBy,
@@ -75,6 +80,6 @@ public record ApiRequestView(
                 aiRiskScore, aiSummary, bodyType, variableOverrides, scheduledFor, traceId, spanId,
                 responseStatusCode, responseDurationMs, responseBytes, responseTruncated,
                 responseSnapshot, responseSnapshotPreviewTruncated, responseContentType, errorMessage,
-                createdAt, decisions, null, null);
+                createdAt, decisions, null, null, null, 0, null);
     }
 }

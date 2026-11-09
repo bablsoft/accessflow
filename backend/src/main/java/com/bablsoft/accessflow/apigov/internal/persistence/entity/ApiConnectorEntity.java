@@ -21,6 +21,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -127,6 +128,30 @@ public class ApiConnectorEntity {
 
     @Column(name = "max_response_bytes", nullable = false)
     private long maxResponseBytes = 10_485_760L;
+
+    // Rate limits and budget (#971): NULL = unlimited. Not enforced until #972 / #973.
+    @Column(name = "calls_per_minute")
+    private Integer callsPerMinute;
+
+    @Column(name = "calls_per_day")
+    private Integer callsPerDay;
+
+    @Column(name = "per_user_share_percent")
+    private Integer perUserSharePercent;
+
+    @Column(name = "cost_per_call_micros")
+    private Long costPerCallMicros;
+
+    @Column(name = "monthly_budget_micros")
+    private Long monthlyBudgetMicros;
+
+    // One-shot-per-month notification guard, owned by the accrual path (#973) through a targeted
+    // UPDATE — updatable = false keeps an admin's whole-row save from writing back a stale month.
+    // The Lombok setter is therefore silently ignored on save, and the guard must be one conditional
+    // UPDATE (... WHERE budget_exceeded_notified_month IS DISTINCT FROM :month, checking the row
+    // count), never read-the-field-then-write, or two replicas can both notify.
+    @Column(name = "budget_exceeded_notified_month", updatable = false)
+    private LocalDate budgetExceededNotifiedMonth;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
