@@ -151,6 +151,15 @@ class PagerDutyNotificationStrategyTest {
     }
 
     @Test
+    void connectorBudgetExceededNeverPagesEvenWithEveryTriggerEnabled() {
+        stubConfig(EnumSet.allOf(PagerDutyTrigger.class));
+        strategy.deliver(ctx(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED), channel);
+
+        assertThat(requests).isEmpty();
+        assertThat(taskScheduler.scheduled).isEmpty();
+    }
+
+    @Test
     void connectorDriftNeverPagesEvenWithEveryTriggerEnabled() {
         stubConfig(EnumSet.allOf(PagerDutyTrigger.class));
         strategy.deliver(ctx(NotificationEventType.API_CONNECTOR_DRIFT), channel);

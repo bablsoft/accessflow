@@ -193,4 +193,15 @@ class ApiGovExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(pd.getProperties()).containsEntry("error", "VALIDATION_ERROR");
     }
+
+    @Test
+    void usageRangeInvalidIs422WithMaxDays() {
+        var pd = handler.handleUsageRangeInvalid(
+                new com.bablsoft.accessflow.apigov.api.IllegalApiUsageRangeException("too long", 92));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_usage_range_invalid");
+        assertThat(pd.getProperties())
+                .containsEntry("error", "API_USAGE_RANGE_INVALID")
+                .containsEntry("maxDays", 92);
+    }
 }

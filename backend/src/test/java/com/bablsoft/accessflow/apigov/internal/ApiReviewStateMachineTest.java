@@ -52,6 +52,7 @@ class ApiReviewStateMachineTest {
     @Mock private ApiDecisionEvaluator decisionEvaluator;
     @Mock private ApiRequestStateService stateService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService usageService;
 
     private ApiReviewStateMachine machine;
 
@@ -63,7 +64,7 @@ class ApiReviewStateMachineTest {
     @BeforeEach
     void setUp() {
         machine = new ApiReviewStateMachine(requestRepository, connectorRepository, decisionEvaluator,
-                stateService, eventPublisher);
+                stateService, eventPublisher, usageService);
     }
 
     private ApiRequestEntity pendingAi(boolean write) {
@@ -124,6 +125,20 @@ class ApiReviewStateMachineTest {
         assertThat(captor.getValue().write()).isTrue();
         assertThat(captor.getValue().requireReviewWrites()).isTrue();
         assertThat(captor.getValue().organizationId()).isEqualTo(orgId);
+    }
+
+    @Test
+    void theEvaluatorSeesTheConnectorsBudgetUsedPercent() {
+        loaded(false);
+        when(usageService.budgetUsedPercent(connectorId)).thenReturn(104);
+        when(decisionEvaluator.evaluate(any())).thenReturn(
+                decision(ApiDecisionKind.CONNECTOR_APPROVED, QueryStatus.APPROVED, null, null));
+
+        machine.decide(requestId, AiOutcome.SKIPPED, null);
+
+        var captor = ArgumentCaptor.forClass(ApiDecisionInput.class);
+        verify(decisionEvaluator).evaluate(captor.capture());
+        assertThat(captor.getValue().budgetUsedPercent()).isEqualTo(104);
     }
 
     @Test

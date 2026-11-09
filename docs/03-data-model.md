@@ -2974,7 +2974,7 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 | `justification` / `ai_analysis_id` / `scheduled_for` / `required_approvals` | — | |
 | `throttled_until` | TIMESTAMPTZ | Nullable (V206, #971). When an `APPROVED` request deferred by a connector rate limit may next be retried. A throttled request **stays `APPROVED`** — there is no `THROTTLED` status, and the shared `query_status` enum is untouched. Partial index `idx_api_requests_throttled ON (throttled_until) WHERE status = 'APPROVED' AND throttled_until IS NOT NULL` backs the retry scan (#972). |
 | `throttle_count` | INTEGER NOT NULL DEFAULT 0 | V206, #971. How many times the request has been deferred by a rate limit. |
-| `cost_micros` | BIGINT | Nullable (V206, #971). Snapshot of the connector's `cost_per_call_micros` charged when the request executed; `NULL` = not charged. Written by #973. |
+| `cost_micros` | BIGINT | Nullable (V206, #971). Snapshot of the connector's `cost_per_call_micros` charged when the request executed or failed; `NULL` = unpriced (or not run). A later price change never rewrites it. Stamped by `ApiExecutionService` (#973). |
 | `trace_id` / `span_id` | TEXT | W3C trace context ids generated at submit, propagated as `traceparent` on execution, and filterable (#517, AF-517). Indexed `(organization_id, trace_id)` and `(organization_id, span_id)`. |
 | `response_status_code` / `response_duration_ms` / `response_bytes` / `response_truncated` | — | Execution metadata. |
 | `response_snapshot` | TEXT | Size-capped, field-masked response body (immutable). |
@@ -2996,8 +2996,8 @@ Java from the injected `Clock`, never with `date_trunc` (which buckets in the se
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE` — a deleted connector takes its rollup with it. |
 | `user_id` | UUID | Bare UUID (no FK). |
 | `usage_date` | DATE | UTC calendar day. |
-| `calls` / `failed_calls` / `throttled_calls` | BIGINT NOT NULL DEFAULT 0 | Executed, failed and rate-limit-deferred calls that day. |
-| `spend_micros` | BIGINT NOT NULL DEFAULT 0 | Sum of `api_requests.cost_micros` that day. Nothing writes the table yet — accrual lands in #973. |
+| `calls` / `failed_calls` / `throttled_calls` | BIGINT NOT NULL DEFAULT 0 | `calls` counts every attempted upstream call that day (executed **and** failed); `failed_calls` is the subset of `calls` that failed; `throttled_calls` counts rate-limit **deferrals** — every refused pass through the limiter, so one request re-throttled on each retry counts several times — which never reach the upstream and are not in `calls`. |
+| `spend_micros` | BIGINT NOT NULL DEFAULT 0 | Spend accrued that day — the connector's `cost_per_call_micros` × units for each executed or failed call (break-glass included); throttled calls add nothing. Written only by `DefaultApiConnectorUsageService.accrue` in the execution transaction (#973). |
 | `updated_at` | TIMESTAMPTZ NOT NULL | |
 
 `UNIQUE (connector_id, user_id, usage_date)` is the upsert target; indexed `(organization_id,
@@ -3015,7 +3015,10 @@ shared `decision` enum; unique `(api_request_id, reviewer_id, stage)` backstops 
 
 Attribute-based routing for API calls (enum `api_routing_action`:
 `AUTO_APPROVE`/`AUTO_REJECT`/`REQUIRE_APPROVALS`/`ESCALATE`). `conditions` JSONB constrains
-`write`/`verbs`/`operations`/`minRiskLevel`; lowest `priority` wins; `connector_id` null = all.
+`write`/`verbs`/`operations`/`minRiskLevel`, and since #973 the connector's month-to-date budget —
+`budgetExhausted` (boolean; `true` matches at ≥ 100 % of `monthly_budget_micros`, `false` matches
+under it or when the connector has no budget or price) and `minBudgetUsedPercent` (integer; matches
+only a budgeted, priced connector at or past it); lowest `priority` wins; `connector_id` null = all.
 
 **Extensions (V101).** `ai_analyses.query_request_id` becomes nullable and `api_request_id` is added
 (CHECK exactly-one), keeping AI token-budget accounting unified. `break_glass_events` gains

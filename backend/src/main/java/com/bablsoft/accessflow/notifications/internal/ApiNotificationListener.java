@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.apigov.events.ApiConnectorBudgetExceededEvent;
 import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
 import com.bablsoft.accessflow.apigov.events.ApiConnectorUnhealthyEvent;
 import com.bablsoft.accessflow.apigov.events.ApiReviewEscalatedEvent;
@@ -12,6 +13,8 @@ import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
 
 /**
  * Fans out API-governance notifications (AF-500): a ready-for-review request alerts reviewers/admins;
@@ -65,6 +68,17 @@ class ApiNotificationListener {
     void onConnectorUnhealthy(ApiConnectorUnhealthyEvent event) {
         dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_UNHEALTHY,
                 event.connectorId(), event.message());
+    }
+
+    @ApplicationModuleListener
+    void onConnectorBudgetExceeded(ApiConnectorBudgetExceededEvent event) {
+        dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED,
+                event.connectorId(), units(event.spendMicros()) + " / " + units(event.budgetMicros()));
+    }
+
+    /** Micros of the connector's unlabelled accounting unit, rendered as a plain decimal. */
+    static String units(long micros) {
+        return BigDecimal.valueOf(micros, 6).stripTrailingZeros().toPlainString();
     }
 
     private static NotificationEventType mapStatus(QueryStatus status) {

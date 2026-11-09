@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2 token keeps failing on API connector {{connector}}",
       "API_CONNECTOR_DRIFT_one": "{{count}} schema drift finding on API connector {{connector}}",
       "API_CONNECTOR_DRIFT_other": "{{count}} schema drift findings on API connector {{connector}}",
-      "API_CONNECTOR_UNHEALTHY": "API connector {{connector}} is unhealthy"
+      "API_CONNECTOR_UNHEALTHY": "API connector {{connector}} is unhealthy",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "API connector {{connector}} reached its monthly budget ({{detail}})"
     }
   },
   "profile": {

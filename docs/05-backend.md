@@ -4945,7 +4945,11 @@ masking via `ColumnMasker`, immutable masked snapshot stored in full for downloa
 connector rate-limit pre-check that runs first, before any upstream call: `ApiConnectorRateLimiter`, a Redis
 token bucket + UTC daily counter in one Lua script, fail-open on Redis loss, break-glass exempt; a throttled
 request stays `APPROVED` with `throttled_until` and the sync execute answers
-`429 API_CONNECTOR_QUOTA_EXCEEDED`, #972). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
+`429 API_CONNECTOR_QUOTA_EXCEEDED`, #972; every outcome then accrues through
+`DefaultApiConnectorUsageService.accrue` into the `api_connector_usage_daily` rollup in the same
+transaction, stamping `cost_micros`, and the month-to-date budget percentage feeds the
+`budgetExhausted` / `minBudgetUsedPercent` routing conditions and a once-a-month
+`API_CONNECTOR_BUDGET_EXCEEDED` notification — never an execution block, #973). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
 (`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
 (`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. **Replay**
 (`DefaultApiRequestReplayService`, #886) re-submits a terminal request through the same `submit` path

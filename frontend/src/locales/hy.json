@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2 թոքենը շարունակում է ձախողվել {{connector}} API միակցիչում",
       "API_CONNECTOR_DRIFT_one": "{{count}} սխեմայի շեղում {{connector}} API միակցիչում",
       "API_CONNECTOR_DRIFT_other": "{{count}} սխեմայի շեղում {{connector}} API միակցիչում",
-      "API_CONNECTOR_UNHEALTHY": "{{connector}} API միակցիչն անսարք է"
+      "API_CONNECTOR_UNHEALTHY": "{{connector}} API միակցիչն անսարք է",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "{{connector}} API միակցիչը հասել է ամսական բյուջեին ({{detail}})"
     }
   },
   "profile": {

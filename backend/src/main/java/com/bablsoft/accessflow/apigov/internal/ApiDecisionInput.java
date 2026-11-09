@@ -11,10 +11,11 @@ import java.util.UUID;
  *
  * <p>An explicit record rather than the request entity: the live path builds it from a persisted row
  * and the simulator builds it from a lookup view, and neither should have to fake the other's shape.
- * The connector fields are the governance-relevant ones only.
+ * The connector fields are the governance-relevant ones only. {@code budgetUsedPercent} is the
+ * connector's month-to-date spend against its budget (#973), null when unbudgeted or unpriced.
  */
 record ApiDecisionInput(UUID organizationId, UUID connectorId, UUID reviewPlanId,
                         boolean requireReviewReads, boolean requireReviewWrites,
                         String verb, boolean write, String operationId,
-                        AiOutcome aiOutcome, RiskLevel riskLevel) {
+                        AiOutcome aiOutcome, RiskLevel riskLevel, Integer budgetUsedPercent) {
 }

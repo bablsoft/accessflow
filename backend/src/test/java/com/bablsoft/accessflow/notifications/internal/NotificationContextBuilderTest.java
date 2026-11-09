@@ -1004,6 +1004,11 @@ class NotificationContextBuilderTest {
         assertThat(drift.reviewUrl().toString()).endsWith("/api-connectors/" + connectorId + "/settings?tab=drift");
         assertThat(unhealthy.reviewerComment()).isEqualTo("Connection refused");
         assertThat(unhealthy.reviewUrl().toString()).endsWith("/settings");
+
+        var budget = builder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED, connectorId, "12.5 / 10").orElseThrow();
+        assertThat(budget.reviewerComment()).isEqualTo("12.5 / 10");
+        assertThat(budget.reviewUrl().toString()).endsWith("/api-connectors/" + connectorId + "/settings");
     }
 
     @Test

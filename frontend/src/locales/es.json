@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "El token OAuth2 sigue fallando en el conector de API {{connector}}",
       "API_CONNECTOR_DRIFT_one": "{{count}} hallazgo de desviación de esquema en el conector de API {{connector}}",
       "API_CONNECTOR_DRIFT_other": "{{count}} hallazgos de desviación de esquema en el conector de API {{connector}}",
-      "API_CONNECTOR_UNHEALTHY": "El conector de API {{connector}} está en mal estado"
+      "API_CONNECTOR_UNHEALTHY": "El conector de API {{connector}} está en mal estado",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "El conector de API {{connector}} alcanzó su presupuesto mensual ({{detail}})"
     }
   },
   "profile": {

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -24,9 +26,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -41,6 +45,7 @@ class ApiConnectorController {
     private final ApiConnectorHealthService healthService;
     private final ApiConnectorVariableLookupService variableLookupService;
     private final ApiGovAuditWriter auditWriter;
+    private final ApiConnectorUsageService usageService;
 
     @GetMapping
     @Operation(summary = "List API connectors (admins see all; others see granted connectors)")
@@ -64,6 +69,27 @@ class ApiConnectorController {
                 ? service.getForAdmin(id, caller.organizationId())
                 : service.getForUser(id, caller.organizationId(), caller.userId());
         return ApiConnectorResponse.from(view);
+    }
+
+    @GetMapping("/{id}/usage")
+    @Operation(summary = "Read a connector's usage and month-to-date spend (#973)",
+            description = "Daily calls, failed and throttled calls and spend between from and to "
+                    + "(UTC dates, inclusive; default the current month, at most 92 days). Admins "
+                    + "see the whole connector; a granted user sees only their own daily rows. "
+                    + "Month-to-date spend and budget percentage are connector-wide.")
+    @ApiResponse(responseCode = "200", description = "Usage")
+    @ApiResponse(responseCode = "404", description = "Connector not found or not accessible")
+    @ApiResponse(responseCode = "422", description = "Invalid date range (API_USAGE_RANGE_INVALID)")
+    ApiConnectorUsageResponse usage(@PathVariable UUID id,
+                                    @RequestParam(required = false)
+                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                    @RequestParam(required = false)
+                                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                    Authentication authentication) {
+        var caller = claims(authentication);
+        var view = usageService.usage(id, caller.organizationId(),
+                isAdmin(caller) ? null : caller.userId(), from, to);
+        return ApiConnectorUsageResponse.from(view);
     }
 
     @GetMapping("/{id}/variables/summary")

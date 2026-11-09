@@ -66,6 +66,7 @@ class DefaultApiCallSimulationServiceTest {
     @Mock private ApiConnectorMaskingResolutionService maskingResolutionService;
     @Mock private RolePermissionHolderLookupService rolePermissionHolderLookupService;
     @Mock private UserQueryService userQueryService;
+    @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService usageService;
 
     private DefaultApiCallSimulationService service;
 
@@ -79,7 +80,8 @@ class DefaultApiCallSimulationServiceTest {
     void setUp() {
         service = new DefaultApiCallSimulationService(connectorLookupService, schemaService,
                 permissionResolver, decisionEvaluator, routingEngine, reviewPlanLookupService,
-                maskingResolutionService, rolePermissionHolderLookupService, userQueryService);
+                maskingResolutionService, rolePermissionHolderLookupService, userQueryService,
+                usageService);
 
         when(userQueryService.findById(userId)).thenReturn(Optional.of(user(userId, true)));
         when(userQueryService.findByIds(any())).thenReturn(List.of(user(reviewerId, true)));
@@ -550,5 +552,19 @@ class DefaultApiCallSimulationServiceTest {
 
         assertThat(step(result.steps(), ApiDecisionStepKind.OPERATION_PERMISSION).details())
                 .containsEntry("expires_at", expiry);
+    }
+
+    @Test
+    void theSimulationEvaluatesWithTheConnectorsLiveBudgetUsedPercent() {
+        when(usageService.budgetUsedPercent(connectorId)).thenReturn(100);
+
+        service.simulate(organizationId, input("deleteCustomer", "DELETE"));
+
+        var inputCaptor = org.mockito.ArgumentCaptor.forClass(ApiDecisionInput.class);
+        verify(decisionEvaluator).evaluate(inputCaptor.capture());
+        assertThat(inputCaptor.getValue().budgetUsedPercent()).isEqualTo(100);
+        var contextCaptor = org.mockito.ArgumentCaptor.forClass(ApiRoutingPolicyEngine.RoutingContext.class);
+        verify(routingEngine).evaluateAll(any(), any(), contextCaptor.capture());
+        assertThat(contextCaptor.getValue().budgetUsedPercent()).isEqualTo(100);
     }
 }

@@ -4,10 +4,12 @@ import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingResolutionService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableResolutionService;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
+import com.bablsoft.accessflow.apigov.api.ApiUsageOutcome;
 import com.bablsoft.accessflow.apigov.api.ApiVariableRequestContext;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.ResolvedApiMask;
@@ -54,6 +56,8 @@ import java.util.UUID;
  * outcome. Used by the submitter-triggered execute endpoint, the scheduled-run job, and break-glass.
  * Every non-break-glass execution first passes the connector rate limits (#972); a throttled request
  * stays APPROVED with {@code throttled_until} stamped and is retried by the run job.
+ * Every outcome — break-glass included — accrues into the connector's usage rollup in the same
+ * transaction, and an executed or failed request snapshots the price in {@code cost_micros} (#973).
  */
 @Service
 @RequiredArgsConstructor
@@ -82,6 +86,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     private final ApiConnectorRateLimiter rateLimiter;
     private final AuditLogService auditLogService;
     private final Clock clock;
+    private final ApiConnectorUsageService usageService;
 
     /** What started an execution — selects who writes the outcome audit row and its trigger. */
     public enum ExecutionTrigger {
@@ -122,6 +127,8 @@ public class ApiExecutionService implements ApiInlineExecutionService {
         if (request.getSubmissionReason() != SubmissionReason.EMERGENCY_ACCESS
                 && rateLimiter.tryAcquire(connector, request.getSubmittedBy())
                         instanceof ApiConnectorRateLimiter.Throttled throttled) {
+            usageService.accrue(connector.getId(), request.getOrganizationId(), request.getSubmittedBy(),
+                    ApiUsageOutcome.THROTTLED, 1);
             throw defer(request, throttled, trigger);
         }
         // Past the limiter: the deferral is over (throttle_count stays as history).
@@ -138,6 +145,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
             request.setResponseSnapshot(masked);
             request.setResponseContentType(result.contentType());
             request.setErrorMessage(null);
+            accrue(connector, request, ApiUsageOutcome.EXECUTED);
             stateService.apply(request, QueryStatus.EXECUTED);
             eventPublisher.publishEvent(new ApiRequestDecidedEvent(request.getId(), QueryStatus.EXECUTED, null));
             auditSystemOutcome(AuditAction.API_REQUEST_EXECUTED, request, trigger);
@@ -145,12 +153,21 @@ public class ApiExecutionService implements ApiInlineExecutionService {
         } catch (ApiExecutionException ex) {
             log.warn("API request {} execution failed: {}", request.getId(), ex.getMessage());
             request.setErrorMessage(ex.getMessage());
+            accrue(connector, request, ApiUsageOutcome.FAILED);
             stateService.apply(request, QueryStatus.FAILED);
             eventPublisher.publishEvent(new ApiRequestDecidedEvent(request.getId(), QueryStatus.FAILED,
                     ex.getMessage()));
             auditSystemOutcome(AuditAction.API_REQUEST_FAILED, request, trigger);
             return request;
         }
+    }
+
+    /** Snapshots the price on the request (a later price change never rewrites it) and accrues. */
+    private void accrue(ApiConnectorEntity connector, ApiRequestEntity request, ApiUsageOutcome outcome) {
+        var price = connector.getCostPerCallMicros();
+        request.setCostMicros(price != null && price > 0 ? price : null);
+        usageService.accrue(connector.getId(), request.getOrganizationId(), request.getSubmittedBy(),
+                outcome, 1);
     }
 
     private ApiConnectorQuotaExceededException defer(ApiRequestEntity request,
@@ -239,18 +256,37 @@ public class ApiExecutionService implements ApiInlineExecutionService {
             var message = "Connector " + throttled.kind() + " rate limit exceeded; retry after "
                     + throttled.retryAfterSeconds() + "s";
             log.debug("Inline API call to connector {} throttled: {}", connector.getId(), message);
+            accrueInline(connector, command, ApiUsageOutcome.THROTTLED);
             return new ApiInlineExecutionResult(false, 0, null, null, false, null, null, message);
         }
         try {
             var result = invoke(connector, transient_);
             var masked = responseMasker.mask(result.body(), result.contentType(),
                     resolveMasks(connector, command.userId()));
+            accrueInline(connector, command, ApiUsageOutcome.EXECUTED);
             return new ApiInlineExecutionResult(result.statusCode() < 400, result.statusCode(),
                     result.durationMs(), result.bytes(), result.truncated(), masked,
                     result.contentType(), null);
         } catch (ApiExecutionException ex) {
             log.warn("Inline API call to connector {} failed: {}", connector.getId(), ex.getMessage());
+            accrueInline(connector, command, ApiUsageOutcome.FAILED);
             return new ApiInlineExecutionResult(false, 0, null, null, false, null, null, ex.getMessage());
+        }
+    }
+
+    /**
+     * An inline call has no enclosing transaction and its upstream call has already run, so a failed
+     * accrual must not turn a delivered request-group member into a failed one — spend accounting
+     * never blocks execution. The {@code execute} path accrues inside its own transaction instead
+     * (epic #970 decision 5), where a failure rolls the outcome back with it.
+     */
+    private void accrueInline(ApiConnectorEntity connector, ApiInlineExecutionCommand command,
+                              ApiUsageOutcome outcome) {
+        try {
+            usageService.accrue(connector.getId(), command.organizationId(), command.userId(), outcome, 1);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to accrue {} usage for inline call to connector {}: {}", outcome,
+                    connector.getId(), ex.getMessage());
         }
     }
 

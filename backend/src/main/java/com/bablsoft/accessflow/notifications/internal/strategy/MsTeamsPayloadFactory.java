@@ -287,6 +287,7 @@ class MsTeamsPayloadFactory {
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
             case API_CONNECTOR_DRIFT -> "🧬 API Connector Schema Drift";
             case API_CONNECTOR_UNHEALTHY -> "🚨 API Connector Unhealthy";
+            case API_CONNECTOR_BUDGET_EXCEEDED -> "💸 API Connector Budget Reached";
             // #695: deployment governance
             case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
             case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";

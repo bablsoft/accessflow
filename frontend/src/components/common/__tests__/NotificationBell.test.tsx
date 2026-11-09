@@ -785,6 +785,12 @@ describe('NotificationBell', () => {
       'API connector Stripe is unhealthy',
       '/api-connectors/c-1/settings',
     ],
+    [
+      'API_CONNECTOR_BUDGET_EXCEEDED' as const,
+      { datasource: 'Stripe', connector_id: 'c-1', detail: '12.5 / 10' },
+      'API connector Stripe reached its monthly budget (12.5 / 10)',
+      '/api-connectors/c-1/settings',
+    ],
   ])(
     'renders %s with a label and opens the connector settings (#895)',
     async (eventType, payload, expected, expectedRoute) => {

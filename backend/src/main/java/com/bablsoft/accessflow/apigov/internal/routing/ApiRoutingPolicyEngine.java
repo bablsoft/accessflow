@@ -18,8 +18,11 @@ import java.util.UUID;
 /**
  * Evaluates API routing policies (lowest {@code priority} first) against a submitted call. A policy's
  * {@code conditions} JSON may constrain {@code write} (boolean), {@code verbs} (array),
- * {@code operations} (array of operation ids), and {@code minRiskLevel} (LOW/MEDIUM/HIGH/CRITICAL);
- * an absent key is unconstrained. The first matching enabled policy wins.
+ * {@code operations} (array of operation ids), {@code minRiskLevel} (LOW/MEDIUM/HIGH/CRITICAL),
+ * {@code budgetExhausted} (boolean — true matches a connector at or past 100 % of its monthly
+ * budget; false matches one under it or with no budget) and {@code minBudgetUsedPercent} (integer —
+ * matches only a budgeted, priced connector at or past that percentage) (#973); an absent key is
+ * unconstrained. The first matching enabled policy wins.
  */
 @Component
 @RequiredArgsConstructor
@@ -92,6 +95,14 @@ public class ApiRoutingPolicyEngine {
         if (conditions.has("minRiskLevel") && !meetsRisk(conditions.get("minRiskLevel").asString(), context.riskLevel())) {
             return false;
         }
+        if (conditions.has("budgetExhausted")
+                && conditions.get("budgetExhausted").asBoolean() != budgetExhausted(context.budgetUsedPercent())) {
+            return false;
+        }
+        if (conditions.has("minBudgetUsedPercent")
+                && !meetsBudget(conditions.get("minBudgetUsedPercent"), context.budgetUsedPercent())) {
+            return false;
+        }
         return true;
     }
 
@@ -118,7 +129,17 @@ public class ApiRoutingPolicyEngine {
         }
     }
 
-    public record RoutingContext(String verb, boolean write, String operationId, RiskLevel riskLevel) {
+    private static boolean budgetExhausted(Integer budgetUsedPercent) {
+        return budgetUsedPercent != null && budgetUsedPercent >= 100;
+    }
+
+    private static boolean meetsBudget(JsonNode min, Integer budgetUsedPercent) {
+        return budgetUsedPercent != null && min.isNumber() && budgetUsedPercent >= min.asInt();
+    }
+
+    /** {@code budgetUsedPercent} is null when the connector has no budget or no price (#973). */
+    public record RoutingContext(String verb, boolean write, String operationId, RiskLevel riskLevel,
+                                 Integer budgetUsedPercent) {
     }
 
     public record RoutingMatch(UUID policyId, String policyName, ApiRoutingAction action,

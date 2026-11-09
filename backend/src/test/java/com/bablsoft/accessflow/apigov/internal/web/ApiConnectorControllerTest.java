@@ -43,6 +43,7 @@ class ApiConnectorControllerTest {
     private ApiConnectorHealthService healthService;
     private AuditLogService auditLogService;
     private ApiConnectorController controller;
+    private com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService usageService;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -57,8 +58,9 @@ class ApiConnectorControllerTest {
         auditLogService = mock(AuditLogService.class);
         variableLookupService =
                 mock(com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService.class);
+        usageService = mock(com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService.class);
         controller = new ApiConnectorController(service, healthService, variableLookupService,
-                new ApiGovAuditWriter(auditLogService));
+                new ApiGovAuditWriter(auditLogService), usageService);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -322,5 +324,55 @@ class ApiConnectorControllerTest {
                     null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null, null, null, null, null, null);
             assertThat(validator.validate(valid)).isEmpty();
         }
+    }
+
+    // ── #973: usage read ───────────────────────────────────────────────────
+
+    private com.bablsoft.accessflow.apigov.api.ApiConnectorUsageView usageView() {
+        return new com.bablsoft.accessflow.apigov.api.ApiConnectorUsageView(connectorId,
+                java.time.LocalDate.parse("2026-11-01"), 7_500L, 10_000L, 75, 2_500L,
+                List.of(new com.bablsoft.accessflow.apigov.api.ApiConnectorUsageDayView(
+                        java.time.LocalDate.parse("2026-11-01"), 3, 1, 2, 7_500L)));
+    }
+
+    @Test
+    void usageForAdminReadsTheWholeConnector() {
+        var from = java.time.LocalDate.parse("2026-11-01");
+        when(usageService.usage(connectorId, orgId, null, from, null)).thenReturn(usageView());
+
+        var response = controller.usage(connectorId, from, null, auth(UserRoleType.ADMIN));
+
+        assertThat(response.connectorId()).isEqualTo(connectorId);
+        assertThat(response.monthToDateSpendMicros()).isEqualTo(7_500L);
+        assertThat(response.budgetUsedPercent()).isEqualTo(75);
+        assertThat(response.monthlyBudgetMicros()).isEqualTo(10_000L);
+        assertThat(response.costPerCallMicros()).isEqualTo(2_500L);
+        assertThat(response.monthStart()).isEqualTo(from);
+        assertThat(response.days()).singleElement().satisfies(d -> {
+            assertThat(d.calls()).isEqualTo(3);
+            assertThat(d.failedCalls()).isEqualTo(1);
+            assertThat(d.throttledCalls()).isEqualTo(2);
+            assertThat(d.spendMicros()).isEqualTo(7_500L);
+            assertThat(d.date()).isEqualTo(from);
+        });
+    }
+
+    @Test
+    void usageForAGrantedUserIsScopedToTheirOwnRows() {
+        when(usageService.usage(connectorId, orgId, userId, null, null)).thenReturn(usageView());
+
+        var response = controller.usage(connectorId, null, null, auth(UserRoleType.ANALYST));
+
+        assertThat(response.days()).hasSize(1);
+        verify(usageService).usage(connectorId, orgId, userId, null, null);
+    }
+
+    @Test
+    void usageForAnUngrantedUserIs404() {
+        when(usageService.usage(connectorId, orgId, userId, null, null))
+                .thenThrow(new com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException(connectorId));
+
+        assertThatThrownBy(() -> controller.usage(connectorId, null, null, auth(UserRoleType.ANALYST)))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException.class);
     }
 }

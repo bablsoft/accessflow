@@ -27,6 +27,15 @@ class ApiConnectorTextTest {
     }
 
     @Test
+    void budgetLabelsSpendAgainstBudget() {
+        var fields = ApiConnectorText.fields(
+                ApiConnectorNotificationTest.connectorCtx(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED));
+
+        assertThat(fields).containsExactly(Map.entry("Connector", "Stripe"),
+                Map.entry("Month-to-date spend / budget", "12.5 / 10"));
+    }
+
+    @Test
     void tokenFailureCarriesNoDetailLine() {
         var fields = ApiConnectorText.fields(
                 ApiConnectorNotificationTest.connectorCtx(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED));

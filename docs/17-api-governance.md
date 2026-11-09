@@ -287,6 +287,27 @@ no retry loop. The limiter **fails open**: if Redis is
 unreachable the call proceeds and a `WARN` is logged — a deliberate divergence from the AI rate
 limiter, because a rate limit protects the upstream from load and is not an authorization control.
 
+**Cost and monthly budget (#973).** Every governed call — break-glass and request-group members
+included — accrues into `api_connector_usage_daily` (keyed connector × user × UTC day) in the
+execution transaction: an executed or failed call adds the connector's `cost_per_call_micros`
+(snapshotted on the request as `cost_micros`), a throttled one is counted but never priced. Day and
+month boundaries are UTC, computed from the injected `Clock`. A budget **never blocks**: when
+month-to-date spend first reaches `monthly_budget_micros`, admins get one
+`API_CONNECTOR_BUDGET_EXCEEDED` notification for that month (never a page), and routing policies see
+the month-to-date percentage — `budgetExhausted: true` matches at ≥ 100 %, `minBudgetUsedPercent: 80`
+from 80 % on — so an admin can write an `AUTO_REJECT` policy on `budgetExhausted: true` to reject
+**new submissions** once the budget is used up. That is not a hard spend cap: the percentage is read
+only when a request is routed, so requests approved earlier (scheduled or waiting out a throttle),
+break-glass calls and request-group API members still run and still accrue. `api_routing_policies`
+has no REST API, UI or Terraform resource yet, so such a policy is currently seeded directly in the
+database. Because accrual shares the execution transaction, a database error while accruing rolls
+the request's outcome back with it (the request stays `APPROVED`); request-group members, which run
+outside a transaction, log the failed accrual instead and keep their result. The budget notification
+fires at most once per connector per month; two calls that cross the budget at the same instant may
+leave it to the next priced call. A connector with no budget or no price has no percentage: `budgetExhausted:
+false` matches it, `minBudgetUsedPercent` never does. `GET /api-connectors/{id}/usage` reads the
+rollup back.
+
 **Replay and response diff** work on a finished request: the submitter can re-submit a terminal
 request as a new governed call, and an executed request's stored response can be compared with the
 previous run of the same call. Both are described in [§8](#8-replay--response-diff-epic-885).

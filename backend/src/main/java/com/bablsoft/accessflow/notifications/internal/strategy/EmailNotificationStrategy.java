@@ -284,7 +284,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         return templateEngine.process(template, context);
     }
 
-    private static String templateName(NotificationEventType eventType) {
+    static String templateName(NotificationEventType eventType) {
         return switch (eventType) {
             case QUERY_SUBMITTED -> "email/query-ready-for-review";
             case QUERY_APPROVED -> "email/query-approved";
@@ -309,6 +309,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // #895: schema drift and an unhealthy connector — org admins.
             case API_CONNECTOR_DRIFT -> "email/api-connector-drift";
             case API_CONNECTOR_UNHEALTHY -> "email/api-connector-unhealthy";
+            case API_CONNECTOR_BUDGET_EXCEEDED -> "email/api-connector-budget-exceeded";
             // #695: deployment governance — unlike API requests, deployment events do email.
             case DEPLOYMENT_SUBMITTED -> "email/deployment-pending-review";
             case DEPLOYMENT_APPROVED -> "email/deployment-approved";
@@ -397,6 +398,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.api_connector_token_failed";
             case API_CONNECTOR_DRIFT -> "notification.email.subject.api_connector_drift";
             case API_CONNECTOR_UNHEALTHY -> "notification.email.subject.api_connector_unhealthy";
+            case API_CONNECTOR_BUDGET_EXCEEDED -> "notification.email.subject.api_connector_budget_exceeded";
             case DEPLOYMENT_SUBMITTED -> "notification.email.subject.deployment_submitted";
             case DEPLOYMENT_APPROVED -> "notification.email.subject.deployment_approved";
             case DEPLOYMENT_REJECTED -> "notification.email.subject.deployment_rejected";

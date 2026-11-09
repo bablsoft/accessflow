@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2-Token schlägt beim API-Konnektor {{connector}} wiederholt fehl",
       "API_CONNECTOR_DRIFT_one": "{{count}} Schema-Abweichung beim API-Konnektor {{connector}}",
       "API_CONNECTOR_DRIFT_other": "{{count}} Schema-Abweichungen beim API-Konnektor {{connector}}",
-      "API_CONNECTOR_UNHEALTHY": "API-Konnektor {{connector}} ist fehlerhaft"
+      "API_CONNECTOR_UNHEALTHY": "API-Konnektor {{connector}} ist fehlerhaft",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "API-Konnektor {{connector}} hat sein Monatsbudget erreicht ({{detail}})"
     }
   },
   "profile": {

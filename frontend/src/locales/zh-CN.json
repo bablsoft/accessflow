@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "API 连接器 {{connector}} 的 OAuth2 令牌持续失败",
       "API_CONNECTOR_DRIFT_one": "API 连接器 {{connector}} 上有 {{count}} 项架构漂移发现",
       "API_CONNECTOR_DRIFT_other": "API 连接器 {{connector}} 上有 {{count}} 项架构漂移发现",
-      "API_CONNECTOR_UNHEALTHY": "API 连接器 {{connector}} 不健康"
+      "API_CONNECTOR_UNHEALTHY": "API 连接器 {{connector}} 不健康",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "API 连接器 {{connector}} 已达到月度预算（{{detail}}）"
     }
   },
   "profile": {

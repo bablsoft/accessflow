@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService;
 import com.bablsoft.accessflow.apigov.events.ApiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiAnalysisFailedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiAnalysisSkippedEvent;
@@ -37,6 +38,7 @@ class ApiReviewStateMachine {
     private final ApiDecisionEvaluator decisionEvaluator;
     private final ApiRequestStateService stateService;
     private final ApplicationEventPublisher eventPublisher;
+    private final ApiConnectorUsageService usageService;
 
     @ApplicationModuleListener
     void onCompleted(ApiAnalysisCompletedEvent event) {
@@ -89,12 +91,13 @@ class ApiReviewStateMachine {
         }
     }
 
-    private static ApiDecisionInput toInput(ApiRequestEntity request, ApiConnectorEntity connector,
+    private ApiDecisionInput toInput(ApiRequestEntity request, ApiConnectorEntity connector,
                                             AiOutcome aiOutcome, RiskLevel riskLevel) {
         return new ApiDecisionInput(request.getOrganizationId(), connector.getId(),
                 connector.getReviewPlanId(), connector.isRequireReviewReads(),
                 connector.isRequireReviewWrites(), request.getVerb(), request.isWrite(),
-                request.getOperationId(), aiOutcome, riskLevel);
+                request.getOperationId(), aiOutcome, riskLevel,
+                usageService.budgetUsedPercent(connector.getId()));
     }
 
     private void approve(ApiRequestEntity request, UUID policyId) {
