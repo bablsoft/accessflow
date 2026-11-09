@@ -72,7 +72,7 @@ class DefaultApiRequestServiceTest {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService, variableLookupService,
-                new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8192, 500),
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8192, 500, 0, null),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         lenient().when(userQueryService.findById(any())).thenReturn(Optional.empty());
@@ -310,7 +310,7 @@ class DefaultApiRequestServiceTest {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService, variableLookupService,
-                new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L, 8192, 500),
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L, 8192, 500, 0, null),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         var full = "0123456789ABCDEF"; // 16 chars, longer than the 8-char preview budget
@@ -378,7 +378,7 @@ class DefaultApiRequestServiceTest {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService, variableLookupService,
-                new ApigovRequestProperties(4L, 10_485_760L, 65_536L, 8192, 500),
+                new ApigovRequestProperties(4L, 10_485_760L, 65_536L, 8192, 500, 0, null),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));

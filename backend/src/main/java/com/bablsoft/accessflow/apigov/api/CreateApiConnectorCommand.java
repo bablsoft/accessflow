@@ -8,7 +8,8 @@ import java.util.UUID;
  * method (e.g. {@code api-key}, {@code header-name}, {@code token}, {@code username}/{@code password},
  * {@code client-id}/{@code client-secret}/{@code token-url}/{@code scopes}, {@code client-cert}/
  * {@code client-key}); the implementation serializes and AES-256-GCM encrypts it. Never persisted in
- * the clear, never echoed back.
+ * the clear, never echoed back. {@code healthCheckIntervalMinutes} opts the connector into the
+ * scheduled health probe (#894); null leaves it unmonitored.
  */
 public record CreateApiConnectorCommand(
         UUID organizationId,
@@ -37,5 +38,6 @@ public record CreateApiConnectorCommand(
         Boolean textToApiEnabled,
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
-        Long maxResponseBytes) {
+        Long maxResponseBytes,
+        Integer healthCheckIntervalMinutes) {
 }

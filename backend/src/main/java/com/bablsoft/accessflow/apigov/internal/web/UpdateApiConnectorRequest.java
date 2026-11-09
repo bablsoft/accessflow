@@ -49,7 +49,10 @@ public record UpdateApiConnectorRequest(
         Boolean requireReviewWrites,
         @Min(value = 1, message = "{validation.api_connector.max_response_bytes.min}")
         Long maxResponseBytes,
-        Boolean active) {
+        Boolean active,
+        @Min(value = 1, message = "{validation.api_connector.health_check_interval.min}")
+        Integer healthCheckIntervalMinutes,
+        Boolean clearHealthCheck) {
 
     UpdateApiConnectorCommand toCommand() {
         return new UpdateApiConnectorCommand(name, baseUrl, defaultHeaders, traceHeaderMapping, timeoutMs,
@@ -57,6 +60,6 @@ public record UpdateApiConnectorRequest(
                 oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username, oauth2Password,
                 oauth2GrantType, oauth2ClientAuth, reviewPlanId, clearReviewPlan, aiAnalysisEnabled,
                 aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
-                active);
+                active, healthCheckIntervalMinutes, clearHealthCheck);
     }
 }

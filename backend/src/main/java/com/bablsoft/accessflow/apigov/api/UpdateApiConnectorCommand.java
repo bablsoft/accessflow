@@ -10,6 +10,8 @@ import java.util.UUID;
  * the stored value unchanged. {@code reviewPlanId} follows the same null-means-unchanged rule, so
  * unassigning a plan goes through {@code clearReviewPlan} (mirrors the datasource update's
  * {@code clearAiConfig} convention); when true it wins over {@code reviewPlanId}.
+ * {@code healthCheckIntervalMinutes} / {@code clearHealthCheck} follow the same shape (#894);
+ * clearing also forgets the probe status and failure streak.
  */
 public record UpdateApiConnectorCommand(
         String name,
@@ -38,5 +40,7 @@ public record UpdateApiConnectorCommand(
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
         Long maxResponseBytes,
-        Boolean active) {
+        Boolean active,
+        Integer healthCheckIntervalMinutes,
+        Boolean clearHealthCheck) {
 }

@@ -70,6 +70,16 @@ endpoint / credentials surface at setup time.
 CRUD is admin-gated and org-scoped; every mutation writes an audit row
 (`API_CONNECTOR_CREATED`/`_UPDATED`/`_DELETED`).
 
+**Scheduled health (#894).** A connector can also be monitored on a timer: set
+`healthCheckIntervalMinutes` (≥ 1) and `ApiConnectorHealthJob` runs the same probe as the test
+action on that cadence, without the OAuth2 token fetch. Like the test action it checks reachability only, so any HTTP response, `5xx` included, counts as up. Each probe is kept as a history row, and
+consecutive failures are counted. When the count reaches `ACCESSFLOW_APIGOV_HEALTH_FAILURE_THRESHOLD`
+(default 3), the connector becomes `UNHEALTHY`. That flip is audited as `API_CONNECTOR_UNHEALTHY`
+and raises one connector-down event (notifications for it land in #895); recovery is audited as `API_CONNECTOR_RECOVERED`. Admins read
+the status and the 20 newest probes from `GET /api-connectors/{id}/health`. The manual test action
+never counts toward the streak. Detail: [docs/05-backend.md](05-backend.md) → *Scheduled connector
+health*.
+
 ### OAuth2 token sourcing (AF-500 / #506)
 
 When `auth_method = OAUTH2_CLIENT_CREDENTIALS`, AccessFlow obtains the outbound access token itself
@@ -558,7 +568,8 @@ Every connector/schema/permission/request action writes a tamper-evident `audit_
 `_DELETED`/`API_CONNECTOR_VARIABLES_REORDERED` (AF-613; metadata carries the variable name, kind and
 flags — never the expression or the secret),
 `API_CONNECTOR_MASKING_POLICY_CREATED`/`_UPDATED`/`_DELETED`,
-`API_CONNECTOR_CLASSIFICATION_TAG_ADDED`/`_REMOVED` (resource `API_CONNECTOR`), and
+`API_CONNECTOR_CLASSIFICATION_TAG_ADDED`/`_REMOVED`, the system-attributed scheduled-health rows
+`API_CONNECTOR_UNHEALTHY`/`_RECOVERED` (#894; `trigger=health`) (resource `API_CONNECTOR`), and
 `API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`
 (resource `API_REQUEST`) — delivering the full audit of which APIs are called, how, and by whom.
 

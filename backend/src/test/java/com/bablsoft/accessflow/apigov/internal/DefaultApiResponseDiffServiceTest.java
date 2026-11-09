@@ -47,7 +47,7 @@ class DefaultApiResponseDiffServiceTest {
     void setUp() {
         repository = mock(ApiRequestRepository.class);
         service = new DefaultApiResponseDiffService(repository,
-                new ApigovRequestProperties(1L, 1L, 1L, 1, 500), JsonMapper.builder().build());
+                new ApigovRequestProperties(1L, 1L, 1L, 1, 500, 0, null), JsonMapper.builder().build());
     }
 
     private ApiRequestEntity run(String operationId, String snapshot, Instant createdAt) {

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
@@ -37,6 +38,7 @@ import java.util.UUID;
 class ApiConnectorController {
 
     private final ApiConnectorAdminService service;
+    private final ApiConnectorHealthService healthService;
     private final ApiConnectorVariableLookupService variableLookupService;
     private final ApiGovAuditWriter auditWriter;
 
@@ -146,6 +148,16 @@ class ApiConnectorController {
     ApiConnectionTestResponse test(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return ApiConnectionTestResponse.from(service.test(id, caller.organizationId()));
+    }
+
+    @GetMapping("/{id}/health")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
+    @Operation(summary = "Scheduled health of a connector: status, failure streak and the 20 newest probes")
+    @ApiResponse(responseCode = "200", description = "Connector health")
+    @ApiResponse(responseCode = "404", description = "Connector not found")
+    ApiConnectorHealthResponse health(@PathVariable UUID id, Authentication authentication) {
+        var caller = claims(authentication);
+        return ApiConnectorHealthResponse.from(healthService.health(id, caller.organizationId()));
     }
 
     @GetMapping("/{id}/permissions")

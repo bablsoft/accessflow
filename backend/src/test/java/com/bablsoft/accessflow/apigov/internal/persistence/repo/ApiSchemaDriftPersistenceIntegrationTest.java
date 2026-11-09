@@ -136,10 +136,9 @@ class ApiSchemaDriftPersistenceIntegrationTest {
         for (var status : ApiConnectorHealthStatus.values()) {
             var probedAt = now();
             reloadedConnector.setHealthCheckIntervalMinutes(10);
-            reloadedConnector.setLastProbeStatus(status);
-            reloadedConnector.setLastProbeAt(probedAt);
-            reloadedConnector.setConsecutiveProbeFailures(3);
             reloadedConnector = connectorRepository.save(reloadedConnector);
+            // Probe state is updatable = false (#894): only the targeted UPDATE writes it.
+            connectorRepository.updateProbeOutcome(connector.getId(), status, probedAt, 3);
             var again = connectorRepository.findById(connector.getId()).orElseThrow();
             assertThat(again.getLastProbeStatus()).isEqualTo(status);
             assertThat(again.getLastProbeAt()).isEqualTo(probedAt);
