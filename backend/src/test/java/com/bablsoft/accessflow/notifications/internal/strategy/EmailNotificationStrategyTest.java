@@ -172,6 +172,31 @@ class EmailNotificationStrategyTest {
         verify(templateEngine).process(eq("email/api-connector-token-failed"), any());
     }
 
+    /** #895: all three email switches — template, subject key and subject args — per connector event. */
+    @Test
+    void connectorDriftUsesItsTemplateSubjectKeyAndFindingCountArg() {
+        strategy.deliver(ApiConnectorNotificationTest.connectorCtx(NotificationEventType.API_CONNECTOR_DRIFT),
+                channel());
+
+        verify(templateEngine).process(eq("email/api-connector-drift"), any());
+        var argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(messageSource).getMessage(eq("notification.email.subject.api_connector_drift"),
+                argsCaptor.capture(), any(Locale.class));
+        assertThat(argsCaptor.getValue()).containsExactly("Stripe", "4");
+    }
+
+    @Test
+    void connectorUnhealthyUsesItsTemplateAndSubjectKey() {
+        strategy.deliver(ApiConnectorNotificationTest.connectorCtx(NotificationEventType.API_CONNECTOR_UNHEALTHY),
+                channel());
+
+        verify(templateEngine).process(eq("email/api-connector-unhealthy"), any());
+        var argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(messageSource).getMessage(eq("notification.email.subject.api_connector_unhealthy"),
+                argsCaptor.capture(), any(Locale.class));
+        assertThat(argsCaptor.getValue()).containsExactly("Stripe");
+    }
+
     @Test
     void deliverRoutesEachDeploymentEventToItsOwnTemplate() {
         var expected = java.util.Map.of(

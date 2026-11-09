@@ -102,6 +102,9 @@ class SlackBlockKitFactory {
         if (ctx.isDataBudgetEvent()) {
             return dataBudgetSection(ctx);
         }
+        if (ctx.isApiConnectorEvent()) {
+            return apiConnectorSection(ctx);
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -174,6 +177,15 @@ class SlackBlockKitFactory {
         }
         if (ctx.driftNewFindingCount() != null) {
             fields.add(mrkdwn("*New findings:*\n" + ctx.driftNewFindingCount()));
+        }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    // #895: connector-scoped API-governance events — shared field set with the other chat channels.
+    private static SectionBlock apiConnectorSection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        for (var field : ApiConnectorText.fields(ctx)) {
+            fields.add(mrkdwn("*" + field.getKey() + ":*\n" + field.getValue()));
         }
         return SectionBlock.builder().fields(fields).build();
     }
@@ -282,6 +294,8 @@ class SlackBlockKitFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            case API_CONNECTOR_DRIFT -> "🧬 API Connector Schema Drift";
+            case API_CONNECTOR_UNHEALTHY -> "🚨 API Connector Unhealthy";
             // #695: deployment governance
             case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
             case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";

@@ -306,6 +306,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case SENSITIVE_RESULT_EXPORTED -> "email/sensitive-result-exported";
             // A connector whose OAuth2 token keeps failing is effectively down — alert admins by email.
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "email/api-connector-token-failed";
+            // #895: schema drift and an unhealthy connector — org admins.
+            case API_CONNECTOR_DRIFT -> "email/api-connector-drift";
+            case API_CONNECTOR_UNHEALTHY -> "email/api-connector-unhealthy";
             // #695: deployment governance — unlike API requests, deployment events do email.
             case DEPLOYMENT_SUBMITTED -> "email/deployment-pending-review";
             case DEPLOYMENT_APPROVED -> "email/deployment-approved";
@@ -363,6 +366,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     ctx.dataBudget() != null ? ctx.dataBudget().budgetName() : null,
                     ctx.datasourceName(),
                     ctx.dataBudget() != null ? ctx.dataBudget().usedPercent() : null};
+            // #895: "{0}" is the connector, "{1}" the drift finding count. Unhealthy needs only the
+            // connector — the probe error is too long for a subject and goes in the body.
+            case API_CONNECTOR_DRIFT -> new Object[]{ctx.datasourceName(), ctx.reviewerComment()};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -389,6 +395,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.sensitive_result_exported";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "notification.email.subject.api_connector_token_failed";
+            case API_CONNECTOR_DRIFT -> "notification.email.subject.api_connector_drift";
+            case API_CONNECTOR_UNHEALTHY -> "notification.email.subject.api_connector_unhealthy";
             case DEPLOYMENT_SUBMITTED -> "notification.email.subject.deployment_submitted";
             case DEPLOYMENT_APPROVED -> "notification.email.subject.deployment_approved";
             case DEPLOYMENT_REJECTED -> "notification.email.subject.deployment_rejected";

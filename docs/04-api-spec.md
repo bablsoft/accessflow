@@ -8619,7 +8619,8 @@ no role is required — every authenticated user can read and manage their own i
 `AI_HIGH_RISK` \| `BREAK_GLASS_EXECUTED` \| `SENSITIVE_RESULT_EXPORTED`), the access
 events (`ACCESS_REQUEST_*`, `ACCESS_GRANT_*`, `GRANT_STALE`), `ANOMALY_DETECTED`,
 `WEEKLY_DIGEST`, `ATTESTATION_CAMPAIGN_OPENED`, `ERASURE_APPROVED`, the API-request
-events (`API_REQUEST_*`, `API_CONNECTOR_OAUTH2_TOKEN_FAILED` — AF-500), and the
+events (`API_REQUEST_*`, `API_CONNECTOR_OAUTH2_TOKEN_FAILED` — AF-500), the connector
+events (`API_CONNECTOR_DRIFT` \| `API_CONNECTOR_UNHEALTHY` — #895), and the
 deployment events (`DEPLOYMENT_SUBMITTED` \| `DEPLOYMENT_APPROVED` \|
 `DEPLOYMENT_REJECTED` \| `DEPLOYMENT_OUTCOME_FAILED` \|
 `DEPLOYMENT_BREAK_GLASS_EXECUTED` — #695), and the schema-change events
@@ -8636,7 +8637,9 @@ the `datasource` key; schema-change rows add `schema_change_promotion_id`, `chan
 `environment` and `promotion_status` (`FAILED` or `PARTIALLY_APPLIED` on a failure), and a
 drift row adds `new_finding_count` — again with the pipeline name in `datasource`. Data-budget
 rows add `datasource_id`, `budget` and `used_percent`, with the budget's user in `submitter` /
-`submitter_name`.
+`submitter_name`. The three `API_CONNECTOR_*` rows (#895) add `connector_id` and, when there is one,
+`detail` (the drift finding count, or the last health-probe error), with the connector name in
+`datasource`; they set no target id.
 
 ### GET /notifications/unread-count — Response 200
 

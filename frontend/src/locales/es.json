@@ -2088,6 +2088,7 @@
         "not_configured": "El SMTP del sistema no está configurado. Configúralo para habilitar las invitaciones de usuarios y el envío de correo por defecto."
       },
       "label_pagerduty_trigger_review_stalled": "Revisión estancada (nadie decidió a tiempo)",
+      "label_pagerduty_trigger_connector_down": "Conector caído (las comprobaciones de estado siguen fallando)",
       "label_pagerduty_trigger_anomaly": "Anomalía de comportamiento detectada",
       "label_pagerduty_trigger_break_glass": "Consulta de emergencia ejecutada"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} hallazgo nuevo de deriva de esquema en {{pipeline}} / {{environment}}",
       "SCHEMA_DRIFT_DETECTED_other": "{{count}} hallazgos nuevos de deriva de esquema en {{pipeline}} / {{environment}}",
       "DATA_BUDGET_THRESHOLD_REACHED": "Ha usado el {{percent}} % de su presupuesto de datos {{budget}} en {{datasource}}",
-      "DATA_BUDGET_EXHAUSTED": "El presupuesto de datos {{budget}} de {{user}} en {{datasource}} está agotado"
+      "DATA_BUDGET_EXHAUSTED": "El presupuesto de datos {{budget}} de {{user}} en {{datasource}} está agotado",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "El token OAuth2 sigue fallando en el conector de API {{connector}}",
+      "API_CONNECTOR_DRIFT_one": "{{count}} hallazgo de desviación de esquema en el conector de API {{connector}}",
+      "API_CONNECTOR_DRIFT_other": "{{count}} hallazgos de desviación de esquema en el conector de API {{connector}}",
+      "API_CONNECTOR_UNHEALTHY": "El conector de API {{connector}} está en mal estado"
     }
   },
   "profile": {

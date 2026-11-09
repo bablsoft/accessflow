@@ -23,6 +23,9 @@ class PagerDutyTriggerTest {
         assertThat(PagerDutyTrigger.BREAK_GLASS.eventTypes())
                 .containsExactlyInAnyOrder(NotificationEventType.BREAK_GLASS_EXECUTED,
                         NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED);
+        // #895: a dead connector pages; a changed spec does not.
+        assertThat(PagerDutyTrigger.CONNECTOR_DOWN.eventTypes())
+                .containsExactly(NotificationEventType.API_CONNECTOR_UNHEALTHY);
     }
 
     @Test
@@ -37,6 +40,8 @@ class PagerDutyTriggerTest {
                 .contains(PagerDutyTrigger.REVIEW_STALLED);
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED))
                 .contains(PagerDutyTrigger.BREAK_GLASS);
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_UNHEALTHY))
+                .contains(PagerDutyTrigger.CONNECTOR_DOWN);
     }
 
     @Test
@@ -53,6 +58,8 @@ class PagerDutyTriggerTest {
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_REJECTED)).isEmpty();
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED))
                 .isEmpty();
+        // #895: schema drift on an API connector is a review item, not an incident.
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_DRIFT)).isEmpty();
     }
 
     @Test
@@ -65,6 +72,8 @@ class PagerDutyTriggerTest {
                 .isEqualTo(PagerDutyTrigger.ESCALATION);
         assertThat(PagerDutyTrigger.fromConfig("review_stalled"))
                 .isEqualTo(PagerDutyTrigger.REVIEW_STALLED);
+        assertThat(PagerDutyTrigger.fromConfig("connector_down"))
+                .isEqualTo(PagerDutyTrigger.CONNECTOR_DOWN);
     }
 
     @Test
@@ -74,6 +83,7 @@ class PagerDutyTriggerTest {
                 .hasMessageContaining("triggers");
         assertThatThrownBy(() -> PagerDutyTrigger.fromConfig("bogus"))
                 .isInstanceOf(NotificationChannelConfigException.class)
-                .hasMessageContaining("triggers");
+                .hasMessageContaining("triggers")
+                .hasMessageContaining("CONNECTOR_DOWN");
     }
 }

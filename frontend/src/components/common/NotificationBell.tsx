@@ -324,6 +324,16 @@ function renderMessage(
         user: payload.submitter_name ?? payload.submitter ?? '—',
         datasource,
       });
+    // #895 — connector-scoped API events; the connector name rides in `datasource`.
+    case 'API_CONNECTOR_OAUTH2_TOKEN_FAILED':
+      return t('notifications.events.API_CONNECTOR_OAUTH2_TOKEN_FAILED', { connector: datasource });
+    case 'API_CONNECTOR_DRIFT':
+      return t('notifications.events.API_CONNECTOR_DRIFT', {
+        count: Number(payload.detail ?? 0) || 0,
+        connector: datasource,
+      });
+    case 'API_CONNECTOR_UNHEALTHY':
+      return t('notifications.events.API_CONNECTOR_UNHEALTHY', { connector: datasource });
     default:
       return t('notifications.events.fallback');
   }
@@ -413,6 +423,17 @@ export function routeForNotification(item: UserNotification): string | null {
     item.event_type === 'DATA_BUDGET_EXHAUSTED'
   ) {
     return '/editor';
+  }
+  // #895: connector events land on the connector's settings page; drift opens its drift tab.
+  if (
+    item.event_type === 'API_CONNECTOR_OAUTH2_TOKEN_FAILED' ||
+    item.event_type === 'API_CONNECTOR_DRIFT' ||
+    item.event_type === 'API_CONNECTOR_UNHEALTHY'
+  ) {
+    const connectorId = item.payload.connector_id;
+    if (!connectorId) return '/api-connectors';
+    const settings = `/api-connectors/${connectorId}/settings`;
+    return item.event_type === 'API_CONNECTOR_DRIFT' ? `${settings}?tab=drift` : settings;
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

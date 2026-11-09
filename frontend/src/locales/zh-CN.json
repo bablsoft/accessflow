@@ -2088,6 +2088,7 @@
         "not_configured": "系统 SMTP 尚未配置。请配置以启用用户邀请和邮件备用发送。"
       },
       "label_pagerduty_trigger_review_stalled": "审核停滞（无人及时处理）",
+      "label_pagerduty_trigger_connector_down": "连接器宕机（健康探测持续失败）",
       "label_pagerduty_trigger_anomaly": "检测到行为异常",
       "label_pagerduty_trigger_break_glass": "已执行紧急break-glass查询"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{pipeline}} / {{environment}} 上有 {{count}} 项新的架构漂移发现",
       "SCHEMA_DRIFT_DETECTED_other": "{{pipeline}} / {{environment}} 上有 {{count}} 项新的架构漂移发现",
       "DATA_BUDGET_THRESHOLD_REACHED": "您已使用 {{datasource}} 上数据预算 {{budget}} 的 {{percent}}%",
-      "DATA_BUDGET_EXHAUSTED": "{{user}} 在 {{datasource}} 上的数据预算 {{budget}} 已用尽"
+      "DATA_BUDGET_EXHAUSTED": "{{user}} 在 {{datasource}} 上的数据预算 {{budget}} 已用尽",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "API 连接器 {{connector}} 的 OAuth2 令牌持续失败",
+      "API_CONNECTOR_DRIFT_one": "API 连接器 {{connector}} 上有 {{count}} 项架构漂移发现",
+      "API_CONNECTOR_DRIFT_other": "API 连接器 {{connector}} 上有 {{count}} 项架构漂移发现",
+      "API_CONNECTOR_UNHEALTHY": "API 连接器 {{connector}} 不健康"
     }
   },
   "profile": {

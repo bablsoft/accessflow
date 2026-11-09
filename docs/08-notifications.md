@@ -26,7 +26,9 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `WEEKLY_DIGEST` | `WeeklyDigestJob` fires for a user opted into the weekly dashboard digest (AF-498) | The single opted-in user (digest owner). Delivered via the user's email + active org chat channels (Email/Slack/Discord/Teams/Telegram); PagerDuty treats it as not-applicable (never pages). | implemented |
 | `ATTESTATION_CAMPAIGN_OPENED` | An access-recertification campaign opens (AF-384) | The campaign's eligible reviewers (datasource reviewers) plus active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram) mirroring the `ANOMALY_DETECTED` fanout; PagerDuty treats it as not-applicable (never pages). | implemented |
 | `ERASURE_APPROVED` | A right-to-erasure request is approved (AF-499) | The request's **submitter** (so they learn it was approved). Delivered to the submitter's active chat channels (Slack/Discord/Teams/Telegram) + in-app; no email template (uses the fallback subject); PagerDuty not-applicable. | implemented |
-| `API_CONNECTOR_OAUTH2_TOKEN_FAILED` | An API connector's outbound OAuth2 token fetch has failed repeatedly (consecutive-failure counter crossed `accessflow.apigov.oauth2-token-failure-alert-threshold`); the connector is effectively down (AF-500 / #506) | All active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram/PagerDuty) mirroring the `ANOMALY_DETECTED` fanout. Never includes the token/secret. | implemented |
+| `API_CONNECTOR_OAUTH2_TOKEN_FAILED` | An API connector's outbound OAuth2 token fetch has failed repeatedly (consecutive-failure counter crossed `accessflow.apigov.oauth2-token-failure-alert-threshold`); the connector is effectively down (AF-500 / #506) | All active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram) mirroring the `ANOMALY_DETECTED` fanout. **Never pages** — no PagerDuty trigger maps it. Never includes the token/secret. | implemented |
+| `API_CONNECTOR_DRIFT` | A scheduled or manual schema refresh stored (or re-reported) a schema revision with at least one drift finding (`ApiSchemaDriftDetectedEvent`, #893 → #895) | All active org admins, on **all** active org channels. The in-app payload carries `connector_id` and the finding count as `detail`; the email and the bell link to the connector settings page with `?tab=drift`, which selects the drift tab once #896 adds it (until then the page opens on its first tab). **Never pages** (no PagerDuty trigger) and opens no ticket — a changed spec is a review item, not an incident | implemented |
+| `API_CONNECTOR_UNHEALTHY` | A connector's scheduled health probes crossed `accessflow.apigov.health-failure-threshold` and it flipped to `UNHEALTHY` (`ApiConnectorUnhealthyEvent`, #894 → #895). Fired once per outage; recovery is audited, not notified | All active org admins, on **all** active org channels. The in-app payload carries `connector_id` and the last probe error as `detail`. Pages PagerDuty only on the opt-in `CONNECTOR_DOWN` trigger; opens no ticket | implemented |
 | `DEPLOYMENT_SUBMITTED` | A governed deployment reaches `PENDING_REVIEW` (#695, epic AF-682) — deliberately **not** on submission, so a deployment a routing policy auto-decides never pings reviewers | The deployment's eligible reviewers (the resolved review plan's stage-1 approver rules when present, else all REVIEWER/ADMIN role holders), excluding the submitter. Fanned out to **all** active org channels — deployment pipelines carry no review-plan channel binding. Never pages. Opens a change ticket on a ServiceNow / Jira channel carrying the `DEPLOYMENT_SUBMITTED` trigger when the environment has `change_ticket_required` (#991, see [Deployment change tickets](#deployment-change-tickets-991)). | implemented |
 | `DEPLOYMENT_APPROVED` | A deployment is approved — reviewer quorum, routing-policy `AUTO_APPROVE`, or an environment that needs no review (#695) | The submitter. Org-wide channel fanout; never pages. Opens the change ticket when no `DEPLOYMENT_SUBMITTED` opened one — an auto-approved deployment never reaches review (#991). | implemented |
 | `DEPLOYMENT_REJECTED` | A deployment is rejected — reviewer verdict, routing-policy `AUTO_REJECT`, an active `REJECT` freeze window at submission, or the review timeout (`TIMED_OUT` folds into this event with its `review_timeout` reason) (#695) | The submitter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
@@ -89,6 +91,8 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/grant-stale.html` — `GRANT_STALE` (#625; the grant holder, the granted resource and its kind, the recommendation, and either the idle-days count or an explicit "never used" line — the two are rendered differently because null days is not a large number of days — with a CTA to the over-provisioned access report)
 - `email/sensitive-result-exported.html` — `SENSITIVE_RESULT_EXPORTED` (#626; the exporter, the datasource, the classification list, format + row count, an extra line when the egress was a recurring-email attachment, and a CTA to the query detail page)
 - `email/api-connector-token-failed.html` — `API_CONNECTOR_OAUTH2_TOKEN_FAILED` (AF-500 / #506; red alert banner, the connector name, and a CTA to the connector settings — never the token/secret)
+- `email/api-connector-drift.html` — `API_CONNECTOR_DRIFT` (#895; neutral blue banner, the connector name, the drift finding count, and a CTA to the connector settings page with `?tab=drift` — the drift tab lands with #896)
+- `email/api-connector-unhealthy.html` — `API_CONNECTOR_UNHEALTHY` (#895; red alert banner, the connector name, the last probe error when there is one, and a CTA to the connector settings)
 - `email/deployment-pending-review.html` — `DEPLOYMENT_SUBMITTED` (#695; pipeline, environment, version, submitter, the AI summary when present, and the justification; the CTA links `/deployments/{id}` — every deployment notification carries that `reviewUrl` since #991)
 - `email/deployment-approved.html` — `DEPLOYMENT_APPROVED` (#695; pipeline, environment, version, green accent)
 - `email/deployment-rejected.html` — `DEPLOYMENT_REJECTED` (#695; adds an explicit timed-out note when the decision reason is `review_timeout`)
@@ -244,7 +248,10 @@ promotion fields null for drift and `new_finding_count` null for promotions. Dat
 (`DATA_BUDGET_THRESHOLD_REACHED`, `DATA_BUDGET_EXHAUSTED`, #942) add a sibling `data_budget`
 object — `{ budget_id, budget_name, datasource_id, user_id, exhausted, warn_threshold_percent,
 used_percent, max_rows, used_rows, max_bytes, used_bytes, window_minutes, breach_action }`, with
-`max_rows` / `max_bytes` null for a limit the budget does not set. All four blocks are **additive**: existing event shapes are unchanged, so
+`max_rows` / `max_bytes` null for a limit the budget does not set. The three API-connector events
+(`API_CONNECTOR_OAUTH2_TOKEN_FAILED`, `API_CONNECTOR_DRIFT`, `API_CONNECTOR_UNHEALTHY`, #895) add a
+sibling `api_connector` object — `{ connector_id, connector_name, detail }`, where `detail` is the
+drift finding count or the last health-probe error, and null for a token failure. All five blocks are **additive**: existing event shapes are unchanged, so
 subscribers' HMAC-verified payloads are unaffected.
 
 **Request headers:**
@@ -334,7 +341,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
 {
   "routing_key": "R0ABCD1234567890ABCDEF",
   "default_severity": "critical",
-  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY", "BREAK_GLASS", "REVIEW_STALLED"]
+  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY", "BREAK_GLASS", "REVIEW_STALLED", "CONNECTOR_DOWN"]
 }
 ```
 
@@ -347,9 +354,10 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident. Neither do the schema-change events (`SCHEMA_CHANGE_PROMOTION_*`, `SCHEMA_DRIFT_DETECTED`, #882): a promotion's lifecycle is not an incident, and a drift finding carries no severity to separate a critical divergence from a cosmetic one. Nor do the data-budget events (`DATA_BUDGET_THRESHOLD_REACHED`, `DATA_BUDGET_EXHAUSTED`, #942): a user reaching a read quota is an advisory, not an incident.
   - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
   - `REVIEW_STALLED` → the `REVIEW_ESCALATED` event (nobody decided within the plan's `escalation_after_hours`, #622). There is deliberately **no** trigger for `REVIEW_NUDGE` — a reminder is not an incident and must never page.
+  - `CONNECTOR_DOWN` → the `API_CONNECTOR_UNHEALTHY` event (an API connector's health probes kept failing, #895). `API_CONNECTOR_DRIFT` deliberately has **no** trigger — a changed upstream spec is not an outage — and neither does `API_CONNECTOR_OAUTH2_TOKEN_FAILED`.
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
-The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<eventType>-<subject>` (the subject is the query request id, falling back to the anomaly id, then the deployment request id, then the connector id) so re-triggers for the same subject collapse into a single PagerDuty incident, a `summary`, `source` (the datasource / pipeline name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL; deployment pages add `deployment_id`, `environment`, `version`). A deep link back to the AccessFlow review page is sent as `client_url` when one exists.
+The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<eventType>-<subject>` (the subject is the query request id, falling back to the anomaly id, then the deployment request id, then the connector id) so re-triggers for the same subject collapse into a single PagerDuty incident, a `summary`, `source` (the datasource / pipeline name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL; deployment pages add `deployment_id`, `environment`, `version`; connector pages add `connector_id` and `detail`). A deep link back to the AccessFlow review page is sent as `client_url` when one exists.
 
 PagerDuty delivery uses the **same async retry scheduler as the generic `WEBHOOK` channel** — one initial attempt plus up to three retries at `accessflow.notifications.retry.{first,second,third}` (default +30s / +2m / +10m). On exhaustion the dispatcher logs `ERROR` and publishes a `NotificationDeliveryExhaustedEvent` to the audit log. The Events API base URL is configurable via `accessflow.notifications.pagerduty-api-base-url` (default `https://events.pagerduty.com/`) for air-gapped installs that route through an internal proxy.
 
@@ -563,7 +571,7 @@ in `NotificationContextBuilder`:
 | `ACCESS_REQUEST_SUBMITTED` | Eligible plan approvers at the lowest stage (excluding the requester), falling back to all active org admins when the plan resolves no one |
 | `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | The requester |
 | `ATTESTATION_CAMPAIGN_OPENED` | The campaign's eligible reviewers (datasource reviewers) plus all active org admins |
-| `API_CONNECTOR_OAUTH2_TOKEN_FAILED` | All active org admins |
+| `API_CONNECTOR_OAUTH2_TOKEN_FAILED` / `API_CONNECTOR_DRIFT` / `API_CONNECTOR_UNHEALTHY` | All active org admins |
 | `DEPLOYMENT_SUBMITTED` | The deployment's eligible reviewers (stage-1 plan approver rules when present, else REVIEWER ∪ ADMIN role holders), excluding the submitter |
 | `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | The submitter |
 | `DEPLOYMENT_OUTCOME_FAILED` | The reviewers who approved the deployment |

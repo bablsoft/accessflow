@@ -2147,6 +2147,7 @@
         "not_configured": "System SMTP is not configured. Configure it to enable user invitations and the email fallback."
       },
       "label_pagerduty_trigger_review_stalled": "Review stalled (nobody decided in time)",
+      "label_pagerduty_trigger_connector_down": "Connector down (health probes keep failing)",
       "label_pagerduty_trigger_anomaly": "Behavioral anomaly detected",
       "label_pagerduty_trigger_break_glass": "Break-glass query executed"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} new schema drift finding on {{pipeline}} / {{environment}}",
       "SCHEMA_DRIFT_DETECTED_other": "{{count}} new schema drift findings on {{pipeline}} / {{environment}}",
       "DATA_BUDGET_THRESHOLD_REACHED": "You have used {{percent}}% of your data budget {{budget}} on {{datasource}}",
-      "DATA_BUDGET_EXHAUSTED": "Data budget {{budget}} for {{user}} on {{datasource}} is used up"
+      "DATA_BUDGET_EXHAUSTED": "Data budget {{budget}} for {{user}} on {{datasource}} is used up",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2 token keeps failing on API connector {{connector}}",
+      "API_CONNECTOR_DRIFT_one": "{{count}} schema drift finding on API connector {{connector}}",
+      "API_CONNECTOR_DRIFT_other": "{{count}} schema drift findings on API connector {{connector}}",
+      "API_CONNECTOR_UNHEALTHY": "API connector {{connector}} is unhealthy"
     }
   },
   "profile": {

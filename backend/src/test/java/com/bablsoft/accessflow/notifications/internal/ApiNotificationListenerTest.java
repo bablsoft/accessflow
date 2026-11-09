@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
+import com.bablsoft.accessflow.apigov.events.ApiConnectorUnhealthyEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
+import com.bablsoft.accessflow.apigov.events.ApiSchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +60,24 @@ class ApiNotificationListenerTest {
         var connectorId = UUID.randomUUID();
         listener.onConnectorTokenFailure(new ApiConnectorTokenFailureEvent(connectorId, UUID.randomUUID()));
         verify(dispatcher).dispatchApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId, null);
+    }
+
+    @Test
+    void schemaDriftNotifiesDriftEventWithFindingCount() {
+        var connectorId = UUID.randomUUID();
+        listener.onSchemaDriftDetected(new ApiSchemaDriftDetectedEvent(UUID.randomUUID(), connectorId,
+                UUID.randomUUID(), UUID.randomUUID(), 3));
+        verify(dispatcher).dispatchApiConnector(NotificationEventType.API_CONNECTOR_DRIFT, connectorId, "3");
+    }
+
+    @Test
+    void unhealthyNotifiesUnhealthyEventWithLastError() {
+        var connectorId = UUID.randomUUID();
+        listener.onConnectorUnhealthy(new ApiConnectorUnhealthyEvent(connectorId, UUID.randomUUID(), 5,
+                "Connection refused"));
+        verify(dispatcher).dispatchApiConnector(NotificationEventType.API_CONNECTOR_UNHEALTHY, connectorId,
+                "Connection refused");
     }
 
     @Test

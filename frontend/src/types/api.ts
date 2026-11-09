@@ -2616,6 +2616,7 @@ export interface NotificationChannelPagerDutyConfig {
     | 'BREAK_GLASS'
     | 'ESCALATION'
     | 'REVIEW_STALLED'
+    | 'CONNECTOR_DOWN'
   >;
 }
 export type TicketingTrigger =
@@ -2833,7 +2834,10 @@ export type UserNotificationEventType =
   | 'SCHEMA_CHANGE_PROMOTION_FAILED'
   | 'SCHEMA_DRIFT_DETECTED'
   | 'DATA_BUDGET_THRESHOLD_REACHED'
-  | 'DATA_BUDGET_EXHAUSTED';
+  | 'DATA_BUDGET_EXHAUSTED'
+  | 'API_CONNECTOR_OAUTH2_TOKEN_FAILED'
+  | 'API_CONNECTOR_DRIFT'
+  | 'API_CONNECTOR_UNHEALTHY';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2865,6 +2869,10 @@ export interface UserNotificationPayload {
   datasource_id?: string;
   budget?: string;
   used_percent?: number;
+  /** #895 — connector-scoped API events: the connector (its name rides in `datasource`) and the
+   *  event detail (drift finding count, or the last health-probe error). */
+  connector_id?: string;
+  detail?: string;
 }
 
 export interface UserNotification {

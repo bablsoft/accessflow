@@ -553,33 +553,81 @@ class NotificationDispatcherTest {
         verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
-    @Test
-    void dispatchApiConnectorUsesAllActiveOrgChannels() {
+    /**
+     * #895: connectors carry no review-plan channel binding, so every connector event fans out
+     * org-wide, and the in-app payload carries the connector id (the bell routes on it) plus the
+     * event detail under its own key rather than reviewer_comment.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = NotificationEventType.class,
+            names = {"API_CONNECTOR_OAUTH2_TOKEN_FAILED", "API_CONNECTOR_DRIFT", "API_CONNECTOR_UNHEALTHY"})
+    void dispatchApiConnectorUsesAllActiveOrgChannelsAndCarriesConnectorPayload(NotificationEventType type) {
         var connectorId = UUID.randomUUID();
-        when(contextBuilder.buildApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId))
-                .thenReturn(Optional.of(sampleContextWithRecipients(
-                        NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, List.of())));
+        var admin = UUID.randomUUID();
+        when(contextBuilder.buildApiConnector(type, connectorId, "detail-text"))
+                .thenReturn(Optional.of(connectorContext(type, connectorId, "detail-text",
+                        List.of(new RecipientView(admin, "admin@x", "Admin")))));
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of(emailCh));
 
-        dispatcher.dispatchApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
+        dispatcher.dispatchApiConnector(type, connectorId, "detail-text");
 
         verify(emailStrategy).deliver(any(), eq(emailCh));
         verify(channelRepository, never())
                 .findAllByOrganizationIdAndIdInAndActiveTrue(any(), any());
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(eq(type), eq(Set.of(admin)), eq(orgId),
+                isNull(), isNull(), isNull(), isNull(), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"connector_id\":\"" + connectorId + "\"")
+                .contains("\"detail\":\"detail-text\"")
+                .contains("\"datasource\":\"Stripe\"")
+                .doesNotContain("reviewer_comment");
+    }
+
+    @Test
+    void dispatchApiConnectorWithoutDetailOmitsTheKey() {
+        var connectorId = UUID.randomUUID();
+        var admin = UUID.randomUUID();
+        when(contextBuilder.buildApiConnector(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+                connectorId, null))
+                .thenReturn(Optional.of(connectorContext(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+                        connectorId, null, List.of(new RecipientView(admin, "admin@x", "Admin")))));
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of());
+
+        dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId, null);
+
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any(), any(),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("\"connector_id\"").doesNotContain("\"detail\"");
     }
 
     @Test
     void dispatchApiConnectorUnknownShortCircuits() {
         var connectorId = UUID.randomUUID();
-        when(contextBuilder.buildApiConnector(any(), eq(connectorId))).thenReturn(Optional.empty());
+        when(contextBuilder.buildApiConnector(any(), eq(connectorId), any())).thenReturn(Optional.empty());
 
         dispatcher.dispatchApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
+                NotificationEventType.API_CONNECTOR_DRIFT, connectorId, "1");
 
         verify(emailStrategy, never()).deliver(any(), any());
+    }
+
+    private NotificationContext connectorContext(NotificationEventType type, UUID connectorId, String detail,
+                                                 List<RecipientView> recipients) {
+        return new NotificationContext(
+                type, orgId,
+                null, null, null, null, null, null, null, null,
+                connectorId, "Stripe",
+                null, null, null, null, null, null,
+                detail,
+                URI.create("https://af.example/api-connectors/" + connectorId + "/settings"),
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null);
     }
 
     private NotificationContext sampleContextWithRecipients(NotificationEventType type,

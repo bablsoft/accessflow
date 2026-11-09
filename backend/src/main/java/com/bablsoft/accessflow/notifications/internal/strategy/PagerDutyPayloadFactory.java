@@ -91,6 +91,15 @@ class PagerDutyPayloadFactory {
         if (ctx.datasourceName() != null) {
             details.put("datasource_name", ctx.datasourceName());
         }
+        // #895: the connector id and the event detail (last probe error / drift finding count).
+        if (ctx.isApiConnectorEvent()) {
+            if (ctx.datasourceId() != null) {
+                details.put("connector_id", ctx.datasourceId().toString());
+            }
+            if (ctx.reviewerComment() != null) {
+                details.put("detail", ctx.reviewerComment());
+            }
+        }
         if (ctx.justification() != null) {
             details.put("justification", ctx.justification());
         }
@@ -215,6 +224,10 @@ class PagerDutyPayloadFactory {
             case DATA_BUDGET_EXHAUSTED -> "AccessFlow: data budget exhausted on " + datasource;
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "AccessFlow: OAuth2 token fetch repeatedly failing for connector " + datasource;
+            // #895: only UNHEALTHY pages (CONNECTOR_DOWN); drift is spelled out so a trigger added
+            // later never falls into "for a query" below.
+            case API_CONNECTOR_UNHEALTHY -> "AccessFlow: API connector " + datasource + " is unhealthy";
+            case API_CONNECTOR_DRIFT -> "AccessFlow: schema drift detected on API connector " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;
         };
     }

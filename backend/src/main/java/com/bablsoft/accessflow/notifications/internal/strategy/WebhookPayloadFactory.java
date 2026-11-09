@@ -93,6 +93,14 @@ class WebhookPayloadFactory {
             dataBudget.put("breach_action", budget.breachAction());
             envelope.put("data_budget", dataBudget);
         }
+        // #895: connector-scoped API events — additive, so existing HMAC-verified shapes are unchanged.
+        if (ctx.isApiConnectorEvent()) {
+            var connector = new LinkedHashMap<String, Object>();
+            connector.put("connector_id", ctx.datasourceId());
+            connector.put("connector_name", ctx.datasourceName());
+            connector.put("detail", ctx.reviewerComment());
+            envelope.put("api_connector", connector);
+        }
         return objectMapper.writeValueAsString(envelope);
     }
 

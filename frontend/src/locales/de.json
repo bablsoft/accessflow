@@ -2088,6 +2088,7 @@
         "not_configured": "Das System-SMTP ist nicht konfiguriert. Konfigurieren Sie es, um Benutzereinladungen und den E-Mail-Fallback zu aktivieren."
       },
       "label_pagerduty_trigger_review_stalled": "Prüfung ins Stocken geraten (niemand hat rechtzeitig entschieden)",
+      "label_pagerduty_trigger_connector_down": "Konnektor ausgefallen (Zustandsprüfungen schlagen wiederholt fehl)",
       "label_pagerduty_trigger_anomaly": "Verhaltensanomalie erkannt",
       "label_pagerduty_trigger_break_glass": "Break-Glass-Abfrage ausgeführt"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} neuer Schema-Drift-Befund in {{pipeline}} / {{environment}}",
       "SCHEMA_DRIFT_DETECTED_other": "{{count}} neue Schema-Drift-Befunde in {{pipeline}} / {{environment}}",
       "DATA_BUDGET_THRESHOLD_REACHED": "Sie haben {{percent}} % Ihres Datenbudgets {{budget}} auf {{datasource}} verbraucht",
-      "DATA_BUDGET_EXHAUSTED": "Datenbudget {{budget}} für {{user}} auf {{datasource}} ist aufgebraucht"
+      "DATA_BUDGET_EXHAUSTED": "Datenbudget {{budget}} für {{user}} auf {{datasource}} ist aufgebraucht",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2-Token schlägt beim API-Konnektor {{connector}} wiederholt fehl",
+      "API_CONNECTOR_DRIFT_one": "{{count}} Schema-Abweichung beim API-Konnektor {{connector}}",
+      "API_CONNECTOR_DRIFT_other": "{{count}} Schema-Abweichungen beim API-Konnektor {{connector}}",
+      "API_CONNECTOR_UNHEALTHY": "API-Konnektor {{connector}} ist fehlerhaft"
     }
   },
   "profile": {

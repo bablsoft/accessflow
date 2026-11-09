@@ -79,6 +79,17 @@ class TelegramMessageFactory {
             }
             return sb.toString();
         }
+        // #895: connector-scoped API-governance events — shared field set with the other chat channels.
+        if (ctx.isApiConnectorEvent()) {
+            for (var field : ApiConnectorText.fields(ctx)) {
+                appendField(sb, field.getKey(), field.getValue());
+            }
+            if (ctx.reviewUrl() != null) {
+                sb.append("\n[").append(escape("Open connector settings")).append("](")
+                        .append(escapeUrl(ctx.reviewUrl().toString())).append(")");
+            }
+            return sb.toString();
+        }
         // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
         if (ctx.isSchemaChangeEvent()) {
             if (ctx.schemaChangeSetName() != null) {
@@ -184,6 +195,8 @@ class TelegramMessageFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            case API_CONNECTOR_DRIFT -> "🧬 API Connector Schema Drift";
+            case API_CONNECTOR_UNHEALTHY -> "🚨 API Connector Unhealthy";
             // #695: deployment governance
             case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
             case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";
