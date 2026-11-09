@@ -14,6 +14,7 @@ const listApiSchemas = vi.fn();
 const uploadApiSchema = vi.fn();
 const previewApiSchemaFilter = vi.fn();
 const updateApiSchemaFilter = vi.fn();
+const updateApiSchemaRefreshPolicy = vi.fn();
 
 vi.mock('@/api/apiConnectors', () => ({
   getApiConnector: (...args: unknown[]) => getApiConnector(...args),
@@ -23,8 +24,10 @@ vi.mock('@/api/apiConnectors', () => ({
   uploadApiSchema: (...args: unknown[]) => uploadApiSchema(...args),
   previewApiSchemaFilter: (...args: unknown[]) => previewApiSchemaFilter(...args),
   updateApiSchemaFilter: (...args: unknown[]) => updateApiSchemaFilter(...args),
+  updateApiSchemaRefreshPolicy: (...args: unknown[]) => updateApiSchemaRefreshPolicy(...args),
   deleteApiSchema: vi.fn(),
   apiConnectorKeys: {
+    health: (id: string) => ['api-connectors', 'detail', id, 'health'] as const,
     all: ['api-connectors'] as const,
     lists: () => ['api-connectors', 'list'] as const,
     detail: (id: string) => ['api-connectors', 'detail', id] as const,
@@ -51,6 +54,27 @@ vi.mock('@/components/apigov/ApiConnectorClassificationTab', () => ({
 }));
 vi.mock('@/components/apigov/ApiConnectorPermissionsTab', () => ({
   ApiConnectorPermissionsTab: () => null,
+}));
+vi.mock('@/components/apigov/ApiConnectorHealthBadge', () => ({
+  ApiConnectorHealthBadge: ({ connectorId }: { connectorId: string }) => (
+    <span>health badge for {connectorId}</span>
+  ),
+}));
+vi.mock('@/components/apigov/ApiConnectorDriftTab', () => ({
+  ApiConnectorDriftTab: ({
+    connectorId,
+    onOpenPermissions,
+  }: {
+    connectorId: string;
+    onOpenPermissions: () => void;
+  }) => (
+    <div>
+      drift tab for {connectorId}
+      <button type="button" onClick={onOpenPermissions}>
+        open permissions
+      </button>
+    </div>
+  ),
 }));
 vi.mock('@/components/apigov/ApiConnectorSimulateTab', () => ({
   ApiConnectorSimulateTab: ({ connectorId }: { connectorId: string }) => (
@@ -93,11 +117,11 @@ const baseConnector: ApiConnector = {
   created_at: '2026-05-01T00:00:00Z',
 };
 
-function wrap(node: ReactNode) {
+function wrap(node: ReactNode, url = '/api-connectors/conn-1/settings') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/api-connectors/conn-1/settings']}>
+      <MemoryRouter initialEntries={[url]}>
         <AntdApp>
           <Routes>
             <Route path="/api-connectors/:id/settings" element={node} />
@@ -467,3 +491,181 @@ describe('ApiConnectorSettingsPage — Simulate tab (#1066)', () => {
     expect(within(panel).getByText('simulate tab for conn-1')).toBeInTheDocument();
   });
 });
+
+describe('ApiConnectorSettingsPage — drift tab and health (#896)', () => {
+  beforeEach(() => {
+    getApiConnector.mockReset();
+    getApiConnector.mockResolvedValue(baseConnector);
+    updateApiConnector.mockReset();
+    listReviewPlans.mockReset();
+    listReviewPlans.mockResolvedValue([]);
+    listApiSchemas.mockReset();
+    listApiSchemas.mockResolvedValue([]);
+    uploadApiSchema.mockReset();
+    updateApiSchemaRefreshPolicy.mockReset();
+  });
+
+  const urlSchema = {
+    id: 's1',
+    schema_type: 'OPENAPI' as const,
+    source_url: 'https://specs.example.com/openapi.json',
+    operation_count: 2,
+    total_operation_count: 2,
+    operation_filter: null,
+    detected_auth_method: null,
+    refresh_interval_minutes: 30,
+    last_refresh_at: '2026-05-02T00:00:00Z',
+    last_refresh_error: 'HTTP 503 from upstream',
+    created_at: '2026-05-01T00:00:00Z',
+  };
+
+  it('places a Drift tab after Operations and renders the health badge in the header', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+
+    const tabs = await screen.findAllByRole('tab');
+    const names = tabs.map((tab) => tab.textContent);
+    expect(names.indexOf('Drift')).toBe(names.indexOf('Operations') + 1);
+    expect(screen.getByText('health badge for conn-1')).toBeInTheDocument();
+  });
+
+  it('selects the tab named by ?tab=drift', async () => {
+    render(wrap(<ApiConnectorSettingsPage />, '/api-connectors/conn-1/settings?tab=drift'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Drift' })).toHaveAttribute('aria-selected', 'true'),
+    );
+    expect(within(screen.getByRole('tabpanel')).getByText(/drift tab for conn-1/)).toBeInTheDocument();
+  });
+
+  it('falls back to Configuration for an unknown ?tab=', async () => {
+    render(wrap(<ApiConnectorSettingsPage />, '/api-connectors/conn-1/settings?tab=bogus'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Configuration' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
+  });
+
+  it('switches to the Permissions tab from a drift grant link', async () => {
+    render(wrap(<ApiConnectorSettingsPage />, '/api-connectors/conn-1/settings?tab=drift'));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'open permissions' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Permissions' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
+  });
+
+  it('sends clear_health_check when the health interval is empty', async () => {
+    updateApiConnector.mockResolvedValue(baseConnector);
+    render(wrap(<ApiConnectorSettingsPage />));
+    await screen.findByLabelText('Health check interval (minutes)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(updateApiConnector).toHaveBeenCalled());
+    const input = updateApiConnector.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.clear_health_check).toBe(true);
+  });
+
+  it('keeps a configured health interval and does not clear it', async () => {
+    getApiConnector.mockResolvedValue({ ...baseConnector, health_check_interval_minutes: 5 });
+    updateApiConnector.mockResolvedValue(baseConnector);
+    render(wrap(<ApiConnectorSettingsPage />));
+    await screen.findByLabelText('Health check interval (minutes)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(updateApiConnector).toHaveBeenCalled());
+    const input = updateApiConnector.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.health_check_interval_minutes).toBe(5);
+    expect(input.clear_health_check).toBe(false);
+  });
+
+  it('rejects a health interval below one minute', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+    const field = await screen.findByLabelText('Health check interval (minutes)');
+    fireEvent.change(field, { target: { value: '0' } });
+    fireEvent.blur(field);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('The interval must be at least 1 minute')).toBeInTheDocument();
+    expect(updateApiConnector).not.toHaveBeenCalled();
+  });
+
+  it('hides the refresh interval for pasted and uploaded schemas', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    await screen.findByPlaceholderText('Schema document');
+
+    expect(screen.queryByLabelText('Auto-refresh interval (minutes)')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Upload file'));
+    expect(screen.queryByLabelText('Auto-refresh interval (minutes)')).not.toBeInTheDocument();
+  });
+
+  it('sends the refresh interval with a URL upload', async () => {
+    uploadApiSchema.mockResolvedValue(urlSchema);
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    fireEvent.click(await screen.findByText('From URL'));
+    fireEvent.change(screen.getByLabelText('Schema URL'), {
+      target: { value: 'https://specs.example.com/openapi.json' },
+    });
+    fireEvent.change(screen.getByLabelText('Auto-refresh interval (minutes)'), {
+      target: { value: '30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schema' }));
+
+    await waitFor(() => expect(uploadApiSchema).toHaveBeenCalled());
+    const [connectorId, input] = uploadApiSchema.mock.calls[0]! as [string, Record<string, unknown>];
+    expect(connectorId).toBe('conn-1');
+    expect(input.source_url).toBe('https://specs.example.com/openapi.json');
+    expect(input.refresh_interval_minutes).toBe(30);
+  });
+
+  it('never sends a refresh interval with a pasted document', async () => {
+    uploadApiSchema.mockResolvedValue({ ...urlSchema, source_url: null });
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    fireEvent.change(await screen.findByPlaceholderText('Schema document'), {
+      target: { value: 'openapi: 3.0.0' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schema' }));
+
+    await waitFor(() => expect(uploadApiSchema).toHaveBeenCalled());
+    const input = uploadApiSchema.mock.calls[0]![1] as Record<string, unknown>;
+    expect('refresh_interval_minutes' in input).toBe(false);
+  });
+
+  it('shows the auto-refresh state and last error on a URL-sourced schema row', async () => {
+    listApiSchemas.mockResolvedValue([urlSchema]);
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+
+    expect(await screen.findByText(/Every 30 min · last refreshed/)).toBeInTheDocument();
+    expect(screen.getByText('HTTP 503 from upstream')).toBeInTheDocument();
+  });
+
+  it('edits the refresh policy of a URL-sourced schema', async () => {
+    listApiSchemas.mockResolvedValue([urlSchema]);
+    updateApiSchemaRefreshPolicy.mockResolvedValue({ ...urlSchema, refresh_interval_minutes: 60 });
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    // Text queries, not getByRole: role queries over this deep AntD tree crawl in jsdom.
+    fireEvent.click((await screen.findByText('Edit auto-refresh')).closest('button')!);
+
+    const field = await screen.findByLabelText('Auto-refresh interval (minutes)');
+    const dialog = field.closest('.ant-modal') as HTMLElement;
+    fireEvent.change(field, { target: { value: '60' } });
+    fireEvent.click(within(dialog).getByText('Save').closest('button')!);
+
+    await waitFor(() => expect(updateApiSchemaRefreshPolicy).toHaveBeenCalled());
+    expect(updateApiSchemaRefreshPolicy.mock.calls[0]).toEqual(['conn-1', 's1', 60]);
+  }, 30_000);
+});
+

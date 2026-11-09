@@ -20,10 +20,12 @@ import {
   Upload,
 } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
+import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
+import { ApiConnectorHealthBadge } from '@/components/apigov/ApiConnectorHealthBadge';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -34,6 +36,7 @@ import {
   previewApiSchemaFilter,
   updateApiConnector,
   updateApiSchemaFilter,
+  updateApiSchemaRefreshPolicy,
   uploadApiSchema,
 } from '@/api/apiConnectors';
 import { aiConfigKeys, listAiConfigs } from '@/api/admin';
@@ -59,6 +62,7 @@ import {
 } from '@/utils/apiRequestComposition';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { fmtDate } from '@/utils/dateFormat';
 import type {
   ApiAuthMethod,
   ApiOperation,
@@ -70,10 +74,37 @@ import type {
   UpdateApiConnectorInput,
 } from '@/types/api';
 
+const TAB_KEYS = [
+  'config',
+  'schema',
+  'operations',
+  'drift',
+  'permissions',
+  'variables',
+  'masking',
+  'classification',
+  'simulate',
+] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
 export default function ApiConnectorSettingsPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The active tab lives in the URL so a drift notification can deep-link ?tab=drift.
+  const requestedTab = searchParams.get('tab');
+  const activeTab: TabKey = TAB_KEYS.find((key) => key === requestedTab) ?? 'config';
+  const selectTab = (key: string) =>
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        if (key === 'config') next.delete('tab');
+        else next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
   const connectorQuery = useQuery({
     queryKey: apiConnectorKeys.detail(id),
     queryFn: () => getApiConnector(id),
@@ -86,14 +117,28 @@ export default function ApiConnectorSettingsPage() {
         docsAnchor="cfg-api-connectors"
         title={connectorQuery.data?.name ?? t('apiGov.settings.title')}
         subtitle={connectorQuery.data?.base_url}
-        actions={<Button onClick={() => navigate('/api-connectors')}>{t('common.back')}</Button>}
+        actions={
+          <Space>
+            <ApiConnectorHealthBadge connectorId={id} />
+            <Button onClick={() => navigate('/api-connectors')}>{t('common.back')}</Button>
+          </Space>
+        }
       />
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
         <Tabs
+          activeKey={activeTab}
+          onChange={selectTab}
           items={[
             { key: 'config', label: t('apiGov.settings.tabConfig'), children: <ConfigTab connectorId={id} /> },
             { key: 'schema', label: t('apiGov.settings.tabSchema'), children: <SchemaTab connectorId={id} /> },
             { key: 'operations', label: t('apiGov.settings.tabOperations'), children: <OperationsTab connectorId={id} /> },
+            {
+              key: 'drift',
+              label: t('apiGov.settings.tabDrift'),
+              children: (
+                <ApiConnectorDriftTab connectorId={id} onOpenPermissions={() => selectTab('permissions')} />
+              ),
+            },
             { key: 'permissions', label: t('apiGov.settings.tabPermissions'), children: <ApiConnectorPermissionsTab connectorId={id} /> },
             { key: 'variables', label: t('apiGov.settings.tabVariables'), children: <ApiConnectorVariablesTab connectorId={id} /> },
             { key: 'masking', label: t('apiGov.settings.tabMasking'), children: <ApiConnectorMaskingTab connectorId={id} /> },
@@ -140,7 +185,9 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
     mutationFn: (input: UpdateApiConnectorInput) => updateApiConnector(connectorId, input),
     onSuccess: () => {
       message.success(t('apiGov.connectors.updated'));
+      // detail(id) is the prefix of health(id); the list feeds the Health column.
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connectorId) });
+      queryClient.invalidateQueries({ queryKey: apiConnectorKeys.lists() });
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
@@ -170,6 +217,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         text_to_api_enabled: c.text_to_api_enabled,
         require_review_reads: c.require_review_reads,
         require_review_writes: c.require_review_writes,
+        health_check_interval_minutes: c.health_check_interval_minutes ?? null,
         active: c.active,
       }}
       onFinish={(values) =>
@@ -180,6 +228,8 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
           // review_plan_id: null means "unchanged" on the update endpoint, so an
           // explicit clear rides the dedicated flag (same as datasource clear_ai_config).
           clear_review_plan: values.review_plan_id == null,
+          // Same "null = unchanged" rule: an emptied interval turns monitoring off explicitly.
+          clear_health_check: values.health_check_interval_minutes == null,
         })
       }
     >
@@ -263,6 +313,18 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
       </Form.Item>
       <Form.Item name="require_review_writes" label={t('apiGov.connectors.requireReviewWrites')} valuePropName="checked">
         <Switch />
+      </Form.Item>
+      <Form.Item
+        name="health_check_interval_minutes"
+        label={t('apiGov.settings.healthCheckInterval')}
+        extra={t('apiGov.settings.healthCheckIntervalHint')}
+        rules={[{ type: 'number', min: 1, message: t('apiGov.settings.intervalMin') }]}
+      >
+        <InputNumber
+          style={{ width: '100%' }}
+          precision={0}
+          placeholder={t('apiGov.settings.notMonitoredPlaceholder')}
+        />
       </Form.Item>
       <Form.Item name="active" label={t('apiGov.connectors.active')} valuePropName="checked">
         <Switch />
@@ -429,6 +491,96 @@ function EditFilterModal({
   );
 }
 
+/** Shared by the URL upload and the policy editor: parity with the backend @Min(1). */
+function RefreshIntervalField() {
+  const { t } = useTranslation();
+  return (
+    <Form.Item
+      name="refresh_interval_minutes"
+      label={t('apiGov.settings.refreshInterval')}
+      extra={t('apiGov.settings.refreshIntervalHint')}
+      rules={[{ type: 'number', min: 1, message: t('apiGov.settings.intervalMin') }]}
+    >
+      <InputNumber
+        style={{ width: '100%' }}
+        precision={0}
+        placeholder={t('apiGov.settings.autoRefreshOffPlaceholder')}
+      />
+    </Form.Item>
+  );
+}
+
+function AutoRefreshSummary({ schema }: { schema: ApiSchema }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <Typography.Text>
+        {schema.refresh_interval_minutes != null
+          ? t('apiGov.settings.autoRefreshEvery', { minutes: schema.refresh_interval_minutes })
+          : t('apiGov.settings.autoRefreshOff')}
+        {schema.last_refresh_at &&
+          ` · ${t('apiGov.settings.lastRefreshed', { time: fmtDate(schema.last_refresh_at) })}`}
+      </Typography.Text>
+      {schema.last_refresh_error && (
+        <Typography.Text type="danger" style={{ display: 'block' }}>
+          {schema.last_refresh_error}
+        </Typography.Text>
+      )}
+    </div>
+  );
+}
+
+function EditRefreshPolicyModal({
+  connectorId,
+  schema,
+  onClose,
+}: {
+  connectorId: string;
+  schema: ApiSchema | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<{ refresh_interval_minutes: number | null }>();
+  const mutation = useMutation({
+    mutationFn: (minutes: number | null) =>
+      updateApiSchemaRefreshPolicy(connectorId, schema!.id, minutes),
+    onSuccess: () => {
+      message.success(t('apiGov.settings.autoRefreshUpdated'));
+      queryClient.invalidateQueries({ queryKey: apiConnectorKeys.schemas(connectorId) });
+      onClose();
+    },
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+  });
+  return (
+    <Modal
+      open={schema !== null}
+      title={t('apiGov.settings.autoRefreshEdit')}
+      onCancel={onClose}
+      onOk={() =>
+        form
+          .validateFields()
+          .then((values) => mutation.mutate(values.refresh_interval_minutes ?? null))
+          .catch(() => undefined)
+      }
+      confirmLoading={mutation.isPending}
+      okText={t('common.save')}
+      destroyOnHidden
+    >
+      <Form
+        form={form}
+        name="schema-refresh-policy"
+        layout="vertical"
+        clearOnDestroy
+        initialValues={{ refresh_interval_minutes: schema?.refresh_interval_minutes ?? null }}
+      >
+        <RefreshIntervalField />
+      </Form>
+    </Modal>
+  );
+}
+
 function SchemaTab({ connectorId }: { connectorId: string }) {
   const { t } = useTranslation();
   const { message } = App.useApp();
@@ -443,6 +595,8 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
   const [preview, setPreview] = useState<ApiSchemaFilterPreview | null>(null);
   const [imported, setImported] = useState<{ kept: number; total: number } | null>(null);
   const [editing, setEditing] = useState<ApiSchema | null>(null);
+  const [editingRefresh, setEditingRefresh] = useState<ApiSchema | null>(null);
+  const [refreshForm] = Form.useForm<{ refresh_interval_minutes: number | null }>();
   const schemasQuery = useQuery({
     queryKey: apiConnectorKeys.schemas(connectorId),
     queryFn: () => listApiSchemas(connectorId),
@@ -459,7 +613,12 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     filter: filterIsEmpty(filter) ? null : filter,
   });
   const uploadMutation = useMutation({
-    mutationFn: () => uploadApiSchema(connectorId, payload()),
+    mutationFn: (refreshIntervalMinutes: number | null) =>
+      uploadApiSchema(connectorId, {
+        ...payload(),
+        // Scheduled refresh is only valid for a URL source (backend 422 otherwise).
+        ...(source === 'url' ? { refresh_interval_minutes: refreshIntervalMinutes } : {}),
+      }),
     onSuccess: (schema) => {
       message.success(t('apiGov.settings.uploaded'));
       setImported({ kept: schema.operation_count, total: schema.total_operation_count });
@@ -468,6 +627,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
       setFileError(null);
       setSourceUrl('');
       setPreview(null);
+      if (source === 'url') refreshForm.resetFields();
       invalidate();
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
@@ -477,13 +637,22 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     onSuccess: (result) => setPreview(result),
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
-  const runUpload = () => {
+  const runUpload = async () => {
     const violation = filterViolation(filter);
     if (violation) {
       message.error(t(violation));
       return;
     }
-    uploadMutation.mutate();
+    let refreshIntervalMinutes: number | null = null;
+    if (source === 'url') {
+      try {
+        const values = await refreshForm.validateFields();
+        refreshIntervalMinutes = values.refresh_interval_minutes ?? null;
+      } catch {
+        return; // the Form.Item renders the validation message
+      }
+    }
+    uploadMutation.mutate(refreshIntervalMinutes);
   };
   const runPreview = () => {
     const violation = filterViolation(filter);
@@ -578,6 +747,11 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
           aria-label={t('apiGov.settings.schemaUrl')}
         />
       )}
+      {source === 'url' && (
+        <Form form={refreshForm} name="schema-refresh-interval" layout="vertical">
+          <RefreshIntervalField />
+        </Form>
+      )}
       <Collapse
         ghost
         items={[
@@ -619,7 +793,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
           type="primary"
           disabled={!canUpload}
           loading={uploadMutation.isPending}
-          onClick={runUpload}
+          onClick={() => void runUpload()}
         >
           {t('apiGov.settings.uploadSchema')}
         </Button>
@@ -644,6 +818,12 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
                 : row.operation_count,
           },
           {
+            title: t('apiGov.settings.autoRefresh'),
+            key: 'auto_refresh',
+            render: (_: unknown, row: ApiSchema) =>
+              row.source_url ? <AutoRefreshSummary schema={row} /> : '—',
+          },
+          {
             title: t('apiGov.settings.detectedAuth'),
             key: 'detected_auth',
             render: (_: unknown, row: ApiSchema) =>
@@ -660,6 +840,11 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
               <Button size="small" onClick={() => setEditing(row)}>
                 {t('apiGov.settings.filterEdit')}
               </Button>
+              {row.source_url && (
+                <Button size="small" onClick={() => setEditingRefresh(row)}>
+                  {t('apiGov.settings.autoRefreshEdit')}
+                </Button>
+              )}
               <Button size="small" danger loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(row.id)}>
                 {t('common.delete')}
               </Button>
@@ -668,6 +853,11 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         ]}
       />
       <EditFilterModal connectorId={connectorId} schema={editing} onClose={() => setEditing(null)} />
+      <EditRefreshPolicyModal
+        connectorId={connectorId}
+        schema={editingRefresh}
+        onClose={() => setEditingRefresh(null)}
+      />
     </div>
   );
 }

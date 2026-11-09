@@ -15,6 +15,7 @@ import {
 import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import {
+  apiConnectorHealthStatusLabel,
   API_AUTH_METHODS,
   API_PROTOCOLS,
   aiProviderLabel,
@@ -27,6 +28,8 @@ import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
 import { pairsToRecord, type KeyValuePair } from '@/utils/apiRequestComposition';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { Pill } from '@/components/common/Pill';
+import { apiConnectorHealthColor } from '@/utils/statusColors';
 import type {
   ApiConnector,
   ApiProtocol,
@@ -124,6 +127,20 @@ export default function ApiConnectorsListPage() {
         ) : (
           <Tag>{t('apiGov.connectors.schemaNo')}</Tag>
         ),
+    },
+    {
+      title: t('apiGov.connectors.health'),
+      key: 'health',
+      render: (_: unknown, row: ApiConnector) => {
+        const status = row.last_probe_status ?? 'UNKNOWN';
+        if (row.health_check_interval_minutes == null || status === 'UNKNOWN') return '—';
+        const c = apiConnectorHealthColor(status);
+        return (
+          <Pill fg={c.fg} bg={c.bg} border={c.border} withDot size="sm">
+            {apiConnectorHealthStatusLabel(t, status)}
+          </Pill>
+        );
+      },
     },
     {
       title: t('apiGov.connectors.active'),

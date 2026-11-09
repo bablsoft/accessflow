@@ -4013,6 +4013,23 @@
       "like_leading_wildcard": "以通配符开头的 LIKE",
       "transactional": "位于事务内",
       "sql_matches": "SQL 匹配模式"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "新增操作",
+      "OPERATION_REMOVED": "移除操作",
+      "SHAPE_CHANGED": "结构变化",
+      "DEPRECATED": "已弃用",
+      "CLASSIFICATION_FLIPPED": "读写类型变化"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "未处理",
+      "ACCEPTED": "已接受",
+      "DISMISSED": "已忽略"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "未知",
+      "HEALTHY": "健康",
+      "UNHEALTHY": "异常"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "审核计划",
       "reviewPlanPlaceholder": "未关联计划",
       "reviewPlanLoading": "正在加载计划…",
-      "reviewPlanHint": "未关联计划时，进入审核的请求只需一次批准"
+      "reviewPlanHint": "未关联计划时，进入审核的请求只需一次批准",
+      "health": "健康状态"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "覆盖变量",
       "canOverrideVariablesHint": "可为该连接器的可覆盖动态变量提供按请求的值。",
-      "tabSimulate": "模拟"
+      "tabSimulate": "模拟",
+      "tabDrift": "偏差",
+      "autoRefresh": "自动刷新",
+      "autoRefreshEvery": "每 {{minutes}} 分钟",
+      "autoRefreshOff": "关闭",
+      "lastRefreshed": "上次刷新 {{time}}",
+      "autoRefreshEdit": "编辑自动刷新",
+      "autoRefreshUpdated": "自动刷新已更新",
+      "refreshInterval": "自动刷新间隔（分钟）",
+      "refreshIntervalHint": "定期从 URL 重新获取文档并报告变化。留空表示关闭。只有在“偏差”标签页中接受修订后，操作目录才会改变。",
+      "autoRefreshOffPlaceholder": "关闭",
+      "healthCheckInterval": "健康检查间隔（分钟）",
+      "healthCheckIntervalHint": "定期探测基础 URL，在其不再响应时发出告警。留空表示不监控。",
+      "notMonitoredPlaceholder": "未监控",
+      "intervalMin": "间隔至少为 1 分钟"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "模拟",
       "error": "无法计算模拟结果",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "重新获取通过 URL 加载的架构时发现的变化。在您接受修订之前不会有任何改变——“操作”标签页仍显示当前目录。",
+      "findingsTitle": "发现项",
+      "statusFilter": "发现项状态",
+      "noFindings": "没有偏差发现项",
+      "kind": "变化",
+      "change": "之前 → 之后",
+      "deprecated": "已弃用",
+      "affectedGrants": "受影响的授权",
+      "affectedGrantsLink": "{{count}} 项授权——查看权限",
+      "grantImpactHint": "授权影响仅供参考：接受或忽略都不会撤销任何权限。请在“权限”标签页中检查失去对应操作的授权。",
+      "detectedAt": "发现时间",
+      "dismiss": "忽略",
+      "dismissConfirm": "忽略此发现项？目录不会改变。",
+      "dismissed": "已忽略发现项",
+      "revisionsTitle": "修订",
+      "noRefreshableSchema": "没有从 URL 加载的架构，因此无需刷新。",
+      "refreshNow": "立即刷新",
+      "refreshUnchanged": "架构未发生变化",
+      "refreshFindings": "已获取新修订：{{count}} 个发现项",
+      "noRevisions": "暂无修订",
+      "fetchedAt": "获取时间",
+      "lastSeenAt": "最近一次出现",
+      "contentHash": "哈希",
+      "revisionState": "状态",
+      "current": "当前",
+      "pending": "未接受",
+      "acceptedOn": "接受于 {{time}}",
+      "accept": "接受修订",
+      "acceptConfirmTitle": "接受此修订？",
+      "acceptConfirmOperations": "操作：{{from}} → {{to}}",
+      "acceptConfirmBody": "操作目录将被此修订替换，其未处理的发现项将标记为已接受。授权不会改变。",
+      "accepted": "修订已接受"
+    },
+    "health": {
+      "notMonitored": "未监控",
+      "notMonitoredHint": "计划的健康检查已关闭。在“配置”标签页设置间隔即可监控此连接器。",
+      "noChecks": "暂无健康检查",
+      "lastProbed": "检查于 {{time}}",
+      "neverProbed": "尚未检查",
+      "historyTitle": "健康检查",
+      "intervalSummary": "每 {{minutes}} 分钟检查一次 · 连续失败：{{failures}}",
+      "checkedAt": "检查时间",
+      "result": "结果",
+      "success": "正常",
+      "failure": "失败",
+      "durationMs": "耗时（毫秒）",
+      "message": "消息"
     }
   },
   "lifecycle": {

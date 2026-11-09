@@ -245,10 +245,14 @@ describe('enumOptions', () => {
 import {
   API_AUTH_METHODS,
   API_PROTOCOLS,
+  API_DRIFT_FINDING_STATUSES,
   API_SCHEMA_TYPES,
   OAUTH2_CLIENT_AUTHS,
   OAUTH2_GRANT_TYPES,
   apiAuthMethodLabel,
+  apiConnectorHealthStatusLabel,
+  apiDriftFindingKindLabel,
+  apiDriftFindingStatusLabel,
   apiProtocolLabel,
   apiSchemaTypeLabel,
   oauth2ClientAuthLabel,
@@ -266,6 +270,15 @@ describe('API governance enum labels (AF-500)', () => {
     expect(apiAuthMethodLabel(t, 'NONE')).toBe('None');
     expect(apiAuthMethodLabel(t, 'BEARER_TOKEN')).toBe('Bearer Token');
     expect(API_AUTH_METHODS).toContain('MTLS');
+  });
+
+  it('maps API drift kinds, finding statuses and health statuses (#896)', () => {
+    expect(apiDriftFindingKindLabel(t, 'OPERATION_REMOVED')).toBe('Operation removed');
+    expect(apiDriftFindingKindLabel(t, 'CLASSIFICATION_FLIPPED')).toBe('Read/write flipped');
+    expect(API_DRIFT_FINDING_STATUSES).toEqual(['OPEN', 'ACCEPTED', 'DISMISSED']);
+    expect(apiDriftFindingStatusLabel(t, 'DISMISSED')).toBe('Dismissed');
+    expect(apiConnectorHealthStatusLabel(t, 'UNKNOWN')).toBe('Unknown');
+    expect(apiConnectorHealthStatusLabel(t, 'UNHEALTHY')).toBe('Unhealthy');
   });
 
   it('maps API schema types to their translations', () => {

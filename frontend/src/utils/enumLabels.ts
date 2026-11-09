@@ -30,6 +30,9 @@ import type {
   SqlReviewRuleCategory,
   SqlReviewSeverity,
   ApiSchemaType,
+  ApiDriftFindingKind,
+  ApiDriftFindingStatus,
+  ApiConnectorHealthStatus,
   ErasureConditionOperator,
   ErasureStatus,
   LifecycleAction,
@@ -791,6 +794,21 @@ export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
 
 export const apiSchemaTypeLabel = (t: TFunction, v: ApiSchemaType): string =>
   t(`enums.api_schema_type.${v}` as const);
+
+export const apiDriftFindingKindLabel = (t: TFunction, v: ApiDriftFindingKind): string =>
+  t(`enums.api_drift_finding_kind.${v}` as const);
+
+export const API_DRIFT_FINDING_STATUSES: readonly ApiDriftFindingStatus[] = [
+  'OPEN',
+  'ACCEPTED',
+  'DISMISSED',
+] as const;
+
+export const apiDriftFindingStatusLabel = (t: TFunction, v: ApiDriftFindingStatus): string =>
+  t(`enums.api_drift_finding_status.${v}` as const);
+
+export const apiConnectorHealthStatusLabel = (t: TFunction, v: ApiConnectorHealthStatus): string =>
+  t(`enums.api_connector_health_status.${v}` as const);
 
 export const API_BODY_TYPES: readonly ApiBodyType[] = [
   'NONE',

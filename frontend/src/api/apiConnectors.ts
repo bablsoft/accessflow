@@ -3,12 +3,17 @@ import type {
   ApiConnectionTestResult,
   ApiConnector,
   ApiConnectorGroupPermission,
+  ApiConnectorHealth,
   ApiConnectorPage,
   ApiConnectorPermission,
+  ApiDriftFinding,
+  ApiDriftFindingStatus,
   ApiOperation,
   ApiOperationFilter,
   ApiSchema,
   ApiSchemaFilterPreview,
+  ApiSchemaRefreshResult,
+  ApiSchemaRevision,
   CreateApiConnectorInput,
   GrantApiConnectorGroupPermissionInput,
   GrantApiConnectorPermissionInput,
@@ -36,6 +41,14 @@ export const apiConnectorKeys = {
   permissions: (id: string) => ['api-connectors', 'detail', id, 'permissions'] as const,
   groupPermissions: (id: string) =>
     ['api-connectors', 'detail', id, 'permissions', 'groups'] as const,
+  health: (id: string) => ['api-connectors', 'detail', id, 'health'] as const,
+  revisions: (id: string, schemaId: string) =>
+    ['api-connectors', 'detail', id, 'schemas', schemaId, 'revisions'] as const,
+  /** Without a status, the prefix of every findings query for the connector. */
+  findings: (id: string, status?: ApiDriftFindingStatus) =>
+    status
+      ? (['api-connectors', 'detail', id, 'drift-findings', status] as const)
+      : (['api-connectors', 'detail', id, 'drift-findings'] as const),
 };
 
 export async function listApiConnectors(
@@ -118,6 +131,71 @@ export async function deleteApiSchema(connectorId: string, schemaId: string): Pr
 export async function listApiOperations(connectorId: string): Promise<ApiOperation[]> {
   const { data } = await apiClient.get<ApiOperation[]>(`${BASE}/${connectorId}/operations`);
   return data;
+}
+
+export async function getApiConnectorHealth(connectorId: string): Promise<ApiConnectorHealth> {
+  const { data } = await apiClient.get<ApiConnectorHealth>(`${BASE}/${connectorId}/health`);
+  return data;
+}
+
+export async function listApiSchemaRevisions(
+  connectorId: string,
+  schemaId: string,
+): Promise<ApiSchemaRevision[]> {
+  const { data } = await apiClient.get<ApiSchemaRevision[]>(
+    `${BASE}/${connectorId}/schemas/${schemaId}/revisions`,
+  );
+  return data;
+}
+
+export async function listApiDriftFindings(
+  connectorId: string,
+  status?: ApiDriftFindingStatus,
+): Promise<ApiDriftFinding[]> {
+  const { data } = await apiClient.get<ApiDriftFinding[]>(`${BASE}/${connectorId}/drift-findings`, {
+    params: status ? { status } : {},
+  });
+  return data;
+}
+
+export async function refreshApiSchema(
+  connectorId: string,
+  schemaId: string,
+): Promise<ApiSchemaRefreshResult> {
+  const { data } = await apiClient.post<ApiSchemaRefreshResult>(
+    `${BASE}/${connectorId}/schemas/${schemaId}/refresh`,
+  );
+  return data;
+}
+
+export async function updateApiSchemaRefreshPolicy(
+  connectorId: string,
+  schemaId: string,
+  refreshIntervalMinutes: number | null,
+): Promise<ApiSchema> {
+  const { data } = await apiClient.put<ApiSchema>(
+    `${BASE}/${connectorId}/schemas/${schemaId}/refresh-policy`,
+    { refresh_interval_minutes: refreshIntervalMinutes },
+  );
+  return data;
+}
+
+export async function acceptApiSchemaRevision(
+  connectorId: string,
+  schemaId: string,
+  revisionId: string,
+): Promise<ApiSchema> {
+  const { data } = await apiClient.post<ApiSchema>(
+    `${BASE}/${connectorId}/schemas/${schemaId}/revisions/${revisionId}/accept`,
+  );
+  return data;
+}
+
+export async function dismissApiDriftFinding(
+  connectorId: string,
+  findingId: string,
+): Promise<void> {
+  await apiClient.post(`${BASE}/${connectorId}/drift-findings/${findingId}/dismiss`);
 }
 
 export async function listApiConnectorPermissions(

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activeTabPanel } from '../helpers/ui';
+import { activeTabPanel, clickTab } from '../helpers/ui';
 import { login } from '../helpers/login';
 
 // AF-613: dynamic variables for API connectors — an admin creates a connector, declares an
@@ -37,7 +37,7 @@ test('admin configures connector dynamic variables', async ({ page }) => {
   // active panel or a bare getByText can match a hidden duplicate.
   const activePanel = activeTabPanel(page);
 
-  await page.getByRole('tab', { name: 'Variables' }).click();
+  await clickTab(page, 'Variables');
   await expect(activePanel.getByText(/No variables yet/i)).toBeVisible();
 
   // An HMAC signature over the resolved Authorization header plus the body — the motivating vendor

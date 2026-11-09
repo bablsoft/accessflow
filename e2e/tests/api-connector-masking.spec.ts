@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { activeTabPanel } from '../helpers/ui';
+import { activeTabPanel, clickTab } from '../helpers/ui';
 import { login } from '../helpers/login';
 
 // AF-518: API connector masking & classification — an admin creates an API connector, configures a
@@ -39,7 +39,7 @@ test('admin configures connector masking policy and classification tag', async (
   const activePanel = activeTabPanel(page);
 
   // Masking tab → add a JSON-path masking policy.
-  await page.getByRole('tab', { name: 'Masking' }).click();
+  await clickTab(page, 'Masking');
   await page.getByRole('button', { name: 'Add policy' }).click();
   await page.getByLabel('Field reference', { exact: true }).fill('user.ssn');
   const maskingCreate = page.waitForResponse(
@@ -51,7 +51,7 @@ test('admin configures connector masking policy and classification tag', async (
   await expect(activePanel.getByText('user.ssn').first()).toBeVisible();
 
   // Classification tab → tag a field as PII.
-  await page.getByRole('tab', { name: 'Classification' }).click();
+  await clickTab(page, 'Classification');
   await page.getByRole('button', { name: 'Add tag' }).click();
   await page.getByLabel('Field reference', { exact: true }).fill('user.card');
   await page.getByLabel('Classifications').click();
