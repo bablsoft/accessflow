@@ -109,3 +109,56 @@ describe('ApiConnectorsListPage — create modal review plan (AF-579)', () => {
     );
   });
 });
+
+describe('ApiConnectorsListPage — health column (#896)', () => {
+  const row = {
+    id: 'conn-1',
+    name: 'Petstore',
+    protocol: 'REST',
+    base_url: 'https://petstore.example.com',
+    auth_method: 'NONE',
+    schema_present: true,
+    active: true,
+    created_at: '2026-05-01T00:00:00Z',
+  };
+
+  beforeEach(() => {
+    listApiConnectors.mockReset();
+    listReviewPlans.mockReset();
+    listReviewPlans.mockResolvedValue([]);
+  });
+
+  function page(content: unknown[]) {
+    return { content, page: 0, size: 100, total_elements: content.length, total_pages: 1 };
+  }
+
+  it('renders the probe status of a monitored connector', async () => {
+    listApiConnectors.mockResolvedValue(
+      page([{ ...row, health_check_interval_minutes: 5, last_probe_status: 'UNHEALTHY' }]),
+    );
+    render(wrap(<ApiConnectorsListPage />));
+
+    expect(await screen.findByText('Unhealthy')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Health' })).toBeInTheDocument();
+  });
+
+  it('renders a dash for an unmonitored or not-yet-probed connector', async () => {
+    listApiConnectors.mockResolvedValue(
+      page([
+        { ...row, id: 'a', name: 'Unmonitored', last_probe_status: 'UNKNOWN' },
+        {
+          ...row,
+          id: 'b',
+          name: 'Pending',
+          health_check_interval_minutes: 5,
+          last_probe_status: 'UNKNOWN',
+        },
+      ]),
+    );
+    render(wrap(<ApiConnectorsListPage />));
+
+    await screen.findByText('Unmonitored');
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+    expect(screen.queryByText('Healthy')).not.toBeInTheDocument();
+  });
+});

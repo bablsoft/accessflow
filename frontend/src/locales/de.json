@@ -4013,6 +4013,23 @@
       "like_leading_wildcard": "LIKE mit führendem Platzhalter",
       "transactional": "Innerhalb einer Transaktion",
       "sql_matches": "SQL entspricht Muster"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "Operation hinzugefügt",
+      "OPERATION_REMOVED": "Operation entfernt",
+      "SHAPE_CHANGED": "Form geändert",
+      "DEPRECATED": "Veraltet",
+      "CLASSIFICATION_FLIPPED": "Lesen/Schreiben gewechselt"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "Offen",
+      "ACCEPTED": "Übernommen",
+      "DISMISSED": "Verworfen"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "Unbekannt",
+      "HEALTHY": "Gesund",
+      "UNHEALTHY": "Gestört"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "Prüfplan",
       "reviewPlanPlaceholder": "Kein Plan zugeordnet",
       "reviewPlanLoading": "Pläne werden geladen…",
-      "reviewPlanHint": "Ohne Plan benötigen zur Prüfung geleitete Anfragen eine einzige Genehmigung"
+      "reviewPlanHint": "Ohne Plan benötigen zur Prüfung geleitete Anfragen eine einzige Genehmigung",
+      "health": "Zustand"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "Variablen überschreiben",
       "canOverrideVariablesHint": "Darf pro Anfrage Werte für die überschreibbaren dynamischen Variablen dieses Connectors angeben.",
-      "tabSimulate": "Simulieren"
+      "tabSimulate": "Simulieren",
+      "tabDrift": "Abweichungen",
+      "autoRefresh": "Auto-Aktualisierung",
+      "autoRefreshEvery": "Alle {{minutes}} Min.",
+      "autoRefreshOff": "Aus",
+      "lastRefreshed": "zuletzt aktualisiert {{time}}",
+      "autoRefreshEdit": "Auto-Aktualisierung bearbeiten",
+      "autoRefreshUpdated": "Auto-Aktualisierung gespeichert",
+      "refreshInterval": "Aktualisierungsintervall (Minuten)",
+      "refreshIntervalHint": "Das Dokument regelmäßig von seiner URL abrufen und Änderungen melden. Leer lassen zum Deaktivieren. Der Operationskatalog ändert sich erst, wenn Sie eine Revision im Tab „Abweichungen“ übernehmen.",
+      "autoRefreshOffPlaceholder": "Aus",
+      "healthCheckInterval": "Intervall der Zustandsprüfung (Minuten)",
+      "healthCheckIntervalHint": "Die Basis-URL regelmäßig prüfen und warnen, wenn sie nicht mehr antwortet. Leer lassen für keine Überwachung.",
+      "notMonitoredPlaceholder": "Nicht überwacht",
+      "intervalMin": "Das Intervall muss mindestens 1 Minute betragen"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "Simulieren",
       "error": "Die Simulation konnte nicht berechnet werden",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "Änderungen, die beim erneuten Abruf eines Schemas von einer URL gefunden wurden. Nichts ändert sich, bevor Sie eine Revision übernehmen – der Tab „Operationen“ zeigt weiterhin den aktuellen Katalog.",
+      "findingsTitle": "Befunde",
+      "statusFilter": "Befundstatus",
+      "noFindings": "Keine Abweichungen",
+      "kind": "Änderung",
+      "change": "Vorher → nachher",
+      "deprecated": "veraltet",
+      "affectedGrants": "Betroffene Berechtigungen",
+      "affectedGrantsLink": "{{count}} Berechtigung(en) – Berechtigungen prüfen",
+      "grantImpactHint": "Die Auswirkung auf Berechtigungen ist nur ein Hinweis: Übernehmen oder Verwerfen entzieht nie eine Berechtigung. Prüfen Sie verwaiste Berechtigungen im Tab „Berechtigungen“.",
+      "detectedAt": "Erkannt",
+      "dismiss": "Verwerfen",
+      "dismissConfirm": "Diesen Befund verwerfen? Der Katalog wird nicht geändert.",
+      "dismissed": "Befund verworfen",
+      "revisionsTitle": "Revisionen",
+      "noRefreshableSchema": "Kein Schema wurde von einer URL geladen, daher gibt es nichts zu aktualisieren.",
+      "refreshNow": "Jetzt aktualisieren",
+      "refreshUnchanged": "Das Schema ist unverändert",
+      "refreshFindings": "Neue Revision abgerufen: {{count}} Befund(e)",
+      "noRevisions": "Noch keine Revisionen",
+      "fetchedAt": "Abgerufen",
+      "lastSeenAt": "Zuletzt gesehen",
+      "contentHash": "Hash",
+      "revisionState": "Status",
+      "current": "Aktuell",
+      "pending": "Nicht übernommen",
+      "acceptedOn": "Übernommen {{time}}",
+      "accept": "Revision übernehmen",
+      "acceptConfirmTitle": "Diese Revision übernehmen?",
+      "acceptConfirmOperations": "Operationen: {{from}} → {{to}}",
+      "acceptConfirmBody": "Der Operationskatalog wird durch diese Revision ersetzt und ihre offenen Befunde werden als übernommen markiert. Berechtigungen bleiben unverändert.",
+      "accepted": "Revision übernommen"
+    },
+    "health": {
+      "notMonitored": "Nicht überwacht",
+      "notMonitoredHint": "Geplante Zustandsprüfungen sind aus. Legen Sie im Tab „Konfiguration“ ein Intervall fest, um diesen Connector zu überwachen.",
+      "noChecks": "Noch keine Zustandsprüfungen",
+      "lastProbed": "geprüft {{time}}",
+      "neverProbed": "noch nicht geprüft",
+      "historyTitle": "Zustandsprüfungen",
+      "intervalSummary": "Geprüft alle {{minutes}} Min. · aufeinanderfolgende Fehler: {{failures}}",
+      "checkedAt": "Geprüft",
+      "result": "Ergebnis",
+      "success": "OK",
+      "failure": "Fehlgeschlagen",
+      "durationMs": "Dauer (ms)",
+      "message": "Meldung"
     }
   },
   "lifecycle": {

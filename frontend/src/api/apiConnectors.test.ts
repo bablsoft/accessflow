@@ -235,4 +235,92 @@ describe('api/apiConnectors', () => {
       'groups',
     ]);
   });
+
+  describe('schema refresh, drift and health (#896)', () => {
+    it('builds the health, revisions and findings keys', () => {
+      expect(apiConnectorKeys.health('c-1')).toEqual(['api-connectors', 'detail', 'c-1', 'health']);
+      expect(apiConnectorKeys.revisions('c-1', 's-1')).toEqual([
+        'api-connectors',
+        'detail',
+        'c-1',
+        'schemas',
+        's-1',
+        'revisions',
+      ]);
+      expect(apiConnectorKeys.findings('c-1')).toEqual([
+        'api-connectors',
+        'detail',
+        'c-1',
+        'drift-findings',
+      ]);
+      expect(apiConnectorKeys.findings('c-1', 'OPEN')).toEqual([
+        'api-connectors',
+        'detail',
+        'c-1',
+        'drift-findings',
+        'OPEN',
+      ]);
+    });
+
+    it('reads connector health', async () => {
+      get.mockResolvedValue({ data: { status: 'HEALTHY', recent_checks: [] } });
+      const health = await api.getApiConnectorHealth('c-1');
+      expect(get).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/health');
+      expect(health.status).toBe('HEALTHY');
+    });
+
+    it('lists schema revisions', async () => {
+      get.mockResolvedValue({ data: [{ id: 'r-1' }] });
+      const revisions = await api.listApiSchemaRevisions('c-1', 's-1');
+      expect(get).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/schemas/s-1/revisions');
+      expect(revisions).toHaveLength(1);
+    });
+
+    it('lists drift findings with and without a status filter', async () => {
+      get.mockResolvedValue({ data: [] });
+      await api.listApiDriftFindings('c-1', 'OPEN');
+      expect(get).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/drift-findings', {
+        params: { status: 'OPEN' },
+      });
+      await api.listApiDriftFindings('c-1');
+      expect(get).toHaveBeenLastCalledWith('/api/v1/api-connectors/c-1/drift-findings', {
+        params: {},
+      });
+    });
+
+    it('refreshes a schema now', async () => {
+      post.mockResolvedValue({ data: { finding_count: 0, unchanged: true } });
+      const result = await api.refreshApiSchema('c-1', 's-1');
+      expect(post).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/schemas/s-1/refresh');
+      expect(result.unchanged).toBe(true);
+    });
+
+    it('updates the refresh policy, null turning it off', async () => {
+      put.mockResolvedValue({ data: { id: 's-1' } });
+      await api.updateApiSchemaRefreshPolicy('c-1', 's-1', 30);
+      expect(put).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/schemas/s-1/refresh-policy', {
+        refresh_interval_minutes: 30,
+      });
+      await api.updateApiSchemaRefreshPolicy('c-1', 's-1', null);
+      expect(put).toHaveBeenLastCalledWith(
+        '/api/v1/api-connectors/c-1/schemas/s-1/refresh-policy',
+        { refresh_interval_minutes: null },
+      );
+    });
+
+    it('accepts a revision', async () => {
+      post.mockResolvedValue({ data: { id: 's-1' } });
+      const schema = await api.acceptApiSchemaRevision('c-1', 's-1', 'r-1');
+      expect(post).toHaveBeenCalledWith(
+        '/api/v1/api-connectors/c-1/schemas/s-1/revisions/r-1/accept',
+      );
+      expect(schema.id).toBe('s-1');
+    });
+
+    it('dismisses a finding', async () => {
+      post.mockResolvedValue({ data: undefined });
+      await api.dismissApiDriftFinding('c-1', 'f-1');
+      expect(post).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/drift-findings/f-1/dismiss');
+    });
+  });
 });

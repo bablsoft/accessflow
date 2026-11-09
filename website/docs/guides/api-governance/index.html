@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-11-04",
+      "dateModified": "2026-11-09",
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/api-governance/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Govern an outbound API call.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-11-04">4 November 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-09">9 November 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -381,6 +381,22 @@
             with its verb, path, and whether AccessFlow classified it as a <strong>Read</strong> or a
             <strong>Write</strong>. That classification drives review: a connector can require review
             for writes but not reads, exactly as a datasource can.
+          </p>
+          <p id="guide-api-drift">
+            APIs change. A schema loaded <strong>From URL</strong> can be checked again on a timer:
+            set an <strong>Auto-refresh interval</strong> when you load it, or change it later with the
+            <strong>Auto-refresh</strong> button in the schema list. <strong>Refresh now</strong> on
+            the <strong>Drift</strong> tab checks straight away.
+          </p>
+          <p>
+            When the published document changes, the <strong>Drift</strong> tab lists what changed —
+            operations added or removed, a changed path or shape, a newly deprecated operation, or one
+            that switched between read and write. Nothing changes on its own: the
+            <strong>Operations</strong> tab keeps the current catalog until an admin presses
+            <strong>Accept revision</strong>, and a finding you don't care about can be dismissed.
+            Accepting never edits anyone's permissions, but a removed operation can no longer be
+            called — so a removed operation shows how many grants still name it, with a link to the
+            <strong>Permissions</strong> tab to tidy them up.
           </p>
           <div class="docs-callout info">
             <strong>Postman collections are examples, not schemas.</strong> AccessFlow will infer
@@ -489,6 +505,14 @@
               <code>ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES</code> and
               <code>ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES</code>; review timeout with
               <code>ACCESSFLOW_APIGOV_REVIEW_TIMEOUT</code>.</li>
+            <li id="guide-api-health"><strong>Knowing when an API goes down</strong> — set a
+              <em>Health check interval</em> on the connector's <em>Configuration</em> tab and
+              AccessFlow checks that the API's base URL still answers on that schedule. Any answer counts,
+              an error page included — this tells you the API is unreachable, not that it is
+              returning errors. The settings page shows a health
+              badge (click it for the recent checks) and the connector list gains a
+              <em>Health</em> column. Admins are alerted once the API stops answering several checks in
+              a row. Leave the interval empty and the connector reads <em>Not monitored</em>.</li>
             <li id="guide-api-replay"><strong>Replaying a call</strong> — once a request has
               finished, the person who submitted it can press <em>Replay</em> on its page. That
               creates a new request under their name, checked like any new call — analysis, routing

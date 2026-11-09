@@ -4013,6 +4013,23 @@
       "like_leading_wildcard": "LIKE с ведущим шаблоном",
       "transactional": "Внутри транзакции",
       "sql_matches": "SQL соответствует шаблону"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "Операция добавлена",
+      "OPERATION_REMOVED": "Операция удалена",
+      "SHAPE_CHANGED": "Структура изменена",
+      "DEPRECATED": "Устарела",
+      "CLASSIFICATION_FLIPPED": "Чтение/запись изменено"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "Открыта",
+      "ACCEPTED": "Принята",
+      "DISMISSED": "Отклонена"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "Неизвестно",
+      "HEALTHY": "Исправен",
+      "UNHEALTHY": "Неисправен"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "План проверки",
       "reviewPlanPlaceholder": "План не привязан",
       "reviewPlanLoading": "Загрузка планов…",
-      "reviewPlanHint": "Без плана запросам, направленным на проверку, требуется одно одобрение"
+      "reviewPlanHint": "Без плана запросам, направленным на проверку, требуется одно одобрение",
+      "health": "Состояние"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "Переопределять переменные",
       "canOverrideVariablesHint": "Может указывать значения в запросе для переопределяемых динамических переменных этого коннектора.",
-      "tabSimulate": "Симуляция"
+      "tabSimulate": "Симуляция",
+      "tabDrift": "Расхождения",
+      "autoRefresh": "Автообновление",
+      "autoRefreshEvery": "Каждые {{minutes}} мин",
+      "autoRefreshOff": "Выключено",
+      "lastRefreshed": "последнее обновление {{time}}",
+      "autoRefreshEdit": "Изменить автообновление",
+      "autoRefreshUpdated": "Автообновление сохранено",
+      "refreshInterval": "Интервал автообновления (минуты)",
+      "refreshIntervalHint": "Периодически загружать документ по его URL и сообщать об изменениях. Оставьте пустым, чтобы отключить. Каталог операций меняется только после принятия ревизии на вкладке «Расхождения».",
+      "autoRefreshOffPlaceholder": "Выключено",
+      "healthCheckInterval": "Интервал проверки состояния (минуты)",
+      "healthCheckIntervalHint": "Периодически опрашивать базовый URL и предупреждать, когда он перестаёт отвечать. Оставьте пустым, чтобы не отслеживать.",
+      "notMonitoredPlaceholder": "Не отслеживается",
+      "intervalMin": "Интервал должен быть не меньше 1 минуты"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "Смоделировать",
       "error": "Не удалось вычислить симуляцию",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "Изменения, найденные при повторной загрузке схемы по URL. Ничего не меняется, пока вы не примете ревизию — вкладка «Операции» по-прежнему показывает текущий каталог.",
+      "findingsTitle": "Находки",
+      "statusFilter": "Статус находки",
+      "noFindings": "Расхождений нет",
+      "kind": "Изменение",
+      "change": "До → после",
+      "deprecated": "устарела",
+      "affectedGrants": "Затронутые права",
+      "affectedGrantsLink": "Прав: {{count}} — проверить права доступа",
+      "grantImpactHint": "Влияние на права носит справочный характер: принятие или отклонение никогда не отзывает права. Проверьте оставшиеся без операции права на вкладке «Права».",
+      "detectedAt": "Обнаружено",
+      "dismiss": "Отклонить",
+      "dismissConfirm": "Отклонить эту находку? Каталог не изменится.",
+      "dismissed": "Находка отклонена",
+      "revisionsTitle": "Ревизии",
+      "noRefreshableSchema": "Ни одна схема не загружена по URL, обновлять нечего.",
+      "refreshNow": "Обновить сейчас",
+      "refreshUnchanged": "Схема не изменилась",
+      "refreshFindings": "Загружена новая ревизия, находок: {{count}}",
+      "noRevisions": "Ревизий пока нет",
+      "fetchedAt": "Загружена",
+      "lastSeenAt": "Последний раз видели",
+      "contentHash": "Хеш",
+      "revisionState": "Состояние",
+      "current": "Текущая",
+      "pending": "Не принята",
+      "acceptedOn": "Принята {{time}}",
+      "accept": "Принять ревизию",
+      "acceptConfirmTitle": "Принять эту ревизию?",
+      "acceptConfirmOperations": "Операции: {{from}} → {{to}}",
+      "acceptConfirmBody": "Каталог операций будет заменён этой ревизией, а её открытые находки помечены как принятые. Права не изменятся.",
+      "accepted": "Ревизия принята"
+    },
+    "health": {
+      "notMonitored": "Не отслеживается",
+      "notMonitoredHint": "Плановые проверки состояния выключены. Задайте интервал на вкладке «Конфигурация», чтобы отслеживать этот коннектор.",
+      "noChecks": "Проверок пока нет",
+      "lastProbed": "проверено {{time}}",
+      "neverProbed": "ещё не проверялось",
+      "historyTitle": "Проверки состояния",
+      "intervalSummary": "Проверка каждые {{minutes}} мин · сбоев подряд: {{failures}}",
+      "checkedAt": "Проверено",
+      "result": "Результат",
+      "success": "OK",
+      "failure": "Сбой",
+      "durationMs": "Длительность (мс)",
+      "message": "Сообщение"
     }
   },
   "lifecycle": {

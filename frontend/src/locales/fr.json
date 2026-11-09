@@ -4013,6 +4013,23 @@
       "like_leading_wildcard": "LIKE avec joker initial",
       "transactional": "Dans une transaction",
       "sql_matches": "Le SQL correspond au motif"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "Opération ajoutée",
+      "OPERATION_REMOVED": "Opération supprimée",
+      "SHAPE_CHANGED": "Forme modifiée",
+      "DEPRECATED": "Obsolète",
+      "CLASSIFICATION_FLIPPED": "Lecture/écriture inversée"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "Ouvert",
+      "ACCEPTED": "Accepté",
+      "DISMISSED": "Ignoré"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "Inconnu",
+      "HEALTHY": "Sain",
+      "UNHEALTHY": "Défaillant"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "Plan de revue",
       "reviewPlanPlaceholder": "Aucun plan associé",
       "reviewPlanLoading": "Chargement des plans…",
-      "reviewPlanHint": "Sans plan, les demandes envoyées en revue nécessitent une seule approbation"
+      "reviewPlanHint": "Sans plan, les demandes envoyées en revue nécessitent une seule approbation",
+      "health": "Santé"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "Substituer les variables",
       "canOverrideVariablesHint": "Peut fournir des valeurs par requête pour les variables dynamiques substituables de ce connecteur.",
-      "tabSimulate": "Simuler"
+      "tabSimulate": "Simuler",
+      "tabDrift": "Dérive",
+      "autoRefresh": "Actualisation auto",
+      "autoRefreshEvery": "Toutes les {{minutes}} min",
+      "autoRefreshOff": "Désactivée",
+      "lastRefreshed": "dernière actualisation {{time}}",
+      "autoRefreshEdit": "Modifier l’actualisation auto",
+      "autoRefreshUpdated": "Actualisation auto mise à jour",
+      "refreshInterval": "Intervalle d’actualisation (minutes)",
+      "refreshIntervalHint": "Récupérer régulièrement le document depuis son URL et signaler les changements. Laisser vide pour désactiver. Le catalogue d’opérations ne change que lorsque vous acceptez une révision dans l’onglet Dérive.",
+      "autoRefreshOffPlaceholder": "Désactivée",
+      "healthCheckInterval": "Intervalle de vérification de santé (minutes)",
+      "healthCheckIntervalHint": "Sonder l’URL de base régulièrement et alerter quand elle ne répond plus. Laisser vide pour ne pas surveiller.",
+      "notMonitoredPlaceholder": "Non surveillé",
+      "intervalMin": "L’intervalle doit être d’au moins 1 minute"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "Simuler",
       "error": "La simulation n'a pas pu être calculée",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "Changements détectés lorsqu’un schéma chargé depuis une URL est récupéré à nouveau. Rien ne change tant que vous n’acceptez pas une révision — l’onglet Opérations affiche toujours le catalogue actuel.",
+      "findingsTitle": "Constats",
+      "statusFilter": "Statut des constats",
+      "noFindings": "Aucune dérive détectée",
+      "kind": "Changement",
+      "change": "Avant → après",
+      "deprecated": "obsolète",
+      "affectedGrants": "Autorisations concernées",
+      "affectedGrantsLink": "{{count}} autorisation(s) — vérifier les permissions",
+      "grantImpactHint": "L’impact sur les autorisations est indicatif : accepter ou ignorer ne révoque jamais une permission. Vérifiez les autorisations orphelines dans l’onglet Permissions.",
+      "detectedAt": "Détecté",
+      "dismiss": "Ignorer",
+      "dismissConfirm": "Ignorer ce constat ? Le catalogue n’est pas modifié.",
+      "dismissed": "Constat ignoré",
+      "revisionsTitle": "Révisions",
+      "noRefreshableSchema": "Aucun schéma n’a été chargé depuis une URL ; il n’y a rien à actualiser.",
+      "refreshNow": "Actualiser maintenant",
+      "refreshUnchanged": "Le schéma est inchangé",
+      "refreshFindings": "Nouvelle révision récupérée : {{count}} constat(s)",
+      "noRevisions": "Aucune révision pour l’instant",
+      "fetchedAt": "Récupéré",
+      "lastSeenAt": "Vu pour la dernière fois",
+      "contentHash": "Empreinte",
+      "revisionState": "État",
+      "current": "Actuelle",
+      "pending": "Non acceptée",
+      "acceptedOn": "Acceptée {{time}}",
+      "accept": "Accepter la révision",
+      "acceptConfirmTitle": "Accepter cette révision ?",
+      "acceptConfirmOperations": "Opérations : {{from}} → {{to}}",
+      "acceptConfirmBody": "Le catalogue d’opérations est remplacé par cette révision et ses constats ouverts sont marqués acceptés. Les autorisations ne sont pas modifiées.",
+      "accepted": "Révision acceptée"
+    },
+    "health": {
+      "notMonitored": "Non surveillé",
+      "notMonitoredHint": "Les vérifications de santé planifiées sont désactivées. Définissez un intervalle dans l’onglet Configuration pour surveiller ce connecteur.",
+      "noChecks": "Aucune vérification pour l’instant",
+      "lastProbed": "vérifié {{time}}",
+      "neverProbed": "pas encore vérifié",
+      "historyTitle": "Vérifications de santé",
+      "intervalSummary": "Vérifié toutes les {{minutes}} min · échecs consécutifs : {{failures}}",
+      "checkedAt": "Vérifié",
+      "result": "Résultat",
+      "success": "OK",
+      "failure": "Échec",
+      "durationMs": "Durée (ms)",
+      "message": "Message"
     }
   },
   "lifecycle": {

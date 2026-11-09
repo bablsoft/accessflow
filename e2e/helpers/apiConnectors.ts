@@ -212,3 +212,34 @@ export async function executeApiRequestViaApi(
   }
   return ((await res.json()) as { status: string }).status;
 }
+
+export interface ApiConnectorHealthSnapshot {
+  status: 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY';
+  last_probe_at?: string;
+  health_check_interval_minutes?: number;
+}
+
+/**
+ * Polls GET /api/v1/api-connectors/{id}/health until the scheduled probe has moved the status off
+ * UNKNOWN (#896). The health job ticks every minute, so allow a couple of ticks.
+ */
+export async function waitForApiConnectorProbed(
+  request: APIRequestContext,
+  token: string,
+  connectorId: string,
+  timeoutMs = 180_000,
+): Promise<ApiConnectorHealthSnapshot> {
+  const deadline = Date.now() + timeoutMs;
+  let last: ApiConnectorHealthSnapshot | undefined;
+  while (Date.now() < deadline) {
+    const res = await request.get(`${apiBase()}/api/v1/api-connectors/${connectorId}/health`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok()) {
+      last = (await res.json()) as ApiConnectorHealthSnapshot;
+      if (last.status !== 'UNKNOWN') return last;
+    }
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw new Error(`API connector ${connectorId} was never probed (last=${last?.status})`);
+}

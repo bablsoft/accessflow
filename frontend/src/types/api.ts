@@ -3870,12 +3870,16 @@ export interface CreateApiConnectorInput {
   require_review_reads?: boolean;
   require_review_writes?: boolean;
   max_response_bytes?: number;
+  /** Scheduled-health opt-in (minutes, ≥ 1). On update, null means "unchanged". */
+  health_check_interval_minutes?: number | null;
 }
 
 export type UpdateApiConnectorInput = Partial<CreateApiConnectorInput> & {
   active?: boolean;
   /** review_plan_id: null means "unchanged" on update — clearing goes through this flag. */
   clear_review_plan?: boolean;
+  /** Turns scheduled health checks off and resets the connector to UNKNOWN. */
+  clear_health_check?: boolean;
 };
 
 export interface ApiConnectionTestResult {
@@ -3982,6 +3986,71 @@ export interface UploadApiSchemaInput {
   raw_content: string;
   source_url?: string | null;
   filter?: ApiOperationFilter | null;
+  /** Only valid with source_url; absent/null = no scheduled refresh. */
+  refresh_interval_minutes?: number | null;
+}
+
+// --- #893 / #894: schema refresh, drift findings, connector health ---
+
+export type ApiDriftFindingKind =
+  | 'OPERATION_ADDED'
+  | 'OPERATION_REMOVED'
+  | 'SHAPE_CHANGED'
+  | 'DEPRECATED'
+  | 'CLASSIFICATION_FLIPPED';
+export type ApiDriftFindingStatus = 'OPEN' | 'ACCEPTED' | 'DISMISSED';
+
+export interface ApiSchemaRevision {
+  id: string;
+  schema_id: string;
+  content_hash: string;
+  operation_count: number;
+  fetched_at: string;
+  last_seen_at: string;
+  accepted_at?: string | null;
+  accepted_by?: string | null;
+}
+
+export interface ApiDriftFinding {
+  id: string;
+  schema_id: string;
+  revision_id: string;
+  kind: ApiDriftFindingKind;
+  operation_id: string;
+  /** Absent for OPERATION_ADDED. */
+  before?: ApiOperation | null;
+  /** Absent for OPERATION_REMOVED. */
+  after?: ApiOperation | null;
+  affected_grant_count: number;
+  affected_user_grant_ids?: string[] | null;
+  affected_group_grant_ids?: string[] | null;
+  status: ApiDriftFindingStatus;
+  created_at: string;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+}
+
+export interface ApiSchemaRefreshResult {
+  /** Absent when the fetched document was unchanged. */
+  revision_id?: string | null;
+  finding_count: number;
+  unchanged: boolean;
+}
+
+export interface ApiConnectorHealthCheck {
+  checked_at: string;
+  success: boolean;
+  message?: string | null;
+  duration_ms: number;
+}
+
+export interface ApiConnectorHealth {
+  status: ApiConnectorHealthStatus;
+  last_probe_at?: string | null;
+  consecutive_failures: number;
+  health_check_interval_minutes?: number | null;
+  /** The 20 newest probes, newest first. */
+  recent_checks: ApiConnectorHealthCheck[];
 }
 
 export interface ApiOperation {

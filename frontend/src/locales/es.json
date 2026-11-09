@@ -4013,6 +4013,23 @@
       "like_leading_wildcard": "LIKE con comodín inicial",
       "transactional": "Dentro de una transacción",
       "sql_matches": "El SQL coincide con el patrón"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "Operación añadida",
+      "OPERATION_REMOVED": "Operación eliminada",
+      "SHAPE_CHANGED": "Forma cambiada",
+      "DEPRECATED": "Obsoleta",
+      "CLASSIFICATION_FLIPPED": "Lectura/escritura invertida"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "Abierto",
+      "ACCEPTED": "Aceptado",
+      "DISMISSED": "Descartado"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "Desconocido",
+      "HEALTHY": "Correcto",
+      "UNHEALTHY": "Con fallos"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "Plan de revisión",
       "reviewPlanPlaceholder": "Sin plan asociado",
       "reviewPlanLoading": "Cargando planes…",
-      "reviewPlanHint": "Sin plan, las solicitudes enviadas a revisión requieren una sola aprobación"
+      "reviewPlanHint": "Sin plan, las solicitudes enviadas a revisión requieren una sola aprobación",
+      "health": "Estado"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "Sustituir variables",
       "canOverrideVariablesHint": "Puede aportar valores por solicitud para las variables dinámicas sustituibles de este conector.",
-      "tabSimulate": "Simular"
+      "tabSimulate": "Simular",
+      "tabDrift": "Deriva",
+      "autoRefresh": "Actualización automática",
+      "autoRefreshEvery": "Cada {{minutes}} min",
+      "autoRefreshOff": "Desactivada",
+      "lastRefreshed": "última actualización {{time}}",
+      "autoRefreshEdit": "Editar actualización automática",
+      "autoRefreshUpdated": "Actualización automática guardada",
+      "refreshInterval": "Intervalo de actualización (minutos)",
+      "refreshIntervalHint": "Volver a descargar el documento desde su URL de forma periódica e informar de los cambios. Déjelo vacío para desactivarlo. El catálogo de operaciones solo cambia cuando acepta una revisión en la pestaña Deriva.",
+      "autoRefreshOffPlaceholder": "Desactivada",
+      "healthCheckInterval": "Intervalo de comprobación de estado (minutos)",
+      "healthCheckIntervalHint": "Sondear la URL base periódicamente y avisar cuando deje de responder. Déjelo vacío para no supervisar.",
+      "notMonitoredPlaceholder": "Sin supervisar",
+      "intervalMin": "El intervalo debe ser de al menos 1 minuto"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "Simular",
       "error": "No se pudo calcular la simulación",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "Cambios encontrados al volver a descargar un esquema cargado desde una URL. Nada cambia hasta que acepte una revisión: la pestaña Operaciones sigue mostrando el catálogo actual.",
+      "findingsTitle": "Hallazgos",
+      "statusFilter": "Estado del hallazgo",
+      "noFindings": "No hay hallazgos de deriva",
+      "kind": "Cambio",
+      "change": "Antes → después",
+      "deprecated": "obsoleta",
+      "affectedGrants": "Permisos afectados",
+      "affectedGrantsLink": "{{count}} permiso(s) — revisar permisos",
+      "grantImpactHint": "El impacto en los permisos es orientativo: aceptar o descartar nunca revoca un permiso. Revise los permisos huérfanos en la pestaña Permisos.",
+      "detectedAt": "Detectado",
+      "dismiss": "Descartar",
+      "dismissConfirm": "¿Descartar este hallazgo? El catálogo no cambia.",
+      "dismissed": "Hallazgo descartado",
+      "revisionsTitle": "Revisiones",
+      "noRefreshableSchema": "Ningún esquema se cargó desde una URL, así que no hay nada que actualizar.",
+      "refreshNow": "Actualizar ahora",
+      "refreshUnchanged": "El esquema no ha cambiado",
+      "refreshFindings": "Nueva revisión descargada: {{count}} hallazgo(s)",
+      "noRevisions": "Aún no hay revisiones",
+      "fetchedAt": "Descargada",
+      "lastSeenAt": "Vista por última vez",
+      "contentHash": "Hash",
+      "revisionState": "Estado",
+      "current": "Actual",
+      "pending": "Sin aceptar",
+      "acceptedOn": "Aceptada {{time}}",
+      "accept": "Aceptar revisión",
+      "acceptConfirmTitle": "¿Aceptar esta revisión?",
+      "acceptConfirmOperations": "Operaciones: {{from}} → {{to}}",
+      "acceptConfirmBody": "El catálogo de operaciones se sustituye por esta revisión y sus hallazgos abiertos se marcan como aceptados. Los permisos no cambian.",
+      "accepted": "Revisión aceptada"
+    },
+    "health": {
+      "notMonitored": "Sin supervisar",
+      "notMonitoredHint": "Las comprobaciones de estado programadas están desactivadas. Defina un intervalo en la pestaña Configuración para supervisar este conector.",
+      "noChecks": "Aún no hay comprobaciones",
+      "lastProbed": "comprobado {{time}}",
+      "neverProbed": "aún no comprobado",
+      "historyTitle": "Comprobaciones de estado",
+      "intervalSummary": "Comprobado cada {{minutes}} min · fallos consecutivos: {{failures}}",
+      "checkedAt": "Comprobado",
+      "result": "Resultado",
+      "success": "OK",
+      "failure": "Fallo",
+      "durationMs": "Duración (ms)",
+      "message": "Mensaje"
     }
   },
   "lifecycle": {

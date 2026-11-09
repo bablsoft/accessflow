@@ -4051,6 +4051,23 @@
       "like_leading_wildcard": "LIKE with leading wildcard",
       "transactional": "Inside a transaction",
       "sql_matches": "SQL matches pattern"
+    },
+    "api_drift_finding_kind": {
+      "OPERATION_ADDED": "Operation added",
+      "OPERATION_REMOVED": "Operation removed",
+      "SHAPE_CHANGED": "Shape changed",
+      "DEPRECATED": "Deprecated",
+      "CLASSIFICATION_FLIPPED": "Read/write flipped"
+    },
+    "api_drift_finding_status": {
+      "OPEN": "Open",
+      "ACCEPTED": "Accepted",
+      "DISMISSED": "Dismissed"
+    },
+    "api_connector_health_status": {
+      "UNKNOWN": "Unknown",
+      "HEALTHY": "Healthy",
+      "UNHEALTHY": "Unhealthy"
     }
   },
   "access": {
@@ -4746,7 +4763,8 @@
       "reviewPlan": "Review plan",
       "reviewPlanPlaceholder": "No plan attached",
       "reviewPlanLoading": "Loading plans…",
-      "reviewPlanHint": "Without a plan, requests routed to review need a single approval"
+      "reviewPlanHint": "Without a plan, requests routed to review need a single approval",
+      "health": "Health"
     },
     "settings": {
       "title": "Connector settings",
@@ -5017,7 +5035,21 @@
       },
       "canOverrideVariables": "Override variables",
       "canOverrideVariablesHint": "May supply per-request values for this connector's overridable dynamic variables.",
-      "tabSimulate": "Simulate"
+      "tabSimulate": "Simulate",
+      "tabDrift": "Drift",
+      "autoRefresh": "Auto-refresh",
+      "autoRefreshEvery": "Every {{minutes}} min",
+      "autoRefreshOff": "Off",
+      "lastRefreshed": "last refreshed {{time}}",
+      "autoRefreshEdit": "Edit auto-refresh",
+      "autoRefreshUpdated": "Auto-refresh updated",
+      "refreshInterval": "Auto-refresh interval (minutes)",
+      "refreshIntervalHint": "Re-fetch the document from its URL on a schedule and report what changed. Leave empty to turn it off. The operation catalog only changes when you accept a revision on the Drift tab.",
+      "autoRefreshOffPlaceholder": "Off",
+      "healthCheckInterval": "Health check interval (minutes)",
+      "healthCheckIntervalHint": "Probe the base URL on a schedule and alert when it stops answering. Leave empty for not monitored.",
+      "notMonitoredPlaceholder": "Not monitored",
+      "intervalMin": "The interval must be at least 1 minute"
     },
     "editor": {
       "title": "API Editor",
@@ -5185,6 +5217,55 @@
       "simulate": "Simulate",
       "error": "The simulation could not be computed",
       "verb_placeholder": "GET"
+    },
+    "drift": {
+      "explainer": "Changes found when a URL-sourced schema is re-fetched. Nothing changes until you accept a revision — the Operations tab keeps showing the current catalog.",
+      "findingsTitle": "Findings",
+      "statusFilter": "Finding status",
+      "noFindings": "No drift findings",
+      "kind": "Change",
+      "change": "Before → after",
+      "deprecated": "deprecated",
+      "affectedGrants": "Affected grants",
+      "affectedGrantsLink": "{{count}} grant(s) — review permissions",
+      "grantImpactHint": "Grant impact is advisory: accepting or dismissing never revokes a permission. Review stranded grants on the Permissions tab.",
+      "detectedAt": "Detected",
+      "dismiss": "Dismiss",
+      "dismissConfirm": "Dismiss this finding? The catalog is not changed.",
+      "dismissed": "Finding dismissed",
+      "revisionsTitle": "Revisions",
+      "noRefreshableSchema": "No schema was loaded from a URL, so there is nothing to refresh.",
+      "refreshNow": "Refresh now",
+      "refreshUnchanged": "The schema is unchanged",
+      "refreshFindings": "New revision fetched: {{count}} finding(s)",
+      "noRevisions": "No revisions yet",
+      "fetchedAt": "Fetched",
+      "lastSeenAt": "Last seen",
+      "contentHash": "Hash",
+      "revisionState": "State",
+      "current": "Current",
+      "pending": "Not accepted",
+      "acceptedOn": "Accepted {{time}}",
+      "accept": "Accept revision",
+      "acceptConfirmTitle": "Accept this revision?",
+      "acceptConfirmOperations": "Operations: {{from}} → {{to}}",
+      "acceptConfirmBody": "The operation catalog is replaced by this revision and its open findings are marked accepted. Grants are not changed.",
+      "accepted": "Revision accepted"
+    },
+    "health": {
+      "notMonitored": "Not monitored",
+      "notMonitoredHint": "Scheduled health checks are off. Set an interval on the Configuration tab to monitor this connector.",
+      "noChecks": "No health checks yet",
+      "lastProbed": "checked {{time}}",
+      "neverProbed": "not checked yet",
+      "historyTitle": "Health checks",
+      "intervalSummary": "Checked every {{minutes}} min · consecutive failures: {{failures}}",
+      "checkedAt": "Checked",
+      "result": "Result",
+      "success": "OK",
+      "failure": "Failed",
+      "durationMs": "Duration (ms)",
+      "message": "Message"
     }
   },
   "lifecycle": {

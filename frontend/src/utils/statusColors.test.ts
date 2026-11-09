@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   apiResponseDiffKindColor,
+  apiConnectorHealthColor,
+  apiDriftFindingKindColor,
   accessGrantStatusColor,
   anomalyStatusColor,
   attestationCampaignStatusColor,
@@ -220,3 +222,22 @@ describe('apiResponseDiffKindColor', () => {
     expect(new Set(colors.map((c) => c.fg)).size).toBe(3);
   });
 });
+
+describe('apiConnectorHealthColor', () => {
+  it('maps healthy to good, unhealthy to bad and unknown to neutral', () => {
+    expect(apiConnectorHealthColor('HEALTHY').fg).toBe('var(--risk-low)');
+    expect(apiConnectorHealthColor('UNHEALTHY').fg).toBe('var(--risk-crit)');
+    expect(apiConnectorHealthColor('UNKNOWN').fg).toBe('var(--fg-muted)');
+  });
+});
+
+describe('apiDriftFindingKindColor', () => {
+  it('reads a removed operation as bad, an added one as info, the rest as warnings', () => {
+    expect(apiDriftFindingKindColor('OPERATION_REMOVED').fg).toBe('var(--risk-crit)');
+    expect(apiDriftFindingKindColor('OPERATION_ADDED').fg).toBe('var(--status-info)');
+    for (const kind of ['SHAPE_CHANGED', 'DEPRECATED', 'CLASSIFICATION_FLIPPED'] as const) {
+      expect(apiDriftFindingKindColor(kind).fg).toBe('var(--status-warn)');
+    }
+  });
+});
+

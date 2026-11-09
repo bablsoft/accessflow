@@ -1,6 +1,8 @@
 import type {
   AccessGrantStatus,
   ApiResponseDiffKind,
+  ApiConnectorHealthStatus,
+  ApiDriftFindingKind,
   AttestationCampaignStatus,
   AttestationItemDecision,
   BehaviorAnomalyStatus,
@@ -356,6 +358,32 @@ export const apiResponseDiffKindColor = (kind: ApiResponseDiffKind): ColorTriple
     case 'REMOVED':
       return BAD;
     case 'CHANGED':
+      return WARN;
+  }
+};
+
+/** Connector health (#896): UNKNOWN is neutral — an unmonitored connector is not a failure. */
+export const apiConnectorHealthColor = (status: ApiConnectorHealthStatus): ColorTriple => {
+  switch (status) {
+    case 'HEALTHY':
+      return GOOD;
+    case 'UNHEALTHY':
+      return BAD;
+    case 'UNKNOWN':
+      return NEUTRAL;
+  }
+};
+
+/** API drift finding kind (#896): a removed operation strands grants, so it reads as bad. */
+export const apiDriftFindingKindColor = (kind: ApiDriftFindingKind): ColorTriple => {
+  switch (kind) {
+    case 'OPERATION_ADDED':
+      return INFO;
+    case 'OPERATION_REMOVED':
+      return BAD;
+    case 'SHAPE_CHANGED':
+    case 'DEPRECATED':
+    case 'CLASSIFICATION_FLIPPED':
       return WARN;
   }
 };

@@ -80,6 +80,19 @@ the status and the 20 newest probes from `GET /api-connectors/{id}/health`. The 
 never counts toward the streak. Detail: [docs/05-backend.md](05-backend.md) → *Scheduled connector
 health*.
 
+**UI (#896).** The settings page header carries a health badge (`ApiConnectorHealthBadge`): status,
+last probe time and, on click, a drawer listing the 20 recent checks. A connector without an
+interval reads **Not monitored** — never a red state. The *Configuration* tab has the
+`health_check_interval_minutes` field; emptying it sends `clear_health_check: true`. The connector
+list shows a *Health* column (`—` while unmonitored or not yet probed). A schema loaded from a URL
+takes a `refresh_interval_minutes` at upload and shows "Every N min · last refreshed …", plus the
+last refresh error when there is one, with an *Auto-refresh* modal for `PUT …/refresh-policy`. The **Drift** tab
+(`ApiConnectorDriftTab`, `?tab=drift`) lists findings filtered by status (`OPEN` by default) with a
+*Dismiss* action and an advisory grant-impact link to the *Permissions* tab, then one card per
+URL-sourced schema with *Refresh now* and its revisions. *Accept revision* sits behind a confirm that
+names the operation delta and is offered on every revision except the current one. Accepting is the
+only action that changes the catalog: until then the *Operations* tab keeps the current one.
+
 ### OAuth2 token sourcing (AF-500 / #506)
 
 When `auth_method = OAUTH2_CLIENT_CREDENTIALS`, AccessFlow obtains the outbound access token itself
@@ -580,7 +593,8 @@ admins), delivered as in-app + chat notifications (Slack / Discord / Teams / Tel
 Three connector-scoped events go to every active org admin on every active org channel, email
 included: `API_CONNECTOR_OAUTH2_TOKEN_FAILED`, `API_CONNECTOR_DRIFT` (a refresh stored a revision
 with drift findings) and `API_CONNECTOR_UNHEALTHY` (the health probes crossed the failure threshold,
-#895). The in-app rows link to the connector's settings page. Only `API_CONNECTOR_UNHEALTHY` can
+#895). The in-app rows link to the connector's settings page (the drift row opens its *Drift* tab,
+`?tab=drift` — #896). Only `API_CONNECTOR_UNHEALTHY` can
 page, through the PagerDuty `CONNECTOR_DOWN` trigger; none opens a ticket.
 
 ---
