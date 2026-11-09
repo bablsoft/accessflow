@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLimitKind;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +43,21 @@ class ApiGovExceptionHandlerTest {
         var pd = handler.handleConnectorNotFound(new ApiConnectorNotFoundException(UUID.randomUUID()));
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
         assertThat(pd.getProperties()).containsEntry("error", "API_CONNECTOR_NOT_FOUND");
+    }
+
+    @Test
+    void connectorQuotaExceededIs429WithRetryProperties() {
+        var until = Instant.parse("2026-11-09T10:00:20Z");
+        var pd = handler.handleConnectorQuotaExceeded(new ApiConnectorQuotaExceededException(
+                UUID.randomUUID(), ApiConnectorLimitKind.USER_MINUTE, 20, until));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(pd.getDetail()).isEqualTo("error.api_connector_quota_exceeded");
+        assertThat(pd.getProperties())
+                .containsEntry("error", "API_CONNECTOR_QUOTA_EXCEEDED")
+                .containsEntry("limitKind", "USER_MINUTE")
+                .containsEntry("retryAfterSeconds", 20L)
+                .containsEntry("throttledUntil", "2026-11-09T10:00:20Z")
+                .containsEntry("queuedForRetry", true);
     }
 
     @Test

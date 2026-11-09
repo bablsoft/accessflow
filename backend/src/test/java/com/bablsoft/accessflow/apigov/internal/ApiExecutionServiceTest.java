@@ -18,6 +18,14 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepo
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLimitKind;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
+import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
+import com.bablsoft.accessflow.apigov.internal.ApiExecutionService.ExecutionTrigger;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +34,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,7 +44,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +68,10 @@ class ApiExecutionServiceTest {
 
     @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorVariableResolutionService
             variableResolutionService;
+    @Mock private ApiConnectorRateLimiter rateLimiter;
+    @Mock private AuditLogService auditLogService;
+
+    private final Clock clock = Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC);
 
     private ApiExecutionService service;
 
@@ -67,7 +85,9 @@ class ApiExecutionServiceTest {
                 encryptionService, authApplier, oauth2TokenService, executor, responseMasker,
                 maskingResolutionService, stateService,
                 eventPublisher, JsonMapper.builder().build(), variableResolutionService,
-                new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L, 8192, 500, 0, null));
+                new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L, 8192, 500, 0, null),
+                rateLimiter, auditLogService, clock);
+        lenient().when(rateLimiter.tryAcquire(any(), any())).thenReturn(ApiConnectorRateLimiter.ALLOWED);
         lenient().when(maskingResolutionService.resolveApplicable(any(), any(), any()))
                 .thenReturn(java.util.List.of());
         // No connector variables configured: the resolver is a no-op and the composed call is
@@ -81,6 +101,7 @@ class ApiExecutionServiceTest {
         e.setId(requestId);
         e.setConnectorId(connectorId);
         e.setSubmittedBy(userId);
+        e.setOrganizationId(UUID.randomUUID());
         e.setVerb("GET");
         e.setRequestPath("/data");
         e.setStatus(QueryStatus.APPROVED);
@@ -313,7 +334,7 @@ class ApiExecutionServiceTest {
 
         var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
                 connectorId, orgId, userId, "op", "GET", "/x", null, null, ApiBodyType.RAW, null, null,
-                null, null));
+                null, null, false));
 
         assertThat(result.success()).isTrue();
         assertThat(result.statusCode()).isEqualTo(200);
@@ -330,7 +351,7 @@ class ApiExecutionServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
                         service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
                                 connectorId, orgId, userId, null, "GET", "/x", null, null,
-                                ApiBodyType.RAW, null, null, null, null)))
+                                ApiBodyType.RAW, null, null, null, null, false)))
                 .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiExecutionException.class);
     }
 
@@ -460,5 +481,180 @@ class ApiExecutionServiceTest {
         assertThat(ApiExecutionService.redact("x", null)).isEqualTo("x");
         // A blank resolved value must not turn every character into ***.
         assertThat(ApiExecutionService.redact("hi", resolved)).isEqualTo("hi");
+    }
+
+    // --- #972 connector rate limits ---
+
+    private void stubSuccessfulCall() {
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        when(executor.execute(any(ApiCallRequest.class)))
+                .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
+    }
+
+    @Test
+    void throttledExecuteKeepsApprovedStampsAndAuditsOnlyTheFirstDeferral() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.MINUTE, 20));
+
+        assertThatThrownBy(() -> service.execute(requestId))
+                .isInstanceOfSatisfying(ApiConnectorQuotaExceededException.class, ex -> {
+                    assertThat(ex.limitKind()).isEqualTo(ApiConnectorLimitKind.MINUTE);
+                    assertThat(ex.retryAfterSeconds()).isEqualTo(20);
+                    assertThat(ex.throttledUntil()).isEqualTo(Instant.parse("2026-11-09T10:00:20Z"));
+                    assertThat(ex.connectorId()).isEqualTo(connectorId);
+                });
+        assertThatThrownBy(() -> service.execute(requestId, ExecutionTrigger.QUOTA_RETRY))
+                .isInstanceOf(ApiConnectorQuotaExceededException.class);
+
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.APPROVED);
+        assertThat(entity.getThrottledUntil()).isEqualTo(Instant.parse("2026-11-09T10:00:20Z"));
+        assertThat(entity.getThrottleCount()).isEqualTo(2);
+        verify(requestRepository, times(2)).save(entity);
+        var captor = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, times(1)).record(captor.capture());
+        var audit = captor.getValue();
+        assertThat(audit.action()).isEqualTo(AuditAction.API_QUOTA_EXCEEDED);
+        assertThat(audit.actorId()).isEqualTo(userId);
+        assertThat(audit.metadata()).containsEntry("limit_kind", "MINUTE")
+                .containsEntry("trigger", "execute")
+                .containsEntry("retry_at", "2026-11-09T10:00:20Z")
+                .containsEntry("connector_id", connectorId.toString());
+        verify(executor, never()).execute(any());
+        verify(eventPublisher, never()).publishEvent(any(ApiRequestDecidedEvent.class));
+        verify(stateService, never()).apply(any(), any());
+    }
+
+    @Test
+    void firstDeferralFromTheJobIsAuditedWithANullActorAndRetryAfterAtLeastOneSecond() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.USER_DAY, 0));
+
+        assertThatThrownBy(() -> service.execute(requestId, ExecutionTrigger.SCHEDULED))
+                .isInstanceOfSatisfying(ApiConnectorQuotaExceededException.class,
+                        ex -> assertThat(ex.retryAfterSeconds()).isEqualTo(1));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().actorId()).isNull();
+        assertThat(captor.getValue().metadata()).containsEntry("trigger", "scheduled")
+                .containsEntry("limit_kind", "USER_DAY");
+    }
+
+    @Test
+    void auditFailureNeverFailsTheDeferral() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.DAY, 60));
+        doThrow(new IllegalStateException("audit down")).when(auditLogService).record(any());
+
+        assertThatThrownBy(() -> service.execute(requestId))
+                .isInstanceOf(ApiConnectorQuotaExceededException.class);
+        assertThat(entity.getThrottleCount()).isEqualTo(1);
+    }
+
+    @Test
+    void breakGlassSkipsTheLimiter() {
+        var entity = approved();
+        entity.setSubmissionReason(SubmissionReason.EMERGENCY_ACCESS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        stubSuccessfulCall();
+
+        service.execute(requestId);
+
+        verify(rateLimiter, never()).tryAcquire(any(), any());
+        verify(stateService).apply(entity, QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void allowedRetryClearsThrottledUntilAndWritesASubmitterAttributedExecutedRow() {
+        var entity = approved();
+        entity.setOperationId("listThings");
+        entity.setThrottledUntil(Instant.parse("2026-11-09T09:59:00Z"));
+        entity.setThrottleCount(3);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        stubSuccessfulCall();
+
+        service.execute(requestId, ExecutionTrigger.QUOTA_RETRY);
+
+        assertThat(entity.getThrottledUntil()).isNull();
+        assertThat(entity.getThrottleCount()).isEqualTo(3);
+        var captor = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().action()).isEqualTo(AuditAction.API_REQUEST_EXECUTED);
+        assertThat(captor.getValue().actorId()).isEqualTo(userId);
+        assertThat(captor.getValue().metadata()).containsEntry("trigger", "quota_retry")
+                .containsEntry("operation_id", "listThings");
+    }
+
+    @Test
+    void scheduledFailureWritesASubmitterAttributedFailedRow() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        when(executor.execute(any(ApiCallRequest.class))).thenThrow(new ApiExecutionException("boom"));
+
+        service.execute(requestId, ExecutionTrigger.SCHEDULED);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().action()).isEqualTo(AuditAction.API_REQUEST_FAILED);
+        assertThat(captor.getValue().actorId()).isEqualTo(userId);
+        assertThat(captor.getValue().metadata()).doesNotContainKey("operation_id");
+        assertThat(captor.getValue().metadata()).containsEntry("trigger", "scheduled");
+    }
+
+    @Test
+    void synchronousExecuteLeavesTheOutcomeAuditToTheCaller() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        stubSuccessfulCall();
+
+        service.execute(requestId);
+
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void throttledInlineCallReturnsAFailedResultWithoutCallingUpstream() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.DAY, 3600));
+
+        var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                connectorId, orgId, userId, null, "GET", "/x", null, null, null, null, null, null, null, false));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("DAY").contains("3600");
+        verify(executor, never()).execute(any());
+    }
+
+    @Test
+    void breakGlassInlineCallSkipsTheLimiter() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        stubSuccessfulCall();
+
+        var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                connectorId, orgId, userId, null, "GET", "/x", null, null, null, null, null, null, null, true));
+
+        assertThat(result.success()).isTrue();
+        verify(rateLimiter, never()).tryAcquire(any(), any());
     }
 }

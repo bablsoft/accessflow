@@ -54,6 +54,26 @@ class ApiRequestRepositoryIntegrationTest {
     }
 
     @Test
+    void throttledDueScanFindsApprovedRequestsPastTheirThrottledUntilAndScheduledScanSkipsThem() {
+        var now = Instant.now();
+        var due = newRequest(QueryStatus.APPROVED);
+        due.setThrottledUntil(now.minus(1, ChronoUnit.MINUTES));
+        var later = newRequest(QueryStatus.APPROVED);
+        later.setThrottledUntil(now.plus(1, ChronoUnit.MINUTES));
+        var scheduledAndThrottled = newRequest(QueryStatus.APPROVED);
+        scheduledAndThrottled.setScheduledFor(now.minus(1, ChronoUnit.HOURS));
+        scheduledAndThrottled.setThrottledUntil(now.minus(1, ChronoUnit.MINUTES));
+        var cancelled = newRequest(QueryStatus.CANCELLED);
+        cancelled.setThrottledUntil(now.minus(1, ChronoUnit.MINUTES));
+        repository.saveAll(java.util.List.of(due, later, scheduledAndThrottled, cancelled));
+
+        assertThat(repository.findThrottledDueIds(now))
+                .contains(due.getId(), scheduledAndThrottled.getId())
+                .doesNotContain(later.getId(), cancelled.getId());
+        assertThat(repository.findScheduledDueIds(now)).doesNotContain(scheduledAndThrottled.getId());
+    }
+
+    @Test
     void stalePendingReviewScanFindsRequestsOlderThanCutoff() {
         var stale = newRequest(QueryStatus.PENDING_REVIEW);
         stale.setCreatedAt(Instant.now().minus(2, ChronoUnit.DAYS));

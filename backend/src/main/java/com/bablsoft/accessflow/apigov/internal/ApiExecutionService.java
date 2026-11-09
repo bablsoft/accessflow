@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingResolutionService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableResolutionService;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
@@ -21,8 +22,13 @@ import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEn
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +52,8 @@ import java.util.UUID;
  * headers, caps the response, masks the caller's {@code restricted_response_fields} recursively by
  * dot-path, stores an immutable (masked) response snapshot, and records the EXECUTED / FAILED
  * outcome. Used by the submitter-triggered execute endpoint, the scheduled-run job, and break-glass.
+ * Every non-break-glass execution first passes the connector rate limits (#972); a throttled request
+ * stays APPROVED with {@code throttled_until} stamped and is retried by the run job.
  */
 @Service
 @RequiredArgsConstructor
@@ -69,9 +79,39 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     private final ObjectMapper objectMapper;
     private final ApiConnectorVariableResolutionService variableResolutionService;
     private final ApigovRequestProperties requestProperties;
+    private final ApiConnectorRateLimiter rateLimiter;
+    private final AuditLogService auditLogService;
+    private final Clock clock;
 
-    @Transactional
+    /** What started an execution — selects who writes the outcome audit row and its trigger. */
+    public enum ExecutionTrigger {
+        /** The synchronous execute endpoint or break-glass; the caller audits the outcome. */
+        EXECUTE("execute"),
+        /** {@code ApiRequestRunJob} firing a request at its {@code scheduled_for}. */
+        SCHEDULED("scheduled"),
+        /** {@code ApiRequestRunJob} retrying a request once its {@code throttled_until} passed. */
+        QUOTA_RETRY("quota_retry");
+
+        private final String auditValue;
+
+        ExecutionTrigger(String auditValue) {
+            this.auditValue = auditValue;
+        }
+
+        String auditValue() {
+            return auditValue;
+        }
+    }
+
+    // noRollbackFor: a throttled request's throttled_until / throttle_count stamp and its first
+    // API_QUOTA_EXCEEDED audit row must survive the exception that reports the 429.
+    @Transactional(noRollbackFor = ApiConnectorQuotaExceededException.class)
     public ApiRequestEntity execute(UUID apiRequestId) {
+        return execute(apiRequestId, ExecutionTrigger.EXECUTE);
+    }
+
+    @Transactional(noRollbackFor = ApiConnectorQuotaExceededException.class)
+    public ApiRequestEntity execute(UUID apiRequestId, ExecutionTrigger trigger) {
         var request = stateService.require(apiRequestId);
         if (request.getStatus() != QueryStatus.APPROVED) {
             throw new IllegalApiRequestStateException(request.getStatus(),
@@ -79,6 +119,13 @@ public class ApiExecutionService implements ApiInlineExecutionService {
         }
         var connector = connectorRepository.findById(request.getConnectorId())
                 .orElseThrow(() -> new ApiExecutionException("Connector no longer exists"));
+        if (request.getSubmissionReason() != SubmissionReason.EMERGENCY_ACCESS
+                && rateLimiter.tryAcquire(connector, request.getSubmittedBy())
+                        instanceof ApiConnectorRateLimiter.Throttled throttled) {
+            throw defer(request, throttled, trigger);
+        }
+        // Past the limiter: the deferral is over (throttle_count stays as history).
+        request.setThrottledUntil(null);
         try {
             var result = invoke(connector, request);
             var masks = resolveMasks(connector, request.getSubmittedBy());
@@ -93,6 +140,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
             request.setErrorMessage(null);
             stateService.apply(request, QueryStatus.EXECUTED);
             eventPublisher.publishEvent(new ApiRequestDecidedEvent(request.getId(), QueryStatus.EXECUTED, null));
+            auditSystemOutcome(AuditAction.API_REQUEST_EXECUTED, request, trigger);
             return request;
         } catch (ApiExecutionException ex) {
             log.warn("API request {} execution failed: {}", request.getId(), ex.getMessage());
@@ -100,7 +148,65 @@ public class ApiExecutionService implements ApiInlineExecutionService {
             stateService.apply(request, QueryStatus.FAILED);
             eventPublisher.publishEvent(new ApiRequestDecidedEvent(request.getId(), QueryStatus.FAILED,
                     ex.getMessage()));
+            auditSystemOutcome(AuditAction.API_REQUEST_FAILED, request, trigger);
             return request;
+        }
+    }
+
+    private ApiConnectorQuotaExceededException defer(ApiRequestEntity request,
+                                                     ApiConnectorRateLimiter.Throttled throttled,
+                                                     ExecutionTrigger trigger) {
+        var retryAfter = Math.max(1, throttled.retryAfterSeconds());
+        var throttledUntil = clock.instant().plusSeconds(retryAfter);
+        boolean first = request.getThrottleCount() == 0;
+        request.setThrottledUntil(throttledUntil);
+        request.setThrottleCount(request.getThrottleCount() + 1);
+        requestRepository.save(request);
+        if (first) {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("connector_id", request.getConnectorId().toString());
+            metadata.put("limit_kind", throttled.kind().name());
+            metadata.put("retry_at", throttledUntil.toString());
+            metadata.put("trigger", trigger.auditValue());
+            var actor = trigger == ExecutionTrigger.EXECUTE ? request.getSubmittedBy() : null;
+            audit(AuditAction.API_QUOTA_EXCEEDED, request, actor, metadata);
+        } else {
+            log.debug("API request {} throttled again ({} limit), retry at {}", request.getId(),
+                    throttled.kind(), throttledUntil);
+        }
+        return new ApiConnectorQuotaExceededException(request.getConnectorId(), throttled.kind(),
+                retryAfter, throttledUntil);
+    }
+
+    /**
+     * The run job has no caller to audit for it, so a scheduled / quota-retry run writes its own
+     * outcome row ({@code trigger} names the mechanism). The submitter is the actor — the
+     * {@code DefaultQueryLifecycleService} scheduled-run precedent — because grant-usage intelligence
+     * attributes {@code API_REQUEST_EXECUTED} rows by actor, and a null actor would make a request
+     * that ran after a 429 never count as use of the submitter's grant.
+     */
+    private void auditSystemOutcome(AuditAction action, ApiRequestEntity request, ExecutionTrigger trigger) {
+        if (trigger == ExecutionTrigger.EXECUTE) {
+            return;
+        }
+        var metadata = new HashMap<String, Object>();
+        metadata.put("connector_id", request.getConnectorId().toString());
+        metadata.put("path", request.getRequestPath());
+        metadata.put("status", request.getStatus().name());
+        metadata.put("trigger", trigger.auditValue());
+        if (request.getOperationId() != null && !request.getOperationId().isBlank()) {
+            metadata.put("operation_id", request.getOperationId());
+        }
+        audit(action, request, request.getSubmittedBy(), metadata);
+    }
+
+    private void audit(AuditAction action, ApiRequestEntity request, UUID actorId, Map<String, Object> metadata) {
+        try {
+            auditLogService.record(new AuditEntry(action, AuditResourceType.API_REQUEST, request.getId(),
+                    request.getOrganizationId(), actorId, metadata, null, null));
+        } catch (RuntimeException ex) {
+            // Audit must never fail the execution flow.
+            log.warn("Failed to audit {} for API request {}: {}", action, request.getId(), ex.getMessage());
         }
     }
 
@@ -126,6 +232,15 @@ public class ApiExecutionService implements ApiInlineExecutionService {
         transient_.setFormFields(command.formFieldsJson() == null || command.formFieldsJson().isBlank()
                 ? "[]" : command.formFieldsJson());
         transient_.setBinaryFilename(command.binaryFilename());
+        // A request-group member has no retry loop: a throttled member is reported as a failed one.
+        // A break-glass group skips the limiter, like a break-glass request.
+        if (!command.breakGlass() && rateLimiter.tryAcquire(connector, command.userId())
+                instanceof ApiConnectorRateLimiter.Throttled throttled) {
+            var message = "Connector " + throttled.kind() + " rate limit exceeded; retry after "
+                    + throttled.retryAfterSeconds() + "s";
+            log.debug("Inline API call to connector {} throttled: {}", connector.getId(), message);
+            return new ApiInlineExecutionResult(false, 0, null, null, false, null, null, message);
+        }
         try {
             var result = invoke(connector, transient_);
             var masked = responseMasker.mask(result.body(), result.contentType(),

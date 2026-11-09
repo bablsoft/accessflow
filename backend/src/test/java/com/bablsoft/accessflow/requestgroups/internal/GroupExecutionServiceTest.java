@@ -115,6 +115,24 @@ class GroupExecutionServiceTest {
     }
 
     @Test
+    void apiMembersCarryTheGroupsBreakGlassFlag() {
+        var items = new ArrayList<>(List.of(apiItem(0)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(items);
+        when(apiInlineExecutionService.executeInline(any())).thenReturn(ok(), ok());
+        var command = org.mockito.ArgumentCaptor.forClass(
+                ApiInlineExecutionService.ApiInlineExecutionCommand.class);
+
+        service.execute(group.getId(), null, "manual");
+        group.setSubmissionReason(com.bablsoft.accessflow.core.api.SubmissionReason.EMERGENCY_ACCESS);
+        items.get(0).setStatus(RequestGroupItemStatus.PENDING);
+        service.execute(group.getId(), null, "break_glass");
+
+        verify(apiInlineExecutionService, org.mockito.Mockito.times(2)).executeInline(command.capture());
+        assertThat(command.getAllValues()).extracting(
+                ApiInlineExecutionService.ApiInlineExecutionCommand::breakGlass).containsExactly(false, true);
+    }
+
+    @Test
     void stopsOnFirstFailureAndSkipsRemaining() {
         var items = new ArrayList<>(List.of(apiItem(0), apiItem(1), apiItem(2)));
         when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(items);

@@ -266,6 +266,27 @@ AF-567), writes a prominent
 (TIMED_OUT) requests that sit in PENDING_REVIEW past `accessflow.apigov.review-timeout`. Both are
 `@SchedulerLock`-guarded.
 
+**Connector rate limits (#972).** `ApiConnectorRateLimiter` enforces a connector's
+`calls_per_minute`, `calls_per_day` and optional `per_user_share_percent` **at execution**, inside
+`ApiExecutionService` — not at submission, because a request may wait days in review, and not in the
+controller, because the run job and request groups are not HTTP callers. The per-minute limit is a
+token bucket (burst = `calls_per_minute`, refilled at `calls_per_minute / 60` tokens per second); the
+daily quota is a fixed window per UTC day. With a share below 100 %, each submitter also gets a bucket and a
+daily counter sized `ceil(limit × share / 100)`; a call must pass every configured limit. All keys
+are checked and consumed by one atomic Lua script, so a call refused by the daily counter never
+burns a minute token. A connector with every limit `NULL` never touches Redis.
+
+A throttled request is not a new status: it stays `APPROVED`, gains `throttled_until` and
+`throttle_count`, and `ApiRequestRunJob` retries it (trigger `quota_retry`) once `throttled_until`
+passes — the synchronous execute answers `429 API_CONNECTOR_QUOTA_EXCEEDED` with the retry time and
+`queuedForRetry: true`. The submitter may cancel a throttled request exactly like a scheduled one.
+Only the **first** deferral of a request writes an `API_QUOTA_EXCEEDED` audit row (later ones are
+`DEBUG` logs). Break-glass executions skip the limiter — a break-glass request group's API members
+too. Any other request-group API member that is throttled is reported as a failed member — groups have
+no retry loop. The limiter **fails open**: if Redis is
+unreachable the call proceeds and a `WARN` is logged — a deliberate divergence from the AI rate
+limiter, because a rate limit protects the upstream from load and is not an authorization control.
+
 **Replay and response diff** work on a finished request: the submitter can re-submit a terminal
 request as a new governed call, and an executed request's stored response can be compared with the
 previous run of the same call. Both are described in [§8](#8-replay--response-diff-epic-885).
@@ -583,8 +604,11 @@ flags — never the expression or the secret),
 `API_CONNECTOR_MASKING_POLICY_CREATED`/`_UPDATED`/`_DELETED`,
 `API_CONNECTOR_CLASSIFICATION_TAG_ADDED`/`_REMOVED`, the system-attributed scheduled-health rows
 `API_CONNECTOR_UNHEALTHY`/`_RECOVERED` (#894; `trigger=health`) (resource `API_CONNECTOR`), and
-`API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`
-(resource `API_REQUEST`) — delivering the full audit of which APIs are called, how, and by whom.
+`API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_FAILED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`
+and `API_QUOTA_EXCEEDED` (#972; first deferral only, metadata includes `connector_id`/`limit_kind`/`retry_at`/`trigger`)
+(resource `API_REQUEST`; a run by `ApiRequestRunJob` writes its `_EXECUTED`/`_FAILED` row itself,
+attributed to the submitter so grant-usage intelligence still counts it, with `trigger=scheduled|quota_retry`
+and the `operation_id`; a synchronous execute always writes `API_REQUEST_EXECUTED` attributed to the caller, with the outcome — `EXECUTED` or `FAILED` — in `metadata.status`, so filter on that field rather than on `API_REQUEST_FAILED` alone) — delivering the full audit of which APIs are called, how, and by whom.
 
 Notifications add `API_REQUEST_SUBMITTED`/`_APPROVED`/`_EXECUTED`/`_FAILED` event types. The
 notifications module's `ApiNotificationListener` consumes `ApiRequestReadyForReviewEvent` (alert

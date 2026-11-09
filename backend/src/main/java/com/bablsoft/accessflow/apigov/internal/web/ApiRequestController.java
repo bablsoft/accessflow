@@ -162,6 +162,8 @@ class ApiRequestController {
     @Operation(summary = "Execute an APPROVED API request against the upstream target")
     @ApiResponse(responseCode = "200", description = "Executed (status reflects success/failure)")
     @ApiResponse(responseCode = "409", description = "Request is not APPROVED")
+    @ApiResponse(responseCode = "429", description = "Connector rate limit used up; the request stays "
+            + "APPROVED and is retried automatically (API_CONNECTOR_QUOTA_EXCEEDED)")
     ApiRequestResponse execute(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return ApiRequestResponse.from(requestService.execute(id, caller.organizationId(),

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
@@ -193,16 +194,20 @@ public class DefaultApiRequestService implements ApiRequestService {
         }
         boolean cancellable = entity.getStatus() == QueryStatus.PENDING_AI
                 || entity.getStatus() == QueryStatus.PENDING_REVIEW
-                || (entity.getStatus() == QueryStatus.APPROVED && entity.getScheduledFor() != null);
+                || (entity.getStatus() == QueryStatus.APPROVED
+                        && (entity.getScheduledFor() != null || entity.getThrottledUntil() != null));
         if (!cancellable) {
             throw new IllegalApiRequestStateException(entity.getStatus(), "API request cannot be cancelled");
         }
+        entity.setThrottledUntil(null);
         stateService.apply(entity, QueryStatus.CANCELLED);
         audit(AuditAction.API_REQUEST_CANCELLED, entity, null, null, Map.of());
     }
 
     @Override
-    @Transactional
+    // The quota exception leaves this transaction too, so it must not roll back the throttle stamp
+    // ApiExecutionService just wrote (#972).
+    @Transactional(noRollbackFor = ApiConnectorQuotaExceededException.class)
     public ApiRequestView execute(UUID id, UUID organizationId, UUID userId, boolean admin) {
         var entity = require(id, organizationId);
         if (!admin && !entity.getSubmittedBy().equals(userId)) {
