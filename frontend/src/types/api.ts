@@ -2837,7 +2837,8 @@ export type UserNotificationEventType =
   | 'DATA_BUDGET_EXHAUSTED'
   | 'API_CONNECTOR_OAUTH2_TOKEN_FAILED'
   | 'API_CONNECTOR_DRIFT'
-  | 'API_CONNECTOR_UNHEALTHY';
+  | 'API_CONNECTOR_UNHEALTHY'
+  | 'API_CONNECTOR_BUDGET_EXCEEDED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2870,7 +2871,8 @@ export interface UserNotificationPayload {
   budget?: string;
   used_percent?: number;
   /** #895 — connector-scoped API events: the connector (its name rides in `datasource`) and the
-   *  event detail (drift finding count, or the last health-probe error). */
+   *  event detail (drift finding count, the last health-probe error, or "<spend> / <budget>"
+   *  for a reached connector budget — #973). */
   connector_id?: string;
   detail?: string;
 }

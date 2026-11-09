@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,4 +70,19 @@ public interface ApiConnectorRepository extends JpaRepository<ApiConnectorEntity
     default int resetProbeState(UUID id) {
         return updateProbeOutcome(id, ApiConnectorHealthStatus.UNKNOWN, null, 0);
     }
+
+    /**
+     * The one-shot-per-month budget notification guard (#973): stamps {@code month} unless it is
+     * already the stamped month. Returns 1 for the one caller that won the month, 0 for everyone
+     * else, so a month notifies at most once even across replicas. Two concurrent calls that cross
+     * the budget together may each miss the other's uncommitted spend; the notification then fires
+     * on the next priced call instead.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = """
+            UPDATE api_connectors SET budget_exceeded_notified_month = CAST(:month AS date)
+            WHERE id = :id
+              AND budget_exceeded_notified_month IS DISTINCT FROM CAST(:month AS date)
+            """, nativeQuery = true)
+    int markBudgetExceededNotified(@Param("id") UUID id, @Param("month") LocalDate month);
 }

@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "Le jeton OAuth2 échoue toujours sur le connecteur API {{connector}}",
       "API_CONNECTOR_DRIFT_one": "{{count}} constat de dérive de schéma sur le connecteur API {{connector}}",
       "API_CONNECTOR_DRIFT_other": "{{count}} constats de dérive de schéma sur le connecteur API {{connector}}",
-      "API_CONNECTOR_UNHEALTHY": "Le connecteur API {{connector}} est défaillant"
+      "API_CONNECTOR_UNHEALTHY": "Le connecteur API {{connector}} est défaillant",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "Le connecteur API {{connector}} a atteint son budget mensuel ({{detail}})"
     }
   },
   "profile": {

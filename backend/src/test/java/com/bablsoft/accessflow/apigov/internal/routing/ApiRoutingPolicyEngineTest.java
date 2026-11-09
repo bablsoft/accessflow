@@ -47,7 +47,7 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{\"write\":true}", ApiRoutingAction.REQUIRE_APPROVALS, null)));
 
         var match = engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("POST", true, "createPet", RiskLevel.LOW));
+                new ApiRoutingPolicyEngine.RoutingContext("POST", true, "createPet", RiskLevel.LOW, null));
 
         assertThat(match).isNotNull();
         assertThat(match.action()).isEqualTo(ApiRoutingAction.REQUIRE_APPROVALS);
@@ -59,7 +59,7 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{\"write\":true}", ApiRoutingAction.AUTO_REJECT, null)));
 
         var match = engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW));
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, null));
 
         assertThat(match).isNull();
     }
@@ -70,9 +70,9 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{\"minRiskLevel\":\"HIGH\"}", ApiRoutingAction.ESCALATE, null)));
 
         assertThat(engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.CRITICAL))).isNotNull();
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.CRITICAL, null))).isNotNull();
         assertThat(engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW))).isNull();
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, null))).isNull();
     }
 
     @Test
@@ -81,14 +81,14 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{}", ApiRoutingAction.AUTO_APPROVE, UUID.randomUUID())));
 
         assertThat(engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, null))).isNull();
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, null, null))).isNull();
     }
 
     @Test
     void noPoliciesReturnsNull() {
         when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId)).thenReturn(List.of());
         assertThat(engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, null))).isNull();
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, null, null))).isNull();
     }
     // ── evaluateAll: the presentational read behind the decision trace (AF-967) ──
 
@@ -105,7 +105,7 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(first, second));
 
         var evaluations = engine.evaluateAll(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("POST", true, "createPet", RiskLevel.LOW));
+                new ApiRoutingPolicyEngine.RoutingContext("POST", true, "createPet", RiskLevel.LOW, null));
 
         assertThat(evaluations).hasSize(2);
         assertThat(evaluations.get(0).name()).isEqualTo("block writes");
@@ -125,7 +125,7 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{\"write\":true}", ApiRoutingAction.AUTO_REJECT, null)));
 
         var evaluations = engine.evaluateAll(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW));
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, null));
 
         assertThat(evaluations).singleElement().satisfies(e -> {
             assertThat(e.matched()).isFalse();
@@ -139,7 +139,7 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(policy("{}", ApiRoutingAction.AUTO_APPROVE, UUID.randomUUID())));
 
         assertThat(engine.evaluateAll(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW)))
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, null)))
                 .isEmpty();
     }
 
@@ -151,9 +151,46 @@ class ApiRoutingPolicyEngineTest {
                 .thenReturn(List.of(entity));
 
         var match = engine.evaluate(orgId, connectorId,
-                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW));
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, null));
 
         assertThat(match.policyName()).isEqualTo("auto-approve everything");
     }
 
+
+    // ── #973: budget routing fact ──────────────────────────────────────────
+
+    private boolean budgetMatches(String conditions, Integer percent) {
+        when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId))
+                .thenReturn(List.of(policy(conditions, ApiRoutingAction.AUTO_REJECT, null)));
+        return engine.evaluate(orgId, connectorId,
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW, percent)) != null;
+    }
+
+    @Test
+    void budgetExhaustedTrueMatchesOnlyAtOrPastOneHundredPercent() {
+        assertThat(budgetMatches("{\"budgetExhausted\":true}", 100)).isTrue();
+        assertThat(budgetMatches("{\"budgetExhausted\":true}", 140)).isTrue();
+        assertThat(budgetMatches("{\"budgetExhausted\":true}", 99)).isFalse();
+        assertThat(budgetMatches("{\"budgetExhausted\":true}", null)).isFalse();
+    }
+
+    @Test
+    void budgetExhaustedFalseMatchesUnderBudgetAndUnbudgeted() {
+        assertThat(budgetMatches("{\"budgetExhausted\":false}", null)).isTrue();
+        assertThat(budgetMatches("{\"budgetExhausted\":false}", 99)).isTrue();
+        assertThat(budgetMatches("{\"budgetExhausted\":false}", 100)).isFalse();
+    }
+
+    @Test
+    void minBudgetUsedPercentMatchesAtOrPastTheThreshold() {
+        assertThat(budgetMatches("{\"minBudgetUsedPercent\":80}", 80)).isTrue();
+        assertThat(budgetMatches("{\"minBudgetUsedPercent\":80}", 100)).isTrue();
+        assertThat(budgetMatches("{\"minBudgetUsedPercent\":80}", 79)).isFalse();
+        assertThat(budgetMatches("{\"minBudgetUsedPercent\":80}", null)).isFalse();
+    }
+
+    @Test
+    void nonNumericMinBudgetUsedPercentNeverMatches() {
+        assertThat(budgetMatches("{\"minBudgetUsedPercent\":\"80\"}", 100)).isFalse();
+    }
 }

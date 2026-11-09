@@ -228,6 +228,9 @@ class PagerDutyPayloadFactory {
             // later never falls into "for a query" below.
             case API_CONNECTOR_UNHEALTHY -> "AccessFlow: API connector " + datasource + " is unhealthy";
             case API_CONNECTOR_DRIFT -> "AccessFlow: schema drift detected on API connector " + datasource;
+            // #973: never pages (no trigger) — spelled out for the same reason as drift.
+            case API_CONNECTOR_BUDGET_EXCEEDED ->
+                    "AccessFlow: API connector " + datasource + " reached its monthly budget";
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;
         };
     }

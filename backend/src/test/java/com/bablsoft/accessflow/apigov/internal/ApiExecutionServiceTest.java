@@ -70,6 +70,7 @@ class ApiExecutionServiceTest {
             variableResolutionService;
     @Mock private ApiConnectorRateLimiter rateLimiter;
     @Mock private AuditLogService auditLogService;
+    @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService usageService;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC);
 
@@ -86,7 +87,7 @@ class ApiExecutionServiceTest {
                 maskingResolutionService, stateService,
                 eventPublisher, JsonMapper.builder().build(), variableResolutionService,
                 new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L, 8192, 500, 0, null),
-                rateLimiter, auditLogService, clock);
+                rateLimiter, auditLogService, clock, usageService);
         lenient().when(rateLimiter.tryAcquire(any(), any())).thenReturn(ApiConnectorRateLimiter.ALLOWED);
         lenient().when(maskingResolutionService.resolveApplicable(any(), any(), any()))
                 .thenReturn(java.util.List.of());
@@ -656,5 +657,128 @@ class ApiExecutionServiceTest {
 
         assertThat(result.success()).isTrue();
         verify(rateLimiter, never()).tryAcquire(any(), any());
+    }
+
+    // ── #973: cost attribution and usage accrual ─────────────────────────────
+
+    private static final com.bablsoft.accessflow.apigov.api.ApiUsageOutcome EXECUTED_OUTCOME =
+            com.bablsoft.accessflow.apigov.api.ApiUsageOutcome.EXECUTED;
+    private static final com.bablsoft.accessflow.apigov.api.ApiUsageOutcome FAILED_OUTCOME =
+            com.bablsoft.accessflow.apigov.api.ApiUsageOutcome.FAILED;
+    private static final com.bablsoft.accessflow.apigov.api.ApiUsageOutcome THROTTLED_OUTCOME =
+            com.bablsoft.accessflow.apigov.api.ApiUsageOutcome.THROTTLED;
+
+    private ApiConnectorEntity pricedConnector() {
+        var c = connector();
+        c.setCostPerCallMicros(2_500L);
+        return c;
+    }
+
+    @Test
+    void anExecutedRequestSnapshotsThePriceAndAccruesExecuted() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(pricedConnector()));
+        stubSuccessfulCall();
+
+        service.execute(requestId);
+
+        assertThat(entity.getCostMicros()).isEqualTo(2_500L);
+        verify(usageService).accrue(connectorId, entity.getOrganizationId(), userId, EXECUTED_OUTCOME, 1);
+    }
+
+    @Test
+    void aFailedRequestSnapshotsThePriceAndAccruesFailed() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(pricedConnector()));
+        lenient().when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        when(executor.execute(any(ApiCallRequest.class))).thenThrow(new ApiExecutionException("boom"));
+
+        service.execute(requestId);
+
+        assertThat(entity.getCostMicros()).isEqualTo(2_500L);
+        verify(usageService).accrue(connectorId, entity.getOrganizationId(), userId, FAILED_OUTCOME, 1);
+    }
+
+    @Test
+    void anUnpricedConnectorLeavesCostMicrosNullButStillAccruesTheCall() {
+        var entity = approved();
+        var free = connector();
+        free.setCostPerCallMicros(0L);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(free));
+        stubSuccessfulCall();
+
+        service.execute(requestId);
+
+        assertThat(entity.getCostMicros()).isNull();
+        verify(usageService).accrue(connectorId, entity.getOrganizationId(), userId, EXECUTED_OUTCOME, 1);
+    }
+
+    @Test
+    void aBreakGlassExecutionAccrues() {
+        var entity = approved();
+        entity.setSubmissionReason(SubmissionReason.EMERGENCY_ACCESS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(pricedConnector()));
+        stubSuccessfulCall();
+
+        service.execute(requestId);
+
+        assertThat(entity.getCostMicros()).isEqualTo(2_500L);
+        verify(usageService).accrue(connectorId, entity.getOrganizationId(), userId, EXECUTED_OUTCOME, 1);
+    }
+
+    @Test
+    void aThrottledExecutionAccruesThrottledAndStampsNoCost() {
+        var entity = approved();
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(pricedConnector()));
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.MINUTE, 5));
+
+        assertThatThrownBy(() -> service.execute(requestId))
+                .isInstanceOf(ApiConnectorQuotaExceededException.class);
+
+        assertThat(entity.getCostMicros()).isNull();
+        verify(usageService).accrue(connectorId, entity.getOrganizationId(), userId, THROTTLED_OUTCOME, 1);
+    }
+
+    @Test
+    void inlineCallsAccrueEachOutcome() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(pricedConnector()));
+        stubSuccessfulCall();
+        var command = new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                connectorId, orgId, userId, null, "GET", "/x", null, null, null, null, null, null, null, false);
+
+        service.executeInline(command);
+        verify(usageService).accrue(connectorId, orgId, userId, EXECUTED_OUTCOME, 1);
+
+        when(executor.execute(any(ApiCallRequest.class))).thenThrow(new ApiExecutionException("boom"));
+        service.executeInline(command);
+        verify(usageService).accrue(connectorId, orgId, userId, FAILED_OUTCOME, 1);
+
+        when(rateLimiter.tryAcquire(any(), any()))
+                .thenReturn(new ApiConnectorRateLimiter.Throttled(ApiConnectorLimitKind.DAY, 60));
+        service.executeInline(command);
+        verify(usageService).accrue(connectorId, orgId, userId, THROTTLED_OUTCOME, 1);
+    }
+
+    @Test
+    void aFailedInlineAccrualNeverFailsADeliveredCall() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(pricedConnector()));
+        stubSuccessfulCall();
+        doThrow(new IllegalStateException("db down")).when(usageService)
+                .accrue(any(), any(), any(), any(), anyInt());
+
+        var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                connectorId, orgId, userId, null, "GET", "/x", null, null, null, null, null, null, null, false));
+
+        assertThat(result.success()).isTrue();
     }
 }

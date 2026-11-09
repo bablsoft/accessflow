@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorVariableException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
+import com.bablsoft.accessflow.apigov.api.IllegalApiUsageRangeException;
 import com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException;
 import com.bablsoft.accessflow.apigov.api.SelfApprovalNotAllowedException;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,16 @@ class ApiGovExceptionHandler {
     ProblemDetail handleConnectorNotFound(ApiConnectorNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, msg("error.api_connector_not_found"),
                 "API_CONNECTOR_NOT_FOUND");
+    }
+
+    @ExceptionHandler(IllegalApiUsageRangeException.class)
+    ProblemDetail handleUsageRangeInvalid(IllegalApiUsageRangeException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT,
+                messageSource.getMessage("error.api_usage_range_invalid", new Object[] {ex.maxDays()},
+                        LocaleContextHolder.getLocale()),
+                "API_USAGE_RANGE_INVALID");
+        pd.setProperty("maxDays", ex.maxDays());
+        return pd;
     }
 
     @ExceptionHandler(ApiConnectorQuotaExceededException.class)

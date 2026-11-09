@@ -560,7 +560,8 @@ class NotificationDispatcherTest {
      */
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(value = NotificationEventType.class,
-            names = {"API_CONNECTOR_OAUTH2_TOKEN_FAILED", "API_CONNECTOR_DRIFT", "API_CONNECTOR_UNHEALTHY"})
+            names = {"API_CONNECTOR_OAUTH2_TOKEN_FAILED", "API_CONNECTOR_DRIFT", "API_CONNECTOR_UNHEALTHY",
+                    "API_CONNECTOR_BUDGET_EXCEEDED"})
     void dispatchApiConnectorUsesAllActiveOrgChannelsAndCarriesConnectorPayload(NotificationEventType type) {
         var connectorId = UUID.randomUUID();
         var admin = UUID.randomUUID();

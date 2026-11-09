@@ -35,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Covers the connector-scoped API-governance fan-out (#895) on every channel: each event renders a
  * type-specific title and the connector field set, never the generic query fields; only
- * {@code API_CONNECTOR_UNHEALTHY} pages, and none opens a ticket.
+ * {@code API_CONNECTOR_UNHEALTHY} pages, and none opens a ticket. The budget event (#973) rides the
+ * same sweep.
  */
 class ApiConnectorNotificationTest {
 
@@ -44,7 +45,8 @@ class ApiConnectorNotificationTest {
     private static final List<String> TEMPLATES = List.of(
             "email/api-connector-token-failed",
             "email/api-connector-drift",
-            "email/api-connector-unhealthy");
+            "email/api-connector-unhealthy",
+            "email/api-connector-budget-exceeded");
 
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -53,6 +55,7 @@ class ApiConnectorNotificationTest {
         var detail = switch (type) {
             case API_CONNECTOR_DRIFT -> "4";
             case API_CONNECTOR_UNHEALTHY -> "Connection refused";
+            case API_CONNECTOR_BUDGET_EXCEEDED -> "12.5 / 10";
             default -> null;
         };
         return new NotificationContext(
@@ -165,6 +168,20 @@ class ApiConnectorNotificationTest {
                 .contains(PagerDutyTrigger.CONNECTOR_DOWN);
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_DRIFT)).isEmpty();
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED)).isEmpty();
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED)).isEmpty();
+    }
+
+    @Test
+    void budgetTemplateShowsSpendAgainstBudgetAndRoutesToItsOwnTemplate() {
+        assertThat(EmailNotificationStrategy.templateName(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED))
+                .isEqualTo("email/api-connector-budget-exceeded");
+        var engine = buildEngine();
+        assertThat(engine.process("email/api-connector-budget-exceeded",
+                templateContext(Locale.ENGLISH, "12.5 / 10")))
+                .contains("Stripe").contains("Month-to-date spend / budget:").contains("12.5 / 10")
+                .contains("reached its monthly budget");
+        assertThat(engine.process("email/api-connector-budget-exceeded", templateContext(Locale.ENGLISH, null)))
+                .doesNotContain("Month-to-date spend / budget:");
     }
 
     @ParameterizedTest
@@ -219,6 +236,9 @@ class ApiConnectorNotificationTest {
         assertThat(messages.getMessage("notification.email.subject.api_connector_unhealthy",
                 new Object[]{"Stripe"}, loc))
                 .contains("Stripe").doesNotContain("{");
+        assertThat(messages.getMessage("notification.email.subject.api_connector_budget_exceeded",
+                new Object[]{"Stripe"}, loc))
+                .contains("Stripe").doesNotContain("{");
     }
 
     private static void assertDetail(NotificationEventType type, String rendered) {
@@ -226,6 +246,8 @@ class ApiConnectorNotificationTest {
             case API_CONNECTOR_DRIFT -> assertThat(rendered).contains("Drift findings").contains("4");
             case API_CONNECTOR_UNHEALTHY -> assertThat(rendered).contains("Last error")
                     .contains("Connection refused");
+            case API_CONNECTOR_BUDGET_EXCEEDED -> assertThat(rendered)
+                    .contains("Month-to-date spend / budget").contains("12.5 / 10");
             default -> assertThat(rendered).doesNotContain("Drift findings").doesNotContain("Last error");
         }
     }

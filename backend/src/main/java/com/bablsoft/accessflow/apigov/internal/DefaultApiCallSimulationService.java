@@ -26,6 +26,7 @@ import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorUsageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -68,6 +69,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
     private final ApiConnectorMaskingResolutionService maskingResolutionService;
     private final RolePermissionHolderLookupService rolePermissionHolderLookupService;
     private final UserQueryService userQueryService;
+    private final ApiConnectorUsageService usageService;
 
     /**
      * Deliberately not {@code @Transactional}: this is an aggregation of independently transactional
@@ -101,7 +103,8 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         var decisionInput = new ApiDecisionInput(organizationId, connector.id(),
                 connector.reviewPlanId(), connector.requireReviewReads(),
                 connector.requireReviewWrites(), input.verb(), classification.write(),
-                input.operationId(), input.aiOutcome(), input.riskLevel());
+                input.operationId(), input.aiOutcome(), input.riskLevel(),
+                usageService.budgetUsedPercent(connector.id()));
         var decision = decisionEvaluator.evaluate(decisionInput);
         steps.addAll(withFullPolicyList(decision, decisionInput));
 
@@ -277,7 +280,8 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         }
         var risk = decisionInput.aiOutcome() == AiOutcome.COMPLETED ? decisionInput.riskLevel() : null;
         var context = new ApiRoutingPolicyEngine.RoutingContext(decisionInput.verb(),
-                decisionInput.write(), decisionInput.operationId(), risk);
+                decisionInput.write(), decisionInput.operationId(), risk,
+                decisionInput.budgetUsedPercent());
         var evaluations = routingEngine.evaluateAll(decisionInput.organizationId(),
                 decisionInput.connectorId(), context);
         // "decisive" comes from the decision itself, not from this second evaluation's own first

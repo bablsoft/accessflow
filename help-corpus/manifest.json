@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "fc308b5287d6",
-  "generatedAt": "2026-11-09T12:49:17.969Z",
-  "sourceCommit": "826f5d036a2c63c5f7df3ad1986c67027ef7eebb",
+  "corpusVersion": "bf21f8c353ac",
+  "generatedAt": "2026-11-09T14:11:05.980Z",
+  "sourceCommit": "f01ac53e165c5e128c3949bde90bc8b2d48405d3",
   "chunkCount": 614,
-  "sha256": "fc308b5287d6460cb1c3ee6eb00d8f0612ed1c84637671aa96c8ed062874c63a",
+  "sha256": "bf21f8c353ac9ed902f822e7c606ebce5f33d5ae5d22549f060220b98e43dd7f",
   "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
   "sources": [
     {
@@ -213,7 +213,7 @@
       "url": "https://accessflow.io/docs/configuration/notifications/",
       "section": "Reference",
       "chunks": 6,
-      "sha256": "c1b67080a7452aa6c5a514b88a0542b617b0b6f9a6f9eb3f08eb09b29853d065"
+      "sha256": "d1cb26b6137a7a4590c4796ad867edd4a09106c255f1b4271aa4c2b1abefe0cf"
     },
     {
       "path": "website/docs/configuration/review-workflows/index.html",
@@ -293,7 +293,7 @@
       "url": "https://accessflow.io/docs/guides/notifications/",
       "section": "Guides",
       "chunks": 7,
-      "sha256": "d3dc2972b01030df2987b33858d0a2f89bc8763bbd4f10f55e7e4513abaa7477"
+      "sha256": "2b77db5b8c5ac5b131b10a947259ad73338664cd10bb7c2e671e68268ef86f06"
     },
     {
       "path": "website/docs/guides/sso/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "ccb5a885a2c2578dedc1967103624e54e75bf837d91fb1dc1636a0916505af82"
+      "sha256": "7a2793b54ed6c7c6c66fa4283a726151d2c27328edc635cbd67a4327078da305"
     }
   ]
 }

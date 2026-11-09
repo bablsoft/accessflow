@@ -410,7 +410,9 @@
             <li><strong>Organization-wide events go to every active channel.</strong> High AI risk,
               a detected anomaly, a break-glass execution, the weekly digest, a recertification
               campaign opening, a stale grant, a sensitive result export, an API connector problem
-              (a failed token, a changed schema, or a connector that stopped responding),
+              (a failed token, a changed schema, or a connector that stopped responding), an API
+              connector reaching its monthly spending budget (sent the moment it is reached, at most
+              once per connector per month),
               all five deployment events, and the four schema-change events — a schema change
               waiting for review, applied, or failed, and newly detected schema drift. Add a channel
               and it starts receiving these immediately.</li>
@@ -432,7 +434,8 @@
           <ul>
             <li><strong>PagerDuty — Trigger on:</strong> AI critical-risk query, review timeout,
               behavioural anomaly detected, break-glass query executed, routing-policy escalation,
-              review stalled, connector down. A changed API connector schema never pages.</li>
+              review stalled, connector down. A changed API connector schema or a
+              reached monthly budget never pages.</li>
             <li><strong>ServiceNow and Jira — Create a ticket on:</strong> query rejected, review
               timeout, routing-policy escalation.</li>
           </ul>

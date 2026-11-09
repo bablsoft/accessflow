@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.api_connector_budget_exceeded.title}">API connector budget reached</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #b7791f; color: #fff; text-decoration: none; border-radius: 4px; }
+        .alert-banner { padding: 10px 12px; border-left: 3px solid #b7791f; background: #fffaf0; color: #744210; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.api_connector_budget_exceeded.heading}">An API connector reached its monthly budget</h2>
+    <p class="alert-banner" th:text="#{notification.email.api_connector_budget_exceeded.body}">
+        This connector's month-to-date spend has reached its monthly budget. Calls keep running; routing policies on the budget now apply.
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.api_connector_budget_exceeded.connector_label}">Connector:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span>
+    </p>
+    <p class="meta" th:if="${reviewerComment}">
+        <strong th:text="#{notification.email.api_connector_budget_exceeded.detail_label}">Spend / budget:</strong>
+        <span th:text="${reviewerComment}">—</span>
+    </p>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.api_connector_budget_exceeded.cta}">Open connector settings</a>
+    </p>
+</body>
+</html>

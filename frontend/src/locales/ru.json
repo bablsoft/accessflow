@@ -3047,7 +3047,8 @@
       "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2-токен API-коннектора {{connector}} продолжает давать сбой",
       "API_CONNECTOR_DRIFT_one": "{{count}} расхождение схемы в API-коннекторе {{connector}}",
       "API_CONNECTOR_DRIFT_other": "Расхождений схемы в API-коннекторе {{connector}}: {{count}}",
-      "API_CONNECTOR_UNHEALTHY": "API-коннектор {{connector}} неисправен"
+      "API_CONNECTOR_UNHEALTHY": "API-коннектор {{connector}} неисправен",
+      "API_CONNECTOR_BUDGET_EXCEEDED": "API-коннектор {{connector}} достиг месячного бюджета ({{detail}})"
     }
   },
   "profile": {

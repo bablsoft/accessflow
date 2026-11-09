@@ -401,6 +401,7 @@ class NotificationDispatcher {
                 // #895: connectors carry no review-plan channel binding either.
                 || eventType == NotificationEventType.API_CONNECTOR_DRIFT
                 || eventType == NotificationEventType.API_CONNECTOR_UNHEALTHY
+                || eventType == NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED
                 // #695: deployment pipelines have no review-plan channel binding, so every
                 // deployment event fans out org-wide. An event missing here would silently
                 // deliver to zero channels (null datasourceId → empty plan-channel list).

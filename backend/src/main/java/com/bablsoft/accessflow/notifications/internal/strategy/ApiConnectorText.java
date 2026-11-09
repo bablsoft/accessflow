@@ -10,7 +10,8 @@ import java.util.Map;
 /**
  * Shared field set for the connector-scoped API-governance events (#895), so Slack, Discord, Teams
  * and Telegram show the same lines in the same order. The detail line is labelled per event: the
- * drift finding count, the last health-probe error; the token-failure event carries none.
+ * drift finding count, the last health-probe error, spend / budget (#973); the token-failure
+ * event carries none.
  */
 final class ApiConnectorText {
 
@@ -31,6 +32,7 @@ final class ApiConnectorText {
         return switch (eventType) {
             case API_CONNECTOR_DRIFT -> "Drift findings";
             case API_CONNECTOR_UNHEALTHY -> "Last error";
+            case API_CONNECTOR_BUDGET_EXCEEDED -> "Month-to-date spend / budget";
             default -> "Detail";
         };
     }

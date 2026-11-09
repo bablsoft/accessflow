@@ -44,6 +44,8 @@ public enum NotificationEventType {
     API_CONNECTOR_DRIFT,
     /** A connector's health probes crossed the failure threshold (#894/#895) — org admins; pages via CONNECTOR_DOWN. */
     API_CONNECTOR_UNHEALTHY,
+    /** Month-to-date spend first reached a connector's monthly budget (#973) — org admins, once a month, never pages. */
+    API_CONNECTOR_BUDGET_EXCEEDED,
 
     ERASURE_APPROVED,
 

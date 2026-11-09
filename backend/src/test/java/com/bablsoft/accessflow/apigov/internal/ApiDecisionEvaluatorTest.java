@@ -54,7 +54,7 @@ class ApiDecisionEvaluatorTest {
     private ApiDecisionInput input(boolean write, boolean requireReads, boolean requireWrites,
                                    UUID reviewPlanId, AiOutcome aiOutcome, RiskLevel risk) {
         return new ApiDecisionInput(organizationId, connectorId, reviewPlanId, requireReads,
-                requireWrites, write ? "POST" : "GET", write, "op-1", aiOutcome, risk);
+                requireWrites, write ? "POST" : "GET", write, "op-1", aiOutcome, risk, null);
     }
 
     private void stubMatch(ApiRoutingAction action, Integer requiredApprovals) {
@@ -287,5 +287,16 @@ class ApiDecisionEvaluatorTest {
                             ApiDecisionStepKind.REVIEW_REQUIREMENT);
             assertThat(decision.trace().resultingStatus()).isEqualTo(decision.nextStatus());
         }
+    }
+
+    @Test
+    void theRoutingContextCarriesTheBudgetUsedPercent() {
+        evaluator.evaluate(new ApiDecisionInput(organizationId, connectorId, null, false, false,
+                "GET", false, "op-1", AiOutcome.SKIPPED, null, 87));
+
+        var captor = ArgumentCaptor.forClass(ApiRoutingPolicyEngine.RoutingContext.class);
+        verify(routingEngine).evaluate(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.eq(connectorId), captor.capture());
+        assertThat(captor.getValue().budgetUsedPercent()).isEqualTo(87);
     }
 }

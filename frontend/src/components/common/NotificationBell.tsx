@@ -334,6 +334,12 @@ function renderMessage(
       });
     case 'API_CONNECTOR_UNHEALTHY':
       return t('notifications.events.API_CONNECTOR_UNHEALTHY', { connector: datasource });
+    // #973 — `detail` is "<spend> / <budget>" in the connector's accounting unit.
+    case 'API_CONNECTOR_BUDGET_EXCEEDED':
+      return t('notifications.events.API_CONNECTOR_BUDGET_EXCEEDED', {
+        connector: datasource,
+        detail: payload.detail ?? '—',
+      });
     default:
       return t('notifications.events.fallback');
   }
@@ -428,7 +434,8 @@ export function routeForNotification(item: UserNotification): string | null {
   if (
     item.event_type === 'API_CONNECTOR_OAUTH2_TOKEN_FAILED' ||
     item.event_type === 'API_CONNECTOR_DRIFT' ||
-    item.event_type === 'API_CONNECTOR_UNHEALTHY'
+    item.event_type === 'API_CONNECTOR_UNHEALTHY' ||
+    item.event_type === 'API_CONNECTOR_BUDGET_EXCEEDED'
   ) {
     const connectorId = item.payload.connector_id;
     if (!connectorId) return '/api-connectors';

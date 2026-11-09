@@ -81,6 +81,22 @@ class ApiNotificationListenerTest {
     }
 
     @Test
+    void budgetExceededNotifiesWithSpendAgainstBudgetInUnits() {
+        var connectorId = UUID.randomUUID();
+        listener.onConnectorBudgetExceeded(new com.bablsoft.accessflow.apigov.events.ApiConnectorBudgetExceededEvent(
+                connectorId, UUID.randomUUID(), 12_500_000L, 10_000_000L));
+        verify(dispatcher).dispatchApiConnector(NotificationEventType.API_CONNECTOR_BUDGET_EXCEEDED,
+                connectorId, "12.5 / 10");
+    }
+
+    @Test
+    void unitsRenderMicrosAsAPlainDecimal() {
+        org.assertj.core.api.Assertions.assertThat(ApiNotificationListener.units(0)).isEqualTo("0");
+        org.assertj.core.api.Assertions.assertThat(ApiNotificationListener.units(1)).isEqualTo("0.000001");
+        org.assertj.core.api.Assertions.assertThat(ApiNotificationListener.units(250_000_000L)).isEqualTo("250");
+    }
+
+    @Test
     void rejectedIsNotNotified() {
         listener.onDecided(new ApiRequestDecidedEvent(requestId, QueryStatus.REJECTED, null));
         verify(dispatcher, never()).dispatchApiRequest(org.mockito.ArgumentMatchers.any(),

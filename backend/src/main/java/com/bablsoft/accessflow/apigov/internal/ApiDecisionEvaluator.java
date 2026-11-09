@@ -49,7 +49,7 @@ class ApiDecisionEvaluator {
         var plan = input.reviewPlanId() == null ? null
                 : reviewPlanLookupService.findById(input.reviewPlanId()).orElse(null);
         var context = new ApiRoutingPolicyEngine.RoutingContext(input.verb(), input.write(),
-                input.operationId(), risk);
+                input.operationId(), risk, input.budgetUsedPercent());
         var steps = new ArrayList<DecisionTraceStep>(2);
 
         var match = routingEngine.evaluate(input.organizationId(), input.connectorId(), context);
