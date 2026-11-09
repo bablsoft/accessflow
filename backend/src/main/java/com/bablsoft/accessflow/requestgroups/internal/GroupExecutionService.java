@@ -32,6 +32,7 @@ import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.GroupReviewDecisionRepository;
 import com.bablsoft.accessflow.core.api.BytesScannedCapOutcome;
 import com.bablsoft.accessflow.core.api.DecisionType;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
@@ -226,7 +227,8 @@ public class GroupExecutionService {
                         item.getRequestHeaders(), item.getQueryParams(),
                         item.getBodyType() == null ? ApiBodyType.RAW : item.getBodyType(),
                         item.getRequestContentType(), item.getRequestBody(), item.getFormFields(),
-                        item.getBinaryFilename()));
+                        item.getBinaryFilename(),
+                        group.getSubmissionReason() == SubmissionReason.EMERGENCY_ACCESS));
         item.setResponseStatusCode(result.statusCode());
         item.setResultSnapshot(result.responseSnapshot());
         if (result.success()) {

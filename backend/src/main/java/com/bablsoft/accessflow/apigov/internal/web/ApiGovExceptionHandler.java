@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiConnectorClassificationTagNotFoundE
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorQuotaExceededException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorClassificationTagException;
@@ -56,6 +57,17 @@ class ApiGovExceptionHandler {
     ProblemDetail handleConnectorNotFound(ApiConnectorNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, msg("error.api_connector_not_found"),
                 "API_CONNECTOR_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ApiConnectorQuotaExceededException.class)
+    ProblemDetail handleConnectorQuotaExceeded(ApiConnectorQuotaExceededException ex) {
+        var pd = problem(HttpStatus.TOO_MANY_REQUESTS, msg("error.api_connector_quota_exceeded"),
+                "API_CONNECTOR_QUOTA_EXCEEDED");
+        pd.setProperty("limitKind", ex.limitKind().name());
+        pd.setProperty("retryAfterSeconds", ex.retryAfterSeconds());
+        pd.setProperty("throttledUntil", ex.throttledUntil().toString());
+        pd.setProperty("queuedForRetry", true);
+        return pd;
     }
 
     @ExceptionHandler(ApiSchemaNotFoundException.class)

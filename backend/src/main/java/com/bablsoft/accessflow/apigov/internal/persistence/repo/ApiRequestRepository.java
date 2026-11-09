@@ -33,8 +33,20 @@ public interface ApiRequestRepository extends JpaRepository<ApiRequestEntity, UU
             WHERE status = 'APPROVED'::query_status
               AND scheduled_for IS NOT NULL
               AND scheduled_for <= :now
+              AND throttled_until IS NULL
             """, nativeQuery = true)
     List<UUID> findScheduledDueIds(@Param("now") Instant now);
+
+    // #972: rate-limited requests whose deferral has elapsed. A throttled scheduled request is
+    // excluded from findScheduledDueIds above, so each due request is drained exactly once per tick.
+    // Served by the partial index idx_api_requests_throttled (#971).
+    @Query(value = """
+            SELECT id FROM api_requests
+            WHERE status = 'APPROVED'::query_status
+              AND throttled_until IS NOT NULL
+              AND throttled_until <= :now
+            """, nativeQuery = true)
+    List<UUID> findThrottledDueIds(@Param("now") Instant now);
 
     @Query(value = """
             SELECT id FROM api_requests

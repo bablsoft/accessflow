@@ -31,7 +31,8 @@ public interface ApiInlineExecutionService {
             String requestContentType,
             String requestBody,
             String formFieldsJson,
-            String binaryFilename) {
+            String binaryFilename,
+            boolean breakGlass) {
     }
 
     /**

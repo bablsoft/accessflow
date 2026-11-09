@@ -215,6 +215,27 @@ class DefaultApiRequestServiceTest {
                 .isInstanceOf(ApiRequestPermissionException.class);
     }
 
+    @Test
+    void submitterCanCancelAThrottledApprovedRequest() {
+        var e = persisted(QueryStatus.APPROVED);
+        e.setThrottledUntil(java.time.Instant.parse("2026-11-09T10:00:20Z"));
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        service.cancel(e.getId(), orgId, userId);
+
+        verify(stateService).apply(e, QueryStatus.CANCELLED);
+        assertThat(e.getThrottledUntil()).isNull();
+    }
+
+    @Test
+    void approvedRequestNeitherScheduledNorThrottledCannotBeCancelled() {
+        var e = persisted(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.cancel(e.getId(), orgId, userId))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException.class);
+    }
+
     private ApiRequestEntity persisted(QueryStatus status) {
         var e = new ApiRequestEntity();
         e.setId(UUID.randomUUID());

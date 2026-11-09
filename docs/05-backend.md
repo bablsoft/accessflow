@@ -2826,7 +2826,8 @@ carries no referenced tables, and a query that did not run is not evidence that 
 needed. Exercised scope comes from metadata only, never result data: `referenced_tables` (AF-383) for a
 datasource event, and for a connector event the new `operation_id` enrichment that
 `DefaultApiRequestService` writes on `API_REQUEST_EXECUTED` / `API_REQUEST_BREAK_GLASS_EXECUTED` — the
-connector-side analogue of `referenced_tables`, nullable because an ad-hoc call need not resolve to a
+connector-side analogue of `referenced_tables` (a scheduled or quota-retry run is written by
+`ApiExecutionService` instead, with the same `operation_id` and the submitter as actor, #972), nullable because an ad-hoc call need not resolve to a
 catalogued operation. Every mapping step is fail-soft: an unparseable row, a missing resource id, or a
 row predating an enrichment yields nothing or an event with **empty** targets, which downstream reads
 as "used, scope unknown" rather than "used nothing".
@@ -4940,7 +4941,11 @@ fail-safe) → routing (`api_routing_policies`) + human review (`ApiReviewServic
 forbidden, via `ApiReviewStateMachine`) → guarded execution (`ApiExecutionService`: connector-auth
 injection, response cap = min(per-connector `max_response_bytes`, system `max-response-bytes`
 ceiling), **dynamic-variable resolution + substitution** (AF-613, below), recursive dot-path response
-masking via `ColumnMasker`, immutable masked snapshot stored in full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
+masking via `ColumnMasker`, immutable masked snapshot stored in full for download — all of it behind a
+connector rate-limit pre-check that runs first, before any upstream call: `ApiConnectorRateLimiter`, a Redis
+token bucket + UTC daily counter in one Lua script, fail-open on Redis loss, break-glass exempt; a throttled
+request stays `APPROVED` with `throttled_until` and the sync execute answers
+`429 API_CONNECTOR_QUOTA_EXCEEDED`, #972). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
 (`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
 (`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. **Replay**
 (`DefaultApiRequestReplayService`, #886) re-submits a terminal request through the same `submit` path
