@@ -5128,7 +5128,8 @@ The result is then parsed and hashed with `OperationCatalogDiff.contentHash` ove
   `api_schema_drift_findings` row per finding. An `OPERATION_REMOVED` finding also lists the user and
   group grants whose `allowed_operations` names the operation (`affected_grant_count` plus
   `detail.affected_grants`); the grants are never modified, and pending JIT access requests are not
-  scanned. `ApiSchemaDriftDetectedEvent` is published once per new revision with at least one finding.
+  scanned. `ApiSchemaDriftDetectedEvent` is published once per new revision with at least one finding; the
+  notifications module fans it out to org admins as `API_CONNECTOR_DRIFT` (#895, never pages).
 - **Failed** — a fetch or parse failure writes `last_refresh_error` (truncated to 1,024 characters) in its own
   transaction and produces no revision and no finding: an upstream outage is not drift.
 
@@ -5159,7 +5160,8 @@ Each probe writes one `api_connector_health_checks` row and moves the summary on
 - **Failure** increments the streak. When the streak reaches `accessflow.apigov.health-failure-threshold`
   (default `3`) and the connector is not already `UNHEALTHY`, it flips to `UNHEALTHY`. The flip is
   audited as `API_CONNECTOR_UNHEALTHY` and publishes `apigov.events.ApiConnectorUnhealthyEvent`
-  (consumed by notifications in #895). The check is gated on the previous status, so one outage
+  (fanned out to org admins as `API_CONNECTOR_UNHEALTHY` — #895; pages only on the PagerDuty
+  `CONNECTOR_DOWN` trigger). The check is gated on the previous status, so one outage
   notifies once however long it runs. It also flips correctly if an operator lowers the threshold
   part-way through a streak. Below the threshold the status is left alone.
 

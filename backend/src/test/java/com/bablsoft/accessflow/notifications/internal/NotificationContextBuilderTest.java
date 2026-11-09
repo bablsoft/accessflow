@@ -979,11 +979,31 @@ class NotificationContextBuilderTest {
                 .thenReturn(List.of(user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN)));
 
         var ctx = builder.buildApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId).orElseThrow();
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId, null).orElseThrow();
 
         assertThat(ctx.datasourceName()).isEqualTo("Stripe");
+        assertThat(ctx.datasourceId()).isEqualTo(connectorId);
+        assertThat(ctx.reviewerComment()).isNull();
         assertThat(ctx.recipients()).extracting(RecipientView::email).contains("admin@example.com");
-        assertThat(ctx.reviewUrl().toString()).contains("/api-connectors/" + connectorId);
+        assertThat(ctx.reviewUrl().toString()).endsWith("/api-connectors/" + connectorId + "/settings");
+    }
+
+    @Test
+    void buildApiConnectorCarriesDetailAndDriftTabLink() {
+        var connectorId = UUID.randomUUID();
+        when(apiConnectorLookup.find(connectorId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationView(connectorId, orgId, "Stripe")));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN)).thenReturn(List.of());
+
+        var drift = builder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_DRIFT, connectorId, "4").orElseThrow();
+        var unhealthy = builder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_UNHEALTHY, connectorId, "Connection refused").orElseThrow();
+
+        assertThat(drift.reviewerComment()).isEqualTo("4");
+        assertThat(drift.reviewUrl().toString()).endsWith("/api-connectors/" + connectorId + "/settings?tab=drift");
+        assertThat(unhealthy.reviewerComment()).isEqualTo("Connection refused");
+        assertThat(unhealthy.reviewUrl().toString()).endsWith("/settings");
     }
 
     @Test
@@ -991,7 +1011,7 @@ class NotificationContextBuilderTest {
         var connectorId = UUID.randomUUID();
         when(apiConnectorLookup.find(connectorId)).thenReturn(Optional.empty());
         assertThat(builder.buildApiConnector(
-                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId)).isEmpty();
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId, null)).isEmpty();
     }
 
     private UserView user(UUID id, String email, UserRoleType role) {

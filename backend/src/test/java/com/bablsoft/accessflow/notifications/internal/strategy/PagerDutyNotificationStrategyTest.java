@@ -143,6 +143,23 @@ class PagerDutyNotificationStrategyTest {
     }
 
     @Test
+    void connectorDownTriggerPagesForAnUnhealthyConnector() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CONNECTOR_DOWN));
+        strategy.deliver(ctx(NotificationEventType.API_CONNECTOR_UNHEALTHY), channel);
+
+        assertThat(requests).hasSize(1);
+    }
+
+    @Test
+    void connectorDriftNeverPagesEvenWithEveryTriggerEnabled() {
+        stubConfig(EnumSet.allOf(PagerDutyTrigger.class));
+        strategy.deliver(ctx(NotificationEventType.API_CONNECTOR_DRIFT), channel);
+
+        assertThat(requests).isEmpty();
+        assertThat(taskScheduler.scheduled).isEmpty();
+    }
+
+    @Test
     void unmappedEventDoesNotFire() {
         stubConfig(EnumSet.allOf(PagerDutyTrigger.class));
         strategy.deliver(ctx(NotificationEventType.QUERY_SUBMITTED), channel);

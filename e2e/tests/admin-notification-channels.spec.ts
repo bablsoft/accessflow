@@ -272,6 +272,10 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     await dialog
       .getByRole('checkbox', { name: 'Review stalled (nobody decided in time)' })
       .check();
+    // #895 — and the CONNECTOR_DOWN trigger.
+    await dialog
+      .getByRole('checkbox', { name: 'Connector down (health probes keep failing)' })
+      .check();
 
     const createResponsePromise = page.waitForResponse(
       (r) =>

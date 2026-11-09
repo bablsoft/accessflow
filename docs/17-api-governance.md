@@ -75,7 +75,7 @@ CRUD is admin-gated and org-scoped; every mutation writes an audit row
 action on that cadence, without the OAuth2 token fetch. Like the test action it checks reachability only, so any HTTP response, `5xx` included, counts as up. Each probe is kept as a history row, and
 consecutive failures are counted. When the count reaches `ACCESSFLOW_APIGOV_HEALTH_FAILURE_THRESHOLD`
 (default 3), the connector becomes `UNHEALTHY`. That flip is audited as `API_CONNECTOR_UNHEALTHY`
-and raises one connector-down event (notifications for it land in #895); recovery is audited as `API_CONNECTOR_RECOVERED`. Admins read
+and raises one connector-down event, delivered to org admins as the `API_CONNECTOR_UNHEALTHY` notification (#895; pages PagerDuty only on the opt-in `CONNECTOR_DOWN` trigger); recovery is audited as `API_CONNECTOR_RECOVERED`. Admins read
 the status and the 20 newest probes from `GET /api-connectors/{id}/health`. The manual test action
 never counts toward the streak. Detail: [docs/05-backend.md](05-backend.md) → *Scheduled connector
 health*.
@@ -577,6 +577,11 @@ Notifications add `API_REQUEST_SUBMITTED`/`_APPROVED`/`_EXECUTED`/`_FAILED` even
 notifications module's `ApiNotificationListener` consumes `ApiRequestReadyForReviewEvent` (alert
 reviewers + admins) and `ApiRequestDecidedEvent` (alert the submitter; break-glass executions alert
 admins), delivered as in-app + chat notifications (Slack / Discord / Teams / Telegram).
+Three connector-scoped events go to every active org admin on every active org channel, email
+included: `API_CONNECTOR_OAUTH2_TOKEN_FAILED`, `API_CONNECTOR_DRIFT` (a refresh stored a revision
+with drift findings) and `API_CONNECTOR_UNHEALTHY` (the health probes crossed the failure threshold,
+#895). The in-app rows link to the connector's settings page. Only `API_CONNECTOR_UNHEALTHY` can
+page, through the PagerDuty `CONNECTOR_DOWN` trigger; none opens a ticket.
 
 ---
 

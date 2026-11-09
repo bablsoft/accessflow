@@ -2088,6 +2088,7 @@
         "not_configured": "Le SMTP système n'est pas configuré. Configurez-le pour activer les invitations d'utilisateurs et le repli par e-mail."
       },
       "label_pagerduty_trigger_review_stalled": "Revue bloquée (personne n'a statué à temps)",
+      "label_pagerduty_trigger_connector_down": "Connecteur hors service (les sondes de santé échouent)",
       "label_pagerduty_trigger_anomaly": "Anomalie comportementale détectée",
       "label_pagerduty_trigger_break_glass": "Requête d'urgence exécutée"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} nouvelle constatation de dérive de schéma sur {{pipeline}} / {{environment}}",
       "SCHEMA_DRIFT_DETECTED_other": "{{count}} nouvelles constatations de dérive de schéma sur {{pipeline}} / {{environment}}",
       "DATA_BUDGET_THRESHOLD_REACHED": "Vous avez utilisé {{percent}} % de votre budget de données {{budget}} sur {{datasource}}",
-      "DATA_BUDGET_EXHAUSTED": "Le budget de données {{budget}} de {{user}} sur {{datasource}} est épuisé"
+      "DATA_BUDGET_EXHAUSTED": "Le budget de données {{budget}} de {{user}} sur {{datasource}} est épuisé",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "Le jeton OAuth2 échoue toujours sur le connecteur API {{connector}}",
+      "API_CONNECTOR_DRIFT_one": "{{count}} constat de dérive de schéma sur le connecteur API {{connector}}",
+      "API_CONNECTOR_DRIFT_other": "{{count}} constats de dérive de schéma sur le connecteur API {{connector}}",
+      "API_CONNECTOR_UNHEALTHY": "Le connecteur API {{connector}} est défaillant"
     }
   },
   "profile": {

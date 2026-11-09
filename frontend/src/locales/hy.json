@@ -2088,6 +2088,7 @@
         "not_configured": "Համակարգային SMTP-ն կարգավորված չէ։ Կարգավորեք այն՝ ակտիվացնելու համար օգտատերերի հրավերները և էլ. փոստի պահեստային առաքումը։"
       },
       "label_pagerduty_trigger_review_stalled": "Ստուգումը կանգ է առել (ոչ ոք ժամանակին որոշում չի կայացրել)",
+      "label_pagerduty_trigger_connector_down": "Միակցիչն անջատված է (առողջության ստուգումները ձախողվում են)",
       "label_pagerduty_trigger_anomaly": "Հայտնաբերվել է վարքագծային անոմալիա",
       "label_pagerduty_trigger_break_glass": "Կատարվել է արտակարգ (break-glass) հարցում"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} նոր սխեմայի շեղում {{pipeline}} / {{environment}}-ում",
       "SCHEMA_DRIFT_DETECTED_other": "{{count}} նոր սխեմայի շեղում {{pipeline}} / {{environment}}-ում",
       "DATA_BUDGET_THRESHOLD_REACHED": "Դուք օգտագործել եք {{datasource}}-ում ձեր {{budget}} տվյալների բյուջեի {{percent}}%-ը",
-      "DATA_BUDGET_EXHAUSTED": "{{user}}-ի {{budget}} տվյալների բյուջեն {{datasource}}-ում սպառված է"
+      "DATA_BUDGET_EXHAUSTED": "{{user}}-ի {{budget}} տվյալների բյուջեն {{datasource}}-ում սպառված է",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2 թոքենը շարունակում է ձախողվել {{connector}} API միակցիչում",
+      "API_CONNECTOR_DRIFT_one": "{{count}} սխեմայի շեղում {{connector}} API միակցիչում",
+      "API_CONNECTOR_DRIFT_other": "{{count}} սխեմայի շեղում {{connector}} API միակցիչում",
+      "API_CONNECTOR_UNHEALTHY": "{{connector}} API միակցիչն անսարք է"
     }
   },
   "profile": {

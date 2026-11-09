@@ -99,6 +99,18 @@ class DiscordPayloadFactory {
             embed.put("fields", fields);
             return embed;
         }
+        // #895: connector-scoped API-governance events — shared field set with the other chat channels.
+        if (ctx.isApiConnectorEvent()) {
+            for (var field : ApiConnectorText.fields(ctx)) {
+                addField(fields, field.getKey(), field.getValue());
+            }
+            if (ctx.reviewUrl() != null) {
+                addField(fields, "Open", ctx.reviewUrl().toString());
+                embed.put("url", ctx.reviewUrl().toString());
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         // #882: schema-change promotions and drift carry the pipeline in datasourceName too.
         if (ctx.isSchemaChangeEvent()) {
             if (ctx.schemaChangeSetName() != null) {
@@ -215,6 +227,8 @@ class DiscordPayloadFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            case API_CONNECTOR_DRIFT -> "🧬 API Connector Schema Drift";
+            case API_CONNECTOR_UNHEALTHY -> "🚨 API Connector Unhealthy";
             // #695: deployment governance
             case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
             case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";

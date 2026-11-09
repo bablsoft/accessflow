@@ -40,6 +40,10 @@ public enum NotificationEventType {
     API_REQUEST_EXECUTED,
     API_REQUEST_FAILED,
     API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+    /** A schema refresh stored a revision with drift findings (#893/#895) — org admins, never pages. */
+    API_CONNECTOR_DRIFT,
+    /** A connector's health probes crossed the failure threshold (#894/#895) — org admins; pages via CONNECTOR_DOWN. */
+    API_CONNECTOR_UNHEALTHY,
 
     ERASURE_APPROVED,
 

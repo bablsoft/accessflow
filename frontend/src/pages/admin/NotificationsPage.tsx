@@ -891,6 +891,10 @@ function ChannelFormModal({
                     label: t('admin.notifications.label_pagerduty_trigger_review_stalled'),
                   },
                   {
+                    value: 'CONNECTOR_DOWN',
+                    label: t('admin.notifications.label_pagerduty_trigger_connector_down'),
+                  },
+                  {
                     value: 'ANOMALY',
                     label: t('admin.notifications.label_pagerduty_trigger_anomaly'),
                   },

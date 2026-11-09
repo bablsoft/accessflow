@@ -191,6 +191,7 @@ class NotificationContextBuilder {
                  SENSITIVE_RESULT_EXPORTED, WEEKLY_DIGEST, ATTESTATION_CAMPAIGN_OPENED,
                  API_REQUEST_SUBMITTED, API_REQUEST_APPROVED, API_REQUEST_EXECUTED,
                  API_REQUEST_FAILED, API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+                 API_CONNECTOR_DRIFT, API_CONNECTOR_UNHEALTHY,
                  ERASURE_APPROVED,
                  DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
                  DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED,
@@ -812,12 +813,16 @@ class NotificationContextBuilder {
     }
 
     /**
-     * Builds the context for a connector-scoped OAuth2 token-failure alert (AF-500 / #506). Not
-     * query-backed: the connector name rides in {@code datasourceName} and the connector id in
-     * {@code datasourceId}. Recipients are the organization's active ADMINs (the connector is
-     * effectively down). Returns empty when the connector no longer exists.
+     * Builds the context for a connector-scoped alert — OAuth2 token failure (AF-500 / #506), schema
+     * drift or an unhealthy connector (#895). Not query-backed: the connector name rides in
+     * {@code datasourceName} and the connector id in {@code datasourceId}. {@code detail} (drift
+     * finding count / last probe error, may be null) rides in {@code reviewerComment} — the only
+     * free-text slot no connector event otherwise uses. Recipients are the organization's active
+     * ADMINs. Drift links to the settings page's drift tab. Returns empty when the connector no
+     * longer exists.
      */
-    Optional<NotificationContext> buildApiConnector(NotificationEventType eventType, UUID connectorId) {
+    Optional<NotificationContext> buildApiConnector(NotificationEventType eventType, UUID connectorId,
+                                                    String detail) {
         var view = apiConnectorNotificationLookupService.find(connectorId).orElse(null);
         if (view == null) {
             return Optional.empty();
@@ -835,8 +840,9 @@ class NotificationContextBuilder {
                 null, null, null, null, null, null, null, null,
                 connectorId,
                 view.name(),
-                null, null, null, null, null, null, null,
-                buildApiConnectorUrl(connectorId),
+                null, null, null, null, null, null,
+                detail,
+                buildApiConnectorUrl(connectorId, eventType),
                 recipients,
                 Instant.now(),
                 locale,
@@ -847,10 +853,11 @@ class NotificationContextBuilder {
                 null));
     }
 
-    private URI buildApiConnectorUrl(UUID connectorId) {
+    private URI buildApiConnectorUrl(UUID connectorId, NotificationEventType eventType) {
         var base = properties.publicBaseUrl().toString();
         var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        return URI.create(trimmed + "/api-connectors/" + connectorId + "/settings");
+        var tab = eventType == NotificationEventType.API_CONNECTOR_DRIFT ? "?tab=drift" : "";
+        return URI.create(trimmed + "/api-connectors/" + connectorId + "/settings" + tab);
     }
 
     private URI buildAttestationUrl() {

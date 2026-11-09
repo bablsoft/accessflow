@@ -42,7 +42,7 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-const { NotificationBell } = await import('../NotificationBell');
+const { NotificationBell, routeForNotification } = await import('../NotificationBell');
 
 function wrap(node: ReactNode) {
   const client = new QueryClient({
@@ -758,6 +758,81 @@ describe('NotificationBell', () => {
 
     await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('budget1'));
     expect(navigateMock).toHaveBeenCalledWith('/editor');
+  });
+
+  it.each([
+    [
+      'API_CONNECTOR_OAUTH2_TOKEN_FAILED' as const,
+      { datasource: 'Stripe', connector_id: 'c-1' },
+      'OAuth2 token keeps failing on API connector Stripe',
+      '/api-connectors/c-1/settings',
+    ],
+    [
+      'API_CONNECTOR_DRIFT' as const,
+      { datasource: 'Stripe', connector_id: 'c-1', detail: '4' },
+      '4 schema drift findings on API connector Stripe',
+      '/api-connectors/c-1/settings?tab=drift',
+    ],
+    [
+      'API_CONNECTOR_DRIFT' as const,
+      { datasource: 'Stripe', connector_id: 'c-1', detail: '1' },
+      '1 schema drift finding on API connector Stripe',
+      '/api-connectors/c-1/settings?tab=drift',
+    ],
+    [
+      'API_CONNECTOR_UNHEALTHY' as const,
+      { datasource: 'Stripe', connector_id: 'c-1', detail: 'Connection refused' },
+      'API connector Stripe is unhealthy',
+      '/api-connectors/c-1/settings',
+    ],
+  ])(
+    'renders %s with a label and opens the connector settings (#895)',
+    async (eventType, payload, expected, expectedRoute) => {
+      fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+      markNotificationReadMock.mockResolvedValue(undefined);
+      listNotificationsMock.mockResolvedValue(
+        page([
+          {
+            id: 'conn1',
+            event_type: eventType,
+            query_request_id: null,
+            api_request_id: null,
+            deployment_request_id: null,
+            payload,
+            read: false,
+            created_at: new Date().toISOString(),
+            read_at: null,
+          },
+        ]),
+      );
+
+      render(wrap(<NotificationBell />));
+      fireEvent.click(screen.getByLabelText('Notifications'));
+      const text = await screen.findByText(expected);
+      expect(screen.queryByText('New notification')).toBeNull();
+      const row = text.closest('.ant-list-item');
+      if (!row) throw new Error('list row not found');
+      fireEvent.click(row);
+
+      await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('conn1'));
+      expect(navigateMock).toHaveBeenCalledWith(expectedRoute);
+    },
+  );
+
+  it('falls back to the connector list when a connector event has no id (#895)', () => {
+    expect(
+      routeForNotification({
+        id: 'conn2',
+        event_type: 'API_CONNECTOR_UNHEALTHY',
+        query_request_id: null,
+        api_request_id: null,
+        deployment_request_id: null,
+        payload: { datasource: 'Stripe' },
+        read: false,
+        created_at: new Date().toISOString(),
+        read_at: null,
+      }),
+    ).toBe('/api-connectors');
   });
 
   it('routes a plain FAILED outcome to the deployment, not the rollback worklist', async () => {

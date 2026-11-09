@@ -133,6 +133,17 @@ public record NotificationContext(
     }
 
     /**
+     * The connector-scoped API-governance events (#895). They carry the connector id in
+     * {@code datasourceId}, its name in {@code datasourceName} and the event detail (finding count
+     * or last probe error) in {@code reviewerComment}.
+     */
+    public boolean isApiConnectorEvent() {
+        return eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED
+                || eventType == NotificationEventType.API_CONNECTOR_DRIFT
+                || eventType == NotificationEventType.API_CONNECTOR_UNHEALTHY;
+    }
+
+    /**
      * True for the #942 data-budget events. They reuse {@code datasourceId}/{@code datasourceName}
      * for the budgeted datasource and the {@code submitter*} fields for the user whose budget it
      * is; everything budget-specific rides in {@code dataBudget}.

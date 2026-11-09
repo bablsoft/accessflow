@@ -167,10 +167,11 @@ class NotificationDispatcher {
         deliver(eventType, contextOpt.get());
     }
 
-    /** Dispatch a connector-scoped OAuth2 token-failure alert (AF-500 / #506) — fans out to all
-     *  active org channels (the connector is effectively down); recipients are active org admins. */
-    void dispatchApiConnector(NotificationEventType eventType, UUID connectorId) {
-        var contextOpt = contextBuilder.buildApiConnector(eventType, connectorId);
+    /** Dispatch a connector-scoped alert — OAuth2 token failure (AF-500 / #506), schema drift or
+     *  an unhealthy connector (#895). Fans out to all active org channels; recipients are active org
+     *  admins. {@code detail} is the finding count / last probe error, or null. */
+    void dispatchApiConnector(NotificationEventType eventType, UUID connectorId, String detail) {
+        var contextOpt = contextBuilder.buildApiConnector(eventType, connectorId, detail);
         if (contextOpt.isEmpty()) {
             log.debug("Skipping {} for unknown connector {}", eventType, connectorId);
             return;
@@ -360,7 +361,16 @@ class NotificationDispatcher {
         if (ctx.reviewerDisplayName() != null) {
             payload.put("reviewer", ctx.reviewerDisplayName());
         }
-        if (ctx.reviewerComment() != null) {
+        if (ctx.isApiConnectorEvent()) {
+            // #895: the bell routes to the connector's settings page; the detail rides in the
+            // reviewerComment slot (see NotificationContextBuilder.buildApiConnector).
+            if (ctx.datasourceId() != null) {
+                payload.put("connector_id", ctx.datasourceId().toString());
+            }
+            if (ctx.reviewerComment() != null) {
+                payload.put("detail", ctx.reviewerComment());
+            }
+        } else if (ctx.reviewerComment() != null) {
             payload.put("reviewer_comment", ctx.reviewerComment());
         }
         if (ctx.executionStatus() != null) {
@@ -388,6 +398,9 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.GRANT_STALE
                 || eventType == NotificationEventType.SENSITIVE_RESULT_EXPORTED
                 || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED
+                // #895: connectors carry no review-plan channel binding either.
+                || eventType == NotificationEventType.API_CONNECTOR_DRIFT
+                || eventType == NotificationEventType.API_CONNECTOR_UNHEALTHY
                 // #695: deployment pipelines have no review-plan channel binding, so every
                 // deployment event fans out org-wide. An event missing here would silently
                 // deliver to zero channels (null datasourceId → empty plan-channel list).

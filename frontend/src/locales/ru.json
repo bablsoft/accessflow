@@ -2088,6 +2088,7 @@
         "not_configured": "Системный SMTP не настроен. Настройте его, чтобы включить приглашения пользователей и резервную доставку по электронной почте."
       },
       "label_pagerduty_trigger_review_stalled": "Проверка застопорилась (никто не принял решение вовремя)",
+      "label_pagerduty_trigger_connector_down": "Коннектор недоступен (проверки работоспособности не проходят)",
       "label_pagerduty_trigger_anomaly": "Обнаружена аномалия поведения",
       "label_pagerduty_trigger_break_glass": "Выполнен аварийный запрос"
     },
@@ -3042,7 +3043,11 @@
       "SCHEMA_DRIFT_DETECTED_one": "{{count}} новая находка дрейфа схемы в {{pipeline}} / {{environment}}",
       "SCHEMA_DRIFT_DETECTED_other": "Новых находок дрейфа схемы в {{pipeline}} / {{environment}}: {{count}}",
       "DATA_BUDGET_THRESHOLD_REACHED": "Вы использовали {{percent}}% бюджета данных {{budget}} в {{datasource}}",
-      "DATA_BUDGET_EXHAUSTED": "Бюджет данных {{budget}} пользователя {{user}} в {{datasource}} исчерпан"
+      "DATA_BUDGET_EXHAUSTED": "Бюджет данных {{budget}} пользователя {{user}} в {{datasource}} исчерпан",
+      "API_CONNECTOR_OAUTH2_TOKEN_FAILED": "OAuth2-токен API-коннектора {{connector}} продолжает давать сбой",
+      "API_CONNECTOR_DRIFT_one": "{{count}} расхождение схемы в API-коннекторе {{connector}}",
+      "API_CONNECTOR_DRIFT_other": "Расхождений схемы в API-коннекторе {{connector}}: {{count}}",
+      "API_CONNECTOR_UNHEALTHY": "API-коннектор {{connector}} неисправен"
     }
   },
   "profile": {

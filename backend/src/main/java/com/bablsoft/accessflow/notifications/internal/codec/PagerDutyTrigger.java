@@ -29,7 +29,10 @@ import java.util.Set;
  * a promotion's lifecycle is not an incident, and a drift finding carries no severity that could
  * tell a critical divergence apart from a cosmetic one. Nor do the data-budget events
  * ({@code DATA_BUDGET_THRESHOLD_REACHED}, {@code DATA_BUDGET_EXHAUSTED}, #942): a user reaching a
- * read quota is an advisory, not an incident.
+ * read quota is an advisory, not an incident. {@code CONNECTOR_DOWN} →
+ * {@link NotificationEventType#API_CONNECTOR_UNHEALTHY} (#895 — a connector whose health probes keep
+ * failing is an incident); {@code API_CONNECTOR_DRIFT} deliberately has no trigger — a changed
+ * upstream spec is a review item, not an outage.
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),
@@ -38,7 +41,8 @@ public enum PagerDutyTrigger {
     BREAK_GLASS(NotificationEventType.BREAK_GLASS_EXECUTED,
             NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED),
     ESCALATION(NotificationEventType.QUERY_ESCALATED),
-    REVIEW_STALLED(NotificationEventType.REVIEW_ESCALATED);
+    REVIEW_STALLED(NotificationEventType.REVIEW_ESCALATED),
+    CONNECTOR_DOWN(NotificationEventType.API_CONNECTOR_UNHEALTHY);
 
     private final Set<NotificationEventType> eventTypes;
 
@@ -70,7 +74,7 @@ public enum PagerDutyTrigger {
             throw new NotificationChannelConfigException(
                     "Config key '" + ChannelConfigCodec.KEY_TRIGGERS
                             + "' must contain only CRITICAL_RISK, REVIEW_TIMEOUT, ANOMALY, "
-                            + "BREAK_GLASS, ESCALATION or REVIEW_STALLED", ex);
+                            + "BREAK_GLASS, ESCALATION, REVIEW_STALLED or CONNECTOR_DOWN", ex);
         }
     }
 }

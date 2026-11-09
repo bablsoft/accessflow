@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
+import com.bablsoft.accessflow.apigov.events.ApiConnectorUnhealthyEvent;
 import com.bablsoft.accessflow.apigov.events.ApiReviewEscalatedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiReviewNudgedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
+import com.bablsoft.accessflow.apigov.events.ApiSchemaDriftDetectedEvent;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +16,8 @@ import org.springframework.stereotype.Component;
 /**
  * Fans out API-governance notifications (AF-500): a ready-for-review request alerts reviewers/admins;
  * an approved/executed/failed request alerts the submitter (break-glass executions alert admins);
- * a repeated OAuth2 token-fetch failure alerts org admins (the connector is effectively down).
+ * a repeated OAuth2 token-fetch failure alerts org admins (the connector is effectively down), as do
+ * a stored schema revision with drift findings and a connector flipping to UNHEALTHY (#895).
  * Delivery is best-effort and never blocks the request flow.
  */
 @Component
@@ -49,7 +52,19 @@ class ApiNotificationListener {
     @ApplicationModuleListener
     void onConnectorTokenFailure(ApiConnectorTokenFailureEvent event) {
         dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED,
-                event.connectorId());
+                event.connectorId(), null);
+    }
+
+    @ApplicationModuleListener
+    void onSchemaDriftDetected(ApiSchemaDriftDetectedEvent event) {
+        dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_DRIFT,
+                event.connectorId(), String.valueOf(event.findingCount()));
+    }
+
+    @ApplicationModuleListener
+    void onConnectorUnhealthy(ApiConnectorUnhealthyEvent event) {
+        dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_UNHEALTHY,
+                event.connectorId(), event.message());
     }
 
     private static NotificationEventType mapStatus(QueryStatus status) {
