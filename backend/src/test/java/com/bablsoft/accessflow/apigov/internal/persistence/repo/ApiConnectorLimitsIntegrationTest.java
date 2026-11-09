@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -35,6 +36,7 @@ class ApiConnectorLimitsIntegrationTest {
     @Autowired private ApiRequestRepository requestRepository;
     @Autowired private ApiConnectorUsageDailyRepository usageRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     private final UUID orgId = UUID.randomUUID();
 
@@ -81,6 +83,22 @@ class ApiConnectorLimitsIntegrationTest {
         assertThat(unlimited.getPerUserSharePercent()).isNull();
         assertThat(unlimited.getCostPerCallMicros()).isNull();
         assertThat(unlimited.getMonthlyBudgetMicros()).isNull();
+    }
+
+    @Test
+    void anAdminSaveNeverWritesBackTheBudgetNotificationMonth() {
+        var saved = connectorRepository.saveAndFlush(connector(c -> { }));
+        var month = LocalDate.of(2026, 11, 1);
+        jdbcTemplate.update("UPDATE api_connectors SET budget_exceeded_notified_month = ? WHERE id = ?",
+                month, saved.getId());
+
+        saved.setBudgetExceededNotifiedMonth(null);
+        saved.setCallsPerMinute(30);
+        connectorRepository.saveAndFlush(saved);
+
+        var reloaded = connectorRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getCallsPerMinute()).isEqualTo(30);
+        assertThat(reloaded.getBudgetExceededNotifiedMonth()).isEqualTo(month);
     }
 
     @Test

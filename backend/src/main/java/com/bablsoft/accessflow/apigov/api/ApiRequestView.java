@@ -64,26 +64,6 @@ public record ApiRequestView(
         /** The charge recorded when the request executed (#971); null when not charged. */
         Long costMicros) {
 
-    /** Backward-compatible constructor without the #971 throttle and cost fields. */
-    public ApiRequestView(UUID id, UUID connectorId, String connectorName, UUID submittedBy,
-                          String submittedByEmail, String operationId, String verb, String requestPath,
-                          boolean write, QueryStatus status, SubmissionReason submissionReason,
-                          String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
-                          Integer aiRiskScore, String aiSummary, ApiBodyType bodyType,
-                          Map<String, String> variableOverrides, Instant scheduledFor, String traceId,
-                          String spanId, Integer responseStatusCode, Integer responseDurationMs,
-                          Long responseBytes, boolean responseTruncated, String responseSnapshot,
-                          boolean responseSnapshotPreviewTruncated, String responseContentType,
-                          String errorMessage, Instant createdAt, List<ApiReviewDecisionView> decisions,
-                          UUID onBehalfOfUserId, String onBehalfOfEmail) {
-        this(id, connectorId, connectorName, submittedBy, submittedByEmail, operationId, verb,
-                requestPath, write, status, submissionReason, justification, aiAnalysisId, aiRiskLevel,
-                aiRiskScore, aiSummary, bodyType, variableOverrides, scheduledFor, traceId, spanId,
-                responseStatusCode, responseDurationMs, responseBytes, responseTruncated,
-                responseSnapshot, responseSnapshotPreviewTruncated, responseContentType, errorMessage,
-                createdAt, decisions, onBehalfOfUserId, onBehalfOfEmail, null, 0, null);
-    }
-
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public ApiRequestView(UUID id, UUID connectorId, String connectorName, UUID submittedBy,
                           String submittedByEmail, String operationId, String verb, String requestPath,

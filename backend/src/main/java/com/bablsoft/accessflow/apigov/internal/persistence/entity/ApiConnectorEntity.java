@@ -147,6 +147,9 @@ public class ApiConnectorEntity {
 
     // One-shot-per-month notification guard, owned by the accrual path (#973) through a targeted
     // UPDATE — updatable = false keeps an admin's whole-row save from writing back a stale month.
+    // The Lombok setter is therefore silently ignored on save, and the guard must be one conditional
+    // UPDATE (... WHERE budget_exceeded_notified_month IS DISTINCT FROM :month, checking the row
+    // count), never read-the-field-then-write, or two replicas can both notify.
     @Column(name = "budget_exceeded_notified_month", updatable = false)
     private LocalDate budgetExceededNotifiedMonth;
 

@@ -76,6 +76,7 @@ public record CreateApiConnectorRequest(
                 oauth2ClientSecret, oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username,
                 oauth2Password, oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled,
                 aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
-                healthCheckIntervalMinutes, callsPerMinute, callsPerDay, perUserSharePercent, costPerCallMicros, monthlyBudgetMicros);
+                healthCheckIntervalMinutes,
+                callsPerMinute, callsPerDay, perUserSharePercent, costPerCallMicros, monthlyBudgetMicros);
     }
 }

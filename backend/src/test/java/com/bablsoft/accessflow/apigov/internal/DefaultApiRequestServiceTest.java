@@ -267,6 +267,24 @@ class DefaultApiRequestServiceTest {
     }
 
     @Test
+    void viewCarriesThrottleAndCostFields() {
+        var e = persisted(QueryStatus.APPROVED);
+        var until = java.time.Instant.parse("2026-11-09T12:00:00Z");
+        e.setThrottledUntil(until);
+        e.setThrottleCount(3);
+        e.setCostMicros(1_500L);
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
+
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
+
+        assertThat(view.throttledUntil()).isEqualTo(until);
+        assertThat(view.throttleCount()).isEqualTo(3);
+        assertThat(view.costMicros()).isEqualTo(1_500L);
+    }
+
+    @Test
     void getAllowsReviewerForOthersRequest() {
         var e = persisted(QueryStatus.PENDING_REVIEW);
         e.setSubmittedBy(UUID.randomUUID());

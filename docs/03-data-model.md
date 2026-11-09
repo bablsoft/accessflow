@@ -2718,7 +2718,7 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `per_user_share_percent` | INTEGER | Nullable (V206, #971). The share of each connector-wide limit one user may consume; `NULL` = no per-user cap. `CHECK BETWEEN 1 AND 100`. |
 | `cost_per_call_micros` | BIGINT | Nullable (V206, #971). Accounting cost of one executed call, in **micros of one unlabelled unit** (no currency, no FX); `NULL` = calls cost nothing. `CHECK >= 0`. |
 | `monthly_budget_micros` | BIGINT | Nullable (V206, #971). Month-to-date spend ceiling in the same unit; `NULL` = no budget. `CHECK > 0` when set. |
-| `budget_exceeded_notified_month` | DATE | Nullable (V206, #971). First day of the UTC month in which the budget-exhausted notification was last sent — the one-shot-per-month guard (the `release_notified_at` precedent). Never settable through the connector API; the entity maps it `updatable = false` and the accrual path (#973) writes it through a targeted `UPDATE`. |
+| `budget_exceeded_notified_month` | DATE | Nullable (V206, #971). First day of the UTC month in which the budget-exhausted notification was last sent — the one-shot-per-month guard (the `deployment_requests.release_notified_at` precedent). Never settable through the connector API; the entity maps it `updatable = false` and the accrual path (#973) writes it through a targeted `UPDATE`. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_schemas (AF-500)
@@ -2997,8 +2997,8 @@ Java from the injected `Clock`, never with `date_trunc` (which buckets in the se
 | `user_id` | UUID | Bare UUID (no FK). |
 | `usage_date` | DATE | UTC calendar day. |
 | `calls` / `failed_calls` / `throttled_calls` | BIGINT NOT NULL DEFAULT 0 | Executed, failed and rate-limit-deferred calls that day. |
-| `spend_micros` | BIGINT NOT NULL DEFAULT 0 | Sum of `api_requests.cost_micros` that day. |
-| `updated_at` | TIMESTAMPTZ | |
+| `spend_micros` | BIGINT NOT NULL DEFAULT 0 | Sum of `api_requests.cost_micros` that day. Nothing writes the table yet — accrual lands in #973. |
+| `updated_at` | TIMESTAMPTZ NOT NULL | |
 
 `UNIQUE (connector_id, user_id, usage_date)` is the upsert target; indexed `(organization_id,
 connector_id, usage_date)`. No `@Version`: rows are written only by one atomic `INSERT … ON CONFLICT
