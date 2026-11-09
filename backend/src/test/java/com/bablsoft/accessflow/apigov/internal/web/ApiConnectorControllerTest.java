@@ -3,6 +3,11 @@ package com.bablsoft.accessflow.apigov.internal.web;
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthCheckView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionView;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorView;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
@@ -13,6 +18,7 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -33,6 +40,7 @@ import static org.mockito.Mockito.when;
 class ApiConnectorControllerTest {
 
     private ApiConnectorAdminService service;
+    private ApiConnectorHealthService healthService;
     private AuditLogService auditLogService;
     private ApiConnectorController controller;
 
@@ -45,10 +53,11 @@ class ApiConnectorControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(ApiConnectorAdminService.class);
+        healthService = mock(ApiConnectorHealthService.class);
         auditLogService = mock(AuditLogService.class);
         variableLookupService =
                 mock(com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService.class);
-        controller = new ApiConnectorController(service, variableLookupService,
+        controller = new ApiConnectorController(service, healthService, variableLookupService,
                 new ApiGovAuditWriter(auditLogService));
     }
 
@@ -112,7 +121,7 @@ class ApiConnectorControllerTest {
         var body = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
                 Map.of(), null, 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"),
                 null, null, null, null, null, null, null, null, null, null,
-                null, true, null, false, false, true, 2048L);
+                null, true, null, false, false, true, 2048L, null);
 
         var response = controller.create(body, auth(UserRoleType.ADMIN), auditContext);
 
@@ -125,7 +134,7 @@ class ApiConnectorControllerTest {
         when(service.update(eq(connectorId), eq(orgId), any())).thenReturn(view());
         var body = new UpdateApiConnectorRequest("Stripe",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         controller.update(connectorId, body, auth(UserRoleType.ADMIN), auditContext);
 
@@ -247,5 +256,58 @@ class ApiConnectorControllerTest {
 
     private static AuditEntry auditEntry(AuditAction action) {
         return org.mockito.ArgumentMatchers.argThat(e -> e != null && e.action() == action);
+    }
+
+    @Test
+    void healthMapsViewToResponse() {
+        var checkedAt = Instant.parse("2026-11-09T10:00:00Z");
+        when(healthService.health(connectorId, orgId)).thenReturn(new ApiConnectorHealthView(
+                ApiConnectorHealthStatus.UNHEALTHY, checkedAt, 3, 5,
+                List.of(new ApiConnectorHealthCheckView(checkedAt, false, "Connection refused", 12))));
+
+        var response = controller.health(connectorId, auth(UserRoleType.ADMIN));
+
+        assertThat(response.status()).isEqualTo(ApiConnectorHealthStatus.UNHEALTHY);
+        assertThat(response.lastProbeAt()).isEqualTo(checkedAt);
+        assertThat(response.consecutiveFailures()).isEqualTo(3);
+        assertThat(response.healthCheckIntervalMinutes()).isEqualTo(5);
+        assertThat(response.recentChecks()).singleElement().satisfies(check -> {
+            assertThat(check.checkedAt()).isEqualTo(checkedAt);
+            assertThat(check.success()).isFalse();
+            assertThat(check.message()).isEqualTo("Connection refused");
+            assertThat(check.durationMs()).isEqualTo(12);
+        });
+    }
+
+    @Test
+    void healthPropagatesNotFound() {
+        when(healthService.health(connectorId, orgId)).thenThrow(new ApiConnectorNotFoundException(connectorId));
+
+        assertThatThrownBy(() -> controller.health(connectorId, auth(UserRoleType.ADMIN)))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
+    }
+
+    @Test
+    void healthCheckIntervalMustBeAtLeastOne() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            var create = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
+                    Map.of(), null, 5000, true, ApiAuthMethod.NONE, null,
+                    null, null, null, null, null, null, null, null, null, null,
+                    null, true, null, false, false, true, 2048L, 0);
+            assertThat(validator.validate(create))
+                    .anyMatch(v -> v.getPropertyPath().toString().equals("healthCheckIntervalMinutes"));
+
+            var update = new UpdateApiConnectorRequest(null,
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 0, null);
+            assertThat(validator.validate(update))
+                    .anyMatch(v -> v.getPropertyPath().toString().equals("healthCheckIntervalMinutes"));
+
+            var valid = new UpdateApiConnectorRequest(null,
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null, null, null, 1, null);
+            assertThat(validator.validate(valid)).isEmpty();
+        }
     }
 }

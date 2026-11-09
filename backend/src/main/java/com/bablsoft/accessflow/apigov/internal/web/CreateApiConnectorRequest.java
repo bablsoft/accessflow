@@ -54,13 +54,16 @@ public record CreateApiConnectorRequest(
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
         @Min(value = 1, message = "{validation.api_connector.max_response_bytes.min}")
-        Long maxResponseBytes) {
+        Long maxResponseBytes,
+        @Min(value = 1, message = "{validation.api_connector.health_check_interval.min}")
+        Integer healthCheckIntervalMinutes) {
 
     CreateApiConnectorCommand toCommand(UUID organizationId) {
         return new CreateApiConnectorCommand(organizationId, name, protocol, baseUrl, defaultHeaders,
                 traceHeaderMapping, timeoutMs, tlsVerify, authMethod, credentials, oauth2TokenUri, oauth2ClientId,
                 oauth2ClientSecret, oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username,
                 oauth2Password, oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled,
-                aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes);
+                aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
+                healthCheckIntervalMinutes);
     }
 }

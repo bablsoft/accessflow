@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorHealthStatus;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionView;
@@ -153,6 +154,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setRequireReviewReads(Boolean.TRUE.equals(command.requireReviewReads()));
         entity.setRequireReviewWrites(command.requireReviewWrites() == null || command.requireReviewWrites());
         entity.setMaxResponseBytes(command.maxResponseBytes() != null ? command.maxResponseBytes() : 10_485_760L);
+        entity.setHealthCheckIntervalMinutes(command.healthCheckIntervalMinutes());
         entity.setActive(true);
         return toView(connectorRepository.save(entity));
     }
@@ -245,7 +247,20 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         if (command.active() != null) {
             entity.setActive(command.active());
         }
+        var clearHealthCheck = Boolean.TRUE.equals(command.clearHealthCheck());
+        if (clearHealthCheck) {
+            entity.setHealthCheckIntervalMinutes(null);
+        } else if (command.healthCheckIntervalMinutes() != null) {
+            entity.setHealthCheckIntervalMinutes(command.healthCheckIntervalMinutes());
+        }
         var saved = connectorRepository.save(entity);
+        if (clearHealthCheck) {
+            // Probe columns are not updatable through the entity; reset them with a targeted UPDATE.
+            connectorRepository.resetProbeState(saved.getId());
+            saved.setLastProbeStatus(ApiConnectorHealthStatus.UNKNOWN);
+            saved.setLastProbeAt(null);
+            saved.setConsecutiveProbeFailures(0);
+        }
         // Any cached token may now be stale (token endpoint / creds / grant changed) — drop it.
         oauth2TokenService.evict(saved.getId());
         return toView(saved);
@@ -259,6 +274,11 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         oauth2TokenService.evict(id);
     }
 
+    /**
+     * Ad-hoc admin probe. Unlike the scheduled probe (#894) it also exercises the OAuth2 token fetch,
+     * and it never writes health history or touches the failure streak — a manual success must not
+     * mask a real outage.
+     */
     @Override
     @Transactional(readOnly = true)
     public ApiConnectionTestResult test(UUID id, UUID organizationId) {

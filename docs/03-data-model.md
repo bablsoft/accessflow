@@ -2710,10 +2710,10 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `require_review_reads` / `require_review_writes` | BOOLEAN | Map safe vs mutating methods to review. |
 | `max_response_bytes` | BIGINT | Per-connector response-size cap. Default 10 MiB (AF-521; raised from 1 MiB). Effective cap = min of this and the system-wide `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` ceiling. |
 | `is_active` | BOOLEAN | Default true. |
-| `health_check_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled connector-health opt-in: `NULL` = not monitored (the default for every existing row). Nothing reads or writes it yet — the probe job and its write side follow in #893/#894. |
-| `last_probe_status` | `api_connector_health_status` | `UNKNOWN` / `HEALTHY` / `UNHEALTHY` (V205, #891). Default `UNKNOWN`; existing rows read back `UNKNOWN`. |
-| `last_probe_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled probe finished. |
-| `consecutive_probe_failures` | INTEGER | Default `0` (V205, #891). Planned: run length of failed probes, reset on success (no writer yet). |
+| `health_check_interval_minutes` | INTEGER | Nullable (V205, #891). Scheduled connector-health opt-in: `NULL` = not monitored (the default for every existing row). Set through the connector create / update requests (`≥ 1`, cleared with `clearHealthCheck`, #894); read by `ApiConnectorHealthJob`. |
+| `last_probe_status` | `api_connector_health_status` | `UNKNOWN` / `HEALTHY` / `UNHEALTHY` (V205, #891). Default `UNKNOWN`; existing rows read back `UNKNOWN`. Written only by the scheduled probe (#894) through a targeted `UPDATE` — the entity maps it `updatable = false`, so a connector edit never writes back a stale value. `clearHealthCheck` resets it to `UNKNOWN`. |
+| `last_probe_at` | TIMESTAMPTZ | Nullable (V205, #891). When the last scheduled probe finished. Written only by the scheduled probe (#894). |
+| `consecutive_probe_failures` | INTEGER | Default `0` (V205, #891). Run length of failed scheduled probes, reset to `0` on success or `clearHealthCheck` (#894). The connector flips to `UNHEALTHY` when it reaches `ACCESSFLOW_APIGOV_HEALTH_FAILURE_THRESHOLD`. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_schemas (AF-500)
@@ -2787,7 +2787,9 @@ Index `idx_api_schema_drift_findings_connector (connector_id, status, created_at
 ## api_connector_health_checks (#891)
 
 History of scheduled connector probes (V205, epic #890); the latest outcome is summarised on
-`api_connectors.last_probe_*`.
+`api_connectors.last_probe_*`. One row per scheduled probe (#894) — the admin *test connection*
+action never writes here. Rows older than `ACCESSFLOW_APIGOV_HEALTH_HISTORY_RETENTION` (default
+`P7D`) are deleted at the end of each `ApiConnectorHealthJob` tick.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -2795,7 +2797,7 @@ History of scheduled connector probes (V205, epic #890); the latest outcome is s
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
 | `checked_at` | TIMESTAMPTZ | |
 | `success` | BOOLEAN | |
-| `message` | TEXT | Nullable. Failure reason or probe summary. |
+| `message` | TEXT | Nullable. Failure reason or probe summary, truncated to 1 024 characters. |
 | `duration_ms` | INTEGER | Default `0`. |
 
 Index `idx_api_connector_health_checks_connector (connector_id, checked_at DESC)`.

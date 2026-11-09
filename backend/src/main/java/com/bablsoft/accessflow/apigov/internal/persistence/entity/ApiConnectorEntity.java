@@ -135,15 +135,19 @@ public class ApiConnectorEntity {
     @Column(name = "health_check_interval_minutes")
     private Integer healthCheckIntervalMinutes;
 
+    // The probe state below is written only by targeted UPDATEs (ApiConnectorRepository
+    // .updateProbeOutcome / resetProbeState, #894) — updatable = false keeps an admin's whole-row save
+    // from writing back a stale status or failure streak it read before a probe ran.
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(name = "last_probe_status", nullable = false, columnDefinition = "api_connector_health_status")
+    @Column(name = "last_probe_status", nullable = false, updatable = false,
+            columnDefinition = "api_connector_health_status")
     private ApiConnectorHealthStatus lastProbeStatus = ApiConnectorHealthStatus.UNKNOWN;
 
-    @Column(name = "last_probe_at")
+    @Column(name = "last_probe_at", updatable = false)
     private Instant lastProbeAt;
 
-    @Column(name = "consecutive_probe_failures", nullable = false)
+    @Column(name = "consecutive_probe_failures", nullable = false, updatable = false)
     private int consecutiveProbeFailures = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)

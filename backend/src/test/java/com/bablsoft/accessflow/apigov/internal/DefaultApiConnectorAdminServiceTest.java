@@ -92,7 +92,7 @@ class DefaultApiConnectorAdminServiceTest {
                 Map.of("X-Env", "test"), null, 5000, true, ApiAuthMethod.BEARER_TOKEN,
                 Map.of("token", "sk_live_secret"),
                 null, null, null, null, null, null, null, null, null, null,
-                null, true, null, false, false, true, 2048L);
+                null, true, null, false, false, true, 2048L, null);
     }
 
     @Test
@@ -124,7 +124,7 @@ class DefaultApiConnectorAdminServiceTest {
         var cmd = new CreateApiConnectorCommand(orgId, "Open", ApiProtocol.REST, "https://x", null, null,
                 null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Open")).thenReturn(false);
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -234,7 +234,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, false));
+                null, null, null, null, null, null, null, null, null, null, null, null, null, false, null, null));
 
         assertThat(view.name()).isEqualTo("Renamed");
         assertThat(view.active()).isFalse();
@@ -370,7 +370,7 @@ class DefaultApiConnectorAdminServiceTest {
                 null, null, null, null, ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS, null,
                 "https://idp/token", "client-1", "secret-1", "read write", "aud-1", null, null, null,
                 Oauth2GrantType.CLIENT_CREDENTIALS, Oauth2ClientAuth.CLIENT_SECRET_POST,
-                null, true, null, false, false, true, 2048L);
+                null, true, null, false, false, true, 2048L, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Okta API")).thenReturn(false);
         when(encryptionService.encrypt("secret-1")).thenReturn("ENC-SECRET");
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -399,7 +399,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, "new-secret", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         verify(encryptionService).encrypt("new-secret");
@@ -415,7 +415,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 "https://idp/new", null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         assertThat(entity.getOauth2ClientSecretEncrypted()).isEqualTo("EXISTING");
@@ -748,13 +748,13 @@ class DefaultApiConnectorAdminServiceTest {
         return new CreateApiConnectorCommand(orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
                 null, null, null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
-                reviewPlanId, true, null, false, false, true, 2048L);
+                reviewPlanId, true, null, false, false, true, 2048L, null);
     }
 
     private static UpdateApiConnectorCommand updateReviewPlanCommand(UUID reviewPlanId, Boolean clearReviewPlan) {
         return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
-                reviewPlanId, clearReviewPlan, null, null, null, null, null, null, null);
+                reviewPlanId, clearReviewPlan, null, null, null, null, null, null, null, null, null);
     }
 
     private static ReviewPlanSnapshot planSnapshot(UUID planId, UUID organizationId) {
@@ -776,5 +776,60 @@ class DefaultApiConnectorAdminServiceTest {
     private static UserView userView(UUID id, UUID orgId) {
         return new UserView(id, "u@example.com", "User", UserRoleType.ANALYST, orgId, true,
                 AuthProviderType.LOCAL, null, null, "en", false, Instant.now());
+    }
+
+    @Test
+    void createStoresHealthCheckInterval() {
+        var cmd = new CreateApiConnectorCommand(orgId, "Monitored", ApiProtocol.REST, "https://x", null, null,
+                null, null, ApiAuthMethod.NONE, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, 5);
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Monitored")).thenReturn(false);
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.create(cmd);
+
+        assertThat(view.healthCheckIntervalMinutes()).isEqualTo(5);
+        assertThat(view.lastProbeStatus()).isEqualTo(ApiConnectorHealthStatus.UNKNOWN);
+    }
+
+    @Test
+    void updateSetsHealthCheckIntervalAndNullLeavesItUnchanged() {
+        var entity = persistedConnector();
+        entity.setHealthCheckIntervalMinutes(10);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.update(entity.getId(), orgId, healthCommand(null, null));
+        assertThat(entity.getHealthCheckIntervalMinutes()).isEqualTo(10);
+
+        service.update(entity.getId(), orgId, healthCommand(3, false));
+        assertThat(entity.getHealthCheckIntervalMinutes()).isEqualTo(3);
+        verify(connectorRepository, never()).resetProbeState(any());
+    }
+
+    @Test
+    void clearHealthCheckWinsAndResetsProbeState() {
+        var entity = persistedConnector();
+        entity.setHealthCheckIntervalMinutes(10);
+        entity.setLastProbeStatus(ApiConnectorHealthStatus.UNHEALTHY);
+        entity.setConsecutiveProbeFailures(4);
+        entity.setLastProbeAt(java.time.Instant.parse("2026-11-09T10:00:00Z"));
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.update(entity.getId(), orgId, healthCommand(7, true));
+
+        assertThat(entity.getHealthCheckIntervalMinutes()).isNull();
+        verify(connectorRepository).resetProbeState(entity.getId());
+        assertThat(view.healthCheckIntervalMinutes()).isNull();
+        assertThat(view.lastProbeStatus()).isEqualTo(ApiConnectorHealthStatus.UNKNOWN);
+        assertThat(view.lastProbeAt()).isNull();
+    }
+
+    private static UpdateApiConnectorCommand healthCommand(Integer interval, Boolean clear) {
+        return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, interval, clear);
     }
 }

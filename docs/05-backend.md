@@ -2539,6 +2539,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ReviewEscalationJob` | workflow | `reviewEscalationJob` | `accessflow.workflow.escalation-poll-interval` | `PT5M` |
 | `ApiReviewEscalationJob` | apigov | `apiReviewEscalationJob` | `accessflow.apigov.escalation-poll-interval` | `PT5M` |
 | `ApiSchemaRefreshJob` | apigov | `apiSchemaRefreshJob` | `accessflow.apigov.schema-refresh-poll-interval` | `PT15M` |
+| `ApiConnectorHealthJob` | apigov | `apiConnectorHealthJob` | `accessflow.apigov.health-poll-interval` | `PT1M` |
 | `GroupReviewEscalationJob` | requestgroups | `groupReviewEscalationJob` | `accessflow.requestgroups.escalation-poll-interval` | `PT5M` |
 | `DeploymentReviewEscalationJob` | deploygov | `deploymentReviewEscalationJob` | `accessflow.deploygov.escalation-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
@@ -5140,6 +5141,52 @@ inserted, because `listOperations` reads the newest schema by `created_at` and t
 silent. Accept is audited as `API_SCHEMA_REVISION_ACCEPTED`, and a dismiss that changed an open finding
 as `API_SCHEMA_DRIFT_DISMISSED`; endpoints are in [docs/04-api-spec.md](04-api-spec.md) → *Schemas &
 operations*.
+
+**Scheduled connector health (#894, epic #890).** A connector opts in with
+`health_check_interval_minutes` (`NULL` = not monitored). `ApiConnectorHealthJob`
+(`internal/scheduled/`) selects active, opted-in connectors, keeps the ones whose
+`last_probe_at + interval` has passed (never probed = due), and calls
+`ApiConnectorHealthService.probe` for each inside its own `try`. The probe calls
+`ApiConnectorProber.probe(protocol, baseUrl, timeoutMs)` exactly as the test endpoint does, and
+nothing else. In particular it never calls the OAuth2 token service: a token fetch on every tick
+would hammer upstream token endpoints, and token failures already have their own counter and alert.
+The probe checks reachability only: any HTTP response, `5xx` included, is a success, and gRPC is a plain TCP connect. It follows redirects as it always has, and only base URLs an admin already stored are probed.
+
+Each probe writes one `api_connector_health_checks` row and moves the summary on the connector:
+
+- **Success** resets the failure streak to `0`. `UNHEALTHY → HEALTHY` is audited as
+  `API_CONNECTOR_RECOVERED` and never notified. `UNKNOWN → HEALTHY` is silent.
+- **Failure** increments the streak. When the streak reaches `accessflow.apigov.health-failure-threshold`
+  (default `3`) and the connector is not already `UNHEALTHY`, it flips to `UNHEALTHY`. The flip is
+  audited as `API_CONNECTOR_UNHEALTHY` and publishes `apigov.events.ApiConnectorUnhealthyEvent`
+  (consumed by notifications in #895). The check is gated on the previous status, so one outage
+  notifies once however long it runs. It also flips correctly if an operator lowers the threshold
+  part-way through a streak. Below the threshold the status is left alone.
+
+Both audit rows are system rows: a `null` actor, metadata `trigger=health`, `consecutive_failures`,
+and the probe message truncated to 1 024 characters. A failing audit write never fails the probe.
+
+The connector row carries no `@Version`, so the probe state (`last_probe_status`, `last_probe_at`,
+`consecutive_probe_failures`) is mapped `updatable = false` and written only by the targeted
+`ApiConnectorRepository.updateProbeOutcome`. An admin edit that read the row before a probe can
+therefore never write back a stale status or streak, and a probe can never overwrite the edit.
+
+The outbound probe runs outside any database transaction, so no pooled connection is held while
+it waits. The outcome is then written in one short transaction against a row-locked
+(`PESSIMISTIC_WRITE`) re-read of the connector. A probe that overlapped an admin deactivating the
+connector or sending `clearHealthCheck` is dropped, with no history row and no flip. Two
+overlapping probes, for example when a slow tick outlives its ShedLock `lockAtMostFor`, are
+serialized, so the second sees the first one's flip and does not repeat it. The audit row (its own
+transaction) is written after the outcome. Turning monitoring off resets the status to `UNKNOWN`
+without an `API_CONNECTOR_RECOVERED` row — the connector was unmonitored, not recovered.
+
+The job is ShedLock-guarded. At the end of each tick it deletes history
+rows older than `accessflow.apigov.health-history-retention` (default `P7D`): at a one-minute
+interval a connector writes 1 440 rows a day.
+
+The admin `POST /api-connectors/{id}/test` stays separate. It keeps its OAuth2 token fetch, and it
+never writes history or touches the streak — a manual success must not mask a real outage. The
+read side is `GET /api-connectors/{id}/health` (admin-only).
 
 ## Request chaining & grouping (AF-501)
 

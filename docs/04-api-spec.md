@@ -8767,7 +8767,8 @@ structural diff of two stored responses (#887). Design: [docs/17-api-governance.
 | `POST` | `/api-connectors` | **Admin.** Create a connector (`201`). Auth secret (if any) is AES-256-GCM encrypted at rest. |
 | `PUT` | `/api-connectors/{id}` | **Admin.** Update a connector. Omitting `credentials` leaves the stored secret unchanged. |
 | `DELETE` | `/api-connectors/{id}` | **Admin.** Delete a connector (`204`), cascading its schemas and permissions. |
-| `POST` | `/api-connectors/{id}/test` | **Admin.** Probe connectivity to the base URL (HTTP for REST/SOAP/GraphQL, TCP for gRPC). For `OAUTH2_CLIENT_CREDENTIALS` connectors it also performs a live token fetch and reports a misconfiguration. |
+| `POST` | `/api-connectors/{id}/test` | **Admin.** Probe connectivity to the base URL (HTTP for REST/SOAP/GraphQL, TCP for gRPC). For `OAUTH2_CLIENT_CREDENTIALS` connectors it also performs a live token fetch and reports a misconfiguration. Ad hoc only — it never writes health history or touches the scheduled failure streak (#894). |
+| `GET` | `/api-connectors/{id}/health` | **Admin** (`API_CONNECTOR_MANAGE` — probe messages can name internal hosts). Scheduled health of the connector (#894): `{ status, lastProbeAt, consecutiveFailures, healthCheckIntervalMinutes, recentChecks[] }`, where `recentChecks` holds the 20 newest scheduled probes, newest first, each `{ checkedAt, success, message, durationMs }`. `404 API_CONNECTOR_NOT_FOUND` for a connector outside the caller's organization. |
 
 `CreateApiConnectorRequest` fields: `name` (3–255, required), `protocol`
 (`REST`/`SOAP`/`GRAPHQL`/`GRPC`, required), `baseUrl` (≤2048, required), `defaultHeaders` (map),
@@ -8776,8 +8777,9 @@ structural diff of two stored responses (#887). Design: [docs/17-api-governance.
 `authMethod`
 (`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
 `credentials` (map, write-only), `reviewPlanId`, `aiAnalysisEnabled`, `aiConfigId`,
-`textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1). The read
-view also returns `defaultHeaders` + `traceHeaderMapping`.
+`textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1),
+`healthCheckIntervalMinutes` (≥1, optional — see **Connector health** below). The read view also
+returns `defaultHeaders` + `traceHeaderMapping`.
 
 **Review plan assignment (AF-579).** `reviewPlanId` must reference a review plan belonging to the
 caller's organization — a non-existent or cross-org id is rejected with `404 REVIEW_PLAN_NOT_FOUND`
@@ -8798,10 +8800,15 @@ stored value unchanged. The read view returns the non-secret config plus the boo
 `oauth2ClientSecretConfigured`, `oauth2RefreshTokenConfigured`, `oauth2PasswordConfigured` — the
 secrets themselves are never returned.
 
-**Connector health (read-only, #891).** The connector read view also returns
+**Connector health (#891, #894).** The connector read view also returns
 `healthCheckIntervalMinutes` (`null` = not monitored), `lastProbeStatus`
-(`UNKNOWN`/`HEALTHY`/`UNHEALTHY`, `UNKNOWN` until a probe has run) and `lastProbeAt`. No request
-accepts them yet — the scheduled probe and its write side follow in #893/#894.
+(`UNKNOWN`/`HEALTHY`/`UNHEALTHY`, `UNKNOWN` until a probe has run) and `lastProbeAt`. Create and
+update accept `healthCheckIntervalMinutes` (≥ 1 minute; `0` or less is `400`) to opt the connector
+into the scheduled probe. On update it follows the null-means-unchanged rule, so turning monitoring
+off is `clearHealthCheck: true`. That flag wins over any `healthCheckIntervalMinutes` sent in the
+same request, and it also resets `lastProbeStatus` to `UNKNOWN`, `lastProbeAt` to `null` and the
+failure streak to `0`. `lastProbeStatus`, `lastProbeAt` and the failure streak are written only by
+the scheduled probe — a connector update never changes them.
 
 ### Schemas & operations
 
