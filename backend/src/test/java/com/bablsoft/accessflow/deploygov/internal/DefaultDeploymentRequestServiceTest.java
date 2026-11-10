@@ -18,6 +18,9 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundExcept
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.VerificationCheckKind;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentVerificationEntity;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
 import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
@@ -36,6 +39,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPip
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentVerificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -85,6 +89,7 @@ class DefaultDeploymentRequestServiceTest {
     private AiAnalysisLookupService aiAnalysisLookupService;
     private UserQueryService userQueryService;
     private ApplicationEventPublisher eventPublisher;
+    private DeploymentVerificationRepository verificationRepository;
     private DefaultDeploymentRequestService service;
 
     private DeploymentPipelineEntity pipeline;
@@ -105,11 +110,13 @@ class DefaultDeploymentRequestServiceTest {
         aiAnalysisLookupService = mock(AiAnalysisLookupService.class);
         userQueryService = mock(UserQueryService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        verificationRepository = mock(DeploymentVerificationRepository.class);
         service = new DefaultDeploymentRequestService(requestRepository, requestInserter,
                 pipelineRepository, environmentRepository, decisionRepository, ticketRepository,
                 permissionResolver,
                 freezeWindowEvaluator, stateService, auditWriter, aiAnalysisLookupService,
-                userQueryService, eventPublisher, JsonMapper.builder().build(), CLOCK);
+                userQueryService, eventPublisher, JsonMapper.builder().build(), CLOCK,
+                verificationRepository);
 
         pipeline = pipeline();
         environment = environment();
@@ -605,6 +612,76 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(view.pipelineName()).isEqualTo("payments-api");
         assertThat(view.environmentName()).isEqualTo("production");
         assertThat(view.metadata()).containsKey("changelog");
+    }
+
+    @Test
+    void getCarriesTheVerificationState() {
+        var entity = existing(QueryStatus.FAILED);
+        var started = Instant.parse("2026-08-24T12:00:00Z");
+        entity.setVerificationStatus(VerificationStatus.FAILED);
+        entity.setVerificationStartedAt(started);
+        entity.setVerificationFinishedAt(started.plusSeconds(60));
+        entity.setVerificationDetail("health: 1/1 failed samples");
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.get(entity.getId(), ORG, SUBMITTER, Set.of());
+
+        assertThat(view.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(view.verificationStartedAt()).isEqualTo(started);
+        assertThat(view.verificationFinishedAt()).isEqualTo(started.plusSeconds(60));
+        assertThat(view.verificationDetail()).isEqualTo("health: 1/1 failed samples");
+    }
+
+    @Test
+    void listVerificationSamplesMapsTheOrderedSamplesForAVisibleCaller() {
+        var entity = existing(QueryStatus.EXECUTED);
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+        var sample = new DeploymentVerificationEntity();
+        sample.setId(UUID.randomUUID());
+        sample.setDeploymentRequestId(entity.getId());
+        sample.setOrganizationId(ORG);
+        sample.setCheckName("health");
+        sample.setCheckKind(VerificationCheckKind.HTTP_HEALTH);
+        sample.setSampledAt(Instant.parse("2026-08-24T12:00:00Z"));
+        sample.setPassed(true);
+        sample.setObservedValue("200");
+        when(verificationRepository.findByDeploymentRequestIdOrderBySampledAtAsc(entity.getId()))
+                .thenReturn(List.of(sample));
+
+        var samples = service.listVerificationSamples(entity.getId(), ORG, UUID.randomUUID(),
+                Set.of(Permission.DEPLOYMENT_REVIEW));
+
+        assertThat(samples).singleElement().satisfies(view -> {
+            assertThat(view.id()).isEqualTo(sample.getId());
+            assertThat(view.deploymentRequestId()).isEqualTo(entity.getId());
+            assertThat(view.checkName()).isEqualTo("health");
+            assertThat(view.checkKind()).isEqualTo(VerificationCheckKind.HTTP_HEALTH);
+            assertThat(view.passed()).isTrue();
+            assertThat(view.observedValue()).isEqualTo("200");
+            assertThat(view.detail()).isNull();
+        });
+        assertThat(service.listVerificationSamples(entity.getId(), ORG, SUBMITTER, Set.of()))
+                .hasSize(1);
+    }
+
+    @Test
+    void listVerificationSamplesHidesTheRequestFromAnUnrelatedUserAndAnotherOrg() {
+        var entity = existing(QueryStatus.EXECUTED);
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+        var otherOrg = UUID.randomUUID();
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), otherOrg))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.listVerificationSamples(entity.getId(), ORG,
+                UUID.randomUUID(), Set.of()))
+                .isInstanceOf(DeploymentRequestNotFoundException.class);
+        assertThatThrownBy(() -> service.listVerificationSamples(entity.getId(), otherOrg,
+                SUBMITTER, Set.of(Permission.QUERY_ADMIN)))
+                .isInstanceOf(DeploymentRequestNotFoundException.class);
+        verify(verificationRepository, never()).findByDeploymentRequestIdOrderBySampledAtAsc(any());
     }
 
     @Test

@@ -8,6 +8,9 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSampleView;
+import com.bablsoft.accessflow.deploygov.api.VerificationCheckKind;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
@@ -314,7 +317,8 @@ class DeploygovWebModelsTest {
                 PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
                 "1.0.0", null, null, null, null, null, QueryStatus.APPROVED,
                 SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
-                null, Instant.now(), null, null, null, true, ticket);
+                null, Instant.now(), null, null, null, true, ticket, VerificationStatus.PENDING, null, null,
+                null);
 
         var response = DeploymentRequestResponse.from(view);
 
@@ -339,7 +343,8 @@ class DeploygovWebModelsTest {
                 PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
                 "1.0.0", null, null, null, null, null, QueryStatus.PENDING_REVIEW,
                 SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
-                null, Instant.now(), null, null, null, true, ticket);
+                null, Instant.now(), null, null, null, true, ticket, VerificationStatus.PENDING, null, null,
+                null);
 
         var json = mapper.readTree(mapper.writeValueAsString(DeploymentRequestResponse.from(flagged)));
 
@@ -482,7 +487,8 @@ class DeploygovWebModelsTest {
                 DecisionType.APPROVED, "lgtm", 1, Instant.parse("2026-08-24T11:00:00Z"));
         var view = new DeploymentGateView(requestId, QueryStatus.APPROVED, true, 2, 1,
                 List.of(decision), true, "change freeze",
-                Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW, false, null);
+                Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW, false, null,
+                VerificationStatus.FAILED, "health: 3/3 failed samples");
 
         var response = DeploymentGateResponse.from(view);
 
@@ -497,14 +503,52 @@ class DeploygovWebModelsTest {
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.LOW);
         assertThat(response.changeTicketRequired()).isFalse();
         assertThat(response.changeTicket()).isNull();
+        assertThat(response.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(response.verificationDetail()).isEqualTo("health: 3/3 failed samples");
     }
 
     @Test
     void gateViewDefendsItsDecisionsList() {
         var view = new DeploymentGateView(UUID.randomUUID(), QueryStatus.APPROVED, false, 1, 0,
-                null, false, null, null, null, false, null);
+                null, false, null, null, null, false, null, VerificationStatus.PENDING, null);
 
         assertThat(view.decisions()).isEmpty();
+    }
+
+    @Test
+    void deploymentRequestViewDefaultsVerificationStatusAndResponseMapsIt() {
+        var started = Instant.parse("2026-08-24T12:00:00Z");
+        var finished = Instant.parse("2026-08-24T12:10:00Z");
+        var view = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.FAILED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, false, null, VerificationStatus.FAILED,
+                started, finished, "health: 1/1 failed samples");
+
+        var response = DeploymentRequestResponse.from(view);
+
+        assertThat(response.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(response.verificationStartedAt()).isEqualTo(started);
+        assertThat(response.verificationFinishedAt()).isEqualTo(finished);
+        assertThat(response.verificationDetail()).isEqualTo("health: 1/1 failed samples");
+        var defaulted = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.APPROVED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, false, null, null, null, null, null);
+        assertThat(defaulted.verificationStatus()).isEqualTo(VerificationStatus.PENDING);
+    }
+
+    @Test
+    void verificationSampleResponseMapsAllFields() {
+        var view = new DeploymentVerificationSampleView(UUID.randomUUID(), UUID.randomUUID(),
+                "health", VerificationCheckKind.HTTP_HEALTH, Instant.parse("2026-08-24T12:00:00Z"),
+                false, "503", "expected status 200, got 503");
+
+        var response = DeploymentVerificationSampleResponse.from(view);
+
+        assertThat(response).usingRecursiveComparison().isEqualTo(view);
     }
 
     @Test

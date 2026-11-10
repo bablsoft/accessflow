@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundExcept
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
 import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
@@ -556,6 +557,23 @@ class DefaultDeploymentGateServiceTest {
 
         assertThat(service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(),
                 Set.of()).releasable()).isTrue();
+    }
+
+    @Test
+    void gateCarriesTheVerificationStateWithoutAffectingReleasability() {
+        var request = request(QueryStatus.EXECUTED);
+        request.setVerificationStatus(VerificationStatus.FAILED);
+        request.setVerificationDetail("health: 1/1 failed samples");
+        when(requestRepository.findByIdAndOrganizationId(request.getId(), ORG))
+                .thenReturn(Optional.of(request));
+        stubNoFreeze(request);
+
+        var gate = service.gateByRequestId(request.getId(), ORG, request.getSubmittedBy(),
+                Set.of());
+
+        assertThat(gate.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(gate.verificationDetail()).isEqualTo("health: 1/1 failed samples");
+        assertThat(gate.releasable()).isFalse();
     }
 
     @Test

@@ -260,7 +260,8 @@ public class DefaultDeploymentGateService implements DeploymentGateService {
         return new DeploymentGateView(request.getId(), request.getStatus(),
                 evaluation.releasable(), request.getRequiredApprovals(), granted, decisions,
                 evaluation.frozen(), evaluation.freezeReason(), request.getScheduledFor(),
-                aiRiskLevel, evaluation.ticketRequired(), evaluation.changeTicket());
+                aiRiskLevel, evaluation.ticketRequired(), evaluation.changeTicket(),
+                request.getVerificationStatus(), request.getVerificationDetail());
     }
 
     /**

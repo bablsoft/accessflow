@@ -2563,6 +2563,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `AuditSinkDrainJob` | audit | `auditSinkDrainJob` | `accessflow.audit.sinks.drain-interval` | `PT30S` |
 | `DeploymentTimeoutJob` | deploygov | `deploymentTimeoutJob` | `accessflow.deploygov.timeout-check` | `PT5M` |
 | `ScheduledDeploymentReleaseJob` | deploygov | `scheduledDeploymentReleaseJob` | `accessflow.deploygov.release-check` | `PT1M` |
+| `DeploymentVerificationJob` | deploygov | `deploymentVerificationJob` | `accessflow.deploygov.verification-check` | `PT30S` |
 | `HelpChatRetentionJob` | ai | `helpChatRetentionJob` | `accessflow.help-agent.retention-poll-interval` | `PT6H` |
 | `QuerySuggestionAggregationJob` | workflow | `querySuggestionAggregationJob` | `accessflow.workflow.query-suggestions.aggregation-poll-interval` | `PT6H` |
 | `SchemaDriftJob` | schemachange | `schemaDriftJob` | `accessflow.schemachange.drift-poll-interval` | `PT6H` |
@@ -5783,7 +5784,7 @@ constructor on a `@ConfigurationProperties` record silently unbinds every proper
 
 `deploygov/internal/verification/` holds the **pure half** of post-deployment verification: it
 evaluates a check, it does not schedule one and it never touches `deployment_requests` (the
-sampling job and the transitions are #1025). The narrative is
+sampling job and the transitions are #1025, below). The narrative is
 [18-deployment-governance.md](18-deployment-governance.md); the 422 contract is in
 [04-api-spec.md](04-api-spec.md) → "Post-deployment verification config".
 
@@ -5814,6 +5815,53 @@ sampling job and the transitions are #1025). The narrative is
   `DefaultDeploymentPipelineAdminService.createEnvironment` / `updateEnvironment` whenever a config
   is sent (never on `clear_verification`), before anything is saved. Its rules and reason codes are
   the 422 table in 04-api-spec.md; it resolves hosts, so a typo fails at save time.
+
+### Post-deployment verification runtime (#1025, epic #1022)
+
+- **Start on the outcome report, never on `EXECUTED`.** `confirm-execution` is stamped before the
+  deploy steps run, so sampling from there would verify the previous version.
+  `DefaultDeploymentOutcomeService.reportOutcome` decides on the first report: `SUCCEEDED` on an
+  environment with a `verification` config copies the config into
+  `deployment_requests.verification_config` (a snapshot — a later edit never changes a running
+  window), sets `verification_status = RUNNING` and `verification_started_at` = the report
+  instant; `SUCCEEDED` without a config is `SKIPPED` (`"no verification configured"`), and a
+  `FAILED` / `ROLLED_BACK` first report is `SKIPPED` (`"outcome:<x>"`). Nothing keys on
+  `submission_reason`, so break-glass deployments are verified too.
+- **`DeploymentVerificationJob`** (`@SchedulerLock deploymentVerificationJob`, `lockAtMostFor
+  PT10M`, `lockAtLeastFor PT5S` — short on purpose, since `lockAtLeastFor` caps the effective
+  cadence and the e2e stack runs the job at seconds) reads `findVerificationDueIds()` — native,
+  `EXECUTED` + `RUNNING`, `last_verified_at NULLS FIRST`, served by the V207 partial index — and
+  calls `DeploymentVerificationService.verifyOne` per row, catching each row's `RuntimeException`.
+  The per-request interval is checked in Java because it lives in the jsonb snapshot.
+- **`DefaultDeploymentVerificationService.verifyOne`** skips a row that is not a running
+  verification or whose next sample (`last_verified_at + sampleInterval`) is not yet due. It
+  evaluates every check **outside any transaction** (outbound HTTP must not pin a pooled
+  connection — the `DefaultApiConnectorHealthService` precedent); an evaluator that throws in spite
+  of its contract becomes a failed sample. One short `TransactionTemplate` block then re-reads the
+  row under `findByIdForUpdate`, drops the tick if it left `RUNNING` meanwhile, saves one
+  `DeploymentVerificationEntity` per check, stamps `last_verified_at`, and decides: the first
+  check whose failed-sample count reaches `failureThreshold` → `markVerificationFailed(id,
+  "<check>: <n>/<threshold> failed samples")`; otherwise a window that has elapsed →
+  `markVerificationPassed`. A breach on the last sample wins over the window end. An unreadable
+  snapshot **fails closed** (`"verification config unreadable"`).
+- **A breach is the existing `EXECUTED → FAILED` flip and nothing more.**
+  `DeploymentRequestStateService.markVerificationFailed` (no-op `false` unless `EXECUTED` +
+  `RUNNING`) stamps `FAILED` / `verification_finished_at` / the detail, calls `apply(entity,
+  FAILED)` — status, save, `DeploymentStatusChangedEvent`, which already reaches the submitter as
+  the `deployment.status_changed` WebSocket push — and publishes
+  `DeploymentVerificationFailedEvent`. It never calls the version tracker and never publishes
+  `DeploymentOutcomeReportedEvent`: nobody rolled back, the new version is still running, and
+  `outcome` stays `SUCCEEDED`. There is **no automatic rollback**. `markVerificationPassed` stamps
+  `PASSED` with no event.
+- **The rollback carve-out.** A second outcome report normally resolves idempotently or 409s. The
+  one exception: `ROLLED_BACK` over a stored `SUCCEEDED` when `verification_status = FAILED`. It
+  runs the normal rollback tail — `versionTracker.recordOutcome(ROLLED_BACK)`, the rollback review
+  on a `require_review` environment, the `DEPLOYMENT_OUTCOME_REPORTED` row with `superseded:
+  "SUCCEEDED"`, `DeploymentOutcomeReportedEvent`.
+- **Read side.** `verification_status` / `_started_at` / `_finished_at` / `_detail` on the request
+  view, `verification_status` / `_detail` on the gate (never part of `releasable`), and
+  `GET /deployment-requests/{id}/verification-samples` with the detail read's 404-never-403
+  visibility.
 
 ## Schema change governance (schemachange module, epic #870)
 

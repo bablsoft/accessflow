@@ -119,7 +119,7 @@ public class DeploymentRequestEntity {
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
 
-    // #1023: post-deployment verification state; nothing transitions it yet.
+    // #1023/#1025: post-deployment verification state, set by the outcome report and the job.
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "verification_status", nullable = false, columnDefinition = "verification_status")

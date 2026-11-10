@@ -12,7 +12,10 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSampleView;
+import com.bablsoft.accessflow.deploygov.api.VerificationCheckKind;
 import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
@@ -35,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -208,6 +212,32 @@ class DeploymentRequestControllerTest {
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(response.decisions()).isEmpty();
         assertThat(response.canReview()).isFalse();
+    }
+
+    @Test
+    void verificationSamplesMapsTheServiceListWithTheCallerContext() {
+        var sample = new DeploymentVerificationSampleView(UUID.randomUUID(), requestId, "health",
+                VerificationCheckKind.HTTP_HEALTH, Instant.parse("2026-08-24T12:00:00Z"), false,
+                "503", "expected status 200, got 503");
+        when(requestService.listVerificationSamples(requestId, orgId, userId, Set.of()))
+                .thenReturn(List.of(sample));
+
+        var response = controller.verificationSamples(requestId, auth(false));
+
+        assertThat(response).singleElement().satisfies(r -> {
+            assertThat(r.checkName()).isEqualTo("health");
+            assertThat(r.passed()).isFalse();
+            assertThat(r.observedValue()).isEqualTo("503");
+        });
+    }
+
+    @Test
+    void verificationSamplesPropagatesTheServicesNotFound() {
+        when(requestService.listVerificationSamples(any(), any(), any(), any()))
+                .thenThrow(new DeploymentRequestNotFoundException(requestId));
+
+        assertThatThrownBy(() -> controller.verificationSamples(requestId, auth(false)))
+                .isInstanceOf(DeploymentRequestNotFoundException.class);
     }
 
     @Test

@@ -150,9 +150,7 @@ check is either `HTTP_HEALTH` (a URL and the status code it should answer) or `P
 (a Prometheus query compared against a threshold). `null` means verification is off. #1023 adds
 only the storage: the config column, the `deployment_requests.verification_*` columns that will
 hold a snapshot of the config and the verdict, and the `deployment_verifications` samples table.
-#1024 adds the evaluators and the save-time checks; nothing samples a check or changes a
-request's state yet — the sampling job and the transitions arrive with #1025 and the later
-sub-issues of the epic.
+#1024 adds the evaluators and the save-time checks; #1025 adds the runtime below.
 
 - **What passes.** An `HTTP_HEALTH` check passes when the URL answers `expected_status` and, when
   `body_contains` is set, the response body (its first 64 KiB) contains that text. A
@@ -166,6 +164,20 @@ sub-issues of the epic.
   allowed; loopback, link-local and cloud metadata endpoints never are; an operator can pin the
   reachable hosts with `ACCESSFLOW_DEPLOYGOV_VERIFICATION_ALLOWED_HOSTS` (see
   [07-security.md](07-security.md#deployment-governance-security-epic-af-682)).
+- **When it runs.** Verification starts when the pipeline reports `SUCCEEDED` — not when it
+  confirms execution, which happens before the new version is out. The config is copied onto the
+  request at that moment, so editing the environment later never changes a running window.
+  `DeploymentVerificationJob` then samples every check once per interval until the window ends.
+  Break-glass deployments are verified like any other. A request whose environment has no config,
+  or whose first report was `FAILED` / `ROLLED_BACK`, is `SKIPPED`.
+- **What a breach does.** When one check reaches its failure threshold, the verification is
+  `FAILED` and the request flips `EXECUTED → FAILED`. The reported outcome stays `SUCCEEDED` — it
+  is what the pipeline claimed, and the samples are the evidence it was wrong. AccessFlow does
+  **not** roll anything back and does not revert the version matrix: the new version is still
+  running, so it is still shown as current until the pipeline reports `ROLLED_BACK`, which is
+  accepted after a failed verification as the one exception to "the first outcome is final".
+  A clean window ends `PASSED`. The gate and the request carry `verification_status`, and
+  `GET /deployment-requests/{id}/verification-samples` lists every sample.
 - **Save-time rules.** A config is rejected with `422 DEPLOYMENT_VERIFICATION_INVALID` when its
   window is outside 1 minute–24 hours, its interval outside 30 seconds–window, its failure
   threshold one the window cannot reach, two checks share a name, or a URL is refused or does not

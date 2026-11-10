@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 
 import java.time.Instant;
 import java.util.List;
@@ -48,7 +49,12 @@ public record DeploymentRequestResponse(
         /** Mirrors the environment's flag (#994). */
         boolean changeTicketRequired,
         /** The linked change ticket that explains the request's state, or null (#994). */
-        DeploymentChangeTicketResponse changeTicket) {
+        DeploymentChangeTicketResponse changeTicket,
+        /** Post-deployment verification state (#1025). */
+        VerificationStatus verificationStatus,
+        Instant verificationStartedAt,
+        Instant verificationFinishedAt,
+        String verificationDetail) {
 
     /** Every path but the detail read: reviewer eligibility is a detail-read concern, never computed here. */
     static DeploymentRequestResponse from(DeploymentRequestView view) {
@@ -67,6 +73,8 @@ public record DeploymentRequestResponse(
                 view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
                 canReview, view.onBehalfOfUserId(), view.onBehalfOfEmail(),
                 view.changeTicketRequired(),
-                DeploymentChangeTicketResponse.from(view.changeTicket()));
+                DeploymentChangeTicketResponse.from(view.changeTicket()),
+                view.verificationStatus(), view.verificationStartedAt(),
+                view.verificationFinishedAt(), view.verificationDetail());
     }
 }

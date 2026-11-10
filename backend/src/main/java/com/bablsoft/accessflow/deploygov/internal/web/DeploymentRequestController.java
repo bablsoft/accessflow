@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -108,6 +109,19 @@ class DeploymentRequestController {
         var view = requestService.get(id, caller.organizationId(), caller.userId(),
                 caller.permissions());
         return DeploymentRequestResponse.from(view, reviewService.canReview(id, reviewer(caller)));
+    }
+
+    @GetMapping("/{id}/verification-samples")
+    @Operation(summary = "List a deployment request's post-deployment verification samples")
+    @ApiResponse(responseCode = "200", description = "Samples, oldest first")
+    @ApiResponse(responseCode = "404", description = "Not found, or not visible to the caller")
+    List<DeploymentVerificationSampleResponse> verificationSamples(@PathVariable UUID id,
+                                                                   Authentication authentication) {
+        var caller = claims(authentication);
+        return requestService.listVerificationSamples(id, caller.organizationId(),
+                        caller.userId(), caller.permissions()).stream()
+                .map(DeploymentVerificationSampleResponse::from)
+                .toList();
     }
 
     @PostMapping("/{id}/cancel")

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -58,6 +59,14 @@ public interface DeploymentRequestService {
      */
     DeploymentRequestView get(UUID id, UUID organizationId, UUID userId,
                               Set<Permission> callerPermissions);
+
+    /**
+     * The request's post-deployment verification samples, oldest first (#1025). Same visibility
+     * rule as {@link #get}: anyone else gets {@link DeploymentRequestNotFoundException}.
+     */
+    List<DeploymentVerificationSampleView> listVerificationSamples(UUID id, UUID organizationId,
+                                                                   UUID userId,
+                                                                   Set<Permission> callerPermissions);
 
     /**
      * Submitter cancels a request awaiting review, or an approved one whose deferred

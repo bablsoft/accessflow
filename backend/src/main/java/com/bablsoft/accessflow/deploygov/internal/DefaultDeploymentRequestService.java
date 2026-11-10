@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionExceptio
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSampleView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
@@ -35,6 +36,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPip
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -85,6 +87,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final DeploymentVerificationRepository verificationRepository;
 
     @Override
     @Transactional
@@ -312,6 +315,22 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<DeploymentVerificationSampleView> listVerificationSamples(
+            UUID id, UUID organizationId, UUID userId, Set<Permission> callerPermissions) {
+        var entity = require(id, organizationId);
+        if (!entity.getSubmittedBy().equals(userId) && !canViewAll(callerPermissions)) {
+            throw new DeploymentRequestNotFoundException(id);
+        }
+        return verificationRepository.findByDeploymentRequestIdOrderBySampledAtAsc(id).stream()
+                .map(sample -> new DeploymentVerificationSampleView(sample.getId(),
+                        sample.getDeploymentRequestId(), sample.getCheckName(),
+                        sample.getCheckKind(), sample.getSampledAt(), sample.isPassed(),
+                        sample.getObservedValue(), sample.getDetail()))
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void cancel(UUID id, UUID organizationId, UUID userId) {
         var entity = require(id, organizationId);
@@ -412,7 +431,11 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 entity.getOnBehalfOfUserId(),
                 onBehalfOf != null ? onBehalfOf.email() : null,
                 environment != null && environment.isChangeTicketRequired(),
-                changeTicket);
+                changeTicket,
+                entity.getVerificationStatus(),
+                entity.getVerificationStartedAt(),
+                entity.getVerificationFinishedAt(),
+                entity.getVerificationDetail());
     }
 
     private Map<String, Object> readMetadata(String json) {

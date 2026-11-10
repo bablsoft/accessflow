@@ -26,8 +26,10 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentPermissionCommand;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.deploygov.api.SubmitDeploymentRequestCommand;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReleasableEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentVerificationFailedEvent;
 import com.bablsoft.accessflow.deploygov.internal.DefaultDeploymentGateService;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
@@ -37,6 +39,8 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPip
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRollbackReviewRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationService;
+import com.bablsoft.accessflow.deploygov.internal.verification.VerificationTickResult;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,6 +77,13 @@ class DeploymentGateFlowIntegrationTest {
     static class EventProbe {
         final List<DeploymentOutcomeReportedEvent> outcomeEvents = new CopyOnWriteArrayList<>();
         final List<DeploymentReleasableEvent> releasableEvents = new CopyOnWriteArrayList<>();
+        final List<DeploymentVerificationFailedEvent> verificationFailedEvents =
+                new CopyOnWriteArrayList<>();
+
+        @EventListener
+        void onVerificationFailed(DeploymentVerificationFailedEvent event) {
+            verificationFailedEvents.add(event);
+        }
 
         @EventListener
         void onOutcome(DeploymentOutcomeReportedEvent event) {
@@ -104,11 +115,13 @@ class DeploymentGateFlowIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired EventProbe probe;
+    @Autowired DeploymentVerificationService verificationService;
 
     @BeforeEach
     void resetProbe() {
         probe.outcomeEvents.clear();
         probe.releasableEvents.clear();
+        probe.verificationFailedEvents.clear();
     }
 
     @AfterEach
@@ -296,6 +309,87 @@ class DeploymentGateFlowIntegrationTest {
                 fixture.orgId(), fixture.userId(), Set.of(), null);
         assertThat(environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
                 .orElseThrow().getLastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+    }
+
+    @Test
+    void aBreachedVerificationFailsTheRequestWithoutRevertingAndAcceptsALaterRollback() {
+        var fixture = fixture();
+        // Written straight to the column: the write-time validator refuses an unresolvable host,
+        // which is exactly what the sample-time policy must turn into a failed sample.
+        jdbcTemplate.update("UPDATE deployment_environments SET verification = ?::jsonb WHERE id = ?",
+                """
+                {"window":"PT10M","sampleInterval":"PT1S","failureThreshold":1,"checks":[
+                  {"kind":"HTTP_HEALTH","name":"health",
+                   "url":"https://nonexistent.invalid/health","expectedStatus":200}]}
+                """, fixture.environmentId());
+        var request = saveRequest(fixture, QueryStatus.APPROVED);
+        gateService.confirmExecution(request.getId(), fixture.orgId(), fixture.userId(), Set.of(),
+                null);
+        var reported = outcomeService.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED,
+                "green", fixture.orgId(), fixture.userId(), Set.of(), null);
+        assertThat(reported.verificationStatus()).isEqualTo(VerificationStatus.RUNNING);
+        assertThat(reported.verificationStartedAt()).isNotNull();
+        assertThat(requestRepository.findVerificationDueIds()).contains(request.getId());
+
+        // One sampling tick. verifyOne directly rather than the job, whose ShedLock may be held by
+        // the context's own scheduled tick.
+        assertThat(verificationService.verifyOne(request.getId()))
+                .isEqualTo(VerificationTickResult.BREACHED);
+
+        var breached = requestRepository.findById(request.getId()).orElseThrow();
+        assertThat(breached.getStatus()).isEqualTo(QueryStatus.FAILED);
+        assertThat(breached.getOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(breached.getVerificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(breached.getVerificationDetail()).isEqualTo("health: 1/1 failed samples");
+        assertThat(breached.getVerificationFinishedAt()).isNotNull();
+        assertThat(requestRepository.findVerificationDueIds()).doesNotContain(request.getId());
+        assertThat(probe.verificationFailedEvents).singleElement()
+                .satisfies(e -> assertThat(e.deploymentRequestId()).isEqualTo(request.getId()));
+        // No rollback happened: the projection still shows the new version as current.
+        var versionRow = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(versionRow.getCurrentVersion()).isEqualTo("2.4.1");
+        assertThat(versionRow.getLastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+
+        var samples = requestService.listVerificationSamples(request.getId(), fixture.orgId(),
+                fixture.userId(), Set.of());
+        assertThat(samples).singleElement().satisfies(sample -> {
+            assertThat(sample.checkName()).isEqualTo("health");
+            assertThat(sample.passed()).isFalse();
+        });
+        var gate = gateService.gateByRequestId(request.getId(), fixture.orgId(), fixture.userId(),
+                Set.of());
+        assertThat(gate.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(gate.releasable()).isFalse();
+
+        // The carve-out: the pipeline now reports the rollback it performed.
+        var rolledBack = outcomeService.reportOutcome(request.getId(),
+                DeploymentOutcome.ROLLED_BACK, "rolled back", fixture.orgId(), fixture.userId(),
+                Set.of(), null);
+        assertThat(rolledBack.outcome()).isEqualTo(DeploymentOutcome.ROLLED_BACK);
+        assertThat(rolledBack.status()).isEqualTo(QueryStatus.FAILED);
+        var reverted = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(reverted.getCurrentVersion()).isNull();
+        assertThat(reverted.getLastOutcome()).isEqualTo(DeploymentOutcome.ROLLED_BACK);
+        assertThat(rollbackReviewRepository.findByDeploymentRequestId(request.getId())).isPresent();
+        // A replay of the rollback is idempotent.
+        assertThat(outcomeService.reportOutcome(request.getId(), DeploymentOutcome.ROLLED_BACK,
+                null, fixture.orgId(), fixture.userId(), Set.of(), null).outcomeDetail())
+                .isEqualTo("rolled back");
+    }
+
+    @Test
+    void aSucceededReportWithoutVerificationConfigIsSkipped() {
+        var fixture = fixture();
+        var request = saveRequest(fixture, QueryStatus.EXECUTED);
+
+        var reported = outcomeService.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED,
+                null, fixture.orgId(), fixture.userId(), Set.of(), null);
+
+        assertThat(reported.verificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+        assertThat(reported.verificationDetail()).isEqualTo("no verification configured");
+        assertThat(requestRepository.findVerificationDueIds()).doesNotContain(request.getId());
     }
 
     /** Submits through the service and waits for the async routing to land in PENDING_REVIEW. */

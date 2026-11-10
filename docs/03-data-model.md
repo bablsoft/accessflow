@@ -3130,7 +3130,8 @@ stored config that cannot be parsed is served by the admin API as if verificatio
 listing must not break on one bad row); the verification runtime decodes the blob itself and treats
 a parse failure as a failed verification. The config is copied
 onto `deployment_requests.verification_config` when a verification starts, so a later edit never
-changes a running verification. #1023 is storage only — nothing evaluates the config yet.
+changes a running verification. The SUCCEEDED outcome report takes the snapshot and
+`DeploymentVerificationJob` evaluates it (#1025).
 
 ### deployment_freeze_windows
 
@@ -3171,7 +3172,7 @@ collision.
 | `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows — including those a `FAILED` outcome later flipped to `FAILED` — were backfilled with `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time. |
 | `review_started_at` | TIMESTAMPTZ | Nullable (V203, #984) — stamped by the state service on entry to `PENDING_REVIEW` (only reachable from `PENDING_AI`), off the same `Clock` as `executed_at`; a redelivered transition never restamps. The approval-latency and timeout-rate axis of the deployment metrics. **No backfill**: the instant is unknown for older rows, which the metrics treat as described in `docs/04-api-spec.md` → "Deployment metrics". |
 | `escalated_at` / `last_nudged_at` | TIMESTAMPTZ | Nullable (V204, #985) — the idle-reviewer cursors of `DeploymentReviewEscalationJob`, mirroring `query_requests` / `api_requests` (V144, #622). `escalated_at` is stamped once when the request has sat in `PENDING_REVIEW` past its resolved plan's `escalation_after_hours`; `last_nudged_at` on every `nudge_interval_hours` reminder. Both clocks run from `created_at`, the same baseline as the timeout. Notify-only — nothing on the eligibility or decision path reads them. |
-| `verification_status` | `verification_status` NOT NULL DEFAULT `'PENDING'` | V207 (#1023, epic #1022) — post-deployment verification state: `PENDING` → `RUNNING` → `PASSED` / `FAILED`, or `SKIPPED`. Rows that had already reported an `outcome` were backfilled to `SKIPPED` (they can never be verified); every other row — including requests that were never executed — stays `PENDING`. Nothing changes it yet. |
+| `verification_status` | `verification_status` NOT NULL DEFAULT `'PENDING'` | V207 (#1023, epic #1022) — post-deployment verification state: `PENDING` → `RUNNING` → `PASSED` / `FAILED`, or `SKIPPED`. Rows that had already reported an `outcome` were backfilled to `SKIPPED` (they can never be verified); every other row — including requests that were never executed — stays `PENDING`. Set to `RUNNING` or `SKIPPED` by the first outcome report and to `PASSED` / `FAILED` by `DeploymentVerificationJob` (#1025). |
 | `verification_config` | JSONB | Nullable (V207) — snapshot of the environment's `verification` taken when a verification starts. |
 | `verification_started_at` / `verification_finished_at` / `last_verified_at` | TIMESTAMPTZ | Nullable (V207) — verification window bounds and the cursor of the sampling scan. |
 | `verification_detail` | TEXT | Nullable (V207) — human-readable summary of the verdict. |

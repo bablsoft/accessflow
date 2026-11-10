@@ -533,8 +533,8 @@ accessflow:
     # scaling.
     escalation-poll-interval: ${ACCESSFLOW_DEPLOYGOV_ESCALATION_POLL_INTERVAL:PT5M}
     # Post-deployment verification (epic #1022).
-    # verification-check: how often the verification job samples RUNNING verifications (#1025;
-    # nothing reads it yet).
+    # verification-check: cadence of DeploymentVerificationJob, which samples RUNNING
+    # verifications (#1025).
     verification-check: ${ACCESSFLOW_DEPLOYGOV_VERIFICATION_CHECK:PT30S}
     # verification-request-timeout: timeout of one verification check's HTTP call.
     verification-request-timeout: ${ACCESSFLOW_DEPLOYGOV_VERIFICATION_REQUEST_TIMEOUT:PT10S}
