@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "bf21f8c353ac",
-  "generatedAt": "2026-11-09T14:11:05.980Z",
-  "sourceCommit": "f01ac53e165c5e128c3949bde90bc8b2d48405d3",
+  "corpusVersion": "3746285d10f0",
+  "generatedAt": "2026-11-10T10:20:00.374Z",
+  "sourceCommit": "66e863f40e9c27e05d7db7399b5d6ede521a7814",
   "chunkCount": 614,
-  "sha256": "bf21f8c353ac9ed902f822e7c606ebce5f33d5ae5d22549f060220b98e43dd7f",
-  "quickReferenceSha256": "d071fea0d27ec947e318223008fd22780c75b93e757b7c2b463700149eac8edd",
+  "sha256": "3746285d10f0b6891b138762c3070968441f0944b2c795b7f7969ed7e815e62a",
+  "quickReferenceSha256": "24edf02e4c124fee2ce843e9333a470905f9a55868ddc3cdef869315ca473072",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -245,7 +245,7 @@
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "138db467bd74c100a3198f3de98b8fae05880ca9d820c753848289c60e4d1cb9"
+      "sha256": "89116c2ed2a115bd3e8eb8335387193b1ca767f374f9b69459b979180fbc20e6"
     },
     {
       "path": "website/docs/guides/datasource/index.html",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "7a2793b54ed6c7c6c66fa4283a726151d2c27328edc635cbd67a4327078da305"
+      "sha256": "ac7468e28b155a590b11d18a5e610edcb4d3763303e56c3d6da538b5bcbe48f2"
     }
   ]
 }

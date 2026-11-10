@@ -4031,6 +4031,12 @@
       "UNKNOWN": "Unbekannt",
       "HEALTHY": "Gesund",
       "UNHEALTHY": "Gestört"
+    },
+    "api_limit_kind": {
+      "MINUTE": "Aufrufe pro Minute",
+      "DAY": "Aufrufe pro Tag",
+      "USER_MINUTE": "Aufrufe pro Benutzer und Minute",
+      "USER_DAY": "Aufrufe pro Benutzer und Tag"
     }
   },
   "access": {
@@ -4765,7 +4771,8 @@
       "reviewPlanPlaceholder": "Kein Plan zugeordnet",
       "reviewPlanLoading": "Pläne werden geladen…",
       "reviewPlanHint": "Ohne Plan benötigen zur Prüfung geleitete Anfragen eine einzige Genehmigung",
-      "health": "Zustand"
+      "health": "Zustand",
+      "limits": "Limits"
     },
     "settings": {
       "title": "Connector settings",
@@ -5050,7 +5057,8 @@
       "healthCheckInterval": "Intervall der Zustandsprüfung (Minuten)",
       "healthCheckIntervalHint": "Die Basis-URL regelmäßig prüfen und warnen, wenn sie nicht mehr antwortet. Leer lassen für keine Überwachung.",
       "notMonitoredPlaceholder": "Nicht überwacht",
-      "intervalMin": "Das Intervall muss mindestens 1 Minute betragen"
+      "intervalMin": "Das Intervall muss mindestens 1 Minute betragen",
+      "tabLimits": "Limits & Budget"
     },
     "editor": {
       "title": "API Editor",
@@ -5190,7 +5198,13 @@
       "diffUnavailable": "Nicht verfügbar",
       "diffPreviewLabel": "Antwortvorschauen (begrenzt, maskiert)",
       "diffPreviousPane": "Antwortvorschau des vorherigen Laufs",
-      "diffCurrentPane": "Antwortvorschau dieses Laufs"
+      "diffCurrentPane": "Antwortvorschau dieses Laufs",
+      "throttled": "Ratenlimit",
+      "throttledUntil": "In Warteschlange — erneuter Versuch um {{date}}",
+      "throttleCount": "{{value}}-mal gedrosselt",
+      "throttledWarning": "Das Ratenlimit des Konnektors wurde erreicht. Die Anfrage ist in der Warteschlange und wird automatisch erneut versucht.",
+      "throttledTooltip": "In Warteschlange bis {{when}}",
+      "throttledAria": "Durch ein Konnektor-Ratenlimit in der Warteschlange"
     },
     "reviews": {
       "empty": "No API requests awaiting review",
@@ -5267,6 +5281,50 @@
       "failure": "Fehlgeschlagen",
       "durationMs": "Dauer (ms)",
       "message": "Meldung"
+    },
+    "limits": {
+      "title": "Ratenlimits und Budget",
+      "saved": "Limits gespeichert",
+      "save": "Limits speichern",
+      "emptyUnlimited": "Leer lassen oder 0 für unbegrenzt.",
+      "callsPerMinute": "Aufrufe pro Minute",
+      "callsPerDay": "Aufrufe pro Tag",
+      "perUserShare": "Anteil pro Benutzer",
+      "perUserShareHint": "Der Anteil jedes Limits, den ein einzelner Benutzer nutzen darf. Leer lassen für keine Benutzergrenze.",
+      "costPerCall": "Kosten pro Aufruf (Einheiten)",
+      "costHint": "Wird jedem ausgeführten Aufruf zugerechnet, bis zu sechs Dezimalstellen. Leer lassen für keinen Preis.",
+      "monthlyBudget": "Monatsbudget (Einheiten)",
+      "budgetHint": "Nur Warnungen — Aufrufe laufen über das Budget hinaus weiter. Leer lassen für kein Budget.",
+      "minZero": "Muss 0 oder größer sein",
+      "shareRange": "Muss zwischen 0 und 100 liegen",
+      "badgePerMinute": "{{value}} / Min.",
+      "badgePerDay": "{{value}} / Tag",
+      "badgeNoRate": "Kein Ratenlimit",
+      "tooltipShare": "Anteil pro Benutzer: {{value}}",
+      "tooltipPrice": "Kosten pro Aufruf: {{value}}",
+      "tooltipBudget": "Monatsbudget: {{value}}",
+      "unlimited": "unbegrenzt"
+    },
+    "usage": {
+      "title": "Nutzung",
+      "range_month": "Dieser Monat",
+      "range_7d": "7 Tage",
+      "range_30d": "30 Tage",
+      "range_90d": "90 Tage",
+      "empty": "Keine Aufrufe in diesem Zeitraum",
+      "loading": "Nutzung wird geladen…",
+      "seriesCalls": "Aufrufe",
+      "seriesFailed": "Fehlgeschlagen",
+      "seriesThrottled": "Gedrosselt",
+      "monthToDate": "Ausgaben im laufenden Monat",
+      "units": "{{value}} Einheiten",
+      "noBudget": "Kein Monatsbudget oder Preis pro Aufruf festgelegt.",
+      "budgetUsed": "Budget genutzt",
+      "percentUsed": "{{percent}} % des Monatsbudgets genutzt",
+      "spendOfBudget": "{{spend}} von {{budget}} Einheiten",
+      "budgetExceeded": "Budget überschritten",
+      "budgetNeverBlocks": "Das Budget blockiert nie Aufrufe, es löst nur Warnungen aus.",
+      "noPrice": "Legen Sie Kosten pro Aufruf fest, um Ausgaben gegen dieses Budget zu verfolgen."
     }
   },
   "lifecycle": {

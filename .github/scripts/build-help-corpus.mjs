@@ -515,7 +515,7 @@ const ROUTES = [
   ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.', 'the add action on Datasources'],
   ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.', 'open a datasource from Datasources'],
   ['/api-connectors', 'Governed outbound REST, SOAP, GraphQL and gRPC connectors.'],
-  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.', 'open a connector from API Connectors'],
+  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking, classification tags, and rate limits and budget with a usage chart.', 'open a connector from API Connectors'],
   ['/api-editor', 'Compose a governed API call and submit it for review.'],
   ['/api-requests', 'API calls the user submitted, with status and AI risk.'],
   ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.', 'open a row in API Requests'],

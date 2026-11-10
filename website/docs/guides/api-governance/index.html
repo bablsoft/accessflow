@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-11-09",
+      "dateModified": "2026-11-10",
       "url": "https://accessflow.io/docs/guides/api-governance/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/api-governance/",
       "image": "https://accessflow.io/og-image.png",
@@ -280,7 +280,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Govern an outbound API call.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-11-09">9 November 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-10">10 November 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -529,6 +529,18 @@
               same call. Reviewers and admins compare against anyone's earlier run; everyone else
               compares only against their own, so a colleague's run of the same call is not
               offered.</li>
+            <li id="guide-api-limits"><strong>Capping how often an API is called</strong> — the
+              connector's <em>Limits &amp; budget</em> tab sets calls per minute, calls per day and the
+              share of each limit one person may use; leave a field empty for no limit. When a limit is
+              reached, a request run on its own is not lost: it stays approved, its page says
+              <em>Queued — retries at</em> a time, and AccessFlow runs it automatically once the limit
+              allows. The person who submitted it can still cancel it. A call inside a grouped request
+              is not retried — it counts as a failed step. The connector list shows each connector's
+              limits at a glance.</li>
+            <li id="guide-api-budget"><strong>Tracking what an API costs</strong> — the same tab sets a
+              cost per call and a monthly budget, both in plain units with no currency, and charts calls,
+              failed calls and throttled calls per day against this month's spend. The budget never
+              stops calls: reaching it alerts admins.</li>
             <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>

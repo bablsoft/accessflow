@@ -227,6 +227,95 @@ describe('ApiRequestDetailPage', () => {
     expect(await screen.findByText('Request executed')).toBeInTheDocument();
   });
 
+  describe('connector rate limit (#974)', () => {
+    const throttled = () =>
+      request({
+        status: 'APPROVED',
+        response_snapshot: null,
+        throttled_until: '2026-11-10T10:01:00Z',
+        throttle_count: 3,
+      });
+
+    it('shows the queued item with the throttle count, and the status stays Approved', async () => {
+      mocks.getApiRequest.mockResolvedValue(throttled());
+      render(wrap(<ApiRequestDetailPage />));
+      const item = await screen.findByTestId('api-request-throttled');
+      expect(item).toHaveTextContent(/Queued — retries at/);
+      expect(item).toHaveTextContent('throttled 3 times');
+      expect(screen.getAllByText('Approved').length).toBeGreaterThan(0);
+    });
+
+    it('omits the throttle count on a first throttle', async () => {
+      mocks.getApiRequest.mockResolvedValue(
+        request({ status: 'APPROVED', response_snapshot: null, throttled_until: '2026-11-10T10:01:00Z', throttle_count: 1 }),
+      );
+      render(wrap(<ApiRequestDetailPage />));
+      expect(await screen.findByTestId('api-request-throttled')).not.toHaveTextContent('throttled');
+    });
+
+    it('lets the submitter cancel a throttled approved request', async () => {
+      mocks.getApiRequest.mockResolvedValue(throttled());
+      mocks.cancelApiRequest.mockResolvedValue(undefined);
+      render(wrap(<ApiRequestDetailPage />));
+      fireEvent.click(await screen.findByText('Cancel'));
+      expect(await screen.findByText('Request cancelled')).toBeInTheDocument();
+    });
+
+    it('lets the submitter cancel a scheduled approved request', async () => {
+      mocks.getApiRequest.mockResolvedValue(
+        request({ status: 'APPROVED', response_snapshot: null, scheduled_for: '2026-11-11T09:00:00Z' }),
+      );
+      render(wrap(<ApiRequestDetailPage />));
+      expect(await screen.findByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('offers no cancel on an immediate approved request or to someone else', async () => {
+      mocks.getApiRequest.mockResolvedValue(request({ status: 'APPROVED', response_snapshot: null }));
+      const { unmount } = render(wrap(<ApiRequestDetailPage />));
+      await screen.findByText('Execute');
+      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+      unmount();
+
+      setUser('ANALYST', 'u-other');
+      mocks.getApiRequest.mockResolvedValue(throttled());
+      render(wrap(<ApiRequestDetailPage />));
+      await screen.findByText('Execute');
+      expect(screen.queryByText('Cancel')).not.toBeInTheDocument();
+    });
+
+    it('warns on a 429 and refetches so the queued state appears', async () => {
+      mocks.getApiRequest
+        .mockResolvedValueOnce(request({ status: 'APPROVED', response_snapshot: null }))
+        .mockResolvedValue(throttled());
+      mocks.executeApiRequest.mockRejectedValue(
+        axiosError(429, {
+          error: 'API_CONNECTOR_QUOTA_EXCEEDED',
+          detail: 'Rate limit reached; queued for retry',
+          limitKind: 'MINUTE',
+          retryAfterSeconds: 30,
+          throttledUntil: '2026-11-10T10:01:00Z',
+          queuedForRetry: true,
+        }),
+      );
+      render(wrap(<ApiRequestDetailPage />));
+      fireEvent.click(await screen.findByText('Execute'));
+      expect(
+        await screen.findByText('Rate limit reached; queued for retry (Calls per minute)'),
+      ).toBeInTheDocument();
+      expect(await screen.findByTestId('api-request-throttled')).toBeInTheDocument();
+      expect(mocks.getApiRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the error path for any other execute failure', async () => {
+      mocks.getApiRequest.mockResolvedValue(request({ status: 'APPROVED', response_snapshot: null }));
+      mocks.executeApiRequest.mockRejectedValue(axiosError(502, { detail: 'Upstream failed' }));
+      render(wrap(<ApiRequestDetailPage />));
+      fireEvent.click(await screen.findByText('Execute'));
+      expect(await screen.findByText('Upstream failed')).toBeInTheDocument();
+      expect(mocks.getApiRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('lets the submitter cancel a pending request and surfaces failures', async () => {
     mocks.getApiRequest.mockResolvedValue(request({ status: 'PENDING_REVIEW', response_snapshot: null }));
     mocks.cancelApiRequest.mockRejectedValueOnce(axiosError(409, { detail: 'already decided' }));

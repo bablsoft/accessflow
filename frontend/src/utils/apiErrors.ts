@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import i18n from '../i18n';
+import type { ApiLimitKind, ApiQuotaExceededBody } from '@/types/api';
 
 interface ProblemDetail {
   title?: string;
@@ -44,6 +45,35 @@ export function apiErrorMessage(err: unknown, fallback: () => string): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback();
+}
+
+/**
+ * The 429 a connector rate limit returns on execute (#972) — the request is queued for retry,
+ * not failed. Returns the ProblemDetail body for that code, otherwise null.
+ */
+export function apiQuotaExceededBody(err: unknown): ApiQuotaExceededBody | null {
+  if (!axios.isAxiosError(err)) return null;
+  const body = (err as AxiosError<Partial<ApiQuotaExceededBody>>).response?.data;
+  if (body?.error !== 'API_CONNECTOR_QUOTA_EXCEEDED') return null;
+  return body as ApiQuotaExceededBody;
+}
+
+/** Execute-error text: the localized quota `detail` (or a queued fallback), else the generic path. */
+export function apiRequestExecuteErrorMessage(err: unknown, fallback: () => string): string {
+  const quota = apiQuotaExceededBody(err);
+  if (quota) return quota.detail ?? i18n.t('apiGov.requests.throttledWarning');
+  return apiErrorMessage(err, fallback);
+}
+
+/**
+ * The warning text for a quota 429 — the server detail plus the limit that was hit — or null when
+ * `err` is not one. Both execute call sites use it, so the tone and refetch stay identical.
+ */
+export function apiQuotaWarning(err: unknown, limitKindLabel: (kind: ApiLimitKind) => string): string | null {
+  const quota = apiQuotaExceededBody(err);
+  if (!quota) return null;
+  const text = apiRequestExecuteErrorMessage(err, () => i18n.t('apiGov.error'));
+  return quota.limitKind ? `${text} (${limitKindLabel(quota.limitKind)})` : text;
 }
 
 export function authErrorMessage(err: unknown): string {

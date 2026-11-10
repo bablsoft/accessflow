@@ -3834,6 +3834,12 @@ export interface ApiConnector {
   health_check_interval_minutes?: number | null;
   last_probe_status?: ApiConnectorHealthStatus;
   last_probe_at?: string | null;
+  /** Rate limits and budget (#971); absent/null = unlimited. Money is in micro-units. */
+  calls_per_minute?: number | null;
+  calls_per_day?: number | null;
+  per_user_share_percent?: number | null;
+  cost_per_call_micros?: number | null;
+  monthly_budget_micros?: number | null;
   created_at: string;
 }
 
@@ -3874,6 +3880,44 @@ export interface CreateApiConnectorInput {
   max_response_bytes?: number;
   /** Scheduled-health opt-in (minutes, ≥ 1). On update, null means "unchanged". */
   health_check_interval_minutes?: number | null;
+  /** Rate limits and budget (#971): on update an omitted field is unchanged, 0 clears it. */
+  calls_per_minute?: number;
+  calls_per_day?: number;
+  per_user_share_percent?: number;
+  cost_per_call_micros?: number;
+  monthly_budget_micros?: number;
+}
+
+/** GET /api-connectors/{id}/usage (#973) — one UTC day of connector usage. */
+export interface ApiConnectorUsageDay {
+  date: string;
+  calls: number;
+  failed_calls: number;
+  throttled_calls: number;
+  spend_micros: number;
+}
+
+export interface ApiConnectorUsage {
+  connector_id: string;
+  month_start: string;
+  month_to_date_spend_micros: number;
+  monthly_budget_micros?: number | null;
+  /** Null when the connector has no budget or no per-call price. */
+  budget_used_percent?: number | null;
+  cost_per_call_micros?: number | null;
+  days: ApiConnectorUsageDay[];
+}
+
+export type ApiLimitKind = 'MINUTE' | 'DAY' | 'USER_MINUTE' | 'USER_DAY';
+
+/** The 429 API_CONNECTOR_QUOTA_EXCEEDED ProblemDetail (#972) — its extra properties are camelCase. */
+export interface ApiQuotaExceededBody {
+  error: 'API_CONNECTOR_QUOTA_EXCEEDED';
+  detail?: string;
+  limitKind?: ApiLimitKind;
+  retryAfterSeconds?: number;
+  throttledUntil?: string;
+  queuedForRetry?: boolean;
 }
 
 export type UpdateApiConnectorInput = Partial<CreateApiConnectorInput> & {
@@ -4245,6 +4289,11 @@ export interface ApiRequest {
   response_snapshot_preview_truncated: boolean;
   response_content_type: string | null;
   error_message: string | null;
+  /** Set while a rate limit holds an APPROVED request queued for retry (#972). */
+  throttled_until?: string | null;
+  throttle_count?: number;
+  /** The call's attributed cost in micro-units (#973); null when the connector has no price. */
+  cost_micros?: number | null;
   created_at: string;
   decisions: ApiReviewDecision[];
 }
