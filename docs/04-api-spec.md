@@ -9181,8 +9181,8 @@ request. `clearAiConfig: true` unassigns `aiConfigId` the same way.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/deployment-pipelines/{id}/environments` | **Admin.** List the pipeline's environments, ordered by `sortOrder` then name. |
-| `POST` | `/deployment-pipelines/{id}/environments` | **Admin.** Create an environment (`201`). `409 DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` when the pipeline already has an environment with that name; `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` when another environment of the pipeline already holds the requested `sortOrder` (#877); `404 DATASOURCE_NOT_FOUND` when `datasourceId` does not resolve inside the caller's organization. |
-| `PUT` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Update an environment. `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND` when the environment is missing or belongs to a different pipeline; the same `409` / `404` codes as `POST` for `sortOrder` and `datasourceId`. |
+| `POST` | `/deployment-pipelines/{id}/environments` | **Admin.** Create an environment (`201`). `409 DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` when the pipeline already has an environment with that name; `409 DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` when another environment of the pipeline already holds the requested `sortOrder` (#877); `404 DATASOURCE_NOT_FOUND` when `datasourceId` does not resolve inside the caller's organization; `422 DEPLOYMENT_VERIFICATION_INVALID` when the `verification` config breaks a semantic rule (#1024). |
+| `PUT` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Update an environment. `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND` when the environment is missing or belongs to a different pipeline; the same `409` / `404` / `422` codes as `POST` for `sortOrder`, `datasourceId` and `verification`. |
 | `DELETE` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Delete an environment (`204`). |
 
 `CreateDeploymentEnvironmentRequest` fields: `name` (1–255, required), `sortOrder` (position in
@@ -9236,7 +9236,35 @@ unknown `kind` / `comparator` value, makes the body unreadable and is `400 VALID
 / `GT` / `GTE`) and `threshold`; `no_data_is_failure` defaults to `true`. A check missing a field
 its kind needs is `400`. On the **update** body an omitted or `null` `verification` leaves the
 config unchanged, and `clear_verification: true` removes it (wins over a `verification` sent in the
-same request). The config is stored only for now — no check runs yet.
+same request).
+
+A config that passes the field rules is then checked semantically (#1024) — rules Bean Validation
+cannot express — and a violation is `422 DEPLOYMENT_VERIFICATION_INVALID` on both create and
+update, carrying a `reason` code and, for a per-check rule, the `checkName`:
+
+| `reason` | Rule |
+|----------|------|
+| `window_out_of_range` | `window` is outside `PT1M`..`PT24H`. |
+| `sample_interval_out_of_range` | `sample_interval` is outside `PT30S`..`window`. |
+| `failure_threshold_exceeds_samples` | `failure_threshold` is greater than `window / sample_interval` (rounded down) — the window could never collect that many failures. |
+| `duplicate_check_name` | Two checks share a `name`. |
+| `invalid_url` | A `url` / `prometheus_url` is not an absolute URI, or a `prometheus_url` carries a query string or fragment (the `/api/v1/query` path is appended to it). |
+| `scheme_not_allowed` | The URL scheme is not `http` / `https`. |
+| `userinfo_present` | The URL carries `user:password@`. |
+| `host_missing` | The URL has no host. |
+| `host_unresolvable` | The host does not resolve now — a typo fails at save time, not at sample time. |
+| `restricted_address` | The host is `localhost`, or resolves to a loopback, unspecified or link-local address. |
+| `metadata_endpoint` | The host is a cloud metadata endpoint (`169.254.169.254`, `fd00:ec2::254`, `fd20:ce::254`, `100.100.100.200`, `metadata.google.internal`). |
+| `host_not_allowed` | `ACCESSFLOW_DEPLOYGOV_VERIFICATION_ALLOWED_HOSTS` is set and the host is neither an entry nor a subdomain of one. Checked before the host is resolved, so an unlisted host reports this code even when it would also be restricted. |
+
+```json
+{ "status": 422, "error": "DEPLOYMENT_VERIFICATION_INVALID", "reason": "restricted_address",
+  "checkName": "health", "detail": "The verification config is invalid", "timestamp": "…" }
+```
+
+Private (RFC 1918) addresses are allowed — Prometheus is almost always internal. The same target
+policy runs again before every sample, so an allow-list change takes effect on the next sample.
+No check is sampled yet; the sampling job arrives with #1025.
 
 ### Trigger permissions
 
@@ -10215,6 +10243,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | 404 | Unknown environment id, or the environment belongs to a different pipeline (#688, also the history endpoint's rule — #742). |
 | `DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` | 409 | The pipeline already has an environment with that name (#688). |
 | `DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT` | 409 | Another environment of the pipeline already holds the requested `sortOrder` (`sortOrder` property) — the ladder position is unique per pipeline (#877). |
+| `DEPLOYMENT_VERIFICATION_INVALID` | 422 | An environment's `verification` config breaks a semantic rule or targets a URL the outbound policy refuses (`reason`, optional `checkName` properties) (#1024). |
 | `DEPLOYMENT_PERMISSION_NOT_FOUND` | 404 | Unknown pipeline-permission id, or the grant belongs to a different pipeline (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND` | 404 | Unknown freeze-window id, or the window is in another organization (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_INVALID` | 400 | Freeze-window shape/scope violation — mixed one-off and recurring fields, inverted bounds, bad timezone or day numbers, or `environmentId` without a matching `pipelineId` (#688). |

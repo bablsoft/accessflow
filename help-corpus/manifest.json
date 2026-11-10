@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "615d99dc6ecb",
-  "generatedAt": "2026-11-10T11:11:04.384Z",
-  "sourceCommit": "63618b33e68bb1393e5e7bec846b891ffb402df2",
-  "chunkCount": 614,
-  "sha256": "615d99dc6ecb78f082835563c20151ecb2e4524eb663d9e4f6845e889e4751b0",
+  "corpusVersion": "46b9002edf37",
+  "generatedAt": "2026-11-10T12:02:41.702Z",
+  "sourceCommit": "94f8bb1b9a62219ae16cfa11ce046ba6cac4fe74",
+  "chunkCount": 615,
+  "sha256": "46b9002edf375e3fa84e54e16f9695d03c8b6bd7b1623ffc61f8b38ccbd18116",
   "quickReferenceSha256": "24edf02e4c124fee2ce843e9333a470905f9a55868ddc3cdef869315ca473072",
   "sources": [
     {
@@ -420,8 +420,8 @@
       "title": "Deploying and configuring AccessFlow",
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
-      "chunks": 94,
-      "sha256": "0d903cdded532e580fbeefc382f31481a92bd8f0f4e065b50c6183699ae66849"
+      "chunks": 95,
+      "sha256": "43d6430f62c1ba8c0bb5aebaeeeb2d145375d44482aae5d5d5705d995502ea13"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",

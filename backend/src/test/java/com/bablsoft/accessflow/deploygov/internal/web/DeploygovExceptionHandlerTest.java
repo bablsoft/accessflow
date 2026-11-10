@@ -24,6 +24,7 @@ import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentPipelineNameExce
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentFreezeWindowException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRoutingPolicyException;
+import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentVerificationConfigException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
@@ -59,6 +60,30 @@ class DeploygovExceptionHandlerTest {
                 .containsEntry("error", "DEPLOYMENT_ENVIRONMENT_SORT_ORDER_CONFLICT")
                 .containsEntry("sortOrder", 4);
         assertThat(pd.getDetail()).isEqualTo("error.deployment_environment_sort_order_conflict");
+    }
+
+    @Test
+    void illegalVerificationConfigIs422WithReasonAndCheckName() {
+        var pd = handler.handleIllegalVerificationConfig(
+                new IllegalDeploymentVerificationConfigException("restricted_address", "health"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DEPLOYMENT_VERIFICATION_INVALID")
+                .containsEntry("reason", "restricted_address")
+                .containsEntry("checkName", "health")
+                .containsKey("timestamp");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_verification_invalid");
+    }
+
+    @Test
+    void illegalVerificationConfigOmitsCheckNameForAConfigLevelRule() {
+        var pd = handler.handleIllegalVerificationConfig(
+                new IllegalDeploymentVerificationConfigException("window_out_of_range", null));
+
+        assertThat(pd.getProperties())
+                .containsEntry("reason", "window_out_of_range")
+                .doesNotContainKey("checkName");
     }
 
     @Test

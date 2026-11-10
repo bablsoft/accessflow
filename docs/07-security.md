@@ -1789,6 +1789,35 @@ anything. An escalation adds every active org admin as a *recipient*, not as an 
 reviewer, and it pages PagerDuty through `REVIEW_STALLED` like a stalled query review. See
 [18-deployment-governance.md → 10a](18-deployment-governance.md#10a-dora-metrics--approval-slas-epic-983).
 
+**Outbound target policy for verification checks (#1024, epic #1022).** A post-deployment
+verification check makes AccessFlow fetch an admin-supplied URL from inside the network — an
+HTTP health endpoint or a Prometheus `/api/v1/query`. `deploygov/internal/verification/VerificationTargetPolicy`
+is the first explicit outbound URL policy in the codebase and stays inside `deploygov`;
+generalising it to apigov and webhooks is a separate decision. It is not the decision-hook guard
+(#945): Prometheus is almost always internal, so **private (RFC 1918) ranges are allowed**. It
+refuses:
+
+- any scheme but `http` / `https`, a URL with `userinfo`, and a URL with no host;
+- `localhost` / `*.localhost`, and any host that resolves — even one of several addresses — to a
+  loopback, unspecified or link-local address, also when carried inside an IPv4-mapped,
+  IPv4-compatible, NAT64 or 6to4 IPv6 address;
+- the cloud metadata endpoints `169.254.169.254` (AWS, Azure, GCP, OCI), `fd00:ec2::254` (AWS IPv6),
+  `fd20:ce::254` (GCP IPv6), `100.100.100.200` (Alibaba Cloud) and `metadata.google.internal`;
+- a host that does not resolve (fail closed);
+- when `ACCESSFLOW_DEPLOYGOV_VERIFICATION_ALLOWED_HOSTS` is set, any host that is neither an entry
+  nor a subdomain of one. Empty means no pin, not "nothing".
+
+The policy runs at save time (`422 DEPLOYMENT_VERIFICATION_INVALID`) and again **before every
+sample**. Redirects are never followed, so a target cannot bounce the fetch elsewhere; the body is
+capped at 64 KiB, and the whole fetch — the policy's DNS lookup included — is bounded by
+`ACCESSFLOW_DEPLOYGOV_VERIFICATION_REQUEST_TIMEOUT`.
+Datadog and authenticated targets are out of scope. The residual gap, as for decision hooks, is
+DNS rebinding between the policy's lookup and the HTTP client's own; the JVM's positive
+lookup cache (30 s by default) usually returns the array the policy just checked, and the gap
+widens if an operator sets `networkaddress.cache.ttl=0`. The save-time check resolves each host
+inside the environment write transaction, so a slow resolver holds a pooled connection for that
+time — accepted, because the timeout bounds it and admin writes are rare.
+
 ---
 
 ## Schema change promotion security (#880)

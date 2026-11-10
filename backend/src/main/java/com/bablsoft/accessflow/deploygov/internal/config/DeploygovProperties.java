@@ -13,13 +13,16 @@ import java.util.List;
  *   <li>{@code releaseCheck} — cadence of {@code ScheduledDeploymentReleaseJob} (#693).</li>
  *   <li>{@code escalationPollInterval} — cadence of {@code DeploymentReviewEscalationJob} (#985).</li>
  *   <li>{@code verificationCheck} — cadence of the post-deployment verification scan (epic #1022).</li>
- *   <li>{@code verificationRequestTimeout} — timeout of one verification check's HTTP call.</li>
- *   <li>{@code verificationAllowedHosts} — hosts verification checks may reach; empty = none.</li>
+ *   <li>{@code verificationRequestTimeout} — timeout of one verification check's HTTP call; zero or
+ *       negative falls back to the default ({@code HttpClient} refuses a non-positive timeout).</li>
+ *   <li>{@code verificationAllowedHosts} — pins the hosts verification checks may reach (exact or
+ *       subdomain match); empty = no pin (loopback, link-local and metadata stay denied).</li>
  * </ul>
  *
  * <p>The jobs read their cadence keys directly through their {@code @Scheduled} placeholders; the
- * record is the typed home for the same keys, not a second source. The three verification keys
- * (#1023) have no consumer yet. Keep exactly one constructor — a second one on a
+ * record is the typed home for the same keys, not a second source. {@code verificationCheck} has
+ * no consumer until the sampling job (#1025); the timeout and allow-list feed
+ * {@code internal.verification} (#1024). Keep exactly one constructor — a second one on a
  * {@code @ConfigurationProperties} record silently unbinds every property.
  */
 @ConfigurationProperties("accessflow.deploygov")
@@ -41,7 +44,8 @@ public record DeploygovProperties(Duration timeoutCheck, Duration releaseCheck,
         if (verificationCheck == null) {
             verificationCheck = Duration.ofSeconds(30);
         }
-        if (verificationRequestTimeout == null) {
+        if (verificationRequestTimeout == null || verificationRequestTimeout.isZero()
+                || verificationRequestTimeout.isNegative()) {
             verificationRequestTimeout = Duration.ofSeconds(10);
         }
         verificationAllowedHosts = verificationAllowedHosts == null
