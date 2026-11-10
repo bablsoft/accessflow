@@ -308,6 +308,14 @@ leave it to the next priced call. A connector with no budget or no price has no 
 false` matches it, `minBudgetUsedPercent` never does. `GET /api-connectors/{id}/usage` reads the
 rollup back.
 
+**In the UI (#974)** the five numbers are set on the connector's **Limits & budget** settings tab
+(an empty field means no limit, price or budget; the tab always submits all five, an empty field
+as `0`), which also charts daily calls, failed and throttled calls and shows month-to-date spend
+against the budget. The connector
+list's *Limits* column summarises the rate limits. On a request page a throttled `APPROVED` request
+reads *Queued — retries at …* — the status stays *Approved* — and a 429 from *Execute* is a warning,
+not a failure. Request-group members are not retried, so the UI never shows them as queued.
+
 **Replay and response diff** work on a finished request: the submitter can re-submit a terminal
 request as a new governed call, and an executed request's stored response can be compared with the
 previous run of the same call. Both are described in [§8](#8-replay--response-diff-epic-885).

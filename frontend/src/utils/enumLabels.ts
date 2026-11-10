@@ -15,6 +15,7 @@ import type {
   SchemaDriftFindingKind,
   SchemaDriftFindingStatus,
   ApiAuthMethod,
+  ApiLimitKind,
   ApiBodyType,
   ApiMaskingMatcherType,
   ApiVariableAlgorithm,
@@ -766,6 +767,16 @@ export const API_AUTH_METHODS: readonly ApiAuthMethod[] = [
 
 export const apiAuthMethodLabel = (t: TFunction, v: ApiAuthMethod): string =>
   t(`enums.api_auth_method.${v}` as const);
+
+export const API_LIMIT_KINDS: readonly ApiLimitKind[] = [
+  'MINUTE',
+  'DAY',
+  'USER_MINUTE',
+  'USER_DAY',
+] as const;
+
+export const apiLimitKindLabel = (t: TFunction, v: ApiLimitKind): string =>
+  t(`enums.api_limit_kind.${v}` as const);
 
 export const OAUTH2_GRANT_TYPES: readonly Oauth2GrantType[] = [
   'CLIENT_CREDENTIALS',

@@ -21,9 +21,17 @@ import {
   replayApiRequest,
 } from '@/api/apiRequests';
 import { useAuthStore } from '@/store/authStore';
-import { reviewDecisionTypeLabel, submissionReasonLabel } from '@/utils/enumLabels';
+import {
+  apiLimitKindLabel,
+  reviewDecisionTypeLabel,
+  submissionReasonLabel,
+} from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
-import { apiErrorMessage, apiReplayErrorMessage } from '@/utils/apiErrors';
+import {
+  apiErrorMessage,
+  apiQuotaWarning,
+  apiReplayErrorMessage,
+} from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type { ApiReviewDecision, QueryStatus } from '@/types/api';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
@@ -66,7 +74,17 @@ export default function ApiRequestDetailPage() {
       message.success(t('apiGov.requests.executed'));
       refresh();
     },
-    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+    onError: (err) => {
+      // A connector rate limit (#972) queues the request for retry rather than failing it:
+      // warn, and refetch so the queued state shows without a reload.
+      const warning = apiQuotaWarning(err, (kind) => apiLimitKindLabel(t, kind));
+      if (warning) {
+        message.warning(warning);
+        refresh();
+        return;
+      }
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error')));
+    },
   });
 
   const cancelMutation = useMutation({
@@ -130,6 +148,13 @@ export default function ApiRequestDetailPage() {
   const canReplay =
     request != null && REPLAYABLE_STATUSES.has(request.status) && request.submitted_by === user?.id;
 
+  // A deferred (scheduled) or rate-limit-queued APPROVED request is still cancellable by its
+  // submitter (#972) — it has not run yet.
+  const cancellableApproved =
+    request != null &&
+    request.status === 'APPROVED' &&
+    request.submitted_by === user?.id &&
+    (request.scheduled_for != null || request.throttled_until != null);
   const canDecide =
     request != null &&
     hasPermission(user, 'API_REQUEST_REVIEW') &&
@@ -263,6 +288,25 @@ export default function ApiRequestDetailPage() {
                     label: t('apiGov.requests.scheduled'),
                     children: request.scheduled_for ? fmtDate(request.scheduled_for) : '—',
                   },
+                  ...(request.status === 'APPROVED' && request.throttled_until
+                    ? [
+                        {
+                          key: 'throttled',
+                          label: t('apiGov.requests.throttled'),
+                          children: (
+                            <span data-testid="api-request-throttled">
+                              {t('apiGov.requests.throttledUntil', {
+                                date: fmtDate(request.throttled_until),
+                              })}
+                              {(request.throttle_count ?? 0) > 1 &&
+                                ` · ${t('apiGov.requests.throttleCount', {
+                                  value: request.throttle_count,
+                                })}`}
+                            </span>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </Card>
@@ -286,7 +330,10 @@ export default function ApiRequestDetailPage() {
                     </Button>
                   </>
                 )}
-                {!canDecide && (request.status === 'PENDING_AI' || request.status === 'PENDING_REVIEW') && (
+                {!canDecide &&
+                  (request.status === 'PENDING_AI' ||
+                    request.status === 'PENDING_REVIEW' ||
+                    cancellableApproved) && (
                   <Button danger loading={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
                     {t('apiGov.requests.cancel')}
                   </Button>

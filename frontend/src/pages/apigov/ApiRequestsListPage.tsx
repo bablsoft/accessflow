@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { App, Button, DatePicker, Input, Select, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ClockCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, HourglassOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -16,9 +16,9 @@ import {
   listApiRequests,
 } from '@/api/apiRequests';
 import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
-import { enumOptions, queryStatusLabel, riskLevelLabel } from '@/utils/enumLabels';
+import { apiLimitKindLabel, enumOptions, queryStatusLabel, riskLevelLabel } from '@/utils/enumLabels';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
-import { apiErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage, apiQuotaWarning } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type { ApiRequest, QueryStatus, RiskLevel } from '@/types/api';
 
@@ -88,7 +88,16 @@ export default function ApiRequestsListPage() {
       message.success(t('apiGov.requests.executed'));
       invalidate();
     },
-    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+    onError: (err) => {
+      // A connector rate limit (#972) queues the request rather than failing it (#974).
+      const warning = apiQuotaWarning(err, (kind) => apiLimitKindLabel(t, kind));
+      if (warning) {
+        message.warning(warning);
+        invalidate();
+        return;
+      }
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error')));
+    },
   });
 
   const rows = useMemo(() => requestsQuery.data?.content ?? [], [requestsQuery.data]);
@@ -133,6 +142,14 @@ export default function ApiRequestsListPage() {
               <ClockCircleOutlined
                 aria-label={t('apiGov.requests.scheduledForAria')}
                 style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+              />
+            </Tooltip>
+          )}
+          {r.status === 'APPROVED' && r.throttled_until && (
+            <Tooltip title={t('apiGov.requests.throttledTooltip', { when: fmtDate(r.throttled_until) })}>
+              <HourglassOutlined
+                aria-label={t('apiGov.requests.throttledAria')}
+                style={{ color: 'var(--status-warn)', fontSize: 12 }}
               />
             </Tooltip>
           )}

@@ -4031,6 +4031,12 @@
       "UNKNOWN": "Inconnu",
       "HEALTHY": "Sain",
       "UNHEALTHY": "Défaillant"
+    },
+    "api_limit_kind": {
+      "MINUTE": "Appels par minute",
+      "DAY": "Appels par jour",
+      "USER_MINUTE": "Appels par utilisateur et par minute",
+      "USER_DAY": "Appels par utilisateur et par jour"
     }
   },
   "access": {
@@ -4765,7 +4771,8 @@
       "reviewPlanPlaceholder": "Aucun plan associé",
       "reviewPlanLoading": "Chargement des plans…",
       "reviewPlanHint": "Sans plan, les demandes envoyées en revue nécessitent une seule approbation",
-      "health": "Santé"
+      "health": "Santé",
+      "limits": "Limites"
     },
     "settings": {
       "title": "Connector settings",
@@ -5050,7 +5057,8 @@
       "healthCheckInterval": "Intervalle de vérification de santé (minutes)",
       "healthCheckIntervalHint": "Sonder l’URL de base régulièrement et alerter quand elle ne répond plus. Laisser vide pour ne pas surveiller.",
       "notMonitoredPlaceholder": "Non surveillé",
-      "intervalMin": "L’intervalle doit être d’au moins 1 minute"
+      "intervalMin": "L’intervalle doit être d’au moins 1 minute",
+      "tabLimits": "Limites et budget"
     },
     "editor": {
       "title": "API Editor",
@@ -5190,7 +5198,13 @@
       "diffUnavailable": "Non disponible",
       "diffPreviewLabel": "Aperçus des réponses (limités, masqués)",
       "diffPreviousPane": "Aperçu de la réponse précédente",
-      "diffCurrentPane": "Aperçu de la réponse de cette exécution"
+      "diffCurrentPane": "Aperçu de la réponse de cette exécution",
+      "throttled": "Limite de débit",
+      "throttledUntil": "En file d’attente — nouvel essai à {{date}}",
+      "throttleCount": "limitée {{value}} fois",
+      "throttledWarning": "La limite de débit du connecteur est atteinte. La requête est en file d’attente et sera relancée automatiquement.",
+      "throttledTooltip": "En file d’attente jusqu’à {{when}}",
+      "throttledAria": "Mise en file d’attente par une limite de débit du connecteur"
     },
     "reviews": {
       "empty": "No API requests awaiting review",
@@ -5267,6 +5281,50 @@
       "failure": "Échec",
       "durationMs": "Durée (ms)",
       "message": "Message"
+    },
+    "limits": {
+      "title": "Limites de débit et budget",
+      "saved": "Limites enregistrées",
+      "save": "Enregistrer les limites",
+      "emptyUnlimited": "Laisser vide ou 0 pour illimité.",
+      "callsPerMinute": "Appels par minute",
+      "callsPerDay": "Appels par jour",
+      "perUserShare": "Part par utilisateur",
+      "perUserShareHint": "La part de chaque limite qu’un seul utilisateur peut consommer. Laisser vide pour aucun plafond par utilisateur.",
+      "costPerCall": "Coût par appel (unités)",
+      "costHint": "Attribué à chaque appel exécuté, jusqu’à six décimales. Laisser vide pour aucun prix.",
+      "monthlyBudget": "Budget mensuel (unités)",
+      "budgetHint": "Alertes uniquement : les appels continuent au-delà du budget. Laisser vide pour aucun budget.",
+      "minZero": "Doit être supérieur ou égal à 0",
+      "shareRange": "Doit être compris entre 0 et 100",
+      "badgePerMinute": "{{value}} / min",
+      "badgePerDay": "{{value}} / jour",
+      "badgeNoRate": "Aucune limite de débit",
+      "tooltipShare": "Part par utilisateur : {{value}}",
+      "tooltipPrice": "Coût par appel : {{value}}",
+      "tooltipBudget": "Budget mensuel : {{value}}",
+      "unlimited": "illimité"
+    },
+    "usage": {
+      "title": "Utilisation",
+      "range_month": "Ce mois-ci",
+      "range_7d": "7 jours",
+      "range_30d": "30 jours",
+      "range_90d": "90 jours",
+      "empty": "Aucun appel sur cette période",
+      "loading": "Chargement de l’utilisation…",
+      "seriesCalls": "Appels",
+      "seriesFailed": "Échoués",
+      "seriesThrottled": "Limités",
+      "monthToDate": "Dépenses du mois en cours",
+      "units": "{{value}} unités",
+      "noBudget": "Aucun budget mensuel ni prix par appel défini.",
+      "budgetUsed": "Budget utilisé",
+      "percentUsed": "{{percent}} % du budget mensuel utilisé",
+      "spendOfBudget": "{{spend}} sur {{budget}} unités",
+      "budgetExceeded": "Budget dépassé",
+      "budgetNeverBlocks": "Le budget ne bloque jamais les appels ; il déclenche seulement des alertes.",
+      "noPrice": "Définissez un coût par appel pour suivre les dépenses par rapport à ce budget."
     }
   },
   "lifecycle": {

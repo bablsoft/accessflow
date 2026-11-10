@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
   AUDIT_SINK_TYPES,
+  API_LIMIT_KINDS,
+  apiLimitKindLabel,
   DEPLOYMENT_OUTCOMES,
   DEPLOYMENT_ROLLBACK_REVIEW_STATUSES,
   DEPLOYMENT_TICKET_DECISIONS,
@@ -364,5 +366,14 @@ describe('apiResponseDiffKindLabel', () => {
     expect(apiResponseDiffKindLabel(t, 'ADDED')).toBe('enums.api_response_diff_kind.ADDED');
     expect(apiResponseDiffKindLabel(t, 'REMOVED')).toBe('enums.api_response_diff_kind.REMOVED');
     expect(apiResponseDiffKindLabel(t, 'CHANGED')).toBe('enums.api_response_diff_kind.CHANGED');
+  });
+});
+
+describe('apiLimitKindLabel (#974)', () => {
+  it('exposes the four limit kinds and maps each to its enum translation key', () => {
+    expect(API_LIMIT_KINDS).toEqual(['MINUTE', 'DAY', 'USER_MINUTE', 'USER_DAY']);
+    for (const kind of API_LIMIT_KINDS) {
+      expect(apiLimitKindLabel(t, kind)).toBe(`enums.api_limit_kind.${kind}`);
+    }
   });
 });

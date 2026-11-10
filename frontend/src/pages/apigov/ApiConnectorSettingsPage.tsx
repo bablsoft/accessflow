@@ -24,6 +24,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
+import { ApiConnectorLimitsTab } from '@/components/apigov/ApiConnectorLimitsTab';
 import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
 import { ApiConnectorHealthBadge } from '@/components/apigov/ApiConnectorHealthBadge';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -84,6 +85,7 @@ const TAB_KEYS = [
   'masking',
   'classification',
   'simulate',
+  'limits',
 ] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
@@ -144,6 +146,7 @@ export default function ApiConnectorSettingsPage() {
             { key: 'masking', label: t('apiGov.settings.tabMasking'), children: <ApiConnectorMaskingTab connectorId={id} /> },
             { key: 'classification', label: t('apiGov.settings.tabClassification'), children: <ApiConnectorClassificationTab connectorId={id} /> },
             { key: 'simulate', label: t('apiGov.settings.tabSimulate'), children: <ApiConnectorSimulateTab connectorId={id} /> },
+            { key: 'limits', label: t('apiGov.settings.tabLimits'), children: <ApiConnectorLimitsTab connectorId={id} /> },
           ]}
         />
       </div>

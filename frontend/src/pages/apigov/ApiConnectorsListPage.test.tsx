@@ -161,4 +161,20 @@ describe('ApiConnectorsListPage — health column (#896)', () => {
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
     expect(screen.queryByText('Healthy')).not.toBeInTheDocument();
   });
+
+  it('renders the limits badge for a limited connector and a dash otherwise (#974)', async () => {
+    listApiConnectors.mockResolvedValue(
+      page([
+        { ...row, id: 'a', name: 'Limited', calls_per_minute: 60, calls_per_day: 1000 },
+        { ...row, id: 'b', name: 'Budgeted', monthly_budget_micros: 5_000_000 },
+        { ...row, id: 'c', name: 'Open' },
+      ]),
+    );
+    render(wrap(<ApiConnectorsListPage />));
+
+    expect(await screen.findByText('60 / min · 1000 / day')).toBeInTheDocument();
+    expect(screen.getByText('No rate limit')).toBeInTheDocument();
+    expect(screen.getAllByTestId('connector-limits-badge')).toHaveLength(2);
+    expect(screen.getByRole('columnheader', { name: 'Limits' })).toBeInTheDocument();
+  });
 });

@@ -3,6 +3,9 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
 import {
   adminErrorMessage,
+  apiQuotaExceededBody,
+  apiQuotaWarning,
+  apiRequestExecuteErrorMessage,
   auditSinkErrorMessage,
   decisionHookErrorMessage,
   queryReplayErrorMessage,
@@ -276,5 +279,49 @@ describe('apiReplayErrorMessage', () => {
   it('uses the error message, then the generic message, for non-axios errors', () => {
     expect(apiReplayErrorMessage(new Error('boom'))).toBe('boom');
     expect(apiReplayErrorMessage('nope')).toMatch(/could not replay the api request/i);
+  });
+});
+
+describe('apiQuotaExceededBody / apiRequestExecuteErrorMessage (#974)', () => {
+  const quota = {
+    error: 'API_CONNECTOR_QUOTA_EXCEEDED',
+    detail: 'Connector rate limit reached — queued',
+    limitKind: 'MINUTE',
+    retryAfterSeconds: 42,
+    throttledUntil: '2026-11-10T10:01:00Z',
+    queuedForRetry: true,
+  };
+
+  it('returns the body only for the quota code', () => {
+    expect(apiQuotaExceededBody(axiosError(429, quota))?.limitKind).toBe('MINUTE');
+    expect(apiQuotaExceededBody(axiosError(409, { error: 'OTHER' }))).toBeNull();
+    expect(apiQuotaExceededBody(new Error('boom'))).toBeNull();
+  });
+
+  it('prefers the server detail on a 429 and falls back to the queued text', () => {
+    expect(apiRequestExecuteErrorMessage(axiosError(429, quota), () => 'x')).toBe(
+      'Connector rate limit reached — queued',
+    );
+    const { detail: _detail, ...noDetail } = quota;
+    expect(apiRequestExecuteErrorMessage(axiosError(429, noDetail), () => 'x')).toMatch(/queued/i);
+  });
+
+  it('routes other errors through the generic extractor', () => {
+    expect(
+      apiRequestExecuteErrorMessage(axiosError(500, { detail: 'Upstream down' }), () => 'x'),
+    ).toBe('Upstream down');
+    expect(apiRequestExecuteErrorMessage(null, () => 'fallback')).toBe('fallback');
+  });
+});
+
+describe('apiQuotaWarning (#974)', () => {
+  const label = (k: string) => `kind:${k}`;
+  it('appends the limit kind to the server detail', () => {
+    const err = axiosError(429, { error: 'API_CONNECTOR_QUOTA_EXCEEDED', detail: 'Queued', limitKind: 'DAY' });
+    expect(apiQuotaWarning(err, label)).toBe('Queued (kind:DAY)');
+  });
+  it('returns the bare text without a limit kind, and null for other errors', () => {
+    expect(apiQuotaWarning(axiosError(429, { error: 'API_CONNECTOR_QUOTA_EXCEEDED', detail: 'Queued' }), label)).toBe('Queued');
+    expect(apiQuotaWarning(axiosError(500, { detail: 'x' }), label)).toBeNull();
   });
 });

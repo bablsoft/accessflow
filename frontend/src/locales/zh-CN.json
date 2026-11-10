@@ -4031,6 +4031,12 @@
       "UNKNOWN": "未知",
       "HEALTHY": "健康",
       "UNHEALTHY": "异常"
+    },
+    "api_limit_kind": {
+      "MINUTE": "每分钟调用数",
+      "DAY": "每日调用数",
+      "USER_MINUTE": "单用户每分钟调用数",
+      "USER_DAY": "单用户每日调用数"
     }
   },
   "access": {
@@ -4765,7 +4771,8 @@
       "reviewPlanPlaceholder": "未关联计划",
       "reviewPlanLoading": "正在加载计划…",
       "reviewPlanHint": "未关联计划时，进入审核的请求只需一次批准",
-      "health": "健康状态"
+      "health": "健康状态",
+      "limits": "限额"
     },
     "settings": {
       "title": "Connector settings",
@@ -5050,7 +5057,8 @@
       "healthCheckInterval": "健康检查间隔（分钟）",
       "healthCheckIntervalHint": "定期探测基础 URL，在其不再响应时发出告警。留空表示不监控。",
       "notMonitoredPlaceholder": "未监控",
-      "intervalMin": "间隔至少为 1 分钟"
+      "intervalMin": "间隔至少为 1 分钟",
+      "tabLimits": "限额与预算"
     },
     "editor": {
       "title": "API Editor",
@@ -5190,7 +5198,13 @@
       "diffUnavailable": "不可用",
       "diffPreviewLabel": "响应预览（有限、已脱敏）",
       "diffPreviousPane": "上次运行的响应预览",
-      "diffCurrentPane": "本次运行的响应预览"
+      "diffCurrentPane": "本次运行的响应预览",
+      "throttled": "速率限制",
+      "throttledUntil": "排队中 — 将于 {{date}} 重试",
+      "throttleCount": "已限流 {{value}} 次",
+      "throttledWarning": "已达到连接器的速率限制。请求已进入队列，将自动重试。",
+      "throttledTooltip": "排队至 {{when}}",
+      "throttledAria": "因连接器速率限制而排队"
     },
     "reviews": {
       "empty": "No API requests awaiting review",
@@ -5267,6 +5281,50 @@
       "failure": "失败",
       "durationMs": "耗时（毫秒）",
       "message": "消息"
+    },
+    "limits": {
+      "title": "速率限制与预算",
+      "saved": "限额已保存",
+      "save": "保存限额",
+      "emptyUnlimited": "留空或填 0 表示不限。",
+      "callsPerMinute": "每分钟调用数",
+      "callsPerDay": "每日调用数",
+      "perUserShare": "单用户份额",
+      "perUserShareHint": "单个用户可使用每项限额的比例。留空表示不按用户限制。",
+      "costPerCall": "单次调用成本（单位）",
+      "costHint": "计入每次已执行的调用，最多六位小数。留空表示不计价。",
+      "monthlyBudget": "月度预算（单位）",
+      "budgetHint": "仅提醒——超出预算后调用仍会继续执行。留空表示无预算。",
+      "minZero": "必须大于或等于 0",
+      "shareRange": "必须介于 0 和 100 之间",
+      "badgePerMinute": "{{value}} / 分钟",
+      "badgePerDay": "{{value}} / 天",
+      "badgeNoRate": "无速率限制",
+      "tooltipShare": "单用户份额：{{value}}",
+      "tooltipPrice": "单次调用成本：{{value}}",
+      "tooltipBudget": "月度预算：{{value}}",
+      "unlimited": "不限"
+    },
+    "usage": {
+      "title": "用量",
+      "range_month": "本月",
+      "range_7d": "7 天",
+      "range_30d": "30 天",
+      "range_90d": "90 天",
+      "empty": "此期间没有调用",
+      "loading": "正在加载用量…",
+      "seriesCalls": "调用",
+      "seriesFailed": "失败",
+      "seriesThrottled": "被限流",
+      "monthToDate": "本月累计支出",
+      "units": "{{value}} 单位",
+      "noBudget": "未设置月度预算或单次调用价格。",
+      "budgetUsed": "已用预算",
+      "percentUsed": "已使用月度预算的 {{percent}}%",
+      "spendOfBudget": "{{spend}} / {{budget}} 单位",
+      "budgetExceeded": "已超出预算",
+      "budgetNeverBlocks": "预算从不阻止调用，只会发出提醒。",
+      "noPrice": "请设置单次调用成本，以便对照此预算跟踪支出。"
     }
   },
   "lifecycle": {

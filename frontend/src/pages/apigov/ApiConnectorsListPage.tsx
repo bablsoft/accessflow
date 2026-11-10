@@ -25,6 +25,7 @@ import {
 } from '@/utils/enumLabels';
 import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
 import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
+import { ApiConnectorLimitsBadge } from '@/components/apigov/ApiConnectorLimitsBadge';
 import { pairsToRecord, type KeyValuePair } from '@/utils/apiRequestComposition';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
@@ -141,6 +142,11 @@ export default function ApiConnectorsListPage() {
           </Pill>
         );
       },
+    },
+    {
+      title: t('apiGov.connectors.limits'),
+      key: 'limits',
+      render: (_: unknown, row: ApiConnector) => <ApiConnectorLimitsBadge connector={row} />,
     },
     {
       title: t('apiGov.connectors.active'),

@@ -76,6 +76,11 @@ vi.mock('@/components/apigov/ApiConnectorDriftTab', () => ({
     </div>
   ),
 }));
+vi.mock('@/components/apigov/ApiConnectorLimitsTab', () => ({
+  ApiConnectorLimitsTab: ({ connectorId }: { connectorId: string }) => (
+    <span>limits tab for {connectorId}</span>
+  ),
+}));
 vi.mock('@/components/apigov/ApiConnectorSimulateTab', () => ({
   ApiConnectorSimulateTab: ({ connectorId }: { connectorId: string }) => (
     <div>simulate tab for {connectorId}</div>
@@ -489,6 +494,24 @@ describe('ApiConnectorSettingsPage — Simulate tab (#1066)', () => {
     // Inactive panels stay mounted but hidden; the one visible tabpanel is the active one.
     const panel = screen.getByRole('tabpanel');
     expect(within(panel).getByText('simulate tab for conn-1')).toBeInTheDocument();
+  });
+
+  it('adds a Limits & budget tab last that renders the limits for this connector (#974)', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+
+    const tabs = await screen.findAllByRole('tab');
+    const names = tabs.map((tab) => tab.textContent);
+    expect(names[names.length - 1]).toBe('Limits & budget');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Limits & budget' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Limits & budget' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
+    const panel = screen.getByRole('tabpanel');
+    expect(within(panel).getByText('limits tab for conn-1')).toBeInTheDocument();
   });
 });
 
