@@ -166,8 +166,8 @@ public class DefaultDeploymentOutcomeService implements DeploymentOutcomeService
 
     /**
      * Open the follow-up review when the environment demands one. The UNIQUE
-     * {@code deployment_request_id} column is the concurrency backstop; the outcome-null guard
-     * above already makes a second report unreachable here.
+     * {@code deployment_request_id} column is the concurrency backstop. Reached at most once per
+     * request: a first report, or the #1025 carve-out, after which the outcome is ROLLED_BACK.
      */
     private boolean maybeOpenRollbackReview(DeploymentRequestEntity request, String detail) {
         boolean requireReview = environmentRepository.findById(request.getEnvironmentId())

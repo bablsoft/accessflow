@@ -5530,7 +5530,8 @@ else. Applying the status a row already has is a **silent no-op**, so a retried 
 `PENDING_REVIEW → APPROVED/REJECTED` is the review flow, `PENDING_REVIEW → TIMED_OUT` the timeout
 job, and `PENDING_AI → APPROVED` also serves the break-glass force-approve (all #692);
 `APPROVED → EXECUTED` is the gate's execution confirmation and `EXECUTED → FAILED` the one
-post-terminal flip a `FAILED` outcome report performs (both #693). `PENDING_AI → CANCELLED` is legal in the table
+post-terminal flip a `FAILED` outcome report performs (both #693) — and a breached
+post-deployment verification (#1025). `PENDING_AI → CANCELLED` is legal in the table
 but unreachable through the API — `POST /cancel` rejects `PENDING_AI` per the endpoint contract —
 so a future "cancel a stuck analysis" admin path costs nothing.
 
@@ -5703,7 +5704,8 @@ Two hooks:
   `apply` chokepoint covers any future EXECUTED writer, and the same-status no-op means a
   redelivered confirmation never double-shifts.
 - `reportOutcome` calls `recordOutcome` after the outcome is applied (and, for `FAILED`, after
-  the `EXECUTED → FAILED` flip), only on a *first* report:
+  the `EXECUTED → FAILED` flip), only on a *first* report — or the #1025 `ROLLED_BACK`-after-a-failed-
+  verification carve-out:
   `SUCCEEDED` stamps `last_outcome`; `FAILED`/`ROLLED_BACK` **for the current request** reverts
   current ← previous and nulls the previous fields (single-level undo — a second consecutive
   rollback leaves current honestly NULL, "unknown, see history"). An outcome for a non-current

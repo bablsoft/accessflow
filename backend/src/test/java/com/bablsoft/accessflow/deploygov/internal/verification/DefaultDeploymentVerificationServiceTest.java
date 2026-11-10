@@ -251,6 +251,21 @@ class DefaultDeploymentVerificationServiceTest {
     }
 
     @Test
+    void anOverlappingTickThatAlreadySampledTheRowDropsThisOne() {
+        var locked = new DeploymentRequestEntity();
+        locked.setId(request.getId());
+        locked.setStatus(QueryStatus.EXECUTED);
+        locked.setVerificationStatus(VerificationStatus.RUNNING);
+        locked.setLastVerifiedAt(NOW.minusSeconds(1));
+        when(requestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(locked));
+
+        assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.SKIPPED);
+
+        verify(verificationRepository, never()).save(any());
+        verify(stateService, never()).markVerificationFailed(any(), any());
+    }
+
+    @Test
     void aRequestDeletedDuringEvaluationDropsTheTick() {
         when(requestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.empty());
 

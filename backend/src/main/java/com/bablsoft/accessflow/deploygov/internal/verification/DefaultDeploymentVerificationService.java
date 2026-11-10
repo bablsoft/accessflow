@@ -26,6 +26,9 @@ import java.util.UUID;
  * across them (the {@code DefaultApiConnectorHealthService} precedent). The samples and any
  * transition are then written in one short transaction against a re-read row: a request that left
  * {@code RUNNING} meanwhile (a racing outcome report) drops the tick.
+ *
+ * <p>The threshold is tested before the window end on purpose (#1025): the first tick past the
+ * window still samples, and a breach on that last sample wins over {@code PASSED}.
  */
 @Service
 @Slf4j
@@ -77,8 +80,7 @@ public class DefaultDeploymentVerificationService implements DeploymentVerificat
                     ? VerificationTickResult.BREACHED : VerificationTickResult.SKIPPED;
         }
         var now = clock.instant();
-        if (request.getLastVerifiedAt() != null
-                && now.isBefore(request.getLastVerifiedAt().plus(config.sampleInterval()))) {
+        if (notYetDue(request, config, now)) {
             return VerificationTickResult.SKIPPED;
         }
         var samples = config.checks().stream().map(this::evaluate).toList();
@@ -91,7 +93,9 @@ public class DefaultDeploymentVerificationService implements DeploymentVerificat
     private VerificationTickResult record(UUID id, DeploymentVerificationConfig config,
                                           List<VerificationSample> samples, Instant now) {
         var request = requestRepository.findByIdForUpdate(id).orElse(null);
-        if (request == null || !isRunning(request)) {
+        // Re-check under the row lock: an overlapping tick (a ShedLock released at lockAtMostFor)
+        // that already sampled this request must not write a second, double-counted sample.
+        if (request == null || !isRunning(request) || notYetDue(request, config, now)) {
             return VerificationTickResult.SKIPPED;
         }
         for (var sample : samples) {
@@ -142,6 +146,12 @@ public class DefaultDeploymentVerificationService implements DeploymentVerificat
         entity.setObservedValue(sample.observedValue());
         entity.setDetail(sample.detail());
         return entity;
+    }
+
+    private static boolean notYetDue(DeploymentRequestEntity request,
+                                     DeploymentVerificationConfig config, Instant now) {
+        return request.getLastVerifiedAt() != null
+                && now.isBefore(request.getLastVerifiedAt().plus(config.sampleInterval()));
     }
 
     private static boolean isRunning(DeploymentRequestEntity request) {

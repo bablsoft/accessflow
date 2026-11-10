@@ -148,7 +148,7 @@ oracle.
 `verification` config: a window, a sample interval, a failure threshold and up to ten checks. A
 check is either `HTTP_HEALTH` (a URL and the status code it should answer) or `PROMQL_THRESHOLD`
 (a Prometheus query compared against a threshold). `null` means verification is off. #1023 adds
-only the storage: the config column, the `deployment_requests.verification_*` columns that will
+only the storage: the config column, the `deployment_requests.verification_*` columns that
 hold a snapshot of the config and the verdict, and the `deployment_verifications` samples table.
 #1024 adds the evaluators and the save-time checks; #1025 adds the runtime below.
 
@@ -321,7 +321,8 @@ single transition chokepoint and rejects anything not on this list:
 PENDING_AI     → PENDING_REVIEW | APPROVED | REJECTED | CANCELLED
 PENDING_REVIEW → APPROVED | REJECTED | TIMED_OUT | CANCELLED
 APPROVED       → EXECUTED | FAILED | TIMED_OUT | CANCELLED
-EXECUTED       → FAILED          (the one post-terminal flip — a reported failure)
+EXECUTED       → FAILED          (the one post-terminal flip — a reported failure, or a
+                                  breached post-deployment verification, #1025)
 REJECTED / TIMED_OUT / FAILED / CANCELLED are terminal
 ```
 
@@ -550,7 +551,10 @@ same outcome returns the existing record; a *different* outcome is
 loser fails on the optimistic lock and its retry lands on the idempotent-or-conflict branch.
 
 **`FAILED` flips `EXECUTED → FAILED`** — the single post-terminal transition the state machine
-allows. `SUCCEEDED` and `ROLLED_BACK` record the outcome without changing status.
+allows (a breached post-deployment verification takes the same edge while the outcome stays
+`SUCCEEDED`, #1025). `SUCCEEDED` and `ROLLED_BACK` record the outcome without changing status.
+The first outcome is final, with one exception: `ROLLED_BACK` replaces a `SUCCEEDED` whose
+verification failed.
 
 **`ROLLED_BACK` on a `require_review` environment opens a follow-up review** in
 `deployment_rollback_reviews`, in the same transaction — so a governed rollback can never exist
@@ -708,7 +712,7 @@ org-wide endpoints are functional-permission-only.
 |---|---|
 | Deployment frequency | count of rows with `executed_at` in the window (an `EXECUTED → FAILED` flip keeps its `executed_at`, so it still counts as a deployment); `per_day` = `total` ÷ window length in days |
 | Lead time (p50/p95) | `metadata->>'commit_timestamp'` (ISO-8601, documented key), falling back to `created_at`, → `executed_at`. Send an offset-qualified ISO-8601 instant (`Z`, `±hh`, `±hhmm` or `±hh:mm`): the value is read by `af_try_parse_iso_instant` (V203), so a value without an offset, or one it cannot parse, falls back to `created_at` rather than being guessed in some zone. A commit timestamp later than `executed_at` counts as a `0`-second sample. `source` is `COMMIT_TIMESTAMP` (every sample used the commit timestamp), `SUBMITTED_AT` (none did) or `MIXED` |
-| Change failure rate | rows with `outcome IN (FAILED, ROLLED_BACK)` ÷ rows with `executed_at` in the window; an unreported outcome counts as not-failed, and the `unreported` count is returned so the UI can caveat |
+| Change failure rate | rows with `outcome IN (FAILED, ROLLED_BACK)` ÷ rows with `executed_at` in the window; an unreported outcome counts as not-failed, and the `unreported` count is returned so the UI can caveat. The metrics read `outcome` only: a breached verification (#1025) that was never followed by a `ROLLED_BACK` report still counts as a success, and a later `ROLLED_BACK` report moves the row's `outcome_reported_at` to the rollback report |
 | Time to restore (p50/p95) | for each `FAILED`/`ROLLED_BACK` outcome reported in the window: `outcome_reported_at` → the `executed_at` of the next request (executed after the failed one) on the same pipeline + environment whose outcome is `SUCCEEDED`; unrestored incidents are excluded from the percentiles and returned as `open_incidents`. A success that executed before the failure was reported counts as a `0`-second restore |
 | Approval latency (p50/p95) | `review_started_at` → the request's last `deployment_review_decisions.decided_at`, windowed on that last decision; only requests a human finished deciding (status `APPROVED`, `REJECTED`, `EXECUTED` or `FAILED` with a decision row — a request still in review, timed out or cancelled after a partial approval is left out) — routing auto-approvals and break-glass never waited on anyone; requests decided through a change ticket (#992, system-attributed, no decision row) and rows that pre-date `review_started_at` are excluded too |
 | Timeout rate | `TIMED_OUT` ÷ requests that entered review (`review_started_at IS NOT NULL`, or for rows pre-dating the column: a decision row exists or status is `TIMED_OUT`), windowed on `created_at` |

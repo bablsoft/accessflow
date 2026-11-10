@@ -39,8 +39,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPip
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRollbackReviewRepository;
-import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationService;
-import com.bablsoft.accessflow.deploygov.internal.verification.VerificationTickResult;
+import com.bablsoft.accessflow.deploygov.internal.scheduled.DeploymentVerificationJob;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,7 +114,7 @@ class DeploymentGateFlowIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired EventProbe probe;
-    @Autowired DeploymentVerificationService verificationService;
+    @Autowired DeploymentVerificationJob verificationJob;
 
     @BeforeEach
     void resetProbe() {
@@ -331,10 +330,8 @@ class DeploymentGateFlowIntegrationTest {
         assertThat(reported.verificationStartedAt()).isNotNull();
         assertThat(requestRepository.findVerificationDueIds()).contains(request.getId());
 
-        // One sampling tick. verifyOne directly rather than the job, whose ShedLock may be held by
-        // the context's own scheduled tick.
-        assertThat(verificationService.verifyOne(request.getId()))
-                .isEqualTo(VerificationTickResult.BREACHED);
+        // One job tick (scheduling is disabled in tests, so nothing else holds its ShedLock).
+        verificationJob.run();
 
         var breached = requestRepository.findById(request.getId()).orElseThrow();
         assertThat(breached.getStatus()).isEqualTo(QueryStatus.FAILED);

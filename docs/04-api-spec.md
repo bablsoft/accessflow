@@ -9418,7 +9418,7 @@ caller for every rule below.
 |--------|------|-------------|
 | `GET` | `/deployment-gate` | Poll releasability. Query params (snake_case): either `request_id=<uuid>` **or** all three of `pipeline=<name>`, `version=<v>`, `environment=<env name>` (any other combination is a `400`). Tuple resolution is case-insensitive on the pipeline and environment names and picks the **newest** request for the tuple. `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` / `DEPLOYMENT_REQUEST_NOT_FOUND` for an unknown pipeline, environment, tuple or id — and also when the request exists but the caller may not see it (never `403`; the CI wrappers treat any `404` as **not releasable**). Visibility: the submitter, a `can_trigger` grant holder on the pipeline, or a `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` holder. |
 | `POST` | `/deployment-requests/{id}/confirm-execution` | The pipeline acknowledges it proceeded once the gate answered `releasable: true`; transitions `APPROVED → EXECUTED` (`200`, the full request body; audit action `DEPLOYMENT_EXECUTED`, metadata `trigger=pipeline`; on a `change_ticket_required` environment also `change_ticket_required=true` and either `change_ticket_key` or, for break-glass, `change_ticket_bypassed=break_glass` — #993). Only the submitter, a `can_trigger` holder on the pipeline, or `QUERY_ADMIN` may confirm (`403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`); only from `APPROVED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`) **and** currently releasable (`409 DEPLOYMENT_NOT_RELEASABLE`). Idempotent: confirming an already-`EXECUTED` request returns `200` and changes nothing. |
-| `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. **One carve-out (#1025):** a `ROLLED_BACK` report over a stored `SUCCEEDED` is accepted (`200`) when — and only when — the request's `verification_status` is `FAILED`; it runs the normal rollback path (version-tracker revert, rollback follow-up review on a `require_review` environment) and its audit row carries `superseded: "SUCCEEDED"`. Every other differing second report stays `409`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
+| `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. **One carve-out (#1025):** a `ROLLED_BACK` report over a stored `SUCCEEDED` is accepted (`200`) when — and only when — the request's `verification_status` is `FAILED`; it runs the normal rollback path (version-tracker revert, rollback follow-up review on a `require_review` environment) and its audit row carries `superseded: "SUCCEEDED"`. Every other differing second report stays `409` — including a `ROLLED_BACK` sent while the verification is still `RUNNING`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
 
 **Gate response:**
 
@@ -9441,12 +9441,13 @@ caller for every rule below.
     "status": "Implement",
     "decision": "APPROVED"
   },
-  "verification_status": "PENDING",
-  "verification_detail": null
+  "verification_status": "FAILED",
+  "verification_detail": "health: 3/3 failed samples"
 }
 ```
 
-`verification_status` / `verification_detail` (#1025) are additive and report the
+`verification_status` / `verification_detail` (#1025) are additive (`verification_detail` is
+omitted while unset, like every null) and report the
 [post-deployment verification](#post-deployment-verification-1025) state; they never feed
 `releasable` — verification runs after release.
 
