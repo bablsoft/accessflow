@@ -3043,7 +3043,10 @@ the group-permission table keeps the real FKs of its V111 template. **V151** see
 **V156** (#741) adds free-form environment `tags` and the `deployment_environment_versions`
 current-version projection. **V157** (#742) adds `deployment_requests.executed_at` — the drift
 math's time axis. **V177** (#877, epic #870) adds `deployment_environments.datasource_id` and
-makes `sort_order` a real, unique promotion ladder.
+makes `sort_order` a real, unique promotion ladder. **V207** (#1023, epic #1022) adds the
+post-deployment verification storage: `deployment_environments.verification`, the
+`deployment_requests.verification_*` columns, the `deployment_verifications` samples table and the
+`verification_status` / `verification_check_kind` enums.
 
 The feature narrative — lifecycle, gate contract, freeze-window semantics, CI wrappers — is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -3101,6 +3104,34 @@ since #992 the inbound decision sync stamps `deployment_tickets.decision`, and s
 deployment gate refuses to release a flagged environment's request until one linked ticket is
 `APPROVED` and none is `REJECTED` (break-glass exempt, audited).
 
+**V207** (#1023, epic #1022) adds `verification JSONB` — nullable, no default. `NULL` means
+post-deployment verification is off for the environment. When set it holds one
+`DeploymentVerificationConfig`, encoded by `DeploymentVerificationConfigCodec`:
+
+```json
+{
+  "window": "PT15M",
+  "sampleInterval": "PT1M",
+  "failureThreshold": 3,
+  "checks": [
+    { "kind": "HTTP_HEALTH", "name": "health", "url": "https://svc.example.com/healthz",
+      "expectedStatus": 200, "bodyContains": "ok" },
+    { "kind": "PROMQL_THRESHOLD", "name": "error-rate", "prometheusUrl": "https://prom.example.com",
+      "query": "sum(rate(http_errors_total[5m]))", "comparator": "LT", "threshold": 0.05,
+      "noDataIsFailure": true }
+  ]
+}
+```
+
+Durations are ISO-8601 strings; `kind` is the discriminator (`HTTP_HEALTH` / `PROMQL_THRESHOLD`,
+the `verification_check_kind` values) and an unknown kind is a parse error. The stored keys are
+camelCase (unlike the snake_case API body) and are frozen — renaming one breaks stored rows. A
+stored config that cannot be parsed is served by the admin API as if verification were off (the
+listing must not break on one bad row); the verification runtime decodes the blob itself and treats
+a parse failure as a failed verification. The config is copied
+onto `deployment_requests.verification_config` when a verification starts, so a later edit never
+changes a running verification. #1023 is storage only — nothing evaluates the config yet.
+
 ### deployment_freeze_windows
 
 Freeze windows scoped by nullable `pipeline_id` / `environment_id` (FK CASCADE; both null =
@@ -3140,6 +3171,10 @@ collision.
 | `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows — including those a `FAILED` outcome later flipped to `FAILED` — were backfilled with `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time. |
 | `review_started_at` | TIMESTAMPTZ | Nullable (V203, #984) — stamped by the state service on entry to `PENDING_REVIEW` (only reachable from `PENDING_AI`), off the same `Clock` as `executed_at`; a redelivered transition never restamps. The approval-latency and timeout-rate axis of the deployment metrics. **No backfill**: the instant is unknown for older rows, which the metrics treat as described in `docs/04-api-spec.md` → "Deployment metrics". |
 | `escalated_at` / `last_nudged_at` | TIMESTAMPTZ | Nullable (V204, #985) — the idle-reviewer cursors of `DeploymentReviewEscalationJob`, mirroring `query_requests` / `api_requests` (V144, #622). `escalated_at` is stamped once when the request has sat in `PENDING_REVIEW` past its resolved plan's `escalation_after_hours`; `last_nudged_at` on every `nudge_interval_hours` reminder. Both clocks run from `created_at`, the same baseline as the timeout. Notify-only — nothing on the eligibility or decision path reads them. |
+| `verification_status` | `verification_status` NOT NULL DEFAULT `'PENDING'` | V207 (#1023, epic #1022) — post-deployment verification state: `PENDING` → `RUNNING` → `PASSED` / `FAILED`, or `SKIPPED`. Rows that had already reported an `outcome` were backfilled to `SKIPPED` (they can never be verified); every other row — including requests that were never executed — stays `PENDING`. Nothing changes it yet. |
+| `verification_config` | JSONB | Nullable (V207) — snapshot of the environment's `verification` taken when a verification starts. |
+| `verification_started_at` / `verification_finished_at` / `last_verified_at` | TIMESTAMPTZ | Nullable (V207) — verification window bounds and the cursor of the sampling scan. |
+| `verification_detail` | TEXT | Nullable (V207) — human-readable summary of the verdict. |
 | `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
@@ -3154,10 +3189,30 @@ release_notified_at IS NULL` (V154) backing the release-announcement scan, a par
 NULL` (V157) backing the #742 grouped drift projection, the partials
 `idx_deployment_requests_escalation_scan` on `(created_at) WHERE status = 'PENDING_REVIEW' AND
 escalated_at IS NULL` and `idx_deployment_requests_nudge_scan` on `(created_at) WHERE status =
-'PENDING_REVIEW'` (V204) backing the #985 escalation and nudge scans, and the **partial
+'PENDING_REVIEW'` (V204) backing the #985 escalation and nudge scans, the partial
+`idx_deployment_requests_verification_scan` on `(last_verified_at) WHERE status = 'EXECUTED' AND
+verification_status = 'RUNNING'` (V207) backing the verification sampling scan, and the **partial
 unique** `uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version,
 external_run_id) WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates
 a second request.
+
+### deployment_verifications
+
+Post-deployment verification samples (V207, #1023, epic #1022): one row per check per sample.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `deployment_request_id` | UUID NOT NULL, FK → `deployment_requests` `ON DELETE CASCADE` | |
+| `organization_id` | UUID NOT NULL | Bare UUID (the V149 convention). |
+| `check_name` | VARCHAR(64) NOT NULL | The check's `name` in the config. |
+| `check_kind` | `verification_check_kind` NOT NULL | `HTTP_HEALTH` / `PROMQL_THRESHOLD`. |
+| `sampled_at` | TIMESTAMPTZ NOT NULL | |
+| `passed` | BOOLEAN NOT NULL | |
+| `observed_value` | TEXT | Nullable — HTTP status or PromQL value seen. |
+| `detail` | TEXT | Nullable — why the sample failed. |
+
+Index `idx_deployment_verifications_request_sampled` on `(deployment_request_id, sampled_at)`.
 
 ### deployment_review_decisions
 

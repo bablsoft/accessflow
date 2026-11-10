@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.deploygov.internal;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentLookupService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +19,12 @@ import java.util.UUID;
 class DefaultDeploymentEnvironmentLookupService implements DeploymentEnvironmentLookupService {
 
     private final DeploymentEnvironmentRepository environmentRepository;
+    private final DeploymentVerificationConfigCodec verificationCodec;
 
     @Override
     public List<DeploymentEnvironmentView> listByPipeline(UUID pipelineId) {
         return environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId).stream()
-                .map(DeploymentEnvironmentViewMapper::toView)
+                .map(e -> DeploymentEnvironmentViewMapper.toView(e, verificationCodec))
                 .toList();
     }
 
@@ -31,6 +33,7 @@ class DefaultDeploymentEnvironmentLookupService implements DeploymentEnvironment
         if (environmentId == null) {
             return Optional.empty();
         }
-        return environmentRepository.findById(environmentId).map(DeploymentEnvironmentViewMapper::toView);
+        return environmentRepository.findById(environmentId)
+                .map(e -> DeploymentEnvironmentViewMapper.toView(e, verificationCodec));
     }
 }

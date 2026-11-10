@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ class DefaultDeploymentPipelineLookupService implements DeploymentPipelineLookup
 
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
+    private final DeploymentVerificationConfigCodec verificationCodec;
 
     @Override
     public boolean hasAnyPipeline(UUID organizationId) {
@@ -36,7 +38,7 @@ class DefaultDeploymentPipelineLookupService implements DeploymentPipelineLookup
     public Optional<DeploymentEnvironmentView> findEnvironment(UUID pipelineId, UUID environmentId) {
         return environmentRepository.findById(environmentId)
                 .filter(e -> e.getPipelineId().equals(pipelineId))
-                .map(DeploymentEnvironmentViewMapper::toView);
+                .map(e -> DeploymentEnvironmentViewMapper.toView(e, verificationCodec));
     }
 
     private static DeploymentPipelineView toView(DeploymentPipelineEntity e) {

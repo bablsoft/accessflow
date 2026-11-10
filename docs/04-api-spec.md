@@ -9207,6 +9207,37 @@ follows the `clearReviewPlan` shape instead: omitted or `null` leaves the bindin
 `clearDatasource: true` unbinds (wins over any `datasourceId` sent in the same request). Resending
 the environment's current `sortOrder` is never a conflict.
 
+**Post-deployment verification config (#1023, epic #1022).** Create and update bodies accept an
+optional `verification` object, and environment responses return it (omitted when `null`, which
+means verification is off). The field names in the paragraphs above are the request-record names;
+on the wire every body is snake_case (`sort_order`, `clear_datasource`, …), as is this object:
+
+```json
+"verification": {
+  "window": "PT15M",
+  "sample_interval": "PT1M",
+  "failure_threshold": 3,
+  "checks": [
+    { "kind": "HTTP_HEALTH", "name": "health", "url": "https://svc.example.com/healthz",
+      "expected_status": 200, "body_contains": "ok" },
+    { "kind": "PROMQL_THRESHOLD", "name": "error-rate", "prometheus_url": "https://prom.example.com",
+      "query": "sum(rate(http_errors_total[5m]))", "comparator": "LT", "threshold": 0.05,
+      "no_data_is_failure": true }
+  ]
+}
+```
+
+`window` and `sample_interval` are required ISO-8601 durations. A malformed duration, or an
+unknown `kind` / `comparator` value, makes the body unreadable and is `400 VALIDATION_ERROR`;
+`failure_threshold` is required, 1–20; `checks` holds 1–10 checks. Each check needs `kind`
+(`HTTP_HEALTH` / `PROMQL_THRESHOLD`) and `name` (≤ 64 chars). An `HTTP_HEALTH` check needs `url`
+(≤ 2048 chars); `expected_status` is 100–599 and defaults to `200`; `body_contains` is optional (≤ 1024 chars). A
+`PROMQL_THRESHOLD` check needs `prometheus_url` (≤ 2048 chars), `query` (≤ 4096 chars), `comparator` (`LT` / `LTE`
+/ `GT` / `GTE`) and `threshold`; `no_data_is_failure` defaults to `true`. A check missing a field
+its kind needs is `400`. On the **update** body an omitted or `null` `verification` leaves the
+config unchanged, and `clear_verification: true` removes it (wins over a `verification` sent in the
+same request). The config is stored only for now — no check runs yet.
+
 ### Trigger permissions
 
 | Method | Path | Description |

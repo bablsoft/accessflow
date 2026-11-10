@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
 import com.bablsoft.accessflow.deploygov.api.UpdateDeploymentEnvironmentCommand;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
@@ -23,11 +24,14 @@ public record UpdateDeploymentEnvironmentRequest(
         List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
         UUID datasourceId,
         Boolean clearDatasource,
-        Boolean changeTicketRequired) {
+        Boolean changeTicketRequired,
+        @Valid DeploymentVerificationConfigRequest verification,
+        Boolean clearVerification) {
 
     UpdateDeploymentEnvironmentCommand toCommand() {
         return new UpdateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
                 requiredApprovals, clearRequiredApprovals, reviewPlanId, clearReviewPlan,
-                allowBreakGlass, tags, datasourceId, clearDatasource, changeTicketRequired);
+                allowBreakGlass, tags, datasourceId, clearDatasource, changeTicketRequired,
+                DeploymentVerificationConfigRequest.toConfigOrNull(verification), clearVerification);
     }
 }

@@ -8,11 +8,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +41,8 @@ class DeploymentPipelineController {
 
     private final DeploymentPipelineAdminService pipelineService;
     private final DeploymentPermissionService permissionService;
+    private final MessageSource messageSource;
+    private final Clock clock;
 
     @GetMapping
     @Operation(summary = "List the organization's deployment pipelines")
@@ -243,6 +251,22 @@ class DeploymentPipelineController {
                      Authentication authentication) {
         var caller = claims(authentication);
         permissionService.revokeGroupPermission(id, caller.organizationId(), permissionId);
+    }
+
+    /**
+     * A body that will not deserialize — most often an environment's verification config with a
+     * duration that is not ISO-8601 or an unknown check {@code kind} / {@code comparator} (#1023) —
+     * is a client error. Nothing maps the parse failure globally, so without this the security
+     * module's {@code Exception} catch-all turns it into a 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
+        var detail = messageSource.getMessage("error.deployment_pipeline_body_unreadable", null,
+                LocaleContextHolder.getLocale());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setProperty("error", "VALIDATION_ERROR");
+        problem.setProperty("timestamp", clock.instant().toString());
+        return problem;
     }
 
     private static JwtClaims claims(Authentication authentication) {

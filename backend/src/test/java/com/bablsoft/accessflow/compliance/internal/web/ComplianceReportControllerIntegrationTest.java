@@ -277,10 +277,10 @@ class ComplianceReportControllerIntegrationTest {
                 false, null));
         var upper = pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("Prod", null, true, null, null, false,
-                        List.of(), null, false));
+                        List.of(), null, false, null));
         var lower = pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("prod", null, true, null, null, false,
-                        List.of(), null, false));
+                        List.of(), null, false, null));
         executedDeployment(pipeline.id(), upper.id(), "1.0.0");
         executedDeployment(pipeline.id(), lower.id(), "1.0.1");
 
@@ -318,7 +318,7 @@ class ComplianceReportControllerIntegrationTest {
                 false, null));
         pipelineAdminService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("prod", null, true, null, null, false,
-                        List.of(), null, false));
+                        List.of(), null, false, null));
         return pipeline.id();
     }
 

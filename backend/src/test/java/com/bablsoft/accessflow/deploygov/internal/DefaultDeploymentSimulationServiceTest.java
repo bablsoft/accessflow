@@ -123,7 +123,7 @@ class DefaultDeploymentSimulationServiceTest {
     private DeploymentEnvironmentView environment(boolean requireReview, Integer approvals,
                                                   UUID planReference, boolean allowBreakGlass) {
         return new DeploymentEnvironmentView(environmentId, pipelineId, "production", 1,
-                requireReview, approvals, planReference, allowBreakGlass, null, List.of(), null, false);
+                requireReview, approvals, planReference, allowBreakGlass, null, List.of(), null, false, null);
     }
 
     private static DeploymentDecision decision(QueryStatus status) {
@@ -528,7 +528,7 @@ class DefaultDeploymentSimulationServiceTest {
     void aChangeTicketEnvironmentNeverSimulatesReleasable() {
         // A hypothetical request has no linked ticket, so the #993 conjunct is unmet.
         var flagged = new DeploymentEnvironmentView(environmentId, pipelineId, "production", 1,
-                true, null, null, false, null, List.of(), null, true);
+                true, null, null, false, null, List.of(), null, true, null);
         when(pipelineLookupService.findEnvironment(pipelineId, environmentId))
                 .thenReturn(Optional.of(flagged));
         when(decisionEvaluator.evaluate(any())).thenReturn(new DeploymentDecision(

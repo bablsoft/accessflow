@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentEnvironmentCommand;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,11 +23,13 @@ public record CreateDeploymentEnvironmentRequest(
         @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
         List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags,
         UUID datasourceId,
-        Boolean changeTicketRequired) {
+        Boolean changeTicketRequired,
+        @Valid DeploymentVerificationConfigRequest verification) {
 
     CreateDeploymentEnvironmentCommand toCommand() {
         return new CreateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
                 requiredApprovals, reviewPlanId, allowBreakGlass, tags, datasourceId,
-                changeTicketRequired);
+                changeTicketRequired,
+                DeploymentVerificationConfigRequest.toConfigOrNull(verification));
     }
 }

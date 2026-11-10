@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.deploygov.internal.persistence.entity;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
 import jakarta.persistence.Column;
@@ -117,6 +118,29 @@ public class DeploymentRequestEntity {
 
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
+
+    // #1023: post-deployment verification state; nothing transitions it yet.
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "verification_status", nullable = false, columnDefinition = "verification_status")
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    /** Snapshot of the environment's verification config taken when a verification starts. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "verification_config", columnDefinition = "jsonb")
+    private String verificationConfig;
+
+    @Column(name = "verification_started_at")
+    private Instant verificationStartedAt;
+
+    @Column(name = "verification_finished_at")
+    private Instant verificationFinishedAt;
+
+    @Column(name = "verification_detail", columnDefinition = "text")
+    private String verificationDetail;
+
+    @Column(name = "last_verified_at")
+    private Instant lastVerifiedAt;
 
     @Column(name = "release_notified_at")
     private Instant releaseNotifiedAt;

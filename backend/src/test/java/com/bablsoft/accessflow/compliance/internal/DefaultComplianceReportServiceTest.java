@@ -230,7 +230,7 @@ class DefaultComplianceReportServiceTest {
     private DeploymentEnvironmentView environment(DeploymentPipelineView pipeline, String name,
                                                   int sortOrder) {
         return new DeploymentEnvironmentView(UUID.randomUUID(), pipeline.id(), name, sortOrder, true,
-                null, null, false, from, List.of(), null, false);
+                null, null, false, from, List.of(), null, false, null);
     }
 
     private DeploymentMetricsView metrics(long deployments) {

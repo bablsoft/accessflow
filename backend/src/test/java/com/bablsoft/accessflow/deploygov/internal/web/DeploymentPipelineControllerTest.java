@@ -16,6 +16,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 
 import java.time.Instant;
+import org.springframework.context.support.StaticMessageSource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import java.time.Clock;
+import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +46,11 @@ class DeploymentPipelineControllerTest {
     void setUp() {
         pipelineService = mock(DeploymentPipelineAdminService.class);
         permissionService = mock(DeploymentPermissionService.class);
-        controller = new DeploymentPipelineController(pipelineService, permissionService);
+        var messageSource = new StaticMessageSource();
+        messageSource.addMessage("error.deployment_pipeline_body_unreadable", Locale.getDefault(),
+                "unreadable");
+        controller = new DeploymentPipelineController(pipelineService, permissionService,
+                messageSource, Clock.fixed(Instant.parse("2026-11-10T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test
@@ -115,7 +125,7 @@ class DeploymentPipelineControllerTest {
                 .thenReturn(environmentView());
 
         var body = new CreateDeploymentEnvironmentRequest("production", 1, true, 2, null, false,
-                null, null, null);
+                null, null, null, null);
         var response = controller.createEnvironment(pipelineId, body, auth());
 
         assertThat(response.name()).isEqualTo("production");
@@ -131,7 +141,7 @@ class DeploymentPipelineControllerTest {
                 .thenReturn(environmentView());
 
         var body = new UpdateDeploymentEnvironmentRequest(null, 3, null, null, true, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
         controller.updateEnvironment(pipelineId, environmentId, body, auth());
 
         verify(pipelineService).updateEnvironment(eq(pipelineId), eq(orgId), eq(environmentId),
@@ -256,7 +266,7 @@ class DeploymentPipelineControllerTest {
 
     private DeploymentEnvironmentView environmentView() {
         return new DeploymentEnvironmentView(UUID.randomUUID(), pipelineId, "production", 1, true,
-                2, null, false, Instant.now(), List.of(), null, false);
+                2, null, false, Instant.now(), List.of(), null, false, null);
     }
 
     private DeploymentPermissionView permissionView() {
@@ -267,5 +277,16 @@ class DeploymentPipelineControllerTest {
     private DeploymentGroupPermissionView groupPermissionView() {
         return new DeploymentGroupPermissionView(UUID.randomUUID(), pipelineId, UUID.randomUUID(),
                 "platform", 4L, true, true, null, Instant.now());
+    }
+
+    @Test
+    void unreadableBodyIsABadRequestNotAServerError() {
+        var problem = controller.handleUnreadableBody(
+                new HttpMessageNotReadableException("bad duration", null));
+
+        assertThat(problem.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(problem.getDetail()).isEqualTo("unreadable");
+        assertThat(problem.getProperties()).containsEntry("error", "VALIDATION_ERROR")
+                .containsEntry("timestamp", "2026-11-10T00:00:00Z");
     }
 }

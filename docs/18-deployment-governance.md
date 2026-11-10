@@ -144,6 +144,17 @@ by `DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`). Both live in the new
 belonging to another organization reads as `404`, never `403`, so no endpoint is an existence
 oracle.
 
+**Post-deployment verification config (epic #1022).** An environment can carry an optional
+`verification` config: a window, a sample interval, a failure threshold and up to ten checks. A
+check is either `HTTP_HEALTH` (a URL and the status code it should answer) or `PROMQL_THRESHOLD`
+(a Prometheus query compared against a threshold). `null` means verification is off. #1023 adds
+only the storage: the config column, the `deployment_requests.verification_*` columns that will
+hold a snapshot of the config and the verdict, and the `deployment_verifications` samples table.
+Nothing runs a check or changes a request's state yet; the evaluator, the sampling job and the
+transitions arrive with the later sub-issues of the epic. Column detail is in
+[03-data-model.md](03-data-model.md#deployment_environments) (`deployment_environments`,
+`deployment_requests`, `deployment_verifications`).
+
 ---
 
 ## 2. Triggering a deployment from CI
