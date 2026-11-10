@@ -28,6 +28,15 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReq
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRollbackReviewRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRoutingPolicyRepository;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationConfig;
+import com.bablsoft.accessflow.deploygov.api.HttpHealthCheck;
+import com.bablsoft.accessflow.deploygov.api.PromqlThresholdCheck;
+import com.bablsoft.accessflow.deploygov.api.VerificationCheckKind;
+import com.bablsoft.accessflow.deploygov.api.VerificationComparator;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentVerificationEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentVerificationRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,15 +44,17 @@ import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Validates that the V149–V156 migrations apply and every deploygov JPA entity maps to its table —
+ * Validates that the V149–V156 (and V207, #1023) migrations apply and every deploygov JPA entity maps to its table —
  * entity ↔ DDL parity under {@code ddl-auto=validate}, including the pg enum
  * {@code columnDefinition}s ({@code pipeline_provider}, {@code freeze_behavior},
  * {@code deployment_outcome}, and the shared {@code query_status} / {@code decision} /
@@ -76,6 +87,10 @@ class DeploygovPersistenceIntegrationTest {
     private DeploymentRollbackReviewRepository rollbackReviewRepository;
     @Autowired
     private DeploymentEnvironmentVersionRepository environmentVersionRepository;
+    @Autowired
+    private DeploymentVerificationRepository verificationRepository;
+    @Autowired
+    private DeploymentVerificationConfigCodec verificationCodec;
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -522,5 +537,81 @@ class DeploygovPersistenceIntegrationTest {
         duplicate.setSubmittedBy(request.getSubmittedBy());
         assertThatThrownBy(() -> rollbackReviewRepository.saveAndFlush(duplicate))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void persistsVerificationConfigRunningRequestAndSamplesThatCascadeWithTheRequest() {
+        var pipeline = newPipeline();
+        var environment = newEnvironment(pipeline.getId(), "production");
+        var config = new DeploymentVerificationConfig(Duration.ofMinutes(15), Duration.ofMinutes(1), 3,
+                List.of(new HttpHealthCheck("health", "https://svc.example.com/healthz", 200, "ok"),
+                        new PromqlThresholdCheck("error-rate", "https://prom.example.com",
+                                "sum(rate(http_errors_total[5m]))", VerificationComparator.LT, 0.05,
+                                true)));
+        environment.setVerification(verificationCodec.toJson(config));
+        environmentRepository.saveAndFlush(environment);
+
+        var pending = newRequest(pipeline.getId(), environment.getId(), "2.4.0", "run-v0");
+        requestRepository.saveAndFlush(pending);
+        assertThat(requestRepository.findById(pending.getId()).orElseThrow().getVerificationStatus())
+                .isEqualTo(VerificationStatus.PENDING);
+
+        var request = newRequest(pipeline.getId(), environment.getId(), "2.4.1", "run-v1");
+        request.setStatus(QueryStatus.EXECUTED);
+        request.setVerificationStatus(VerificationStatus.RUNNING);
+        request.setVerificationConfig(environment.getVerification());
+        request.setVerificationStartedAt(Instant.parse("2026-11-01T10:00:00Z"));
+        request.setLastVerifiedAt(Instant.parse("2026-11-01T10:01:00Z"));
+        request.setVerificationDetail("sampling");
+        requestRepository.saveAndFlush(request);
+
+        var first = sample(request, "health", VerificationCheckKind.HTTP_HEALTH,
+                Instant.parse("2026-11-01T10:01:00Z"), true, "200");
+        var second = sample(request, "error-rate", VerificationCheckKind.PROMQL_THRESHOLD,
+                Instant.parse("2026-11-01T10:00:30Z"), false, "0.2");
+        verificationRepository.saveAndFlush(first);
+        verificationRepository.saveAndFlush(second);
+
+        var reloadedEnvironment = environmentRepository.findById(environment.getId()).orElseThrow();
+        assertThat(verificationCodec.fromJson(reloadedEnvironment.getVerification())).isEqualTo(config);
+
+        var reloaded = requestRepository.findById(request.getId()).orElseThrow();
+        assertThat(reloaded.getVerificationStatus()).isEqualTo(VerificationStatus.RUNNING);
+        assertThat(verificationCodec.fromJson(reloaded.getVerificationConfig())).isEqualTo(config);
+        assertThat(reloaded.getVerificationStartedAt()).isEqualTo(Instant.parse("2026-11-01T10:00:00Z"));
+        assertThat(reloaded.getLastVerifiedAt()).isEqualTo(Instant.parse("2026-11-01T10:01:00Z"));
+        assertThat(reloaded.getVerificationFinishedAt()).isNull();
+        assertThat(reloaded.getVerificationDetail()).isEqualTo("sampling");
+
+        var samples = verificationRepository.findByDeploymentRequestIdOrderBySampledAtAsc(request.getId());
+        assertThat(samples).extracting(DeploymentVerificationEntity::getCheckName)
+                .containsExactly("error-rate", "health");
+        assertThat(samples).extracting(DeploymentVerificationEntity::getCheckKind)
+                .containsExactly(VerificationCheckKind.PROMQL_THRESHOLD, VerificationCheckKind.HTTP_HEALTH);
+        assertThat(samples.get(0).getObservedValue()).isEqualTo("0.2");
+        assertThat(verificationRepository.countByDeploymentRequestIdAndCheckNameAndPassedFalse(
+                request.getId(), "error-rate")).isEqualTo(1);
+        assertThat(verificationRepository.countByDeploymentRequestIdAndCheckNameAndPassedFalse(
+                request.getId(), "health")).isZero();
+
+        jdbcTemplate.update("DELETE FROM deployment_requests WHERE id = ?", request.getId());
+        assertThat(verificationRepository.findByDeploymentRequestIdOrderBySampledAtAsc(request.getId()))
+                .isEmpty();
+    }
+
+    private static DeploymentVerificationEntity sample(DeploymentRequestEntity request, String checkName,
+                                                       VerificationCheckKind kind, Instant sampledAt,
+                                                       boolean passed, String observedValue) {
+        var sample = new DeploymentVerificationEntity();
+        sample.setId(UUID.randomUUID());
+        sample.setDeploymentRequestId(request.getId());
+        sample.setOrganizationId(request.getOrganizationId());
+        sample.setCheckName(checkName);
+        sample.setCheckKind(kind);
+        sample.setSampledAt(sampledAt);
+        sample.setPassed(passed);
+        sample.setObservedValue(observedValue);
+        sample.setDetail(passed ? null : "above threshold");
+        return sample;
     }
 }

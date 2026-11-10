@@ -12,7 +12,8 @@ import java.util.UUID;
  * empty = no tags); the service trims, drops blanks and de-duplicates. {@code datasourceId}
  * optionally names the datasource the environment's schema changes land on — it must belong to
  * the pipeline's organization; null = deploy-only. {@code changeTicketRequired} defaults to
- * {@code false} when null (#990).
+ * {@code false} when null (#990). {@code verification} is the optional post-deployment
+ * verification config; null = off (#1023).
  */
 public record CreateDeploymentEnvironmentCommand(
         String name,
@@ -23,5 +24,6 @@ public record CreateDeploymentEnvironmentCommand(
         Boolean allowBreakGlass,
         List<String> tags,
         UUID datasourceId,
-        Boolean changeTicketRequired) {
+        Boolean changeTicketRequired,
+        DeploymentVerificationConfig verification) {
 }

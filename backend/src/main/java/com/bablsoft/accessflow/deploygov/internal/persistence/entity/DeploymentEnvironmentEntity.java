@@ -69,6 +69,14 @@ public class DeploymentEnvironmentEntity {
     @Column(name = "tags", nullable = false, columnDefinition = "text[]")
     private String[] tags = new String[0];
 
+    /**
+     * Post-deployment verification config (#1023), encoded by
+     * {@code DeploymentVerificationConfigCodec}. Null = verification off.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "verification", columnDefinition = "jsonb")
+    private String verification;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

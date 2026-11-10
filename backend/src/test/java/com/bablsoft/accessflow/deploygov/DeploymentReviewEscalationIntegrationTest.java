@@ -71,7 +71,7 @@ class DeploymentReviewEscalationIntegrationTest {
                 plan.getId(), false, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false,
-                        null, null, null));
+                        null, null, null, null));
         var idle = savePendingReview(pipeline.id(), environment.id(), org, submitter);
         var fresh = savePendingReview(pipeline.id(), environment.id(), org, submitter);
         backdate(idle, Instant.now().minus(2, ChronoUnit.HOURS));
@@ -129,7 +129,7 @@ class DeploymentReviewEscalationIntegrationTest {
                 plan.getId(), false, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false,
-                        null, null, null));
+                        null, null, null, null));
         var idle = savePendingReview(pipeline.id(), environment.id(), org, submitter);
         backdate(idle, Instant.now().minus(5, ChronoUnit.HOURS));
 

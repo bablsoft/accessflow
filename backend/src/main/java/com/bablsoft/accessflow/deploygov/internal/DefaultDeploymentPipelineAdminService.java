@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentE
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -42,6 +43,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     private final DeploymentEnvironmentRepository environmentRepository;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final DatasourceAdminService datasourceAdminService;
+    private final DeploymentVerificationConfigCodec verificationCodec;
 
     @Override
     @Transactional(readOnly = true)
@@ -130,7 +132,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     public List<DeploymentEnvironmentView> listEnvironments(UUID pipelineId, UUID organizationId) {
         require(pipelineId, organizationId);
         return environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId).stream()
-                .map(DeploymentEnvironmentViewMapper::toView)
+                .map(e -> DeploymentEnvironmentViewMapper.toView(e, verificationCodec))
                 .toList();
     }
 
@@ -162,7 +164,10 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         entity.setTags(toTagArray(command.tags()));
         entity.setDatasourceId(command.datasourceId());
         entity.setChangeTicketRequired(Boolean.TRUE.equals(command.changeTicketRequired()));
-        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity));
+        if (command.verification() != null) {
+            entity.setVerification(verificationCodec.toJson(command.verification()));
+        }
+        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity), verificationCodec);
     }
 
     @Override
@@ -215,7 +220,12 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
             requireDatasourceInOrganization(command.datasourceId(), organizationId);
             entity.setDatasourceId(command.datasourceId());
         }
-        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity));
+        if (Boolean.TRUE.equals(command.clearVerification())) {
+            entity.setVerification(null);
+        } else if (command.verification() != null) {
+            entity.setVerification(verificationCodec.toJson(command.verification()));
+        }
+        return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity), verificationCodec);
     }
 
     @Override

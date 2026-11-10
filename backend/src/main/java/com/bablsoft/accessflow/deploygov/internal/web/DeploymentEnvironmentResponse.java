@@ -18,12 +18,14 @@ public record DeploymentEnvironmentResponse(
         Instant createdAt,
         List<String> tags,
         UUID datasourceId,
-        boolean changeTicketRequired) {
+        boolean changeTicketRequired,
+        DeploymentVerificationConfigResponse verification) {
 
     static DeploymentEnvironmentResponse from(DeploymentEnvironmentView view) {
         return new DeploymentEnvironmentResponse(view.id(), view.pipelineId(), view.name(),
                 view.sortOrder(), view.requireReview(), view.requiredApprovals(),
                 view.reviewPlanId(), view.allowBreakGlass(), view.createdAt(), view.tags(),
-                view.datasourceId(), view.changeTicketRequired());
+                view.datasourceId(), view.changeTicketRequired(),
+                DeploymentVerificationConfigResponse.from(view.verification()));
     }
 }

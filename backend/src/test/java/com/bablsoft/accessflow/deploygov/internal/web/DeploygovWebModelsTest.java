@@ -104,7 +104,7 @@ class DeploygovWebModelsTest {
         var planId = UUID.randomUUID();
         var datasourceId = UUID.randomUUID();
         var create = new CreateDeploymentEnvironmentRequest("production", 2, false, 3, planId,
-                true, List.of("acme", "eu"), datasourceId, true).toCommand();
+                true, List.of("acme", "eu"), datasourceId, true, null).toCommand();
         assertThat(create.name()).isEqualTo("production");
         assertThat(create.sortOrder()).isEqualTo(2);
         assertThat(create.requireReview()).isFalse();
@@ -116,7 +116,7 @@ class DeploygovWebModelsTest {
         assertThat(create.changeTicketRequired()).isTrue();
 
         var update = new UpdateDeploymentEnvironmentRequest(null, null, null, null, true, null,
-                true, null, null, null, true, null).toCommand();
+                true, null, null, null, true, null, null, null).toCommand();
         assertThat(update.clearRequiredApprovals()).isTrue();
         assertThat(update.clearReviewPlan()).isTrue();
         assertThat(update.name()).isNull();
@@ -127,7 +127,7 @@ class DeploygovWebModelsTest {
         assertThat(update.changeTicketRequired()).isNull();
 
         var flagged = new UpdateDeploymentEnvironmentRequest(null, null, null, null, null, null,
-                null, null, null, null, null, false).toCommand();
+                null, null, null, null, null, false, null, null).toCommand();
         assertThat(flagged.changeTicketRequired()).isFalse();
     }
 
@@ -136,7 +136,7 @@ class DeploygovWebModelsTest {
         var datasourceId = UUID.randomUUID();
         var view = new DeploymentEnvironmentView(
                 UUID.randomUUID(), UUID.randomUUID(), "production", 1, true, 2, null, false,
-                Instant.now(), List.of("acme"), datasourceId, true);
+                Instant.now(), List.of("acme"), datasourceId, true, null);
         var response = DeploymentEnvironmentResponse.from(view);
 
         assertThat(response.id()).isEqualTo(view.id());

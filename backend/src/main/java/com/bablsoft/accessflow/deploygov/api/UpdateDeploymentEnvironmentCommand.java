@@ -5,10 +5,10 @@ import java.util.UUID;
 
 /**
  * Update a deployment environment. Null fields are left unchanged. {@code clearRequiredApprovals}
- * / {@code clearReviewPlan} / {@code clearDatasource} unset the nullable fields and win over a
- * value supplied in the same command. {@code tags} replaces the whole tag list — an explicit
- * empty list clears it, so no {@code clearTags} flag exists. A {@code sortOrder} already held by
- * another environment of the pipeline is rejected (#877).
+ * / {@code clearReviewPlan} / {@code clearDatasource} / {@code clearVerification} unset the
+ * nullable fields and win over a value supplied in the same command. {@code tags} replaces the
+ * whole tag list — an explicit empty list clears it, so no {@code clearTags} flag exists. A
+ * {@code sortOrder} already held by another environment of the pipeline is rejected (#877).
  */
 public record UpdateDeploymentEnvironmentCommand(
         String name,
@@ -22,5 +22,7 @@ public record UpdateDeploymentEnvironmentCommand(
         List<String> tags,
         UUID datasourceId,
         Boolean clearDatasource,
-        Boolean changeTicketRequired) {
+        Boolean changeTicketRequired,
+        DeploymentVerificationConfig verification,
+        Boolean clearVerification) {
 }
