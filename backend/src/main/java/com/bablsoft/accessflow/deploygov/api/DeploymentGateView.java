@@ -14,6 +14,8 @@ import java.util.UUID;
  * freeze check is skipped). {@code aiRiskLevel} is null when no analysis produced a risk.
  * {@code changeTicketRequired} mirrors the environment flag (#993); {@code changeTicket} is the
  * linked ticket the gate judged by — rejected first, else approved, else the newest — or null.
+ * {@code verificationStatus}/{@code verificationDetail} report the post-deployment verification
+ * (#1025); they never feed {@code releasable}.
  */
 public record DeploymentGateView(
         UUID requestId,
@@ -27,7 +29,9 @@ public record DeploymentGateView(
         Instant scheduledFor,
         RiskLevel aiRiskLevel,
         boolean changeTicketRequired,
-        DeploymentTicketView changeTicket) {
+        DeploymentTicketView changeTicket,
+        VerificationStatus verificationStatus,
+        String verificationDetail) {
 
     public DeploymentGateView {
         decisions = decisions == null ? List.of() : List.copyOf(decisions);

@@ -142,4 +142,19 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
               AND (r.scheduled_for IS NULL OR r.scheduled_for <= :now)
             """, nativeQuery = true)
     List<UUID> findReleasableCandidateIds(@Param("now") Instant now);
+
+    /**
+     * Verification sampling scan (#1025): every executed request with a running verification,
+     * least recently sampled first. Served by the partial index
+     * {@code idx_deployment_requests_verification_scan} (V207); the per-request interval check
+     * happens in Java because the interval lives in the snapshotted jsonb config. Native with
+     * explicit enum casts for the same reason as above.
+     */
+    @Query(value = """
+            SELECT r.id FROM deployment_requests r
+            WHERE r.status = 'EXECUTED'::query_status
+              AND r.verification_status = 'RUNNING'::verification_status
+            ORDER BY r.last_verified_at NULLS FIRST
+            """, nativeQuery = true)
+    List<UUID> findVerificationDueIds();
 }

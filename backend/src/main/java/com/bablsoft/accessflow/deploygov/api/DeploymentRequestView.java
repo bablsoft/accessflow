@@ -51,7 +51,12 @@ public record DeploymentRequestView(
         /** Mirrors the environment's {@code change_ticket_required} flag (#994). */
         boolean changeTicketRequired,
         /** The linked change ticket that explains the request's state, or null (#994). */
-        DeploymentTicketView changeTicket) {
+        DeploymentTicketView changeTicket,
+        /** Post-deployment verification state (#1025); never null. */
+        VerificationStatus verificationStatus,
+        Instant verificationStartedAt,
+        Instant verificationFinishedAt,
+        String verificationDetail) {
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
@@ -69,7 +74,8 @@ public record DeploymentRequestView(
                 submittedByEmail, version, commitSha, artifactRef, runUrl, externalRunId, metadata,
                 status, submissionReason, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
                 aiSummary, requiredApprovals, scheduledFor, outcome, outcomeReportedAt, outcomeDetail,
-                createdAt, decisions, null, null, false, null);
+                createdAt, decisions, null, null, false, null, VerificationStatus.PENDING, null, null,
+                null);
     }
 
     public DeploymentRequestView {
@@ -78,5 +84,6 @@ public record DeploymentRequestView(
                 ? Map.of()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(metadata));
         decisions = decisions == null ? List.of() : List.copyOf(decisions);
+        verificationStatus = verificationStatus == null ? VerificationStatus.PENDING : verificationStatus;
     }
 }

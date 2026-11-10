@@ -9321,6 +9321,7 @@ submitter for every downstream rule, including "a submitter can never approve th
 | `POST` | `/deployment-requests` | Trigger a governed deployment (`202`). Requires an active **`can_trigger`** grant on the pipeline — the most-permissive union of the caller's direct grant and every unexpired group grant; `QUERY_ADMIN` holders bypass the grant. **Idempotent**: when `externalRunId` is supplied, a repeat of the same `(pipelineId, environment, version, externalRunId)` returns the **existing** request with **`200 OK`** and creates nothing (a replayed CI job must not queue a second approval). The grant is checked *before* the replay lookup, so a repeat cannot be used to probe for existing runs. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`, `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND`. |
 | `GET` | `/deployment-requests` | List requests. Paginated (`page`, `size`). Optional filters: `status`, `pipeline_id`, `environment` (environment **name**, case-insensitive), `version` (exact), `submitted_by` (honoured only for callers who may see the whole org — a **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** holder; everyone else is hard-scoped to their own submissions, matching the detail endpoint's visibility rule), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
 | `GET` | `/deployment-requests/{id}` | Get one request with its AI analysis summary and review decisions. Visible to the **submitter**, and to any holder of **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** in the organization; everyone else gets `404` (never `403` — the endpoint is not an existence oracle). The response also carries **`canReview`** — see below. |
+| `GET` | `/deployment-requests/{id}/verification-samples` | The request's post-deployment verification samples (#1025), oldest first (`sampled_at` ascending) — one entry per check per tick. Not paginated: a window is bounded by `window / sample_interval × checks`. Same visibility as the detail read (submitter, `DEPLOYMENT_REVIEW`, `QUERY_ADMIN`); anyone else — and an id in another organization — gets `404 DEPLOYMENT_REQUEST_NOT_FOUND`, never `403`. An unverified request returns `[]`. See [Post-deployment verification](#post-deployment-verification-1025). |
 | `POST` | `/deployment-requests/{id}/cancel` | Submitter cancels the request (`204`). Allowed from `PENDING_REVIEW`, or from `APPROVED` while a `scheduledFor` deferral is still in the future. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED` for a non-submitter, `409 DEPLOYMENT_REQUEST_INVALID_STATE` otherwise. |
 
 **`canReview` on the detail response (#770).** A boolean saying whether **the calling viewer** may
@@ -9417,7 +9418,7 @@ caller for every rule below.
 |--------|------|-------------|
 | `GET` | `/deployment-gate` | Poll releasability. Query params (snake_case): either `request_id=<uuid>` **or** all three of `pipeline=<name>`, `version=<v>`, `environment=<env name>` (any other combination is a `400`). Tuple resolution is case-insensitive on the pipeline and environment names and picks the **newest** request for the tuple. `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` / `DEPLOYMENT_REQUEST_NOT_FOUND` for an unknown pipeline, environment, tuple or id — and also when the request exists but the caller may not see it (never `403`; the CI wrappers treat any `404` as **not releasable**). Visibility: the submitter, a `can_trigger` grant holder on the pipeline, or a `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` holder. |
 | `POST` | `/deployment-requests/{id}/confirm-execution` | The pipeline acknowledges it proceeded once the gate answered `releasable: true`; transitions `APPROVED → EXECUTED` (`200`, the full request body; audit action `DEPLOYMENT_EXECUTED`, metadata `trigger=pipeline`; on a `change_ticket_required` environment also `change_ticket_required=true` and either `change_ticket_key` or, for break-glass, `change_ticket_bypassed=break_glass` — #993). Only the submitter, a `can_trigger` holder on the pipeline, or `QUERY_ADMIN` may confirm (`403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`); only from `APPROVED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`) **and** currently releasable (`409 DEPLOYMENT_NOT_RELEASABLE`). Idempotent: confirming an already-`EXECUTED` request returns `200` and changes nothing. |
-| `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
+| `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. **One carve-out (#1025):** a `ROLLED_BACK` report over a stored `SUCCEEDED` is accepted (`200`) when — and only when — the request's `verification_status` is `FAILED`; it runs the normal rollback path (version-tracker revert, rollback follow-up review on a `require_review` environment) and its audit row carries `superseded: "SUCCEEDED"`. Every other differing second report stays `409` — including a `ROLLED_BACK` sent while the verification is still `RUNNING`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
 
 **Gate response:**
 
@@ -9439,9 +9440,16 @@ caller for every rule below.
     "url": "https://acme.service-now.com/change_request.do?sys_id=…",
     "status": "Implement",
     "decision": "APPROVED"
-  }
+  },
+  "verification_status": "FAILED",
+  "verification_detail": "health: 3/3 failed samples"
 }
 ```
+
+`verification_status` / `verification_detail` (#1025) are additive (`verification_detail` is
+omitted while unset, like every null) and report the
+[post-deployment verification](#post-deployment-verification-1025) state; they never feed
+`releasable` — verification runs after release.
 
 `change_ticket_required` and `change_ticket` (#993) are additive — a pre-#993 CI wrapper that
 branches on `releasable` alone keeps working. `change_ticket_required` mirrors the environment's
@@ -9483,6 +9491,50 @@ the deployment-side mirror of the break-glass retro-review. Base path
 | `GET` | `/deployment-rollback-reviews` | List the org's rollback reviews, newest first. Paginated (`page`, `size`); optional `status` filter (`PENDING_REVIEW` \| `REVIEWED`). |
 | `GET` | `/deployment-rollback-reviews/{id}` | Get one review. `404 DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND` for a missing or cross-org id. |
 | `POST` | `/deployment-rollback-reviews/{id}/acknowledge` | Acknowledge the rollback (`200`, optional `{ "comment": "…" }` ≤2000; audit action `DEPLOYMENT_ROLLBACK_REVIEWED`). The deployment's **submitter can never acknowledge their own rollback** (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`). Acknowledging an already-`REVIEWED` record is an idempotent no-op returning the current state. |
+
+### Post-deployment verification (#1025)
+
+When an environment carries a `verification` config (#1023), the pipeline's **`SUCCEEDED`
+outcome report** — never `confirm-execution`, which fires before the deploy steps run — opens a
+verification window: the config is snapshotted onto the request, `verification_status` becomes
+`RUNNING` and `verification_started_at` is the report instant. `DeploymentVerificationJob`
+samples every check once per `sample_interval`; a check whose failed-sample count reaches
+`failure_threshold` **fails** the verification and flips the request `EXECUTED → FAILED`, while
+`outcome` stays `SUCCEEDED` (the pipeline's claim, and the evidence it was wrong). A window that
+elapses without a breach ends `PASSED`. There is **no automatic rollback** and no version-tracker
+revert on a breach — report `ROLLED_BACK` afterwards (the carve-out above) once you have rolled
+back. Break-glass deployments are verified like any other.
+
+| `verification_status` | Meaning |
+|---|---|
+| `PENDING` | Not started — no outcome reported yet. |
+| `RUNNING` | Window open; samples being taken. |
+| `PASSED` | The window elapsed with no check reaching its threshold. |
+| `FAILED` | A check reached its threshold (or the snapshot was unreadable — fail closed); the request is now `FAILED`. |
+| `SKIPPED` | Never verified: no config on the environment (`verification_detail: "no verification configured"`) or a `FAILED` / `ROLLED_BACK` first outcome (`"outcome:FAILED"` / `"outcome:ROLLED_BACK"`). |
+
+Request detail and list bodies carry `verification_status`, `verification_started_at`,
+`verification_finished_at` and `verification_detail` (breach detail reads
+`"<check>: <n>/<threshold> failed samples"`); the gate carries `verification_status` and
+`verification_detail`. A breach reaches the submitter's browser through the existing
+`deployment.status_changed` WebSocket event.
+
+**Sample entry** (`GET /deployment-requests/{id}/verification-samples`):
+
+```json
+[
+  {
+    "id": "…",
+    "deployment_request_id": "…",
+    "check_name": "health",
+    "check_kind": "HTTP_HEALTH",
+    "sampled_at": "…",
+    "passed": false,
+    "observed_value": "503",
+    "detail": "expected status 200, got 503"
+  }
+]
+```
 
 ### Version inventory & drift (#742)
 

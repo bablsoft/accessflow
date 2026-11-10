@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcomeService;
@@ -106,6 +107,8 @@ class DeploymentGateControllerTest {
         assertThat(json.get("ai_risk_level").asString()).isEqualTo("LOW");
         assertThat(json.get("change_ticket_required").asBoolean()).isTrue();
         assertThat(json.has("change_ticket")).isFalse();
+        assertThat(json.get("verification_status").asString()).isEqualTo("RUNNING");
+        assertThat(json.has("verification_detail")).isFalse();
     }
 
     @Test
@@ -183,7 +186,7 @@ class DeploymentGateControllerTest {
                                         DeploymentTicketView ticket) {
         return new DeploymentGateView(requestId, QueryStatus.APPROVED, releasable, 2, 2, List.of(),
                 false, null, Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW, ticketRequired,
-                ticket);
+                ticket, VerificationStatus.RUNNING, null);
     }
 
     private DeploymentRequestView requestView() {

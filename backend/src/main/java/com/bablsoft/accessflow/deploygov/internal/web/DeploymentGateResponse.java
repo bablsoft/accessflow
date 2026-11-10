@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,7 +21,10 @@ public record DeploymentGateResponse(
         Instant scheduledFor,
         RiskLevel aiRiskLevel,
         boolean changeTicketRequired,
-        DeploymentChangeTicketResponse changeTicket) {
+        DeploymentChangeTicketResponse changeTicket,
+        /** Post-deployment verification state (#1025); never feeds {@code releasable}. */
+        VerificationStatus verificationStatus,
+        String verificationDetail) {
 
     record Approvals(int required, int granted) {
     }
@@ -30,6 +34,7 @@ public record DeploymentGateResponse(
                 new Approvals(view.requiredApprovals(), view.grantedApprovals()),
                 view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
                 view.frozen(), view.freezeReason(), view.scheduledFor(), view.aiRiskLevel(),
-                view.changeTicketRequired(), DeploymentChangeTicketResponse.from(view.changeTicket()));
+                view.changeTicketRequired(), DeploymentChangeTicketResponse.from(view.changeTicket()),
+                view.verificationStatus(), view.verificationDetail());
     }
 }

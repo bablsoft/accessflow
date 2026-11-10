@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
@@ -19,6 +20,8 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReq
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRollbackReviewRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -43,6 +46,8 @@ class DefaultDeploymentOutcomeServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-24T12:00:00Z");
     private static final UUID ORG = UUID.randomUUID();
+    private static final String CONFIG_JSON = """
+            {"window":"PT10M","sampleInterval":"PT1M","failureThreshold":3,"checks":[]}""";
 
     private DeploymentRequestRepository requestRepository;
     private DeploymentEnvironmentRepository environmentRepository;
@@ -252,6 +257,170 @@ class DefaultDeploymentOutcomeServiceTest {
                 .isInstanceOf(DeploymentRequestNotFoundException.class);
     }
 
+    // ---- #1025 verification hooks ---------------------------------------------------------
+
+    @Test
+    void succeededOnAVerifiedEnvironmentOpensARunningWindowWithASnapshot() {
+        var request = executed();
+        stub(request);
+        stubEnvironment(request, false, CONFIG_JSON);
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                request.getSubmittedBy(), Set.of(), null);
+
+        assertThat(request.getVerificationStatus()).isEqualTo(VerificationStatus.RUNNING);
+        assertThat(request.getVerificationConfig()).isEqualTo(CONFIG_JSON);
+        assertThat(request.getVerificationStartedAt()).isEqualTo(NOW);
+        assertThat(request.getVerificationDetail()).isNull();
+        assertThat(request.getStatus()).isEqualTo(QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void succeededWithoutAVerificationConfigIsSkipped() {
+        var request = executed();
+        stub(request);
+        stubEnvironment(request, false, null);
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                request.getSubmittedBy(), Set.of(), null);
+
+        assertThat(request.getVerificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+        assertThat(request.getVerificationDetail()).isEqualTo("no verification configured");
+        assertThat(request.getVerificationConfig()).isNull();
+        assertThat(request.getVerificationStartedAt()).isNull();
+    }
+
+    @Test
+    void succeededOnAMissingEnvironmentOrAJsonNullConfigIsSkipped() {
+        var request = executed();
+        stub(request);
+        when(environmentRepository.findById(request.getEnvironmentId()))
+                .thenReturn(Optional.empty());
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                request.getSubmittedBy(), Set.of(), null);
+        assertThat(request.getVerificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+
+        var other = executed();
+        stub(other);
+        stubEnvironment(other, false, "null");
+        service.reportOutcome(other.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                other.getSubmittedBy(), Set.of(), null);
+        assertThat(other.getVerificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+    }
+
+    @Test
+    void failedAndRolledBackOutcomesSkipVerificationEvenWhenConfigured() {
+        var failed = executed();
+        stub(failed);
+        stubEnvironment(failed, false, CONFIG_JSON);
+        service.reportOutcome(failed.getId(), DeploymentOutcome.FAILED, null, ORG,
+                failed.getSubmittedBy(), Set.of(), null);
+        assertThat(failed.getVerificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+        assertThat(failed.getVerificationDetail()).isEqualTo("outcome:FAILED");
+        assertThat(failed.getVerificationConfig()).isNull();
+
+        var rolledBack = executed();
+        stub(rolledBack);
+        stubEnvironment(rolledBack, false, CONFIG_JSON);
+        service.reportOutcome(rolledBack.getId(), DeploymentOutcome.ROLLED_BACK, null, ORG,
+                rolledBack.getSubmittedBy(), Set.of(), null);
+        assertThat(rolledBack.getVerificationStatus()).isEqualTo(VerificationStatus.SKIPPED);
+        assertThat(rolledBack.getVerificationDetail()).isEqualTo("outcome:ROLLED_BACK");
+    }
+
+    @Test
+    void rolledBackAfterAFailedVerificationSupersedesTheSucceededOutcome() {
+        var request = breached();
+        stub(request);
+        stubEnvironment(request, true, CONFIG_JSON);
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.ROLLED_BACK, "rolled back", ORG,
+                request.getSubmittedBy(), Set.of(), "1.2.3.4");
+
+        assertThat(request.getOutcome()).isEqualTo(DeploymentOutcome.ROLLED_BACK);
+        assertThat(request.getOutcomeDetail()).isEqualTo("rolled back");
+        assertThat(request.getOutcomeReportedAt()).isEqualTo(NOW);
+        assertThat(request.getStatus()).isEqualTo(QueryStatus.FAILED);
+        assertThat(request.getVerificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        verify(requestRepository).save(request);
+        verify(stateService, never()).apply(any(), any());
+        verify(versionTracker).recordOutcome(request, DeploymentOutcome.ROLLED_BACK);
+        verify(rollbackReviewRepository).save(any(DeploymentRollbackReviewEntity.class));
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_OUTCOME_REPORTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(request.getId()), eq(ORG),
+                eq(request.getSubmittedBy()), metadata.capture(), eq("1.2.3.4"));
+        assertThat(metadata.getValue()).containsEntry("outcome", "ROLLED_BACK")
+                .containsEntry("superseded", "SUCCEEDED")
+                .containsEntry("rollback_review_opened", true);
+        var event = ArgumentCaptor.forClass(DeploymentOutcomeReportedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().outcome()).isEqualTo(DeploymentOutcome.ROLLED_BACK);
+    }
+
+    @Test
+    void aFirstReportCarriesNoSupersededKey() {
+        var request = executed();
+        stub(request);
+        stubEnvironment(request, false, null);
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                request.getSubmittedBy(), Set.of(), null);
+
+        var metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(any(), any(), any(), any(), any(), metadata.capture(), any());
+        assertThat(metadata.getValue()).doesNotContainKey("superseded");
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = VerificationStatus.class, names = "FAILED", mode = EnumSource.Mode.EXCLUDE)
+    void rolledBackOverSucceededStillConflictsUnlessVerificationFailed(
+            VerificationStatus verification) {
+        var request = executed();
+        request.setOutcome(DeploymentOutcome.SUCCEEDED);
+        request.setVerificationStatus(verification);
+        stub(request);
+
+        assertThatThrownBy(() -> service.reportOutcome(request.getId(),
+                DeploymentOutcome.ROLLED_BACK, null, ORG, request.getSubmittedBy(), Set.of(), null))
+                .isInstanceOf(DeploymentOutcomeConflictException.class);
+        verify(versionTracker, never()).recordOutcome(any(), any());
+    }
+
+    @Test
+    void failedOverABreachedSucceededStillConflicts() {
+        var request = breached();
+        stub(request);
+
+        assertThatThrownBy(() -> service.reportOutcome(request.getId(), DeploymentOutcome.FAILED,
+                null, ORG, request.getSubmittedBy(), Set.of(), null))
+                .isInstanceOf(DeploymentOutcomeConflictException.class);
+        verify(requestRepository, never()).save(any());
+    }
+
+    @Test
+    void succeededRepeatAfterABreachIsStillIdempotent() {
+        var request = breached();
+        stub(request);
+
+        service.reportOutcome(request.getId(), DeploymentOutcome.SUCCEEDED, null, ORG,
+                request.getSubmittedBy(), Set.of(), null);
+
+        verify(requestRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+        assertThat(request.getVerificationStatus()).isEqualTo(VerificationStatus.FAILED);
+    }
+
+    private DeploymentRequestEntity breached() {
+        var entity = executed();
+        entity.setStatus(QueryStatus.FAILED);
+        entity.setOutcome(DeploymentOutcome.SUCCEEDED);
+        entity.setOutcomeReportedAt(NOW.minusSeconds(600));
+        entity.setVerificationStatus(VerificationStatus.FAILED);
+        return entity;
+    }
+
     private DeploymentRequestEntity executed() {
         var entity = new DeploymentRequestEntity();
         entity.setId(UUID.randomUUID());
@@ -270,7 +439,13 @@ class DefaultDeploymentOutcomeServiceTest {
     }
 
     private void stubEnvironment(DeploymentRequestEntity request, boolean requireReview) {
+        stubEnvironment(request, requireReview, null);
+    }
+
+    private void stubEnvironment(DeploymentRequestEntity request, boolean requireReview,
+                                 String verification) {
         var environment = new DeploymentEnvironmentEntity();
+        environment.setVerification(verification);
         environment.setId(request.getEnvironmentId());
         environment.setPipelineId(request.getPipelineId());
         environment.setName("production");

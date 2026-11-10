@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus;
 import com.bablsoft.accessflow.deploygov.api.EffectiveDeploymentPermission;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
@@ -26,7 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.util.Map;
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
 
@@ -72,39 +74,100 @@ public class DefaultDeploymentOutcomeService implements DeploymentOutcomeService
             if (request.getOutcome() == outcome) {
                 return requestService.detailView(request);
             }
+            if (supersedesFailedVerification(request, outcome)) {
+                // #1025: the pipeline rolls back a deployment whose verification breached. The
+                // request is already FAILED; this records the rollback the breach did not perform.
+                request.setOutcome(outcome);
+                request.setOutcomeDetail(detail);
+                request.setOutcomeReportedAt(clock.instant());
+                requestRepository.save(request);
+                return recordOutcome(request, outcome, detail, organizationId, callerId, ipAddress,
+                        DeploymentOutcome.SUCCEEDED);
+            }
             throw new DeploymentOutcomeConflictException(requestId, request.getOutcome(), outcome);
         }
         // Two concurrent FIRST reports of different outcomes both pass the null guard; the loser
         // then fails on the @Version optimistic lock rather than this 409 — an acceptable rare
         // race, since the retry resolves to the idempotent/conflict branch above.
 
+        var reportedAt = clock.instant();
         request.setOutcome(outcome);
         request.setOutcomeDetail(detail);
-        request.setOutcomeReportedAt(clock.instant());
+        request.setOutcomeReportedAt(reportedAt);
+        startOrSkipVerification(request, outcome, reportedAt);
         if (outcome == DeploymentOutcome.FAILED) {
             stateService.apply(request, QueryStatus.FAILED);
         } else {
             requestRepository.save(request);
         }
-        // #741: reached only on a first report — the idempotent/conflict branches exit earlier.
+        return recordOutcome(request, outcome, detail, organizationId, callerId, ipAddress, null);
+    }
+
+    /**
+     * The shared tail of a recorded outcome: version tracker, rollback review, audit row, event.
+     * Reached only on a first report or the #1025 carve-out — the idempotent/conflict branches
+     * exit earlier.
+     */
+    private DeploymentRequestView recordOutcome(DeploymentRequestEntity request,
+                                                DeploymentOutcome outcome, String detail,
+                                                UUID organizationId, UUID callerId,
+                                                String ipAddress, DeploymentOutcome superseded) {
         versionTracker.recordOutcome(request, outcome);
         boolean rollbackReviewOpened = outcome == DeploymentOutcome.ROLLED_BACK
                 && maybeOpenRollbackReview(request, detail);
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "pipeline");
+        metadata.put("outcome", outcome.name());
+        metadata.put("rollback_review_opened", rollbackReviewOpened);
+        if (superseded != null) {
+            metadata.put("superseded", superseded.name());
+        }
         auditWriter.record(AuditAction.DEPLOYMENT_OUTCOME_REPORTED,
                 AuditResourceType.DEPLOYMENT_REQUEST, request.getId(), organizationId, callerId,
-                Map.of("trigger", "pipeline",
-                        "outcome", outcome.name(),
-                        "rollback_review_opened", rollbackReviewOpened),
-                ipAddress);
+                metadata, ipAddress);
         eventPublisher.publishEvent(new DeploymentOutcomeReportedEvent(organizationId,
                 request.getId(), request.getPipelineId(), outcome, detail));
         return requestService.detailView(request);
     }
 
+    /** The one accepted second report (#1025): ROLLED_BACK after a breached verification. */
+    private static boolean supersedesFailedVerification(DeploymentRequestEntity request,
+                                                        DeploymentOutcome outcome) {
+        return outcome == DeploymentOutcome.ROLLED_BACK
+                && request.getOutcome() == DeploymentOutcome.SUCCEEDED
+                && request.getVerificationStatus() == VerificationStatus.FAILED;
+    }
+
+    /**
+     * #1025: a SUCCEEDED report opens the verification window when the environment configures
+     * one, snapshotting the config so a later edit never changes a running window. Verification
+     * starts here and never on EXECUTED, which is stamped before the deploy steps run.
+     */
+    private void startOrSkipVerification(DeploymentRequestEntity request,
+                                         DeploymentOutcome outcome, Instant reportedAt) {
+        if (outcome != DeploymentOutcome.SUCCEEDED) {
+            request.setVerificationStatus(VerificationStatus.SKIPPED);
+            request.setVerificationDetail("outcome:" + outcome.name());
+            return;
+        }
+        var config = environmentRepository.findById(request.getEnvironmentId())
+                .map(DeploymentEnvironmentEntity::getVerification)
+                .filter(json -> !json.isBlank() && !"null".equals(json.strip()))
+                .orElse(null);
+        if (config == null) {
+            request.setVerificationStatus(VerificationStatus.SKIPPED);
+            request.setVerificationDetail("no verification configured");
+            return;
+        }
+        request.setVerificationConfig(config);
+        request.setVerificationStatus(VerificationStatus.RUNNING);
+        request.setVerificationStartedAt(reportedAt);
+    }
+
     /**
      * Open the follow-up review when the environment demands one. The UNIQUE
-     * {@code deployment_request_id} column is the concurrency backstop; the outcome-null guard
-     * above already makes a second report unreachable here.
+     * {@code deployment_request_id} column is the concurrency backstop. Reached at most once per
+     * request: a first report, or the #1025 carve-out, after which the outcome is ROLLED_BACK.
      */
     private boolean maybeOpenRollbackReview(DeploymentRequestEntity request, String detail) {
         boolean requireReview = environmentRepository.findById(request.getEnvironmentId())

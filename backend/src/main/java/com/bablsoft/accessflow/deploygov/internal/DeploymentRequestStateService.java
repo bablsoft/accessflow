@@ -5,10 +5,12 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentVerificationFailedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import lombok.RequiredArgsConstructor;
@@ -167,6 +169,47 @@ public class DeploymentRequestStateService {
         recordReminder(AuditAction.DEPLOYMENT_REVIEW_NUDGED, entity, "nudge");
         eventPublisher.publishEvent(new DeploymentReviewNudgedEvent(id));
         return true;
+    }
+
+    /**
+     * Fails a running post-deployment verification (#1025), called by the verification service.
+     * The breach is the plain {@code EXECUTED → FAILED} flip and nothing more: {@code outcome} stays
+     * {@code SUCCEEDED}, the version tracker is not reverted (nobody rolled back) and no
+     * outcome-reported event is published. Returns false when the row is no longer a running
+     * verification — a lost race, not an error.
+     */
+    @Transactional
+    public boolean markVerificationFailed(UUID id, String detail) {
+        var entity = require(id);
+        if (!isRunningVerification(entity)) {
+            return false;
+        }
+        entity.setVerificationStatus(VerificationStatus.FAILED);
+        entity.setVerificationFinishedAt(clock.instant());
+        entity.setVerificationDetail(detail);
+        apply(entity, QueryStatus.FAILED);
+        // #1026: the DEPLOYMENT_VERIFICATION_FAILED audit row is recorded here.
+        eventPublisher.publishEvent(new DeploymentVerificationFailedEvent(
+                entity.getOrganizationId(), entity.getId(), entity.getPipelineId(), detail));
+        return true;
+    }
+
+    /** Ends a running verification as {@code PASSED} after a clean window (#1025); no event. */
+    @Transactional
+    public boolean markVerificationPassed(UUID id) {
+        var entity = require(id);
+        if (!isRunningVerification(entity)) {
+            return false;
+        }
+        entity.setVerificationStatus(VerificationStatus.PASSED);
+        entity.setVerificationFinishedAt(clock.instant());
+        repository.save(entity);
+        return true;
+    }
+
+    private static boolean isRunningVerification(DeploymentRequestEntity entity) {
+        return entity.getStatus() == QueryStatus.EXECUTED
+                && entity.getVerificationStatus() == VerificationStatus.RUNNING;
     }
 
     private void recordReminder(AuditAction action, DeploymentRequestEntity entity, String trigger) {

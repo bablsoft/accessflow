@@ -3,12 +3,15 @@ package com.bablsoft.accessflow.deploygov.internal;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentVerificationFailedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -390,6 +393,81 @@ class DeploymentRequestStateServiceTest {
         verify(repository, never()).save(any());
         verify(auditWriter, never()).record(any(), any(), any(), any(), any(), anyMap(), any());
         verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void markVerificationFailedFlipsToFailedStampsAndPublishesWithoutTouchingTheOutcome() {
+        var entity = verifying(QueryStatus.EXECUTED, VerificationStatus.RUNNING);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markVerificationFailed(entity.getId(), "health: 3/3 failed samples"))
+                .isTrue();
+
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.FAILED);
+        assertThat(entity.getVerificationStatus()).isEqualTo(VerificationStatus.FAILED);
+        assertThat(entity.getVerificationFinishedAt()).isEqualTo(NOW);
+        assertThat(entity.getVerificationDetail()).isEqualTo("health: 3/3 failed samples");
+        assertThat(entity.getOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        verify(repository).save(entity);
+        verify(eventPublisher).publishEvent(new DeploymentStatusChangedEvent(entity.getId(),
+                entity.getSubmittedBy(), QueryStatus.EXECUTED, QueryStatus.FAILED));
+        verify(eventPublisher).publishEvent(new DeploymentVerificationFailedEvent(
+                entity.getOrganizationId(), entity.getId(), entity.getPipelineId(),
+                "health: 3/3 failed samples"));
+        verifyNoInteractions(versionTracker);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"EXECUTED,PASSED", "EXECUTED,SKIPPED", "EXECUTED,FAILED", "FAILED,RUNNING",
+            "APPROVED,RUNNING"})
+    void markVerificationFailedIsANoOpUnlessARunningVerificationOfAnExecutedRequest(
+            QueryStatus status, VerificationStatus verification) {
+        var entity = verifying(status, verification);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markVerificationFailed(entity.getId(), "x")).isFalse();
+
+        assertThat(entity.getStatus()).isEqualTo(status);
+        assertThat(entity.getVerificationStatus()).isEqualTo(verification);
+        verify(repository, never()).save(any());
+        verifyNoInteractions(eventPublisher, versionTracker);
+    }
+
+    @Test
+    void markVerificationPassedStampsWithoutAnEventOrAStatusChange() {
+        var entity = verifying(QueryStatus.EXECUTED, VerificationStatus.RUNNING);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markVerificationPassed(entity.getId())).isTrue();
+
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(entity.getVerificationStatus()).isEqualTo(VerificationStatus.PASSED);
+        assertThat(entity.getVerificationFinishedAt()).isEqualTo(NOW);
+        assertThat(entity.getOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        verify(repository).save(entity);
+        verifyNoInteractions(eventPublisher, versionTracker);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"EXECUTED,FAILED", "EXECUTED,PASSED", "FAILED,RUNNING"})
+    void markVerificationPassedIsANoOpOnALostRace(QueryStatus status,
+                                                  VerificationStatus verification) {
+        var entity = verifying(status, verification);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markVerificationPassed(entity.getId())).isFalse();
+
+        assertThat(entity.getVerificationFinishedAt()).isNull();
+        verify(repository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    private static DeploymentRequestEntity verifying(QueryStatus status,
+                                                     VerificationStatus verification) {
+        var entity = request(status);
+        entity.setOutcome(DeploymentOutcome.SUCCEEDED);
+        entity.setVerificationStatus(verification);
+        return entity;
     }
 
     private static DeploymentRequestEntity request(QueryStatus status) {
