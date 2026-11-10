@@ -136,6 +136,7 @@ class DiscordPayloadFactoryTest {
             DEPLOYMENT_REJECTED             | ❌ Deployment Rejected
             DEPLOYMENT_OUTCOME_FAILED       | 🚨 Deployment Failed or Rolled Back
             DEPLOYMENT_BREAK_GLASS_EXECUTED | 🚨 Break-glass Deployment Executed
+            DEPLOYMENT_VERIFICATION_FAILED  | 🚨 Deployment Verification Failed
             """)
     void deploymentHeadersAreUsed(NotificationEventType eventType, String expectedHeader) {
         var body = factory.buildEventBody(deploymentCtx(eventType, null),
@@ -169,12 +170,29 @@ class DiscordPayloadFactoryTest {
                 .contains("ROLLED_BACK");
     }
 
+    @Test
+    void deploymentVerificationFailedEmbedCarriesTheCheckAndTheRecommendation() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED, null,
+                        "health: 3/3 failed samples"),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("Deployment Verification Failed")
+                .contains("health: 3/3 failed samples")
+                .contains("did not roll it back");
+    }
+
     /**
      * A DEPLOYMENT_* context (#695): pipeline name rides in datasourceName, submitter in
      * submitterEmail/DisplayName; fullSqlText/queryType/reviewUrl are null.
      */
     private static NotificationContext deploymentCtx(NotificationEventType eventType,
                                                      DeploymentOutcome outcome) {
+        return deploymentCtx(eventType, outcome, null);
+    }
+
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome,
+                                                     String decisionReason) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -211,7 +229,7 @@ class DiscordPayloadFactoryTest {
                 "production",
                 "v2.14.0",
                 outcome,
-                null);
+                decisionReason);
     }
 
     private static NotificationContext digestCtx() {

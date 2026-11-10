@@ -205,7 +205,9 @@ class EmailNotificationStrategyTest {
                 NotificationEventType.DEPLOYMENT_REJECTED, "email/deployment-rejected",
                 NotificationEventType.DEPLOYMENT_OUTCOME_FAILED, "email/deployment-outcome-failed",
                 NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
-                "email/deployment-break-glass-executed");
+                "email/deployment-break-glass-executed",
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                "email/deployment-verification-failed");
         expected.forEach((eventType, template) -> {
             strategy.deliver(deploymentCtx(eventType), channel());
             verify(templateEngine).process(eq(template), any());
@@ -223,6 +225,19 @@ class EmailNotificationStrategyTest {
         var argsCaptor = ArgumentCaptor.forClass(Object[].class);
         verify(messageSource).getMessage(
                 eq("notification.email.subject.deployment_approved"),
+                argsCaptor.capture(),
+                any(Locale.class));
+        assertThat(argsCaptor.getValue()).containsExactly("payments-pipeline", "2.4.1");
+    }
+
+    @Test
+    void verificationFailedSubjectUsesItsOwnKeyWithPipelineAndVersion() {
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED),
+                channel());
+
+        var argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(messageSource).getMessage(
+                eq("notification.email.subject.deployment_verification_failed"),
                 argsCaptor.capture(),
                 any(Locale.class));
         assertThat(argsCaptor.getValue()).containsExactly("payments-pipeline", "2.4.1");

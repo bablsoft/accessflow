@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentVerificationFailedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,15 @@ class DeploymentNotificationListenerTest {
                 pipelineId, DeploymentOutcome.ROLLED_BACK, "regression"));
         verify(dispatcher).dispatchDeployment(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
                 requestId, DeploymentOutcome.ROLLED_BACK, null);
+    }
+
+    @Test
+    void verificationFailureNotifiesWithTheBreachedCheckAsTheReason() {
+        listener.onVerificationFailed(new DeploymentVerificationFailedEvent(orgId, requestId,
+                pipelineId, "health: 3/3 failed samples"));
+        verify(dispatcher).dispatchDeployment(
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED, requestId, null,
+                "health: 3/3 failed samples");
     }
 
     @Test

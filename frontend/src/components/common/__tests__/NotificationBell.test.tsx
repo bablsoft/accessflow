@@ -559,6 +559,12 @@ describe('NotificationBell', () => {
       '/reviews?tab=rollbacks',
     ],
     [
+      'DEPLOYMENT_VERIFICATION_FAILED' as const,
+      { datasource: 'payments-pipeline', environment: 'production', version: '2.4.1' },
+      /Verification failed for 2\.4\.1 on payments-pipeline \/ production/,
+      '/deployments/dr-1',
+    ],
+    [
       'DEPLOYMENT_BREAK_GLASS_EXECUTED' as const,
       { datasource: 'payments-pipeline', submitter: 'dev@acme.com' },
       /dev@acme.com released a break-glass deployment on payments-pipeline/,

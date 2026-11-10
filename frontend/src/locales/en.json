@@ -3036,6 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "A deployment you approved on {{pipeline}} reported {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} released a break-glass deployment on {{pipeline}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "A break-glass deployment was released on {{pipeline}}",
+      "DEPLOYMENT_VERIFICATION_FAILED": "Verification failed for {{version}} on {{pipeline}} / {{environment}} — still running, decide whether to roll back",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "A schema change {{changeSet}} → {{environment}} is awaiting your review",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "Your schema change {{changeSet}} was applied to {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Your schema change {{changeSet}} failed on {{environment}}",

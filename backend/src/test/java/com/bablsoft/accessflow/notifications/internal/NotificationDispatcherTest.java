@@ -297,6 +297,7 @@ class NotificationDispatcherTest {
                 NotificationEventType.DEPLOYMENT_REJECTED,
                 NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
                 NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
                 // #985: the shared reminder types, on a deployment context.
                 NotificationEventType.REVIEW_ESCALATED,
                 NotificationEventType.REVIEW_NUDGE)) {
@@ -307,7 +308,7 @@ class NotificationDispatcherTest {
 
             dispatcher.dispatchDeployment(eventType, deploymentRequestId, null, null);
         }
-        verify(emailStrategy, org.mockito.Mockito.times(7)).deliver(any(), eq(emailCh));
+        verify(emailStrategy, org.mockito.Mockito.times(8)).deliver(any(), eq(emailCh));
         verify(contextBuilder, never()).lookupPlanChannelIds(any());
     }
 

@@ -352,12 +352,39 @@ class SlackBlockKitFactoryTest {
                 .anyMatch(t -> t.contains("Outcome:") && t.contains("ROLLED_BACK"));
     }
 
+    @Test
+    void deploymentVerificationFailedCarriesTheCheckAndTheRecommendation() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED, null,
+                        "health: 3/3 failed samples"), null);
+        assertThat(payload.getText()).isEqualTo("🚨 Deployment Verification Failed");
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .anyMatch(t -> t.contains("Verification:") && t.contains("health: 3/3"))
+                .anyMatch(t -> t.contains("did not roll it back") && t.contains("ROLLED_BACK"));
+    }
+
+    @Test
+    void otherDeploymentEventsCarryNoVerificationField() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, null, "x"), null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .noneMatch(t -> t.contains("Verification:"));
+    }
+
     /**
      * A DEPLOYMENT_* context (#695): the pipeline rides in {@code datasourceName}, no SQL, no
      * queryType, no reviewUrl; the deployment fields are the trailing canonical components.
      */
     private static NotificationContext deploymentCtx(NotificationEventType eventType,
                                                      DeploymentOutcome outcome) {
+        return deploymentCtx(eventType, outcome, null);
+    }
+
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome,
+                                                     String decisionReason) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -394,7 +421,7 @@ class SlackBlockKitFactoryTest {
                 "production",
                 "v2.4.1",
                 outcome,
-                null);
+                decisionReason);
     }
 
     @Test

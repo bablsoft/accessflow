@@ -164,9 +164,26 @@ class TelegramMessageFactoryTest {
         assertThat(body).contains("Outcome").contains("ROLLED\\\\_BACK");
     }
 
+    @Test
+    void deploymentVerificationFailedCarriesTheCheckAndTheRecommendation() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED, null,
+                        "health 3 failed"), "-100");
+        assertThat(body).contains("Deployment Verification Failed")
+                .contains("health 3 failed")
+                .contains("did not roll it back")
+                .contains("ROLLED");
+    }
+
     /** A DEPLOYMENT_* context (#695) — pipeline in datasourceName, no SQL, no review URL. */
-    private static NotificationContext deploymentCtx(
-            NotificationEventType eventType, DeploymentOutcome outcome) {
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome) {
+        return deploymentCtx(eventType, outcome, null);
+    }
+
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome,
+                                                     String decisionReason) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -203,7 +220,7 @@ class TelegramMessageFactoryTest {
                 "production",
                 "2.4.0",
                 outcome,
-                null);
+                decisionReason);
     }
 
     private static NotificationContext digestCtx() {

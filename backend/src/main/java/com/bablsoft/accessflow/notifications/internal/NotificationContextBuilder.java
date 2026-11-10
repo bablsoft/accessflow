@@ -195,6 +195,7 @@ class NotificationContextBuilder {
                  ERASURE_APPROVED,
                  DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
                  DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                 DEPLOYMENT_VERIFICATION_FAILED,
                  SCHEMA_CHANGE_PROMOTION_SUBMITTED, SCHEMA_CHANGE_PROMOTION_APPLIED,
                  SCHEMA_CHANGE_PROMOTION_FAILED, SCHEMA_DRIFT_DETECTED,
                  DATA_BUDGET_THRESHOLD_REACHED, DATA_BUDGET_EXHAUSTED -> List.of();
@@ -573,6 +574,14 @@ class NotificationContextBuilder {
             // The reviewers who granted the deployment learn it failed or was rolled back.
             case DEPLOYMENT_OUTCOME_FAILED -> toActiveRecipients(
                     deploymentNotificationLookupService.findApproverUserIds(view.id()));
+            // #1026: a breached verification also reaches the submitter, the person most able to
+            // roll back. Auto-approved and break-glass requests have no approvers: submitter only.
+            case DEPLOYMENT_VERIFICATION_FAILED -> {
+                var ids = new LinkedHashSet<>(
+                        deploymentNotificationLookupService.findApproverUserIds(view.id()));
+                ids.add(view.submittedByUserId());
+                yield toActiveRecipients(List.copyOf(ids));
+            }
             // #985: a nudge reminds the eligible reviewers who have not decided yet; an escalation
             // adds every active org admin, because the point is that those reviewers did not act.
             // Notify-only — neither widens who may decide, and the submitter is never included.

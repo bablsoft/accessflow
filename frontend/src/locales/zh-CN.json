@@ -3036,6 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "您在 {{pipeline}} 上批准的部署报告了 {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} 在 {{pipeline}} 上发布了一个 break-glass 部署",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "{{pipeline}} 上发布了一个 break-glass 部署",
+      "DEPLOYMENT_VERIFICATION_FAILED": "{{version}} 在 {{pipeline}} / {{environment}} 上的验证失败——仍在运行，请决定是否回滚",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "架构变更 {{changeSet}} → {{environment}} 等待您审核",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "您的架构变更 {{changeSet}} 已应用到 {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "您的架构变更 {{changeSet}} 在 {{environment}} 上失败",

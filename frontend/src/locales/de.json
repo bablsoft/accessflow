@@ -3036,6 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "Ein von dir genehmigtes Deployment auf {{pipeline}} hat {{outcome}} gemeldet",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} hat ein Break-Glass-Deployment auf {{pipeline}} freigegeben",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Ein Break-Glass-Deployment wurde auf {{pipeline}} freigegeben",
+      "DEPLOYMENT_VERIFICATION_FAILED": "Verifizierung für {{version}} auf {{pipeline}} / {{environment}} fehlgeschlagen — läuft weiter, entscheide über einen Rollback",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Eine Schemaänderung {{changeSet}} → {{environment}} wartet auf Ihre Prüfung",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "Ihre Schemaänderung {{changeSet}} wurde auf {{environment}} angewendet",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ihre Schemaänderung {{changeSet}} ist auf {{environment}} fehlgeschlagen",

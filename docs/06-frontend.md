@@ -947,9 +947,11 @@ Live refresh: the backend pushes `deployment.status_changed` to the **submitter*
 transition; `websocketManager.invokeDefault` invalidates the deployment detail (incl. its gate
 child key), list, and review queue. Reviewer queues refresh off `notification.created` — a
 `DEPLOYMENT_SUBMITTED` notification additionally invalidates the review queue and a
-`DEPLOYMENT_OUTCOME_FAILED` one the rollback-review list. `NotificationBell` routes deployment
-notifications into the pages (submission → the hub's Deployments tab, outcome-failed → its
-Rollbacks tab, the rest → the deployment detail). Schema-change promotions (#882) are reviewed and
+`DEPLOYMENT_OUTCOME_FAILED` one the rollback-review list, and a `DEPLOYMENT_VERIFICATION_FAILED`
+one (#1026) the deployment detail and list, since its approvers get no status push.
+`NotificationBell` routes deployment notifications into the pages (submission → the hub's
+Deployments tab, a `ROLLED_BACK` outcome → its Rollbacks tab, the rest — verification failures
+included, because nothing was rolled back — → the deployment detail). Schema-change promotions (#882) are reviewed and
 run as request groups, so their notifications route into those pages instead — a
 `SCHEMA_CHANGE_PROMOTION_SUBMITTED` notification to `/request-groups/reviews` (and it invalidates
 `['request-groups', 'reviews']`), `_APPLIED` / `_FAILED` to the promoter's `/request-groups`, and

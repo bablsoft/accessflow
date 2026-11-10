@@ -228,6 +228,22 @@ describe('websocketManager', () => {
     });
     expect(spy).toHaveBeenCalledWith({ queryKey: ['deployment-rollback-reviews'] });
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
+
+    // #1026: a breached verification refreshes the deployment views, never the rollback worklist.
+    spy.mockReset();
+    sock(0).triggerMessage({
+      event: 'notification.created',
+      timestamp: 'now',
+      data: {
+        notification_id: 'n4',
+        event_type: 'DEPLOYMENT_VERIFICATION_FAILED',
+        query_id: null,
+        created_at: '2026-11-10T10:00:00Z',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployments', 'detail'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployments', 'list'] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-rollback-reviews'] });
   });
 
   it('a SCHEMA_CHANGE_PROMOTION_SUBMITTED notification refreshes the group review queue (#882)', () => {
