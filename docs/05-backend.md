@@ -5779,6 +5779,42 @@ the same keys through their `@Scheduled` placeholders — the record is their ty
 second source. It keeps exactly one constructor with the defaults in the compact body: a second
 constructor on a `@ConfigurationProperties` record silently unbinds every property.
 
+### Post-deployment verification evaluators (#1024, epic #1022)
+
+`deploygov/internal/verification/` holds the **pure half** of post-deployment verification: it
+evaluates a check, it does not schedule one and it never touches `deployment_requests` (the
+sampling job and the transitions are #1025). The narrative is
+[18-deployment-governance.md](18-deployment-governance.md); the 422 contract is in
+[04-api-spec.md](04-api-spec.md) → "Post-deployment verification config".
+
+- **SPI.** `VerificationCheckEvaluator<C>` is a sealed interface permitting
+  `HttpHealthCheckEvaluator` and `PromqlThresholdCheckEvaluator`; `VerificationCheckEvaluators`
+  dispatches with an exhaustive `switch` over the sealed `deploygov.api.VerificationCheck`, so a
+  new kind fails compilation there first. Each returns a `VerificationSample(checkName, kind,
+  passed, observedValue, detail)` — the row #1025 persists as a `DeploymentVerificationEntity`.
+- **Fail closed on the data.** Anything that cannot be evaluated is a **failed** sample, never a
+  skipped one and never an exception: a timeout, a refused connection, a target the policy
+  refuses, an unexpected status (a 3xx included — redirects are never followed), a Prometheus
+  non-2xx, unparseable JSON, `status != "success"`, a non-vector result, an unparseable or `NaN`
+  value, and an empty vector when `no_data_is_failure`. Prometheus' `+Inf` / `-Inf` are parsed
+  and compared. A multi-series result evaluates the first series and says so in `detail`.
+  `detail` is an English diagnostic — stored data, like other persisted error columns — and never
+  carries a response body.
+- **`JdkVerificationHttpFetcher`** wraps one `HttpClient` per bean (`Redirect.NEVER`,
+  virtual-thread executor, HTTP/1.1), bounds the whole fetch — the policy's DNS lookup, headers
+  and body — by one `verification-request-timeout` deadline, and reads at most 64 KiB of body
+  through `BoundedBodySubscriber`, cancelling the stream past the cap and appending
+  `…[truncated]` (never matched by `body_contains`). It logs failures at `DEBUG` with the check
+  name and a fixed reason only — never the URL, whose query string carries the PromQL expression.
+- **`VerificationTargetPolicy`** is the outbound URL policy (see
+  [07-security.md](07-security.md#deployment-governance-security-epic-af-682)). It runs **before
+  every fetch**, not only at save time, so an allow-list change applies on the next sample. Every
+  address check goes through an injected `HostResolver`, so tests need no network.
+- **`DeploymentVerificationConfigValidator`** is called by
+  `DefaultDeploymentPipelineAdminService.createEnvironment` / `updateEnvironment` whenever a config
+  is sent (never on `clear_verification`), before anything is saved. Its rules and reason codes are
+  the 422 table in 04-api-spec.md; it resolves hosts, so a typo fails at save time.
+
 ## Schema change governance (schemachange module, epic #870)
 
 The **`schemachange/` module** authors governed DDL **change sets** once and promotes them along a

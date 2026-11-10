@@ -22,6 +22,7 @@ import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentPipelineNameExce
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentFreezeWindowException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRoutingPolicyException;
+import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentVerificationConfigException;
 import com.bablsoft.accessflow.deploygov.api.InvalidDeploymentMetricsPeriodException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -151,6 +152,17 @@ class DeploygovExceptionHandler {
         return problem(HttpStatus.CONFLICT,
                 msg("error.deployment_routing_policy_priority_conflict"),
                 "DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT");
+    }
+
+    @ExceptionHandler(IllegalDeploymentVerificationConfigException.class)
+    ProblemDetail handleIllegalVerificationConfig(IllegalDeploymentVerificationConfigException ex) {
+        var problem = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.deployment_verification_invalid"),
+                "DEPLOYMENT_VERIFICATION_INVALID");
+        problem.setProperty("reason", ex.getReason());
+        if (ex.getCheckName() != null) {
+            problem.setProperty("checkName", ex.getCheckName());
+        }
+        return problem;
     }
 
     @ExceptionHandler(IllegalDeploymentRoutingPolicyException.class)

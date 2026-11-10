@@ -22,6 +22,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentP
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final DatasourceAdminService datasourceAdminService;
     private final DeploymentVerificationConfigCodec verificationCodec;
+    private final DeploymentVerificationConfigValidator verificationValidator;
 
     @Override
     @Transactional(readOnly = true)
@@ -165,6 +167,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         entity.setDatasourceId(command.datasourceId());
         entity.setChangeTicketRequired(Boolean.TRUE.equals(command.changeTicketRequired()));
         if (command.verification() != null) {
+            verificationValidator.validate(command.verification());
             entity.setVerification(verificationCodec.toJson(command.verification()));
         }
         return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity), verificationCodec);
@@ -223,6 +226,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         if (Boolean.TRUE.equals(command.clearVerification())) {
             entity.setVerification(null);
         } else if (command.verification() != null) {
+            verificationValidator.validate(command.verification());
             entity.setVerification(verificationCodec.toJson(command.verification()));
         }
         return DeploymentEnvironmentViewMapper.toView(saveEnvironment(entity), verificationCodec);

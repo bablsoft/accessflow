@@ -532,12 +532,15 @@ accessflow:
     # reviewers on nudge_interval_hours. Notify-only. ShedLock makes this safe under horizontal
     # scaling.
     escalation-poll-interval: ${ACCESSFLOW_DEPLOYGOV_ESCALATION_POLL_INTERVAL:PT5M}
-    # Post-deployment verification (epic #1022). Reserved by #1023 — nothing reads these yet.
-    # verification-check: how often the verification job samples RUNNING verifications.
+    # Post-deployment verification (epic #1022).
+    # verification-check: how often the verification job samples RUNNING verifications (#1025;
+    # nothing reads it yet).
     verification-check: ${ACCESSFLOW_DEPLOYGOV_VERIFICATION_CHECK:PT30S}
     # verification-request-timeout: timeout of one verification check's HTTP call.
     verification-request-timeout: ${ACCESSFLOW_DEPLOYGOV_VERIFICATION_REQUEST_TIMEOUT:PT10S}
-    # verification-allowed-hosts: comma-separated hosts verification checks may reach. Empty = none.
+    # verification-allowed-hosts: comma-separated hosts verification checks may reach (exact or
+    # subdomain match), enforced at save time and before every sample. Empty = no pin: private
+    # ranges are allowed; loopback, link-local and cloud metadata endpoints are always denied.
     verification-allowed-hosts: ${ACCESSFLOW_DEPLOYGOV_VERIFICATION_ALLOWED_HOSTS:}
   sqlreview:
     # How long an organization's custom SQL review rules (#1009) are cached before they are re-read.

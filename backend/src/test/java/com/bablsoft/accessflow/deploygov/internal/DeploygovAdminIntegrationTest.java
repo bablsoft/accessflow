@@ -28,6 +28,9 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentPipelineNameException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationConfig;
+import com.bablsoft.accessflow.deploygov.api.HttpHealthCheck;
+import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentVerificationConfigException;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentGroupPermissionCommand;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentPermissionCommand;
@@ -46,6 +49,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -149,6 +153,30 @@ class DeploygovAdminIntegrationTest {
         pipelineService.delete(pipeline.id(), org.getId());
         assertThat(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.id()))
                 .isEmpty();
+    }
+
+    @Test
+    void environmentVerificationConfigIsValidatedAgainstTheTargetPolicy() {
+        var org = saveOrg();
+        var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
+        // IP literals resolve without DNS, so this stays offline.
+        var loopback = new DeploymentVerificationConfig(Duration.ofMinutes(10), Duration.ofMinutes(1), 3,
+                List.of(new HttpHealthCheck("health", "http://127.0.0.1:8080/healthz", 200, null)));
+        var reachable = new DeploymentVerificationConfig(Duration.ofMinutes(10), Duration.ofMinutes(1), 3,
+                List.of(new HttpHealthCheck("health", "http://10.20.30.40:8080/healthz", 200, null)));
+
+        assertThatThrownBy(() -> pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
+                        null, null, loopback)))
+                .isInstanceOfSatisfying(IllegalDeploymentVerificationConfigException.class,
+                        ex -> assertThat(ex.getReason()).isEqualTo("restricted_address"));
+        assertThat(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.id())).isEmpty();
+
+        var created = pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null, null,
+                        null, null, reachable));
+        assertThat(created.verification()).isEqualTo(reachable);
     }
 
     @Test

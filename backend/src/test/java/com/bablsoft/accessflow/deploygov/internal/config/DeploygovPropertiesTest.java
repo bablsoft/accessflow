@@ -85,4 +85,12 @@ class DeploygovPropertiesTest {
 
         assertThat(properties.verificationAllowedHosts()).isEmpty();
     }
+
+    @Test
+    void aNonPositiveVerificationRequestTimeoutFallsBackToTheDefault() {
+        for (var timeout : new Duration[] {Duration.ZERO, Duration.ofSeconds(-1)}) {
+            var properties = new DeploygovProperties(null, null, null, null, timeout, null);
+            assertThat(properties.verificationRequestTimeout()).isEqualTo(Duration.ofSeconds(10));
+        }
+    }
 }

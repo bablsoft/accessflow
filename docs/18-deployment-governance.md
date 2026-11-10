@@ -150,8 +150,26 @@ check is either `HTTP_HEALTH` (a URL and the status code it should answer) or `P
 (a Prometheus query compared against a threshold). `null` means verification is off. #1023 adds
 only the storage: the config column, the `deployment_requests.verification_*` columns that will
 hold a snapshot of the config and the verdict, and the `deployment_verifications` samples table.
-Nothing runs a check or changes a request's state yet; the evaluator, the sampling job and the
-transitions arrive with the later sub-issues of the epic. Column detail is in
+#1024 adds the evaluators and the save-time checks; nothing samples a check or changes a
+request's state yet — the sampling job and the transitions arrive with #1025 and the later
+sub-issues of the epic.
+
+- **What passes.** An `HTTP_HEALTH` check passes when the URL answers `expected_status` and, when
+  `body_contains` is set, the response body (its first 64 KiB) contains that text. A
+  `PROMQL_THRESHOLD` check passes when the first series of the instant query satisfies the
+  comparator against the threshold.
+- **Fail closed.** A check that cannot be evaluated counts as a **failed** sample, never a skipped
+  one: a timeout, a refused connection, a status other than the expected one (redirects are never
+  followed, so a 3xx fails unless it is the expected status), a Prometheus error, an unparseable
+  or `NaN` value, and no data when `no_data_is_failure`.
+- **Outbound target policy.** Every URL is checked before it is fetched. Private addresses are
+  allowed; loopback, link-local and cloud metadata endpoints never are; an operator can pin the
+  reachable hosts with `ACCESSFLOW_DEPLOYGOV_VERIFICATION_ALLOWED_HOSTS` (see
+  [07-security.md](07-security.md#deployment-governance-security-epic-af-682)).
+- **Save-time rules.** A config is rejected with `422 DEPLOYMENT_VERIFICATION_INVALID` when its
+  window is outside 1 minute–24 hours, its interval outside 30 seconds–window, its failure
+  threshold one the window cannot reach, two checks share a name, or a URL is refused or does not
+  resolve. Column detail is in
 [03-data-model.md](03-data-model.md#deployment_environments) (`deployment_environments`,
 `deployment_requests`, `deployment_verifications`).
 

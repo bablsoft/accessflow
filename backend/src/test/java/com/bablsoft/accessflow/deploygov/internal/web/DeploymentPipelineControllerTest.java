@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
+import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentVerificationConfigException;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -132,6 +134,27 @@ class DeploymentPipelineControllerTest {
         verify(pipelineService).createEnvironment(eq(pipelineId), eq(orgId),
                 org.mockito.ArgumentMatchers.argThat(c -> "production".equals(c.name())
                         && Integer.valueOf(2).equals(c.requiredApprovals())));
+    }
+
+    @Test
+    void createEnvironmentWithAnInvalidVerificationConfigSurfacesA422Envelope() {
+        when(pipelineService.createEnvironment(eq(pipelineId), eq(orgId), any()))
+                .thenThrow(new IllegalDeploymentVerificationConfigException("host_not_allowed", "error-rate"));
+        var body = new CreateDeploymentEnvironmentRequest("production", 1, true, 2, null, false,
+                null, null, null, null);
+
+        var thrown = catchThrowableOfType(IllegalDeploymentVerificationConfigException.class,
+                () -> controller.createEnvironment(pipelineId, body, auth()));
+        var messageSource = new StaticMessageSource();
+        messageSource.addMessage("error.deployment_verification_invalid", Locale.getDefault(), "invalid");
+        var pd = new DeploygovExceptionHandler(messageSource).handleIllegalVerificationConfig(thrown);
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
+        assertThat(pd.getDetail()).isEqualTo("invalid");
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DEPLOYMENT_VERIFICATION_INVALID")
+                .containsEntry("reason", "host_not_allowed")
+                .containsEntry("checkName", "error-rate");
     }
 
     @Test

@@ -21,6 +21,8 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentP
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigValidator;
+import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentVerificationConfigException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationConfig;
 import com.bablsoft.accessflow.deploygov.api.HttpHealthCheck;
 import tools.jackson.databind.json.JsonMapper;
@@ -43,8 +45,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +69,9 @@ class DefaultDeploymentPipelineAdminServiceTest {
     @Spy
     private DeploymentVerificationConfigCodec verificationCodec =
             new DeploymentVerificationConfigCodec(JsonMapper.builder().build());
+
+    @Mock
+    private DeploymentVerificationConfigValidator verificationValidator;
 
     @InjectMocks
     private DefaultDeploymentPipelineAdminService service;
@@ -807,6 +814,39 @@ class DefaultDeploymentPipelineAdminServiceTest {
                         null, null, null, verification(3)));
 
         assertThat(view.verification()).isEqualTo(verification(3));
+        verify(verificationValidator).validate(verification(3));
+    }
+
+    @Test
+    void createEnvironmentRejectsAnInvalidVerificationConfigBeforeSaving() {
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.findMaxSortOrderByPipelineId(pipelineId)).thenReturn(null);
+        doThrow(new IllegalDeploymentVerificationConfigException("restricted_address", "health"))
+                .when(verificationValidator).validate(verification(3));
+
+        assertThatThrownBy(() -> service.createEnvironment(pipelineId, orgId,
+                new CreateDeploymentEnvironmentCommand("production", null, null, null, null, null,
+                        null, null, null, verification(3))))
+                .isInstanceOf(IllegalDeploymentVerificationConfigException.class);
+        verify(environmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void updateEnvironmentRejectsAnInvalidVerificationConfigBeforeSaving() {
+        var environment = environment("production", 0);
+        when(pipelineRepository.findByIdAndOrganizationId(pipelineId, orgId))
+                .thenReturn(Optional.of(pipeline()));
+        when(environmentRepository.findById(environment.getId())).thenReturn(Optional.of(environment));
+        doThrow(new IllegalDeploymentVerificationConfigException("window_out_of_range", null))
+                .when(verificationValidator).validate(verification(5));
+
+        assertThatThrownBy(() -> service.updateEnvironment(pipelineId, orgId, environment.getId(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, null, null, null, null, verification(5), null)))
+                .isInstanceOf(IllegalDeploymentVerificationConfigException.class);
+        verify(environmentRepository, never()).saveAndFlush(any());
+        assertThat(environment.getVerification()).isNull();
     }
 
     @Test
@@ -818,6 +858,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                         null, null, null, null));
 
         assertThat(view.verification()).isNull();
+        verifyNoInteractions(verificationValidator);
     }
 
     @Test
@@ -829,6 +870,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
                         null, null, null, null, null, verification(5), null));
 
         assertThat(view.verification()).isEqualTo(verification(5));
+        verify(verificationValidator).validate(verification(5));
     }
 
     @Test
@@ -852,6 +894,7 @@ class DefaultDeploymentPipelineAdminServiceTest {
 
         assertThat(view.verification()).isNull();
         assertThat(environment.getVerification()).isNull();
+        verifyNoInteractions(verificationValidator);
     }
 
     private void stubCreate() {
