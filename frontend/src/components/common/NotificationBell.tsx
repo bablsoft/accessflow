@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -175,7 +176,7 @@ export function NotificationBell() {
 
 function renderMessage(
   item: UserNotification,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: TFunction,
 ): string {
   const payload: UserNotificationPayload = item.payload ?? {};
   const datasource = payload.datasource ?? '—';

@@ -2,9 +2,9 @@ import type { TimelineStage } from '@/components/review/ApprovalTimeline';
 import type { QueryDetail, ReviewDecisionDetail } from '@/types/api';
 import { fmtDate, fmtNum } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
+import type { TFunction } from 'i18next';
 
-/** i18next's `t`, narrowed to what this builder needs — key plus optional interpolation. */
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+type Translate = TFunction;
 
 export function buildTimelineStages(
   query: QueryDetail,
