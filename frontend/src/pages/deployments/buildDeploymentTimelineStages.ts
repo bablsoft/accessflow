@@ -1,12 +1,40 @@
 import type { TFunction } from 'i18next';
 import type { TimelineStage } from '@/components/review/ApprovalTimeline';
-import type { DeploymentRequest } from '@/types/api';
+import type { DeploymentRequest, VerificationStatus } from '@/types/api';
 import { fmtDate } from '@/utils/dateFormat';
 import {
   deploymentOutcomeLabel,
   riskLevelLabel,
   verificationStatusLabel,
 } from '@/utils/enumLabels';
+
+const SKIPPED_OUTCOME_PREFIX = 'outcome:';
+
+/**
+ * The backend's `verification_detail` for a SKIPPED request is a machine token
+ * (`no verification configured`, `outcome:FAILED`, `outcome:ROLLED_BACK` — #1025), so it is
+ * translated here; a breach detail (`<check>: n/threshold failed samples`) is shown as sent.
+ */
+export function verificationDetailText(
+  t: TFunction,
+  status: VerificationStatus,
+  detail: string | null | undefined,
+): string | null {
+  if (detail == null || detail === '') return null;
+  if (status !== 'SKIPPED') return detail;
+  if (detail === 'no verification configured') {
+    return t('deploygov.detail.verificationSkippedNoConfig');
+  }
+  if (detail.startsWith(SKIPPED_OUTCOME_PREFIX)) {
+    const outcome = detail.slice(SKIPPED_OUTCOME_PREFIX.length);
+    if (outcome === 'FAILED' || outcome === 'ROLLED_BACK' || outcome === 'SUCCEEDED') {
+      return t('deploygov.detail.verificationSkippedOutcome', {
+        outcome: deploymentOutcomeLabel(t, outcome),
+      });
+    }
+  }
+  return detail;
+}
 
 const REVIEW_DONE_STATUSES = ['APPROVED', 'EXECUTED', 'FAILED', 'CANCELLED'] as const;
 
@@ -142,7 +170,7 @@ export function buildDeploymentTimelineStages(
       active: verification === 'RUNNING',
       failed: verification === 'FAILED',
       skipped: verification === 'SKIPPED',
-      detail: request.verification_detail ?? null,
+      detail: verificationDetailText(t, verification, request.verification_detail),
     });
   }
   return out;

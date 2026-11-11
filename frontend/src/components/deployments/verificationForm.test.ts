@@ -3,14 +3,17 @@ import {
   defaultCheckValues,
   defaultVerificationValues,
   isDuplicateCheckName,
-  isHttpUrl,
   isoDurationSeconds,
   maxSamplesInWindow,
   minutesToIso,
   toVerificationFormValues,
   toVerificationWire,
   verificationCheckCount,
+  verificationInvalidMessage,
+  verificationUrlProblem,
+  VERIFICATION_INVALID_REASONS,
 } from './verificationForm';
+import type { TFunction } from 'i18next';
 import type { DeploymentVerificationConfig } from '@/types/api';
 
 const config: DeploymentVerificationConfig = {
@@ -139,12 +142,55 @@ describe('verificationForm', () => {
     expect(wire?.checks[1]).toMatchObject({ comparator: 'LT', threshold: 0, no_data_is_failure: true, prometheus_url: '', query: '' });
   });
 
-  it('accepts only http(s) URLs', () => {
-    expect(isHttpUrl('https://svc.example.com/h')).toBe(true);
-    expect(isHttpUrl('HTTP://svc')).toBe(true);
-    expect(isHttpUrl('ftp://svc')).toBe(false);
-    expect(isHttpUrl('svc.example.com')).toBe(false);
-    expect(isHttpUrl(null)).toBe(false);
+  it('mirrors the network-free URL rules', () => {
+    const http = { prometheus: false };
+    const prom = { prometheus: true };
+    expect(verificationUrlProblem('https://svc.example.com/h?probe=1', http)).toBeNull();
+    expect(verificationUrlProblem('HTTP://svc', http)).toBeNull();
+    expect(verificationUrlProblem('', http)).toBeNull();
+    expect(verificationUrlProblem(null, http)).toBeNull();
+    expect(verificationUrlProblem('ftp://svc', http)).toBe('scheme');
+    expect(verificationUrlProblem('svc.example.com', http)).toBe('scheme');
+    expect(verificationUrlProblem('https://', http)).toBe('invalid');
+    expect(verificationUrlProblem('https://exa mple.com', http)).toBe('invalid');
+    expect(verificationUrlProblem('https://u:p@svc.example.com', http)).toBe('userinfo');
+    expect(verificationUrlProblem('https://u@svc.example.com', prom)).toBe('userinfo');
+    expect(verificationUrlProblem('https://prom:9090/?x=1', prom)).toBe('query');
+    expect(verificationUrlProblem('https://prom:9090/#a', prom)).toBe('query');
+    expect(verificationUrlProblem('https://prom:9090/prefix', prom)).toBeNull();
+  });
+
+  it('names the rule a 422 DEPLOYMENT_VERIFICATION_INVALID reports', () => {
+    const t = ((key: string, opts?: Record<string, unknown>) =>
+      opts ? `${key}|${String(opts.check)}` : key) as unknown as TFunction;
+    for (const reason of VERIFICATION_INVALID_REASONS) {
+      expect(
+        verificationInvalidMessage(t, {
+          error: 'DEPLOYMENT_VERIFICATION_INVALID',
+          reason,
+          checkName: 'health',
+        }),
+      ).toBe(`deploygov.settings.verificationInvalid.${reason}|health`);
+    }
+    expect(
+      verificationInvalidMessage(t, {
+        error: 'DEPLOYMENT_VERIFICATION_INVALID',
+        reason: 'window_out_of_range',
+      }),
+    ).toBe('deploygov.settings.verificationInvalid.window_out_of_range|—');
+    expect(
+      verificationInvalidMessage(t, {
+        error: 'DEPLOYMENT_VERIFICATION_INVALID',
+        reason: 'duplicate_check_name',
+        check_name: 'h',
+      }),
+    ).toBe('deploygov.settings.verificationInvalid.duplicate_check_name|h');
+    expect(
+      verificationInvalidMessage(t, { error: 'DEPLOYMENT_VERIFICATION_INVALID', reason: 'new' }),
+    ).toBeNull();
+    expect(verificationInvalidMessage(t, { error: 'OTHER', reason: 'host_missing' })).toBeNull();
+    expect(verificationInvalidMessage(t, null)).toBeNull();
+    expect(verificationInvalidMessage(t, 'text')).toBeNull();
   });
 
   it('computes how many samples fit in the window', () => {

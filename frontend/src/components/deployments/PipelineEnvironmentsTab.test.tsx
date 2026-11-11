@@ -574,7 +574,7 @@ describe('PipelineEnvironmentsTab', () => {
       ]);
     });
 
-    it('refuses a non-http URL and a missing check name', async () => {
+    it('refuses a non-http URL', async () => {
       await openCreate();
       enable();
       fireEvent.change(await screen.findByLabelText('Health URL'), {
@@ -680,12 +680,35 @@ describe('PipelineEnvironmentsTab', () => {
       );
     });
 
-    it('surfaces the server detail of a 422 DEPLOYMENT_VERIFICATION_INVALID', async () => {
+    it('refuses credentials in a URL and a query string on a Prometheus URL', async () => {
+      await openCreate();
+      enable();
+      fireEvent.change(await screen.findByLabelText('Health URL'), {
+        target: { value: 'https://user:secret@svc.example.com/healthz' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText(/Remove the user:password@ part/)).toBeInTheDocument();
+
+      fireEvent.mouseDown(screen.getByLabelText('Check type'));
+      fireEvent.click(await screen.findByText('PromQL threshold'));
+      fireEvent.change(await screen.findByLabelText('Prometheus URL'), {
+        target: { value: 'https://prom.example.com/?tenant=a' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        await screen.findByText('Use the base URL only — no query string or fragment.'),
+      ).toBeInTheDocument();
+      expect(createDeploymentEnvironment).not.toHaveBeenCalled();
+    });
+
+    it('names the rule a 422 DEPLOYMENT_VERIFICATION_INVALID reports, not its generic detail', async () => {
+      // The server's real shape: one generic `detail`, the rule in `reason` / `checkName`.
       createDeploymentEnvironment.mockRejectedValue(
         problem(422, {
           error: 'DEPLOYMENT_VERIFICATION_INVALID',
           reason: 'host_unresolvable',
-          detail: 'The host of check health does not resolve',
+          checkName: 'health',
+          detail: 'The verification config is invalid',
         }),
       );
       await openCreate();
@@ -696,8 +719,20 @@ describe('PipelineEnvironmentsTab', () => {
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
       expect(
-        await screen.findByText('The host of check health does not resolve'),
+        await screen.findByText(
+          'Check "health": the host does not resolve from the AccessFlow server.',
+        ),
       ).toBeInTheDocument();
+      expect(screen.queryByText('The verification config is invalid')).toBeNull();
+    });
+
+    it('falls back to the server detail for any other error', async () => {
+      createDeploymentEnvironment.mockRejectedValue(
+        problem(409, { error: 'DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME', detail: 'Name taken' }),
+      );
+      await openCreate();
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Name taken')).toBeInTheDocument();
     });
   });
 });

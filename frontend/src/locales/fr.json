@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "Aucun échantillon pour l’instant",
       "verificationMinutesValue": "{{n}} min",
       "verificationSecondsValue": "{{n}} s",
-      "timeline_verification": "Vérification"
+      "timeline_verification": "Vérification",
+      "verificationFailedRolledBackTitle": "Vérification échouée — le pipeline a signalé un retour arrière",
+      "verificationFailedRolledBackBody": "Le pipeline a signalé ROLLED_BACK après le dépassement. AccessFlow n’a lui-même rien annulé ; les échantillons ci-dessous en sont la preuve.",
+      "verificationSkippedNoConfig": "Aucune vérification configurée sur cet environnement",
+      "verificationSkippedOutcome": "Non vérifié — le pipeline a signalé {{outcome}}"
     },
     "reviews": {
       "approve": "Approuver",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Seuil",
       "verificationNoDataIsFailure": "Absence de données = échec",
       "verificationColumn": "Vérification",
-      "verificationChecksCount": "Contrôles : {{n}}"
+      "verificationChecksCount": "Contrôles : {{n}}",
+      "verificationUrlInvalid": "Saisissez une URL absolue valide avec un hôte.",
+      "verificationUrlUserinfo": "Retirez la partie user:password@ — les identifiants ne sont pas autorisés dans l’URL.",
+      "verificationUrlQuery": "URL de base uniquement — sans chaîne de requête ni fragment.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "La fenêtre doit être comprise entre 1 minute et 24 heures.",
+        "sample_interval_out_of_range": "L’intervalle d’échantillonnage doit être d’au moins 30 secondes et ne pas dépasser la fenêtre.",
+        "failure_threshold_exceeds_samples": "Le seuil d’échec dépasse le nombre d’échantillons que la fenêtre peut collecter.",
+        "duplicate_check_name": "Deux contrôles portent le nom « {{check}} ».",
+        "invalid_url": "Contrôle « {{check}} » : l’URL n’est pas valide. Une URL Prometheus ne doit pas contenir de chaîne de requête ni de fragment.",
+        "scheme_not_allowed": "Contrôle « {{check}} » : seules les URL http:// et https:// sont autorisées.",
+        "userinfo_present": "Contrôle « {{check}} » : retirez la partie user:password@ de l’URL.",
+        "host_missing": "Contrôle « {{check}} » : l’URL n’a pas d’hôte.",
+        "host_unresolvable": "Contrôle « {{check}} » : l’hôte ne se résout pas depuis le serveur AccessFlow.",
+        "restricted_address": "Contrôle « {{check}} » : les adresses localhost, loopback et link-local ne sont pas autorisées.",
+        "metadata_endpoint": "Contrôle « {{check}} » : les points de terminaison de métadonnées cloud ne sont pas autorisés.",
+        "host_not_allowed": "Contrôle « {{check}} » : l’hôte ne figure pas dans la liste d’autorisation de vérification de ce serveur."
+      }
     },
     "freezeWindows": {
       "title": "Fenêtres de gel",

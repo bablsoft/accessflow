@@ -40,6 +40,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTic
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentVerificationRepository;
 import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -63,6 +64,7 @@ import java.util.stream.Collectors;
  * trigger is idempotent on the CI run identity, and an active {@code REJECT} freeze window
  * auto-rejects at submission.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultDeploymentRequestService implements DeploymentRequestService {
@@ -449,6 +451,8 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
             return DeploymentVerificationSnapshotView.of(
                     verificationConfigCodec.fromJson(entity.getVerificationConfig()));
         } catch (DeploymentVerificationConfigCodec.VerificationConfigParseException ex) {
+            log.debug("Unreadable verification snapshot on deployment request {}: {}",
+                    entity.getId(), ex.getMessage());
             return null;
         }
     }

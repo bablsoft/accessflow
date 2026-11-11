@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "Замеров пока нет",
       "verificationMinutesValue": "{{n}} мин",
       "verificationSecondsValue": "{{n}} с",
-      "timeline_verification": "Проверка"
+      "timeline_verification": "Проверка",
+      "verificationFailedRolledBackTitle": "Проверка не пройдена — pipeline сообщил об откате",
+      "verificationFailedRolledBackBody": "После нарушения pipeline сообщил ROLLED_BACK. Сам AccessFlow ничего не откатывал; замеры ниже — доказательство.",
+      "verificationSkippedNoConfig": "Для этого окружения проверка не настроена",
+      "verificationSkippedOutcome": "Не проверялось — pipeline сообщил {{outcome}}"
     },
     "reviews": {
       "approve": "Одобрить",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Порог",
       "verificationNoDataIsFailure": "Отсутствие данных — сбой",
       "verificationColumn": "Проверка",
-      "verificationChecksCount": "Проверок: {{n}}"
+      "verificationChecksCount": "Проверок: {{n}}",
+      "verificationUrlInvalid": "Введите корректный абсолютный URL с хостом.",
+      "verificationUrlUserinfo": "Удалите часть user:password@ — учётные данные в URL не допускаются.",
+      "verificationUrlQuery": "Только базовый URL — без строки запроса и фрагмента.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "Окно должно быть от 1 минуты до 24 часов.",
+        "sample_interval_out_of_range": "Интервал опроса должен быть не меньше 30 секунд и не больше окна.",
+        "failure_threshold_exceeds_samples": "Порог сбоев больше, чем число замеров, которые может собрать окно.",
+        "duplicate_check_name": "Две проверки называются «{{check}}».",
+        "invalid_url": "Проверка «{{check}}»: URL некорректен. URL Prometheus не должен содержать строку запроса или фрагмент.",
+        "scheme_not_allowed": "Проверка «{{check}}»: допускаются только URL http:// и https://.",
+        "userinfo_present": "Проверка «{{check}}»: удалите часть user:password@ из URL.",
+        "host_missing": "Проверка «{{check}}»: в URL нет хоста.",
+        "host_unresolvable": "Проверка «{{check}}»: хост не разрешается с сервера AccessFlow.",
+        "restricted_address": "Проверка «{{check}}»: адреса localhost, loopback и link-local не допускаются.",
+        "metadata_endpoint": "Проверка «{{check}}»: эндпоинты облачных метаданных не допускаются.",
+        "host_not_allowed": "Проверка «{{check}}»: хоста нет в списке разрешённых для проверки на этом сервере."
+      }
     },
     "freezeWindows": {
       "title": "Окна заморозки",

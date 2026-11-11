@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "暂无样本",
       "verificationMinutesValue": "{{n}} 分钟",
       "verificationSecondsValue": "{{n}} 秒",
-      "timeline_verification": "验证"
+      "timeline_verification": "验证",
+      "verificationFailedRolledBackTitle": "验证失败——流水线已报告回滚",
+      "verificationFailedRolledBackBody": "违规后流水线报告了 ROLLED_BACK。AccessFlow 本身未执行任何回滚；下方样本即为依据。",
+      "verificationSkippedNoConfig": "此环境未配置验证",
+      "verificationSkippedOutcome": "未验证——流水线报告了 {{outcome}}"
     },
     "reviews": {
       "approve": "批准",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "阈值",
       "verificationNoDataIsFailure": "无数据视为失败",
       "verificationColumn": "验证",
-      "verificationChecksCount": "检查：{{n}}"
+      "verificationChecksCount": "检查：{{n}}",
+      "verificationUrlInvalid": "请输入包含主机的有效绝对 URL。",
+      "verificationUrlUserinfo": "请移除 user:password@ 部分——URL 中不允许包含凭据。",
+      "verificationUrlQuery": "仅填写基础 URL——不能包含查询字符串或片段。",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "时间窗口必须在 1 分钟到 24 小时之间。",
+        "sample_interval_out_of_range": "采样间隔至少为 30 秒，且不能超过时间窗口。",
+        "failure_threshold_exceeds_samples": "失败阈值高于该时间窗口可采集的样本数。",
+        "duplicate_check_name": "有两个检查同名“{{check}}”。",
+        "invalid_url": "检查“{{check}}”：URL 无效。Prometheus URL 不能包含查询字符串或片段。",
+        "scheme_not_allowed": "检查“{{check}}”：仅允许 http:// 和 https:// URL。",
+        "userinfo_present": "检查“{{check}}”：请从 URL 中移除 user:password@ 部分。",
+        "host_missing": "检查“{{check}}”：URL 缺少主机。",
+        "host_unresolvable": "检查“{{check}}”：无法从 AccessFlow 服务器解析该主机。",
+        "restricted_address": "检查“{{check}}”：不允许 localhost、回环和链路本地地址。",
+        "metadata_endpoint": "检查“{{check}}”：不允许云元数据端点。",
+        "host_not_allowed": "检查“{{check}}”：该主机不在本服务器的验证允许列表中。"
+      }
     },
     "freezeWindows": {
       "title": "冻结窗口",

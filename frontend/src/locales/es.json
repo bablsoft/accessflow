@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "Aún no hay muestras",
       "verificationMinutesValue": "{{n}} min",
       "verificationSecondsValue": "{{n}} s",
-      "timeline_verification": "Verificación"
+      "timeline_verification": "Verificación",
+      "verificationFailedRolledBackTitle": "La verificación falló — el pipeline informó una reversión",
+      "verificationFailedRolledBackBody": "El pipeline informó ROLLED_BACK tras la infracción. AccessFlow no revirtió nada por sí mismo; las muestras de abajo son la evidencia.",
+      "verificationSkippedNoConfig": "Este entorno no tiene verificación configurada",
+      "verificationSkippedOutcome": "Sin verificar — el pipeline informó {{outcome}}"
     },
     "reviews": {
       "approve": "Aprobar",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Umbral",
       "verificationNoDataIsFailure": "Sin datos cuenta como fallo",
       "verificationColumn": "Verificación",
-      "verificationChecksCount": "Comprobaciones: {{n}}"
+      "verificationChecksCount": "Comprobaciones: {{n}}",
+      "verificationUrlInvalid": "Introduce una URL absoluta válida con host.",
+      "verificationUrlUserinfo": "Quita la parte user:password@ — no se permiten credenciales en la URL.",
+      "verificationUrlQuery": "Solo la URL base — sin cadena de consulta ni fragmento.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "La ventana debe estar entre 1 minuto y 24 horas.",
+        "sample_interval_out_of_range": "El intervalo de muestreo debe ser de al menos 30 segundos y no superar la ventana.",
+        "failure_threshold_exceeds_samples": "El umbral de fallos supera el número de muestras que la ventana puede recoger.",
+        "duplicate_check_name": "Dos comprobaciones se llaman «{{check}}».",
+        "invalid_url": "Comprobación «{{check}}»: la URL no es válida. Una URL de Prometheus no puede llevar cadena de consulta ni fragmento.",
+        "scheme_not_allowed": "Comprobación «{{check}}»: solo se permiten URL http:// y https://.",
+        "userinfo_present": "Comprobación «{{check}}»: quita la parte user:password@ de la URL.",
+        "host_missing": "Comprobación «{{check}}»: la URL no tiene host.",
+        "host_unresolvable": "Comprobación «{{check}}»: el host no se resuelve desde el servidor de AccessFlow.",
+        "restricted_address": "Comprobación «{{check}}»: no se permiten direcciones localhost, loopback ni link-local.",
+        "metadata_endpoint": "Comprobación «{{check}}»: no se permiten endpoints de metadatos de la nube.",
+        "host_not_allowed": "Comprobación «{{check}}»: el host no está en la lista de permitidos de verificación de este servidor."
+      }
     },
     "freezeWindows": {
       "title": "Ventanas de congelación",

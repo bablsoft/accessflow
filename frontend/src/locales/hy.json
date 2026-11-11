@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "Նմուշներ դեռ չկան",
       "verificationMinutesValue": "{{n}} րոպե",
       "verificationSecondsValue": "{{n}} վ",
-      "timeline_verification": "Ստուգում"
+      "timeline_verification": "Ստուգում",
+      "verificationFailedRolledBackTitle": "Ստուգումը ձախողվեց — pipeline-ը հաղորդել է հետ գլորման մասին",
+      "verificationFailedRolledBackBody": "Խախտումից հետո pipeline-ը հաղորդել է ROLLED_BACK։ AccessFlow-ը ինքը ոչինչ հետ չի գլորել․ ստորև նմուշներն ապացույցն են։",
+      "verificationSkippedNoConfig": "Այս միջավայրում ստուգում կազմաձևված չէ",
+      "verificationSkippedOutcome": "Չի ստուգվել — pipeline-ը հաղորդել է {{outcome}}"
     },
     "reviews": {
       "approve": "Հաստատել",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Շեմ",
       "verificationNoDataIsFailure": "Տվյալների բացակայությունը ձախողում է",
       "verificationColumn": "Ստուգում",
-      "verificationChecksCount": "Ստուգումներ՝ {{n}}"
+      "verificationChecksCount": "Ստուգումներ՝ {{n}}",
+      "verificationUrlInvalid": "Մուտքագրեք վավեր բացարձակ URL՝ հոստով։",
+      "verificationUrlUserinfo": "Հեռացրեք user:password@ մասը — URL-ում մուտքի տվյալներ չեն թույլատրվում։",
+      "verificationUrlQuery": "Միայն բազային URL — առանց հարցման տողի կամ ֆրագմենտի։",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "Պատուհանը պետք է լինի 1 րոպեից 24 ժամ։",
+        "sample_interval_out_of_range": "Նմուշառման միջակայքը պետք է լինի առնվազն 30 վայրկյան և չգերազանցի պատուհանը։",
+        "failure_threshold_exceeds_samples": "Ձախողման շեմը գերազանցում է պատուհանի հավաքելիք նմուշների քանակը։",
+        "duplicate_check_name": "Երկու ստուգում ունեն «{{check}}» անվանումը։",
+        "invalid_url": "«{{check}}» ստուգում․ URL-ը վավեր չէ։ Prometheus URL-ը չպետք է պարունակի հարցման տող կամ ֆրագմենտ։",
+        "scheme_not_allowed": "«{{check}}» ստուգում․ թույլատրվում են միայն http:// և https:// URL-ներ։",
+        "userinfo_present": "«{{check}}» ստուգում․ հեռացրեք user:password@ մասը URL-ից։",
+        "host_missing": "«{{check}}» ստուգում․ URL-ը հոստ չունի։",
+        "host_unresolvable": "«{{check}}» ստուգում․ հոստը չի լուծվում AccessFlow սերվերից։",
+        "restricted_address": "«{{check}}» ստուգում․ localhost, loopback և link-local հասցեները թույլատրված չեն։",
+        "metadata_endpoint": "«{{check}}» ստուգում․ ամպային մետատվյալների վերջնակետերը թույլատրված չեն։",
+        "host_not_allowed": "«{{check}}» ստուգում․ հոստը այս սերվերի ստուգման թույլատրված ցուցակում չէ։"
+      }
     },
     "freezeWindows": {
       "title": "Սառեցման պատուհաններ",

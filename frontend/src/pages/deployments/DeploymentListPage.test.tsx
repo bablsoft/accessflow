@@ -195,14 +195,25 @@ describe('DeploymentListPage', () => {
     expect(screen.getAllByText(/^verification /)).toHaveLength(1);
   });
 
-  it('shows a skipped verification for a request without an outcome tag', async () => {
+  it('leaves a skipped verification untagged — it would tag every unverified deploy', async () => {
     listDeploymentRequestsMock.mockResolvedValue(
-      pageOf([{ ...baseRequest, verification_status: 'SKIPPED' }]),
+      pageOf([
+        {
+          ...baseRequest,
+          status: 'EXECUTED',
+          outcome: 'SUCCEEDED',
+          outcome_reported_at: '2026-05-01T12:00:00Z',
+          verification_status: 'SKIPPED',
+        },
+        { ...baseRequest, id: 'req-2', version: '3.0.2', verification_status: 'RUNNING' },
+      ]),
     );
 
     render(wrap(<DeploymentListPage />));
 
-    expect(await screen.findByText('verification skipped')).toBeInTheDocument();
+    expect(await screen.findByText('verification running')).toBeInTheDocument();
+    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(screen.queryByText('verification skipped')).toBeNull();
   });
 
   it('shows the linked change ticket with its decision in the ticket column', async () => {

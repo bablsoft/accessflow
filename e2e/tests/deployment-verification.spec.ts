@@ -125,7 +125,9 @@ test.describe.serial('post-deployment verification (#1027)', () => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/deployments/${triggered.id}`);
 
-    // The page polls while RUNNING; the first failed sample breaches a threshold of 1.
+    // The page polls while RUNNING; the first failed sample breaches a threshold of 1. RUNNING
+    // itself is not asserted (issue #1027 step 10b asks for it): with a 5 s job tick it usually
+    // ends before the page loads, so an assertion on it would flake. The unit tests cover it.
     await expect(
       page.getByText('Verification failed — the release is still running'),
     ).toBeVisible({ timeout: 60_000 });

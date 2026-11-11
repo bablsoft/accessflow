@@ -15,6 +15,7 @@ import {
 import type { FormInstance, TableColumnsType } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import {
   createDeploymentEnvironment,
@@ -41,7 +42,8 @@ import {
   defaultCheckValues,
   defaultVerificationValues,
   isDuplicateCheckName,
-  isHttpUrl,
+  verificationInvalidMessage,
+  verificationUrlProblem,
   maxSamplesInWindow,
   toVerificationFormValues,
   toVerificationWire,
@@ -177,7 +179,15 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
       setModalFor(null);
       void invalidate();
     },
-    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('deploygov.error'))),
+    // The 422's `detail` is one generic sentence; name the actual rule from `reason` (#1024).
+    onError: (err) =>
+      showApiError(
+        message,
+        err,
+        (e) =>
+          (axios.isAxiosError(e) ? verificationInvalidMessage(t, e.response?.data) : null) ??
+          apiErrorMessage(e, () => t('deploygov.error')),
+      ),
   });
 
   const deleteMutation = useMutation({
@@ -493,13 +503,15 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
     value: c,
     label: verificationComparatorLabel(t, c),
   }));
-  const httpUrlRule = {
+  const urlRule = (prometheus: boolean) => ({
     validator: async (_: unknown, value: string | null | undefined) => {
-      if (value && value.trim() !== '' && !isHttpUrl(value)) {
-        throw new Error(t('deploygov.settings.verificationUrlScheme'));
-      }
+      const problem = verificationUrlProblem(value, { prometheus });
+      if (problem === 'scheme') throw new Error(t('deploygov.settings.verificationUrlScheme'));
+      if (problem === 'invalid') throw new Error(t('deploygov.settings.verificationUrlInvalid'));
+      if (problem === 'userinfo') throw new Error(t('deploygov.settings.verificationUrlUserinfo'));
+      if (problem === 'query') throw new Error(t('deploygov.settings.verificationUrlQuery'));
     },
-  };
+  });
 
   return (
     <>
@@ -671,10 +683,10 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                           extra={t('deploygov.settings.verificationPrometheusUrlHelp')}
                           rules={[
                             { required: true, whitespace: true, max: LIMITS.urlMax },
-                            httpUrlRule,
+                            urlRule(true),
                           ]}
                         >
-                          <Input placeholder="https://prometheus.example.com" />
+                          <Input placeholder={t('deploygov.settings.verificationPrometheusUrlPlaceholder')} />
                         </Form.Item>
                         <Form.Item
                           name={[field.name, 'query']}
@@ -717,10 +729,10 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                           label={t('deploygov.settings.verificationUrl')}
                           rules={[
                             { required: true, whitespace: true, max: LIMITS.urlMax },
-                            httpUrlRule,
+                            urlRule(false),
                           ]}
                         >
-                          <Input placeholder="https://service.example.com/healthz" />
+                          <Input placeholder={t('deploygov.settings.verificationUrlPlaceholder')} />
                         </Form.Item>
                         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                           <Form.Item

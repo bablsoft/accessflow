@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "corpusVersion": "debe778a1394",
-  "generatedAt": "2026-11-11T07:13:06.668Z",
-  "sourceCommit": "d3bacb04fddb57c0401ca5960a70434162ea0aa4",
+  "generatedAt": "2026-11-11T07:26:16.507Z",
+  "sourceCommit": "2bf3e402f99f2e83cec1a131deea0283e0e3276e",
   "chunkCount": 615,
   "sha256": "debe778a139480445a9c4945403fec4d253471c837b75d6236b7484cddc70d4d",
   "quickReferenceSha256": "24edf02e4c124fee2ce843e9333a470905f9a55868ddc3cdef869315ca473072",
@@ -429,7 +429,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 9,
-      "sha256": "cb28ca6bd022a4eff61ced2c688c6b80351465cdf632a0ba3bed26c71b64905e"
+      "sha256": "9929f8b21083b52ff7d7ca8ace6df3b0602ab9056d081d83f3430e1ab7a8c7dc"
     }
   ]
 }

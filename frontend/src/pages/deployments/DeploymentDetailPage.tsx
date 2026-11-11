@@ -14,7 +14,7 @@ import {
   Tag,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -55,7 +55,10 @@ import { isoDurationSeconds } from '@/components/deployments/verificationForm';
 import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
-import { buildDeploymentTimelineStages } from './buildDeploymentTimelineStages';
+import {
+  buildDeploymentTimelineStages,
+  verificationDetailText,
+} from './buildDeploymentTimelineStages';
 import type {
   DeploymentDecision,
   DeploymentRequest,
@@ -118,12 +121,30 @@ export default function DeploymentDetailPage() {
   const verificationStatus = request?.verification_status ?? 'PENDING';
   const verificationRunning = verificationStatus === 'RUNNING';
 
+  // A SKIPPED request with no snapshot never opened a window: nothing was ever sampled.
+  const verificationSampled =
+    verificationStatus !== 'PENDING' &&
+    !(verificationStatus === 'SKIPPED' && request?.verification_snapshot == null);
+
   const samplesQuery = useQuery({
     queryKey: deploymentKeys.verification(id),
     queryFn: () => getDeploymentVerificationSamples(id),
-    enabled: !!id && verificationStatus !== 'PENDING',
+    enabled: !!id && verificationSampled,
     refetchInterval: verificationRunning ? VERIFICATION_POLL_MS : false,
   });
+
+  // The two polls tick independently, so the render that sees the window close also stops the
+  // samples poll — usually before it fetched the breaching sample. Fetch once more on the way out.
+  const previousVerificationStatus = useRef(verificationStatus);
+  useEffect(() => {
+    if (previousVerificationStatus.current === 'RUNNING' && verificationStatus !== 'RUNNING') {
+      void queryClient.invalidateQueries({ queryKey: deploymentKeys.verification(id) });
+    }
+    previousVerificationStatus.current = verificationStatus;
+  }, [verificationStatus, queryClient, id]);
+  const verificationDetail = request
+    ? verificationDetailText(t, verificationStatus, request.verification_detail)
+    : null;
 
   // Freeze state lives only on the gate; ask it just while the request is APPROVED.
   // A 404 (visibility) simply hides the banner — retry would never succeed.
@@ -334,12 +355,17 @@ export default function DeploymentDetailPage() {
             )}
 
             {/* FAILED + SUCCEEDED: the deploy ran and is still live. Never phrase this as a
-                rollback — AccessFlow does not roll anything back. */}
+                rollback — AccessFlow does not roll anything back. Once the pipeline reports
+                ROLLED_BACK (accepted after a breach, #1025) the "still running" advice is stale. */}
             {verificationStatus === 'FAILED' && (
               <Alert
                 showIcon
-                type="error"
-                title={t('deploygov.detail.verificationFailedTitle')}
+                type={request.outcome === 'ROLLED_BACK' ? 'warning' : 'error'}
+                title={
+                  request.outcome === 'ROLLED_BACK'
+                    ? t('deploygov.detail.verificationFailedRolledBackTitle')
+                    : t('deploygov.detail.verificationFailedTitle')
+                }
                 description={
                   <>
                     {request.verification_detail && (
@@ -347,7 +373,9 @@ export default function DeploymentDetailPage() {
                         {request.verification_detail}
                       </div>
                     )}
-                    {t('deploygov.detail.verificationFailedBody')}
+                    {request.outcome === 'ROLLED_BACK'
+                      ? t('deploygov.detail.verificationFailedRolledBackBody')
+                      : t('deploygov.detail.verificationFailedBody')}
                   </>
                 }
               />
@@ -391,7 +419,17 @@ export default function DeploymentDetailPage() {
                         {
                           key: 'verification',
                           label: t('deploygov.detail.verification'),
-                          children: <VerificationTag status={verificationStatus} />,
+                          // With no card to carry it, an unsampled request's reason sits here.
+                          children: (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                              <VerificationTag status={verificationStatus} />
+                              {!verificationSampled && verificationDetail && (
+                                <span className="muted" style={{ fontSize: 12 }}>
+                                  {verificationDetail}
+                                </span>
+                              )}
+                            </span>
+                          ),
                         },
                       ]
                     : []),
@@ -563,7 +601,7 @@ export default function DeploymentDetailPage() {
                   </div>
                 </DetailCard>
 
-                {verificationStatus !== 'PENDING' && (
+                {verificationSampled && (
                   <DetailCard
                     title={t('deploygov.detail.verification')}
                     extra={<VerificationTag status={verificationStatus} />}
@@ -612,7 +650,7 @@ export default function DeploymentDetailPage() {
                           {
                             key: 'detail',
                             label: t('deploygov.detail.verificationDetail'),
-                            children: request.verification_detail ?? '—',
+                            children: verificationDetail ?? '—',
                           },
                         ]}
                       />

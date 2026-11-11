@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import type {
   DeploymentVerificationConfig,
   DeploymentVerificationConfigInput,
@@ -160,8 +161,70 @@ export function toVerificationWire(
   };
 }
 
-export function isHttpUrl(value: string | null | undefined): boolean {
-  return /^https?:\/\/\S+$/i.test((value ?? '').trim());
+export type VerificationUrlProblem = 'scheme' | 'invalid' | 'userinfo' | 'query';
+
+/**
+ * The network-free half of the server's URL rules (#1024): http(s) only, an absolute URL with a
+ * host, no `user:password@`, and — for a Prometheus base URL, which gets `/api/v1/query`
+ * appended — no query string or fragment. Resolution and the address policy stay server-side.
+ */
+export function verificationUrlProblem(
+  value: string | null | undefined,
+  options: { prometheus: boolean },
+): VerificationUrlProblem | null {
+  const trimmed = (value ?? '').trim();
+  if (trimmed === '') return null;
+  if (!/^https?:\/\//i.test(trimmed)) return 'scheme';
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return 'invalid';
+  }
+  if (url.hostname === '') return 'invalid';
+  if (url.username !== '' || url.password !== '') return 'userinfo';
+  if (options.prometheus && (trimmed.includes('?') || trimmed.includes('#'))) return 'query';
+  return null;
+}
+
+/** The `reason` codes of 422 DEPLOYMENT_VERIFICATION_INVALID (docs/04-api-spec.md, #1024). */
+export const VERIFICATION_INVALID_REASONS = [
+  'window_out_of_range',
+  'sample_interval_out_of_range',
+  'failure_threshold_exceeds_samples',
+  'duplicate_check_name',
+  'invalid_url',
+  'scheme_not_allowed',
+  'userinfo_present',
+  'host_missing',
+  'host_unresolvable',
+  'restricted_address',
+  'metadata_endpoint',
+  'host_not_allowed',
+] as const;
+
+export type VerificationInvalidReason = (typeof VERIFICATION_INVALID_REASONS)[number];
+
+interface VerificationInvalidBody {
+  error?: string;
+  reason?: string;
+  checkName?: string;
+  check_name?: string;
+}
+
+/**
+ * The server's `detail` for this 422 is one generic sentence; the actual rule is in `reason`
+ * (and `checkName` for a per-check rule). Null when the body is not this error or the reason is
+ * unknown, so the caller falls back to the generic path.
+ */
+export function verificationInvalidMessage(t: TFunction, body: unknown): string | null {
+  if (body == null || typeof body !== 'object') return null;
+  const problem = body as VerificationInvalidBody;
+  if (problem.error !== 'DEPLOYMENT_VERIFICATION_INVALID') return null;
+  const reason = VERIFICATION_INVALID_REASONS.find((r) => r === problem.reason);
+  if (!reason) return null;
+  const check = problem.checkName ?? problem.check_name ?? '—';
+  return t(`deploygov.settings.verificationInvalid.${reason}`, { check });
 }
 
 /** How many samples the window can collect — the ceiling on `failure_threshold` (#1024). */

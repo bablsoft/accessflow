@@ -151,8 +151,10 @@ export default function DeploymentListPage() {
       dataIndex: 'outcome',
       width: 130,
       render: (outcome: DeploymentRequest['outcome'], row) => {
+        // SKIPPED is left out: it would tag every deploy to an environment with no checks.
         const verification = row.verification_status ?? 'PENDING';
-        if (outcome == null && verification === 'PENDING') return <span className="muted">—</span>;
+        const showVerification = verification !== 'PENDING' && verification !== 'SKIPPED';
+        if (outcome == null && !showVerification) return <span className="muted">—</span>;
         const color = outcome == null ? null : deploymentOutcomeColor(outcome);
         const verificationColor = verificationStatusColor(verification);
         return (
@@ -163,7 +165,7 @@ export default function DeploymentListPage() {
               </Tag>
             )}
             {/* A breach leaves outcome SUCCEEDED, so the verification tag says it failed. */}
-            {verification !== 'PENDING' && (
+            {showVerification && (
               <Tag
                 style={{
                   color: verificationColor.fg,

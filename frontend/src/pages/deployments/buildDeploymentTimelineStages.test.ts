@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import { buildDeploymentTimelineStages } from './buildDeploymentTimelineStages';
+import {
+  buildDeploymentTimelineStages,
+  verificationDetailText,
+} from './buildDeploymentTimelineStages';
 import type { DeploymentDecision, DeploymentRequest, QueryStatus } from '@/types/api';
 
 // Echoes the key plus its interpolation, so tests assert the shape without pinning English copy.
@@ -264,7 +267,28 @@ describe('buildDeploymentTimelineStages', () => {
       expect(stages[stages.length - 1]).toMatchObject({
         label: 'deploygov.detail.timeline_verification',
         skipped: true,
+        detail: 'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.FAILED',
       });
+    });
+
+    it('translates the SKIPPED machine tokens and passes a breach detail through', () => {
+      expect(verificationDetailText(t, 'SKIPPED', 'no verification configured')).toBe(
+        'deploygov.detail.verificationSkippedNoConfig',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:ROLLED_BACK')).toBe(
+        'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.ROLLED_BACK',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:SUCCEEDED')).toBe(
+        'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.SUCCEEDED',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:WHATEVER')).toBe('outcome:WHATEVER');
+      expect(verificationDetailText(t, 'SKIPPED', 'something new')).toBe('something new');
+      expect(verificationDetailText(t, 'FAILED', 'outcome:FAILED')).toBe('outcome:FAILED');
+      expect(verificationDetailText(t, 'FAILED', 'health: 1/1 failed samples')).toBe(
+        'health: 1/1 failed samples',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', null)).toBeNull();
+      expect(verificationDetailText(t, 'SKIPPED', '')).toBeNull();
     });
   });
 });

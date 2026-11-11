@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "No samples yet",
       "verificationMinutesValue": "{{n}} min",
       "verificationSecondsValue": "{{n}} s",
-      "timeline_verification": "Verification"
+      "timeline_verification": "Verification",
+      "verificationFailedRolledBackTitle": "Verification failed — the pipeline reported a rollback",
+      "verificationFailedRolledBackBody": "The pipeline reported ROLLED_BACK after the breach. AccessFlow itself rolled nothing back; the samples below are the evidence.",
+      "verificationSkippedNoConfig": "No verification configured on this environment",
+      "verificationSkippedOutcome": "Not verified — the pipeline reported {{outcome}}"
     },
     "reviews": {
       "approve": "Approve",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Threshold",
       "verificationNoDataIsFailure": "No data counts as failure",
       "verificationColumn": "Verification",
-      "verificationChecksCount": "Checks: {{n}}"
+      "verificationChecksCount": "Checks: {{n}}",
+      "verificationUrlInvalid": "Enter a valid absolute URL with a host.",
+      "verificationUrlUserinfo": "Remove the user:password@ part — credentials are not allowed in the URL.",
+      "verificationUrlQuery": "Use the base URL only — no query string or fragment.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "The window must be between 1 minute and 24 hours.",
+        "sample_interval_out_of_range": "The sample interval must be at least 30 seconds and no longer than the window.",
+        "failure_threshold_exceeds_samples": "The failure threshold is higher than the number of samples the window can collect.",
+        "duplicate_check_name": "Two checks share the name \"{{check}}\".",
+        "invalid_url": "Check \"{{check}}\": the URL is not valid. A Prometheus URL must not carry a query string or fragment.",
+        "scheme_not_allowed": "Check \"{{check}}\": only http:// and https:// URLs are allowed.",
+        "userinfo_present": "Check \"{{check}}\": remove the user:password@ part from the URL.",
+        "host_missing": "Check \"{{check}}\": the URL has no host.",
+        "host_unresolvable": "Check \"{{check}}\": the host does not resolve from the AccessFlow server.",
+        "restricted_address": "Check \"{{check}}\": localhost, loopback and link-local addresses are not allowed.",
+        "metadata_endpoint": "Check \"{{check}}\": cloud metadata endpoints are not allowed.",
+        "host_not_allowed": "Check \"{{check}}\": the host is not on this server's verification allow-list."
+      }
     },
     "freezeWindows": {
       "title": "Freeze windows",

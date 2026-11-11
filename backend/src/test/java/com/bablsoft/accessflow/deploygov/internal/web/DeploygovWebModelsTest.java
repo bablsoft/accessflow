@@ -564,6 +564,39 @@ class DeploygovWebModelsTest {
     }
 
     @Test
+    void deploymentRequestWireShapeCarriesTheVerificationSnapshotInSnakeCase() {
+        var mapper = JsonMapper.builder()
+                .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+                .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(
+                        JsonInclude.Include.NON_NULL))
+                .build();
+        var verified = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.EXECUTED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, false, null, VerificationStatus.RUNNING,
+                null, null, null, new DeploymentVerificationSnapshotView(Duration.ofMinutes(15),
+                        Duration.ofSeconds(30), 3, 2));
+
+        var json = mapper.readTree(mapper.writeValueAsString(DeploymentRequestResponse.from(verified)));
+
+        var snapshot = json.get("verification_snapshot");
+        assertThat(snapshot.get("window").asString()).isEqualTo("PT15M");
+        assertThat(snapshot.get("sample_interval").asString()).isEqualTo("PT30S");
+        assertThat(snapshot.get("failure_threshold").asInt()).isEqualTo(3);
+        assertThat(snapshot.get("check_count").asInt()).isEqualTo(2);
+
+        var unverified = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.APPROVED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null);
+        var plain = mapper.readTree(
+                mapper.writeValueAsString(DeploymentRequestResponse.from(unverified)));
+        assertThat(plain.has("verification_snapshot")).isFalse();
+    }
+
+    @Test
     void verificationSampleResponseMapsAllFields() {
         var view = new DeploymentVerificationSampleView(UUID.randomUUID(), UUID.randomUUID(),
                 "health", VerificationCheckKind.HTTP_HEALTH, Instant.parse("2026-08-24T12:00:00Z"),

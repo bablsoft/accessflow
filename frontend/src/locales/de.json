@@ -5852,7 +5852,11 @@
       "verificationNoSamples": "Noch keine Stichproben",
       "verificationMinutesValue": "{{n}} Min.",
       "verificationSecondsValue": "{{n}} s",
-      "timeline_verification": "Verifizierung"
+      "timeline_verification": "Verifizierung",
+      "verificationFailedRolledBackTitle": "Verifizierung fehlgeschlagen — die Pipeline hat ein Rollback gemeldet",
+      "verificationFailedRolledBackBody": "Die Pipeline hat nach dem Verstoß ROLLED_BACK gemeldet. AccessFlow selbst hat nichts zurückgerollt; die Stichproben unten sind der Nachweis.",
+      "verificationSkippedNoConfig": "Für diese Umgebung ist keine Verifizierung konfiguriert",
+      "verificationSkippedOutcome": "Nicht verifiziert — die Pipeline hat {{outcome}} gemeldet"
     },
     "reviews": {
       "approve": "Genehmigen",
@@ -6125,7 +6129,26 @@
       "verificationValueThreshold": "Schwellenwert",
       "verificationNoDataIsFailure": "Keine Daten gelten als Fehler",
       "verificationColumn": "Verifizierung",
-      "verificationChecksCount": "Checks: {{n}}"
+      "verificationChecksCount": "Checks: {{n}}",
+      "verificationUrlInvalid": "Geben Sie eine gültige absolute URL mit Host ein.",
+      "verificationUrlUserinfo": "Entfernen Sie den Teil user:password@ — Zugangsdaten sind in der URL nicht erlaubt.",
+      "verificationUrlQuery": "Nur die Basis-URL — ohne Query-String oder Fragment.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "Das Zeitfenster muss zwischen 1 Minute und 24 Stunden liegen.",
+        "sample_interval_out_of_range": "Das Prüfintervall muss mindestens 30 Sekunden betragen und darf das Zeitfenster nicht überschreiten.",
+        "failure_threshold_exceeds_samples": "Der Fehlerschwellenwert ist höher als die Zahl der Stichproben, die das Zeitfenster erfassen kann.",
+        "duplicate_check_name": "Zwei Checks heißen „{{check}}“.",
+        "invalid_url": "Check „{{check}}“: Die URL ist ungültig. Eine Prometheus-URL darf keinen Query-String und kein Fragment enthalten.",
+        "scheme_not_allowed": "Check „{{check}}“: Nur http://- und https://-URLs sind erlaubt.",
+        "userinfo_present": "Check „{{check}}“: Entfernen Sie den Teil user:password@ aus der URL.",
+        "host_missing": "Check „{{check}}“: Die URL hat keinen Host.",
+        "host_unresolvable": "Check „{{check}}“: Der Host lässt sich vom AccessFlow-Server aus nicht auflösen.",
+        "restricted_address": "Check „{{check}}“: localhost-, Loopback- und Link-Local-Adressen sind nicht erlaubt.",
+        "metadata_endpoint": "Check „{{check}}“: Cloud-Metadaten-Endpunkte sind nicht erlaubt.",
+        "host_not_allowed": "Check „{{check}}“: Der Host steht nicht auf der Verifizierungs-Allow-List dieses Servers."
+      }
     },
     "freezeWindows": {
       "title": "Freeze-Fenster",
