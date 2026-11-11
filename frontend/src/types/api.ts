@@ -2829,6 +2829,7 @@ export type UserNotificationEventType =
   | 'DEPLOYMENT_REJECTED'
   | 'DEPLOYMENT_OUTCOME_FAILED'
   | 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
+  | 'DEPLOYMENT_VERIFICATION_FAILED'
   | 'SCHEMA_CHANGE_PROMOTION_SUBMITTED'
   | 'SCHEMA_CHANGE_PROMOTION_APPLIED'
   | 'SCHEMA_CHANGE_PROMOTION_FAILED'
@@ -2862,6 +2863,8 @@ export interface UserNotificationPayload {
   environment?: string;
   version?: string;
   outcome?: 'FAILED' | 'ROLLED_BACK';
+  // #1026: DEPLOYMENT_VERIFICATION_FAILED only — the breached check and its failed-sample count.
+  verification_detail?: string;
   schema_change_promotion_id?: string;
   change_set?: string;
   promotion_status?: 'APPLIED' | 'FAILED' | 'PARTIALLY_APPLIED' | 'IN_REVIEW';

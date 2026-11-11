@@ -250,12 +250,29 @@ class MsTeamsPayloadFactoryTest {
                 approvalTimeoutHours);
     }
 
+    @Test
+    void deploymentVerificationFailedCardCarriesTheCheckAndTheRecommendation() {
+        var body = factory.buildEventBody(deploymentCtx(
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED, null,
+                "health: 3/3 failed samples"));
+        assertThat(body).contains("🚨 Deployment Verification Failed")
+                .contains("health: 3/3 failed samples")
+                .contains("did not roll it back")
+                .contains("ROLLED_BACK");
+    }
+
     /**
      * A DEPLOYMENT_* context (#695) — the pipeline name rides in {@code datasourceName}, the
      * deployment fields trail the record; fullSqlText/queryType/reviewUrl are null.
      */
     private static NotificationContext deploymentCtx(NotificationEventType eventType,
                                                      DeploymentOutcome outcome) {
+        return deploymentCtx(eventType, outcome, null);
+    }
+
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome,
+                                                     String decisionReason) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -288,7 +305,7 @@ class MsTeamsPayloadFactoryTest {
                 "production",
                 "v2.4.1",
                 outcome,
-                null);
+                decisionReason);
     }
 
     private static NotificationContext ctxWithoutReviewUrl(NotificationEventType eventType) {

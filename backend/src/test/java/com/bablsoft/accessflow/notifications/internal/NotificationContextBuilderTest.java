@@ -678,6 +678,69 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void deploymentVerificationFailureNotifiesApproversAndTheSubmitterOnce() {
+        var deploymentRequestId = UUID.randomUUID();
+        var approver = user(UUID.randomUUID(), "approver@example.com", UserRoleType.REVIEWER);
+        var submitter = user(submitterId, "dev@example.com", UserRoleType.ANALYST);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(submitter));
+        // The submitter also approved (a no-op in practice, but must not duplicate the recipient).
+        when(deploymentLookup.findApproverUserIds(deploymentRequestId))
+                .thenReturn(List.of(approver.id(), submitterId));
+        when(userQuery.findByIds(List.of(approver.id(), submitterId)))
+                .thenReturn(List.of(approver, submitter));
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                deploymentRequestId, null, "health: 3/3 failed samples").orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(approver.id(), submitterId);
+        assertThat(ctx.deploymentDecisionReason()).isEqualTo("health: 3/3 failed samples");
+        assertThat(ctx.deploymentOutcome()).isNull();
+    }
+
+    @Test
+    void deploymentVerificationFailureWithoutApproversReachesOnlyTheActiveSubmitter() {
+        var deploymentRequestId = UUID.randomUUID();
+        var submitter = user(submitterId, "dev@example.com", UserRoleType.ANALYST);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(submitter));
+        when(deploymentLookup.findApproverUserIds(deploymentRequestId)).thenReturn(List.of());
+        when(userQuery.findByIds(List.of(submitterId))).thenReturn(List.of(submitter));
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                deploymentRequestId, null, "x").orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(submitterId);
+    }
+
+    @Test
+    void deploymentVerificationFailureFiltersInactiveRecipients() {
+        var deploymentRequestId = UUID.randomUUID();
+        var approver = user(UUID.randomUUID(), "approver@example.com", UserRoleType.REVIEWER);
+        var submitter = user(submitterId, "dev@example.com", UserRoleType.ANALYST);
+        var inactiveSubmitter = new UserView(submitterId, "dev@example.com", "Bob",
+                UserRoleType.ANALYST, orgId, false, AuthProviderType.LOCAL, "hash", null, null,
+                false, Instant.now());
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(submitter));
+        when(deploymentLookup.findApproverUserIds(deploymentRequestId))
+                .thenReturn(List.of(approver.id()));
+        when(userQuery.findByIds(List.of(approver.id(), submitterId)))
+                .thenReturn(List.of(approver, inactiveSubmitter));
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                deploymentRequestId, null, "x").orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(approver.id());
+    }
+
+    @Test
     void deploymentBreakGlassFansOutToActiveOrgAdmins() {
         var deploymentRequestId = UUID.randomUUID();
         var admin = user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN);

@@ -400,7 +400,8 @@ class DeploymentRequestStateServiceTest {
         var entity = verifying(QueryStatus.EXECUTED, VerificationStatus.RUNNING);
         when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
 
-        assertThat(service.markVerificationFailed(entity.getId(), "health: 3/3 failed samples"))
+        assertThat(service.markVerificationFailed(entity.getId(), "health",
+                "health: 3/3 failed samples"))
                 .isTrue();
 
         assertThat(entity.getStatus()).isEqualTo(QueryStatus.FAILED);
@@ -417,6 +418,41 @@ class DeploymentRequestStateServiceTest {
         verifyNoInteractions(versionTracker);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void markVerificationFailedWritesASystemAuditRow() {
+        var entity = verifying(QueryStatus.EXECUTED, VerificationStatus.RUNNING);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        service.markVerificationFailed(entity.getId(), "health", "health: 3/3 failed samples");
+
+        ArgumentCaptor<Map<String, Object>> metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_VERIFICATION_FAILED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(entity.getId()),
+                eq(entity.getOrganizationId()), isNull(), metadata.capture(), isNull());
+        assertThat(metadata.getValue())
+                .containsEntry("trigger", "verification")
+                .containsEntry("pipeline_id", entity.getPipelineId().toString())
+                .containsEntry("version", entity.getVersion())
+                .containsEntry("check", "health")
+                .containsEntry("detail", "health: 3/3 failed samples");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void markVerificationFailedOmitsTheCheckKeyWhenNoCheckBreached() {
+        var entity = verifying(QueryStatus.EXECUTED, VerificationStatus.RUNNING);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        service.markVerificationFailed(entity.getId(), null, "unreadable");
+
+        ArgumentCaptor<Map<String, Object>> metadata = ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_VERIFICATION_FAILED), any(), any(),
+                any(), isNull(), metadata.capture(), isNull());
+        assertThat(metadata.getValue()).doesNotContainKey("check")
+                .containsEntry("detail", "unreadable");
+    }
+
     @ParameterizedTest
     @CsvSource({"EXECUTED,PASSED", "EXECUTED,SKIPPED", "EXECUTED,FAILED", "FAILED,RUNNING",
             "APPROVED,RUNNING"})
@@ -425,12 +461,12 @@ class DeploymentRequestStateServiceTest {
         var entity = verifying(status, verification);
         when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
 
-        assertThat(service.markVerificationFailed(entity.getId(), "x")).isFalse();
+        assertThat(service.markVerificationFailed(entity.getId(), "c", "x")).isFalse();
 
         assertThat(entity.getStatus()).isEqualTo(status);
         assertThat(entity.getVerificationStatus()).isEqualTo(verification);
         verify(repository, never()).save(any());
-        verifyNoInteractions(eventPublisher, versionTracker);
+        verifyNoInteractions(eventPublisher, versionTracker, auditWriter);
     }
 
     @Test

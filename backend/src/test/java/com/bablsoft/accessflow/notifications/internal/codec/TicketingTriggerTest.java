@@ -30,6 +30,8 @@ class TicketingTriggerTest {
                 .contains(TicketingTrigger.DEPLOYMENT_SUBMITTED);
         assertThat(TicketingTrigger.forEvent(NotificationEventType.DEPLOYMENT_REJECTED)).isEmpty();
         assertThat(TicketingTrigger.forEvent(
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED)).isEmpty();
+        assertThat(TicketingTrigger.forEvent(
                 NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED)).isEmpty();
     }
 

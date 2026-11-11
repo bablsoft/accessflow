@@ -277,6 +277,14 @@ function renderMessage(
         // Translated via enums.deployment_outcome — never the raw backend enum name.
         outcome: payload.outcome ? t(`enums.deployment_outcome.${payload.outcome}`) : '—',
       });
+    // #1026 — a recommendation: the release is still running, nothing was rolled back.
+    case 'DEPLOYMENT_VERIFICATION_FAILED':
+      return t('notifications.events.DEPLOYMENT_VERIFICATION_FAILED', {
+        pipeline: datasource,
+        environment: payload.environment ?? '—',
+        version: payload.version ?? '—',
+        detail: payload.verification_detail ?? '—',
+      });
     case 'DEPLOYMENT_BREAK_GLASS_EXECUTED':
       return payload.submitter
         ? t('notifications.events.DEPLOYMENT_BREAK_GLASS_EXECUTED', {
@@ -404,7 +412,9 @@ export function routeForNotification(item: UserNotification): string | null {
   if (
     item.event_type === 'DEPLOYMENT_APPROVED' ||
     item.event_type === 'DEPLOYMENT_REJECTED' ||
-    item.event_type === 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
+    item.event_type === 'DEPLOYMENT_BREAK_GLASS_EXECUTED' ||
+    // #1026: always the deployment itself — nothing was rolled back, so no rollback review.
+    item.event_type === 'DEPLOYMENT_VERIFICATION_FAILED'
   ) {
     return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
   }

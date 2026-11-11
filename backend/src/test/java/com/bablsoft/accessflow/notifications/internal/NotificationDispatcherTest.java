@@ -281,6 +281,32 @@ class NotificationDispatcherTest {
                 .contains("\"datasource\":\"payments-pipeline\"");
     }
 
+    @Test
+    void verificationFailedPayloadCarriesTheBreachDetailForTheBell() {
+        var reviewer = UUID.randomUUID();
+        var deploymentRequestId = UUID.randomUUID();
+        var base = sampleDeploymentContext(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                deploymentRequestId, null, List.of(new RecipientView(reviewer, "a@x", "A")));
+        var ctx = org.mockito.Mockito.spy(base);
+        org.mockito.Mockito.doReturn("health: 3/3 failed samples").when(ctx).deploymentDecisionReason();
+        when(contextBuilder.buildDeployment(
+                eq(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED), eq(deploymentRequestId),
+                isNull(), eq("health: 3/3 failed samples")))
+                .thenReturn(Optional.of(ctx));
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of());
+
+        dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                deploymentRequestId, null, "health: 3/3 failed samples");
+
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED), eq(Set.of(reviewer)),
+                eq(orgId), isNull(), isNull(), eq(deploymentRequestId), isNull(),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"verification_detail\":\"health: 3/3 failed samples\"");
+    }
+
     /**
      * #695: deployment pipelines carry no review-plan channel binding, so every deployment event
      * must fan out org-wide. Falling through to the plan-channel lookup would silently deliver to
@@ -297,6 +323,7 @@ class NotificationDispatcherTest {
                 NotificationEventType.DEPLOYMENT_REJECTED,
                 NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
                 NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
                 // #985: the shared reminder types, on a deployment context.
                 NotificationEventType.REVIEW_ESCALATED,
                 NotificationEventType.REVIEW_NUDGE)) {
@@ -307,7 +334,7 @@ class NotificationDispatcherTest {
 
             dispatcher.dispatchDeployment(eventType, deploymentRequestId, null, null);
         }
-        verify(emailStrategy, org.mockito.Mockito.times(7)).deliver(any(), eq(emailCh));
+        verify(emailStrategy, org.mockito.Mockito.times(8)).deliver(any(), eq(emailCh));
         verify(contextBuilder, never()).lookupPlanChannelIds(any());
     }
 

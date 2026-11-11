@@ -177,7 +177,9 @@ hold a snapshot of the config and the verdict, and the `deployment_verifications
   running, so it is still shown as current until the pipeline reports `ROLLED_BACK`, which is
   accepted after a failed verification as the one exception to "the first outcome is final".
   A clean window ends `PASSED`. The gate and the request carry `verification_status`, and
-  `GET /deployment-requests/{id}/verification-samples` lists every sample.
+  `GET /deployment-requests/{id}/verification-samples` lists every sample. A breach is audited as
+  `DEPLOYMENT_VERIFICATION_FAILED` and notifies the approvers plus the submitter (see
+  [Audit & notifications](#audit--notifications)).
 - **Save-time rules.** A config is rejected with `422 DEPLOYMENT_VERIFICATION_INVALID` when its
   window is outside 1 minute–24 hours, its interval outside 30 seconds–window, its failure
   threshold one the window cannot reach, two checks share a name, or a URL is refused or does not
@@ -828,8 +830,9 @@ is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
 Every transition lands in the INSERT-only `audit_log`: `DEPLOYMENT_SUBMITTED`,
 `DEPLOYMENT_APPROVED`, `DEPLOYMENT_REJECTED`, `DEPLOYMENT_TIMED_OUT`, `DEPLOYMENT_CANCELLED`,
 `DEPLOYMENT_REVIEW_ESCALATED`, `DEPLOYMENT_REVIEW_NUDGED`,
-`DEPLOYMENT_EXECUTED`, `DEPLOYMENT_OUTCOME_REPORTED`, `DEPLOYMENT_BREAK_GLASS_EXECUTED`,
-`DEPLOYMENT_BREAK_GLASS_REVIEWED` and `DEPLOYMENT_ROLLBACK_REVIEWED`, over the resource types
+`DEPLOYMENT_EXECUTED`, `DEPLOYMENT_OUTCOME_REPORTED`, `DEPLOYMENT_VERIFICATION_FAILED` (#1026),
+`DEPLOYMENT_BREAK_GLASS_EXECUTED`, `DEPLOYMENT_BREAK_GLASS_REVIEWED` and
+`DEPLOYMENT_ROLLBACK_REVIEWED`, over the resource types
 `deployment_request` and `deployment_rollback_review`. Change tickets add `TICKET_CREATED` and
 `TICKET_STATUS_SYNCED` rows over the `deployment_ticket` resource type (#991, #992), and on a
 `change_ticket_required` environment `DEPLOYMENT_EXECUTED` also carries `change_ticket_required`
@@ -837,20 +840,24 @@ plus `change_ticket_key` — or `change_ticket_bypassed = break_glass` (#993). R
 verdict, before quorum**, so the record shows who decided what and when, not merely the outcome.
 System-attributed rows carry a **null actor** plus a `trigger` key naming the mechanism —
 `routing` (with `policy_id`), `environment_policy`, `freeze` (with `freeze_window_id`), `timeout`,
-`escalation` / `nudge` (#985),
+`escalation` / `nudge` (#985), `verification` (a breached post-deployment verification, with
+`pipeline_id`, `version`, `check` — absent when the config snapshot was unreadable — and `detail`;
+#1026),
 `ticket` (a synced change-ticket resolution, with `ticket_system`, `external_key`, `channel_id`,
 `actor` — #992), or `pipeline`. A failed audit write is logged and swallowed rather than breaking the governed
 operation.
 
-Five notification event types fan out across every configured channel (see
+Six notification event types fan out across every configured channel (see
 [08-notifications.md](08-notifications.md)): **`DEPLOYMENT_SUBMITTED`** to the eligible reviewers —
 fired on the `PENDING_REVIEW` *transition*, not on submission, so an auto-decided deployment never
 pings anyone; **`DEPLOYMENT_APPROVED`** and **`DEPLOYMENT_REJECTED`** to the submitter (a timeout
 folds into the rejection with reason `review_timeout`); **`DEPLOYMENT_OUTCOME_FAILED`** to the
-approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_BACK`; and
+approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_BACK`;
 **`DEPLOYMENT_BREAK_GLASS_EXECUTED`** to every org admin, routed to PagerDuty through the existing
-`BREAK_GLASS` trigger. Notifications carry the pipeline, environment, version and outcome, and the
-bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
+`BREAK_GLASS` trigger; and **`DEPLOYMENT_VERIFICATION_FAILED`** (#1026) to those approvers plus the
+submitter when a post-deployment verification breaches. That one is a recommendation: it says the
+release is still running and was not rolled back, and it never pages or opens a ticket.
+Notifications carry the pipeline, environment, version and outcome, and the bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
 mutually-exclusive target column alongside queries and API requests. The frontend additionally
 receives a `deployment.status_changed` WebSocket event on every transition.
 

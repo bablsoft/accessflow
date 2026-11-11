@@ -124,6 +124,10 @@ class TelegramMessageFactory {
             if (ctx.deploymentOutcome() != null) {
                 appendField(sb, "Outcome", ctx.deploymentOutcome().name());
             }
+            if (DeploymentVerificationText.applies(ctx)) {
+                appendField(sb, "Verification", DeploymentVerificationText.detail(ctx));
+                appendField(sb, "Next step", DeploymentVerificationText.RECOMMENDATION);
+            }
             return sb.toString();
         }
         appendField(sb, "Datasource", nullToDash(ctx.datasourceName()));
@@ -204,6 +208,7 @@ class TelegramMessageFactory {
             case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
+            case DEPLOYMENT_VERIFICATION_FAILED -> DeploymentVerificationText.TITLE;
             case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "🧱 Schema Change Awaiting Review";
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";

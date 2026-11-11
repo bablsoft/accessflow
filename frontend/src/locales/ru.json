@@ -3036,6 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "Одобренное вами развертывание на {{pipeline}} сообщило результат {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} выпустил аварийное развертывание (break-glass) на {{pipeline}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Аварийное развертывание (break-glass) было выпущено на {{pipeline}}",
+      "DEPLOYMENT_VERIFICATION_FAILED": "Проверка {{version}} на {{pipeline}} / {{environment}} не пройдена ({{detail}}) — релиз работает, решите, нужен ли откат",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Изменение схемы {{changeSet}} → {{environment}} ожидает вашей проверки",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "Ваше изменение схемы {{changeSet}} применено в {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ваше изменение схемы {{changeSet}} не выполнено в {{environment}}",

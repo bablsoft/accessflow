@@ -58,6 +58,9 @@ class PagerDutyTriggerTest {
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_REJECTED)).isEmpty();
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED))
                 .isEmpty();
+        // #1026: a breached verification recommends a rollback; it never pages.
+        assertThat(PagerDutyTrigger.forEvent(
+                NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED)).isEmpty();
         // #895: schema drift on an API connector is a review item, not an incident.
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.API_CONNECTOR_DRIFT)).isEmpty();
     }

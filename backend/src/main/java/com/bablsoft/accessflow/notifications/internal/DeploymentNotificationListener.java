@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentOutcomeReportedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewEscalatedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentReviewNudgedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentVerificationFailedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -20,7 +21,8 @@ import org.springframework.stereotype.Component;
  * deployment that a routing policy auto-decides never pings them. A decided deployment alerts the
  * submitter ({@code TIMED_OUT} folds into {@code DEPLOYMENT_REJECTED} with its
  * {@code review_timeout} reason); a {@code FAILED} or {@code ROLLED_BACK} outcome alerts the
- * reviewers who approved it; a break-glass release alerts every org admin; an idle review is
+ * reviewers who approved it; a breached post-deployment verification (#1026) alerts those approvers
+ * plus the submitter; a break-glass release alerts every org admin; an idle review is
  * escalated / nudged via the shared {@code REVIEW_ESCALATED} / {@code REVIEW_NUDGE} types (#985).
  * Break-glass publishes no {@code DeploymentDecidedEvent}, so the submitter never self-notifies on
  * that path. Delivery is best-effort and never blocks the deployment flow.
@@ -54,6 +56,13 @@ class DeploymentNotificationListener {
             dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
                     event.deploymentRequestId(), event.outcome(), null);
         }
+    }
+
+    // #1026: the breached check rides in the decision-reason slot.
+    @ApplicationModuleListener
+    void onVerificationFailed(DeploymentVerificationFailedEvent event) {
+        dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED,
+                event.deploymentRequestId(), null, event.detail());
     }
 
     @ApplicationModuleListener

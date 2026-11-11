@@ -316,6 +316,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case DEPLOYMENT_REJECTED -> "email/deployment-rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "email/deployment-outcome-failed";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "email/deployment-break-glass-executed";
+            case DEPLOYMENT_VERIFICATION_FAILED -> "email/deployment-verification-failed";
             // #882: schema-change promotions and drift.
             case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "email/schema-change-promotion-submitted";
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "email/schema-change-promotion-applied";
@@ -352,7 +353,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // Spelled out — this switch has a silent default and would otherwise pass only the
             // pipeline, leaving "{1}" unfilled in every deployment subject.
             case DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
-                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED ->
+                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                 DEPLOYMENT_VERIFICATION_FAILED ->
                     new Object[]{ctx.datasourceName(), ctx.deploymentVersion()};
             // #882: "{0} → {1}" is the change set and the environment it was promoted to. Spelled
             // out — the silent default would pass the pipeline where the change set belongs.
@@ -406,6 +408,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.deployment_outcome_failed";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED ->
                     "notification.email.subject.deployment_break_glass_executed";
+            case DEPLOYMENT_VERIFICATION_FAILED ->
+                    "notification.email.subject.deployment_verification_failed";
             case SCHEMA_CHANGE_PROMOTION_SUBMITTED ->
                     "notification.email.subject.schema_change_promotion_submitted";
             case SCHEMA_CHANGE_PROMOTION_APPLIED ->

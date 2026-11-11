@@ -146,6 +146,10 @@ class DiscordPayloadFactory {
             if (ctx.deploymentOutcome() != null) {
                 addField(fields, "Outcome", ctx.deploymentOutcome().name());
             }
+            if (DeploymentVerificationText.applies(ctx)) {
+                addField(fields, "Verification", DeploymentVerificationText.detail(ctx));
+                addField(fields, "Next step", DeploymentVerificationText.RECOMMENDATION);
+            }
             embed.put("fields", fields);
             return embed;
         }
@@ -236,6 +240,7 @@ class DiscordPayloadFactory {
             case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
+            case DEPLOYMENT_VERIFICATION_FAILED -> DeploymentVerificationText.TITLE;
             case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "🧱 Schema Change Awaiting Review";
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";

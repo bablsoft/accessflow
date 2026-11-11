@@ -68,6 +68,12 @@ public enum NotificationEventType {
      * every active org admin including PagerDuty, mirroring {@code BREAK_GLASS_EXECUTED}.
      */
     DEPLOYMENT_BREAK_GLASS_EXECUTED,
+    /**
+     * A post-deployment verification breached (#1026) — notifies the approvers and the submitter.
+     * A recommendation only: the release is still running and AccessFlow did not roll it back.
+     * Never pages, never tickets.
+     */
+    DEPLOYMENT_VERIFICATION_FAILED,
 
     /**
      * A schema change set promotion entered review (#882) — its request group reached

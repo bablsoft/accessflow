@@ -76,7 +76,7 @@ public class DefaultDeploymentVerificationService implements DeploymentVerificat
             // Fail closed: a running verification whose snapshot cannot be read must not pass.
             log.warn("Deployment request {} has an unreadable verification snapshot",
                     deploymentRequestId);
-            return stateService.markVerificationFailed(deploymentRequestId, UNREADABLE_CONFIG)
+            return stateService.markVerificationFailed(deploymentRequestId, null, UNREADABLE_CONFIG)
                     ? VerificationTickResult.BREACHED : VerificationTickResult.SKIPPED;
         }
         var now = clock.instant();
@@ -110,7 +110,7 @@ public class DefaultDeploymentVerificationService implements DeploymentVerificat
             if (failed >= config.failureThreshold()) {
                 var detail = check.name() + ": " + failed + "/" + config.failureThreshold()
                         + " failed samples";
-                return stateService.markVerificationFailed(id, detail)
+                return stateService.markVerificationFailed(id, check.name(), detail)
                         ? VerificationTickResult.BREACHED : VerificationTickResult.SKIPPED;
             }
         }

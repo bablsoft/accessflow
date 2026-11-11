@@ -28,6 +28,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -78,7 +80,7 @@ class DefaultDeploymentVerificationServiceTest {
         when(codec.fromJson(JSON)).thenReturn(config(3, HEALTH, READY));
         when(evaluators.evaluate(HEALTH)).thenReturn(passed(HEALTH));
         when(evaluators.evaluate(READY)).thenReturn(passed(READY));
-        when(stateService.markVerificationFailed(any(), anyString())).thenReturn(true);
+        when(stateService.markVerificationFailed(any(), any(), anyString())).thenReturn(true);
         when(stateService.markVerificationPassed(any())).thenReturn(true);
     }
 
@@ -99,7 +101,7 @@ class DefaultDeploymentVerificationServiceTest {
         assertThat(first.getObservedValue()).isEqualTo("200");
         assertThat(request.getLastVerifiedAt()).isEqualTo(NOW);
         verify(requestRepository).save(request);
-        verify(stateService, never()).markVerificationFailed(any(), any());
+        verify(stateService, never()).markVerificationFailed(any(), any(), any());
         verify(stateService, never()).markVerificationPassed(any());
     }
 
@@ -146,7 +148,7 @@ class DefaultDeploymentVerificationServiceTest {
 
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.BREACHED);
 
-        verify(stateService).markVerificationFailed(request.getId(), "ready: 3/3 failed samples");
+        verify(stateService).markVerificationFailed(request.getId(), "ready", "ready: 3/3 failed samples");
         verify(stateService, never()).markVerificationPassed(any());
     }
 
@@ -158,14 +160,14 @@ class DefaultDeploymentVerificationServiceTest {
 
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.SAMPLED);
 
-        verify(stateService, never()).markVerificationFailed(any(), any());
+        verify(stateService, never()).markVerificationFailed(any(), any(), any());
     }
 
     @Test
     void aBreachLostToARaceIsReportedAsSkipped() {
         when(verificationRepository.countByDeploymentRequestIdAndCheckNameAndPassedFalse(
                 request.getId(), "health")).thenReturn(3L);
-        when(stateService.markVerificationFailed(any(), anyString())).thenReturn(false);
+        when(stateService.markVerificationFailed(any(), any(), anyString())).thenReturn(false);
 
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.SKIPPED);
     }
@@ -219,20 +221,20 @@ class DefaultDeploymentVerificationServiceTest {
 
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.BREACHED);
 
-        verify(stateService).markVerificationFailed(request.getId(),
-                DefaultDeploymentVerificationService.UNREADABLE_CONFIG);
+        verify(stateService).markVerificationFailed(eq(request.getId()), isNull(),
+                eq(DefaultDeploymentVerificationService.UNREADABLE_CONFIG));
         verifyNoInteractions(evaluators, verificationRepository);
     }
 
     @Test
     void aMissingSnapshotFailsClosedAndALostRaceIsSkipped() {
         when(codec.fromJson(JSON)).thenReturn(null);
-        when(stateService.markVerificationFailed(any(), anyString())).thenReturn(false);
+        when(stateService.markVerificationFailed(any(), any(), anyString())).thenReturn(false);
 
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.SKIPPED);
 
-        verify(stateService).markVerificationFailed(request.getId(),
-                DefaultDeploymentVerificationService.UNREADABLE_CONFIG);
+        verify(stateService).markVerificationFailed(eq(request.getId()), isNull(),
+                eq(DefaultDeploymentVerificationService.UNREADABLE_CONFIG));
     }
 
     @Test
@@ -262,7 +264,7 @@ class DefaultDeploymentVerificationServiceTest {
         assertThat(service.verifyOne(request.getId())).isEqualTo(VerificationTickResult.SKIPPED);
 
         verify(verificationRepository, never()).save(any());
-        verify(stateService, never()).markVerificationFailed(any(), any());
+        verify(stateService, never()).markVerificationFailed(any(), any(), any());
     }
 
     @Test

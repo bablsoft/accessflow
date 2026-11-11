@@ -154,6 +154,10 @@ class SlackBlockKitFactory {
         if (ctx.deploymentOutcome() != null) {
             fields.add(mrkdwn("*Outcome:*\n" + ctx.deploymentOutcome().name()));
         }
+        if (DeploymentVerificationText.applies(ctx)) {
+            fields.add(mrkdwn("*Verification:*\n" + DeploymentVerificationText.detail(ctx)));
+            fields.add(mrkdwn("*Next step:*\n" + DeploymentVerificationText.RECOMMENDATION));
+        }
         return SectionBlock.builder().fields(fields).build();
     }
 
@@ -303,6 +307,7 @@ class SlackBlockKitFactory {
             case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
             case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
             case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
+            case DEPLOYMENT_VERIFICATION_FAILED -> DeploymentVerificationText.TITLE;
             case SCHEMA_CHANGE_PROMOTION_SUBMITTED -> "🧱 Schema Change Awaiting Review";
             case SCHEMA_CHANGE_PROMOTION_APPLIED -> "✅ Schema Change Applied";
             case SCHEMA_CHANGE_PROMOTION_FAILED -> "🚨 Schema Change Failed";

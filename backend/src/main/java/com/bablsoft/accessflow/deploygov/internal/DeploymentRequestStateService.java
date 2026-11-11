@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -179,7 +180,7 @@ public class DeploymentRequestStateService {
      * verification — a lost race, not an error.
      */
     @Transactional
-    public boolean markVerificationFailed(UUID id, String detail) {
+    public boolean markVerificationFailed(UUID id, String check, String detail) {
         var entity = require(id);
         if (!isRunningVerification(entity)) {
             return false;
@@ -188,7 +189,18 @@ public class DeploymentRequestStateService {
         entity.setVerificationFinishedAt(clock.instant());
         entity.setVerificationDetail(detail);
         apply(entity, QueryStatus.FAILED);
-        // #1026: the DEPLOYMENT_VERIFICATION_FAILED audit row is recorded here.
+        // #1026: system row — null actor; check is null when the config snapshot was unreadable.
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "verification");
+        metadata.put("pipeline_id", entity.getPipelineId().toString());
+        metadata.put("version", entity.getVersion());
+        if (check != null) {
+            metadata.put("check", check);
+        }
+        metadata.put("detail", detail);
+        auditWriter.record(AuditAction.DEPLOYMENT_VERIFICATION_FAILED,
+                AuditResourceType.DEPLOYMENT_REQUEST, entity.getId(), entity.getOrganizationId(),
+                null, metadata, null);
         eventPublisher.publishEvent(new DeploymentVerificationFailedEvent(
                 entity.getOrganizationId(), entity.getId(), entity.getPipelineId(), detail));
         return true;

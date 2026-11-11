@@ -27,7 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Covers the #695 deployment-event fan-out sites the compiler cannot: the five Thymeleaf
+ * Covers the #695 deployment-event fan-out sites the compiler cannot: the six Thymeleaf
  * templates (in every shipped locale), and the two trigger registries — only
  * {@code DEPLOYMENT_BREAK_GLASS_EXECUTED} may page, and no deployment event may open a ticket.
  * Chat-factory bodies are pinned per-factory in the {@code *FactoryTest} classes.
@@ -39,14 +39,16 @@ class DeploymentNotificationTest {
             NotificationEventType.DEPLOYMENT_APPROVED,
             NotificationEventType.DEPLOYMENT_REJECTED,
             NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
-            NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED);
+            NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+            NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED);
 
     private static final List<String> TEMPLATES = List.of(
             "email/deployment-pending-review",
             "email/deployment-approved",
             "email/deployment-rejected",
             "email/deployment-outcome-failed",
-            "email/deployment-break-glass-executed");
+            "email/deployment-break-glass-executed",
+            "email/deployment-verification-failed");
 
     private static SpringTemplateEngine buildEngine() {
         var resolver = new ClassLoaderTemplateResolver();
@@ -127,6 +129,25 @@ class DeploymentNotificationTest {
                 .doesNotContain("rolled back");
     }
 
+    /** #1026: the copy recommends a rollback and never claims one happened. */
+    @Test
+    void verificationFailedTemplateCarriesTheCheckAndTheRecommendation() {
+        var ctx = templateContext(Locale.ENGLISH);
+        ctx.setVariable("deploymentOutcome", null);
+        ctx.setVariable("deploymentDecisionReason", "health: 3/3 failed samples");
+        var html = buildEngine().process("email/deployment-verification-failed", ctx);
+
+        assertThat(html)
+                .contains("health: 3/3 failed samples")
+                .contains("payments-pipeline")
+                .contains("production")
+                .contains("2.4.1")
+                .contains("still running")
+                .contains("did not roll it back")
+                .contains("ROLLED_BACK")
+                .doesNotContain("href=\"null\"");
+    }
+
     @Test
     void breakGlassTemplateCarriesTheJustificationAndNoDeadCta() {
         var html = buildEngine().process("email/deployment-break-glass-executed",
@@ -177,14 +198,15 @@ class DeploymentNotificationTest {
     /** Rejection, outcome and break-glass never open a change ticket. */
     @ParameterizedTest
     @EnumSource(names = {"DEPLOYMENT_REJECTED", "DEPLOYMENT_OUTCOME_FAILED",
-            "DEPLOYMENT_BREAK_GLASS_EXECUTED"})
+            "DEPLOYMENT_BREAK_GLASS_EXECUTED", "DEPLOYMENT_VERIFICATION_FAILED"})
     void neverOpensATicket(NotificationEventType event) {
         assertThat(TicketingTrigger.forEvent(event)).isEmpty();
     }
 
     @ParameterizedTest
     @EnumSource(names = {"DEPLOYMENT_SUBMITTED", "DEPLOYMENT_APPROVED", "DEPLOYMENT_REJECTED",
-            "DEPLOYMENT_OUTCOME_FAILED", "DEPLOYMENT_BREAK_GLASS_EXECUTED"})
+            "DEPLOYMENT_OUTCOME_FAILED", "DEPLOYMENT_BREAK_GLASS_EXECUTED",
+            "DEPLOYMENT_VERIFICATION_FAILED"})
     void everyDeploymentEventRoutesToItsOwnEmailTemplate(NotificationEventType event) {
         assertThat(EmailNotificationStrategy.hasTemplateFor(event)).isTrue();
     }

@@ -287,6 +287,8 @@ public enum AuditAction {
     /** #985: undecided deployment reviewers were re-nudged on the plan's nudge_interval_hours. */
     DEPLOYMENT_REVIEW_NUDGED,
     DEPLOYMENT_CANCELLED,
+    /** #1026: a post-deployment verification breached (system row, {@code trigger=verification}). */
+    DEPLOYMENT_VERIFICATION_FAILED,
     /** #695: a deployment break-glass retro-review acknowledged (was generic BREAK_GLASS_REVIEWED). */
     DEPLOYMENT_BREAK_GLASS_REVIEWED,
 

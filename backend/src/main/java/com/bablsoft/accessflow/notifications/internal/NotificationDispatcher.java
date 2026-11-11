@@ -325,6 +325,11 @@ class NotificationDispatcher {
         if (ctx.deploymentOutcome() != null) {
             payload.put("outcome", ctx.deploymentOutcome().name());
         }
+        // #1026: the bell is the one surface every recipient gets, so it names the failed check.
+        if (ctx.eventType() == NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED
+                && ctx.deploymentDecisionReason() != null) {
+            payload.put("verification_detail", ctx.deploymentDecisionReason());
+        }
         if (ctx.schemaChangePromotionId() != null) {
             payload.put("schema_change_promotion_id", ctx.schemaChangePromotionId().toString());
         }
@@ -410,6 +415,7 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.DEPLOYMENT_REJECTED
                 || eventType == NotificationEventType.DEPLOYMENT_OUTCOME_FAILED
                 || eventType == NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED
+                || eventType == NotificationEventType.DEPLOYMENT_VERIFICATION_FAILED
                 // #985: the shared REVIEW_ESCALATED / REVIEW_NUDGE on a deployment carry the
                 // pipeline in datasourceId, so they fan out org-wide like every deployment event.
                 || ctx.deploymentRequestId() != null

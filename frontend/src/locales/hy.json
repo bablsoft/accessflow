@@ -3036,6 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "Ձեր հաստատած տեղակայումը {{pipeline}}-ում զեկուցել է {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} թողարկեց break-glass տեղակայում {{pipeline}}-ում",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Break-glass տեղակայում թողարկվեց {{pipeline}}-ում",
+      "DEPLOYMENT_VERIFICATION_FAILED": "{{version}}-ի ստուգումը ձախողվեց {{pipeline}} / {{environment}}-ում ({{detail}}) — դեռ աշխատում է, որոշեք՝ արդյոք հետ գլորել",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Սխեմայի փոփոխությունը {{changeSet}} → {{environment}} սպասում է ձեր վերանայմանը",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "Ձեր սխեմայի փոփոխությունը {{changeSet}} կիրառվեց {{environment}}-ում",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Ձեր սխեմայի փոփոխությունը {{changeSet}} ձախողվեց {{environment}}-ում",
