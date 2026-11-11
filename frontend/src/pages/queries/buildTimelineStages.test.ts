@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
 import { buildTimelineStages } from './buildTimelineStages';
 import type {
@@ -8,8 +9,10 @@ import type {
 } from '@/types/api';
 
 // Echoes the key plus its interpolation, so tests assert the shape without pinning English copy.
-const t = (key: string, options?: Record<string, unknown>) =>
-  options ? `${key}:${Object.entries(options).map(([k, v]) => `${k}=${String(v)}`).join(',')}` : key;
+const t = ((key: string, options?: Record<string, unknown>) =>
+  options
+    ? `${key}:${Object.entries(options).map(([k, v]) => `${k}=${String(v)}`).join(',')}`
+    : key) as unknown as TFunction;
 
 function reviewer(id: string, displayName: string | null, email: string) {
   return { id, email, display_name: displayName as string };
