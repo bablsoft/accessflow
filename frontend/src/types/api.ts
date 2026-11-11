@@ -2863,6 +2863,8 @@ export interface UserNotificationPayload {
   environment?: string;
   version?: string;
   outcome?: 'FAILED' | 'ROLLED_BACK';
+  // #1026: DEPLOYMENT_VERIFICATION_FAILED only — the breached check and its failed-sample count.
+  verification_detail?: string;
   schema_change_promotion_id?: string;
   change_set?: string;
   promotion_status?: 'APPLIED' | 'FAILED' | 'PARTIALLY_APPLIED' | 'IN_REVIEW';

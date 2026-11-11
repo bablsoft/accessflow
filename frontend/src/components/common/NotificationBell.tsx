@@ -283,6 +283,7 @@ function renderMessage(
         pipeline: datasource,
         environment: payload.environment ?? '—',
         version: payload.version ?? '—',
+        detail: payload.verification_detail ?? '—',
       });
     case 'DEPLOYMENT_BREAK_GLASS_EXECUTED':
       return payload.submitter

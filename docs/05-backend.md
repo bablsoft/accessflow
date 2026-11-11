@@ -5558,7 +5558,9 @@ with a **null actor** and a `trigger` naming the mechanism — `routing` (+ `pol
 `DeploymentReviewStateMachine`, `freeze` (+ `freeze_window_id`) on the submission auto-reject,
 `environment_policy` when an environment needs no review, `ticket` (+ `ticket_system`, `external_key`,
 `channel_id`, `actor`) from `DefaultDeploymentExternalDecisionService` (#992). `DeploymentRequestStateService
-.markTimedOut` writes `DEPLOYMENT_TIMED_OUT` (`trigger=timeout`), and the cancel endpoint writes
+.markTimedOut` writes `DEPLOYMENT_TIMED_OUT` (`trigger=timeout`), `markVerificationFailed` writes
+`DEPLOYMENT_VERIFICATION_FAILED` (`trigger=verification`, + `check` when one breached, `detail` — #1026),
+and the cancel endpoint writes
 `DEPLOYMENT_CANCELLED` (controller layer, IP + user-agent, only after the service accepts).
 These join the pre-#695 rows: `DEPLOYMENT_BREAK_GLASS_EXECUTED` (#692, an AF-385 compensating
 control), and the #693 machine contract — `DEPLOYMENT_EXECUTED` (`trigger=pipeline`) on

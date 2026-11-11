@@ -14,10 +14,10 @@
 <body>
     <h2 th:text="#{notification.email.deployment_verification_failed.heading}">A released deployment failed its post-deployment verification</h2>
     <p class="failure-banner" th:text="#{notification.email.deployment_verification_failed.body}">
-        One verification check reached its failure threshold after the pipeline reported the deployment as succeeded.
+        The post-deployment verification failed after the pipeline reported the deployment as succeeded.
     </p>
     <p th:if="${deploymentDecisionReason}">
-        <strong th:text="#{notification.email.deployment_verification_failed.detail_label}">Failed check:</strong>
+        <strong th:text="#{notification.email.deployment_verification_failed.detail_label}">Detail:</strong>
     </p>
     <pre th:if="${deploymentDecisionReason}" th:text="${deploymentDecisionReason}">health: 3/3 failed samples</pre>
     <p class="meta">

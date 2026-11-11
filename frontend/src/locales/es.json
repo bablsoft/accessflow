@@ -3036,7 +3036,7 @@
       "DEPLOYMENT_OUTCOME_FAILED": "Un despliegue que aprobaste en {{pipeline}} informó {{outcome}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} liberó un despliegue de break-glass en {{pipeline}}",
       "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Se liberó un despliegue de break-glass en {{pipeline}}",
-      "DEPLOYMENT_VERIFICATION_FAILED": "Falló la verificación de {{version}} en {{pipeline}} / {{environment}}: sigue en ejecución, decide si revertir",
+      "DEPLOYMENT_VERIFICATION_FAILED": "Falló la verificación de {{version}} en {{pipeline}} / {{environment}} ({{detail}}): sigue en ejecución, decide si revertir",
       "SCHEMA_CHANGE_PROMOTION_SUBMITTED": "Un cambio de esquema {{changeSet}} → {{environment}} espera su revisión",
       "SCHEMA_CHANGE_PROMOTION_APPLIED": "Su cambio de esquema {{changeSet}} se aplicó en {{environment}}",
       "SCHEMA_CHANGE_PROMOTION_FAILED": "Su cambio de esquema {{changeSet}} falló en {{environment}}",

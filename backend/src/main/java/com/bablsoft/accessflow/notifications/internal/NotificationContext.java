@@ -50,7 +50,8 @@ import java.util.UUID;
  * for the submission (or break-glass) justification. {@code deploymentOutcome} is only set for
  * {@code DEPLOYMENT_OUTCOME_FAILED}; {@code deploymentDecisionReason} carries the decision
  * provenance ({@code "routing:&lt;policyId&gt;"}, {@code "freeze:&lt;windowId&gt;"},
- * {@code "review_timeout"}, or null for a reviewer verdict).
+ * {@code "review_timeout"}, or null for a reviewer verdict) — or, for
+ * {@code DEPLOYMENT_VERIFICATION_FAILED} (#1026), the verification breach detail.
  *
  * <p>The {@code schemaChange*} fields are only populated for the {@code SCHEMA_CHANGE_PROMOTION_*}
  * events and {@code driftNewFindingCount} only for {@code SCHEMA_DRIFT_DETECTED} (#882). Both reuse

@@ -852,12 +852,12 @@ Six notification event types fan out across every configured channel (see
 fired on the `PENDING_REVIEW` *transition*, not on submission, so an auto-decided deployment never
 pings anyone; **`DEPLOYMENT_APPROVED`** and **`DEPLOYMENT_REJECTED`** to the submitter (a timeout
 folds into the rejection with reason `review_timeout`); **`DEPLOYMENT_OUTCOME_FAILED`** to the
-approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_BACK`; and
+approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_BACK`;
 **`DEPLOYMENT_BREAK_GLASS_EXECUTED`** to every org admin, routed to PagerDuty through the existing
 `BREAK_GLASS` trigger; and **`DEPLOYMENT_VERIFICATION_FAILED`** (#1026) to those approvers plus the
-submitter when a post-deployment verification breaches — a recommendation that never pages or
-tickets and says the release is still running and was not rolled back. Notifications carry the pipeline, environment, version and outcome, and the
-bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
+submitter when a post-deployment verification breaches. That one is a recommendation: it says the
+release is still running and was not rolled back, and it never pages or opens a ticket.
+Notifications carry the pipeline, environment, version and outcome, and the bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
 mutually-exclusive target column alongside queries and API requests. The frontend additionally
 receives a `deployment.status_changed` WebSocket event on every transition.
 
