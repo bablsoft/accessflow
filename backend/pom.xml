@@ -20,10 +20,10 @@
 
     <properties>
         <java.version>25</java.version>
-        <spring-modulith.version>2.1.1</spring-modulith.version>
+        <spring-modulith.version>2.1.2</spring-modulith.version>
         <spring-ai.version>2.0.2</spring-ai.version>
         <shedlock.version>7.10.1</shedlock.version>
-        <slack.sdk.version>1.53.0</slack.sdk.version>
+        <slack.sdk.version>1.54.0</slack.sdk.version>
         <springdoc.version>3.2.0</springdoc.version>
         <jsqlparser.version>5.4</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
@@ -249,7 +249,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.2-jre</version>
+            <version>33.8.0-jre</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
