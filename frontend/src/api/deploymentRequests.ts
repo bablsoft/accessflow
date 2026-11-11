@@ -4,6 +4,7 @@ import type {
   DeploymentRequest,
   DeploymentRequestListFilters,
   DeploymentRequestPage,
+  DeploymentVerificationSample,
 } from '@/types/api';
 
 const BASE = '/api/v1/deployment-requests';
@@ -15,6 +16,7 @@ export const deploymentKeys = {
   details: () => ['deployments', 'detail'] as const,
   detail: (id: string) => ['deployments', 'detail', id] as const,
   gate: (id: string) => ['deployments', 'detail', id, 'gate'] as const,
+  verification: (id: string) => ['deployments', 'detail', id, 'verification'] as const,
 };
 
 export async function listDeploymentRequests(
@@ -47,5 +49,15 @@ export async function getDeploymentGate(requestId: string): Promise<DeploymentGa
   const { data } = await apiClient.get<DeploymentGateStatus>('/api/v1/deployment-gate', {
     params: { request_id: requestId },
   });
+  return data;
+}
+
+/** Oldest first; `[]` for a request that was never verified (#1025). */
+export async function getDeploymentVerificationSamples(
+  id: string,
+): Promise<DeploymentVerificationSample[]> {
+  const { data } = await apiClient.get<DeploymentVerificationSample[]>(
+    `${BASE}/${id}/verification-samples`,
+  );
   return data;
 }

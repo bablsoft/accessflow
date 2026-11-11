@@ -4038,6 +4038,23 @@
       "DAY": "Կանչեր օրում",
       "USER_MINUTE": "Մեկ օգտատիրոջ կանչեր րոպեում",
       "USER_DAY": "Մեկ օգտատիրոջ կանչեր օրում"
+    },
+    "verification_status": {
+      "PENDING": "սպասվում է",
+      "RUNNING": "ընթացքում է",
+      "PASSED": "անցել է",
+      "FAILED": "ձախողվել է",
+      "SKIPPED": "բաց է թողնվել"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP առողջություն",
+      "PROMQL_THRESHOLD": "PromQL շեմ"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Ճշգրիտ տարբերակ",
       "countLabel": "{{total}} տեղակայում",
       "empty": "Դեռ տեղակայման հայտեր չկան",
-      "notFound": "Տեղակայման հայտը չի գտնվել"
+      "notFound": "Տեղակայման հայտը չի գտնվել",
+      "verificationTag": "ստուգում՝ {{status}}"
     },
     "detail": {
       "title": "Տեղակայում",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Թողարկում",
       "timeline_execution_failed": "Կատարումը ձախողվեց",
       "timeline_cancelled": "Չեղարկված",
-      "timeline_outcome": "Արդյունք"
+      "timeline_outcome": "Արդյունք",
+      "verification": "Ստուգում",
+      "verificationFailedTitle": "Ստուգումը ձախողվեց — թողարկումը դեռ աշխատում է",
+      "verificationFailedBody": "AccessFlow-ը ոչինչ հետ չի գլորել։ Որոշեք՝ արդյոք հետ գլորել, ապա pipeline-ից հաղորդեք ROLLED_BACK։",
+      "verificationWindow": "Պատուհան",
+      "verificationInterval": "Նմուշառման միջակայք",
+      "verificationThreshold": "Ձախողման շեմ",
+      "verificationStarted": "Սկսվել է",
+      "verificationFinished": "Ավարտվել է",
+      "verificationDetail": "Մանրամասն",
+      "verificationSampledAt": "Նմուշառվել է",
+      "verificationCheck": "Ստուգում",
+      "verificationResult": "Արդյունք",
+      "verificationObserved": "Դիտարկված",
+      "verificationSampleDetail": "Մանրամասն",
+      "verificationNoSamples": "Նմուշներ դեռ չկան",
+      "verificationMinutesValue": "{{n}} րոպե",
+      "verificationSecondsValue": "{{n}} վ",
+      "timeline_verification": "Ստուգում"
     },
     "reviews": {
       "approve": "Հաստատել",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Խմբագրել թույլտվությունը — {{user}}",
       "editGroupPermission": "Խմբագրել թույլտվությունը — {{group}}",
       "revoke": "Հետ կանչել",
-      "tabSimulate": "Սիմուլյացիա"
+      "tabSimulate": "Սիմուլյացիա",
+      "verificationSection": "Տեղակայումից հետո ստուգում",
+      "verificationEnabled": "Ստուգել թողարկումից հետո",
+      "verificationEnabledHelp": "Երբ pipeline-ը հաղորդում է SUCCEEDED, AccessFlow-ը պատուհանի ընթացքում նմուշառում է այս ստուգումները։ Խախտումը տեղակայումը նշում է որպես ձախողված — AccessFlow-ը երբեք ոչինչ հետ չի գլորում։",
+      "verificationWindow": "Պատուհան",
+      "verificationInterval": "Նմուշառել ամեն",
+      "verificationThreshold": "Ձախողումներ մինչև խախտում",
+      "verificationMinutes": "րոպե",
+      "verificationWindowRange": "Պատուհանը պետք է լինի 1-ից 1440 րոպե։",
+      "verificationIntervalRange": "Նմուշառման միջակայքը պետք է լինի առնվազն 0,5 րոպե և չգերազանցի պատուհանը։",
+      "verificationThresholdRange": "Ձախողման շեմը պետք է լինի 1-ից 20։",
+      "verificationThresholdExceedsSamples": "Պատուհանը հավաքում է առավելագույնը {{samples}} նմուշ — իջեցրեք շեմը կամ մեծացրեք պատուհանը։",
+      "verificationChecksRange": "Ավելացրեք 1-ից 10 ստուգում։",
+      "verificationCheckKind": "Ստուգման տեսակ",
+      "verificationCheckName": "Ստուգման անվանում",
+      "verificationCheckNameDuplicate": "Այս անվանումն արդեն օգտագործվում է մեկ այլ ստուգման կողմից։",
+      "verificationRemoveCheck": "Հեռացնել ստուգումը",
+      "verificationAddCheck": "Ավելացնել ստուգում",
+      "verificationUrl": "Առողջության URL",
+      "verificationUrlScheme": "Օգտագործեք http:// կամ https:// URL։",
+      "verificationExpectedStatus": "Սպասվող կարգավիճակ",
+      "verificationExpectedStatusRange": "Սպասվող կարգավիճակը պետք է լինի 100-ից 599։",
+      "verificationBodyContains": "Մարմինը պարունակում է (ըստ ցանկության)",
+      "verificationPrometheusUrl": "Prometheus URL",
+      "verificationPrometheusUrlHelp": "Միայն բազային URL — /api/v1/query-ն ավելացվում է։",
+      "verificationQuery": "PromQL հարցում",
+      "verificationComparator": "Անցնում է, երբ արժեքը",
+      "verificationValueThreshold": "Շեմ",
+      "verificationNoDataIsFailure": "Տվյալների բացակայությունը ձախողում է",
+      "verificationColumn": "Ստուգում",
+      "verificationChecksCount": "Ստուգումներ՝ {{n}}"
     },
     "freezeWindows": {
       "title": "Սառեցման պատուհաններ",

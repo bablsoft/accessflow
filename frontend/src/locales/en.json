@@ -4076,6 +4076,23 @@
       "DAY": "Calls per day",
       "USER_MINUTE": "Per-user calls per minute",
       "USER_DAY": "Per-user calls per day"
+    },
+    "verification_status": {
+      "PENDING": "pending",
+      "RUNNING": "running",
+      "PASSED": "passed",
+      "FAILED": "failed",
+      "SKIPPED": "skipped"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP health",
+      "PROMQL_THRESHOLD": "PromQL threshold"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Exact version",
       "countLabel": "{{total}} deployments",
       "empty": "No deployment requests yet",
-      "notFound": "Deployment request not found"
+      "notFound": "Deployment request not found",
+      "verificationTag": "verification {{status}}"
     },
     "detail": {
       "title": "Deployment",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Release",
       "timeline_execution_failed": "Execution failed",
       "timeline_cancelled": "Cancelled",
-      "timeline_outcome": "Outcome"
+      "timeline_outcome": "Outcome",
+      "verification": "Verification",
+      "verificationFailedTitle": "Verification failed — the release is still running",
+      "verificationFailedBody": "AccessFlow did not roll back. Decide whether to roll back, then report ROLLED_BACK from the pipeline.",
+      "verificationWindow": "Window",
+      "verificationInterval": "Sample interval",
+      "verificationThreshold": "Failure threshold",
+      "verificationStarted": "Started",
+      "verificationFinished": "Finished",
+      "verificationDetail": "Detail",
+      "verificationSampledAt": "Sampled at",
+      "verificationCheck": "Check",
+      "verificationResult": "Result",
+      "verificationObserved": "Observed",
+      "verificationSampleDetail": "Detail",
+      "verificationNoSamples": "No samples yet",
+      "verificationMinutesValue": "{{n}} min",
+      "verificationSecondsValue": "{{n}} s",
+      "timeline_verification": "Verification"
     },
     "reviews": {
       "approve": "Approve",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Edit permission — {{user}}",
       "editGroupPermission": "Edit permission — {{group}}",
       "revoke": "Revoke",
-      "tabSimulate": "Simulate"
+      "tabSimulate": "Simulate",
+      "verificationSection": "Post-deployment verification",
+      "verificationEnabled": "Verify after release",
+      "verificationEnabledHelp": "After the pipeline reports SUCCEEDED, AccessFlow samples these checks for the window. A breach marks the deployment failed — AccessFlow never rolls anything back.",
+      "verificationWindow": "Window",
+      "verificationInterval": "Sample every",
+      "verificationThreshold": "Failures to breach",
+      "verificationMinutes": "min",
+      "verificationWindowRange": "Window must be between 1 and 1440 minutes.",
+      "verificationIntervalRange": "Sample interval must be at least 0.5 minutes and no longer than the window.",
+      "verificationThresholdRange": "Failure threshold must be between 1 and 20.",
+      "verificationThresholdExceedsSamples": "The window collects at most {{samples}} samples — lower the threshold or widen the window.",
+      "verificationChecksRange": "Add between 1 and 10 checks.",
+      "verificationCheckKind": "Check type",
+      "verificationCheckName": "Check name",
+      "verificationCheckNameDuplicate": "Another check already uses this name.",
+      "verificationRemoveCheck": "Remove check",
+      "verificationAddCheck": "Add check",
+      "verificationUrl": "Health URL",
+      "verificationUrlScheme": "Use an http:// or https:// URL.",
+      "verificationExpectedStatus": "Expected status",
+      "verificationExpectedStatusRange": "Expected status must be between 100 and 599.",
+      "verificationBodyContains": "Body contains (optional)",
+      "verificationPrometheusUrl": "Prometheus URL",
+      "verificationPrometheusUrlHelp": "Base URL only — /api/v1/query is appended.",
+      "verificationQuery": "PromQL query",
+      "verificationComparator": "Passes when value is",
+      "verificationValueThreshold": "Threshold",
+      "verificationNoDataIsFailure": "No data counts as failure",
+      "verificationColumn": "Verification",
+      "verificationChecksCount": "Checks: {{n}}"
     },
     "freezeWindows": {
       "title": "Freeze windows",

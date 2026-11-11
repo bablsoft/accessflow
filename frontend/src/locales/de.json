@@ -4038,6 +4038,23 @@
       "DAY": "Aufrufe pro Tag",
       "USER_MINUTE": "Aufrufe pro Benutzer und Minute",
       "USER_DAY": "Aufrufe pro Benutzer und Tag"
+    },
+    "verification_status": {
+      "PENDING": "ausstehend",
+      "RUNNING": "läuft",
+      "PASSED": "bestanden",
+      "FAILED": "fehlgeschlagen",
+      "SKIPPED": "übersprungen"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP-Health",
+      "PROMQL_THRESHOLD": "PromQL-Schwellenwert"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Exakte Version",
       "countLabel": "{{total}} Deployments",
       "empty": "Noch keine Deployment-Anfragen",
-      "notFound": "Deployment-Anfrage nicht gefunden"
+      "notFound": "Deployment-Anfrage nicht gefunden",
+      "verificationTag": "Verifizierung {{status}}"
     },
     "detail": {
       "title": "Deployment",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Freigabe",
       "timeline_execution_failed": "Ausführung fehlgeschlagen",
       "timeline_cancelled": "Abgebrochen",
-      "timeline_outcome": "Ergebnis"
+      "timeline_outcome": "Ergebnis",
+      "verification": "Verifizierung",
+      "verificationFailedTitle": "Verifizierung fehlgeschlagen — das Release läuft weiter",
+      "verificationFailedBody": "AccessFlow hat nichts zurückgerollt. Entscheiden Sie, ob zurückgerollt werden soll, und melden Sie dann ROLLED_BACK aus der Pipeline.",
+      "verificationWindow": "Zeitfenster",
+      "verificationInterval": "Prüfintervall",
+      "verificationThreshold": "Fehlerschwellenwert",
+      "verificationStarted": "Gestartet",
+      "verificationFinished": "Beendet",
+      "verificationDetail": "Details",
+      "verificationSampledAt": "Geprüft am",
+      "verificationCheck": "Check",
+      "verificationResult": "Ergebnis",
+      "verificationObserved": "Beobachtet",
+      "verificationSampleDetail": "Details",
+      "verificationNoSamples": "Noch keine Stichproben",
+      "verificationMinutesValue": "{{n}} Min.",
+      "verificationSecondsValue": "{{n}} s",
+      "timeline_verification": "Verifizierung"
     },
     "reviews": {
       "approve": "Genehmigen",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Berechtigung bearbeiten — {{user}}",
       "editGroupPermission": "Berechtigung bearbeiten — {{group}}",
       "revoke": "Widerrufen",
-      "tabSimulate": "Simulieren"
+      "tabSimulate": "Simulieren",
+      "verificationSection": "Verifizierung nach dem Deployment",
+      "verificationEnabled": "Nach dem Release verifizieren",
+      "verificationEnabledHelp": "Sobald die Pipeline SUCCEEDED meldet, prüft AccessFlow diese Checks während des Zeitfensters. Ein Verstoß markiert das Deployment als fehlgeschlagen — AccessFlow rollt nie etwas zurück.",
+      "verificationWindow": "Zeitfenster",
+      "verificationInterval": "Prüfen alle",
+      "verificationThreshold": "Fehler bis zum Verstoß",
+      "verificationMinutes": "Min.",
+      "verificationWindowRange": "Das Zeitfenster muss zwischen 1 und 1440 Minuten liegen.",
+      "verificationIntervalRange": "Das Prüfintervall muss mindestens 0,5 Minuten betragen und darf das Zeitfenster nicht überschreiten.",
+      "verificationThresholdRange": "Der Fehlerschwellenwert muss zwischen 1 und 20 liegen.",
+      "verificationThresholdExceedsSamples": "Das Zeitfenster erfasst höchstens {{samples}} Stichproben — senken Sie den Schwellenwert oder vergrößern Sie das Zeitfenster.",
+      "verificationChecksRange": "Fügen Sie zwischen 1 und 10 Checks hinzu.",
+      "verificationCheckKind": "Check-Typ",
+      "verificationCheckName": "Check-Name",
+      "verificationCheckNameDuplicate": "Ein anderer Check verwendet diesen Namen bereits.",
+      "verificationRemoveCheck": "Check entfernen",
+      "verificationAddCheck": "Check hinzufügen",
+      "verificationUrl": "Health-URL",
+      "verificationUrlScheme": "Verwenden Sie eine http://- oder https://-URL.",
+      "verificationExpectedStatus": "Erwarteter Status",
+      "verificationExpectedStatusRange": "Der erwartete Status muss zwischen 100 und 599 liegen.",
+      "verificationBodyContains": "Body enthält (optional)",
+      "verificationPrometheusUrl": "Prometheus-URL",
+      "verificationPrometheusUrlHelp": "Nur die Basis-URL — /api/v1/query wird angehängt.",
+      "verificationQuery": "PromQL-Abfrage",
+      "verificationComparator": "Bestanden, wenn der Wert",
+      "verificationValueThreshold": "Schwellenwert",
+      "verificationNoDataIsFailure": "Keine Daten gelten als Fehler",
+      "verificationColumn": "Verifizierung",
+      "verificationChecksCount": "Checks: {{n}}"
     },
     "freezeWindows": {
       "title": "Freeze-Fenster",

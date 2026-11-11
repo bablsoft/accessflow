@@ -29,6 +29,7 @@ import {
   deploymentKeys,
   getDeploymentGate,
   getDeploymentRequest,
+  getDeploymentVerificationSamples,
 } from '@/api/deploymentRequests';
 import {
   deploymentVersionKeys,
@@ -47,12 +48,20 @@ import {
   pipelineProviderLabel,
   reviewDecisionTypeLabel,
   submissionReasonLabel,
+  verificationStatusLabel,
 } from '@/utils/enumLabels';
+import { verificationStatusColor } from '@/utils/statusColors';
+import { isoDurationSeconds } from '@/components/deployments/verificationForm';
 import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { buildDeploymentTimelineStages } from './buildDeploymentTimelineStages';
-import type { DeploymentDecision, DeploymentRequest } from '@/types/api';
+import type {
+  DeploymentDecision,
+  DeploymentRequest,
+  DeploymentVerificationSample,
+  VerificationStatus,
+} from '@/types/api';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 
 /**
@@ -63,6 +72,27 @@ function isCancellable(request: DeploymentRequest): boolean {
   if (request.status === 'PENDING_REVIEW') return true;
   if (request.status !== 'APPROVED' || request.scheduled_for == null) return false;
   return new Date(request.scheduled_for).getTime() > Date.now();
+}
+
+/** How often a running verification window is re-read; the job samples every 30 s by default. */
+const VERIFICATION_POLL_MS = 10_000;
+
+function VerificationTag({ status }: { status: VerificationStatus }) {
+  const { t } = useTranslation();
+  const color = verificationStatusColor(status);
+  return (
+    <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
+      {verificationStatusLabel(t, status)}
+    </Tag>
+  );
+}
+
+function durationText(t: ReturnType<typeof useTranslation>['t'], iso: string | null | undefined) {
+  const seconds = isoDurationSeconds(iso);
+  if (seconds == null) return iso ?? '—';
+  return seconds % 60 === 0
+    ? t('deploygov.detail.verificationMinutesValue', { n: seconds / 60 })
+    : t('deploygov.detail.verificationSecondsValue', { n: seconds });
 }
 
 export default function DeploymentDetailPage() {
@@ -79,8 +109,21 @@ export default function DeploymentDetailPage() {
     queryKey: deploymentKeys.detail(id),
     queryFn: () => getDeploymentRequest(id),
     enabled: !!id,
+    // A breach flips the request to FAILED; only the submitter gets a WebSocket push, so poll
+    // while the window is open.
+    refetchInterval: (query) =>
+      query.state.data?.verification_status === 'RUNNING' ? VERIFICATION_POLL_MS : false,
   });
   const request = requestQuery.data;
+  const verificationStatus = request?.verification_status ?? 'PENDING';
+  const verificationRunning = verificationStatus === 'RUNNING';
+
+  const samplesQuery = useQuery({
+    queryKey: deploymentKeys.verification(id),
+    queryFn: () => getDeploymentVerificationSamples(id),
+    enabled: !!id && verificationStatus !== 'PENDING',
+    refetchInterval: verificationRunning ? VERIFICATION_POLL_MS : false,
+  });
 
   // Freeze state lives only on the gate; ask it just while the request is APPROVED.
   // A 404 (visibility) simply hides the banner — retry would never succeed.
@@ -213,6 +256,36 @@ export default function DeploymentDetailPage() {
     },
   ];
 
+  const sampleColumns: TableColumnsType<DeploymentVerificationSample> = [
+    {
+      title: t('deploygov.detail.verificationSampledAt'),
+      dataIndex: 'sampled_at',
+      render: (v: string) => fmtDate(v),
+    },
+    { title: t('deploygov.detail.verificationCheck'), dataIndex: 'check_name' },
+    {
+      title: t('deploygov.detail.verificationResult'),
+      dataIndex: 'passed',
+      render: (passed: boolean) => (
+        <VerificationTag status={passed ? 'PASSED' : 'FAILED'} />
+      ),
+    },
+    {
+      title: t('deploygov.detail.verificationObserved'),
+      dataIndex: 'observed_value',
+      render: (v: string | null | undefined) => (
+        <span className="mono" style={{ fontSize: 12 }}>
+          {v ?? '—'}
+        </span>
+      ),
+    },
+    {
+      title: t('deploygov.detail.verificationSampleDetail'),
+      dataIndex: 'detail',
+      render: (v: string | null | undefined) => v ?? '—',
+    },
+  ];
+
   const metadataEntries = Object.keys(request?.metadata ?? {});
 
   return (
@@ -260,6 +333,26 @@ export default function DeploymentDetailPage() {
               />
             )}
 
+            {/* FAILED + SUCCEEDED: the deploy ran and is still live. Never phrase this as a
+                rollback — AccessFlow does not roll anything back. */}
+            {verificationStatus === 'FAILED' && (
+              <Alert
+                showIcon
+                type="error"
+                title={t('deploygov.detail.verificationFailedTitle')}
+                description={
+                  <>
+                    {request.verification_detail && (
+                      <div className="mono" style={{ fontSize: 12, marginBottom: 4 }}>
+                        {request.verification_detail}
+                      </div>
+                    )}
+                    {t('deploygov.detail.verificationFailedBody')}
+                  </>
+                }
+              />
+            )}
+
             <Card size="small">
               <Descriptions
                 column={{ xs: 1, sm: 1, md: 2 }}
@@ -291,6 +384,17 @@ export default function DeploymentDetailPage() {
                     children: <span className="mono">{request.version}</span>,
                   },
                   ...(driftRow ? [driftRow] : []),
+                  // Beside drift on purpose: the matrix's unchanged "current" says nothing about
+                  // whether that version is healthy.
+                  ...(verificationStatus !== 'PENDING'
+                    ? [
+                        {
+                          key: 'verification',
+                          label: t('deploygov.detail.verification'),
+                          children: <VerificationTag status={verificationStatus} />,
+                        },
+                      ]
+                    : []),
                   {
                     key: 'commit',
                     label: t('deploygov.detail.commit'),
@@ -458,6 +562,73 @@ export default function DeploymentDetailPage() {
                     />
                   </div>
                 </DetailCard>
+
+                {verificationStatus !== 'PENDING' && (
+                  <DetailCard
+                    title={t('deploygov.detail.verification')}
+                    extra={<VerificationTag status={verificationStatus} />}
+                  >
+                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <Descriptions
+                        size="small"
+                        column={{ xs: 1, sm: 2, md: 3 }}
+                        items={[
+                          ...(request.verification_snapshot
+                            ? [
+                                {
+                                  key: 'window',
+                                  label: t('deploygov.detail.verificationWindow'),
+                                  children: durationText(t, request.verification_snapshot.window),
+                                },
+                                {
+                                  key: 'interval',
+                                  label: t('deploygov.detail.verificationInterval'),
+                                  children: durationText(
+                                    t,
+                                    request.verification_snapshot.sample_interval,
+                                  ),
+                                },
+                                {
+                                  key: 'threshold',
+                                  label: t('deploygov.detail.verificationThreshold'),
+                                  children: request.verification_snapshot.failure_threshold,
+                                },
+                              ]
+                            : []),
+                          {
+                            key: 'started',
+                            label: t('deploygov.detail.verificationStarted'),
+                            children: request.verification_started_at
+                              ? fmtDate(request.verification_started_at)
+                              : '—',
+                          },
+                          {
+                            key: 'finished',
+                            label: t('deploygov.detail.verificationFinished'),
+                            children: request.verification_finished_at
+                              ? fmtDate(request.verification_finished_at)
+                              : '—',
+                          },
+                          {
+                            key: 'detail',
+                            label: t('deploygov.detail.verificationDetail'),
+                            children: request.verification_detail ?? '—',
+                          },
+                        ]}
+                      />
+                      <Table<DeploymentVerificationSample>
+                        rowKey="id"
+                        size="small"
+                        pagination={false}
+                        loading={samplesQuery.isLoading}
+                        dataSource={samplesQuery.data ?? []}
+                        columns={sampleColumns}
+                        locale={{ emptyText: t('deploygov.detail.verificationNoSamples') }}
+                        scroll={{ x: true }}
+                      />
+                    </div>
+                  </DetailCard>
+                )}
 
                 {(request.change_ticket_required || request.change_ticket) && (
                   <DetailCard title={t('deploygov.detail.changeTicket')}>

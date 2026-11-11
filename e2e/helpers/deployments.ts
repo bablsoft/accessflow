@@ -59,6 +59,8 @@ export async function createDeploymentEnvironmentViaApi(
     datasourceId?: string;
     /** Releases wait for an approved ServiceNow / Jira change ticket (#990). */
     changeTicketRequired?: boolean;
+    /** Post-deployment verification config (#1023), snake_case wire shape. */
+    verification?: Record<string, unknown>;
   },
 ): Promise<CreatedDeploymentEnvironment> {
   const res = await request.post(
@@ -76,6 +78,7 @@ export async function createDeploymentEnvironmentViaApi(
         ...(options.changeTicketRequired === undefined
           ? {}
           : { change_ticket_required: options.changeTicketRequired }),
+        ...(options.verification === undefined ? {} : { verification: options.verification }),
       },
     },
   );

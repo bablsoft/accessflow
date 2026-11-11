@@ -9516,7 +9516,11 @@ back. Break-glass deployments are verified like any other.
 Request detail and list bodies carry `verification_status`, `verification_started_at`,
 `verification_finished_at` and `verification_detail` (breach detail reads
 `"<check>: <n>/<threshold> failed samples"`); the gate carries `verification_status` and
-`verification_detail`. A breach reaches the submitter's browser through the existing
+`verification_detail`. Since #1027 they also carry `verification_snapshot` — the config the
+window was opened with, omitted until a window opens (and when the stored snapshot cannot be
+read): `{ "window": "PT15M", "sample_interval": "PT30S", "failure_threshold": 3,
+"check_count": 2 }`. It deliberately carries **no** check names, URLs or queries: the request is
+readable by its submitter and reviewers, while an environment's config is admin-only. A breach reaches the submitter's browser through the existing
 `deployment.status_changed` WebSocket event.
 
 **Sample entry** (`GET /deployment-requests/{id}/verification-samples`):

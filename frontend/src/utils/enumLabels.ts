@@ -82,6 +82,9 @@ import type {
   RowSecurityValueType,
   DiscoveryDetector,
   DeploymentOutcome,
+  VerificationCheckKind,
+  VerificationComparator,
+  VerificationStatus,
   LeadTimeSource,
   DeploymentTicketDecision,
   DeploymentRollbackReviewStatus,
@@ -1000,6 +1003,35 @@ export const DEPLOYMENT_OUTCOMES: readonly DeploymentOutcome[] = [
 
 export const deploymentOutcomeLabel = (t: TFunction, v: DeploymentOutcome): string =>
   t(`enums.deployment_outcome.${v}` as const);
+
+export const VERIFICATION_STATUSES: readonly VerificationStatus[] = [
+  'PENDING',
+  'RUNNING',
+  'PASSED',
+  'FAILED',
+  'SKIPPED',
+] as const;
+
+export const verificationStatusLabel = (t: TFunction, v: VerificationStatus): string =>
+  t(`enums.verification_status.${v}` as const);
+
+export const VERIFICATION_CHECK_KINDS: readonly VerificationCheckKind[] = [
+  'HTTP_HEALTH',
+  'PROMQL_THRESHOLD',
+] as const;
+
+export const verificationCheckKindLabel = (t: TFunction, v: VerificationCheckKind): string =>
+  t(`enums.verification_check_kind.${v}` as const);
+
+export const VERIFICATION_COMPARATORS: readonly VerificationComparator[] = [
+  'LT',
+  'LTE',
+  'GT',
+  'GTE',
+] as const;
+
+export const verificationComparatorLabel = (t: TFunction, v: VerificationComparator): string =>
+  t(`enums.verification_comparator.${v}` as const);
 
 export const leadTimeSourceLabel = (t: TFunction, v: LeadTimeSource): string =>
   t(`enums.lead_time_source.${v}` as const);

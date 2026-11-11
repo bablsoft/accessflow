@@ -88,6 +88,7 @@ const baseRequest: DeploymentRequest = {
   outcome: null,
   outcome_reported_at: null,
   outcome_detail: null,
+  verification_status: 'PENDING',
   created_at: '2026-05-01T10:00:00Z',
   decisions: [],
   can_review: false,
@@ -169,6 +170,39 @@ describe('DeploymentListPage', () => {
     expect(screen.getByText('2.4.1')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
     expect(screen.getByText('1 deployments')).toBeInTheDocument();
+  });
+
+  it('tags a breached verification beside the SUCCEEDED outcome, and nothing while PENDING', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(
+      pageOf([
+        {
+          ...baseRequest,
+          id: 'req-breach',
+          version: '3.0.0',
+          status: 'FAILED',
+          outcome: 'SUCCEEDED',
+          outcome_reported_at: '2026-05-01T12:00:00Z',
+          verification_status: 'FAILED',
+        },
+        { ...baseRequest, id: 'req-pending', version: '3.0.1' },
+      ]),
+    );
+
+    render(wrap(<DeploymentListPage />));
+
+    expect(await screen.findByText('verification failed')).toBeInTheDocument();
+    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(screen.getAllByText(/^verification /)).toHaveLength(1);
+  });
+
+  it('shows a skipped verification for a request without an outcome tag', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(
+      pageOf([{ ...baseRequest, verification_status: 'SKIPPED' }]),
+    );
+
+    render(wrap(<DeploymentListPage />));
+
+    expect(await screen.findByText('verification skipped')).toBeInTheDocument();
   });
 
   it('shows the linked change ticket with its decision in the ticket column', async () => {

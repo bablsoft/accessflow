@@ -4038,6 +4038,23 @@
       "DAY": "每日调用数",
       "USER_MINUTE": "单用户每分钟调用数",
       "USER_DAY": "单用户每日调用数"
+    },
+    "verification_status": {
+      "PENDING": "待处理",
+      "RUNNING": "进行中",
+      "PASSED": "已通过",
+      "FAILED": "失败",
+      "SKIPPED": "已跳过"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP 健康检查",
+      "PROMQL_THRESHOLD": "PromQL 阈值"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "精确版本",
       "countLabel": "{{total}} 个部署",
       "empty": "暂无部署请求",
-      "notFound": "未找到部署请求"
+      "notFound": "未找到部署请求",
+      "verificationTag": "验证{{status}}"
     },
     "detail": {
       "title": "部署",
@@ -5816,7 +5834,25 @@
       "timeline_released": "发布",
       "timeline_execution_failed": "执行失败",
       "timeline_cancelled": "已取消",
-      "timeline_outcome": "结果"
+      "timeline_outcome": "结果",
+      "verification": "验证",
+      "verificationFailedTitle": "验证失败——该版本仍在运行",
+      "verificationFailedBody": "AccessFlow 未执行回滚。请决定是否回滚，然后从流水线报告 ROLLED_BACK。",
+      "verificationWindow": "时间窗口",
+      "verificationInterval": "采样间隔",
+      "verificationThreshold": "失败阈值",
+      "verificationStarted": "开始时间",
+      "verificationFinished": "结束时间",
+      "verificationDetail": "详情",
+      "verificationSampledAt": "采样时间",
+      "verificationCheck": "检查",
+      "verificationResult": "结果",
+      "verificationObserved": "观测值",
+      "verificationSampleDetail": "详情",
+      "verificationNoSamples": "暂无样本",
+      "verificationMinutesValue": "{{n}} 分钟",
+      "verificationSecondsValue": "{{n}} 秒",
+      "timeline_verification": "验证"
     },
     "reviews": {
       "approve": "批准",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "编辑权限——{{user}}",
       "editGroupPermission": "编辑权限——{{group}}",
       "revoke": "撤销",
-      "tabSimulate": "模拟"
+      "tabSimulate": "模拟",
+      "verificationSection": "部署后验证",
+      "verificationEnabled": "发布后验证",
+      "verificationEnabledHelp": "流水线报告 SUCCEEDED 后，AccessFlow 会在时间窗口内对这些检查进行采样。一旦违规，部署会被标记为失败——AccessFlow 绝不会自动回滚。",
+      "verificationWindow": "时间窗口",
+      "verificationInterval": "采样间隔",
+      "verificationThreshold": "触发违规的失败次数",
+      "verificationMinutes": "分钟",
+      "verificationWindowRange": "时间窗口必须在 1 到 1440 分钟之间。",
+      "verificationIntervalRange": "采样间隔至少为 0.5 分钟，且不能超过时间窗口。",
+      "verificationThresholdRange": "失败阈值必须在 1 到 20 之间。",
+      "verificationThresholdExceedsSamples": "该时间窗口最多采集 {{samples}} 个样本——请降低阈值或扩大时间窗口。",
+      "verificationChecksRange": "请添加 1 到 10 个检查。",
+      "verificationCheckKind": "检查类型",
+      "verificationCheckName": "检查名称",
+      "verificationCheckNameDuplicate": "已有其他检查使用此名称。",
+      "verificationRemoveCheck": "移除检查",
+      "verificationAddCheck": "添加检查",
+      "verificationUrl": "健康检查 URL",
+      "verificationUrlScheme": "请使用 http:// 或 https:// URL。",
+      "verificationExpectedStatus": "期望状态码",
+      "verificationExpectedStatusRange": "期望状态码必须在 100 到 599 之间。",
+      "verificationBodyContains": "响应体包含（可选）",
+      "verificationPrometheusUrl": "Prometheus URL",
+      "verificationPrometheusUrlHelp": "仅填写基础 URL——会自动追加 /api/v1/query。",
+      "verificationQuery": "PromQL 查询",
+      "verificationComparator": "通过条件：值",
+      "verificationValueThreshold": "阈值",
+      "verificationNoDataIsFailure": "无数据视为失败",
+      "verificationColumn": "验证",
+      "verificationChecksCount": "检查：{{n}}"
     },
     "freezeWindows": {
       "title": "冻结窗口",

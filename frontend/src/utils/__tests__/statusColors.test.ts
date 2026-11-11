@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { accessGrantStatusColor, statusColor } from '../statusColors';
-import type { AccessGrantStatus, QueryStatus } from '@/types/api';
+import { accessGrantStatusColor, statusColor, verificationStatusColor } from '../statusColors';
+import type { AccessGrantStatus, QueryStatus, VerificationStatus } from '@/types/api';
 
 describe('statusColor', () => {
   it.each<[QueryStatus, string]>([
@@ -59,3 +59,14 @@ describe('accessGrantStatusColor', () => {
   });
 });
 
+describe('verificationStatusColor', () => {
+  it.each<[VerificationStatus, string]>([
+    ['PENDING', 'var(--fg-muted)'],
+    ['RUNNING', 'var(--status-info)'],
+    ['PASSED', 'var(--risk-low)'],
+    ['FAILED', 'var(--risk-crit)'],
+    ['SKIPPED', 'var(--fg-muted)'],
+  ])('maps %s to the expected fg token', (status, fg) => {
+    expect(verificationStatusColor(status).fg).toBe(fg);
+  });
+});

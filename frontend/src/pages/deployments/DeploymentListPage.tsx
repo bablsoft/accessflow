@@ -16,8 +16,13 @@ import {
 } from '@/api/deploymentVersions';
 import { DriftChip } from '@/components/deployments/versionMatrixCells';
 import { ChangeTicketLink } from '@/components/deployments/ChangeTicketLink';
-import { deploymentOutcomeLabel, enumOptions, queryStatusLabel } from '@/utils/enumLabels';
-import { deploymentOutcomeColor } from '@/utils/statusColors';
+import {
+  deploymentOutcomeLabel,
+  enumOptions,
+  queryStatusLabel,
+  verificationStatusLabel,
+} from '@/utils/enumLabels';
+import { deploymentOutcomeColor, verificationStatusColor } from '@/utils/statusColors';
 import { timeAgo } from '@/utils/dateFormat';
 import { usePermission } from '@/utils/permissions';
 import type { DeploymentEnvironmentVersion, DeploymentRequest, QueryStatus } from '@/types/api';
@@ -145,13 +150,33 @@ export default function DeploymentListPage() {
       title: t('deploygov.deployments.outcome'),
       dataIndex: 'outcome',
       width: 130,
-      render: (outcome: DeploymentRequest['outcome']) => {
-        if (outcome == null) return <span className="muted">—</span>;
-        const color = deploymentOutcomeColor(outcome);
+      render: (outcome: DeploymentRequest['outcome'], row) => {
+        const verification = row.verification_status ?? 'PENDING';
+        if (outcome == null && verification === 'PENDING') return <span className="muted">—</span>;
+        const color = outcome == null ? null : deploymentOutcomeColor(outcome);
+        const verificationColor = verificationStatusColor(verification);
         return (
-          <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
-            {deploymentOutcomeLabel(t, outcome)}
-          </Tag>
+          <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4 }}>
+            {outcome != null && color && (
+              <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
+                {deploymentOutcomeLabel(t, outcome)}
+              </Tag>
+            )}
+            {/* A breach leaves outcome SUCCEEDED, so the verification tag says it failed. */}
+            {verification !== 'PENDING' && (
+              <Tag
+                style={{
+                  color: verificationColor.fg,
+                  background: verificationColor.bg,
+                  borderColor: verificationColor.border,
+                }}
+              >
+                {t('deploygov.deployments.verificationTag', {
+                  status: verificationStatusLabel(t, verification),
+                })}
+              </Tag>
+            )}
+          </span>
         );
       },
     },

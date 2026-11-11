@@ -4038,6 +4038,23 @@
       "DAY": "Appels par jour",
       "USER_MINUTE": "Appels par utilisateur et par minute",
       "USER_DAY": "Appels par utilisateur et par jour"
+    },
+    "verification_status": {
+      "PENDING": "en attente",
+      "RUNNING": "en cours",
+      "PASSED": "réussie",
+      "FAILED": "échouée",
+      "SKIPPED": "ignorée"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "Santé HTTP",
+      "PROMQL_THRESHOLD": "Seuil PromQL"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Version exacte",
       "countLabel": "{{total}} déploiements",
       "empty": "Aucune demande de déploiement pour le moment",
-      "notFound": "Demande de déploiement introuvable"
+      "notFound": "Demande de déploiement introuvable",
+      "verificationTag": "vérification {{status}}"
     },
     "detail": {
       "title": "Déploiement",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Libération",
       "timeline_execution_failed": "Échec de l'exécution",
       "timeline_cancelled": "Annulé",
-      "timeline_outcome": "Résultat"
+      "timeline_outcome": "Résultat",
+      "verification": "Vérification",
+      "verificationFailedTitle": "Vérification échouée — la version est toujours en service",
+      "verificationFailedBody": "AccessFlow n’a effectué aucun retour arrière. Décidez s’il faut revenir en arrière, puis signalez ROLLED_BACK depuis le pipeline.",
+      "verificationWindow": "Fenêtre",
+      "verificationInterval": "Intervalle d’échantillonnage",
+      "verificationThreshold": "Seuil d’échec",
+      "verificationStarted": "Démarrée",
+      "verificationFinished": "Terminée",
+      "verificationDetail": "Détail",
+      "verificationSampledAt": "Échantillonné le",
+      "verificationCheck": "Contrôle",
+      "verificationResult": "Résultat",
+      "verificationObserved": "Observé",
+      "verificationSampleDetail": "Détail",
+      "verificationNoSamples": "Aucun échantillon pour l’instant",
+      "verificationMinutesValue": "{{n}} min",
+      "verificationSecondsValue": "{{n}} s",
+      "timeline_verification": "Vérification"
     },
     "reviews": {
       "approve": "Approuver",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Modifier l'autorisation — {{user}}",
       "editGroupPermission": "Modifier l'autorisation — {{group}}",
       "revoke": "Révoquer",
-      "tabSimulate": "Simuler"
+      "tabSimulate": "Simuler",
+      "verificationSection": "Vérification post-déploiement",
+      "verificationEnabled": "Vérifier après la mise en production",
+      "verificationEnabledHelp": "Dès que le pipeline signale SUCCEEDED, AccessFlow échantillonne ces contrôles pendant la fenêtre. Un dépassement marque le déploiement en échec — AccessFlow ne fait jamais de retour arrière.",
+      "verificationWindow": "Fenêtre",
+      "verificationInterval": "Échantillonner toutes les",
+      "verificationThreshold": "Échecs avant dépassement",
+      "verificationMinutes": "min",
+      "verificationWindowRange": "La fenêtre doit être comprise entre 1 et 1440 minutes.",
+      "verificationIntervalRange": "L’intervalle d’échantillonnage doit être d’au moins 0,5 minute et ne pas dépasser la fenêtre.",
+      "verificationThresholdRange": "Le seuil d’échec doit être compris entre 1 et 20.",
+      "verificationThresholdExceedsSamples": "La fenêtre collecte au plus {{samples}} échantillons — baissez le seuil ou élargissez la fenêtre.",
+      "verificationChecksRange": "Ajoutez entre 1 et 10 contrôles.",
+      "verificationCheckKind": "Type de contrôle",
+      "verificationCheckName": "Nom du contrôle",
+      "verificationCheckNameDuplicate": "Un autre contrôle utilise déjà ce nom.",
+      "verificationRemoveCheck": "Supprimer le contrôle",
+      "verificationAddCheck": "Ajouter un contrôle",
+      "verificationUrl": "URL de santé",
+      "verificationUrlScheme": "Utilisez une URL http:// ou https://.",
+      "verificationExpectedStatus": "Statut attendu",
+      "verificationExpectedStatusRange": "Le statut attendu doit être compris entre 100 et 599.",
+      "verificationBodyContains": "Le corps contient (facultatif)",
+      "verificationPrometheusUrl": "URL Prometheus",
+      "verificationPrometheusUrlHelp": "URL de base uniquement — /api/v1/query est ajouté.",
+      "verificationQuery": "Requête PromQL",
+      "verificationComparator": "Réussit quand la valeur est",
+      "verificationValueThreshold": "Seuil",
+      "verificationNoDataIsFailure": "Absence de données = échec",
+      "verificationColumn": "Vérification",
+      "verificationChecksCount": "Contrôles : {{n}}"
     },
     "freezeWindows": {
       "title": "Fenêtres de gel",

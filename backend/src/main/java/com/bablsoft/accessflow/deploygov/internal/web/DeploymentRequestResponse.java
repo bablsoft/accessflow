@@ -5,9 +5,11 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSnapshotView;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.deploygov.api.VerificationStatus;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +56,26 @@ public record DeploymentRequestResponse(
         VerificationStatus verificationStatus,
         Instant verificationStartedAt,
         Instant verificationFinishedAt,
-        String verificationDetail) {
+        String verificationDetail,
+        /** The config the window was opened with (#1027); null (omitted) when never verified. */
+        VerificationSnapshot verificationSnapshot) {
+
+    /** Window and interval as ISO-8601 strings; no check URLs or queries. */
+    public record VerificationSnapshot(String window, String sampleInterval, int failureThreshold,
+                                       int checkCount) {
+
+        static VerificationSnapshot from(DeploymentVerificationSnapshotView view) {
+            if (view == null) {
+                return null;
+            }
+            return new VerificationSnapshot(iso(view.window()), iso(view.sampleInterval()),
+                    view.failureThreshold(), view.checkCount());
+        }
+
+        private static String iso(Duration duration) {
+            return duration == null ? null : duration.toString();
+        }
+    }
 
     /** Every path but the detail read: reviewer eligibility is a detail-read concern, never computed here. */
     static DeploymentRequestResponse from(DeploymentRequestView view) {
@@ -75,6 +96,7 @@ public record DeploymentRequestResponse(
                 view.changeTicketRequired(),
                 DeploymentChangeTicketResponse.from(view.changeTicket()),
                 view.verificationStatus(), view.verificationStartedAt(),
-                view.verificationFinishedAt(), view.verificationDetail());
+                view.verificationFinishedAt(), view.verificationDetail(),
+                VerificationSnapshot.from(view.verificationSnapshot()));
     }
 }

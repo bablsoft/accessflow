@@ -12,8 +12,8 @@ import {
   Table,
   Tag,
 } from 'antd';
-import type { TableColumnsType } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import type { FormInstance, TableColumnsType } from 'antd';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -29,7 +29,25 @@ import { nextSortOrder } from './environmentLadder';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import {
+  VERIFICATION_CHECK_KINDS,
+  VERIFICATION_COMPARATORS,
+  verificationCheckKindLabel,
+  verificationComparatorLabel,
+} from '@/utils/enumLabels';
 import type { DeploymentEnvironment } from '@/types/api';
+import {
+  VERIFICATION_LIMITS as LIMITS,
+  defaultCheckValues,
+  defaultVerificationValues,
+  isDuplicateCheckName,
+  isHttpUrl,
+  maxSamplesInWindow,
+  toVerificationFormValues,
+  toVerificationWire,
+  verificationCheckCount,
+  type VerificationFormValues,
+} from './verificationForm';
 
 interface EnvironmentFormValues {
   name: string;
@@ -42,6 +60,7 @@ interface EnvironmentFormValues {
   allow_break_glass: boolean;
   change_ticket_required: boolean;
   datasource_id?: string | null;
+  verification: VerificationFormValues;
 }
 
 const DATASOURCE_PAGE = { page: 0, size: 200 };
@@ -81,6 +100,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         allow_break_glass: false,
         change_ticket_required: false,
         datasource_id: null,
+        verification: defaultVerificationValues(),
       });
     } else {
       form.setFieldsValue({
@@ -93,6 +113,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         allow_break_glass: modalFor.allow_break_glass,
         change_ticket_required: modalFor.change_ticket_required,
         datasource_id: modalFor.datasource_id,
+        verification: toVerificationFormValues(modalFor.verification),
       });
     }
   }, [modalFor, form, envsQuery.data]);
@@ -109,6 +130,10 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
 
   const saveMutation = useMutation({
     mutationFn: (values: EnvironmentFormValues) => {
+      // Read from the store, not `values`: fields under a switched-off section are unmounted.
+      const verification = toVerificationWire(
+        form.getFieldValue('verification') as VerificationFormValues | undefined,
+      );
       if (modalFor === 'create') {
         return createDeploymentEnvironment(pipelineId, {
           name: values.name,
@@ -120,6 +145,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           allow_break_glass: values.allow_break_glass,
           change_ticket_required: values.change_ticket_required,
           datasource_id: values.datasource_id ?? null,
+          verification,
         });
       }
       return updateDeploymentEnvironment(pipelineId, (modalFor as DeploymentEnvironment).id, {
@@ -137,6 +163,9 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         change_ticket_required: values.change_ticket_required,
         datasource_id: values.datasource_id ?? null,
         clear_datasource: values.datasource_id == null,
+        // Off ⇒ remove: the server reads a null config as "leave unchanged".
+        verification,
+        clear_verification: verification == null,
       });
     },
     onSuccess: () => {
@@ -227,6 +256,20 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
       width: 120,
       align: 'center' as const,
       render: (v: boolean) => (v ? '✓' : '—'),
+    },
+    {
+      title: t('deploygov.settings.verificationColumn'),
+      key: 'verification',
+      width: 120,
+      align: 'center' as const,
+      render: (_v, row) => {
+        const count = verificationCheckCount(row.verification);
+        return count == null ? (
+          <span className="muted">—</span>
+        ) : (
+          t('deploygov.settings.verificationChecksCount', { n: count })
+        );
+      },
     },
     {
       title: '',
@@ -392,8 +435,342 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           >
             <Switch size="small" />
           </Form.Item>
+          <VerificationSection form={form} />
         </Form>
       </Modal>
     </div>
+  );
+}
+
+const VERIFICATION = 'verification';
+const CHECKS = [VERIFICATION, 'checks'] as const;
+
+/**
+ * Parity with DeploymentVerificationConfigRequest / DeploymentVerificationCheckRequest (#1023)
+ * and the network-free #1024 rules — see verificationForm.ts. Window 1..1440 min, interval
+ * 0.5 min..window, threshold 1..20 and ≤ samples in the window, 1..10 checks, name required ≤ 64
+ * and unique, URL required ≤ 2048 http(s), expected status 100..599, body ≤ 1024, query ≤ 4096,
+ * comparator + threshold required on PromQL checks.
+ */
+function VerificationSection({ form }: { form: FormInstance<EnvironmentFormValues> }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div style={{ fontWeight: 600, margin: '16px 0 8px' }}>
+        {t('deploygov.settings.verificationSection')}
+      </div>
+      <Form.Item
+        name={[VERIFICATION, 'enabled']}
+        label={t('deploygov.settings.verificationEnabled')}
+        valuePropName="checked"
+        extra={t('deploygov.settings.verificationEnabledHelp')}
+      >
+        <Switch size="small" />
+      </Form.Item>
+      <Form.Item
+        noStyle
+        shouldUpdate={(prev: EnvironmentFormValues, cur: EnvironmentFormValues) =>
+          prev.verification?.enabled !== cur.verification?.enabled
+        }
+      >
+        {({ getFieldValue }) =>
+          getFieldValue([VERIFICATION, 'enabled']) ? <VerificationFields form={form} /> : null
+        }
+      </Form.Item>
+    </>
+  );
+}
+
+function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues> }) {
+  const { t } = useTranslation();
+  const numberValue = (field: 'window_minutes' | 'interval_minutes') =>
+    form.getFieldValue([VERIFICATION, field]) as number | null | undefined;
+  const kindOptions = VERIFICATION_CHECK_KINDS.map((k) => ({
+    value: k,
+    label: verificationCheckKindLabel(t, k),
+  }));
+  const comparatorOptions = VERIFICATION_COMPARATORS.map((c) => ({
+    value: c,
+    label: verificationComparatorLabel(t, c),
+  }));
+  const httpUrlRule = {
+    validator: async (_: unknown, value: string | null | undefined) => {
+      if (value && value.trim() !== '' && !isHttpUrl(value)) {
+        throw new Error(t('deploygov.settings.verificationUrlScheme'));
+      }
+    },
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <Form.Item
+          name={[VERIFICATION, 'window_minutes']}
+          label={t('deploygov.settings.verificationWindow')}
+          style={{ flex: 1, minWidth: 140 }}
+          rules={[
+            { required: true, message: t('deploygov.settings.verificationWindowRange') },
+            {
+              type: 'number',
+              min: LIMITS.windowMinMinutes,
+              max: LIMITS.windowMaxMinutes,
+              message: t('deploygov.settings.verificationWindowRange'),
+            },
+          ]}
+        >
+          <InputNumber
+            min={LIMITS.windowMinMinutes}
+            max={LIMITS.windowMaxMinutes}
+            style={{ width: '100%' }}
+            suffix={t('deploygov.settings.verificationMinutes')}
+          />
+        </Form.Item>
+        <Form.Item
+          name={[VERIFICATION, 'interval_minutes']}
+          label={t('deploygov.settings.verificationInterval')}
+          style={{ flex: 1, minWidth: 140 }}
+          dependencies={[[VERIFICATION, 'window_minutes']]}
+          rules={[
+            { required: true, message: t('deploygov.settings.verificationIntervalRange') },
+            {
+              validator: async (_, value: number | null | undefined) => {
+                if (value == null) return;
+                const windowMinutes = numberValue('window_minutes');
+                if (
+                  value < LIMITS.intervalMinMinutes ||
+                  (windowMinutes != null && value > windowMinutes)
+                ) {
+                  throw new Error(t('deploygov.settings.verificationIntervalRange'));
+                }
+              },
+            },
+          ]}
+        >
+          <InputNumber
+            min={LIMITS.intervalMinMinutes}
+            step={0.5}
+            style={{ width: '100%' }}
+            suffix={t('deploygov.settings.verificationMinutes')}
+          />
+        </Form.Item>
+        <Form.Item
+          name={[VERIFICATION, 'failure_threshold']}
+          label={t('deploygov.settings.verificationThreshold')}
+          style={{ flex: 1, minWidth: 140 }}
+          dependencies={[
+            [VERIFICATION, 'window_minutes'],
+            [VERIFICATION, 'interval_minutes'],
+          ]}
+          rules={[
+            { required: true, message: t('deploygov.settings.verificationThresholdRange') },
+            {
+              type: 'number',
+              min: LIMITS.thresholdMin,
+              max: LIMITS.thresholdMax,
+              message: t('deploygov.settings.verificationThresholdRange'),
+            },
+            {
+              validator: async (_, value: number | null | undefined) => {
+                const samples = maxSamplesInWindow(
+                  numberValue('window_minutes'),
+                  numberValue('interval_minutes'),
+                );
+                if (value != null && samples != null && value > samples) {
+                  throw new Error(
+                    t('deploygov.settings.verificationThresholdExceedsSamples', { samples }),
+                  );
+                }
+              },
+            },
+          ]}
+        >
+          <InputNumber
+            min={LIMITS.thresholdMin}
+            max={LIMITS.thresholdMax}
+            precision={0}
+            style={{ width: '100%' }}
+          />
+        </Form.Item>
+      </div>
+      <Form.List
+        name={[...CHECKS]}
+        rules={[
+          {
+            validator: async (_, checks: unknown[] | undefined) => {
+              const count = checks?.length ?? 0;
+              if (count < 1 || count > LIMITS.maxChecks) {
+                throw new Error(t('deploygov.settings.verificationChecksRange'));
+              }
+            },
+          },
+        ]}
+      >
+        {(fields, { add, remove }, { errors }) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {fields.map((field, index) => (
+              <div
+                key={field.key}
+                data-testid={`verification-check-${index}`}
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <Form.Item
+                    name={[field.name, 'kind']}
+                    label={t('deploygov.settings.verificationCheckKind')}
+                    style={{ flex: 1 }}
+                    rules={[{ required: true }]}
+                  >
+                    <Select options={kindOptions} />
+                  </Form.Item>
+                  <Form.Item
+                    name={[field.name, 'name']}
+                    label={t('deploygov.settings.verificationCheckName')}
+                    style={{ flex: 1 }}
+                    rules={[
+                      { required: true, whitespace: true, max: LIMITS.nameMax },
+                      {
+                        validator: async (_, value: string | undefined) => {
+                          const checks = form.getFieldValue([...CHECKS]) as
+                            | VerificationFormValues['checks']
+                            | undefined;
+                          if (isDuplicateCheckName(checks, index, value)) {
+                            throw new Error(t('deploygov.settings.verificationCheckNameDuplicate'));
+                          }
+                        },
+                      },
+                    ]}
+                  >
+                    <Input maxLength={LIMITS.nameMax} />
+                  </Form.Item>
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    aria-label={t('deploygov.settings.verificationRemoveCheck')}
+                    style={{ marginTop: 30 }}
+                    onClick={() => remove(field.name)}
+                  />
+                </div>
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prev: EnvironmentFormValues, cur: EnvironmentFormValues) =>
+                    prev.verification?.checks?.[index]?.kind !==
+                    cur.verification?.checks?.[index]?.kind
+                  }
+                >
+                  {({ getFieldValue }) =>
+                    getFieldValue([...CHECKS, field.name, 'kind']) === 'PROMQL_THRESHOLD' ? (
+                      <>
+                        <Form.Item
+                          name={[field.name, 'prometheus_url']}
+                          label={t('deploygov.settings.verificationPrometheusUrl')}
+                          extra={t('deploygov.settings.verificationPrometheusUrlHelp')}
+                          rules={[
+                            { required: true, whitespace: true, max: LIMITS.urlMax },
+                            httpUrlRule,
+                          ]}
+                        >
+                          <Input placeholder="https://prometheus.example.com" />
+                        </Form.Item>
+                        <Form.Item
+                          name={[field.name, 'query']}
+                          label={t('deploygov.settings.verificationQuery')}
+                          rules={[{ required: true, whitespace: true, max: LIMITS.queryMax }]}
+                        >
+                          <Input.TextArea rows={2} className="mono" />
+                        </Form.Item>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          <Form.Item
+                            name={[field.name, 'comparator']}
+                            label={t('deploygov.settings.verificationComparator')}
+                            style={{ flex: 1, minWidth: 120 }}
+                            rules={[{ required: true }]}
+                          >
+                            <Select options={comparatorOptions} />
+                          </Form.Item>
+                          <Form.Item
+                            name={[field.name, 'threshold']}
+                            label={t('deploygov.settings.verificationValueThreshold')}
+                            style={{ flex: 1, minWidth: 120 }}
+                            rules={[{ required: true, type: 'number' }]}
+                          >
+                            <InputNumber style={{ width: '100%' }} />
+                          </Form.Item>
+                          <Form.Item
+                            name={[field.name, 'no_data_is_failure']}
+                            label={t('deploygov.settings.verificationNoDataIsFailure')}
+                            valuePropName="checked"
+                            style={{ flex: 1, minWidth: 160 }}
+                          >
+                            <Switch size="small" />
+                          </Form.Item>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Form.Item
+                          name={[field.name, 'url']}
+                          label={t('deploygov.settings.verificationUrl')}
+                          rules={[
+                            { required: true, whitespace: true, max: LIMITS.urlMax },
+                            httpUrlRule,
+                          ]}
+                        >
+                          <Input placeholder="https://service.example.com/healthz" />
+                        </Form.Item>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          <Form.Item
+                            name={[field.name, 'expected_status']}
+                            label={t('deploygov.settings.verificationExpectedStatus')}
+                            style={{ flex: 1, minWidth: 120 }}
+                            rules={[
+                              {
+                                type: 'number',
+                                min: LIMITS.expectedStatusMin,
+                                max: LIMITS.expectedStatusMax,
+                                message: t('deploygov.settings.verificationExpectedStatusRange'),
+                              },
+                            ]}
+                          >
+                            <InputNumber
+                              min={LIMITS.expectedStatusMin}
+                              max={LIMITS.expectedStatusMax}
+                              precision={0}
+                              style={{ width: '100%' }}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            name={[field.name, 'body_contains']}
+                            label={t('deploygov.settings.verificationBodyContains')}
+                            style={{ flex: 2, minWidth: 200 }}
+                            rules={[{ max: LIMITS.bodyContainsMax }]}
+                          >
+                            <Input />
+                          </Form.Item>
+                        </div>
+                      </>
+                    )
+                  }
+                </Form.Item>
+              </div>
+            ))}
+            <Form.ErrorList errors={errors} />
+            <div>
+              <Button
+                icon={<PlusOutlined />}
+                disabled={fields.length >= LIMITS.maxChecks}
+                onClick={() => add(defaultCheckValues())}
+              >
+                {t('deploygov.settings.verificationAddCheck')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Form.List>
+    </>
   );
 }

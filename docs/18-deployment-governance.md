@@ -183,7 +183,18 @@ hold a snapshot of the config and the verdict, and the `deployment_verifications
 - **Save-time rules.** A config is rejected with `422 DEPLOYMENT_VERIFICATION_INVALID` when its
   window is outside 1 minute–24 hours, its interval outside 30 seconds–window, its failure
   threshold one the window cannot reach, two checks share a name, or a URL is refused or does not
-  resolve. Column detail is in
+  resolve.
+- **In the web UI (#1027).** The environment modal on the pipeline settings page has a
+  *Post-deployment verification* section: a switch that reveals the window, interval and failure
+  threshold and a list of checks, each with a type `Select` that swaps between the HTTP and the
+  PromQL fields. The form mirrors every rule above that needs no network; host policy is only
+  known server-side and comes back as the 422's `detail`. Turning the switch off sends
+  `clear_verification: true`. The deployment detail page adds a *Verification* stage to the
+  timeline after the outcome stage (hidden while `PENDING`), a *Verification* row beside drift, and
+  a card with the request's `verification_snapshot`, its timestamps and the samples table — polled
+  every 10 seconds while `RUNNING`. A breach renders as "verification failed — the release is still
+  running" and says AccessFlow did not roll back; the release stage keeps reading as released.
+  The deployments list shows the verification status as a second tag in the outcome cell. Column detail is in
 [03-data-model.md](03-data-model.md#deployment_environments) (`deployment_environments`,
 `deployment_requests`, `deployment_verifications`).
 

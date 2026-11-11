@@ -4038,6 +4038,23 @@
       "DAY": "Llamadas por día",
       "USER_MINUTE": "Llamadas por usuario y minuto",
       "USER_DAY": "Llamadas por usuario y día"
+    },
+    "verification_status": {
+      "PENDING": "pendiente",
+      "RUNNING": "en curso",
+      "PASSED": "superada",
+      "FAILED": "fallida",
+      "SKIPPED": "omitida"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "Salud HTTP",
+      "PROMQL_THRESHOLD": "Umbral PromQL"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Versión exacta",
       "countLabel": "{{total}} despliegues",
       "empty": "Aún no hay solicitudes de despliegue",
-      "notFound": "Solicitud de despliegue no encontrada"
+      "notFound": "Solicitud de despliegue no encontrada",
+      "verificationTag": "verificación {{status}}"
     },
     "detail": {
       "title": "Despliegue",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Liberación",
       "timeline_execution_failed": "Ejecución fallida",
       "timeline_cancelled": "Cancelado",
-      "timeline_outcome": "Resultado"
+      "timeline_outcome": "Resultado",
+      "verification": "Verificación",
+      "verificationFailedTitle": "La verificación falló — la versión sigue en ejecución",
+      "verificationFailedBody": "AccessFlow no revirtió nada. Decide si revertir y luego informa ROLLED_BACK desde el pipeline.",
+      "verificationWindow": "Ventana",
+      "verificationInterval": "Intervalo de muestreo",
+      "verificationThreshold": "Umbral de fallos",
+      "verificationStarted": "Iniciada",
+      "verificationFinished": "Finalizada",
+      "verificationDetail": "Detalle",
+      "verificationSampledAt": "Muestreado",
+      "verificationCheck": "Comprobación",
+      "verificationResult": "Resultado",
+      "verificationObserved": "Observado",
+      "verificationSampleDetail": "Detalle",
+      "verificationNoSamples": "Aún no hay muestras",
+      "verificationMinutesValue": "{{n}} min",
+      "verificationSecondsValue": "{{n}} s",
+      "timeline_verification": "Verificación"
     },
     "reviews": {
       "approve": "Aprobar",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Editar permiso — {{user}}",
       "editGroupPermission": "Editar permiso — {{group}}",
       "revoke": "Revocar",
-      "tabSimulate": "Simular"
+      "tabSimulate": "Simular",
+      "verificationSection": "Verificación posterior al despliegue",
+      "verificationEnabled": "Verificar tras la publicación",
+      "verificationEnabledHelp": "Cuando el pipeline informa SUCCEEDED, AccessFlow muestrea estas comprobaciones durante la ventana. Una infracción marca el despliegue como fallido — AccessFlow nunca revierte nada.",
+      "verificationWindow": "Ventana",
+      "verificationInterval": "Muestrear cada",
+      "verificationThreshold": "Fallos hasta infracción",
+      "verificationMinutes": "min",
+      "verificationWindowRange": "La ventana debe estar entre 1 y 1440 minutos.",
+      "verificationIntervalRange": "El intervalo de muestreo debe ser de al menos 0,5 minutos y no superar la ventana.",
+      "verificationThresholdRange": "El umbral de fallos debe estar entre 1 y 20.",
+      "verificationThresholdExceedsSamples": "La ventana recoge como máximo {{samples}} muestras — baja el umbral o amplía la ventana.",
+      "verificationChecksRange": "Añade entre 1 y 10 comprobaciones.",
+      "verificationCheckKind": "Tipo de comprobación",
+      "verificationCheckName": "Nombre de la comprobación",
+      "verificationCheckNameDuplicate": "Otra comprobación ya usa este nombre.",
+      "verificationRemoveCheck": "Quitar comprobación",
+      "verificationAddCheck": "Añadir comprobación",
+      "verificationUrl": "URL de salud",
+      "verificationUrlScheme": "Usa una URL http:// o https://.",
+      "verificationExpectedStatus": "Estado esperado",
+      "verificationExpectedStatusRange": "El estado esperado debe estar entre 100 y 599.",
+      "verificationBodyContains": "El cuerpo contiene (opcional)",
+      "verificationPrometheusUrl": "URL de Prometheus",
+      "verificationPrometheusUrlHelp": "Solo la URL base — se añade /api/v1/query.",
+      "verificationQuery": "Consulta PromQL",
+      "verificationComparator": "Pasa cuando el valor es",
+      "verificationValueThreshold": "Umbral",
+      "verificationNoDataIsFailure": "Sin datos cuenta como fallo",
+      "verificationColumn": "Verificación",
+      "verificationChecksCount": "Comprobaciones: {{n}}"
     },
     "freezeWindows": {
       "title": "Ventanas de congelación",

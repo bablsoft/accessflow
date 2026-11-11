@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
+import { AxiosError, type AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';
 import '@/i18n';
 import type { Datasource, DeploymentEnvironment, ReviewPlan } from '@/types/api';
@@ -76,6 +77,40 @@ const production: DeploymentEnvironment = {
   datasource_id: 'ds-1',
   created_at: '2026-08-01T10:00:00Z',
 };
+
+const verified: DeploymentEnvironment = {
+  ...staging,
+  id: 'env-3',
+  name: 'canary',
+  sort_order: 20,
+  verification: {
+    window: 'PT15M',
+    sample_interval: 'PT30S',
+    failure_threshold: 3,
+    checks: [
+      {
+        kind: 'HTTP_HEALTH',
+        name: 'health',
+        url: 'https://svc.example.com/healthz',
+        expected_status: 200,
+      },
+      {
+        kind: 'PROMQL_THRESHOLD',
+        name: 'errors',
+        prometheus_url: 'https://prom.example.com',
+        query: 'sum(rate(errors[5m]))',
+        comparator: 'LT',
+        threshold: 0.05,
+        no_data_is_failure: true,
+      },
+    ],
+  },
+};
+
+function problem(status: number, data: Record<string, unknown>): AxiosError {
+  const response = { data, status, statusText: '', headers: {}, config: {} as never } as AxiosResponse;
+  return new AxiosError('failed', undefined, undefined, undefined, response);
+}
 
 const warehouse = {
   id: 'ds-1',
@@ -166,6 +201,7 @@ describe('PipelineEnvironmentsTab', () => {
       allow_break_glass: false,
       change_ticket_required: false,
       datasource_id: null,
+      verification: null,
     });
   });
 
@@ -448,5 +484,220 @@ describe('PipelineEnvironmentsTab', () => {
       await screen.findByText('Each tag must be at most 32 characters'),
     ).toBeInTheDocument();
     expect(updateDeploymentEnvironment).not.toHaveBeenCalled();
+  });
+
+  describe('post-deployment verification (#1027)', () => {
+    async function openCreate() {
+      render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+      await screen.findByText('staging');
+      fireEvent.click(screen.getByRole('button', { name: /add environment/i }));
+      await screen.findByRole('dialog');
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'canary' } });
+    }
+
+    function enable() {
+      fireEvent.click(screen.getByRole('switch', { name: 'Verify after release' }));
+    }
+
+    it('summarises the check count in the table and an em dash when off', async () => {
+      listDeploymentEnvironments.mockResolvedValue([staging, verified]);
+      render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+      await screen.findByText('canary');
+      expect(screen.getByText('Checks: 2')).toBeInTheDocument();
+      expect(screen.getByText('Verification').closest('th')).not.toBeNull();
+    });
+
+    it('hides the fields until the switch is on', async () => {
+      await openCreate();
+      expect(screen.queryByLabelText('Health URL')).toBeNull();
+      enable();
+      expect(await screen.findByLabelText('Health URL')).toBeInTheDocument();
+    });
+
+    it('creates an environment with an HTTP check', async () => {
+      await openCreate();
+      enable();
+      fireEvent.change(await screen.findByLabelText('Check name'), { target: { value: 'health' } });
+      fireEvent.change(screen.getByLabelText('Health URL'), {
+        target: { value: 'https://svc.example.com/healthz' },
+      });
+      fireEvent.change(screen.getByLabelText('Body contains (optional)'), {
+        target: { value: 'ok' },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(createDeploymentEnvironment).toHaveBeenCalledTimes(1));
+      expect(createDeploymentEnvironment.mock.calls[0]![1].verification).toEqual({
+        window: 'PT15M',
+        sample_interval: 'PT1M',
+        failure_threshold: 3,
+        checks: [
+          {
+            kind: 'HTTP_HEALTH',
+            name: 'health',
+            url: 'https://svc.example.com/healthz',
+            expected_status: 200,
+            body_contains: 'ok',
+          },
+        ],
+      });
+    });
+
+    it('swaps to the PromQL fields when the kind changes', async () => {
+      await openCreate();
+      enable();
+      fireEvent.mouseDown(await screen.findByLabelText('Check type'));
+      fireEvent.click(await screen.findByText('PromQL threshold'));
+      expect(await screen.findByLabelText('Prometheus URL')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Health URL')).toBeNull();
+      fireEvent.change(screen.getByLabelText('Check name'), { target: { value: 'errors' } });
+      fireEvent.change(screen.getByLabelText('Prometheus URL'), {
+        target: { value: 'https://prom.example.com' },
+      });
+      fireEvent.change(screen.getByLabelText('PromQL query'), {
+        target: { value: 'sum(rate(errors[5m]))' },
+      });
+      fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '0.05' } });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(createDeploymentEnvironment).toHaveBeenCalledTimes(1));
+      expect(createDeploymentEnvironment.mock.calls[0]![1].verification.checks).toEqual([
+        {
+          kind: 'PROMQL_THRESHOLD',
+          name: 'errors',
+          prometheus_url: 'https://prom.example.com',
+          query: 'sum(rate(errors[5m]))',
+          comparator: 'LT',
+          threshold: 0.05,
+          no_data_is_failure: true,
+        },
+      ]);
+    });
+
+    it('refuses a non-http URL and a missing check name', async () => {
+      await openCreate();
+      enable();
+      fireEvent.change(await screen.findByLabelText('Health URL'), {
+        target: { value: 'ftp://svc.example.com' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Use an http:// or https:// URL.')).toBeInTheDocument();
+      expect(createDeploymentEnvironment).not.toHaveBeenCalled();
+    });
+
+    it('refuses a threshold the window cannot reach and an interval longer than the window', async () => {
+      await openCreate();
+      enable();
+      fireEvent.change(await screen.findByLabelText('Window'), { target: { value: '2' } });
+      fireEvent.change(screen.getByLabelText('Sample every'), { target: { value: '1' } });
+      fireEvent.change(screen.getByLabelText('Failures to breach'), { target: { value: '3' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText(/collects at most 2 samples/)).toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText('Sample every'), { target: { value: '5' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        await screen.findByText(/no longer than the window/),
+      ).toBeInTheDocument();
+      expect(createDeploymentEnvironment).not.toHaveBeenCalled();
+    });
+
+    it('refuses duplicate check names and an empty check list', async () => {
+      await openCreate();
+      enable();
+      await screen.findByLabelText('Check name');
+      // Window bounds are clamped by the InputNumber's own min / max, so no out-of-range value
+      // reaches the Form rule.
+      fireEvent.click(screen.getByRole('button', { name: /add check/i }));
+      const names = await screen.findAllByLabelText('Check name');
+      fireEvent.change(names[0]!, { target: { value: 'health' } });
+      fireEvent.change(names[1]!, { target: { value: 'health' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        (await screen.findAllByText('Another check already uses this name.')).length,
+      ).toBeGreaterThan(0);
+
+      for (const remove of screen.getAllByRole('button', { name: /remove check/i })) {
+        fireEvent.click(remove);
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(await screen.findByText('Add between 1 and 10 checks.')).toBeInTheDocument();
+      expect(createDeploymentEnvironment).not.toHaveBeenCalled();
+    });
+
+    it('prefills a stored config on edit and round-trips it unchanged', async () => {
+      listDeploymentEnvironments.mockResolvedValue([verified]);
+      render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+      await screen.findByText('canary');
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      await screen.findByRole('dialog');
+      expect(await screen.findByLabelText('Health URL')).toHaveValue(
+        'https://svc.example.com/healthz',
+      );
+      expect(screen.getByLabelText('Prometheus URL')).toHaveValue('https://prom.example.com');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+      const input = updateDeploymentEnvironment.mock.calls[0]![2];
+      expect(input.clear_verification).toBe(false);
+      expect(input.verification).toEqual({
+        window: 'PT15M',
+        sample_interval: 'PT30S',
+        failure_threshold: 3,
+        checks: [
+          {
+            kind: 'HTTP_HEALTH',
+            name: 'health',
+            url: 'https://svc.example.com/healthz',
+            expected_status: 200,
+            body_contains: null,
+          },
+          {
+            kind: 'PROMQL_THRESHOLD',
+            name: 'errors',
+            prometheus_url: 'https://prom.example.com',
+            query: 'sum(rate(errors[5m]))',
+            comparator: 'LT',
+            threshold: 0.05,
+            no_data_is_failure: true,
+          },
+        ],
+      });
+    });
+
+    it('sends clear_verification when the switch is turned off on edit', async () => {
+      listDeploymentEnvironments.mockResolvedValue([verified]);
+      render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+      await screen.findByText('canary');
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      await screen.findByLabelText('Health URL');
+      fireEvent.click(screen.getByRole('switch', { name: 'Verify after release' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+      expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+        expect.objectContaining({ verification: null, clear_verification: true }),
+      );
+    });
+
+    it('surfaces the server detail of a 422 DEPLOYMENT_VERIFICATION_INVALID', async () => {
+      createDeploymentEnvironment.mockRejectedValue(
+        problem(422, {
+          error: 'DEPLOYMENT_VERIFICATION_INVALID',
+          reason: 'host_unresolvable',
+          detail: 'The host of check health does not resolve',
+        }),
+      );
+      await openCreate();
+      enable();
+      fireEvent.change(await screen.findByLabelText('Check name'), { target: { value: 'health' } });
+      fireEvent.change(screen.getByLabelText('Health URL'), {
+        target: { value: 'https://nope.example.com' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        await screen.findByText('The host of check health does not resolve'),
+      ).toBeInTheDocument();
+    });
   });
 });

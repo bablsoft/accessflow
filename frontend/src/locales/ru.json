@@ -4038,6 +4038,23 @@
       "DAY": "Вызовов в день",
       "USER_MINUTE": "Вызовов пользователя в минуту",
       "USER_DAY": "Вызовов пользователя в день"
+    },
+    "verification_status": {
+      "PENDING": "ожидает",
+      "RUNNING": "выполняется",
+      "PASSED": "пройдена",
+      "FAILED": "не пройдена",
+      "SKIPPED": "пропущена"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP-проверка",
+      "PROMQL_THRESHOLD": "Порог PromQL"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Точная версия",
       "countLabel": "{{total}} развертываний",
       "empty": "Запросов на развертывание пока нет",
-      "notFound": "Запрос на развертывание не найден"
+      "notFound": "Запрос на развертывание не найден",
+      "verificationTag": "проверка: {{status}}"
     },
     "detail": {
       "title": "Развертывание",
@@ -5816,7 +5834,25 @@
       "timeline_released": "Выпуск",
       "timeline_execution_failed": "Ошибка выполнения",
       "timeline_cancelled": "Отменено",
-      "timeline_outcome": "Результат"
+      "timeline_outcome": "Результат",
+      "verification": "Проверка",
+      "verificationFailedTitle": "Проверка не пройдена — релиз продолжает работать",
+      "verificationFailedBody": "AccessFlow ничего не откатывал. Решите, нужен ли откат, затем сообщите ROLLED_BACK из pipeline.",
+      "verificationWindow": "Окно",
+      "verificationInterval": "Интервал опроса",
+      "verificationThreshold": "Порог сбоев",
+      "verificationStarted": "Начата",
+      "verificationFinished": "Завершена",
+      "verificationDetail": "Подробности",
+      "verificationSampledAt": "Время замера",
+      "verificationCheck": "Проверка",
+      "verificationResult": "Результат",
+      "verificationObserved": "Наблюдаемое",
+      "verificationSampleDetail": "Подробности",
+      "verificationNoSamples": "Замеров пока нет",
+      "verificationMinutesValue": "{{n}} мин",
+      "verificationSecondsValue": "{{n}} с",
+      "timeline_verification": "Проверка"
     },
     "reviews": {
       "approve": "Одобрить",
@@ -6059,7 +6095,37 @@
       "editUserPermission": "Редактировать доступ — {{user}}",
       "editGroupPermission": "Редактировать доступ — {{group}}",
       "revoke": "Отозвать",
-      "tabSimulate": "Симуляция"
+      "tabSimulate": "Симуляция",
+      "verificationSection": "Проверка после развёртывания",
+      "verificationEnabled": "Проверять после релиза",
+      "verificationEnabledHelp": "Когда pipeline сообщает SUCCEEDED, AccessFlow опрашивает эти проверки в течение окна. Нарушение помечает развёртывание как неудачное — AccessFlow никогда ничего не откатывает.",
+      "verificationWindow": "Окно",
+      "verificationInterval": "Опрашивать каждые",
+      "verificationThreshold": "Сбоев до нарушения",
+      "verificationMinutes": "мин",
+      "verificationWindowRange": "Окно должно быть от 1 до 1440 минут.",
+      "verificationIntervalRange": "Интервал опроса должен быть не меньше 0,5 минуты и не больше окна.",
+      "verificationThresholdRange": "Порог сбоев должен быть от 1 до 20.",
+      "verificationThresholdExceedsSamples": "За окно собирается не более {{samples}} замеров — уменьшите порог или увеличьте окно.",
+      "verificationChecksRange": "Добавьте от 1 до 10 проверок.",
+      "verificationCheckKind": "Тип проверки",
+      "verificationCheckName": "Название проверки",
+      "verificationCheckNameDuplicate": "Это название уже используется другой проверкой.",
+      "verificationRemoveCheck": "Удалить проверку",
+      "verificationAddCheck": "Добавить проверку",
+      "verificationUrl": "URL проверки работоспособности",
+      "verificationUrlScheme": "Используйте URL http:// или https://.",
+      "verificationExpectedStatus": "Ожидаемый статус",
+      "verificationExpectedStatusRange": "Ожидаемый статус должен быть от 100 до 599.",
+      "verificationBodyContains": "Тело содержит (необязательно)",
+      "verificationPrometheusUrl": "URL Prometheus",
+      "verificationPrometheusUrlHelp": "Только базовый URL — /api/v1/query добавляется автоматически.",
+      "verificationQuery": "Запрос PromQL",
+      "verificationComparator": "Успешно, если значение",
+      "verificationValueThreshold": "Порог",
+      "verificationNoDataIsFailure": "Отсутствие данных — сбой",
+      "verificationColumn": "Проверка",
+      "verificationChecksCount": "Проверок: {{n}}"
     },
     "freezeWindows": {
       "title": "Окна заморозки",

@@ -9,6 +9,7 @@ import type {
   BreakGlassEventStatus,
   DecisionStepOutcome,
   DeploymentOutcome,
+  VerificationStatus,
   DeploymentRollbackReviewStatus,
   DeploymentTicketDecision,
   GrantUsageRecommendation,
@@ -385,5 +386,20 @@ export const apiDriftFindingKindColor = (kind: ApiDriftFindingKind): ColorTriple
     case 'DEPRECATED':
     case 'CLASSIFICATION_FLIPPED':
       return WARN;
+  }
+};
+
+/** A FAILED verification is the release's health, not a rollback — crit, never the warn tone. */
+export const verificationStatusColor = (status: VerificationStatus): ColorTriple => {
+  switch (status) {
+    case 'PASSED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'FAILED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'RUNNING':
+      return { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' };
+    case 'PENDING':
+    case 'SKIPPED':
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };

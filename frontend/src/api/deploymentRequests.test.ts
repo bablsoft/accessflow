@@ -36,6 +36,12 @@ describe('api/deploymentRequests', () => {
     ]);
     expect(deploymentKeys.detail('d-1')).toEqual(['deployments', 'detail', 'd-1']);
     expect(deploymentKeys.gate('d-1')).toEqual(['deployments', 'detail', 'd-1', 'gate']);
+    expect(deploymentKeys.verification('d-1')).toEqual([
+      'deployments',
+      'detail',
+      'd-1',
+      'verification',
+    ]);
   });
 
   it('lists deployment requests with every filter', async () => {
@@ -95,5 +101,15 @@ describe('api/deploymentRequests', () => {
       params: { request_id: 'd-1' },
     });
     expect(gate.releasable).toBe(true);
+  });
+
+  it('fetches the verification samples of a request', async () => {
+    get.mockResolvedValue({
+      data: [{ id: 's-1', check_name: 'health', passed: false, sampled_at: '2026-11-11T10:00:00Z' }],
+    });
+    const samples = await api.getDeploymentVerificationSamples('d-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/deployment-requests/d-1/verification-samples');
+    expect(samples).toHaveLength(1);
+    expect(samples[0]?.check_name).toBe('health');
   });
 });

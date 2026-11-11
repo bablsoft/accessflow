@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSnapshotView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.PropertyNamingStrategies;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.util.Map;
@@ -538,6 +540,27 @@ class DeploygovWebModelsTest {
                 SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
                 null, Instant.now(), null, null, null, false, null, null, null, null, null);
         assertThat(defaulted.verificationStatus()).isEqualTo(VerificationStatus.PENDING);
+        assertThat(response.verificationSnapshot()).isNull();
+    }
+
+    @Test
+    void deploymentRequestResponseMapsTheVerificationSnapshotAsIsoDurations() {
+        var view = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "prod", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.EXECUTED,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null, null, null, false, null, VerificationStatus.RUNNING,
+                null, null, null, new DeploymentVerificationSnapshotView(Duration.ofMinutes(15),
+                        Duration.ofSeconds(30), 3, 2));
+
+        var snapshot = DeploymentRequestResponse.from(view).verificationSnapshot();
+
+        assertThat(snapshot).isEqualTo(
+                new DeploymentRequestResponse.VerificationSnapshot("PT15M", "PT30S", 3, 2));
+        assertThat(DeploymentRequestResponse.VerificationSnapshot.from(
+                new DeploymentVerificationSnapshotView(null, null, 1, 1)))
+                .isEqualTo(new DeploymentRequestResponse.VerificationSnapshot(null, null, 1, 1));
+        assertThat(DeploymentVerificationSnapshotView.of(null)).isNull();
     }
 
     @Test
