@@ -5213,6 +5213,86 @@ export type FreezeBehavior = 'HOLD' | 'REJECT';
 
 export type DeploymentOutcome = 'SUCCEEDED' | 'FAILED' | 'ROLLED_BACK';
 
+// ─── Post-deployment verification (#1023–#1027) ───
+
+/** `PENDING` until the first outcome report; `FAILED` flips the request to `FAILED` (#1025). */
+export type VerificationStatus = 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'SKIPPED';
+
+export type VerificationCheckKind = 'HTTP_HEALTH' | 'PROMQL_THRESHOLD';
+
+export type VerificationComparator = 'LT' | 'LTE' | 'GT' | 'GTE';
+
+/** Request shape of an HTTP health check — `expected_status` defaults to 200 server-side. */
+export interface HttpHealthCheckInput {
+  kind: 'HTTP_HEALTH';
+  name: string;
+  url: string;
+  expected_status?: number | null;
+  body_contains?: string | null;
+}
+
+/** Request shape of a PromQL threshold check — `no_data_is_failure` defaults to true. */
+export interface PromqlThresholdCheckInput {
+  kind: 'PROMQL_THRESHOLD';
+  name: string;
+  prometheus_url: string;
+  query: string;
+  comparator: VerificationComparator;
+  threshold: number;
+  no_data_is_failure?: boolean | null;
+}
+
+export type VerificationCheckInput = HttpHealthCheckInput | PromqlThresholdCheckInput;
+
+export interface DeploymentVerificationConfigInput {
+  /** ISO-8601 duration, PT1M..PT24H. */
+  window: string;
+  /** ISO-8601 duration, PT30S..window. */
+  sample_interval: string;
+  failure_threshold: number;
+  checks: VerificationCheckInput[];
+}
+
+/** Response check — flat like the server record; the other kind's fields are omitted. */
+export interface VerificationCheck {
+  kind: VerificationCheckKind;
+  name: string;
+  url?: string | null;
+  expected_status?: number | null;
+  body_contains?: string | null;
+  prometheus_url?: string | null;
+  query?: string | null;
+  comparator?: VerificationComparator | null;
+  threshold?: number | null;
+  no_data_is_failure?: boolean | null;
+}
+
+export interface DeploymentVerificationConfig {
+  window: string;
+  sample_interval: string;
+  failure_threshold: number;
+  checks: VerificationCheck[];
+}
+
+/** The config a request was verified against (#1027) — no check targets, by design. */
+export interface DeploymentVerificationSnapshot {
+  window?: string | null;
+  sample_interval?: string | null;
+  failure_threshold: number;
+  check_count: number;
+}
+
+export interface DeploymentVerificationSample {
+  id: string;
+  deployment_request_id: string;
+  check_name: string;
+  check_kind: VerificationCheckKind;
+  sampled_at: string;
+  passed: boolean;
+  observed_value?: string | null;
+  detail?: string | null;
+}
+
 /** Same literals as RoutingAction; a distinct alias keeps the deploygov surface self-describing. */
 export type DeploymentRoutingAction = RoutingAction;
 
@@ -5273,6 +5353,8 @@ export interface DeploymentEnvironment {
   change_ticket_required: boolean;
   /** The datasource this environment's schema changes land on; null = deploy-only (#877). */
   datasource_id: string | null;
+  /** Omitted when verification is off (#1023). */
+  verification?: DeploymentVerificationConfig | null;
   created_at: string;
 }
 
@@ -5287,6 +5369,7 @@ export interface CreateDeploymentEnvironmentInput {
   allow_break_glass?: boolean;
   change_ticket_required?: boolean;
   datasource_id?: string | null;
+  verification?: DeploymentVerificationConfigInput | null;
 }
 
 export interface UpdateDeploymentEnvironmentInput {
@@ -5307,6 +5390,9 @@ export interface UpdateDeploymentEnvironmentInput {
   /** Null leaves the binding unchanged; `clear_datasource: true` unbinds and wins (#877). */
   datasource_id?: string | null;
   clear_datasource?: boolean;
+  /** Null leaves the config unchanged; `clear_verification: true` removes it and wins (#1023). */
+  verification?: DeploymentVerificationConfigInput | null;
+  clear_verification?: boolean;
 }
 
 export interface DeploymentPipelinePermission {
@@ -5587,6 +5673,13 @@ export interface DeploymentRequest {
   change_ticket_required?: boolean;
   /** Absent when no ticket is linked (#994). */
   change_ticket?: DeploymentTicketRef | null;
+  /** Never null on the wire (#1025). */
+  verification_status: VerificationStatus;
+  verification_started_at?: string | null;
+  verification_finished_at?: string | null;
+  verification_detail?: string | null;
+  /** The config the window was opened with (#1027); absent when never verified. */
+  verification_snapshot?: DeploymentVerificationSnapshot | null;
 }
 
 export type DeploymentRequestPage = PageEnvelope<DeploymentRequest>;
@@ -5682,6 +5775,9 @@ export interface DeploymentGateStatus {
   change_ticket_required?: boolean;
   /** The ticket the gate judged by; absent when none is linked (#993). */
   change_ticket?: DeploymentTicketRef | null;
+  /** Post-deployment verification state (#1025); never feeds `releasable`. */
+  verification_status?: VerificationStatus;
+  verification_detail?: string | null;
 }
 
 // ─── Deployment version inventory & drift (#742 API, #743 UI) ───

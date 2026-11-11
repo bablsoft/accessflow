@@ -3,6 +3,12 @@ import type { TFunction } from 'i18next';
 import i18n from '@/i18n';
 import {
   accessGrantStatusLabel,
+  VERIFICATION_CHECK_KINDS,
+  VERIFICATION_COMPARATORS,
+  VERIFICATION_STATUSES,
+  verificationCheckKindLabel,
+  verificationComparatorLabel,
+  verificationStatusLabel,
   aiProviderLabel,
   authProviderLabel,
   channelTypeLabel,
@@ -302,5 +308,21 @@ describe('API governance enum labels (AF-500)', () => {
     for (const v of OAUTH2_CLIENT_AUTHS) {
       expect(oauth2ClientAuthLabel(t, v)).not.toBe(`enums.oauth2_client_auth.${v}`);
     }
+  });
+});
+
+describe('post-deployment verification enum labels (#1027)', () => {
+  it('translates every verification status, check kind and comparator', () => {
+    for (const v of VERIFICATION_STATUSES) {
+      expect(verificationStatusLabel(t, v)).not.toBe(`enums.verification_status.${v}`);
+    }
+    for (const v of VERIFICATION_CHECK_KINDS) {
+      expect(verificationCheckKindLabel(t, v)).not.toBe(`enums.verification_check_kind.${v}`);
+    }
+    for (const v of VERIFICATION_COMPARATORS) {
+      expect(verificationComparatorLabel(t, v)).not.toBe(`enums.verification_comparator.${v}`);
+    }
+    expect(verificationStatusLabel(t, 'FAILED')).toBe('failed');
+    expect(verificationComparatorLabel(t, 'LT')).toBe('<');
   });
 });

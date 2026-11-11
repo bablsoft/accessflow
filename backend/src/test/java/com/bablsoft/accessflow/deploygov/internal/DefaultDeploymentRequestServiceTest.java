@@ -13,6 +13,10 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationConfig;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSnapshotView;
+import com.bablsoft.accessflow.deploygov.api.HttpHealthCheck;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
@@ -49,6 +53,7 @@ import org.springframework.data.jpa.domain.Specification;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -116,7 +121,8 @@ class DefaultDeploymentRequestServiceTest {
                 permissionResolver,
                 freezeWindowEvaluator, stateService, auditWriter, aiAnalysisLookupService,
                 userQueryService, eventPublisher, JsonMapper.builder().build(), CLOCK,
-                verificationRepository);
+                verificationRepository,
+                new DeploymentVerificationConfigCodec(JsonMapper.builder().build()));
 
         pipeline = pipeline();
         environment = environment();
@@ -631,6 +637,41 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(view.verificationStartedAt()).isEqualTo(started);
         assertThat(view.verificationFinishedAt()).isEqualTo(started.plusSeconds(60));
         assertThat(view.verificationDetail()).isEqualTo("health: 1/1 failed samples");
+        assertThat(view.verificationSnapshot()).isNull();
+    }
+
+    @Test
+    void getCarriesTheVerificationSnapshotWithoutCheckTargets() {
+        var entity = existing(QueryStatus.EXECUTED);
+        entity.setVerificationStatus(VerificationStatus.RUNNING);
+        entity.setVerificationConfig(new DeploymentVerificationConfigCodec(JsonMapper.builder().build())
+                .toJson(new DeploymentVerificationConfig(Duration.ofMinutes(15),
+                        Duration.ofSeconds(30), 3, List.of(
+                                new HttpHealthCheck("health", "https://svc.example.com/healthz", 200,
+                                        null),
+                                new HttpHealthCheck("ready", "https://svc.example.com/ready", 204,
+                                        "ok")))));
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+
+        var snapshot = service.get(entity.getId(), ORG, SUBMITTER, Set.of()).verificationSnapshot();
+
+        assertThat(snapshot).isEqualTo(new DeploymentVerificationSnapshotView(
+                Duration.ofMinutes(15), Duration.ofSeconds(30), 3, 2));
+    }
+
+    @Test
+    void getHidesAnUnreadableVerificationSnapshot() {
+        var entity = existing(QueryStatus.FAILED);
+        entity.setVerificationStatus(VerificationStatus.FAILED);
+        entity.setVerificationConfig("{\"window\":\"PT1M\"}");
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.get(entity.getId(), ORG, SUBMITTER, Set.of());
+
+        assertThat(view.verificationSnapshot()).isNull();
+        assertThat(view.verificationStatus()).isEqualTo(VerificationStatus.FAILED);
     }
 
     @Test

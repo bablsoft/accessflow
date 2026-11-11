@@ -4038,6 +4038,23 @@
       "DAY": "Aufrufe pro Tag",
       "USER_MINUTE": "Aufrufe pro Benutzer und Minute",
       "USER_DAY": "Aufrufe pro Benutzer und Tag"
+    },
+    "verification_status": {
+      "PENDING": "ausstehend",
+      "RUNNING": "läuft",
+      "PASSED": "bestanden",
+      "FAILED": "fehlgeschlagen",
+      "SKIPPED": "übersprungen"
+    },
+    "verification_check_kind": {
+      "HTTP_HEALTH": "HTTP-Health",
+      "PROMQL_THRESHOLD": "PromQL-Schwellenwert"
+    },
+    "verification_comparator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥"
     }
   },
   "access": {
@@ -5755,7 +5772,8 @@
       "versionFilterPlaceholder": "Exakte Version",
       "countLabel": "{{total}} Deployments",
       "empty": "Noch keine Deployment-Anfragen",
-      "notFound": "Deployment-Anfrage nicht gefunden"
+      "notFound": "Deployment-Anfrage nicht gefunden",
+      "verificationTag": "Verifizierung {{status}}"
     },
     "detail": {
       "title": "Deployment",
@@ -5816,7 +5834,29 @@
       "timeline_released": "Freigabe",
       "timeline_execution_failed": "Ausführung fehlgeschlagen",
       "timeline_cancelled": "Abgebrochen",
-      "timeline_outcome": "Ergebnis"
+      "timeline_outcome": "Ergebnis",
+      "verification": "Verifizierung",
+      "verificationFailedTitle": "Verifizierung fehlgeschlagen — das Release läuft weiter",
+      "verificationFailedBody": "AccessFlow hat nichts zurückgerollt. Entscheiden Sie, ob zurückgerollt werden soll, und melden Sie dann ROLLED_BACK aus der Pipeline.",
+      "verificationWindow": "Zeitfenster",
+      "verificationInterval": "Prüfintervall",
+      "verificationThreshold": "Fehlerschwellenwert",
+      "verificationStarted": "Gestartet",
+      "verificationFinished": "Beendet",
+      "verificationDetail": "Details",
+      "verificationSampledAt": "Geprüft am",
+      "verificationCheck": "Check",
+      "verificationResult": "Ergebnis",
+      "verificationObserved": "Beobachtet",
+      "verificationSampleDetail": "Details",
+      "verificationNoSamples": "Noch keine Stichproben",
+      "verificationMinutesValue": "{{n}} Min.",
+      "verificationSecondsValue": "{{n}} s",
+      "timeline_verification": "Verifizierung",
+      "verificationFailedRolledBackTitle": "Verifizierung fehlgeschlagen — die Pipeline hat ein Rollback gemeldet",
+      "verificationFailedRolledBackBody": "Die Pipeline hat nach dem Verstoß ROLLED_BACK gemeldet. AccessFlow selbst hat nichts zurückgerollt; die Stichproben unten sind der Nachweis.",
+      "verificationSkippedNoConfig": "Für diese Umgebung ist keine Verifizierung konfiguriert",
+      "verificationSkippedOutcome": "Nicht verifiziert — die Pipeline hat {{outcome}} gemeldet"
     },
     "reviews": {
       "approve": "Genehmigen",
@@ -6059,7 +6099,56 @@
       "editUserPermission": "Berechtigung bearbeiten — {{user}}",
       "editGroupPermission": "Berechtigung bearbeiten — {{group}}",
       "revoke": "Widerrufen",
-      "tabSimulate": "Simulieren"
+      "tabSimulate": "Simulieren",
+      "verificationSection": "Verifizierung nach dem Deployment",
+      "verificationEnabled": "Nach dem Release verifizieren",
+      "verificationEnabledHelp": "Sobald die Pipeline SUCCEEDED meldet, prüft AccessFlow diese Checks während des Zeitfensters. Ein Verstoß markiert das Deployment als fehlgeschlagen — AccessFlow rollt nie etwas zurück.",
+      "verificationWindow": "Zeitfenster",
+      "verificationInterval": "Prüfen alle",
+      "verificationThreshold": "Fehler bis zum Verstoß",
+      "verificationMinutes": "Min.",
+      "verificationWindowRange": "Das Zeitfenster muss zwischen 1 und 1440 Minuten liegen.",
+      "verificationIntervalRange": "Das Prüfintervall muss mindestens 0,5 Minuten betragen und darf das Zeitfenster nicht überschreiten.",
+      "verificationThresholdRange": "Der Fehlerschwellenwert muss zwischen 1 und 20 liegen.",
+      "verificationThresholdExceedsSamples": "Das Zeitfenster erfasst höchstens {{samples}} Stichproben — senken Sie den Schwellenwert oder vergrößern Sie das Zeitfenster.",
+      "verificationChecksRange": "Fügen Sie zwischen 1 und 10 Checks hinzu.",
+      "verificationCheckKind": "Check-Typ",
+      "verificationCheckName": "Check-Name",
+      "verificationCheckNameDuplicate": "Ein anderer Check verwendet diesen Namen bereits.",
+      "verificationRemoveCheck": "Check entfernen",
+      "verificationAddCheck": "Check hinzufügen",
+      "verificationUrl": "Health-URL",
+      "verificationUrlScheme": "Verwenden Sie eine http://- oder https://-URL.",
+      "verificationExpectedStatus": "Erwarteter Status",
+      "verificationExpectedStatusRange": "Der erwartete Status muss zwischen 100 und 599 liegen.",
+      "verificationBodyContains": "Body enthält (optional)",
+      "verificationPrometheusUrl": "Prometheus-URL",
+      "verificationPrometheusUrlHelp": "Nur die Basis-URL — /api/v1/query wird angehängt.",
+      "verificationQuery": "PromQL-Abfrage",
+      "verificationComparator": "Bestanden, wenn der Wert",
+      "verificationValueThreshold": "Schwellenwert",
+      "verificationNoDataIsFailure": "Keine Daten gelten als Fehler",
+      "verificationColumn": "Verifizierung",
+      "verificationChecksCount": "Checks: {{n}}",
+      "verificationUrlInvalid": "Geben Sie eine gültige absolute URL mit Host ein.",
+      "verificationUrlUserinfo": "Entfernen Sie den Teil user:password@ — Zugangsdaten sind in der URL nicht erlaubt.",
+      "verificationUrlQuery": "Nur die Basis-URL — ohne Query-String oder Fragment.",
+      "verificationUrlPlaceholder": "https://service.example.com/healthz",
+      "verificationPrometheusUrlPlaceholder": "https://prometheus.example.com",
+      "verificationInvalid": {
+        "window_out_of_range": "Das Zeitfenster muss zwischen 1 Minute und 24 Stunden liegen.",
+        "sample_interval_out_of_range": "Das Prüfintervall muss mindestens 30 Sekunden betragen und darf das Zeitfenster nicht überschreiten.",
+        "failure_threshold_exceeds_samples": "Der Fehlerschwellenwert ist höher als die Zahl der Stichproben, die das Zeitfenster erfassen kann.",
+        "duplicate_check_name": "Zwei Checks heißen „{{check}}“.",
+        "invalid_url": "Check „{{check}}“: Die URL ist ungültig. Eine Prometheus-URL darf keinen Query-String und kein Fragment enthalten.",
+        "scheme_not_allowed": "Check „{{check}}“: Nur http://- und https://-URLs sind erlaubt.",
+        "userinfo_present": "Check „{{check}}“: Entfernen Sie den Teil user:password@ aus der URL.",
+        "host_missing": "Check „{{check}}“: Die URL hat keinen Host.",
+        "host_unresolvable": "Check „{{check}}“: Der Host lässt sich vom AccessFlow-Server aus nicht auflösen.",
+        "restricted_address": "Check „{{check}}“: localhost-, Loopback- und Link-Local-Adressen sind nicht erlaubt.",
+        "metadata_endpoint": "Check „{{check}}“: Cloud-Metadaten-Endpunkte sind nicht erlaubt.",
+        "host_not_allowed": "Check „{{check}}“: Der Host steht nicht auf der Verifizierungs-Allow-List dieses Servers."
+      }
     },
     "freezeWindows": {
       "title": "Freeze-Fenster",

@@ -186,6 +186,24 @@ hold a snapshot of the config and the verdict, and the `deployment_verifications
   resolve. Column detail is in
 [03-data-model.md](03-data-model.md#deployment_environments) (`deployment_environments`,
 `deployment_requests`, `deployment_verifications`).
+- **In the web UI (#1027).** The environment modal on the pipeline settings page has a
+  *Post-deployment verification* section: a switch that reveals the window, interval and failure
+  threshold and a list of checks, each with a type `Select` that swaps between the HTTP and the
+  PromQL fields. The form mirrors every rule above that needs no network, including no
+  `user:password@` in a URL and no query string or fragment on a Prometheus URL; the host policy
+  is only known server-side, so the form names the failed rule from the 422's `reason` and
+  `checkName` (its `detail` is one generic sentence). Turning the switch off sends
+  `verification: null` on create and `clear_verification: true` on an edit. The deployment detail
+  page adds a *Verification* stage to the timeline after the outcome stage (hidden while
+  `PENDING`), a *Verification* row beside drift, and a card with the request's
+  `verification_snapshot`, its timestamps and the samples table — polled every 10 seconds while
+  `RUNNING` and fetched once more when the window closes. A request that was never sampled
+  (`SKIPPED` with no snapshot) gets no card; its row shows the translated reason. A breach with
+  the outcome still `SUCCEEDED` renders as "verification failed — the
+  release is still running" and says AccessFlow did not roll back; once the pipeline reports
+  `ROLLED_BACK` the callout says the rollback was reported instead. The release stage keeps
+  reading as released. The deployments list adds the verification status as a second tag in the
+  outcome cell, except `SKIPPED`, which would otherwise tag every unverified deploy.
 
 ---
 

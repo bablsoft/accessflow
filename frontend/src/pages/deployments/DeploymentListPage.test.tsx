@@ -88,6 +88,7 @@ const baseRequest: DeploymentRequest = {
   outcome: null,
   outcome_reported_at: null,
   outcome_detail: null,
+  verification_status: 'PENDING',
   created_at: '2026-05-01T10:00:00Z',
   decisions: [],
   can_review: false,
@@ -169,6 +170,50 @@ describe('DeploymentListPage', () => {
     expect(screen.getByText('2.4.1')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
     expect(screen.getByText('1 deployments')).toBeInTheDocument();
+  });
+
+  it('tags a breached verification beside the SUCCEEDED outcome, and nothing while PENDING', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(
+      pageOf([
+        {
+          ...baseRequest,
+          id: 'req-breach',
+          version: '3.0.0',
+          status: 'FAILED',
+          outcome: 'SUCCEEDED',
+          outcome_reported_at: '2026-05-01T12:00:00Z',
+          verification_status: 'FAILED',
+        },
+        { ...baseRequest, id: 'req-pending', version: '3.0.1' },
+      ]),
+    );
+
+    render(wrap(<DeploymentListPage />));
+
+    expect(await screen.findByText('verification failed')).toBeInTheDocument();
+    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(screen.getAllByText(/^verification /)).toHaveLength(1);
+  });
+
+  it('leaves a skipped verification untagged — it would tag every unverified deploy', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(
+      pageOf([
+        {
+          ...baseRequest,
+          status: 'EXECUTED',
+          outcome: 'SUCCEEDED',
+          outcome_reported_at: '2026-05-01T12:00:00Z',
+          verification_status: 'SKIPPED',
+        },
+        { ...baseRequest, id: 'req-2', version: '3.0.2', verification_status: 'RUNNING' },
+      ]),
+    );
+
+    render(wrap(<DeploymentListPage />));
+
+    expect(await screen.findByText('verification running')).toBeInTheDocument();
+    expect(screen.getByText('succeeded')).toBeInTheDocument();
+    expect(screen.queryByText('verification skipped')).toBeNull();
   });
 
   it('shows the linked change ticket with its decision in the ticket column', async () => {

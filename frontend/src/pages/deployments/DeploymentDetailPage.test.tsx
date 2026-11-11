@@ -19,7 +19,9 @@ const {
   listPipelineEnvironmentVersionsMock,
   approveDeploymentMock,
   rejectDeploymentMock,
+  getDeploymentVerificationSamplesMock,
 } = vi.hoisted(() => ({
+  getDeploymentVerificationSamplesMock: vi.fn(),
   getDeploymentRequestMock: vi.fn(),
   getDeploymentGateMock: vi.fn(),
   cancelDeploymentRequestMock: vi.fn(),
@@ -48,6 +50,7 @@ vi.mock('@/api/deploymentRequests', () => ({
   getDeploymentRequest: getDeploymentRequestMock,
   getDeploymentGate: getDeploymentGateMock,
   cancelDeploymentRequest: cancelDeploymentRequestMock,
+  getDeploymentVerificationSamples: getDeploymentVerificationSamplesMock,
   deploymentKeys: {
     all: ['deployments'] as const,
     lists: () => ['deployments', 'list'] as const,
@@ -55,6 +58,7 @@ vi.mock('@/api/deploymentRequests', () => ({
     details: () => ['deployments', 'detail'] as const,
     detail: (id: string) => ['deployments', 'detail', id] as const,
     gate: (id: string) => ['deployments', 'detail', id, 'gate'] as const,
+    verification: (id: string) => ['deployments', 'detail', id, 'verification'] as const,
   },
 }));
 
@@ -87,6 +91,7 @@ const baseRequest: DeploymentRequest = {
   outcome: null,
   outcome_reported_at: null,
   outcome_detail: null,
+  verification_status: 'PENDING',
   created_at: '2026-05-01T10:00:00Z',
   can_review: false,
   decisions: [
@@ -173,6 +178,8 @@ describe('DeploymentDetailPage', () => {
     listPipelineEnvironmentVersionsMock.mockResolvedValue([]);
     approveDeploymentMock.mockReset();
     rejectDeploymentMock.mockReset();
+    getDeploymentVerificationSamplesMock.mockReset();
+    getDeploymentVerificationSamplesMock.mockResolvedValue([]);
     seedUser('u-me');
   });
 
@@ -595,5 +602,172 @@ describe('DeploymentDetailPage', () => {
     await waitFor(() => expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalled());
     expect(screen.queryByText(/^Superseded/)).not.toBeInTheDocument();
     expect(screen.queryByText('Drift')).not.toBeInTheDocument();
+  });
+
+  describe('post-deployment verification (#1027)', () => {
+    const breached: DeploymentRequest = {
+      ...baseRequest,
+      status: 'FAILED',
+      outcome: 'SUCCEEDED',
+      outcome_reported_at: '2026-05-01T12:00:00Z',
+      verification_status: 'FAILED',
+      verification_started_at: '2026-05-01T12:00:00Z',
+      verification_finished_at: '2026-05-01T12:01:00Z',
+      verification_detail: 'health: 1/1 failed samples',
+      verification_snapshot: {
+        window: 'PT15M',
+        sample_interval: 'PT30S',
+        failure_threshold: 1,
+        check_count: 1,
+      },
+    };
+    const sample = {
+      id: 's-1',
+      deployment_request_id: 'req-1',
+      check_name: 'health',
+      check_kind: 'HTTP_HEALTH' as const,
+      sampled_at: '2026-05-01T12:00:30Z',
+      passed: false,
+      observed_value: '503',
+      detail: 'expected status 200, got 503',
+    };
+
+    it('shows the samples, the snapshot and the did-not-roll-back callout on a breach', async () => {
+      getDeploymentRequestMock.mockResolvedValue(breached);
+      getDeploymentVerificationSamplesMock.mockResolvedValue([sample]);
+
+      render(wrap(<DeploymentDetailPage />));
+
+      expect(
+        await screen.findByText('Verification failed — the release is still running'),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/AccessFlow did not roll back/)).toBeInTheDocument();
+      expect(await screen.findByText('expected status 200, got 503')).toBeInTheDocument();
+      expect(screen.getByText('503')).toBeInTheDocument();
+      expect(screen.getByText('15 min')).toBeInTheDocument();
+      expect(screen.getByText('30 s')).toBeInTheDocument();
+      expect(screen.getAllByText('health: 1/1 failed samples').length).toBeGreaterThan(0);
+      expect(getDeploymentVerificationSamplesMock).toHaveBeenCalledWith('req-1');
+      // Never a rollback: the release stage stays "released", not an execution failure.
+      expect(screen.queryByText(/rolled back/i)).toBeNull();
+    });
+
+    it('stops advising a rollback once the pipeline has reported ROLLED_BACK', async () => {
+      getDeploymentRequestMock.mockResolvedValue({ ...breached, outcome: 'ROLLED_BACK' });
+
+      render(wrap(<DeploymentDetailPage />));
+
+      expect(
+        await screen.findByText('Verification failed — the pipeline reported a rollback'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Verification failed — the release is still running')).toBeNull();
+      expect(screen.queryByText(/Decide whether to roll back/)).toBeNull();
+    });
+
+    it('shows a translated reason and no samples card for an unverified environment', async () => {
+      getDeploymentRequestMock.mockResolvedValue({
+        ...baseRequest,
+        status: 'EXECUTED',
+        outcome: 'SUCCEEDED',
+        outcome_reported_at: '2026-05-01T12:00:00Z',
+        verification_status: 'SKIPPED',
+        verification_detail: 'no verification configured',
+      });
+
+      render(wrap(<DeploymentDetailPage />));
+
+      expect(
+        (await screen.findAllByText('No verification configured on this environment')).length,
+      ).toBeGreaterThan(0);
+      expect(screen.queryByText('no verification configured')).toBeNull();
+      expect(screen.queryByText('No samples yet')).toBeNull();
+      expect(getDeploymentVerificationSamplesMock).not.toHaveBeenCalled();
+    });
+
+    it('fetches the samples once more when the window closes', async () => {
+      getDeploymentRequestMock.mockResolvedValueOnce({
+        ...breached,
+        status: 'EXECUTED',
+        verification_status: 'RUNNING',
+        verification_finished_at: null,
+      });
+      getDeploymentRequestMock.mockResolvedValue(breached);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        render(wrap(<DeploymentDetailPage />));
+        await screen.findByText('No samples yet');
+        getDeploymentVerificationSamplesMock.mockResolvedValue([sample]);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_500);
+        });
+        expect(
+          await screen.findByText('Verification failed — the release is still running'),
+        ).toBeInTheDocument();
+        expect(await screen.findByText('expected status 200, got 503')).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('fetches no samples and shows no card while verification is PENDING', async () => {
+      getDeploymentRequestMock.mockResolvedValue(baseRequest);
+      getDeploymentGateMock.mockResolvedValue(releasableGate);
+
+      render(wrap(<DeploymentDetailPage />));
+
+      await screen.findByText('Ship the checkout fix');
+      expect(getDeploymentVerificationSamplesMock).not.toHaveBeenCalled();
+      expect(screen.queryByText('No samples yet')).toBeNull();
+      expect(screen.queryByText(/Verification failed/)).toBeNull();
+    });
+
+    it('polls the request and the samples only while RUNNING', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        getDeploymentRequestMock.mockResolvedValue({
+          ...breached,
+          status: 'EXECUTED',
+          verification_status: 'RUNNING',
+          verification_finished_at: null,
+          verification_detail: null,
+          verification_snapshot: null,
+        });
+
+        render(wrap(<DeploymentDetailPage />));
+
+        expect(await screen.findByText('No samples yet')).toBeInTheDocument();
+        expect(screen.queryByText(/Verification failed/)).toBeNull();
+        const requestCalls = getDeploymentRequestMock.mock.calls.length;
+        const sampleCalls = getDeploymentVerificationSamplesMock.mock.calls.length;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_500);
+        });
+        await waitFor(() =>
+          expect(getDeploymentVerificationSamplesMock.mock.calls.length).toBeGreaterThan(sampleCalls),
+        );
+        expect(getDeploymentRequestMock.mock.calls.length).toBeGreaterThan(requestCalls);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not poll once the verification has finished', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        getDeploymentRequestMock.mockResolvedValue({ ...breached, verification_status: 'PASSED' });
+
+        render(wrap(<DeploymentDetailPage />));
+
+        await screen.findByText('No samples yet');
+        const sampleCalls = getDeploymentVerificationSamplesMock.mock.calls.length;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(10_500);
+        });
+        expect(getDeploymentVerificationSamplesMock.mock.calls.length).toBe(sampleCalls);
+        expect(screen.queryByText(/Verification failed/)).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

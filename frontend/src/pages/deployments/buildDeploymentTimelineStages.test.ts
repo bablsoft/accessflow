@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
-import { buildDeploymentTimelineStages } from './buildDeploymentTimelineStages';
+import {
+  buildDeploymentTimelineStages,
+  verificationDetailText,
+} from './buildDeploymentTimelineStages';
 import type { DeploymentDecision, DeploymentRequest, QueryStatus } from '@/types/api';
 
 // Echoes the key plus its interpolation, so tests assert the shape without pinning English copy.
@@ -50,6 +53,7 @@ function makeRequest(overrides: Partial<DeploymentRequest>): DeploymentRequest {
     outcome: null,
     outcome_reported_at: null,
     outcome_detail: null,
+    verification_status: 'PENDING',
     created_at: '2026-08-20T10:00:00Z',
     decisions: [],
     can_review: false,
@@ -193,5 +197,98 @@ describe('buildDeploymentTimelineStages', () => {
     const release = stages[stages.length - 1];
     expect(release?.label).toBe('deploygov.detail.timeline_cancelled');
     expect(release?.cancelled).toBe(true);
+  });
+
+  describe('post-deployment verification stage (#1027)', () => {
+    const released = {
+      status: 'EXECUTED' as QueryStatus,
+      outcome: 'SUCCEEDED' as const,
+      outcome_reported_at: '2026-08-20T12:00:00Z',
+    };
+
+    it('adds no stage while verification is PENDING', () => {
+      const stages = buildDeploymentTimelineStages(makeRequest(released), t);
+      expect(stages.map((s) => s.label)).not.toContain('deploygov.detail.timeline_verification');
+    });
+
+    it.each([
+      ['RUNNING', { active: true }],
+      ['PASSED', { done: true }],
+      ['FAILED', { failed: true }],
+      ['SKIPPED', { skipped: true }],
+    ] as const)('renders %s after the outcome stage', (status, flags) => {
+      const stages = buildDeploymentTimelineStages(
+        makeRequest({
+          ...released,
+          ...(status === 'FAILED' ? { status: 'FAILED' as QueryStatus } : {}),
+          verification_status: status,
+          verification_finished_at: status === 'RUNNING' ? null : '2026-08-20T12:15:00Z',
+          verification_detail: 'health: 1/1 failed samples',
+        }),
+        t,
+      );
+      const last = stages[stages.length - 1];
+      expect(stages[stages.length - 2]?.label).toBe('deploygov.detail.timeline_outcome');
+      expect(last?.label).toBe('deploygov.detail.timeline_verification');
+      expect(last?.who).toBe(`enums.verification_status.${status}`);
+      expect(last?.detail).toBe('health: 1/1 failed samples');
+      expect(last?.time).toBe(status === 'RUNNING' ? null : '2026-08-20T12:15:00Z');
+      expect(last).toMatchObject(flags);
+    });
+
+    it('keeps the release stage released when verification failed a SUCCEEDED deploy', () => {
+      const stages = buildDeploymentTimelineStages(
+        makeRequest({
+          ...released,
+          status: 'FAILED',
+          verification_status: 'FAILED',
+        }),
+        t,
+      );
+      const release = stages.find((s) => s.label === 'deploygov.detail.timeline_released');
+      expect(release).toMatchObject({ done: true, failed: false });
+      expect(stages.map((s) => s.label)).not.toContain('deploygov.detail.timeline_execution_failed');
+      const outcome = stages.find((s) => s.label === 'deploygov.detail.timeline_outcome');
+      expect(outcome).toMatchObject({ done: true, failed: false });
+      expect(stages[stages.length - 1]).toMatchObject({ failed: true });
+    });
+
+    it('shows a SKIPPED stage for a request whose first outcome failed', () => {
+      const stages = buildDeploymentTimelineStages(
+        makeRequest({
+          status: 'FAILED',
+          outcome: 'FAILED',
+          outcome_reported_at: '2026-08-20T12:00:00Z',
+          verification_status: 'SKIPPED',
+          verification_detail: 'outcome:FAILED',
+        }),
+        t,
+      );
+      expect(stages[stages.length - 1]).toMatchObject({
+        label: 'deploygov.detail.timeline_verification',
+        skipped: true,
+        detail: 'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.FAILED',
+      });
+    });
+
+    it('translates the SKIPPED machine tokens and passes a breach detail through', () => {
+      expect(verificationDetailText(t, 'SKIPPED', 'no verification configured')).toBe(
+        'deploygov.detail.verificationSkippedNoConfig',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:ROLLED_BACK')).toBe(
+        'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.ROLLED_BACK',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:SUCCEEDED')).toBe(
+        'deploygov.detail.verificationSkippedOutcome:outcome=enums.deployment_outcome.SUCCEEDED',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', 'outcome:WHATEVER')).toBe('outcome:WHATEVER');
+      expect(verificationDetailText(t, 'SKIPPED', 'something new')).toBe('something new');
+      expect(verificationDetailText(t, 'FAILED', 'outcome:FAILED')).toBe('outcome:FAILED');
+      expect(verificationDetailText(t, 'FAILED', 'health: 1/1 failed samples')).toBe(
+        'health: 1/1 failed samples',
+      );
+      expect(verificationDetailText(t, 'SKIPPED', null)).toBeNull();
+      expect(verificationDetailText(t, 'SKIPPED', '')).toBeNull();
+    });
   });
 });

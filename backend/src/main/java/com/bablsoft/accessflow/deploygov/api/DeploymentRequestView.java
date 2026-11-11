@@ -56,7 +56,35 @@ public record DeploymentRequestView(
         VerificationStatus verificationStatus,
         Instant verificationStartedAt,
         Instant verificationFinishedAt,
-        String verificationDetail) {
+        String verificationDetail,
+        /** The config snapshot the window was opened with (#1027); null when never verified. */
+        DeploymentVerificationSnapshotView verificationSnapshot) {
+
+    /** Backward-compatible constructor without the #1027 verification snapshot. */
+    public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
+                                 UUID environmentId, String environmentName, UUID submittedBy,
+                                 String submittedByEmail, String version, String commitSha,
+                                 String artifactRef, String runUrl, String externalRunId,
+                                 Map<String, Object> metadata, QueryStatus status,
+                                 SubmissionReason submissionReason, String justification,
+                                 UUID aiAnalysisId, RiskLevel aiRiskLevel, Integer aiRiskScore,
+                                 String aiSummary, int requiredApprovals, Instant scheduledFor,
+                                 DeploymentOutcome outcome, Instant outcomeReportedAt,
+                                 String outcomeDetail, Instant createdAt,
+                                 List<DeploymentReviewDecisionView> decisions, UUID onBehalfOfUserId,
+                                 String onBehalfOfEmail, boolean changeTicketRequired,
+                                 DeploymentTicketView changeTicket,
+                                 VerificationStatus verificationStatus,
+                                 Instant verificationStartedAt, Instant verificationFinishedAt,
+                                 String verificationDetail) {
+        this(id, pipelineId, pipelineName, provider, environmentId, environmentName, submittedBy,
+                submittedByEmail, version, commitSha, artifactRef, runUrl, externalRunId, metadata,
+                status, submissionReason, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
+                aiSummary, requiredApprovals, scheduledFor, outcome, outcomeReportedAt, outcomeDetail,
+                createdAt, decisions, onBehalfOfUserId, onBehalfOfEmail, changeTicketRequired,
+                changeTicket, verificationStatus, verificationStartedAt, verificationFinishedAt,
+                verificationDetail, null);
+    }
 
     /** Backward-compatible constructor without the #874 on-behalf-of principal. */
     public DeploymentRequestView(UUID id, UUID pipelineId, String pipelineName, PipelineProvider provider,
@@ -75,7 +103,7 @@ public record DeploymentRequestView(
                 status, submissionReason, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
                 aiSummary, requiredApprovals, scheduledFor, outcome, outcomeReportedAt, outcomeDetail,
                 createdAt, decisions, null, null, false, null, VerificationStatus.PENDING, null, null,
-                null);
+                null, null);
     }
 
     public DeploymentRequestView {

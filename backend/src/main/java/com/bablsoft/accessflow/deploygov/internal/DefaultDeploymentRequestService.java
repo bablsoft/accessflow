@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSampleView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentVerificationSnapshotView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentTicketView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
@@ -37,7 +38,9 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReq
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentTicketRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentVerificationRepository;
+import com.bablsoft.accessflow.deploygov.internal.verification.DeploymentVerificationConfigCodec;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -61,6 +64,7 @@ import java.util.stream.Collectors;
  * trigger is idempotent on the CI run identity, and an active {@code REJECT} freeze window
  * auto-rejects at submission.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultDeploymentRequestService implements DeploymentRequestService {
@@ -88,6 +92,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final DeploymentVerificationRepository verificationRepository;
+    private final DeploymentVerificationConfigCodec verificationConfigCodec;
 
     @Override
     @Transactional
@@ -435,7 +440,21 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 entity.getVerificationStatus(),
                 entity.getVerificationStartedAt(),
                 entity.getVerificationFinishedAt(),
-                entity.getVerificationDetail());
+                entity.getVerificationDetail(),
+                readVerificationSnapshot(entity));
+    }
+
+    /** Fail-soft on read: an unreadable snapshot hides the card; the job already failed it closed. */
+    private DeploymentVerificationSnapshotView readVerificationSnapshot(
+            DeploymentRequestEntity entity) {
+        try {
+            return DeploymentVerificationSnapshotView.of(
+                    verificationConfigCodec.fromJson(entity.getVerificationConfig()));
+        } catch (DeploymentVerificationConfigCodec.VerificationConfigParseException ex) {
+            log.debug("Unreadable verification snapshot on deployment request {}: {}",
+                    entity.getId(), ex.getMessage());
+            return null;
+        }
     }
 
     private Map<String, Object> readMetadata(String json) {
