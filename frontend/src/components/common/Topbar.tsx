@@ -3,29 +3,43 @@ import {
   LogoutOutlined,
   MenuOutlined,
   MoonOutlined,
+  RightOutlined,
+  SearchOutlined,
   SunOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Dropdown, type MenuProps } from 'antd';
+import { Dropdown, Tooltip, type MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
+import { buildNavGroups } from './Sidebar';
+import { activeNavEntry, flattenNav, visibleNavGroups } from './navModel';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { NotificationBell } from './NotificationBell';
 import './topbar.css';
 
 interface TopbarProps {
   onOpenMobileNav: () => void;
+  onOpenCommandPalette: () => void;
 }
 
-export function Topbar({ onOpenMobileNav }: TopbarProps) {
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+export function Topbar({ onOpenMobileNav, onOpenCommandPalette }: TopbarProps) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const theme = usePreferencesStore((s) => s.theme);
   const setTheme = usePreferencesStore((s) => s.setTheme);
   const navigate = useNavigate();
+  const location = useLocation();
+  const connection = useConnectionStatus();
+  const here = user
+    ? activeNavEntry(flattenNav(visibleNavGroups(buildNavGroups(t), user)), location.pathname)
+    : null;
+  const crumbs = here ? [here.groupLabel, here.subLabel].filter(Boolean) : [];
 
   const onLogout = async () => {
     await logout();
@@ -57,7 +71,38 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       >
         <MenuOutlined />
       </button>
-      <div style={{ flex: 1 }} />
+      {here ? (
+        <nav className="af-topbar-crumbs" aria-label={t('common.breadcrumb')}>
+          {crumbs.map((label) => (
+            <span key={label} className="af-topbar-crumb">
+              {label}
+              <RightOutlined aria-hidden />
+            </span>
+          ))}
+          {location.pathname === here.item.to ? (
+            <span className="af-topbar-crumb-current" aria-current="page">{here.item.label}</span>
+          ) : (
+            // On a page below the destination (a detail or settings page) the crumb leads back.
+            <Link to={here.item.to}>{here.item.label}</Link>
+          )}
+        </nav>
+      ) : (
+        <div className="af-topbar-crumbs" />
+      )}
+      <button type="button" className="af-topbar-search" onClick={onOpenCommandPalette}>
+        <SearchOutlined aria-hidden />
+        <span className="af-topbar-search-label">{t('command.open')}</span>
+        <span className="kbd" aria-hidden>{IS_MAC ? '⌘K' : 'Ctrl K'}</span>
+      </button>
+      {connection !== 'idle' && (
+        <Tooltip title={t(`realtime_status.${connection}`)}>
+          <span
+            className={`af-topbar-conn af-topbar-conn--${connection}`}
+            role="status"
+            aria-label={t(`realtime_status.${connection}`)}
+          />
+        </Tooltip>
+      )}
       <div className="af-topbar-pills">
         <div className="af-theme-toggle">
           <button

@@ -40,7 +40,8 @@
     "bytes_unit": "Единица",
     "skip_to_content": "Перейти к содержимому",
     "error_boundary_title": "На этой странице произошла ошибка",
-    "error_boundary_description": "Остальная часть AccessFlow продолжает работать. Повторите попытку или откройте другую страницу из меню."
+    "error_boundary_description": "Остальная часть AccessFlow продолжает работать. Повторите попытку или откройте другую страницу из меню.",
+    "breadcrumb": "Навигационная цепочка"
   },
   "nav": {
     "editor": "Редактор SQL",
@@ -48,7 +49,9 @@
     "reviews": "Очередь проверки",
     "group_workflow": "Рабочий процесс",
     "group_connections": "Подключения",
-    "group_security": "Безопасность и доступ",
+    "group_identity": "Идентификация и доступ",
+    "group_governance": "Управление и аудит",
+    "group_pinned": "Закреплённые",
     "group_system": "Система",
     "group_platform": "Платформа",
     "sub_database": "База данных",
@@ -120,7 +123,9 @@
     "schemaDrift": "Дрейф схемы",
     "access_simulation": "Симуляция доступа",
     "jobs": "Запланированные задания",
-    "decision_hooks": "Хуки решений"
+    "decision_hooks": "Хуки решений",
+    "pin": "Закрепить: {{page}}",
+    "unpin": "Открепить: {{page}}"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Используйте не более {{max}} условий.",
       "operand_label": "Тип условия"
     }
+  },
+  "command": {
+    "label": "Палитра команд",
+    "placeholder": "Поиск страниц и действий…",
+    "open": "Поиск",
+    "empty": "Ничего не найдено",
+    "group_pages": "Страницы",
+    "group_recent": "Недавние",
+    "group_queries": "Недавние запросы",
+    "group_actions": "Действия",
+    "action_new_query": "Новый запрос",
+    "action_toggle_theme": "Сменить тему",
+    "action_profile": "Открыть профиль"
+  },
+  "realtime_status": {
+    "open": "Обновления в реальном времени подключены",
+    "reconnecting": "Восстановление подключения к обновлениям…",
+    "connecting": "Подключение к обновлениям…"
   }
 }

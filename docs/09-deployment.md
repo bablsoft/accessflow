@@ -307,7 +307,7 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 
 1. **Create the CI service account.** The API key's owning user *is* the submitter, and a submitter
    can never approve their own deployment — so this must not be the account that approves.
-   Sidebar → *Security & Access* → *Identity* → **Service accounts** → **Create service account**.
+   Sidebar → *Identity & access* → *Identity* → **Service accounts** → **Create service account**.
    Fill **Email** (an identifier only — nothing is mailed) and **Display name**, and leave **Role**
    on **Read-only** — the trigger right comes from the per-pipeline grant in step 3, not from the
    role. A service account has no password and can never sign in interactively

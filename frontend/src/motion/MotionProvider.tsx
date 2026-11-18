@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { LazyMotion, MotionConfig, domAnimation } from 'motion/react';
+import { LazyMotion, MotionConfig } from 'motion/react';
 import { transitions } from './transitions';
+
+const loadFeatures = () => import('./features').then((mod) => mod.default);
 
 /**
  * App-wide Motion setup: the lazy feature bundle (animate with `m` from `motion/react-m`, not
@@ -8,7 +10,7 @@ import { transitions } from './transitions';
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (
-    <LazyMotion features={domAnimation} strict>
+    <LazyMotion features={loadFeatures} strict>
       <MotionConfig reducedMotion="user" transition={transitions.enter}>
         {children}
       </MotionConfig>

@@ -27,7 +27,7 @@ async function waitForClassifiedReport(page: Page): Promise<void> {
 test.describe.serial('auditor compliance dashboard', () => {
   test('sidebar link opens the dashboard with all three report tabs', async ({ page }) => {
     await login(page);
-    await expandNavSection(page, 'Security & Access', 'Audit & compliance');
+    await expandNavSection(page, 'Governance & audit', 'Audit & compliance');
     await page.getByRole('link', { name: 'Compliance reports' }).click();
     await page.waitForURL('**/admin/auditor', { timeout: 15_000 });
     await waitForClassifiedReport(page);

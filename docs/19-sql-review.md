@@ -303,7 +303,7 @@ evaluation and the catalog but keeps its ruleset configs (a ruleset naming it ca
 findings it would produce at its default severity (a draft at `OFF` runs at `WARN`, so the condition can be checked before it is switched on anywhere), persisting, auditing and publishing nothing: the
 way to check a condition before it can block anyone.
 
-In the UI (#1011) the rules live on the **Custom rules** tab of **Security & Access → Access control →
+In the UI (#1011) the rules live on the **Custom rules** tab of **Identity & access → Access control →
 SQL review** (`/admin/sql-review?tab=rules`): a list with an enabled toggle, and a create / edit drawer
 whose condition builder is the one routing policies use, restricted to the criteria above. The
 builder edits a single-level ALL / ANY list of criteria, each optionally negated; a deeper tree
@@ -394,7 +394,7 @@ an `enabled` switch, edit / delete — and a create / edit modal whose rules tab
 `GET /sql-review/rules`**, never a client-side list, so a rule added on the backend appears without
 a frontend change. Each row shows the localized name / description / category, a severity select
 with the built-in default beneath it, and a tags input per declared param. The nav entry **SQL
-review** sits in the **Security & Access** nav group, next to **Routing policies**. Requires
+review** sits in the **Identity & access** nav group, next to **Routing policies**. Requires
 `SQL_REVIEW_MANAGE`.
 
 **Datasource form.** An optional **Environment** select (create wizard and settings page):

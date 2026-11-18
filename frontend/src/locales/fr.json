@@ -40,7 +40,8 @@
     "bytes_unit": "Unité",
     "skip_to_content": "Aller au contenu",
     "error_boundary_title": "Une erreur s'est produite sur cette page",
-    "error_boundary_description": "Le reste d'AccessFlow fonctionne toujours. Réessayez ou ouvrez une autre page depuis le menu."
+    "error_boundary_description": "Le reste d'AccessFlow fonctionne toujours. Réessayez ou ouvrez une autre page depuis le menu.",
+    "breadcrumb": "Fil d'Ariane"
   },
   "nav": {
     "editor": "Éditeur SQL",
@@ -48,7 +49,9 @@
     "reviews": "File de revue",
     "group_workflow": "Flux de travail",
     "group_connections": "Connexions",
-    "group_security": "Sécurité et accès",
+    "group_identity": "Identité et accès",
+    "group_governance": "Gouvernance et audit",
+    "group_pinned": "Épinglés",
     "group_system": "Système",
     "group_platform": "Plateforme",
     "sub_database": "Base de données",
@@ -120,7 +123,9 @@
     "schemaDrift": "Dérive de schéma",
     "access_simulation": "Simulation d'accès",
     "jobs": "Tâches planifiées",
-    "decision_hooks": "Hooks de décision"
+    "decision_hooks": "Hooks de décision",
+    "pin": "Épingler {{page}}",
+    "unpin": "Désépingler {{page}}"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Utilisez au plus {{max}} conditions.",
       "operand_label": "Type de condition"
     }
+  },
+  "command": {
+    "label": "Palette de commandes",
+    "placeholder": "Rechercher des pages et des actions…",
+    "open": "Rechercher",
+    "empty": "Aucun résultat",
+    "group_pages": "Pages",
+    "group_recent": "Récents",
+    "group_queries": "Requêtes récentes",
+    "group_actions": "Actions",
+    "action_new_query": "Nouvelle requête",
+    "action_toggle_theme": "Changer de thème",
+    "action_profile": "Ouvrir le profil"
+  },
+  "realtime_status": {
+    "open": "Mises à jour en direct connectées",
+    "reconnecting": "Reconnexion aux mises à jour en direct…",
+    "connecting": "Connexion aux mises à jour en direct…"
   }
 }

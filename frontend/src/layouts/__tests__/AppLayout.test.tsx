@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -43,14 +43,33 @@ vi.mock('@/realtime/RealtimeBridge', () => ({
   RealtimeBridge: () => <div data-testid="realtime-bridge-sentinel" />,
 }));
 
-vi.mock('@/components/common/Sidebar', () => ({
-  Sidebar: ({ pendingCount }: { pendingCount: number }) => (
-    <aside data-testid="sidebar-mock" data-pending-count={pendingCount} />
+vi.mock('@/components/common/Sidebar', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/components/common/Sidebar')>('@/components/common/Sidebar');
+  return {
+    ...actual,
+    Sidebar: ({ pendingCount, collapsed }: { pendingCount: number; collapsed: boolean }) => (
+      <aside
+        data-testid="sidebar-mock"
+        data-pending-count={pendingCount}
+        data-collapsed={collapsed}
+      />
+    ),
+  };
+});
+
+vi.mock('@/components/command/CommandPalette', () => ({
+  CommandPalette: ({ open }: { open: boolean }) => (
+    <div data-testid="palette-mock" data-open={open} />
   ),
 }));
 
 vi.mock('@/components/common/Topbar', () => ({
-  Topbar: () => <header data-testid="topbar-mock" />,
+  Topbar: ({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) => (
+    <header data-testid="topbar-mock">
+      <button type="button" onClick={onOpenCommandPalette}>open-palette</button>
+    </header>
+  ),
 }));
 
 const { useAuthStore } = await import('@/store/authStore');
@@ -208,5 +227,56 @@ describe('AppLayout', () => {
     expect(listPendingApiReviewsMock).not.toHaveBeenCalled();
     expect(listDeploymentReviewsMock).not.toHaveBeenCalled();
     expect(listDeploymentRollbackReviewsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppLayout — shell behaviour', () => {
+  beforeEach(async () => {
+    allQueuesEmpty();
+    useAuthStore.setState({ user: adminUser, accessToken: 'jwt-test' });
+    const { usePreferencesStore } = await import('@/store/preferencesStore');
+    usePreferencesStore.setState({ navRecent: [], sidebarCollapsed: false });
+  });
+
+  it('toggles the command palette with Ctrl/Cmd+K and from the topbar', () => {
+    render(wrap(<AppLayout />));
+    const palette = () => screen.getByTestId('palette-mock').dataset.open;
+    expect(palette()).toBe('false');
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(palette()).toBe('true');
+    fireEvent.keyDown(window, { key: 'K', metaKey: true });
+    expect(palette()).toBe('false');
+    fireEvent.keyDown(window, { key: 'k' });
+    expect(palette()).toBe('false');
+    fireEvent.click(screen.getByText('open-palette'));
+    expect(palette()).toBe('true');
+  });
+
+  it('records the visited destination and wraps the page in the main landmark', async () => {
+    const { usePreferencesStore } = await import('@/store/preferencesStore');
+    render(wrap(<AppLayout />));
+    expect(usePreferencesStore.getState().navRecent).toEqual(['queries']);
+    expect(screen.getByRole('main')).toContainElement(screen.getByTestId('page'));
+    expect(screen.getByText('Skip to content')).toHaveAttribute('href', '#main-content');
+  });
+
+  it('collapses the sidebar to a rail on a narrow desktop', () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width: 1024px'),
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    try {
+      render(wrap(<AppLayout />));
+      expect(screen.getByTestId('sidebar-mock').dataset.collapsed).toBe('true');
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

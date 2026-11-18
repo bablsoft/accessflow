@@ -24,7 +24,7 @@ A pipeline needs credentials without an interactive login. A **service account**
 API-key-only user (interactive sign-in — password or SSO — is blocked, #869) created in one of two
 ways. Full reference: [22-service-accounts.md](22-service-accounts.md).
 
-**In the admin UI or API (recommended for most pipelines).** *Security & Access → Identity →
+**In the admin UI or API (recommended for most pipelines).** *Identity & access → Identity →
 Service accounts → Create service account* (or `POST /api/v1/admin/service-accounts`,
 `SERVICE_ACCOUNT_MANAGE`), then **Issue key** on its *API keys* tab
 (`POST /api/v1/admin/service-accounts/{id}/api-keys`). The plaintext is shown once. These keys can

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   EditOutlined,
@@ -51,75 +52,46 @@ import {
   GatewayOutlined,
   RobotOutlined,
   RocketOutlined,
+  ProfileOutlined,
+  BuildOutlined,
+  LinkOutlined,
+  UsergroupAddOutlined,
+  CarryOutOutlined,
+  PartitionOutlined,
+  HourglassOutlined,
+  SolutionOutlined,
+  ControlOutlined,
+  PushpinOutlined,
+  PushpinFilled,
 } from '@ant-design/icons';
+import { Tooltip } from 'antd';
+import type { TFunction } from 'i18next';
+import * as m from 'motion/react-m';
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/api/auth';
-import { hasAnyPermission, type Permission } from '@/utils/permissions';
-import { governanceDomainsOf, type GovernanceDomain } from '@/hooks/useGovernanceDomains';
 import { REVIEW_HUB_PERMISSIONS } from '@/utils/reviewHubTabs';
 import { userDisplay } from '@/utils/userDisplay';
 import { roleLabel } from '@/utils/enumLabels';
 import { usePreferencesStore } from '@/store/preferencesStore';
+import { transitions } from '@/motion/transitions';
 import { Avatar } from './Avatar';
+import {
+  activeNavEntry,
+  flattenNav,
+  visibleNavGroups,
+  type NavGroup,
+  type NavItem,
+} from './navModel';
 import { LogoMark } from './LogoMark';
 import { VersionBadge } from './VersionBadge';
 import './sidebar.css';
 
-interface NavItem {
-  id: string;
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-  /** Visible when the user holds ANY of these permissions (AF-522). */
-  permissions: Permission[];
-  /** When true, visible to platform admins regardless of role (AF-456). */
-  platformAdmin?: boolean;
-  badge?: 'pending';
-}
-
-/** A collapsible sub-section inside a group (AF-837). `id` is what `preferencesStore` persists. */
-interface NavSubGroup {
-  id: string;
-  label: string;
-  items: NavItem[];
-  /**
-   * The governance domain this sub-section belongs to (#926). Absent means the always-on
-   * database domain. A sub-section whose domain the organization switched off is not offered —
-   * but its routes stay registered and its permissions untouched, so every deep link into it
-   * (a notification, a bookmark, a dashboard tile) still works.
-   */
-  domain?: GovernanceDomain;
-}
-
-interface NavGroup {
-  id: string;
-  /** Absent ⇒ no divider heading (the top generic group). */
-  label?: string;
-  /** Rendered flat, directly under the group header — above any `subgroups`. */
-  items?: NavItem[];
-  subgroups?: NavSubGroup[];
-}
-
-interface SidebarProps {
-  user: AuthUser;
-  pendingCount: number;
-  collapsed: boolean;
-  onToggle: () => void;
-  mobileOpen: boolean;
-  onMobileClose: () => void;
-}
-
-export function Sidebar({
-  user, pendingCount, collapsed, onToggle, mobileOpen, onMobileClose,
-}: SidebarProps) {
-  const { t } = useTranslation();
-  const location = useLocation();
-  // Derived from the same signed-in user the permission checks use, through the shared helper
-  // `useGovernanceDomains` wraps — one source of truth, no second read of the store.
-  const domains = governanceDomainsOf(user);
-  const expandedSubgroups = usePreferencesStore((s) => s.navExpandedSubgroups);
-  const toggleSubgroup = usePreferencesStore((s) => s.toggleNavSubgroup);
-
+/**
+ * The navigation tree. The `GROUPS` literal is read as data by the help-corpus generator
+ * (`.github/scripts/build-help-corpus.mjs`), so keep it a plain literal of `t('nav.…')` labels.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildNavGroups(t: TFunction): NavGroup[] {
   const GROUPS: NavGroup[] = [
     {
       id: 'general',
@@ -146,7 +118,7 @@ export function Sidebar({
           domain: 'apis',
           items: [
             { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
-            { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+            { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <ProfileOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
           ],
         },
         {
@@ -164,7 +136,7 @@ export function Sidebar({
           label: t('nav.sub_request_groups'),
           items: [
             { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
-            { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'] },
+            { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <CarryOutOutlined />, permissions: ['QUERY_REVIEW'] },
           ],
         },
         {
@@ -197,7 +169,7 @@ export function Sidebar({
           items: [
             { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, permissions: ['DATASOURCE_MANAGE'] },
             { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, permissions: ['DATASOURCE_MANAGE'] },
-            { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, permissions: ['DATASOURCE_MANAGE'] },
+            { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <BuildOutlined />, permissions: ['DATASOURCE_MANAGE'] },
           ],
         },
         {
@@ -205,7 +177,7 @@ export function Sidebar({
           label: t('nav.sub_api'),
           domain: 'apis',
           items: [
-            { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, permissions: ['API_CONNECTOR_MANAGE'] },
+            { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <LinkOutlined />, permissions: ['API_CONNECTOR_MANAGE'] },
           ],
         },
         {
@@ -213,21 +185,21 @@ export function Sidebar({
           label: t('nav.sub_deployments'),
           domain: 'deployments',
           items: [
-            { id: 'deployment-pipelines', to: '/admin/deployment-pipelines', label: t('nav.deploymentPipelines'), icon: <RocketOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE'] },
+            { id: 'deployment-pipelines', to: '/admin/deployment-pipelines', label: t('nav.deploymentPipelines'), icon: <PartitionOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE'] },
           ],
         },
       ],
     },
     {
-      id: 'security',
-      label: t('nav.group_security'),
+      id: 'identity',
+      label: t('nav.group_identity'),
       subgroups: [
         {
           id: 'security-identity',
           label: t('nav.sub_identity'),
           items: [
             { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, permissions: ['USER_MANAGE'] },
-            { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, permissions: ['GROUP_MANAGE'] },
+            { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <UsergroupAddOutlined />, permissions: ['GROUP_MANAGE'] },
             { id: 'roles', to: '/admin/roles', label: t('nav.roles'), icon: <SafetyOutlined />, permissions: ['ROLE_MANAGE'] },
             { id: 'service-accounts', to: '/admin/service-accounts', label: t('nav.service_accounts'), icon: <RobotOutlined />, permissions: ['SERVICE_ACCOUNT_MANAGE'] },
             { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, permissions: ['SSO_CONFIGURE'] },
@@ -250,13 +222,19 @@ export function Sidebar({
             { id: 'break-glass', to: '/admin/break-glass', label: t('nav.break_glass'), icon: <ThunderboltOutlined />, permissions: ['BREAK_GLASS_VIEW'] },
           ],
         },
+      ],
+    },
+    {
+      id: 'governance',
+      label: t('nav.group_governance'),
+      subgroups: [
         {
           id: 'security-data-governance',
           label: t('nav.sub_data_governance'),
           items: [
             { id: 'data-classifications', to: '/admin/data-classifications', label: t('nav.data_classifications'), icon: <TagsOutlined />, permissions: ['DATA_CLASSIFICATION_MANAGE'] },
-            { id: 'lifecycle', to: '/admin/lifecycle/policies', label: t('nav.lifecycle'), icon: <FieldTimeOutlined />, permissions: ['RETENTION_POLICY_MANAGE'] },
-            { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <FileProtectOutlined />, permissions: ['ATTESTATION_CAMPAIGN_MANAGE'] },
+            { id: 'lifecycle', to: '/admin/lifecycle/policies', label: t('nav.lifecycle'), icon: <HourglassOutlined />, permissions: ['RETENTION_POLICY_MANAGE'] },
+            { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <SolutionOutlined />, permissions: ['ATTESTATION_CAMPAIGN_MANAGE'] },
           ],
         },
         {
@@ -279,7 +257,7 @@ export function Sidebar({
         { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
         { id: 'slack', to: '/admin/slack', label: t('nav.slack'), icon: <SlackOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
         { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, permissions: ['LOCALIZATION_CONFIGURE'] },
-        { id: 'governance-domains', to: '/admin/governance-domains', label: t('nav.governance_domains'), icon: <BlockOutlined />, permissions: ['SETUP_PROGRESS_VIEW'] },
+        { id: 'governance-domains', to: '/admin/governance-domains', label: t('nav.governance_domains'), icon: <ControlOutlined />, permissions: ['SETUP_PROGRESS_VIEW'] },
       ],
       subgroups: [
         {
@@ -303,68 +281,107 @@ export function Sidebar({
       ],
     },
   ];
+  return GROUPS;
+}
 
-  const canSee = (it: NavItem) =>
-    hasAnyPermission(user, it.permissions) || (it.platformAdmin && user.platform_admin);
+/** Destinations that are always on screen and so cannot be pinned. */
+const UNPINNABLE_GROUP = 'general';
 
-  // Visibility only — an enabled domain grants nothing, and a disabled one hides only entries the
-  // user could already see. `useGovernanceDomains` defaults both to true, so a session issued
-  // before #926 renders the full nav.
-  const domainEnabled = (sub: NavSubGroup) => sub.domain === undefined || domains[sub.domain];
+interface SidebarProps {
+  user: AuthUser;
+  pendingCount: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
 
-  const matchesPath = (to: string) =>
-    location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
+export function Sidebar({
+  user, pendingCount, collapsed, onToggle, mobileOpen, onMobileClose,
+}: SidebarProps) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const expandedSubgroups = usePreferencesStore((s) => s.navExpandedSubgroups);
+  const toggleSubgroup = usePreferencesStore((s) => s.toggleNavSubgroup);
+  const pinnedIds = usePreferencesStore((s) => s.navPinned);
+  const togglePinned = usePreferencesStore((s) => s.toggleNavPinned);
 
-  // Only the most specific matching destination highlights. Nav paths nest — `/reviews` under
-  // `/reviews/attestations`, `/request-groups` under `/request-groups/reviews` — and a plain
-  // prefix test would light up the parent alongside the page the user is actually on.
-  const activePath = GROUPS
-    .flatMap((g) => [...(g.items ?? []), ...(g.subgroups ?? []).flatMap((s) => s.items)])
-    .map((it) => it.to)
-    .filter(matchesPath)
-    .reduce<string | null>((best, to) => (best === null || to.length > best.length ? to : best), null);
-
+  const visibleGroups = visibleNavGroups(buildNavGroups(t), user);
+  const entries = flattenNav(visibleGroups);
+  const activePath = activeNavEntry(entries, location.pathname)?.item.to ?? null;
   const isActive = (to: string) => to === activePath;
 
-  // Drop invisible items, then sub-sections left empty, then groups left with nothing at all.
-  const visibleGroups = GROUPS
-    .map((g) => ({
-      ...g,
-      items: (g.items ?? []).filter(canSee),
-      subgroups: (g.subgroups ?? [])
-        .filter(domainEnabled)
-        .map((s) => ({ ...s, items: s.items.filter(canSee) }))
-        .filter((s) => s.items.length > 0),
-    }))
-    .filter((g) => g.items.length > 0 || g.subgroups.length > 0);
-
-  const renderItem = (item: NavItem) => (
-    <NavLink
-      key={item.id}
-      to={item.to}
-      // The callback form so react-router does not append its own `active` class on top: its
-      // matching is plain-prefix, which is exactly what `isActive` exists to override.
-      className={() => `af-sidebar-item${isActive(item.to) ? ' active' : ''}`}
-      title={collapsed ? item.label : undefined}
-    >
-      <span className="af-sidebar-icon">{item.icon}</span>
-      {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
-      {item.badge === 'pending' && pendingCount > 0 && (
-        collapsed ? (
-          <span className="af-badge-dot" />
-        ) : (
-          <span className="af-sidebar-badge mono">{pendingCount}</span>
-        )
-      )}
-    </NavLink>
+  const unpinnable = new Set(
+    visibleGroups.filter((g) => g.id === UNPINNABLE_GROUP).flatMap((g) => g.items.map((i) => i.id)),
   );
+  // In the order the user pinned them; an id the user can no longer see simply stops matching.
+  const pinnedItems = pinnedIds
+    .map((id) => entries.find((e) => e.item.id === id)?.item)
+    .filter((it): it is NavItem => it !== undefined && !unpinnable.has(it.id));
+
+  const renderItem = (item: NavItem, inPinned = false) => {
+    const active = isActive(item.to);
+    const pinned = pinnedIds.includes(item.id);
+    const link = (
+      <NavLink
+        to={item.to}
+        // The callback form so react-router does not append its own `active` class on top: its
+        // matching is plain-prefix, which is exactly what `isActive` exists to override.
+        className={() => `af-sidebar-item${active ? ' active' : ''}`}
+        aria-label={collapsed ? item.label : undefined}
+      >
+        {active && (
+          <m.span
+            layoutId={inPinned ? 'af-nav-active-pinned' : 'af-nav-active'}
+            className="af-sidebar-active-bg"
+            transition={transitions.layout}
+          />
+        )}
+        <span className="af-sidebar-icon">{item.icon}</span>
+        {!collapsed && <span className="af-sidebar-label">{item.label}</span>}
+        {item.badge === 'pending' && pendingCount > 0 && (
+          collapsed ? (
+            <span className="af-badge-dot" />
+          ) : (
+            <span className="af-sidebar-badge mono">{pendingCount}</span>
+          )
+        )}
+      </NavLink>
+    );
+    return (
+      <div key={inPinned ? `pinned-${item.id}` : item.id} className="af-sidebar-row">
+        {collapsed ? <Tooltip title={item.label} placement="right">{link}</Tooltip> : link}
+        {!collapsed && !unpinnable.has(item.id) && (
+          <button
+            type="button"
+            className={`af-sidebar-pin${pinned ? ' on' : ''}`}
+            aria-pressed={pinned}
+            aria-label={t(pinned ? 'nav.unpin' : 'nav.pin', { page: item.label })}
+            onClick={() => togglePinned(item.id)}
+          >
+            {pinned ? <PushpinFilled /> : <PushpinOutlined />}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // Icon rail: no room for headers, so every block (a group's own items, then each sub-section)
   // renders flat and is separated by the thin divider line.
-  const railBlocks = visibleGroups.flatMap((g) => [
-    ...(g.items.length > 0 ? [{ key: g.id, items: g.items }] : []),
-    ...g.subgroups.map((s) => ({ key: s.id, items: s.items })),
+  const railBlocks = visibleGroups.flatMap((g, gi) => [
+    ...(g.items.length > 0 ? [{ key: g.id, items: g.items, pinned: false }] : []),
+    ...(gi === 0 && pinnedItems.length > 0 ? [{ key: 'pinned', items: pinnedItems, pinned: true }] : []),
+    ...g.subgroups.map((s) => ({ key: s.id, items: s.items, pinned: false })),
   ]);
+
+  const pinnedGroup = pinnedItems.length > 0 && (
+    <div className="af-sidebar-group" role="group" aria-labelledby="af-nav-group-pinned">
+      <div id="af-nav-group-pinned" className="af-sidebar-divider mono">
+        {t('nav.group_pinned')}
+      </div>
+      {pinnedItems.map((it) => renderItem(it, true))}
+    </div>
+  );
 
   return (
     <>
@@ -391,16 +408,16 @@ export function Sidebar({
             ? railBlocks.map((block, bi) => (
               <div key={block.key} className="af-sidebar-group">
                 {bi > 0 && <div className="af-sidebar-divider-line" />}
-                {block.items.map(renderItem)}
+                {block.items.map((it) => renderItem(it, block.pinned))}
               </div>
             ))
-            : visibleGroups.map((group) => (
+            : visibleGroups.map((group, groupIndex) => (
               // The group is an a11y grouping so that sub-section headers reusing a label
               // ("Database", "API", "Deployments" appear under both Workflow and Connections)
               // are still told apart by assistive tech. It borrows the visible heading rather
               // than repeating it in an aria-label, which would be announced twice.
+              <Fragment key={group.id}>
               <div
-                key={group.id}
                 className="af-sidebar-group"
                 role={group.label ? 'group' : undefined}
                 aria-labelledby={group.label ? `af-nav-group-${group.id}` : undefined}
@@ -410,7 +427,7 @@ export function Sidebar({
                     {group.label}
                   </div>
                 )}
-                {group.items.map(renderItem)}
+                {group.items.map((it) => renderItem(it))}
                 {group.subgroups.map((sub) => {
                   // Every sub-section starts closed; only the ids the user has opened are
                   // persisted. The sub-section holding the current route always renders open on
@@ -440,12 +457,14 @@ export function Sidebar({
                         <span>{sub.label}</span>
                       </button>
                       <div id={listId} className="af-sidebar-subgroup-items">
-                        {open && sub.items.map(renderItem)}
+                        {open && sub.items.map((it) => renderItem(it))}
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {groupIndex === 0 && pinnedGroup}
+              </Fragment>
             ))}
         </nav>
         <div className="af-sidebar-footer">

@@ -127,6 +127,10 @@ interface PreferencesState {
    * matching, so a retired id lingering in a user's `af-preferences` is inert.
    */
   navExpandedSubgroups: string[];
+  /** Ids of the nav destinations the user pinned to the top of the sidebar, in pin order. */
+  navPinned: string[];
+  /** Ids of the nav destinations visited most recently, newest first (command palette). */
+  navRecent: string[];
   setupProgressCollapsed: boolean;
   setupProgressSkipped: SetupStepId[];
   /** Whether the help chat drawer is open (AF-906). UI state — the transcript itself is server state. */
@@ -142,6 +146,8 @@ interface PreferencesState {
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
   toggleNavSubgroup: (id: string) => void;
+  toggleNavPinned: (id: string) => void;
+  recordNavVisit: (id: string) => void;
   toggleSetupProgress: () => void;
   setHelpChatOpen: (open: boolean) => void;
   setActiveHelpSessionId: (id: string | null) => void;
@@ -155,6 +161,8 @@ interface PreferencesState {
   resetDashboardWidgets: () => void;
   setDashboardTrendsRange: (range: DashboardTrendsRange) => void;
 }
+
+export const NAV_RECENT_LIMIT = 6;
 
 const initialTheme = (): ThemeMode => {
   if (typeof window === 'undefined') return 'light';
@@ -215,6 +223,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       theme: initialTheme(),
       sidebarCollapsed: false,
       navExpandedSubgroups: [],
+      navPinned: [],
+      navRecent: [],
       setupProgressCollapsed: false,
       setupProgressSkipped: [],
       helpChatOpen: false,
@@ -225,6 +235,18 @@ export const usePreferencesStore = create<PreferencesState>()(
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      toggleNavPinned: (id) =>
+        set((s) => ({
+          navPinned: s.navPinned.includes(id)
+            ? s.navPinned.filter((x) => x !== id)
+            : [...s.navPinned, id],
+        })),
+      recordNavVisit: (id) =>
+        set((s) =>
+          s.navRecent[0] === id
+            ? s
+            : { navRecent: [id, ...s.navRecent.filter((x) => x !== id)].slice(0, NAV_RECENT_LIMIT) },
+        ),
       toggleNavSubgroup: (id) =>
         set((s) => ({
           navExpandedSubgroups: s.navExpandedSubgroups.includes(id)

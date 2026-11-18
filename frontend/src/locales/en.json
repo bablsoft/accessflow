@@ -40,7 +40,8 @@
     "bytes_unit": "Unit",
     "skip_to_content": "Skip to content",
     "error_boundary_title": "Something went wrong on this page",
-    "error_boundary_description": "The rest of AccessFlow still works. Try again, or open another page from the menu."
+    "error_boundary_description": "The rest of AccessFlow still works. Try again, or open another page from the menu.",
+    "breadcrumb": "Breadcrumb"
   },
   "nav": {
     "editor": "Query editor",
@@ -48,7 +49,9 @@
     "reviews": "Review queue",
     "group_workflow": "Workflow",
     "group_connections": "Connections",
-    "group_security": "Security & Access",
+    "group_identity": "Identity & access",
+    "group_governance": "Governance & audit",
+    "group_pinned": "Pinned",
     "group_system": "System",
     "group_platform": "Platform",
     "sub_database": "Database",
@@ -120,7 +123,9 @@
     "schemaDrift": "Schema drift",
     "access_simulation": "Access simulation",
     "jobs": "Scheduled jobs",
-    "decision_hooks": "Decision hooks"
+    "decision_hooks": "Decision hooks",
+    "pin": "Pin {{page}}",
+    "unpin": "Unpin {{page}}"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Use at most {{max}} conditions.",
       "operand_label": "Condition type"
     }
+  },
+  "command": {
+    "label": "Command palette",
+    "placeholder": "Search pages and actions…",
+    "open": "Search",
+    "empty": "No results",
+    "group_pages": "Pages",
+    "group_recent": "Recent",
+    "group_queries": "Recent queries",
+    "group_actions": "Actions",
+    "action_new_query": "New query",
+    "action_toggle_theme": "Switch theme",
+    "action_profile": "Open profile"
+  },
+  "realtime_status": {
+    "open": "Live updates connected",
+    "reconnecting": "Reconnecting to live updates…",
+    "connecting": "Connecting to live updates…"
   }
 }

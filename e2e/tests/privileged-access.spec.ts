@@ -134,7 +134,7 @@ test.describe.serial('privileged-access report (#968)', () => {
       const page = await ctx.newPage();
       await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-      await expandNavSection(page, 'Security & Access', 'Access control');
+      await expandNavSection(page, 'Identity & access', 'Access control');
       const [initial] = await Promise.all([
         page.waitForResponse((r) => LIST_ENDPOINT.test(r.url()) && r.ok(), { timeout: 15_000 }),
         page.getByRole('link', { name: 'Privileged access' }).click(),

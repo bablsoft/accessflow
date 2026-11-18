@@ -1,0 +1,95 @@
+.af-cmd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  background: var(--bg-overlay);
+  animation: af-cmd-fade var(--dur-2) var(--ease-out);
+}
+.af-cmd-dialog {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  z-index: calc(var(--z-toast) + 1);
+  width: min(620px, calc(100vw - 2 * var(--sp-4)));
+  translate: -50% 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: af-cmd-pop var(--dur-2) var(--ease-out);
+}
+.af-cmd-dialog [cmdk-input] {
+  width: 100%;
+  padding: var(--sp-4);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--text-md);
+}
+.af-cmd-dialog [cmdk-input]::placeholder {
+  color: var(--fg-faint);
+}
+.af-cmd-dialog [cmdk-list] {
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+  padding: var(--sp-2);
+  scroll-padding-block: var(--sp-2);
+}
+.af-cmd-dialog [cmdk-group-heading] {
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+}
+.af-cmd-dialog [cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.af-cmd-dialog [cmdk-item][data-selected='true'] {
+  background: var(--bg-active);
+  color: var(--fg);
+}
+.af-cmd-dialog [cmdk-empty] {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--fg-muted);
+}
+.af-cmd-icon {
+  display: inline-flex;
+  font-size: var(--text-md);
+  color: var(--fg-subtle);
+}
+.af-cmd-label {
+  flex-shrink: 0;
+}
+.af-cmd-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+@keyframes af-cmd-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes af-cmd-pop {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+}

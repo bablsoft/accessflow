@@ -46,7 +46,7 @@ test.describe('service-accounts admin UI (#875, #876)', () => {
     const displayName = `E2E bot ${stamp}`;
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await expandNavSection(page, 'Security & Access', 'Identity');
+    await expandNavSection(page, 'Identity & access', 'Identity');
     await page.getByRole('link', { name: 'Service accounts' }).click();
     await expect(page).toHaveURL(/\/admin\/service-accounts$/);
     await expect(page.getByRole('heading', { name: 'Service accounts' })).toBeVisible();

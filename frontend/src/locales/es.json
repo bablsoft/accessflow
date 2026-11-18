@@ -40,7 +40,8 @@
     "bytes_unit": "Unidad",
     "skip_to_content": "Saltar al contenido",
     "error_boundary_title": "Algo salió mal en esta página",
-    "error_boundary_description": "El resto de AccessFlow sigue funcionando. Inténtalo de nuevo o abre otra página desde el menú."
+    "error_boundary_description": "El resto de AccessFlow sigue funcionando. Inténtalo de nuevo o abre otra página desde el menú.",
+    "breadcrumb": "Ruta de navegación"
   },
   "nav": {
     "editor": "Editor SQL",
@@ -48,7 +49,9 @@
     "reviews": "Cola de revisión",
     "group_workflow": "Flujo de trabajo",
     "group_connections": "Conexiones",
-    "group_security": "Seguridad y acceso",
+    "group_identity": "Identidad y acceso",
+    "group_governance": "Gobernanza y auditoría",
+    "group_pinned": "Fijados",
     "group_system": "Sistema",
     "group_platform": "Plataforma",
     "sub_database": "Base de datos",
@@ -120,7 +123,9 @@
     "schemaDrift": "Desfase de esquema",
     "access_simulation": "Simulación de acceso",
     "jobs": "Tareas programadas",
-    "decision_hooks": "Hooks de decisión"
+    "decision_hooks": "Hooks de decisión",
+    "pin": "Fijar {{page}}",
+    "unpin": "Desfijar {{page}}"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Usa como máximo {{max}} condiciones.",
       "operand_label": "Tipo de condición"
     }
+  },
+  "command": {
+    "label": "Paleta de comandos",
+    "placeholder": "Buscar páginas y acciones…",
+    "open": "Buscar",
+    "empty": "Sin resultados",
+    "group_pages": "Páginas",
+    "group_recent": "Recientes",
+    "group_queries": "Consultas recientes",
+    "group_actions": "Acciones",
+    "action_new_query": "Nueva consulta",
+    "action_toggle_theme": "Cambiar tema",
+    "action_profile": "Abrir perfil"
+  },
+  "realtime_status": {
+    "open": "Actualizaciones en vivo conectadas",
+    "reconnecting": "Reconectando con las actualizaciones en vivo…",
+    "connecting": "Conectando con las actualizaciones en vivo…"
   }
 }

@@ -40,7 +40,8 @@
     "bytes_unit": "单位",
     "skip_to_content": "跳到正文",
     "error_boundary_title": "此页面出现问题",
-    "error_boundary_description": "AccessFlow 的其他部分仍可正常使用。请重试，或从菜单打开其他页面。"
+    "error_boundary_description": "AccessFlow 的其他部分仍可正常使用。请重试，或从菜单打开其他页面。",
+    "breadcrumb": "面包屑导航"
   },
   "nav": {
     "editor": "SQL 编辑器",
@@ -48,7 +49,9 @@
     "reviews": "审核队列",
     "group_workflow": "工作流",
     "group_connections": "连接",
-    "group_security": "安全与访问",
+    "group_identity": "身份与访问",
+    "group_governance": "治理与审计",
+    "group_pinned": "已固定",
     "group_system": "系统",
     "group_platform": "平台",
     "sub_database": "数据库",
@@ -120,7 +123,9 @@
     "schemaDrift": "架构漂移",
     "access_simulation": "访问模拟",
     "jobs": "计划任务",
-    "decision_hooks": "决策钩子"
+    "decision_hooks": "决策钩子",
+    "pin": "固定{{page}}",
+    "unpin": "取消固定{{page}}"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "最多使用 {{max}} 个条件。",
       "operand_label": "条件类型"
     }
+  },
+  "command": {
+    "label": "命令面板",
+    "placeholder": "搜索页面和操作…",
+    "open": "搜索",
+    "empty": "没有结果",
+    "group_pages": "页面",
+    "group_recent": "最近访问",
+    "group_queries": "最近的查询",
+    "group_actions": "操作",
+    "action_new_query": "新建查询",
+    "action_toggle_theme": "切换主题",
+    "action_profile": "打开个人资料"
+  },
+  "realtime_status": {
+    "open": "实时更新已连接",
+    "reconnecting": "正在重新连接实时更新…",
+    "connecting": "正在连接实时更新…"
   }
 }

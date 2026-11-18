@@ -82,7 +82,7 @@ Where things are in the app
   Connections → Deployments
     Deployment Pipelines · /admin/deployment-pipelines · needs DEPLOYMENT_PIPELINE_MANAGE — CI/CD pipelines, environments, freeze windows and permissions.
 
-  Security & Access → Identity
+  Identity & access → Identity
     Users · /admin/users · needs USER_MANAGE — Create, deactivate and re-invite users; assign roles and permissions.
     Groups · /admin/groups · needs GROUP_MANAGE — User groups and the grants attached to them.
     Roles · /admin/roles · needs ROLE_MANAGE — Roles and the permissions each one carries.
@@ -91,7 +91,7 @@ Where things are in the app
     OAuth providers · /admin/oauth2 · needs SSO_CONFIGURE — OAuth 2.0 / OIDC sign-in providers.
     SCIM Provisioning · /admin/scim · needs SSO_CONFIGURE — SCIM 2.0 provisioning tokens and attribute mapping.
 
-  Security & Access → Access control
+  Identity & access → Access control
     Access requests · /admin/access-requests · needs ACCESS_REQUEST_REVIEW — Approve or reject incoming access requests.
     Review plans · /admin/review-plans · needs REVIEW_PLAN_MANAGE — Review plans: approval stages, approvers, timeouts, escalation.
     Routing policies · /admin/routing-policies · needs ROUTING_POLICY_MANAGE — Typed conditions that auto-approve, auto-reject or route a request.
@@ -102,12 +102,12 @@ Where things are in the app
     Access simulation · /admin/access-simulations · needs DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — Trace why a query would be approved, held or refused, and look up who can read, write or run DDL on a table.
     Break-glass log · /admin/break-glass · needs BREAK_GLASS_VIEW — Break-glass grants and the mandatory retro-review of each use.
 
-  Security & Access → Data governance
+  Governance & audit → Data governance
     Data classifications · /admin/data-classifications · needs DATA_CLASSIFICATION_MANAGE — Classification tags and the masking they derive.
     Data Lifecycle · /admin/lifecycle/policies · needs RETENTION_POLICY_MANAGE — Data retention and erasure policies.
     Attestation · /admin/attestation · needs ATTESTATION_CAMPAIGN_MANAGE — Scheduled attestation campaigns over standing grants.
 
-  Security & Access → Audit & compliance
+  Governance & audit → Audit & compliance
     Audit log · /admin/audit-log · needs AUDIT_LOG_VIEW — The tamper-evident audit log, filterable and exportable.
     Audit sinks · /admin/audit-sinks · needs AUDIT_SINK_MANAGE — Where audit rows are streamed for long-term retention.
     Compliance reports · /admin/auditor · needs COMPLIANCE_REPORT_VIEW — Compliance reports and signed PDF / CSV exports.

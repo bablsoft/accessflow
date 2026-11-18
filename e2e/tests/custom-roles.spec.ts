@@ -129,7 +129,7 @@ test.describe.serial('custom roles & permissions (AF-522)', () => {
 
     // Granted surfaces are in the nav… (both live in sub-sections, which start collapsed)
     await expandNavSection(page, 'Workflow', 'Database');
-    await expandNavSection(page, 'Security & Access', 'Audit & compliance');
+    await expandNavSection(page, 'Governance & audit', 'Audit & compliance');
     await expect(page.getByRole('link', { name: 'Query editor' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Audit log' })).toBeVisible();
     // …ungranted admin surfaces are not.

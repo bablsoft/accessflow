@@ -40,7 +40,8 @@
     "bytes_unit": "Միավոր",
     "skip_to_content": "Անցնել բովանդակությանը",
     "error_boundary_title": "Այս էջում սխալ է տեղի ունեցել",
-    "error_boundary_description": "AccessFlow-ի մնացած մասը շարունակում է աշխատել։ Փորձեք կրկին կամ բացեք այլ էջ ընտրացանկից։"
+    "error_boundary_description": "AccessFlow-ի մնացած մասը շարունակում է աշխատել։ Փորձեք կրկին կամ բացեք այլ էջ ընտրացանկից։",
+    "breadcrumb": "Նավիգացիոն ուղի"
   },
   "nav": {
     "editor": "SQL խմբագիր",
@@ -48,7 +49,9 @@
     "reviews": "Վերանայման հերթ",
     "group_workflow": "Աշխատանքային հոսք",
     "group_connections": "Կապեր",
-    "group_security": "Անվտանգություն և մուտք",
+    "group_identity": "Ինքնություն և մուտք",
+    "group_governance": "Կառավարում և աուդիտ",
+    "group_pinned": "Ամրացված",
     "group_system": "Համակարգ",
     "group_platform": "Հարթակ",
     "sub_database": "Տվյալների բազա",
@@ -120,7 +123,9 @@
     "schemaDrift": "Սխեմայի շեղում",
     "access_simulation": "Մուտքի սիմուլյացիա",
     "jobs": "Պլանավորված առաջադրանքներ",
-    "decision_hooks": "Որոշման hook-եր"
+    "decision_hooks": "Որոշման hook-եր",
+    "pin": "Ամրացնել՝ {{page}}",
+    "unpin": "Ապաամրացնել՝ {{page}}"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Օգտագործեք առավելագույնը {{max}} պայման։",
       "operand_label": "Պայմանի տեսակ"
     }
+  },
+  "command": {
+    "label": "Հրամանների վահանակ",
+    "placeholder": "Որոնել էջեր և գործողություններ…",
+    "open": "Որոնել",
+    "empty": "Արդյունքներ չկան",
+    "group_pages": "Էջեր",
+    "group_recent": "Վերջին այցելածները",
+    "group_queries": "Վերջին հարցումները",
+    "group_actions": "Գործողություններ",
+    "action_new_query": "Նոր հարցում",
+    "action_toggle_theme": "Փոխել թեման",
+    "action_profile": "Բացել պրոֆիլը"
+  },
+  "realtime_status": {
+    "open": "Կենդանի թարմացումները միացված են",
+    "reconnecting": "Վերամիացում կենդանի թարմացումներին…",
+    "connecting": "Միացում կենդանի թարմացումներին…"
   }
 }

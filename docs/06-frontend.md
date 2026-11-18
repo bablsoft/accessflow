@@ -809,9 +809,30 @@ them: a missing `vector` extension, `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` havi
 
 ### Topbar (`components/common/Topbar.tsx`)
 
-The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the
-[language switcher](#language-switcher), the notification bell, and a sign-out button. It
-deliberately has no global search input.
+The app shell topbar contains: a mobile-nav menu button, a breadcrumb trail, the command-palette
+trigger, a realtime connection indicator, a light/dark theme toggle, the
+[language switcher](#language-switcher), the notification bell, and the user menu.
+
+- **Breadcrumb.** Derived from the nav tree (`navModel.ts`): group › sub-section › destination, for
+  the most specific destination matching the current path. On the destination itself the last
+  crumb is plain text with `aria-current="page"`; on a page below it (a detail or settings page)
+  it is a link back. Routes the menu does not list show no trail. The group and sub-section crumbs
+  are hidden at ≤ 900px.
+- **Command palette** (`components/command/CommandPalette.tsx`, `cmdk`). Opened by the trigger or
+  `⌘K` / `Ctrl+K` (handled in `AppLayout`). It searches every destination the user can see —
+  the same permission- and domain-filtered tree the sidebar renders — and lists recently visited
+  destinations (`preferencesStore.navRecent`, newest first, capped at six), a few actions (new
+  query, switch theme, profile) and the five most recent queries (fetched only while open, and
+  only with `QUERY_SUBMIT_SELECT`). It replaces the earlier decision to ship no global search.
+- **Connection indicator.** `useConnectionStatus()` reads `websocketManager`'s status
+  (`idle` / `connecting` / `open` / `reconnecting`); the dot is hidden while idle and pulses amber
+  while reconnecting.
+
+**Pinned pages.** Every sidebar entry outside the top group has a pin button; pinned destinations
+(`preferencesStore.navPinned`, in pin order) render as a *Pinned* group under the top group and as
+their own block on the icon rail. Between 721px and 1024px the sidebar is always the icon rail.
+The active entry's highlight is a shared-layout element (`layoutId`), so it slides between entries;
+the routed page fades in on navigation through `useEnterAnimation`, which does not remount it.
 
 ### Language switcher
 
@@ -1355,9 +1376,9 @@ still gates each entry.
 | `CONNECTIONS` | **Database** | `/datasources`, `/admin/connectors`, `/admin/drivers` |
 | | **API** *(domain `apis`)* | `/api-connectors` |
 | | **Deployments** *(domain `deployments`)* | `/admin/deployment-pipelines` |
-| `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/service-accounts`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
+| `IDENTITY & ACCESS` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/service-accounts`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
 | | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/decision-hooks`, `/admin/sql-review`, `/admin/over-provisioned-access`, `/admin/privileged-access`, `/admin/access-simulations`, `/admin/break-glass` |
-| | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
+| `GOVERNANCE & AUDIT` | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
 | `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages`, `/admin/governance-domains` |
 | | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse`, `/admin/help-agent` |
@@ -1374,7 +1395,7 @@ than "no jobs"; `recording_enabled=false` adds a warning banner. Clicking a row 
 without a `useEffect`) and pages `GET /platform/jobs/{jobName}/executions` server-side, with a
 failed run's error in an expandable row. Read-only: there are no mutations.
 
-`/admin/slack` is the one entry that **moved groups**: it left `SECURITY` for `SYSTEM`, next to
+`/admin/slack` is the one entry that **moved groups**: it left what is now `IDENTITY & ACCESS` for `SYSTEM`, next to
 `/admin/notifications` — it is a notification channel, not a security control.
 
 Behaviour:

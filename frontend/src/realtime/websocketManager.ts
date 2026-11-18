@@ -11,6 +11,9 @@ import {
 type Handler<E extends WsEventName> = (data: WsEventPayloadMap[E]) => void;
 type AnyHandler = Handler<WsEventName>;
 
+/** `idle` = signed out or not started; `reconnecting` = the socket dropped and is being retried. */
+export type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'reconnecting';
+
 const BACKOFF_SCHEDULE_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000];
 
 const isWsEventName = (value: unknown): value is WsEventName =>
@@ -26,6 +29,23 @@ class WebSocketManager {
   private readonly subscribers = new Map<WsEventName, Set<AnyHandler>>();
   // Query ids whose collaboration room we have joined, so we can re-join after a reconnect.
   private readonly joinedRooms = new Set<string>();
+  private status: ConnectionStatus = 'idle';
+  private readonly statusListeners = new Set<() => void>();
+
+  getStatus = (): ConnectionStatus => this.status;
+
+  subscribeStatus = (listener: () => void): (() => void) => {
+    this.statusListeners.add(listener);
+    return () => {
+      this.statusListeners.delete(listener);
+    };
+  };
+
+  private setStatus(next: ConnectionStatus): void {
+    if (this.status === next) return;
+    this.status = next;
+    this.statusListeners.forEach((listener) => listener());
+  }
 
   bindQueryClient(client: QueryClient): void {
     this.queryClient = client;
@@ -50,6 +70,7 @@ class WebSocketManager {
       this.reconnectTimer = null;
     }
     this.closeSocket();
+    this.setStatus('idle');
   }
 
   subscribe<E extends WsEventName>(event: E, handler: Handler<E>): () => void {
@@ -100,8 +121,10 @@ class WebSocketManager {
       return;
     }
     this.socket = ws;
+    if (this.status !== 'reconnecting') this.setStatus('connecting');
     ws.onopen = () => {
       this.reconnectAttempts = 0;
+      this.setStatus('open');
       // Re-join any active collaboration rooms; peers re-sync state on the fresh join.
       for (const queryId of this.joinedRooms) {
         this.rawSend({ type: 'collab.join', query_id: queryId });
@@ -114,6 +137,7 @@ class WebSocketManager {
     ws.onclose = () => {
       this.socket = null;
       if (!this.intentionallyClosed && this.currentToken) {
+        this.setStatus('reconnecting');
         this.scheduleReconnect();
       }
     };
