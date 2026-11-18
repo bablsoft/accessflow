@@ -623,7 +623,7 @@ the `Retry-After` handling are covered without a backend); the GitLab and Azure 
 extracted from their YAML (`extract-template-scripts.py`) and run — and shellchecked — through the
 same double by `ci-templates-test.sh`.
 
-**Service-account setup.** Create a dedicated **service account** (*Security & Access → Identity →
+**Service-account setup.** Create a dedicated **service account** (*Identity & access → Identity →
 Service accounts*, role `READONLY` — the trigger endpoint checks the pipeline grant, not the role)
 and issue its key from the account's *API keys* tab (`POST /api/v1/admin/service-accounts/{id}/api-keys`),
 or declare both through `bootstrap.serviceAccounts[]` (set `role` explicitly — it defaults to

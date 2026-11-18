@@ -40,7 +40,8 @@
     "bytes_unit": "Einheit",
     "skip_to_content": "Zum Inhalt springen",
     "error_boundary_title": "Auf dieser Seite ist ein Fehler aufgetreten",
-    "error_boundary_description": "Der Rest von AccessFlow funktioniert weiterhin. Versuchen Sie es erneut oder öffnen Sie eine andere Seite über das Menü."
+    "error_boundary_description": "Der Rest von AccessFlow funktioniert weiterhin. Versuchen Sie es erneut oder öffnen Sie eine andere Seite über das Menü.",
+    "breadcrumb": "Brotkrumen-Navigation"
   },
   "nav": {
     "editor": "SQL-Editor",
@@ -48,7 +49,9 @@
     "reviews": "Prüfungswarteschlange",
     "group_workflow": "Workflow",
     "group_connections": "Verbindungen",
-    "group_security": "Sicherheit & Zugriff",
+    "group_identity": "Identität & Zugriff",
+    "group_governance": "Governance & Audit",
+    "group_pinned": "Angeheftet",
     "group_system": "System",
     "group_platform": "Plattform",
     "sub_database": "Datenbank",
@@ -120,7 +123,9 @@
     "schemaDrift": "Schema-Drift",
     "access_simulation": "Zugriffssimulation",
     "jobs": "Geplante Jobs",
-    "decision_hooks": "Entscheidungs-Hooks"
+    "decision_hooks": "Entscheidungs-Hooks",
+    "pin": "{{page}} anheften",
+    "unpin": "{{page}} lösen"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -6613,5 +6618,23 @@
       "validation_max_conditions": "Höchstens {{max}} Bedingungen verwenden.",
       "operand_label": "Bedingungstyp"
     }
+  },
+  "command": {
+    "label": "Befehlspalette",
+    "placeholder": "Seiten und Aktionen suchen…",
+    "open": "Suchen",
+    "empty": "Keine Ergebnisse",
+    "group_pages": "Seiten",
+    "group_recent": "Zuletzt besucht",
+    "group_queries": "Letzte Abfragen",
+    "group_actions": "Aktionen",
+    "action_new_query": "Neue Abfrage",
+    "action_toggle_theme": "Design wechseln",
+    "action_profile": "Profil öffnen"
+  },
+  "realtime_status": {
+    "open": "Live-Aktualisierungen verbunden",
+    "reconnecting": "Verbindung zu Live-Aktualisierungen wird wiederhergestellt…",
+    "connecting": "Verbindung zu Live-Aktualisierungen wird hergestellt…"
   }
 }

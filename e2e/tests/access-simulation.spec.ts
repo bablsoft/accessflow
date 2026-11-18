@@ -102,7 +102,7 @@ test.describe.serial('access simulation (#1066)', () => {
     const page = await context.newPage();
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    await expandNavSection(page, 'Security & Access', 'Access control');
+    await expandNavSection(page, 'Identity & access', 'Access control');
     await page.getByRole('link', { name: 'Access simulation' }).click();
     await expect(page).toHaveURL(ROUTE);
     await expect(page.getByRole('heading', { name: 'Access simulation' })).toBeVisible();

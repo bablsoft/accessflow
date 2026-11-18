@@ -135,7 +135,8 @@ describe('Sidebar', () => {
     renderSidebar(adminUser);
     expect(screen.getByText('Workflow')).toBeInTheDocument();
     expect(screen.getByText('Connections')).toBeInTheDocument();
-    expect(screen.getByText('Security & Access')).toBeInTheDocument();
+    expect(screen.getByText('Identity & access')).toBeInTheDocument();
+    expect(screen.getByText('Governance & audit')).toBeInTheDocument();
     expect(screen.getByText('System')).toBeInTheDocument();
   });
 
@@ -151,7 +152,7 @@ describe('Sidebar', () => {
   it('hides admin groups for a READONLY user', () => {
     renderSidebar(readonlyUser);
     expect(screen.queryByRole('group', { name: 'Connections' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Security & Access')).not.toBeInTheDocument();
+    expect(screen.queryByText('Identity & access')).not.toBeInTheDocument();
     expect(screen.queryByText('System')).not.toBeInTheDocument();
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Audit log')).not.toBeInTheDocument();
@@ -192,7 +193,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
   it('renders sub-section headers as collapsed disclosure buttons by default', () => {
     // A first login shows every sub-section closed — the user opens the ones they need.
     const { container } = renderSidebar(adminUser);
-    const header = within(group('Security & Access'))
+    const header = within(group('Identity & access'))
       .getByRole('button', { name: 'Expand Identity section' });
     expect(header).toHaveAttribute('aria-expanded', 'false');
     expect(header).toHaveAttribute('aria-controls', 'af-nav-sub-security-identity');
@@ -232,13 +233,13 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     expandAll();
     renderSidebar(adminUser);
     expect(link(within(group('System')), 'Slack')).toBeInTheDocument();
-    expect(within(group('Security & Access')).queryByRole('link', { name: /Slack/ }))
+    expect(within(group('Identity & access')).queryByRole('link', { name: /Slack/ }))
       .not.toBeInTheDocument();
   });
 
   it('expands a sub-section on click and persists the id in preferences', () => {
     const { container } = renderSidebar(adminUser);
-    const security = within(group('Security & Access'));
+    const security = within(group('Identity & access'));
     fireEvent.click(security.getByRole('button', { name: 'Expand Identity section' }));
 
     expect(usePreferencesStore.getState().navExpandedSubgroups).toContain('security-identity');
@@ -250,7 +251,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
 
   it('re-collapses an expanded sub-section on a second click', () => {
     const { container } = renderSidebar(adminUser);
-    const security = within(group('Security & Access'));
+    const security = within(group('Identity & access'));
     fireEvent.click(security.getByRole('button', { name: 'Expand Identity section' }));
     fireEvent.click(security.getByRole('button', { name: 'Collapse Identity section' }));
 
@@ -263,7 +264,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     const { container } = renderSidebar(adminUser, false, '/admin/users');
 
     expect(
-      within(group('Security & Access')).getByRole('button', {
+      within(group('Identity & access')).getByRole('button', {
         name: 'Identity section — kept open because it contains the current page',
       }),
     ).toHaveAttribute('aria-expanded', 'true');
@@ -275,7 +276,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     // Toggling it could not change what is on screen, so advertising it as a live collapse
     // control would be a dead button announcing the wrong action.
     renderSidebar(adminUser, false, '/admin/users');
-    const header = within(group('Security & Access')).getByRole('button', {
+    const header = within(group('Identity & access')).getByRole('button', {
       name: 'Identity section — kept open because it contains the current page',
     });
     expect(header).toBeDisabled();
@@ -287,7 +288,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
 
   it('leaves sibling sub-section headers interactive while one is locked open', () => {
     renderSidebar(adminUser, false, '/admin/users');
-    const accessControl = within(group('Security & Access'))
+    const accessControl = within(group('Identity & access'))
       .getByRole('button', { name: 'Expand Access control section' });
     expect(accessControl).toBeEnabled();
     fireEvent.click(accessControl);
@@ -301,7 +302,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     expect(screen.queryByRole('group', { name: 'Connections' })).not.toBeInTheDocument();
     expect(subgroupItems(container, 'connections-database')).toBeNull();
     // Same for the whole Security group and its Identity sub-section.
-    expect(screen.queryByRole('group', { name: 'Security & Access' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Identity & access' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Expand Identity section' }))
       .not.toBeInTheDocument();
   });
@@ -365,7 +366,7 @@ describe('Sidebar — active highlighting', () => {
   });
 
   it('locks open only the sub-section owning the deepest match', () => {
-    const security = 'Security & Access';
+    const security = 'Identity & access';
     renderSidebar(adminUser, false, '/reviews/attestations');
     expect(
       within(group('Workflow')).getByRole('button', {
@@ -382,7 +383,7 @@ describe('Sidebar — icon rail (AF-837)', () => {
   it('hides group and sub-section headers and flattens every item', () => {
     const { container } = renderSidebar(adminUser, true);
     expect(screen.queryByText('Workflow')).not.toBeInTheDocument();
-    expect(screen.queryByText('Security & Access')).not.toBeInTheDocument();
+    expect(screen.queryByText('Identity & access')).not.toBeInTheDocument();
     expect(container.querySelector('.af-sidebar-subgroup')).toBeNull();
     expect(container.querySelectorAll('button[aria-expanded]').length).toBe(0);
     // Every link is still reachable, just unlabelled.
@@ -639,5 +640,47 @@ describe('Sidebar — SQL review rulesets (#865)', () => {
       permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
     });
     expect(screen.queryByRole('link', { name: /SQL review/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — pinned pages', () => {
+  beforeEach(() => {
+    usePreferencesStore.setState({ navPinned: [] });
+  });
+
+  it('pins a page from its row and lists it under Pinned', () => {
+    expandAll();
+    renderSidebar(adminUser);
+    expect(screen.queryByRole('group', { name: 'Pinned' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Users' }));
+
+    expect(usePreferencesStore.getState().navPinned).toEqual(['users']);
+    expect(link(within(group('Pinned')), 'Users')).toHaveAttribute('href', '/admin/users');
+    expect(screen.getAllByRole('button', { name: 'Unpin Users' })[0])
+      .toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('unpins a page and drops the Pinned group when it empties', () => {
+    usePreferencesStore.setState({ navPinned: ['users'] });
+    renderSidebar(adminUser);
+    fireEvent.click(within(group('Pinned')).getByRole('button', { name: 'Unpin Users' }));
+    expect(usePreferencesStore.getState().navPinned).toEqual([]);
+    expect(screen.queryByRole('group', { name: 'Pinned' })).not.toBeInTheDocument();
+  });
+
+  it('offers no pin on the always-visible entries and ignores ids the user cannot see', () => {
+    usePreferencesStore.setState({ navPinned: ['dashboard', 'users', 'gone'] });
+    renderSidebar(readonlyUser);
+    expect(screen.queryByRole('button', { name: /Pin Dashboard/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Pinned' })).not.toBeInTheDocument();
+  });
+
+  it('shows pinned pages as their own block on the collapsed rail, without pin buttons', () => {
+    usePreferencesStore.setState({ navPinned: ['users'] });
+    const { container } = renderSidebar(adminUser, true, '/admin/users');
+    expect(container.querySelectorAll('a[href="/admin/users"]')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /Unpin/ })).not.toBeInTheDocument();
+    expect(container.querySelector('a[href="/admin/users"]')).toHaveAttribute('aria-label', 'Users');
   });
 });

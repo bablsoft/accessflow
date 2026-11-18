@@ -251,3 +251,27 @@ describe('migratePreferences', () => {
     expect(migratePreferences(null, 0)).toBeNull();
   });
 });
+
+describe('nav pins and recents', () => {
+  beforeEach(() => {
+    usePreferencesStore.setState({ navPinned: [], navRecent: [] });
+  });
+
+  it('toggles a pinned destination, keeping pin order', () => {
+    const { toggleNavPinned } = usePreferencesStore.getState();
+    toggleNavPinned('users');
+    toggleNavPinned('audit');
+    expect(usePreferencesStore.getState().navPinned).toEqual(['users', 'audit']);
+    toggleNavPinned('users');
+    expect(usePreferencesStore.getState().navPinned).toEqual(['audit']);
+  });
+
+  it('keeps recents newest-first, de-duplicated and capped', () => {
+    const { recordNavVisit } = usePreferencesStore.getState();
+    ['a', 'b', 'a', 'c', 'd', 'e', 'f', 'g'].forEach(recordNavVisit);
+    const recent = usePreferencesStore.getState().navRecent;
+    expect(recent).toEqual(['g', 'f', 'e', 'd', 'c', 'a']);
+    recordNavVisit('g');
+    expect(usePreferencesStore.getState().navRecent).toBe(recent);
+  });
+});

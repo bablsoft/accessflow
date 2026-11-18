@@ -412,3 +412,34 @@ describe('websocketManager', () => {
     expect(good).toHaveBeenCalledOnce();
   });
 });
+
+describe('websocketManager — connection status', () => {
+  beforeEach(() => {
+    FakeWebSocket.instances.length = 0;
+    websocketManager.disconnect();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    websocketManager.disconnect();
+    vi.useRealTimers();
+  });
+
+  it('walks idle → connecting → open → reconnecting → open → idle and notifies listeners', () => {
+    const seen: string[] = [];
+    const unsubscribe = websocketManager.subscribeStatus(() => seen.push(websocketManager.getStatus()));
+    expect(websocketManager.getStatus()).toBe('idle');
+
+    websocketManager.connect('tok');
+    sock(0).triggerOpen();
+    sock(0).triggerClose();
+    vi.advanceTimersByTime(1_000);
+    sock(1).triggerOpen();
+    websocketManager.disconnect();
+
+    expect(seen).toEqual(['connecting', 'open', 'reconnecting', 'open', 'idle']);
+    unsubscribe();
+    websocketManager.connect('tok2');
+    expect(seen).toHaveLength(5);
+  });
+});

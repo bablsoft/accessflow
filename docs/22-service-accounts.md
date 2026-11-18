@@ -105,7 +105,7 @@ The sign-in block is enforced in several places:
 
 ## 2. Creating one
 
-**UI:** go to **Security & Access → Identity → Service accounts** (`/admin/service-accounts`) and
+**UI:** go to **Identity & access → Identity → Service accounts** (`/admin/service-accounts`) and
 select **Create service account**. The form asks for:
 - an email (an identifier only, never mailed)
 - a display name

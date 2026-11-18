@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--dur-2) var(--ease-in-out);
   height: 100vh;
 }
 .af-sidebar.collapsed {
@@ -101,7 +101,7 @@
 .af-sidebar-subgroup-chevron {
   font-size: 8px;
   flex-shrink: 0;
-  transition: transform 150ms ease;
+  transition: transform var(--dur-1) var(--ease-out);
   transform: rotate(-90deg);
 }
 .af-sidebar-subgroup-header.open .af-sidebar-subgroup-chevron {
@@ -134,9 +134,63 @@
   color: var(--fg);
 }
 .af-sidebar-item.active {
-  background: var(--bg-active);
   color: var(--fg);
   font-weight: 500;
+}
+.af-sidebar-item {
+  flex: 1;
+  min-width: 0;
+  isolation: isolate;
+}
+.af-sidebar-active-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--bg-active);
+}
+.af-sidebar-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.af-sidebar-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.af-sidebar-pin {
+  position: absolute;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.af-sidebar-row:hover .af-sidebar-pin,
+.af-sidebar-pin:focus-visible {
+  opacity: 1;
+}
+.af-sidebar-pin:hover,
+.af-sidebar-pin.on {
+  color: var(--accent);
+}
+@media (hover: none) {
+  .af-sidebar-pin.on {
+    opacity: 1;
+  }
 }
 .af-sidebar.collapsed .af-sidebar-item {
   justify-content: center;
@@ -204,10 +258,10 @@
     top: 0;
     left: 0;
     bottom: 0;
-    z-index: 200;
+    z-index: calc(var(--z-overlay) + 1);
     width: 264px !important;
     transform: translateX(-100%);
-    transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--dur-3) var(--ease-out);
     box-shadow: 8px 0 32px rgba(0, 0, 0, 0.18);
   }
   .af-sidebar.mobile-open {
@@ -230,11 +284,11 @@
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 199;
+    z-index: var(--z-overlay);
     background: rgba(0, 0, 0, 0.45);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 220ms ease;
+    transition: opacity var(--dur-3) var(--ease-out);
   }
   .af-sidebar-scrim.visible {
     opacity: 1;

@@ -126,7 +126,7 @@ test.describe.serial('notification bell — delete all (#611)', () => {
 
     await login(page, reviewerEmail, REVIEWER_PASSWORD);
 
-    const bell = page.getByLabel('Notifications');
+    const bell = page.getByLabel('Notifications', { exact: true });
     // The badge is the unread count. The inbox is isolated (see beforeAll), so
     // it is exactly the two seeds — not merely "non-zero".
     await expect(page.locator('.ant-badge-count')).toHaveText('2', { timeout: 15_000 });
@@ -160,7 +160,7 @@ test.describe.serial('notification bell — delete all (#611)', () => {
 
     // The clear is durable, not just an optimistic cache edit.
     await page.reload();
-    await page.getByLabel('Notifications').click();
+    await page.getByLabel('Notifications', { exact: true }).click();
     await expect(page.getByText('No notifications yet.')).toBeVisible({ timeout: 15_000 });
   });
 });
