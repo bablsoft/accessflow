@@ -11,3 +11,10 @@ spec:
       parameters:
         barmanObjectName: accessflow-demo-db-backups
         serverName: accessflow-db
+  postgresql:
+    parameters:
+      # A WAL segment is 16 MB and ships when full or after archive_timeout (CNPG's default is 5min). The demo
+      # can lose up to six hours of writes in a restore, so it ships at most four segments a day.
+      archive_timeout: 6h
+      # Compresses the full-page images in WAL, most of its volume after each checkpoint.
+      wal_compression: lz4
