@@ -38,6 +38,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
         <Select
           size="small"
           style={{ width: '100%' }}
+          showSearch={{ optionFilterProp: 'label' }}
           value={ds.id}
           onChange={onChangeDs}
           options={datasources.map((d) => ({ value: d.id, label: d.name }))}

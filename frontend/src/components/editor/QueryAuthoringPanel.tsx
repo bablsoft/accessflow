@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Segmented } from 'antd';
+import { Button, Segmented, Select } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -14,6 +14,7 @@ import { QueryTemplatesDrawer } from '@/components/editor/QueryTemplatesDrawer';
 import { SaveTemplateModal } from '@/components/editor/SaveTemplateModal';
 import { LoadTemplateModal } from '@/components/editor/LoadTemplateModal';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Datasource } from '@/types/api';
 import type { QueryAuthoring, RightPanel } from './useQueryAuthoring';
 import '@/pages/editor/editor.css';
@@ -54,6 +55,7 @@ export function QueryAuthoringPanel({
 }: QueryAuthoringPanelProps) {
   const { t } = useTranslation();
   const schemaQuery = useSchemaIntrospect(ds.id);
+  const narrow = useMediaQuery('(max-width: 900px)');
   const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const lineCount = (sql.match(/\n/g) ?? []).length + 1;
 
@@ -62,6 +64,18 @@ export function QueryAuthoringPanel({
       <SchemaTree ds={ds} datasources={datasources} onChangeDs={onChangeDs} />
       <div className="af-editor-center">
         <div className="af-editor-toolbar">
+          {narrow && variant !== 'drawer' && (
+            // Below 900px the schema column, and with it the datasource picker, is hidden.
+            <Select
+              size="small"
+              className="af-editor-toolbar-ds"
+              aria-label={t('editor.datasource_label')}
+              showSearch={{ optionFilterProp: 'label' }}
+              value={ds.id}
+              onChange={onChangeDs}
+              options={datasources.map((d) => ({ value: d.id, label: d.name }))}
+            />
+          )}
           <span className="mono muted" style={{ fontSize: 11 }}>
             {ds.database_name}
           </span>

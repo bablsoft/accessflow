@@ -492,3 +492,111 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('QueryEditorPage — drafts, shortcuts and states', () => {
+  const aiOffDs: Datasource = {
+    ...baseDatasource,
+    id: 'ds-ai-off',
+    ai_analysis_enabled: false,
+    ai_config_id: null,
+  };
+  const DRAFT_KEY = 'af-editor-draft:u-editor';
+
+  beforeEach(async () => {
+    listDatasourcesMock.mockReset();
+    analyzeOnlyMock.mockReset();
+    submitQueryMock.mockReset();
+    navigateMock.mockReset();
+    evaluateSqlReviewMock.mockReset();
+    evaluateSqlReviewMock.mockResolvedValue({ applicable: true, findings: [] });
+    sessionStorage.clear();
+    const { useAuthStore } = await import('@/store/authStore');
+    useAuthStore.setState({
+      user: {
+        id: 'u-editor',
+        email: 'editor@example.com',
+        display_name: 'Ed',
+        role: 'ANALYST',
+        role_id: null,
+        permissions: ['QUERY_SUBMIT_SELECT', 'QUERY_SUBMIT_DML'],
+        auth_provider: 'LOCAL',
+        totp_enabled: false,
+        platform_admin: false,
+        preferred_language: 'en',
+      },
+      accessToken: 'token',
+    });
+  });
+
+  it('keeps the draft while typing and clears it after a successful submit', async () => {
+    listDatasourcesMock.mockResolvedValue(page([aiOffDs]));
+    submitQueryMock.mockResolvedValue({ id: 'q-1' });
+    render(wrap(<QueryEditorPage />));
+    await screen.findByRole('button', { name: /Submit for review/i });
+
+    fireEvent.change(screen.getByLabelText('sql-editor'), { target: { value: 'select 42' } });
+    expect(JSON.parse(sessionStorage.getItem(DRAFT_KEY) as string)).toMatchObject({
+      datasourceId: 'ds-ai-off',
+      sql: 'select 42',
+    });
+
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(submitQueryMock).toHaveBeenCalled());
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/queries/q-1'));
+    expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+  });
+
+  it('restores a kept draft and lets the user discard it', async () => {
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ datasourceId: 'ds-ai-off', sql: 'select kept', justification: 'because' }),
+    );
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource, aiOffDs]));
+    render(wrap(<QueryEditorPage />));
+
+    expect(await screen.findByText('Draft restored from your last visit.')).toBeInTheDocument();
+    expect(screen.getByLabelText('sql-editor')).toHaveValue('select kept');
+    // The draft's datasource (no AI) was restored too, so there is no Analyze button.
+    expect(screen.queryByRole('button', { name: /Analyze/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard draft' }));
+    expect(screen.getByLabelText('sql-editor')).toHaveValue('');
+    expect(screen.queryByText('Draft restored from your last visit.')).toBeNull();
+    expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+  });
+
+  it('falls back to the first datasource when the remembered one is gone', async () => {
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ datasourceId: 'deleted', sql: 'select 1', justification: '' }),
+    );
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
+    render(wrap(<QueryEditorPage />));
+    expect(await findAnalyzeButton()).toBeInTheDocument();
+  });
+
+  it('does not submit from the shortcut while Submit is gated, and says why inline', async () => {
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
+    analyzeOnlyMock.mockResolvedValue(sampleAnalysis);
+    render(wrap(<QueryEditorPage />));
+    await findAnalyzeButton();
+    fireEvent.change(screen.getByLabelText('sql-editor'), { target: { value: 'select 1' } });
+
+    expect(document.querySelector('.af-editor-submit-hint')).toHaveTextContent(/analy/i);
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true });
+    expect(submitQueryMock).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true, shiftKey: true });
+    await waitFor(() => expect(analyzeOnlyMock).toHaveBeenCalled());
+    // Plain Enter and other keys are left alone.
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.keyDown(window, { key: 'x', metaKey: true });
+    expect(submitQueryMock).not.toHaveBeenCalled();
+  });
+
+  it('shows an empty state when there is no datasource', async () => {
+    listDatasourcesMock.mockResolvedValue(page([]));
+    render(wrap(<QueryEditorPage />));
+    expect(await screen.findByText('No datasource to query')).toBeInTheDocument();
+  });
+});

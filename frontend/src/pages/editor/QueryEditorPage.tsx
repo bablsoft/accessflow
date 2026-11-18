@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, App, Button, DatePicker, Input, Modal, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -15,6 +15,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
+import { RouteFallback } from '@/components/layout/RouteFallback';
+import { useAuthStore } from '@/store/authStore';
+import { clearEditorDraft, loadEditorDraft, saveEditorDraft } from './editorDraft';
 import { QueryAuthoringPanel } from '@/components/editor/QueryAuthoringPanel';
 import {
   RecurrencePicker,
@@ -33,6 +37,9 @@ import type { SubmissionReason } from '@/types/api';
 import type { SqlChangeSource } from '@/components/editor/useQueryAuthoring';
 import './editor.css';
 
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+const MOD = IS_MAC ? '⌘' : 'Ctrl+';
+
 const SUBMISSION_REASON_BY_SOURCE: Partial<Record<SqlChangeSource, SubmissionReason>> = {
   ai_suggestion: 'AI_SUGGESTION',
   history_suggestion: 'HISTORY_SUGGESTION',
@@ -50,11 +57,22 @@ export function QueryEditorPage() {
     () => (datasourcesQuery.data?.content ?? []).filter((d) => d.active),
     [datasourcesQuery.data],
   );
-  const [selectedDsId, setSelectedDsId] = useState<string | null>(presetState?.datasourceId ?? null);
-  const dsId = selectedDsId ?? datasources[0]?.id ?? null;
+  const userId = useAuthStore((s) => s.user?.id);
+  // A preset (dashboard suggestion, Duplicate) wins over a kept draft; the draft is read once.
+  const [initialDraft] = useState(() =>
+    presetState?.presetSql ? null : loadEditorDraft(userId),
+  );
+  const [draftRestored, setDraftRestored] = useState(initialDraft !== null);
+  const [selectedDsId, setSelectedDsId] = useState<string | null>(
+    presetState?.datasourceId ?? initialDraft?.datasourceId ?? null,
+  );
+  // A remembered datasource that is gone (deleted, deactivated, access revoked) falls back to
+  // the first one instead of leaving the editor without a target.
+  const dsId =
+    (datasources.some((d) => d.id === selectedDsId) ? selectedDsId : datasources[0]?.id) ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
-  const [sql, setSql] = useState(() => presetState?.presetSql ?? '');
-  const [justification, setJustification] = useState('');
+  const [sql, setSql] = useState(() => presetState?.presetSql ?? initialDraft?.sql ?? '');
+  const [justification, setJustification] = useState(initialDraft?.justification ?? '');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
   // #627 recurring series — mutually exclusive with scheduledFor (setting one clears the other).
   const [recurrenceMode, setRecurrenceMode] = useState<RecurrenceMode>('none');
@@ -94,6 +112,7 @@ export function QueryEditorPage() {
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      clearEditorDraft(userId);
       message.success({
         content: t('editor.submit_success', { id: created.id }),
         duration: 2.5,
@@ -118,6 +137,7 @@ export function QueryEditorPage() {
       breakGlassSubmit({ datasource_id: ds!.id, sql, justification: breakGlassJustification }),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      clearEditorDraft(userId);
       message.success({ content: t('editor.break_glass_success'), duration: 2.5 });
       setBreakGlassOpen(false);
       setBreakGlassJustification('');
@@ -127,22 +147,6 @@ export function QueryEditorPage() {
       showApiError(message, err, (e) => apiErrorMessage(e, () => t('editor.break_glass_error')));
     },
   });
-
-  if (datasourcesQuery.isLoading) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <div className="muted">{t('datasources.list.loading')}</div>
-      </div>
-    );
-  }
-
-  if (!ds) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
-        <div className="muted">{t('datasources.list.empty')}</div>
-      </div>
-    );
-  }
 
   const sqlNonEmpty = sql.trim().length > 0;
   const submitGatedByAnalysis = authoring.aiSupported && !authoring.hasFreshAnalysis;
@@ -162,6 +166,57 @@ export function QueryEditorPage() {
     !submitGatedByAnalysis &&
     !scheduleInPast &&
     !recurrenceInvalid;
+
+  useEffect(() => {
+    saveEditorDraft(userId, { datasourceId: dsId, sql, justification });
+  }, [userId, dsId, sql, justification]);
+
+  // Latest actions for the window-level shortcuts, so the listener is registered once.
+  const shortcuts = useRef({ submit: () => {}, analyze: () => {}, dryRun: () => {} });
+  useEffect(() => {
+    shortcuts.current = {
+      submit: () => { if (canSubmit && ds) submitMutation.mutate(); },
+      analyze: () => { if (authoring.aiSupported && authoring.canAnalyze) authoring.analyze(); },
+      dryRun: () => { if (authoring.canDryRun) authoring.dryRun(); },
+    };
+  });
+  useEffect(() => {
+    // Capture phase: CodeMirror binds Mod-Enter itself and would swallow the event otherwise.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || document.querySelector('.ant-modal-wrap:not([style*="display: none"])')) return;
+      const mod = event.metaKey || event.ctrlKey;
+      let action: 'submit' | 'analyze' | 'dryRun' | null = null;
+      if (mod && event.shiftKey && !event.altKey) action = 'analyze';
+      else if (mod && !event.shiftKey && !event.altKey) action = 'submit';
+      else if (event.altKey && !mod && !event.shiftKey) action = 'dryRun';
+      if (!action) return;
+      event.preventDefault();
+      event.stopPropagation();
+      shortcuts.current[action]();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
+
+  const discardDraft = () => {
+    clearEditorDraft(userId);
+    setSql('');
+    setJustification('');
+    setDraftRestored(false);
+  };
+
+  if (datasourcesQuery.isLoading) {
+    return <RouteFallback />;
+  }
+
+  if (!ds) {
+    return (
+      <EmptyState
+        title={t('editor.no_datasource_title')}
+        description={t('datasources.list.empty')}
+      />
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -189,6 +244,7 @@ export function QueryEditorPage() {
               onClick={authoring.dryRun}
             >
               {authoring.dryRunning ? t('editor.dry_running_button') : t('editor.dry_run_button')}
+              <span className="kbd af-editor-kbd" aria-hidden>{IS_MAC ? '⌥↵' : 'Alt+↵'}</span>
             </Button>
             {authoring.aiSupported && (
               <Button
@@ -197,6 +253,7 @@ export function QueryEditorPage() {
                 onClick={authoring.analyze}
               >
                 {authoring.analyzing ? t('editor.analyzing_button') : t('editor.analyze_button')}
+                <span className="kbd af-editor-kbd" aria-hidden>{`${MOD}⇧↵`}</span>
               </Button>
             )}
             {breakGlassEligible && (
@@ -231,6 +288,7 @@ export function QueryEditorPage() {
                 {submitMutation.isPending
                   ? t('editor.submitting_button')
                   : t('editor.submit_button')}
+                <span className="kbd af-editor-kbd" aria-hidden>{`${MOD}↵`}</span>
               </Button>
             </Tooltip>
           </>
@@ -244,6 +302,24 @@ export function QueryEditorPage() {
         sql={sql}
         footer={
           <>
+            {draftRestored && (
+              <Alert
+                type="info"
+                showIcon
+                closable={{ onClose: () => setDraftRestored(false) }}
+                title={t('editor.draft_restored')}
+                action={
+                  <Button size="small" onClick={discardDraft}>
+                    {t('editor.draft_discard')}
+                  </Button>
+                }
+              />
+            )}
+            {submitGatedByAnalysis && sqlNonEmpty && (
+              <div className="af-editor-submit-hint" role="status">
+                {t('editor.submit_disabled_needs_analysis_tooltip')}
+              </div>
+            )}
             <div>
               <label
                 className="muted"

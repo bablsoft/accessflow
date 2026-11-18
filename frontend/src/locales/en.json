@@ -654,7 +654,10 @@
     "sql_review_blocking_note_one": "A blocking finding does not stop submission — the query will require human approval.",
     "sql_review_blocking_note_other": "Blocking findings do not stop submission — the query will require human approval.",
     "submit_blocking_findings_tooltip_one": "{{count}} blocking rule finding — this query will require human approval.",
-    "submit_blocking_findings_tooltip_other": "{{count}} blocking rule findings — this query will require human approval."
+    "submit_blocking_findings_tooltip_other": "{{count}} blocking rule findings — this query will require human approval.",
+    "no_datasource_title": "No datasource to query",
+    "draft_restored": "Draft restored from your last visit.",
+    "draft_discard": "Discard draft"
   },
   "dry_run_panel": {
     "title": "Execution plan",
