@@ -23,8 +23,12 @@ import 'dayjs/locale/hy-am';
 import { App } from './App';
 import { BootGate } from './components/common/BootGate';
 import { darkTheme, lightTheme } from './theme/antdTheme';
+import { darkPalette, lightPalette } from './theme/palette';
+import { MotionProvider } from './motion/MotionProvider';
 import { usePreferencesStore } from './store/preferencesStore';
 import type { Language } from './i18n';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import './styles/globals.css';
 import './styles/bklit.css';
 
@@ -60,6 +64,9 @@ function ThemedApp() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', (theme === 'dark' ? darkPalette : lightPalette).bg);
   }, [theme]);
 
   useEffect(() => {
@@ -72,9 +79,11 @@ function ThemedApp() {
       theme={theme === 'dark' ? darkTheme : lightTheme}
       locale={ANTD_LOCALES[language] ?? enUS}
     >
-      <BootGate>
-        <App />
-      </BootGate>
+      <MotionProvider>
+        <BootGate>
+          <App />
+        </BootGate>
+      </MotionProvider>
     </ConfigProvider>
   );
 }

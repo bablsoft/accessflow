@@ -1,8 +1,12 @@
 import { theme, type ThemeConfig } from 'antd';
+import { DURATION_MS, darkPalette, lightPalette, type Palette } from './palette';
 
 const fontFamily =
-  "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-const fontFamilyCode = "'Geist Mono', 'SF Mono', Menlo, Consolas, monospace";
+  "'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const fontFamilyCode =
+  "'Geist Mono Variable', 'Geist Mono', 'SF Mono', Menlo, Consolas, monospace";
+
+const seconds = (ms: number) => `${ms / 1000}s`;
 
 const sharedToken = {
   fontFamily,
@@ -13,100 +17,91 @@ const sharedToken = {
   borderRadiusLG: 8,
   controlHeight: 32,
   controlHeightSM: 26,
+  motionDurationFast: seconds(DURATION_MS.fast),
+  motionDurationMid: seconds(DURATION_MS.base),
+  motionDurationSlow: seconds(DURATION_MS.slow),
+  motionEaseOut: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  motionEaseInOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
 };
 
-export const lightTheme: ThemeConfig = {
-  algorithm: theme.defaultAlgorithm,
-  cssVar: { key: 'af' },
-  hashed: false,
-  token: {
-    ...sharedToken,
-    colorPrimary: '#6366f1',
-    colorInfo: '#2563eb',
-    colorSuccess: '#16a34a',
-    colorWarning: '#ca8a04',
-    colorError: '#dc2626',
-    colorBgBase: '#fafafa',
-    colorBgContainer: '#ffffff',
-    colorBgElevated: '#ffffff',
-    colorBgLayout: '#fafafa',
-    colorBorder: '#e7e7ea',
-    colorBorderSecondary: '#ececef',
-    colorText: '#18181b',
-    colorTextSecondary: '#52525b',
-    colorTextTertiary: '#71717a',
-    colorTextQuaternary: '#a1a1aa',
-  },
-  components: {
-    Layout: {
-      bodyBg: '#fafafa',
-      headerBg: '#ffffff',
-      siderBg: '#ffffff',
+function buildTheme(p: Palette, dark: boolean): ThemeConfig {
+  return {
+    algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    cssVar: { key: 'af' },
+    hashed: false,
+    token: {
+      ...sharedToken,
+      colorPrimary: p.accent,
+      colorInfo: p.info,
+      colorSuccess: p.success,
+      colorWarning: p.warning,
+      colorError: p.danger,
+      colorLink: p.accent,
+      colorBgBase: p.bg,
+      colorBgContainer: p.bgElev,
+      colorBgElevated: p.bgElev,
+      colorBgLayout: p.bg,
+      colorBorder: p.border,
+      colorBorderSecondary: dark ? p.bgHover : p.bgActive,
+      colorText: p.fg,
+      colorTextSecondary: p.fgMuted,
+      colorTextTertiary: p.fgSubtle,
+      colorTextQuaternary: p.fgFaint,
+      colorTextPlaceholder: p.fgFaint,
     },
-    Menu: {
-      itemBg: 'transparent',
-      itemSelectedBg: '#ececef',
-      itemHoverBg: '#f4f4f5',
-      itemSelectedColor: '#18181b',
-      itemColor: '#52525b',
+    components: {
+      Layout: {
+        bodyBg: p.bg,
+        headerBg: p.bgElev,
+        siderBg: p.bgSidebar,
+      },
+      Menu: {
+        itemBg: 'transparent',
+        itemSelectedBg: p.bgActive,
+        itemHoverBg: p.bgHover,
+        itemSelectedColor: p.fg,
+        itemColor: p.fgMuted,
+      },
+      Table: {
+        headerBg: p.bgHover,
+        headerColor: p.fgMuted,
+        headerSplitColor: dark ? p.border : p.bgActive,
+        rowHoverBg: p.bgSubtle,
+        borderColor: dark ? p.border : p.bgActive,
+        headerBorderRadius: 8,
+        cellPaddingBlock: 12,
+        cellPaddingInline: 14,
+      },
+      Button: {
+        fontWeight: 500,
+        primaryShadow: 'none',
+        defaultShadow: 'none',
+        dangerShadow: 'none',
+      },
+      Card: {
+        headerFontSize: 14,
+        headerBg: 'transparent',
+      },
+      Modal: {
+        borderRadiusLG: 12,
+        titleFontSize: 16,
+      },
+      Tabs: {
+        titleFontSize: 13,
+        horizontalItemGutter: 24,
+      },
+      Tooltip: {
+        colorBgSpotlight: dark ? p.bgActive : p.fg,
+      },
+      Segmented: {
+        trackBg: p.bgHover,
+      },
+      Tag: {
+        defaultBg: p.bgHover,
+      },
     },
-    Table: {
-      headerBg: '#f4f4f5',
-      headerColor: '#52525b',
-      headerSplitColor: '#ececef',
-      rowHoverBg: '#f9f9fb',
-      borderColor: '#ececef',
-      headerBorderRadius: 8,
-      cellPaddingBlock: 12,
-      cellPaddingInline: 14,
-    },
-  },
-};
+  };
+}
 
-export const darkTheme: ThemeConfig = {
-  algorithm: theme.darkAlgorithm,
-  cssVar: { key: 'af' },
-  hashed: false,
-  token: {
-    ...sharedToken,
-    colorPrimary: '#818cf8',
-    colorInfo: '#60a5fa',
-    colorSuccess: '#4ade80',
-    colorWarning: '#fbbf24',
-    colorError: '#f87171',
-    colorBgBase: '#09090b',
-    colorBgContainer: '#131316',
-    colorBgElevated: '#131316',
-    colorBgLayout: '#09090b',
-    colorBorder: '#232328',
-    colorBorderSecondary: '#1c1c20',
-    colorText: '#fafafa',
-    colorTextSecondary: '#d4d4d8',
-    colorTextTertiary: '#a1a1aa',
-    colorTextQuaternary: '#8b8b94',
-  },
-  components: {
-    Layout: {
-      bodyBg: '#09090b',
-      headerBg: '#131316',
-      siderBg: '#0c0c0e',
-    },
-    Menu: {
-      itemBg: 'transparent',
-      itemSelectedBg: '#232328',
-      itemHoverBg: '#1c1c20',
-      itemSelectedColor: '#fafafa',
-      itemColor: '#d4d4d8',
-    },
-    Table: {
-      headerBg: '#1c1c20',
-      headerColor: '#d4d4d8',
-      headerSplitColor: '#232328',
-      rowHoverBg: '#1a1a1f',
-      borderColor: '#232328',
-      headerBorderRadius: 8,
-      cellPaddingBlock: 12,
-      cellPaddingInline: 14,
-    },
-  },
-};
+export const lightTheme: ThemeConfig = buildTheme(lightPalette, false);
+export const darkTheme: ThemeConfig = buildTheme(darkPalette, true);

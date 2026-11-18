@@ -141,7 +141,7 @@ export default function ApiRequestsListPage() {
             <Tooltip title={t('apiGov.requests.scheduledFor', { when: fmtDate(r.scheduled_for) })}>
               <ClockCircleOutlined
                 aria-label={t('apiGov.requests.scheduledForAria')}
-                style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+                style={{ color: 'var(--accent)', fontSize: 12 }}
               />
             </Tooltip>
           )}

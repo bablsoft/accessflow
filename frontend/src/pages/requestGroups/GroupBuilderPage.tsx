@@ -360,7 +360,7 @@ export default function GroupBuilderPage() {
                   onChange={setScheduledFor}
                 />
                 {scheduleInPast && (
-                  <div style={{ color: 'var(--af-error)', fontSize: 12, marginTop: 4 }}>
+                  <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>
                     {t('requestGroups.builder.scheduleInPast')}
                   </div>
                 )}

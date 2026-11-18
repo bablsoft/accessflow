@@ -17,7 +17,7 @@ body {
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--fg);
-  font-size: 13.5px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -43,6 +43,21 @@ textarea {
 }
 .faint {
   color: var(--fg-faint);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+[role='button'],
+[role='tab'],
+[role='menuitem'],
+summary,
+label[for] {
+  cursor: pointer;
 }
 
 ::-webkit-scrollbar {
@@ -81,21 +96,6 @@ textarea {
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.spinner {
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: inline-block;
-}
-
 @keyframes pulse {
   0%,
   100% {
@@ -119,7 +119,7 @@ textarea {
   background: var(--bg-sunken);
   color: var(--fg-muted);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   line-height: 1;
 }
 

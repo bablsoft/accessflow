@@ -766,7 +766,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         ]}
       />
       {preview && (
-        <div style={{ borderLeft: '3px solid var(--af-color-primary, #1677ff)', paddingLeft: 12 }}>
+        <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: 12 }}>
           <Typography.Text strong>
             {t('apiGov.settings.filterKeepsOf', { kept: preview.kept_count, total: preview.total_count })}
           </Typography.Text>

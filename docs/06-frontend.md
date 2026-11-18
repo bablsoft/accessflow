@@ -546,7 +546,7 @@ breakdown, and the open-queries / open-API-requests tiles carry a **Bklit sparkl
 registry into `src/components/charts/` (see the CLAUDE.md tech-stack rows for the Tailwind scoping and
 the `@visx` alpha-pin exception): app code imports them only through the
 `src/components/charts/index.ts` barrel; theming is a pure CSS-variable bridge
-(`src/styles/bklit.css`) mapping the `--af` tokens onto Bklit's `--chart-*` variables, so light/dark
+(`src/styles/bklit.css`) mapping the app tokens onto Bklit's `--chart-*` variables, so light/dark
 follows `[data-theme]` with no JS. Data shaping (sparse day buckets → dense Date-keyed rows, daily
 totals, half-window deltas, weekly heatmap columns) lives in `src/utils/trendSeries.ts`; unit tests
 stub the barrel via `components/dashboard/chartsTestMocks.tsx` because jsdom cannot lay out
@@ -1063,7 +1063,10 @@ The drawer / save modal / load modal / detail drawer / diff view each ship a Vit
 
 ## Theming
 
-- All colour comes from CSS custom properties defined in `src/styles/tokens.css` (light + dark blocks) and mirrored on the Ant Design side in `src/theme/antdTheme.ts`. The two are intentionally duplicated and must be kept in sync.
+- All colour comes from CSS custom properties defined in `src/styles/tokens.css` (light + dark blocks). The tokens are unprefixed (`--bg`, `--fg`, `--accent`, `--danger`); a `var(--af-…)` reference resolves to nothing. Ant Design needs literal values, so the subset it consumes lives in `src/theme/palette.ts`, from which `src/theme/antdTheme.ts` builds both themes. `src/theme/__tests__/tokenParity.test.ts` fails when `palette.ts` and `tokens.css` disagree, when a text tier drops below 4.5:1 on `--bg` / `--bg-elev`, or when a status/risk colour drops below 4.5:1 on its own `-bg` tint.
+- `tokens.css` also carries the scales: type (`--text-2xs` 11px … `--text-2xl` 24px — nothing below 11px), spacing (`--sp-*`, 4px grid), layout (`--gutter`, `--w-form`, `--w-reading`), motion (`--dur-1/2/3` = 120/180/260ms, `--ease-out`, `--ease-in`, `--ease-in-out`) and stacking (`--z-*`). Use them instead of raw numbers.
+- Motion: CSS transitions use the `--dur-*` / `--ease-*` tokens. For JS-driven animation, `src/motion/MotionProvider.tsx` wraps the app in `LazyMotion` (`domAnimation`) and `MotionConfig reducedMotion="user"`; animate with `m` from `motion/react-m` (never the full `motion` component, which `LazyMotion strict` rejects) and the presets in `src/motion/transitions.ts`. Animate `transform` and `opacity` only; exits are shorter than enters; staggers use `staggerDelay()`.
+- Fonts are self-hosted through `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` (imported in `main.tsx`); the app makes no request to a font CDN.
 - Both themes carry WCAG AA contrast on the `--fg-*` text tiers (`--fg`, `--fg-muted`, `--fg-subtle`, `--fg-faint`) against `--bg`. Components must read text colour via these tokens — never hardcode hex.
 - The `<Avatar />` component picks its OKLCH lightness from `--avatar-bg-l` / `--avatar-fg-l` so initials remain legible in dark mode against the hue-rotated background. When introducing similar dynamic-colour components, follow the same token-layered pattern rather than branching on `theme` at runtime.
 - Status / risk colours go through `src/utils/statusColors.ts` and `src/utils/riskColors.ts` — single source of truth, already covered by tests.

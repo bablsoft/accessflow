@@ -84,7 +84,7 @@ export function GroupMemberCard({
             {incomplete && (
               <Tooltip title={t('requestGroups.builder.stepIncomplete')}>
                 <WarningOutlined
-                  style={{ color: 'var(--af-warning)' }}
+                  style={{ color: 'var(--warning)' }}
                   aria-label={t('requestGroups.builder.stepIncomplete')}
                 />
               </Tooltip>

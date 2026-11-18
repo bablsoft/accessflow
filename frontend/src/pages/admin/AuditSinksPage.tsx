@@ -432,7 +432,7 @@ function HealthRow({
         className="mono"
         style={{
           fontSize: 12,
-          color: emphasis ? 'var(--af-color-error)' : undefined,
+          color: emphasis ? 'var(--danger)' : undefined,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',

@@ -76,7 +76,7 @@ export function AttestationBulkModal({
       {commentRequired && !trimmed && (
         <div
           role="alert"
-          style={{ marginTop: 8, color: 'var(--af-color-error, #cf1322)', fontSize: 12 }}
+          style={{ marginTop: 8, color: 'var(--danger)', fontSize: 12 }}
         >
           {t('attestation.worklist.comment_required')}
         </div>
