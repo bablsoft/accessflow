@@ -5,6 +5,8 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
+import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   acknowledgeDeploymentRollback,
@@ -52,6 +54,8 @@ export function PendingDeploymentsTab() {
     null,
   );
   const [comment, setComment] = useState('');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [q, setQ] = useState('');
   const [pipeline, setPipeline] = useState<string | 'all'>('all');
@@ -125,6 +129,17 @@ export function PendingDeploymentsTab() {
       }),
     [rows, q, risk],
   );
+
+  const active = filtered.find((r) => r.deployment_request_id === activeId) ?? filtered[0] ?? null;
+  useTriageKeys({
+    ids: filtered.map((r) => r.deployment_request_id),
+    activeId: active?.deployment_request_id ?? null,
+    onActiveChange: setActiveId,
+    onOpen: (id) => navigate(`/deployments/${id}`),
+    onApprove: (id) => setDecisionFor({ id, kind: 'approve' }),
+    onReject: (id) => setDecisionFor({ id, kind: 'reject' }),
+    onHelp: () => setHelpOpen((open) => !open),
+  });
 
   const columns: TableColumnsType<DeploymentReviewItem> = [
     {
@@ -269,6 +284,7 @@ export function PendingDeploymentsTab() {
           style={{ width: 140 }}
         />
         <div style={{ flex: 1 }} />
+        <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('deploygov.reviews.countLabel', {
             filtered: filtered.length,
@@ -284,6 +300,7 @@ export function PendingDeploymentsTab() {
         ) : (
           <Table<DeploymentReviewItem>
             rowKey="deployment_request_id"
+            rowClassName={(row) => (row.deployment_request_id === active?.deployment_request_id ? 'af-triage-row-active' : '')}
             dataSource={filtered}
             columns={columns}
             size="middle"

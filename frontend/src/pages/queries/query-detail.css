@@ -29,3 +29,17 @@
     gap: 16px;
   }
 }
+
+/* The review decision sits at the top of the side column so it is on screen without scrolling
+   past the results. */
+.qd-decision {
+  background: var(--bg-elev);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+.qd-decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}

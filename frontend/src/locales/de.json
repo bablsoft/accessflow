@@ -909,7 +909,6 @@
     },
     "tab_mine": "Dir zugewiesen · {{count}}",
     "tab_all": "Alle ausstehend · {{count}}",
-    "tab_recent": "Kürzlich entschieden",
     "empty_title": "Alles erledigt",
     "empty_description": "Aktuell warten keine Abfragen auf dich.",
     "on_approve": "Genehmigt · zur Ausführung weitergeleitet",
@@ -967,7 +966,26 @@
     "delegated_tooltip": "Sie können dies prüfen, weil eine Kollegin oder ein Kollege Ihnen die Prüfungspflicht delegiert hat.",
     "sql_review_blocking_tag": "{{count}} Block",
     "sql_review_blocking_tooltip_one": "{{count}} blockierender SQL-Prüfbefund — diese Abfrage konnte nicht automatisch freigegeben werden.",
-    "sql_review_blocking_tooltip_other": "{{count}} blockierende SQL-Prüfbefunde — diese Abfrage konnte nicht automatisch freigegeben werden."
+    "sql_review_blocking_tooltip_other": "{{count}} blockierende SQL-Prüfbefunde — diese Abfrage konnte nicht automatisch freigegeben werden.",
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "next": "Nächste Anfrage",
+      "previous": "Vorherige Anfrage",
+      "open": "Details öffnen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "help": "Diese Liste anzeigen"
+    },
+    "preview": {
+      "title": "Anfragevorschau",
+      "empty_title": "Nichts ausgewählt",
+      "empty_description": "Wählen Sie eine Anfrage aus, um sie hier anzuzeigen.",
+      "sql": "SQL",
+      "justification": "Begründung",
+      "ai_summary": "KI-Zusammenfassung",
+      "sql_review": "SQL-Prüfung",
+      "open_details": "Alle Details öffnen"
+    }
   },
   "timeline": {
     "title": "Genehmigungs-Zeitleiste"

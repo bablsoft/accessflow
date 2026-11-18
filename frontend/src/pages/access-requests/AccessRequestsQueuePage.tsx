@@ -47,7 +47,7 @@ export function AccessRequestsQueuePage() {
       invalidate();
       setRejectTarget(null);
       setRejectComment('');
-      message.error(t('access.queue.on_reject'));
+      message.success(t('access.queue.on_reject'));
     },
     onError: (err) => showApiError(message, err, reviewErrorMessage),
   });

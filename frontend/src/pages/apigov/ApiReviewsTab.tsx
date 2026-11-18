@@ -5,6 +5,8 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
+import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   apiRequestKeys,
@@ -36,6 +38,8 @@ export function ApiReviewsTab() {
     null,
   );
   const [comment, setComment] = useState('');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [q, setQ] = useState('');
   const [connector, setConnector] = useState<string | 'all'>('all');
@@ -97,6 +101,17 @@ export function ApiReviewsTab() {
       }),
     [rows, q, risk],
   );
+
+  const active = filtered.find((r) => r.api_request_id === activeId) ?? filtered[0] ?? null;
+  useTriageKeys({
+    ids: filtered.map((r) => r.api_request_id),
+    activeId: active?.api_request_id ?? null,
+    onActiveChange: setActiveId,
+    onOpen: (id) => navigate(`/api-requests/${id}`),
+    onApprove: (id) => setDecisionFor({ id, kind: 'approve' }),
+    onReject: (id) => setDecisionFor({ id, kind: 'reject' }),
+    onHelp: () => setHelpOpen((open) => !open),
+  });
 
   const columns: TableColumnsType<PendingApiReview> = [
     { title: t('apiGov.requests.connector'), dataIndex: 'connector_name', width: 160 },
@@ -216,6 +231,7 @@ export function ApiReviewsTab() {
           style={{ width: 130 }}
         />
         <div style={{ flex: 1 }} />
+        <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('apiGov.requests.countLabel', {
             filtered: filtered.length,
@@ -231,6 +247,7 @@ export function ApiReviewsTab() {
         ) : (
           <Table<PendingApiReview>
             rowKey="api_request_id"
+            rowClassName={(row) => (row.api_request_id === active?.api_request_id ? 'af-triage-row-active' : '')}
             dataSource={filtered}
             columns={columns}
             size="middle"

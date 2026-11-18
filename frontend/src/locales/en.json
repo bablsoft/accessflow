@@ -909,7 +909,6 @@
     },
     "tab_mine": "Assigned to you · {{count}}",
     "tab_all": "All pending · {{count}}",
-    "tab_recent": "Recently decided",
     "empty_title": "All caught up",
     "empty_description": "No queries are waiting on you right now.",
     "on_approve": "Approved · forwarded to execution",
@@ -967,7 +966,26 @@
     "delegated_tooltip": "You can review this because a colleague delegated their review duty to you.",
     "sql_review_blocking_tag": "{{count}} block",
     "sql_review_blocking_tooltip_one": "{{count}} blocking SQL review finding — this query could not auto-approve.",
-    "sql_review_blocking_tooltip_other": "{{count}} blocking SQL review findings — this query could not auto-approve."
+    "sql_review_blocking_tooltip_other": "{{count}} blocking SQL review findings — this query could not auto-approve.",
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "next": "Next request",
+      "previous": "Previous request",
+      "open": "Open details",
+      "approve": "Approve",
+      "reject": "Reject",
+      "help": "Show this list"
+    },
+    "preview": {
+      "title": "Request preview",
+      "empty_title": "Nothing selected",
+      "empty_description": "Select a request to see it here.",
+      "sql": "SQL",
+      "justification": "Justification",
+      "ai_summary": "AI summary",
+      "sql_review": "SQL review",
+      "open_details": "Open full details"
+    }
   },
   "timeline": {
     "title": "Approval timeline"

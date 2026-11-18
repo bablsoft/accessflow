@@ -336,3 +336,150 @@ describe('QueryReviewsTab — reject modal flow (AF-269)', () => {
     expect(screen.queryByTestId('delegated-tag')).toBeNull();
   });
 });
+
+describe('QueryReviewsTab — triage', () => {
+  const second = 'bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+  function twoRows(): PendingReviewsPage {
+    const page = pendingPage();
+    const first = page.content[0]!;
+    return {
+      ...page,
+      total_elements: 2,
+      content: [
+        first,
+        { ...first, id: second, sql_text: 'DELETE FROM orders', justification: 'cleanup' },
+      ],
+    };
+  }
+
+  function stubSplit(matches: boolean) {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  }
+
+  beforeEach(() => {
+    listPendingReviewsMock.mockReset();
+    approveQueryMock.mockReset();
+    rejectQueryMock.mockReset();
+    useAuthStore.setState({
+      user: {
+        id: 'u-reviewer',
+        email: 'reviewer@example.com',
+        display_name: 'Rev',
+        role: 'REVIEWER',
+        role_id: null,
+        permissions: ['QUERY_SUBMIT_SELECT', 'QUERY_REVIEW'],
+        auth_provider: 'LOCAL',
+        totp_enabled: false,
+        platform_admin: false,
+        preferred_language: 'en',
+      },
+      accessToken: 'token',
+    });
+  });
+
+  it('removes an approved row at once and keeps it gone on success', async () => {
+    listPendingReviewsMock.mockResolvedValue(twoRows());
+    let resolve: () => void = () => undefined;
+    approveQueryMock.mockReturnValue(new Promise<void>((r) => { resolve = r; }));
+    render(wrap(<QueryReviewsTab />));
+    await screen.findByText('aaaaaaaa');
+
+    fireEvent.keyDown(window, { key: 'a' });
+
+    await waitFor(() => expect(screen.queryByText('aaaaaaaa')).toBeNull());
+    expect(approveQueryMock.mock.calls[0]![0]).toBe('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+    expect(screen.getByText('bbbbbbbb')).toBeInTheDocument();
+    listPendingReviewsMock.mockResolvedValue({ ...twoRows(), content: [twoRows().content[1]!] });
+    await act(async () => resolve());
+    expect(await screen.findByText('Approved · forwarded to execution')).toBeInTheDocument();
+  });
+
+  it('restores the row when the server refuses the decision', async () => {
+    listPendingReviewsMock.mockResolvedValue(twoRows());
+    approveQueryMock.mockRejectedValue(new Error('nope'));
+    render(wrap(<QueryReviewsTab />));
+    await screen.findByText('aaaaaaaa');
+
+    fireEvent.keyDown(window, { key: 'A' });
+
+    await waitFor(() => expect(approveQueryMock).toHaveBeenCalled());
+    expect(await screen.findByText('aaaaaaaa')).toBeInTheDocument();
+  });
+
+  it('moves the selection with J/K and rejects the selected row with R', async () => {
+    listPendingReviewsMock.mockResolvedValue(twoRows());
+    rejectQueryMock.mockResolvedValue(undefined);
+    const { container } = render(wrap(<QueryReviewsTab />));
+    await screen.findByText('aaaaaaaa');
+    const activeRow = () => container.querySelector('.af-triage-row-active');
+    expect(activeRow()).toHaveTextContent('aaaaaaaa');
+
+    fireEvent.keyDown(window, { key: 'j' });
+    expect(activeRow()).toHaveTextContent('bbbbbbbb');
+    fireEvent.keyDown(window, { key: 'k' });
+    expect(activeRow()).toHaveTextContent('aaaaaaaa');
+    fireEvent.keyDown(window, { key: 'j' });
+
+    fireEvent.keyDown(window, { key: 'r' });
+    const textarea = await screen.findByPlaceholderText(/Explain why/);
+    fireEvent.change(textarea, { target: { value: 'too risky' } });
+    fireEvent.click(document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLElement);
+
+    await waitFor(() => expect(rejectQueryMock).toHaveBeenCalledWith(second, 'too risky'));
+    expect(await screen.findByText('Rejected · submitter notified')).toBeInTheDocument();
+    expect(document.querySelector('.ant-message-success')).toBeInTheDocument();
+  });
+
+  it('lists the shortcuts from the ? key', async () => {
+    listPendingReviewsMock.mockResolvedValue(twoRows());
+    render(wrap(<QueryReviewsTab />));
+    await screen.findByText('aaaaaaaa');
+    fireEvent.keyDown(window, { key: '?' });
+    expect(await screen.findByText('Next request')).toBeInTheDocument();
+  });
+
+  it('shows the selected request in the side preview on a wide screen', async () => {
+    const restore = stubSplit(true);
+    try {
+      listPendingReviewsMock.mockResolvedValue(twoRows());
+      approveQueryMock.mockResolvedValue(undefined);
+      render(wrap(<QueryReviewsTab />));
+      // Role queries crawl in a tree this deep under jsdom; the panel is addressed by its class.
+      await screen.findByText('aaaaaaaa', { selector: '.af-preview-id' });
+      const preview = document.querySelector('.af-preview') as HTMLElement;
+      expect(preview).toHaveAttribute('aria-label', 'Request preview');
+      expect(preview).toHaveTextContent('why');
+
+      fireEvent.click(screen.getByText('bbbbbbbb'));
+      expect(preview).toHaveTextContent('cleanup');
+      expect(screen.getByText(/Open full details/).closest('a'))
+        .toHaveAttribute('href', `/queries/${second}`);
+
+      fireEvent.click(preview.querySelector('.ant-btn-primary') as HTMLElement);
+      await waitFor(() => expect(approveQueryMock.mock.calls[0]![0]).toBe(second));
+    } finally {
+      restore();
+    }
+  });
+
+  it('no longer offers the Recently decided filter', async () => {
+    listPendingReviewsMock.mockResolvedValue(twoRows());
+    render(wrap(<QueryReviewsTab />));
+    await screen.findByText('aaaaaaaa');
+    expect(screen.queryByText('Recently decided')).toBeNull();
+  });
+});

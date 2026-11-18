@@ -13,6 +13,14 @@ import { Avatar } from '@/components/common/Avatar';
 import { ApprovalPredictionBadge } from '@/components/review/ApprovalPredictionBadge';
 import { RejectModal } from '@/components/review/RejectModal';
 import { BulkDecisionModal } from '@/components/review/BulkDecisionModal';
+import {
+  QueryReviewPreview,
+  TriageShortcuts,
+  nextActiveId,
+  useTriageKeys,
+} from '@/components/review/triage';
+import '@/components/review/triage/triage.css';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
 import { queryKeys } from '@/api/queries';
@@ -30,6 +38,7 @@ import { showApiError } from '@/utils/showApiError';
 import type {
   BulkReviewRowStatus,
   PendingReviewItem,
+  PendingReviewsPage,
   ReviewDecisionType,
 } from '@/types/api';
 
@@ -47,6 +56,10 @@ export function QueryReviewsTab() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<BulkAction>(null);
   const [rowStatuses, setRowStatuses] = useState<Record<string, BulkReviewRowStatus>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Wide enough for the list and a preview side by side; below it a row click opens the detail page.
+  const split = useMediaQuery('(min-width: 1440px)');
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -69,23 +82,62 @@ export function QueryReviewsTab() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
   };
 
+  const queueKey = reviewKeys.pendingFor(filters);
+  // The row a keyboard or preview action applies to: the stored one while it is still listed,
+  // else the first — so the queue always has a selection without syncing state in an effect.
+  const active = list.find((q) => q.id === activeId) ?? list[0] ?? null;
+
+  // A decided row leaves the queue at once and the selection moves to its neighbour; if the
+  // server refuses, the snapshot is restored and the error explains why.
+  const removeOptimistically = async (id: string) => {
+    await queryClient.cancelQueries({ queryKey: queueKey });
+    const previous = queryClient.getQueryData<PendingReviewsPage>(queueKey);
+    setActiveId(nextActiveId(list.map((q) => q.id), id));
+    if (previous) {
+      queryClient.setQueryData<PendingReviewsPage>(queueKey, {
+        ...previous,
+        content: previous.content.filter((q) => q.id !== id),
+      });
+    }
+    return { previous, id };
+  };
+  const rollback = (
+    err: unknown,
+    context: { previous?: PendingReviewsPage; id: string } | undefined,
+  ) => {
+    if (context?.previous) queryClient.setQueryData(queueKey, context.previous);
+    if (context) setActiveId(context.id);
+    showApiError(message, err, reviewErrorMessage);
+  };
+
   const approve = useMutation({
     mutationFn: (id: string) => approveQuery(id),
-    onSuccess: (_, id) => {
-      invalidateAfterDecision(id);
-      message.success(t('reviews.on_approve'));
-    },
-    onError: (err) => showApiError(message, err, reviewErrorMessage),
+    onMutate: (id) => removeOptimistically(id),
+    onSuccess: () => message.success(t('reviews.on_approve')),
+    onError: (err, _id, context) => rollback(err, context),
+    onSettled: (_data, _err, id) => invalidateAfterDecision(id),
   });
   const reject = useMutation({
     mutationFn: ({ id, comment }: { id: string; comment: string }) =>
       rejectQuery(id, comment),
-    onSuccess: (_, vars) => {
-      invalidateAfterDecision(vars.id);
+    onMutate: ({ id }) => {
       setRejectTargetId(null);
-      message.error(t('reviews.on_reject'));
+      return removeOptimistically(id);
     },
-    onError: (err) => showApiError(message, err, reviewErrorMessage),
+    // A completed rejection is a successful action, not an error.
+    onSuccess: () => message.success(t('reviews.on_reject')),
+    onError: (err, _vars, context) => rollback(err, context),
+    onSettled: (_data, _err, vars) => invalidateAfterDecision(vars.id),
+  });
+
+  useTriageKeys({
+    ids: list.map((q) => q.id),
+    activeId: active?.id ?? null,
+    onActiveChange: setActiveId,
+    onOpen: (id) => navigate(`/queries/${id}`),
+    onApprove: (id) => approve.mutate(id),
+    onReject: setRejectTargetId,
+    onHelp: () => setHelpOpen((open) => !open),
   });
 
   const bulk = useMutation({
@@ -289,14 +341,15 @@ export function QueryReviewsTab() {
   );
 
   const onRowClick = (item: PendingReviewItem) => ({
-    onClick: () => navigate(`/queries/${item.id}`),
+    onClick: () => (split ? setActiveId(item.id) : navigate(`/queries/${item.id}`)),
+    onDoubleClick: () => navigate(`/queries/${item.id}`),
     style: { cursor: 'pointer' as const },
   });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* A segmented sub-filter rather than a second tab strip under the hub's tabs. */}
-      <div style={{ padding: '12px 28px 0' }}>
+      <div className="af-triage-toolbar">
         <Segmented
           size="small"
           value={tab}
@@ -304,11 +357,13 @@ export function QueryReviewsTab() {
           options={[
             { value: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, reviewable.length) }) },
             { value: 'all', label: t('reviews.tab_all', { count: reviewable.length }) },
-            { value: 'recent', label: t('reviews.tab_recent') },
           ]}
         />
+        <span className="af-triage-toolbar-spacer" />
+        <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <div className={`af-triage${list.length > 0 ? ' af-triage--split' : ''}`}>
+      <div className="af-triage-list">
         {selectedRowKeys.length > 0 && (
           <div
             role="toolbar"
@@ -373,12 +428,23 @@ export function QueryReviewsTab() {
             size="middle"
             scroll={{ x: 'max-content' }}
             onRow={onRowClick}
+            rowClassName={(item) => (item.id === active?.id ? 'af-triage-row-active' : '')}
             rowSelection={{
               selectedRowKeys,
               onChange: (keys) => setSelectedRowKeys(keys as string[]),
             }}
           />
         )}
+      </div>
+      {split && list.length > 0 && (
+        <aside className="af-triage-preview">
+          <QueryReviewPreview
+            item={active}
+            onApprove={(id) => approve.mutate(id)}
+            onReject={setRejectTargetId}
+          />
+        </aside>
+      )}
       </div>
       <RejectModal
         open={rejectTargetId !== null}
