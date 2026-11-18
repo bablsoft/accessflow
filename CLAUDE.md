@@ -576,7 +576,8 @@ eight are the rules an agent needs *before* it knows which pattern to open:
 6. **All requests through `src/api/client.ts`** — never a bare `fetch`. 401 is the interceptor's
    job; components must not catch it.
 7. **Never `dangerouslySetInnerHTML`, `eval`, or `new Function`.** No hardcoded hex colours —
-   use the `--af-*` tokens, and `src/utils/{statusColors,riskColors}.ts` for status/risk.
+   use the tokens in `src/styles/tokens.css` (`--bg`, `--fg-*`, `--accent`, `--danger`, …;
+   there is no `--af-` prefix), and `src/utils/{statusColors,riskColors}.ts` for status/risk.
    Carve-out: the **vendored Bklit chart components** (`src/components/charts/**`,
    `src/components/shimmering-text.tsx`) are third-party registry code — excluded from ESLint,
    re-vendorable, and themed exclusively through the CSS-variable bridge in

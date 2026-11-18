@@ -123,7 +123,7 @@ export default function ApiEditorPage() {
                 value={scheduledFor}
                 onChange={setScheduledFor}
               />
-              <div className="muted" style={{ marginTop: 4, color: scheduleInPast ? 'var(--af-error)' : undefined }}>
+              <div className="muted" style={{ marginTop: 4, color: scheduleInPast ? 'var(--danger)' : undefined }}>
                 {scheduleInPast ? t('apiGov.editor.scheduleInPast') : t('apiGov.editor.scheduleHint')}
               </div>
             </label>

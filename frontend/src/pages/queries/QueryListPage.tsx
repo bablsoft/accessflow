@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react';
-import { App, Button, DatePicker, Input, Select, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, DatePicker, Input, Select, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
 import {
   ClockCircleOutlined,
   DownloadOutlined,
-  SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
@@ -140,7 +140,7 @@ export function QueryListPage() {
             >
               <ClockCircleOutlined
                 aria-label={t('queries.list.scheduled_for_aria')}
-                style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+                style={{ color: 'var(--accent)', fontSize: 12 }}
               />
             </Tooltip>
           )}
@@ -148,7 +148,7 @@ export function QueryListPage() {
             <Tooltip title={t('queries.list.recurring_tooltip')}>
               <SyncOutlined
                 aria-label={t('queries.list.recurring_aria')}
-                style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+                style={{ color: 'var(--accent)', fontSize: 12 }}
               />
             </Tooltip>
           )}
@@ -209,7 +209,7 @@ export function QueryListPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('queries.list.title')}
         subtitle={t('queries.list.subtitle')}
@@ -223,23 +223,12 @@ export function QueryListPage() {
           </Button>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+      <FilterBar>
+        <FilterBar.Search
           placeholder={t('queries.list.search_placeholder')}
+          aria-label={t('queries.list.search_placeholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 260 }}
         />
         <Select
           value={status}
@@ -295,40 +284,26 @@ export function QueryListPage() {
             setPage(0);
           }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <FilterBar.Count>
           {t('queries.list.count_label', {
             filtered: filtered.length,
             total: data?.total_elements ?? 0,
           })}
-        </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
-        {isLoading ? (
-          <div style={{ padding: 16 }}>
-            <Skeleton active paragraph={{ rows: 8 }} />
-          </div>
-        ) : (
-          <Table
-            rowKey="id"
-            dataSource={filtered}
-            columns={cols}
-            size="middle"
-            scroll={{ x: 'max-content' }}
-            pagination={{
-              current: page + 1,
-              pageSize: PAGE_SIZE,
-              total: data?.total_elements ?? 0,
-              showSizeChanger: false,
-              onChange: (p) => setPage(p - 1),
-            }}
-            onRow={(record) => ({
-              onClick: () => navigate(`/queries/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
-          />
-        )}
-      </div>
-    </div>
+        </FilterBar.Count>
+      </FilterBar>
+      <PageBody flush>
+        <DataTable
+          rowKey="id"
+          loading={isLoading}
+          dataSource={filtered}
+          columns={cols}
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={data?.total_elements ?? 0}
+          onPageChange={setPage}
+          onRowActivate={(record) => navigate(`/queries/${record.id}`)}
+        />
+      </PageBody>
+    </Page>
   );
 }

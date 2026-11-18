@@ -37,7 +37,10 @@
     "on_behalf_of": "{{name}}-ի անունից",
     "on_behalf_of_tooltip": "API բանալիով զանգողը գործել է այս անձի անունից (X-AccessFlow-On-Behalf-Of)։ Նշված անձը ինքնահաստատման արգելքի համար համարվում է ներկայացնող։",
     "principal_service_account_tooltip": "Ոչ մարդկային ինքնություն. նույնականանում է միայն API բանալիով և երբեք չի կարող ինտերակտիվ մուտք գործել։",
-    "bytes_unit": "Միավոր"
+    "bytes_unit": "Միավոր",
+    "skip_to_content": "Անցնել բովանդակությանը",
+    "error_boundary_title": "Այս էջում սխալ է տեղի ունեցել",
+    "error_boundary_description": "AccessFlow-ի մնացած մասը շարունակում է աշխատել։ Փորձեք կրկին կամ բացեք այլ էջ ընտրացանկից։"
   },
   "nav": {
     "editor": "SQL խմբագիր",

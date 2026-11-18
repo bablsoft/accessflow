@@ -1,3 +1,6 @@
+import type { CSSProperties } from 'react';
+import './common.css';
+
 interface AvatarProps {
   name: string;
   size?: number;
@@ -14,23 +17,9 @@ export function Avatar({ name, size = 24 }: AvatarProps) {
   const hue = (name || '')
     .split('')
     .reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const vars = { '--avatar-size': `${size}px`, '--avatar-hue': hue } as CSSProperties;
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: `oklch(var(--avatar-bg-l) 0.06 ${hue})`,
-        color: `oklch(var(--avatar-fg-l) 0.12 ${hue})`,
-        fontSize: size * 0.42,
-        fontWeight: 600,
-        flexShrink: 0,
-        fontFamily: 'var(--font-sans)',
-      }}
-    >
+    <span className="af-avatar" style={vars}>
       {initials}
     </span>
   );

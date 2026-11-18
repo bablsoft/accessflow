@@ -81,7 +81,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
           <Tooltip title={t('queries.detail.column_masked_tooltip')}>
             <LockOutlined
               aria-label={t('queries.detail.column_masked_tooltip')}
-              style={{ marginLeft: 6, color: 'var(--af-color-warning, #d97706)' }}
+              style={{ marginLeft: 6, color: 'var(--warning)' }}
             />
           </Tooltip>
         ) : null}

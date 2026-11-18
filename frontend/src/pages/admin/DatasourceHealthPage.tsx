@@ -116,7 +116,7 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
             value={row.errors_last_24h}
             styles={
               row.errors_last_24h > 0
-                ? { content: { color: 'var(--af-color-error)' } }
+                ? { content: { color: 'var(--danger)' } }
                 : undefined
             }
           />

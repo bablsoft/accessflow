@@ -1,0 +1,125 @@
+/* Shared page primitives — see .claude/patterns/frontend-page.md */
+
+.af-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.af-page-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--sp-5) var(--gutter) var(--sp-8);
+}
+.af-page-body--flush {
+  padding: 0 var(--sp-3);
+}
+.af-page-body-inner {
+  margin: 0 auto;
+  width: 100%;
+}
+.af-page-body--reading .af-page-body-inner {
+  max-width: var(--w-reading);
+}
+.af-page-body--form .af-page-body-inner {
+  max-width: var(--w-form);
+  margin-left: 0;
+}
+
+.af-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--gutter);
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.af-filter-bar-search {
+  width: 260px;
+  max-width: 100%;
+}
+.af-filter-bar-search .anticon {
+  color: var(--fg-faint);
+}
+.af-filter-bar-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.af-data-table-loading {
+  padding: var(--sp-4);
+}
+.af-data-table .af-row-clickable {
+  cursor: pointer;
+}
+.af-data-table .af-row-clickable:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.af-surface {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.af-surface-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.af-surface-icon {
+  color: var(--fg-muted);
+}
+.af-surface-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.af-surface-body--padded {
+  padding: var(--sp-4);
+}
+
+.af-section {
+  margin-bottom: var(--sp-8);
+}
+.af-section-title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.af-section-description {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.af-section-title + .af-section-content {
+  margin-top: var(--sp-3);
+}
+
+.af-route-fallback {
+  padding: var(--sp-6) var(--gutter);
+}
+
+@media (max-width: 720px) {
+  .af-page-body {
+    padding: var(--sp-4);
+  }
+  .af-filter-bar {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .af-filter-bar-search {
+    width: 100%;
+  }
+  .af-route-fallback {
+    padding: var(--sp-4);
+  }
+}

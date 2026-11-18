@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/common/AuthGuard';
 import { MessageBridgeBinder } from '@/components/common/MessageBridgeBinder';
 import { NavigationBridgeBinder } from '@/components/common/NavigationBridgeBinder';
 import { AppLayout } from '@/layouts/AppLayout';
+import { RouteFallback } from '@/components/layout/RouteFallback';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
@@ -167,7 +168,7 @@ export function App() {
         <Route
           path="/invite/:token"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <AcceptInvitePage />
             </Suspense>
           }
@@ -175,7 +176,7 @@ export function App() {
         <Route
           path="/forgot-password"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <ForgotPasswordPage />
             </Suspense>
           }
@@ -183,7 +184,7 @@ export function App() {
         <Route
           path="/reset-password/:token"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <ResetPasswordPage />
             </Suspense>
           }
@@ -191,7 +192,7 @@ export function App() {
         <Route
           path="/auth/oauth/callback"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <OAuthCallbackPage />
             </Suspense>
           }
@@ -199,7 +200,7 @@ export function App() {
         <Route
           path="/auth/saml/callback"
           element={
-            <Suspense fallback={null}>
+            <Suspense fallback={<RouteFallback />}>
               <SamlCallbackPage />
             </Suspense>
           }
@@ -216,7 +217,7 @@ export function App() {
           <Route
             path="/dashboard"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <DashboardPage />
               </Suspense>
             }
@@ -225,7 +226,7 @@ export function App() {
           <Route
             path="/api-editor"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <ApiEditorPage />
               </Suspense>
             }
@@ -233,7 +234,7 @@ export function App() {
           <Route
             path="/api-requests"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <ApiRequestsListPage />
               </Suspense>
             }
@@ -241,7 +242,7 @@ export function App() {
           <Route
             path="/api-requests/:id"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <ApiRequestDetailPage />
               </Suspense>
             }
@@ -251,7 +252,7 @@ export function App() {
           <Route
             path="/deployments"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <DeploymentListPage />
               </Suspense>
             }
@@ -259,7 +260,7 @@ export function App() {
           <Route
             path="/deployments/:id"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <DeploymentDetailPage />
               </Suspense>
             }
@@ -276,7 +277,7 @@ export function App() {
                   'QUERY_ADMIN',
                 ]}
               >
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DeploymentVersionsPage />
                 </Suspense>
               </AuthGuard>
@@ -287,7 +288,7 @@ export function App() {
           <Route
             path="/deployment-versions/:pipelineId"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <PipelineVersionsPage />
               </Suspense>
             }
@@ -302,7 +303,7 @@ export function App() {
                   'QUERY_ADMIN',
                 ]}
               >
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DeploymentMetricsPage />
                 </Suspense>
               </AuthGuard>
@@ -312,7 +313,7 @@ export function App() {
           <Route
             path="/deployment-metrics/:pipelineId"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <PipelineMetricsPage />
               </Suspense>
             }
@@ -321,7 +322,7 @@ export function App() {
             path="/admin/deployment-pipelines"
             element={
               <AuthGuard requirePermission={'DEPLOYMENT_PIPELINE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DeploymentPipelinesPage />
                 </Suspense>
               </AuthGuard>
@@ -331,7 +332,7 @@ export function App() {
             path="/admin/deployment-pipelines/:id"
             element={
               <AuthGuard requirePermission={'DEPLOYMENT_PIPELINE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DeploymentPipelineSettingsPage />
                 </Suspense>
               </AuthGuard>
@@ -341,7 +342,7 @@ export function App() {
             path="/api-connectors"
             element={
               <AuthGuard requirePermission={'API_CONNECTOR_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ApiConnectorsListPage />
                 </Suspense>
               </AuthGuard>
@@ -351,7 +352,7 @@ export function App() {
             path="/api-connectors/:id/settings"
             element={
               <AuthGuard requirePermission={'API_CONNECTOR_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ApiConnectorSettingsPage />
                 </Suspense>
               </AuthGuard>
@@ -360,7 +361,7 @@ export function App() {
           <Route
             path="/request-groups"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <RequestGroupListPage />
               </Suspense>
             }
@@ -368,7 +369,7 @@ export function App() {
           <Route
             path="/request-groups/new"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <GroupBuilderPage />
               </Suspense>
             }
@@ -376,7 +377,7 @@ export function App() {
           <Route
             path="/request-groups/:id/edit"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <GroupBuilderPage />
               </Suspense>
             }
@@ -385,7 +386,7 @@ export function App() {
             path="/request-groups/reviews"
             element={
               <AuthGuard requirePermission={'QUERY_REVIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <RequestGroupReviewQueuePage />
                 </Suspense>
               </AuthGuard>
@@ -394,7 +395,7 @@ export function App() {
           <Route
             path="/request-groups/:id"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <RequestGroupDetailPage />
               </Suspense>
             }
@@ -403,7 +404,7 @@ export function App() {
             path="/schema-change-sets"
             element={
               <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <SchemaChangeSetListPage />
                 </Suspense>
               </AuthGuard>
@@ -413,7 +414,7 @@ export function App() {
             path="/schema-change-sets/:id"
             element={
               <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <SchemaChangeSetDetailPage />
                 </Suspense>
               </AuthGuard>
@@ -423,7 +424,7 @@ export function App() {
             path="/schema-drift"
             element={
               <AuthGuard requirePermission={'SCHEMA_CHANGE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <SchemaDriftPage />
                 </Suspense>
               </AuthGuard>
@@ -444,7 +445,7 @@ export function App() {
             path="/reviews/:id/decide"
             element={
               <AuthGuard requirePermission={'QUERY_REVIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <PushDecidePage />
                 </Suspense>
               </AuthGuard>
@@ -454,7 +455,7 @@ export function App() {
             path="/reviews/attestations"
             element={
               <AuthGuard requirePermission={'ATTESTATION_REVIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AttestationWorklistPage />
                 </Suspense>
               </AuthGuard>
@@ -480,7 +481,7 @@ export function App() {
             path="/datasources/new"
             element={
               <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DatasourceCreateWizardPage />
                 </Suspense>
               </AuthGuard>
@@ -506,7 +507,7 @@ export function App() {
             path="/admin/data-classifications"
             element={
               <AuthGuard requirePermission={'DATA_CLASSIFICATION_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DataClassificationsPage />
                 </Suspense>
               </AuthGuard>
@@ -516,7 +517,7 @@ export function App() {
             path="/admin/groups"
             element={
               <AuthGuard requirePermission={'GROUP_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <GroupsListPage />
                 </Suspense>
               </AuthGuard>
@@ -526,7 +527,7 @@ export function App() {
             path="/admin/groups/:id"
             element={
               <AuthGuard requirePermission={'GROUP_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <GroupDetailPage />
                 </Suspense>
               </AuthGuard>
@@ -536,7 +537,7 @@ export function App() {
             path="/admin/roles"
             element={
               <AuthGuard requirePermission={'ROLE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <RolesPage />
                 </Suspense>
               </AuthGuard>
@@ -546,7 +547,7 @@ export function App() {
             path="/admin/service-accounts"
             element={
               <AuthGuard requirePermission={'SERVICE_ACCOUNT_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ServiceAccountsPage />
                 </Suspense>
               </AuthGuard>
@@ -556,7 +557,7 @@ export function App() {
             path="/admin/service-accounts/:id"
             element={
               <AuthGuard requirePermission={'SERVICE_ACCOUNT_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ServiceAccountSettingsPage />
                 </Suspense>
               </AuthGuard>
@@ -582,7 +583,7 @@ export function App() {
             path="/admin/decision-hooks"
             element={
               <AuthGuard requirePermission={'ROUTING_POLICY_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DecisionHooksPage />
                 </Suspense>
               </AuthGuard>
@@ -592,7 +593,7 @@ export function App() {
             path="/admin/sql-review"
             element={
               <AuthGuard requirePermission={'SQL_REVIEW_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <SqlReviewRulesetsPage />
                 </Suspense>
               </AuthGuard>
@@ -602,7 +603,7 @@ export function App() {
             path="/admin/attestation"
             element={
               <AuthGuard requirePermission={'ATTESTATION_CAMPAIGN_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <CampaignListPage />
                 </Suspense>
               </AuthGuard>
@@ -612,7 +613,7 @@ export function App() {
             path="/admin/attestation/:id"
             element={
               <AuthGuard requirePermission={'ATTESTATION_CAMPAIGN_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <CampaignDetailPage />
                 </Suspense>
               </AuthGuard>
@@ -622,7 +623,7 @@ export function App() {
             path="/admin/lifecycle/policies"
             element={
               <AuthGuard requirePermission={'RETENTION_POLICY_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <LifecyclePoliciesListPage />
                 </Suspense>
               </AuthGuard>
@@ -632,7 +633,7 @@ export function App() {
             path="/lifecycle/erasure-reviews"
             element={
               <AuthGuard requirePermission={'ERASURE_REVIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ErasureReviewQueuePage />
                 </Suspense>
               </AuthGuard>
@@ -641,7 +642,7 @@ export function App() {
           <Route
             path="/lifecycle/erasure"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<RouteFallback />}>
                 <ErasureSubmitPage />
               </Suspense>
             }
@@ -658,7 +659,7 @@ export function App() {
             path="/admin/over-provisioned-access"
             element={
               <AuthGuard requirePermission={'ACCESS_USAGE_REPORT_VIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <OverProvisionedAccessPage />
                 </Suspense>
               </AuthGuard>
@@ -670,7 +671,7 @@ export function App() {
               <AuthGuard
                 requirePermission={['DATASOURCE_PERMISSION_MANAGE', 'ACCESS_USAGE_REPORT_VIEW']}
               >
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <PrivilegedAccessPage />
                 </Suspense>
               </AuthGuard>
@@ -682,7 +683,7 @@ export function App() {
               <AuthGuard
                 requirePermission={['DATASOURCE_PERMISSION_MANAGE', 'ACCESS_USAGE_REPORT_VIEW']}
               >
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AccessSimulationPage />
                 </Suspense>
               </AuthGuard>
@@ -692,7 +693,7 @@ export function App() {
             path="/admin/auditor"
             element={
               <AuthGuard requirePermission={'COMPLIANCE_REPORT_VIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AuditorDashboardPage />
                 </Suspense>
               </AuthGuard>
@@ -710,7 +711,7 @@ export function App() {
             path="/admin/ai-configs/new"
             element={
               <AuthGuard requirePermission={'AI_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AiConfigCreateWizardPage />
                 </Suspense>
               </AuthGuard>
@@ -720,7 +721,7 @@ export function App() {
             path="/admin/ai-configs/:id"
             element={
               <AuthGuard requirePermission={'AI_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AiConfigEditPage />
                 </Suspense>
               </AuthGuard>
@@ -730,7 +731,7 @@ export function App() {
             path="/admin/ai-analyses"
             element={
               <AuthGuard requirePermission={'AI_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AiAnalysesPage />
                 </Suspense>
               </AuthGuard>
@@ -740,7 +741,7 @@ export function App() {
             path="/admin/datasource-health"
             element={
               <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <DatasourceHealthPage />
                 </Suspense>
               </AuthGuard>
@@ -750,7 +751,7 @@ export function App() {
             path="/admin/anomalies"
             element={
               <AuthGuard requirePermission={'ANOMALY_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AnomaliesPage />
                 </Suspense>
               </AuthGuard>
@@ -760,7 +761,7 @@ export function App() {
             path="/admin/break-glass"
             element={
               <AuthGuard requirePermission={'BREAK_GLASS_VIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <BreakGlassLogPage />
                 </Suspense>
               </AuthGuard>
@@ -778,7 +779,7 @@ export function App() {
             path="/admin/audit-sinks"
             element={
               <AuthGuard requirePermission={'AUDIT_SINK_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <AuditSinksPage />
                 </Suspense>
               </AuthGuard>
@@ -796,7 +797,7 @@ export function App() {
             path="/admin/governance-domains"
             element={
               <AuthGuard requirePermission={'SETUP_PROGRESS_VIEW'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <GovernanceDomainsPage />
                 </Suspense>
               </AuthGuard>
@@ -806,7 +807,7 @@ export function App() {
             path="/admin/drivers"
             element={
               <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <CustomDriversPage />
                 </Suspense>
               </AuthGuard>
@@ -816,7 +817,7 @@ export function App() {
             path="/admin/connectors"
             element={
               <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ConnectorsPage />
                 </Suspense>
               </AuthGuard>
@@ -834,7 +835,7 @@ export function App() {
             path="/admin/scim"
             element={
               <AuthGuard requirePermission={'SSO_CONFIGURE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <ScimConfigPage />
                 </Suspense>
               </AuthGuard>
@@ -844,7 +845,7 @@ export function App() {
             path="/admin/oauth2"
             element={
               <AuthGuard requirePermission={'SSO_CONFIGURE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <OAuth2ConfigPage />
                 </Suspense>
               </AuthGuard>
@@ -854,7 +855,7 @@ export function App() {
             path="/admin/slack"
             element={
               <AuthGuard requirePermission={'NOTIFICATION_CHANNEL_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <SlackConfigPage />
                 </Suspense>
               </AuthGuard>
@@ -864,7 +865,7 @@ export function App() {
             path="/admin/langfuse"
             element={
               <AuthGuard requirePermission={'AI_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <LangfuseConfigPage />
                 </Suspense>
               </AuthGuard>
@@ -874,7 +875,7 @@ export function App() {
             path="/admin/help-agent"
             element={
               <AuthGuard requirePermission={'AI_MANAGE'}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <HelpAgentConfigPage />
                 </Suspense>
               </AuthGuard>
@@ -884,7 +885,7 @@ export function App() {
             path="/admin/organizations"
             element={
               <AuthGuard requirePlatformAdmin>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <OrganizationsListPage />
                 </Suspense>
               </AuthGuard>
@@ -894,7 +895,7 @@ export function App() {
             path="/admin/organizations/:id"
             element={
               <AuthGuard requirePlatformAdmin>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <OrganizationDetailPage />
                 </Suspense>
               </AuthGuard>
@@ -904,7 +905,7 @@ export function App() {
             path="/admin/jobs"
             element={
               <AuthGuard requirePlatformAdmin>
-                <Suspense fallback={null}>
+                <Suspense fallback={<RouteFallback />}>
                   <JobsPage />
                 </Suspense>
               </AuthGuard>

@@ -37,7 +37,10 @@
     "on_behalf_of": "on behalf of {{name}}",
     "on_behalf_of_tooltip": "An API-key caller acted for this person (X-AccessFlow-On-Behalf-Of). The named person is treated as a submitter for the self-approval ban.",
     "principal_service_account_tooltip": "A non-human identity: it authenticates with an API key only and can never sign in interactively.",
-    "bytes_unit": "Unit"
+    "bytes_unit": "Unit",
+    "skip_to_content": "Skip to content",
+    "error_boundary_title": "Something went wrong on this page",
+    "error_boundary_description": "The rest of AccessFlow still works. Try again, or open another page from the menu."
   },
   "nav": {
     "editor": "Query editor",
