@@ -184,7 +184,7 @@ export function QueryDetailPage() {
     onSuccess: () => {
       invalidateAfterDecision();
       setComment('');
-      message.error(t('queries.detail.on_reject_success'));
+      message.success(t('queries.detail.on_reject_success'));
     },
     onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
@@ -906,15 +906,11 @@ export function QueryDetailPage() {
             </DetailCard>
           )}
 
+        </div>
+
+        <div className="qd-side">
           {canDecide && (
-            <div
-              style={{
-                background: 'var(--bg-elev)',
-                border: '1px solid var(--accent-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: 16,
-              }}
-            >
+            <div className="qd-decision">
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
                 {t('queries.detail.review_required_title')}
               </div>
@@ -928,7 +924,7 @@ export function QueryDetailPage() {
                 onChange={(e) => setComment(e.target.value)}
                 style={{ marginBottom: 12 }}
               />
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="qd-decision-actions">
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
@@ -979,9 +975,6 @@ export function QueryDetailPage() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="qd-side">
           <ApprovalTimeline stages={stages} />
           {query.linked_tickets?.length > 0 && <LinkedTickets tickets={query.linked_tickets} />}
           <Metadata query={query} />

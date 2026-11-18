@@ -55,7 +55,7 @@ export default function ErasureReviewQueuePage() {
       invalidate();
       setRejectTarget(null);
       setRejectComment('');
-      message.error(t('lifecycle.erasure_review.rejected'));
+      message.success(t('lifecycle.erasure_review.rejected'));
     },
     onError: (err) => showApiError(message, err, adminErrorMessage),
   });

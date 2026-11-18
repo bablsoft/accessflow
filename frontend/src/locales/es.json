@@ -909,7 +909,6 @@
     },
     "tab_mine": "Asignadas a ti · {{count}}",
     "tab_all": "Todas las pendientes · {{count}}",
-    "tab_recent": "Decididas recientemente",
     "empty_title": "Todo al día",
     "empty_description": "No hay consultas esperándote ahora mismo.",
     "on_approve": "Aprobada · reenviada a ejecución",
@@ -967,7 +966,26 @@
     "delegated_tooltip": "Puedes revisarlo porque un compañero te delegó su deber de revisión.",
     "sql_review_blocking_tag": "{{count}} bloq.",
     "sql_review_blocking_tooltip_one": "{{count}} hallazgo bloqueante de revisión SQL — esta consulta no pudo aprobarse automáticamente.",
-    "sql_review_blocking_tooltip_other": "{{count}} hallazgos bloqueantes de revisión SQL — esta consulta no pudo aprobarse automáticamente."
+    "sql_review_blocking_tooltip_other": "{{count}} hallazgos bloqueantes de revisión SQL — esta consulta no pudo aprobarse automáticamente.",
+    "shortcuts": {
+      "title": "Atajos de teclado",
+      "next": "Solicitud siguiente",
+      "previous": "Solicitud anterior",
+      "open": "Abrir detalles",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "help": "Mostrar esta lista"
+    },
+    "preview": {
+      "title": "Vista previa de la solicitud",
+      "empty_title": "Nada seleccionado",
+      "empty_description": "Selecciona una solicitud para verla aquí.",
+      "sql": "SQL",
+      "justification": "Justificación",
+      "ai_summary": "Resumen de IA",
+      "sql_review": "Revisión SQL",
+      "open_details": "Abrir detalles completos"
+    }
   },
   "timeline": {
     "title": "Cronología de aprobación"

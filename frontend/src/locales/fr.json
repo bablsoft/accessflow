@@ -909,7 +909,6 @@
     },
     "tab_mine": "Qui te sont assignées · {{count}}",
     "tab_all": "Toutes en attente · {{count}}",
-    "tab_recent": "Récemment décidées",
     "empty_title": "Tout est à jour",
     "empty_description": "Aucune requête ne t'attend pour le moment.",
     "on_approve": "Approuvée · transmise à l'exécution",
@@ -967,7 +966,26 @@
     "delegated_tooltip": "Vous pouvez la revoir car un collègue vous a délégué ses revues.",
     "sql_review_blocking_tag": "{{count}} bloq.",
     "sql_review_blocking_tooltip_one": "{{count}} constat de revue SQL bloquant — cette requête n'a pas pu être approuvée automatiquement.",
-    "sql_review_blocking_tooltip_other": "{{count}} constats de revue SQL bloquants — cette requête n'a pas pu être approuvée automatiquement."
+    "sql_review_blocking_tooltip_other": "{{count}} constats de revue SQL bloquants — cette requête n'a pas pu être approuvée automatiquement.",
+    "shortcuts": {
+      "title": "Raccourcis clavier",
+      "next": "Demande suivante",
+      "previous": "Demande précédente",
+      "open": "Ouvrir les détails",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "help": "Afficher cette liste"
+    },
+    "preview": {
+      "title": "Aperçu de la demande",
+      "empty_title": "Aucune sélection",
+      "empty_description": "Sélectionnez une demande pour l'afficher ici.",
+      "sql": "SQL",
+      "justification": "Justification",
+      "ai_summary": "Résumé IA",
+      "sql_review": "Revue SQL",
+      "open_details": "Ouvrir tous les détails"
+    }
   },
   "timeline": {
     "title": "Chronologie d'approbation"
