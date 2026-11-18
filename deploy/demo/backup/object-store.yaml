@@ -6,7 +6,7 @@ kind: ObjectStore
 metadata:
   name: accessflow-demo-db-backups
 spec:
-  retentionPolicy: 30d
+  retentionPolicy: 3d
   configuration:
     destinationPath: s3://accessflow-demo-db-backups/
     endpointURL: https://10a837e2f84620ea1d487d2fa4932bbf.r2.cloudflarestorage.com

@@ -1,5 +1,5 @@
-# A base backup every night at 01:30 UTC; WAL is archived in between, so any point in the last 30 days
-# can be restored.
+# A base backup every night at 01:30 UTC; WAL is archived in between, so any point in the last 3 days
+# (object-store.yaml retentionPolicy) can be restored, up to the last archive_timeout (archive.yaml).
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
