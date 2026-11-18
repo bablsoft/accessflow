@@ -16,15 +16,15 @@ describe('EmptyState', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 
-  it('renders the compact variant with reduced padding', () => {
+  it('renders the compact variant', () => {
     const { container } = render(<EmptyState title="Empty" size="sm" />);
     const root = container.firstElementChild as HTMLElement;
-    expect(root.style.padding).toBe('20px 16px');
+    expect(root).toHaveClass('af-empty--sm');
   });
 
-  it('renders the roomy default padding when size is omitted', () => {
+  it('renders the default size when size is omitted', () => {
     const { container } = render(<EmptyState title="Empty" />);
     const root = container.firstElementChild as HTMLElement;
-    expect(root.style.padding).toBe('60px 24px');
+    expect(root).not.toHaveClass('af-empty--sm');
   });
 });

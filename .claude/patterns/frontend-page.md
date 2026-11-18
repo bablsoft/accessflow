@@ -43,6 +43,36 @@ const saveConfig = useMutation({
 void queryClient.invalidateQueries({ queryKey: dataClassificationKeys.list(dsId) });
 ```
 
+## Page structure
+
+Pages are assembled from `src/components/layout` — never from inline flex/padding objects:
+
+```tsx
+// src/pages/queries/QueryListPage.tsx
+<Page>
+  <PageHeader title={…} actions={…} />
+  <FilterBar>
+    <FilterBar.Search … />
+    <Select … />
+    <FilterBar.Count>{…}</FilterBar.Count>
+  </FilterBar>
+  <PageBody flush>
+    <DataTable rowKey="id" loading={isLoading} page={page} total={…}
+               onPageChange={setPage} onRowActivate={(r) => navigate(`/queries/${r.id}`)} />
+  </PageBody>
+</Page>
+```
+
+- `PageBody width`: `full` (tables, dashboards; add `flush` for a table), `reading` (detail
+  pages), `form` (settings forms). It is the page's only scroll container.
+- Boxes are `SurfaceCard`; form groups are `Section`; status labels are a `*Pill` or `StatusTag`
+  (never `Tag color=`); empty tables pass `emptyTitle` to `DataTable`.
+- **Drawer** for create/edit and read-only detail; **Modal** only for short confirmations and
+  decisions. Destructive confirmation goes through `useConfirm()`. Tab state lives in the URL.
+- Sizes, spacing, durations and colours come from the tokens in `src/styles/tokens.css`
+  (`--text-*`, `--sp-*`, `--dur-*`). ESLint warns on a hand-rolled page gutter or an off-scale
+  font size.
+
 ## Required (acceptance checklist)
 
 - [ ] A `<domain>Keys` factory in `src/api/<domain>.ts`; hierarchical, `as const`, domain-prefixed.

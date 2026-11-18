@@ -37,7 +37,10 @@
     "on_behalf_of": "代表 {{name}}",
     "on_behalf_of_tooltip": "某个 API 密钥调用方代表此人执行了操作（X-AccessFlow-On-Behalf-Of）。在禁止自行审批的规则中，被指名的人视为提交者。",
     "principal_service_account_tooltip": "非人类身份：仅通过 API 密钥认证，永远无法交互式登录。",
-    "bytes_unit": "单位"
+    "bytes_unit": "单位",
+    "skip_to_content": "跳到正文",
+    "error_boundary_title": "此页面出现问题",
+    "error_boundary_description": "AccessFlow 的其他部分仍可正常使用。请重试，或从菜单打开其他页面。"
   },
   "nav": {
     "editor": "SQL 编辑器",

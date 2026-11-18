@@ -37,7 +37,10 @@
     "on_behalf_of": "pour le compte de {{name}}",
     "on_behalf_of_tooltip": "Un appelant par clé d'API a agi pour cette personne (X-AccessFlow-On-Behalf-Of). La personne nommée compte comme demandeur pour l'interdiction d'auto-approbation.",
     "principal_service_account_tooltip": "Une identité non humaine : elle s'authentifie uniquement par clé d'API et ne peut jamais se connecter de façon interactive.",
-    "bytes_unit": "Unité"
+    "bytes_unit": "Unité",
+    "skip_to_content": "Aller au contenu",
+    "error_boundary_title": "Une erreur s'est produite sur cette page",
+    "error_boundary_description": "Le reste d'AccessFlow fonctionne toujours. Réessayez ou ouvrez une autre page depuis le menu."
   },
   "nav": {
     "editor": "Éditeur SQL",

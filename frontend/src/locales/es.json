@@ -37,7 +37,10 @@
     "on_behalf_of": "en nombre de {{name}}",
     "on_behalf_of_tooltip": "Un llamador con clave de API actuó por esta persona (X-AccessFlow-On-Behalf-Of). La persona nombrada cuenta como solicitante para la prohibición de autoaprobación.",
     "principal_service_account_tooltip": "Una identidad no humana: se autentica solo con una clave de API y nunca puede iniciar sesión de forma interactiva.",
-    "bytes_unit": "Unidad"
+    "bytes_unit": "Unidad",
+    "skip_to_content": "Saltar al contenido",
+    "error_boundary_title": "Algo salió mal en esta página",
+    "error_boundary_description": "El resto de AccessFlow sigue funcionando. Inténtalo de nuevo o abre otra página desde el menú."
   },
   "nav": {
     "editor": "Editor SQL",

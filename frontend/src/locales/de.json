@@ -37,7 +37,10 @@
     "on_behalf_of": "im Auftrag von {{name}}",
     "on_behalf_of_tooltip": "Ein API-Key-Aufrufer hat für diese Person gehandelt (X-AccessFlow-On-Behalf-Of). Die genannte Person gilt für das Selbstgenehmigungsverbot als Einreicher.",
     "principal_service_account_tooltip": "Eine nicht-menschliche Identität: sie authentifiziert sich nur per API-Key und kann sich nie interaktiv anmelden.",
-    "bytes_unit": "Einheit"
+    "bytes_unit": "Einheit",
+    "skip_to_content": "Zum Inhalt springen",
+    "error_boundary_title": "Auf dieser Seite ist ein Fehler aufgetreten",
+    "error_boundary_description": "Der Rest von AccessFlow funktioniert weiterhin. Versuchen Sie es erneut oder öffnen Sie eine andere Seite über das Menü."
   },
   "nav": {
     "editor": "SQL-Editor",
