@@ -1004,7 +1004,9 @@
       "error": "No se pudieron cargar las fuentes de datos",
       "empty": "Aún no hay fuentes de datos — añade una para empezar.",
       "stat_plan": "plan",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "activo",
+      "status_inactive": "inactivo"
     },
     "create": {
       "field_text_to_sql_enabled": "Habilitar texto a SQL",

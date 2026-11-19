@@ -1,3 +1,4 @@
+import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Spin } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -73,35 +74,11 @@ function AcceptInvitePage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+    <AuthLayout
+      title={t('auth.invitation.title')}
+      subtitle={t('auth.invitation.subtitle')}
+      wide
     >
-      <div style={{ width: 440 }}>
-        <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {t('auth.invitation.title')}
-            </div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              {t('auth.invitation.subtitle')}
-            </div>
-          </div>
-
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
               <Spin />
@@ -203,9 +180,7 @@ function AcceptInvitePage() {
               </Form>
             </>
           ) : null}
-        </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }
 

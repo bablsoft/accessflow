@@ -1004,7 +1004,9 @@
       "error": "Impossible de charger les sources de données",
       "empty": "Aucune source de données — ajoutes-en une pour commencer.",
       "stat_plan": "plan",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "actif",
+      "status_inactive": "inactif"
     },
     "create": {
       "field_text_to_sql_enabled": "Activer le texte vers SQL",

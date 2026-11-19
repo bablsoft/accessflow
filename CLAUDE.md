@@ -549,7 +549,7 @@ src/
 ├── api/          # One Axios module per domain (queries.ts, datasources.ts, etc.)
 ├── components/   # Shared UI — common/, editor/, review/, datasources/, audit/
 ├── hooks/        # Custom hooks — useQueryRequest, useWebSocket, useCurrentUser, etc.
-├── layouts/      # AppLayout — the only layout; admin and auth pages style themselves
+├── layouts/      # AppLayout — the signed-in shell; signed-out pages use components/auth/AuthLayout
 ├── pages/        # One directory per route group (auth, editor, queries, reviews, admin)
 ├── store/        # Zustand stores (authStore, notificationStore, preferencesStore)
 ├── types/        # TypeScript types — api.ts, query.ts, datasource.ts, user.ts

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Space, Switch, Tabs, Tooltip } from 'antd';
 import { CheckOutlined, CopyOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -47,10 +48,12 @@ function callbackUrlFor(provider: OAuth2Provider): string {
   return `${apiBaseUrl().replace(/\/+$/, '')}/api/v1/auth/oauth2/callback/${provider.toLowerCase()}`;
 }
 
+const PROVIDER_KEYS = PROVIDERS.map((p) => p.provider);
+
 export function OAuth2ConfigPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<OAuth2Provider>('GOOGLE');
+  const [activeTab, setActiveTab] = useUrlTab(PROVIDER_KEYS, 'GOOGLE');
 
   const listQuery = useQuery({
     queryKey: oauth2ConfigKeys.list(),
@@ -85,7 +88,7 @@ export function OAuth2ConfigPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Tabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as OAuth2Provider)}
+          onChange={setActiveTab}
           items={PROVIDERS.map(({ provider, label }) => ({
             key: provider,
             label,

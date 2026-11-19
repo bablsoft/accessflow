@@ -1004,7 +1004,9 @@
       "error": "Չհաջողվեց բեռնել տվյալների աղբյուրները",
       "empty": "Տվյալների աղբյուրներ դեռ չկան — ավելացրեք մեկը՝ սկսելու համար։",
       "stat_plan": "պլան",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "ակտիվ",
+      "status_inactive": "ոչ ակտիվ"
     },
     "create": {
       "field_text_to_sql_enabled": "Միացնել տեքստից SQL",

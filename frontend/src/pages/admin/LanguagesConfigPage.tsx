@@ -3,6 +3,7 @@ import { App, Button, Checkbox, Form, Select, Skeleton } from 'antd';
 import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody, Section } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -81,13 +82,13 @@ export function LanguagesConfigPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-languages"
         title={t('admin.languages.title')}
         subtitle={t('admin.languages.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody width="form">
         <Form<LanguagesFormValues>
           form={form}
           layout="vertical"
@@ -152,19 +153,11 @@ export function LanguagesConfigPage() {
             </Button>
           </div>
         </Form>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
 
 interface AvailableLanguagesFieldProps {
   value?: Language[];

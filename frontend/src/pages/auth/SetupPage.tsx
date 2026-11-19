@@ -1,3 +1,4 @@
+import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useState } from 'react';
 import { Alert, Button, Form, Input, InputNumber, Switch } from 'antd';
 import { ArrowRightOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -9,7 +10,6 @@ import { useSetupStore } from '@/store/setupStore';
 import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, setupErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
-import { LogoMark } from '@/components/common/LogoMark';
 import { docsUrl } from '@/config/docs';
 import type { UpdateSystemSmtpInput } from '@/types/api';
 
@@ -139,57 +139,12 @@ export function SetupPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+    <AuthLayout
+      title={t(STEP_TITLE_KEY[step])}
+      subtitle={t(STEP_SUBTITLE_KEY[step])}
+      wide
+      footer={t('auth.setup.footer')}
     >
-      <div style={{ width: 440 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 28,
-            justifyContent: 'center',
-          }}
-        >
-          <span style={{ color: 'var(--fg)', display: 'inline-flex' }}>
-            <LogoMark size={32} />
-          </span>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
-              {t('common.app_name')}
-            </div>
-            <div className="mono muted" style={{ fontSize: 10 }}>
-              v0.1.0
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {t(STEP_TITLE_KEY[step])}
-            </div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              {t(STEP_SUBTITLE_KEY[step])}
-            </div>
-          </div>
-
           {error && (
             <Alert
               type="error"
@@ -453,19 +408,6 @@ export function SetupPage() {
               </div>
             </Form>
           )}
-        </div>
-
-        <div
-          className="muted mono"
-          style={{
-            fontSize: 11,
-            textAlign: 'center',
-            marginTop: 20,
-          }}
-        >
-          {t('auth.setup.footer')}
-        </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

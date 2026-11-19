@@ -1,3 +1,4 @@
+import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useState } from 'react';
 import { Alert, Button, Form, Input } from 'antd';
 import { Link } from 'react-router-dom';
@@ -31,39 +32,10 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+    <AuthLayout
+      title={submitted ? t('auth.forgot_password.success_title') : t('auth.forgot_password.title')}
+      subtitle={submitted ? t('auth.forgot_password.success_body') : t('auth.forgot_password.subtitle')}
     >
-      <div style={{ width: 380 }}>
-        <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {submitted
-                ? t('auth.forgot_password.success_title')
-                : t('auth.forgot_password.title')}
-            </div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              {submitted
-                ? t('auth.forgot_password.success_body')
-                : t('auth.forgot_password.subtitle')}
-            </div>
-          </div>
-
           {!submitted && error && (
             <Alert
               type="error"
@@ -118,9 +90,7 @@ function ForgotPasswordPage() {
               {t('auth.forgot_password.back_to_login')}
             </Link>
           </div>
-        </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }
 
