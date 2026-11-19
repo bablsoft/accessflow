@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { App, Button, Form, Input, Modal, Skeleton, Space, Switch, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Skeleton, Space, Switch } from 'antd';
 import { DeleteOutlined, EditOutlined, SendOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   deleteSystemSmtp,
   getSystemSmtp,
@@ -203,9 +204,9 @@ export function SystemSmtpCard() {
                 {t('admin.notifications.system_smtp.tls_label')}
               </div>
               <div>
-                <Tag color={config.tls ? 'green' : 'default'}>
+                <StatusTag tone={config.tls ? 'success' : 'neutral'}>
                   {config.tls ? 'STARTTLS' : t('admin.notifications.system_smtp.tls_off')}
-                </Tag>
+                </StatusTag>
               </div>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { Pie } from '@ant-design/charts';
 import { DashboardOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { datasourceHealthKeys, fetchDatasourceHealth } from '@/api/datasourceHealth';
@@ -93,7 +93,7 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
         <Space>
           <span>{row.datasource_name}</span>
           <Tag>{dbTypeLabel(t, row.db_type)}</Tag>
-          {!row.active && <Tag color="default">{t('admin.datasource_health.inactive')}</Tag>}
+          {!row.active && <StatusTag tone="neutral">{t('admin.datasource_health.inactive')}</StatusTag>}
         </Space>
       }
     >
@@ -143,16 +143,12 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
           </div>
           <Space wrap>
             {row.replicas.map((replica) => (
-              <Tag
-                key={replica.endpoint_id}
-                color={replica.healthy ? 'green' : 'red'}
-                className="mono"
-              >
+              <StatusTag tone={replica.healthy ? 'success' : 'danger'} key={replica.endpoint_id} className="mono">
                 {replica.label}
                 {replica.pool_active != null && replica.pool_total != null
                   ? ` · ${replica.pool_active}/${replica.pool_total}`
                   : ''}
-              </Tag>
+              </StatusTag>
             ))}
           </Space>
         </div>

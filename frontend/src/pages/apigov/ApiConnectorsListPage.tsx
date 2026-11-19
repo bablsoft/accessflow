@@ -4,7 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -125,7 +125,7 @@ export default function ApiConnectorsListPage() {
       dataIndex: 'schema_present',
       render: (present: boolean) =>
         present ? (
-          <Tag color="green">{t('apiGov.connectors.schemaYes')}</Tag>
+          <StatusTag tone="success">{t('apiGov.connectors.schemaYes')}</StatusTag>
         ) : (
           <Tag>{t('apiGov.connectors.schemaNo')}</Tag>
         ),
@@ -153,7 +153,7 @@ export default function ApiConnectorsListPage() {
       title: t('apiGov.connectors.active'),
       dataIndex: 'active',
       render: (active: boolean) =>
-        active ? <Tag color="green">{t('apiGov.connectors.active')}</Tag> : <Tag>—</Tag>,
+        active ? <StatusTag tone="success">{t('apiGov.connectors.active')}</StatusTag> : <Tag>—</Tag>,
     },
     {
       title: t('apiGov.connectors.actions'),

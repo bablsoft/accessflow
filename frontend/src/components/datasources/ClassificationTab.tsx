@@ -1,19 +1,9 @@
 import { useMemo, useState } from 'react';
-import {
-  App,
-  AutoComplete,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Switch,
-  Table,
-  Tag,
-} from 'antd';
+import { App, AutoComplete, Button, Form, Input, Modal, Select, Switch, Table } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createClassificationTags,
@@ -131,7 +121,7 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
               title: t('datasources.settings.classification.col_classification'),
               dataIndex: 'classification',
               width: 150,
-              render: (v: DataClassification) => <Tag color="volcano">{dataClassificationLabel(t, v)}</Tag>,
+              render: (v: DataClassification) => <StatusTag tone="danger">{dataClassificationLabel(t, v)}</StatusTag>,
             },
             {
               title: t('datasources.settings.classification.col_note'),

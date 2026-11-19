@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Skeleton, Switch, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Select, Skeleton, Switch, Table } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -199,11 +199,11 @@ export default function LifecyclePoliciesListPage() {
                 dataIndex: 'enabled',
                 width: 100,
                 render: (enabled: boolean) => (
-                  <Tag color={enabled ? 'green' : 'default'}>
+                  <StatusTag tone={enabled ? 'success' : 'neutral'}>
                     {enabled
                       ? t('lifecycle.policies.enabled')
                       : t('lifecycle.policies.disabled')}
-                  </Tag>
+                  </StatusTag>
                 ),
               },
               {

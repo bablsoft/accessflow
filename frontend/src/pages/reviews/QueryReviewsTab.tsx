@@ -1,10 +1,11 @@
-import { App, Button, Segmented, Skeleton, Space, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Segmented, Skeleton, Space, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -178,8 +179,8 @@ export function QueryReviewsTab() {
         : status === 'INVALID_STATE'
           ? 'reviews.bulk.row_status_invalid_state'
           : 'reviews.bulk.row_status_not_found';
-    const color = status === 'INVALID_STATE' ? 'warning' : 'error';
-    return <Tag color={color}>{t(labelKey)}</Tag>;
+    const color = status === 'INVALID_STATE' ? 'warning' : 'danger';
+    return <StatusTag tone={color}>{t(labelKey)}</StatusTag>;
   };
 
   const columns: TableColumnsType<PendingReviewItem> = useMemo(
@@ -279,9 +280,9 @@ export function QueryReviewsTab() {
         render: (_: unknown, item: PendingReviewItem) =>
           item.delegated_for ? (
             <Tooltip title={t('reviews.delegated_tooltip')}>
-              <Tag color="blue" data-testid="delegated-tag">
+              <StatusTag tone="info" data-testid="delegated-tag">
                 {t('reviews.delegated')}
-              </Tag>
+              </StatusTag>
             </Tooltip>
           ) : null,
       },

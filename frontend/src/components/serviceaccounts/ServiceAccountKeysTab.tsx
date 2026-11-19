@@ -1,22 +1,10 @@
 import { useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   issueServiceAccountKey,
   revokeServiceAccountKey,
@@ -123,9 +111,9 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
           <span>{name}</span>
           {key.bootstrap_declared && (
             <Tooltip title={t('admin.service_accounts.keys.bootstrap_declared_tooltip')}>
-              <Tag color="orange" data-testid="bootstrap-declared-tag">
+              <StatusTag tone="warning" data-testid="bootstrap-declared-tag">
                 {t('admin.service_accounts.keys.bootstrap_declared')}
-              </Tag>
+              </StatusTag>
             </Tooltip>
           )}
         </Space>
@@ -162,8 +150,8 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
       key: 'status',
       render: (_v, key) => {
         const status = keyStatus(key);
-        const color = status === 'active' ? 'green' : status === 'revoked' ? 'red' : 'default';
-        return <Tag color={color}>{t(`admin.service_accounts.keys.status_${status}`)}</Tag>;
+        const color = status === 'active' ? 'success' : status === 'revoked' ? 'danger' : 'neutral';
+        return <StatusTag tone={color}>{t(`admin.service_accounts.keys.status_${status}`)}</StatusTag>;
       },
     },
     {

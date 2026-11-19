@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { App, Button, Descriptions, Drawer, List, Popconfirm, Select, Space, Tabs, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag, type StatusTone } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   listTemplateVersions,
@@ -27,10 +28,10 @@ interface TemplateDetailDrawerProps {
 
 const PAGE_SIZE = 50;
 
-const CHANGE_COLORS: Record<QueryTemplateChangeType, string> = {
-  CREATED: 'green',
-  UPDATED: 'blue',
-  RESTORED: 'gold',
+const CHANGE_COLORS: Record<QueryTemplateChangeType, StatusTone> = {
+  CREATED: 'success',
+  UPDATED: 'info',
+  RESTORED: 'warning',
 };
 
 export function TemplateDetailDrawer({
@@ -108,11 +109,11 @@ export function TemplateDetailDrawer({
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label={t('editor.templates.fields.name')}>{template.name}</Descriptions.Item>
         <Descriptions.Item label={t('editor.templates.fields.visibility')}>
-          <Tag color={template.visibility === 'TEAM' ? 'blue' : 'default'}>
+          <StatusTag tone={template.visibility === 'TEAM' ? 'info' : 'neutral'}>
             {template.visibility === 'TEAM'
               ? t('editor.templates.visibility_team')
               : t('editor.templates.visibility_private')}
-          </Tag>
+          </StatusTag>
         </Descriptions.Item>
         <Descriptions.Item label={t('editor.templates.history.owner')}>
           {template.owner_display_name ?? '—'}
@@ -212,9 +213,9 @@ export function TemplateDetailDrawer({
               title={
                 <Space size="small" wrap>
                   <strong>{t('editor.templates.history.version_label', { number: v.version_number })}</strong>
-                  <Tag color={CHANGE_COLORS[v.change_type]}>
+                  <StatusTag tone={CHANGE_COLORS[v.change_type]}>
                     {queryTemplateChangeLabel(t, v.change_type)}
-                  </Tag>
+                  </StatusTag>
                 </Space>
               }
               description={

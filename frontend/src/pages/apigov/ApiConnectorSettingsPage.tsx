@@ -23,7 +23,7 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
 import { ApiConnectorLimitsTab } from '@/components/apigov/ApiConnectorLimitsTab';
 import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
@@ -888,7 +888,7 @@ function OperationsTab({ connectorId }: { connectorId: string }) {
           title: t('apiGov.settings.readWrite'),
           dataIndex: 'write',
           render: (write: boolean) =>
-            write ? <Tag color="orange">{t('apiGov.settings.write')}</Tag> : <Tag color="green">{t('apiGov.settings.read')}</Tag>,
+            write ? <StatusTag tone="warning">{t('apiGov.settings.write')}</StatusTag> : <StatusTag tone="success">{t('apiGov.settings.read')}</StatusTag>,
         },
       ]}
     />

@@ -1,20 +1,9 @@
 import { useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tag,
-} from 'antd';
+import { Alert, App, Button, DatePicker, Form, Input, Popconfirm, Select, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag, type StatusTone } from '@/components/layout';
 import type { Dayjs } from 'dayjs';
 import {
   createReviewDelegation,
@@ -43,11 +32,11 @@ interface DelegationFormValues {
   reason?: string;
 }
 
-const STATUS_COLOR: Record<ReviewDelegation['status'], string> = {
-  SCHEDULED: 'blue',
-  ACTIVE: 'green',
-  EXPIRED: 'default',
-  REVOKED: 'default',
+const STATUS_COLOR: Record<ReviewDelegation['status'], StatusTone> = {
+  SCHEDULED: 'info',
+  ACTIVE: 'success',
+  EXPIRED: 'neutral',
+  REVOKED: 'neutral',
 };
 
 export function ReviewDelegationSection() {
@@ -147,7 +136,7 @@ export function ReviewDelegationSection() {
     title: t('profile.delegation.col_status'),
     key: 'status',
     render: (_, row) => (
-      <Tag color={STATUS_COLOR[row.status]}>{delegationStatusLabel(t, row.status)}</Tag>
+      <StatusTag tone={STATUS_COLOR[row.status]}>{delegationStatusLabel(t, row.status)}</StatusTag>
     ),
   };
 

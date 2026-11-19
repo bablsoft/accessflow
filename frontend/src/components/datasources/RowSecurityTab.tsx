@@ -1,19 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  AutoComplete,
-  Button,
-  Flex,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, AutoComplete, Button, Flex, Form, Input, Modal, Select, Space, Switch, Table, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -23,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import { draftFingerprint, isRowSecurityDraftHighImpact }
   from '@/components/policies/policyImpact';
@@ -241,7 +228,7 @@ function AppliesSummary({ policy }: { policy: RowSecurityPolicy }) {
   }
   if (parts.length === 0) {
     return (
-      <Tag color="orange">{t('datasources.settings.row_security.applies_everyone')}</Tag>
+      <StatusTag tone="warning">{t('datasources.settings.row_security.applies_everyone')}</StatusTag>
     );
   }
   return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;

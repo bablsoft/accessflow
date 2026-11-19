@@ -16,6 +16,7 @@ import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, RadarChartOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag, type StatusTone } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   bulkDecideFindings,
@@ -58,10 +59,10 @@ const PAGE_SIZE = 20;
 
 // Exhaustive by type, so adding a DiscoveryFindingStatus is a compile error here rather than a
 // silently grey tag.
-const STATUS_COLORS: Record<DiscoveryFindingStatus, string> = {
-  PENDING: 'processing',
+const STATUS_COLORS: Record<DiscoveryFindingStatus, StatusTone> = {
+  PENDING: 'info',
   CONFIRMED: 'success',
-  DISMISSED: 'default',
+  DISMISSED: 'neutral',
   STALE: 'warning',
 };
 
@@ -173,7 +174,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         : status === 'NOT_FOUND'
           ? 'datasources.settings.discovery.row_status_not_found'
           : 'datasources.settings.discovery.row_status_error';
-    return <Tag color={status === 'INVALID_STATE' ? 'warning' : 'error'}>{t(labelKey)}</Tag>;
+    return <StatusTag tone={status === 'INVALID_STATE' ? 'warning' : 'danger'}>{t(labelKey)}</StatusTag>;
   };
 
   const columns: TableColumnsType<DiscoveryFinding> = useMemo(
@@ -192,7 +193,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         dataIndex: 'classification',
         width: 130,
         render: (v: DataClassification) => (
-          <Tag color="volcano">{dataClassificationLabel(t, v)}</Tag>
+          <StatusTag tone="danger">{dataClassificationLabel(t, v)}</StatusTag>
         ),
       },
       {
@@ -255,7 +256,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         render: (v: DiscoveryFindingStatus, f: DiscoveryFinding) => {
           const s = rowStatuses[f.id];
           if (s) return rowStatusTag(s);
-          const tag = <Tag color={STATUS_COLORS[v]}>{discoveryFindingStatusLabel(t, v)}</Tag>;
+          const tag = <StatusTag tone={STATUS_COLORS[v]}>{discoveryFindingStatusLabel(t, v)}</StatusTag>;
           if (v !== 'STALE') return tag;
           return (
             <Tooltip title={t('datasources.settings.discovery.stale_hint')}>{tag}</Tooltip>

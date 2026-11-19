@@ -3,7 +3,7 @@ import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AccessStatusPill } from '@/components/common/AccessStatusPill';
@@ -188,7 +188,7 @@ export function RequestAccessPage() {
 
   const kindTag = (r: AccessRequest) =>
     r.resource_kind === 'API_CONNECTOR' ? (
-      <Tag color="geekblue">{t('access.kind.api_connector')}</Tag>
+      <StatusTag tone="info">{t('access.kind.api_connector')}</StatusTag>
     ) : (
       <Tag>{t('access.kind.datasource')}</Tag>
     );
@@ -199,13 +199,13 @@ export function RequestAccessPage() {
   const capabilityTags = (r: AccessRequest) => (
     <Space size={4} wrap>
       {r.can_read && <Tag>{t('access.request.can_read')}</Tag>}
-      {r.can_write && <Tag color="orange">{t('access.request.can_write')}</Tag>}
-      {r.can_ddl && <Tag color="red">{t('access.request.can_ddl')}</Tag>}
-      {r.pre_approve_queries && <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>}
+      {r.can_write && <StatusTag tone="warning">{t('access.request.can_write')}</StatusTag>}
+      {r.can_ddl && <StatusTag tone="danger">{t('access.request.can_ddl')}</StatusTag>}
+      {r.pre_approve_queries && <StatusTag tone="info">{t('access.request.pre_approve_tag')}</StatusTag>}
       {(r.allowed_operations?.length ?? 0) > 0 && (
-        <Tag color="purple">
+        <StatusTag tone="accent">
           {t('access.request.operations_tag', { count: r.allowed_operations?.length ?? 0 })}
-        </Tag>
+        </StatusTag>
       )}
     </Space>
   );
@@ -217,7 +217,7 @@ export function RequestAccessPage() {
     if (r.status !== 'APPROVED' || ms <= 0) {
       return <span className="muted">{t('access.ttl.expired')}</span>;
     }
-    return <Tag color="green">{t('access.ttl.remaining', { value: formatDurationCompact(ms) })}</Tag>;
+    return <StatusTag tone="success">{t('access.ttl.remaining', { value: formatDurationCompact(ms) })}</StatusTag>;
   };
 
   const columns: TableColumnsType<AccessRequest> = [

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
-import { Alert, App, Button, Card, Descriptions, Input, Modal, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Input, Modal, Skeleton, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ExperimentOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page } from '@/components/layout';
+import { Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -168,9 +168,9 @@ export default function ApiRequestDetailPage() {
       title: t('apiGov.requests.decision'),
       dataIndex: 'decision',
       render: (d: ApiReviewDecision['decision']) => (
-        <Tag color={d === 'APPROVED' ? 'green' : d === 'REJECTED' ? 'red' : 'gold'}>
+        <StatusTag tone={d === 'APPROVED' ? 'success' : d === 'REJECTED' ? 'danger' : 'warning'}>
           {reviewDecisionTypeLabel(t, d)}
-        </Tag>
+        </StatusTag>
       ),
     },
     { title: t('apiGov.requests.stage'), dataIndex: 'stage' },
@@ -415,7 +415,7 @@ export default function ApiRequestDetailPage() {
                 title={t('apiGov.requests.snapshot')}
                 extra={
                   <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
-                    {request.response_truncated && <Tag color="orange">{t('apiGov.requests.truncated')}</Tag>}
+                    {request.response_truncated && <StatusTag tone="warning">{t('apiGov.requests.truncated')}</StatusTag>}
                     <Button
                       size="small"
                       icon={<DownloadOutlined />}

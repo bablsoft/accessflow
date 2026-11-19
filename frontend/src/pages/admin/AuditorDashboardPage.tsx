@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { App, Alert, Button, DatePicker, Segmented, Skeleton, Space, Table, Tag, Typography } from 'antd';
+import { App, Alert, Button, DatePicker, Segmented, Skeleton, Space, Table, Typography } from 'antd';
 import { DownloadOutlined, FilePdfOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -112,10 +113,10 @@ export default function AuditorDashboardPage() {
       render: (matched: ClassifiedAccessRow['matched']) => (
         <Space size={[4, 4]} wrap>
           {matched.map((m, i) => (
-            <Tag key={i} color="volcano">
+            <StatusTag tone="danger" key={i}>
               {m.column_name ? `${m.table_name}.${m.column_name}` : m.table_name}:{' '}
               {dataClassificationLabel(t, m.classification)}
-            </Tag>
+            </StatusTag>
           ))}
         </Space>
       ),

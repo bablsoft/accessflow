@@ -2,6 +2,7 @@ import { Table, Tag, Tooltip } from 'antd';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { dataClassificationKeys, getDerivationPreview } from '@/api/dataClassifications';
 import {
   dataClassificationLabel,
@@ -67,9 +68,9 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
               {t('datasources.settings.classification.driven_by')}:
             </span>
             {drivenBy.map((c: DataClassification) => (
-              <Tag key={c} color="volcano">
+              <StatusTag tone="danger" key={c}>
                 {dataClassificationLabel(t, c)}
-              </Tag>
+              </StatusTag>
             ))}
           </div>
         </div>

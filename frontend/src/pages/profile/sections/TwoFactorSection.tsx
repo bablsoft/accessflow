@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Button, Space, Tag, Typography } from 'antd';
+import { Button, Space, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import type { MeProfile } from '@/types/api';
 import { TotpEnrollmentDialog } from './TotpEnrollmentDialog';
 import { TotpDisableDialog } from './TotpDisableDialog';
@@ -19,7 +20,7 @@ export function TwoFactorSection({ profile }: TwoFactorSectionProps) {
       {profile.totp_enabled ? (
         <>
           <Space>
-            <Tag color="green">{t('profile.totp.enabled_badge')}</Tag>
+            <StatusTag tone="success">{t('profile.totp.enabled_badge')}</StatusTag>
           </Space>
           <Typography.Paragraph>{t('profile.totp.subtitle_enabled')}</Typography.Paragraph>
           <Button danger onClick={() => setDisableOpen(true)}>

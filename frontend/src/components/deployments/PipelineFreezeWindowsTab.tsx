@@ -1,24 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Radio,
-  Select,
-  Switch,
-  Table,
-  Tag,
-  TimePicker,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, Modal, Popconfirm, Radio, Select, Switch, Table, TimePicker } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   createDeploymentFreezeWindow,
   deleteDeploymentFreezeWindow,
@@ -256,7 +243,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
       width: 150,
       render: (_v, w) =>
         w.pipeline_id == null ? (
-          <Tag color="blue">{t('deploygov.freezeWindows.scopeGlobal')}</Tag>
+          <StatusTag tone="info">{t('deploygov.freezeWindows.scopeGlobal')}</StatusTag>
         ) : (
           <span style={{ fontSize: 12 }}>{environmentName(w.environment_id)}</span>
         ),
@@ -271,7 +258,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
       dataIndex: 'behavior',
       width: 130,
       render: (b: FreezeBehavior) => (
-        <Tag color={b === 'REJECT' ? 'red' : 'orange'}>{freezeBehaviorLabel(t, b)}</Tag>
+        <StatusTag tone={b === 'REJECT' ? 'danger' : 'warning'}>{freezeBehaviorLabel(t, b)}</StatusTag>
       ),
     },
     {

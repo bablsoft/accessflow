@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Modal, Select, Switch, Table, Tag } from 'ant
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   apiConnectorClassificationKeys,
@@ -123,7 +124,7 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
               title: t('apiGov.settings.classification.col_classification'),
               dataIndex: 'classification',
               width: 130,
-              render: (v: DataClassification) => <Tag color="volcano">{dataClassificationLabel(t, v)}</Tag>,
+              render: (v: DataClassification) => <StatusTag tone="danger">{dataClassificationLabel(t, v)}</StatusTag>,
             },
             {
               title: t('apiGov.settings.classification.col_note'),

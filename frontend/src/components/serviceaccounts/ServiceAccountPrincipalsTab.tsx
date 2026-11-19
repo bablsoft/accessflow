@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Modal, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
+import { App, Button, Form, Modal, Popconfirm, Select, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag, type StatusTone } from '@/components/layout';
 import {
   grantDelegatedPrincipal,
   listDelegatedPrincipals,
@@ -24,10 +25,10 @@ interface GrantFormValues {
   expires_at?: Dayjs | null;
 }
 
-const STATUS_COLORS: Record<ServiceAccountDelegation['status'], string> = {
-  ACTIVE: 'green',
-  EXPIRED: 'default',
-  REVOKED: 'red',
+const STATUS_COLORS: Record<ServiceAccountDelegation['status'], StatusTone> = {
+  ACTIVE: 'success',
+  EXPIRED: 'neutral',
+  REVOKED: 'danger',
 };
 
 export function ServiceAccountPrincipalsTab({ account }: { account: ServiceAccount }) {
@@ -94,7 +95,7 @@ export function ServiceAccountPrincipalsTab({ account }: { account: ServiceAccou
       title: t('admin.service_accounts.principals.col_status'),
       dataIndex: 'status',
       render: (status: ServiceAccountDelegation['status']) => (
-        <Tag color={STATUS_COLORS[status]}>{serviceAccountDelegationStatusLabel(t, status)}</Tag>
+        <StatusTag tone={STATUS_COLORS[status]}>{serviceAccountDelegationStatusLabel(t, status)}</StatusTag>
       ),
     },
     {

@@ -1,5 +1,6 @@
-import { Tag, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { userDisplay } from '@/utils/userDisplay';
 
 interface OnBehalfOfTagProps {
@@ -25,9 +26,9 @@ export function OnBehalfOfTag({
   if (!name) return null;
   return (
     <Tooltip title={t('common.on_behalf_of_tooltip')}>
-      <Tag color="blue" data-testid={testId} style={{ marginInlineEnd: 0 }}>
+      <StatusTag tone="info" data-testid={testId} style={{ marginInlineEnd: 0 }}>
         {t('common.on_behalf_of', { name })}
-      </Tag>
+      </StatusTag>
     </Tooltip>
   );
 }

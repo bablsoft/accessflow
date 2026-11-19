@@ -1,25 +1,26 @@
 import type { ErasureStatus } from '@/types/api';
+import type { StatusTone } from '@/components/layout/StatusTag';
 
 /**
- * Maps an erasure-request status to an Ant Design Tag colour. Colour is paired with the localized
+ * Maps an erasure-request status to a `StatusTag` tone. Colour is paired with the localized
  * status label (never colour alone), so this is presentational only.
  */
-export function erasureStatusTagColor(status: ErasureStatus): string {
+export function erasureStatusTagColor(status: ErasureStatus): StatusTone {
   switch (status) {
     case 'PENDING_SCOPE_AI':
-      return 'processing';
+      return 'info';
     case 'PENDING_REVIEW':
       return 'warning';
     case 'APPROVED':
-      return 'cyan';
+      return 'accent';
     case 'EXECUTED':
       return 'success';
     case 'REJECTED':
     case 'FAILED':
-      return 'error';
+      return 'danger';
     case 'CANCELLED':
-      return 'default';
+      return 'neutral';
     default:
-      return 'default';
+      return 'neutral';
   }
 }

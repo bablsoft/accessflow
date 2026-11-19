@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { App, Button, Drawer, Input, List, Popconfirm, Segmented, Space, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   deleteQueryTemplate,
@@ -141,13 +142,13 @@ export function QueryTemplatesDrawer({
                       >
                         {item.name}
                       </Button>
-                      <Tag color={item.visibility === 'TEAM' ? 'blue' : 'default'}>
+                      <StatusTag tone={item.visibility === 'TEAM' ? 'info' : 'neutral'}>
                         {item.visibility === 'TEAM'
                           ? t('editor.templates.visibility_team')
                           : t('editor.templates.visibility_private')}
-                      </Tag>
+                      </StatusTag>
                       {item.datasource_id && item.datasource_id === currentDatasourceId ? (
-                        <Tag color="green">{t('editor.templates.pinned_to_current')}</Tag>
+                        <StatusTag tone="success">{t('editor.templates.pinned_to_current')}</StatusTag>
                       ) : null}
                     </Space>
                   }

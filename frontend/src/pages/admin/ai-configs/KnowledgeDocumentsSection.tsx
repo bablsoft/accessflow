@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Popconfirm, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Popconfirm, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, ExperimentOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   aiConfigKeys,
   createKnowledgeDocument,
@@ -95,7 +96,7 @@ export function KnowledgeDocumentsSection({
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'INDEXED' ? 'green' : 'red'}>{status}</Tag>
+        <StatusTag tone={status === 'INDEXED' ? 'success' : 'danger'}>{status}</StatusTag>
       ),
     },
     {

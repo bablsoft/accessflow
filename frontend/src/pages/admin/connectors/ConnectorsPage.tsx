@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Skeleton, Tag, Typography } from 'antd';
+import { App, Button, Input, Skeleton, Typography, Tag } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { DriverStatusBadge } from '@/components/datasources/DriverStatusBadge';
@@ -210,7 +210,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
 
       <div style={{ marginTop: 'auto' }}>
         {installed ? (
-          <Tag color="green">{t('connectors.installed')}</Tag>
+          <StatusTag tone="success">{t('connectors.installed')}</StatusTag>
         ) : (
           <Button
             type="primary"

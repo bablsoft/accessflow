@@ -1,7 +1,8 @@
 import { Button, Input, Radio, Segmented, Space, Tabs, Upload } from 'antd';
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { Tag, Tooltip } from 'antd';
+import { StatusTag } from '@/components/layout';
+import { Tooltip } from 'antd';
 import type { ApiBodyType, ApiConnectorVariableSummary } from '@/types/api';
 import { apiVariableKindLabel } from '@/utils/enumLabels';
 import { KeyValueEditor } from './KeyValueEditor';
@@ -217,10 +218,10 @@ export function ApiRequestComposer({
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                         {connectorVariables.map((v) => (
                           <Tooltip key={v.name} title={v.description ?? undefined}>
-                            <Tag color={v.overridable ? 'blue' : undefined}>
+                            <StatusTag tone={v.overridable ? 'info' : 'neutral'}>
                               <span className="mono">{`{{${v.name}}}`}</span>{' '}
                               {apiVariableKindLabel(t, v.kind)}
-                            </Tag>
+                            </StatusTag>
                           </Tooltip>
                         ))}
                       </div>

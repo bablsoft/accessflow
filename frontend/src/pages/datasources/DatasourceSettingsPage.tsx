@@ -31,7 +31,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, Section } from '@/components/layout';
+import { Page, Section, StatusTag } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -1285,14 +1285,11 @@ function PermissionMatrix({
                 <span className="muted" style={{ fontSize: 12 }}>
                   {fmtDate(p.expires_at)}
                   {ms !== null && (
-                    <Tag
-                      color={ms > 0 ? 'green' : 'default'}
-                      style={{ marginLeft: 6 }}
-                    >
+                    <StatusTag tone={ms > 0 ? 'success' : 'neutral'} style={{ marginLeft: 6 }}>
                       {ms > 0
                         ? t('access.ttl.remaining', { value: formatDurationCompact(ms) })
                         : t('access.ttl.expired')}
-                    </Tag>
+                    </StatusTag>
                   )}
                 </span>
               );
@@ -1442,9 +1439,9 @@ function DeniedColumnsCell({ columns }: { columns: string[] | null | undefined }
   }
   return (
     <Tooltip title={cols.join(', ')}>
-      <Tag color="red" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" style={{ fontSize: 12 }}>
         {t('datasources.settings.perm_denied_count', { count: cols.length })}
-      </Tag>
+      </StatusTag>
     </Tooltip>
   );
 }
@@ -1463,9 +1460,9 @@ function DeniedTablesCell({
   }
   return (
     <Tooltip title={entries.join(', ')}>
-      <Tag color="red" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" style={{ fontSize: 12 }}>
         {t('datasources.settings.perm_denied_tables_count', { count: entries.length })}
-      </Tag>
+      </StatusTag>
     </Tooltip>
   );
 }
@@ -1478,9 +1475,9 @@ function DeniedShapesCell({ shapes }: { shapes: QueryShape[] | null | undefined 
   }
   return (
     <Tooltip title={entries.map((shape) => queryShapeLabel(t, shape)).join(', ')}>
-      <Tag color="red" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" style={{ fontSize: 12 }}>
         {t('datasources.settings.perm_denied_shapes_count', { count: entries.length })}
-      </Tag>
+      </StatusTag>
     </Tooltip>
   );
 }
