@@ -535,7 +535,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |
-| React Router | 7.x (library mode) | Routing |
+| React Router | 7.x (data router, one catch-all route) | Routing — `createBrowserRouter` in `main.tsx` so `useBlocker` works; the route table stays the `<Routes>` tree in `App.tsx` |
 | sql-formatter | 15.x | SQL formatting |
 | Vitest | latest stable | Unit/component tests |
 | React Testing Library | latest stable | Component tests |

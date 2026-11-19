@@ -3,7 +3,7 @@ import { App, Button, Form, Input, Popconfirm, Skeleton, Switch, Typography } fr
 import { CheckOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { FormActions, Page, PageBody, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -32,6 +32,7 @@ export function SlackConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<SlackFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
 
   const cfgQuery = useQuery({
     queryKey: slackAppConfigKeys.current(),
@@ -58,6 +59,7 @@ export function SlackConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpsertSlackAppConfigInput) => upsertSlackAppConfig(payload),
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: slackAppConfigKeys.all });
       message.success(t('admin.slack.save_success'));
     },
@@ -123,7 +125,7 @@ export function SlackConfigPage() {
         <Typography.Paragraph type="secondary">
           {configured ? t('admin.slack.status_configured') : t('admin.slack.status_unconfigured')}
         </Typography.Paragraph>
-        <Form<SlackFormValues> form={form} layout="vertical" onFinish={onFinish}>
+        <Form<SlackFormValues> form={form} layout="vertical" onFinish={onFinish} onValuesChange={markDirty}>
           <Form.Item
             name="app_id"
             label={t('admin.slack.label_app_id')}
@@ -171,14 +173,8 @@ export function SlackConfigPage() {
             <Switch />
           </Form.Item>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -207,7 +203,7 @@ export function SlackConfigPage() {
                 </Button>
               </Popconfirm>
             )}
-          </div>
+          </FormActions>
         </Form>
       </PageBody>
     </Page>

@@ -3,7 +3,7 @@ import { App, Button, Form, Input, Select, Skeleton, Switch } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, Section } from '@/components/layout';
+import { FormActions, Page, PageBody, Section, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { getSamlConfig, samlConfigKeys, updateSamlConfig } from '@/api/admin';
@@ -35,6 +35,7 @@ export function SamlConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<SamlFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
 
   const cfgQuery = useQuery({
     queryKey: samlConfigKeys.current(),
@@ -62,6 +63,7 @@ export function SamlConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateSamlConfigInput) => updateSamlConfig(payload),
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: samlConfigKeys.all });
       message.success(t('admin.saml.save_success'));
     },
@@ -110,7 +112,7 @@ export function SamlConfigPage() {
         subtitle={t('admin.saml.subtitle')}
       />
       <PageBody width="form">
-        <Form<SamlFormValues> form={form} layout="vertical" onFinish={onFinish}>
+        <Form<SamlFormValues> form={form} layout="vertical" onFinish={onFinish} onValuesChange={markDirty}>
           <Section title={t('admin.saml.section_idp')}>
             <Form.Item
               name="idp_metadata_url"
@@ -200,14 +202,8 @@ export function SamlConfigPage() {
             </Grid>
           </Section>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -216,7 +212,7 @@ export function SamlConfigPage() {
             >
               {t('admin.saml.save_button')}
             </Button>
-          </div>
+          </FormActions>
         </Form>
       </PageBody>
     </Page>

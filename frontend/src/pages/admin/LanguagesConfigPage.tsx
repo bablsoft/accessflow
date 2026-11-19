@@ -3,7 +3,7 @@ import { App, Button, Checkbox, Form, Select, Skeleton } from 'antd';
 import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, Section } from '@/components/layout';
+import { FormActions, Page, PageBody, Section, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -27,6 +27,7 @@ export function LanguagesConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<LanguagesFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
 
   const cfgQuery = useQuery({
     queryKey: localizationKeys.admin(),
@@ -50,6 +51,7 @@ export function LanguagesConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateLocalizationConfigInput) => updateAdminLocalizationConfig(payload),
     onSuccess: (payload) => {
+      markClean();
       queryClient.setQueryData(localizationKeys.admin(), payload);
       void queryClient.invalidateQueries({ queryKey: localizationKeys.me() });
       message.success(t('admin.languages.save_success'));
@@ -98,6 +100,7 @@ export function LanguagesConfigPage() {
             default_language: 'en' as Language,
             ai_review_language: 'en' as Language,
           }}
+          onValuesChange={markDirty}
         >
           <Section title={t('admin.languages.section_user_languages')}>
             <Form.Item
@@ -140,18 +143,12 @@ export function LanguagesConfigPage() {
             </Form.Item>
           </Section>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
               {t('admin.languages.save_button')}
             </Button>
-          </div>
+          </FormActions>
         </Form>
       </PageBody>
     </Page>

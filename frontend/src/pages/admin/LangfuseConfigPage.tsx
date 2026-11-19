@@ -3,7 +3,7 @@ import { App, Button, Form, Input, Skeleton, Switch } from 'antd';
 import { ApiOutlined, CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, Section } from '@/components/layout';
+import { FormActions, Page, PageBody, Section, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -32,6 +32,7 @@ export function LangfuseConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<LangfuseFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
 
   const cfgQuery = useQuery({
     queryKey: langfuseConfigKeys.current(),
@@ -54,6 +55,7 @@ export function LangfuseConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateLangfuseConfigInput) => updateLangfuseConfig(payload),
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: langfuseConfigKeys.all });
       message.success(t('admin.langfuse.save_success'));
     },
@@ -108,7 +110,7 @@ export function LangfuseConfigPage() {
         subtitle={t('admin.langfuse.subtitle')}
       />
       <PageBody width="form">
-        <Form<LangfuseFormValues> form={form} layout="vertical" onFinish={onFinish}>
+        <Form<LangfuseFormValues> form={form} layout="vertical" onFinish={onFinish} onValuesChange={markDirty}>
           <Section title={t('admin.langfuse.section_connection')}>
             <Form.Item name="enabled" label={t('admin.langfuse.label_enabled')} valuePropName="checked">
               <Switch />
@@ -162,14 +164,8 @@ export function LangfuseConfigPage() {
             </Form.Item>
           </Section>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -185,7 +181,7 @@ export function LangfuseConfigPage() {
             >
               {t('admin.langfuse.test_button')}
             </Button>
-          </div>
+          </FormActions>
         </Form>
       </PageBody>
     </Page>

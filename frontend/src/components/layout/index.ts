@@ -6,3 +6,4 @@ export { StatusTag, type StatusTone } from './StatusTag';
 export { useConfirm, type ConfirmDangerOptions } from './useConfirm';
 export { RouteFallback } from './RouteFallback';
 export { ErrorBoundary } from './ErrorBoundary';
+export { FormActions, UnsavedChangesGuard, useDirtyState } from './UnsavedChanges';

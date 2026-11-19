@@ -41,7 +41,12 @@
     "skip_to_content": "Zum Inhalt springen",
     "error_boundary_title": "Auf dieser Seite ist ein Fehler aufgetreten",
     "error_boundary_description": "Der Rest von AccessFlow funktioniert weiterhin. Versuchen Sie es erneut oder öffnen Sie eine andere Seite über das Menü.",
-    "breadcrumb": "Brotkrumen-Navigation"
+    "breadcrumb": "Brotkrumen-Navigation",
+    "unsaved_title": "Nicht gespeicherte Änderungen verwerfen?",
+    "unsaved_body": "Auf dieser Seite gibt es nicht gespeicherte Änderungen. Wenn Sie die Seite jetzt verlassen, gehen sie verloren.",
+    "unsaved_discard": "Änderungen verwerfen",
+    "unsaved_stay": "Weiter bearbeiten",
+    "unsaved_hint": "Nicht gespeicherte Änderungen"
   },
   "nav": {
     "editor": "SQL-Editor",
