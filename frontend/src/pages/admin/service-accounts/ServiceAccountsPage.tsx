@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Select, Skeleton, Table } from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Select, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { DataTable, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
@@ -247,17 +247,14 @@ export function ServiceAccountsPage() {
             }
           />
         ) : (
-          <Table<ServiceAccount>
+          <DataTable<ServiceAccount>
             rowKey="id"
             dataSource={content}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('admin.service_accounts.empty_title') }}
-            onRow={(row) => ({
-              onClick: () => navigate(`/admin/service-accounts/${row.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            emptyTitle={t('admin.service_accounts.empty_title')}
+            onRowActivate={(row) => navigate(`/admin/service-accounts/${row.id}`)}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,

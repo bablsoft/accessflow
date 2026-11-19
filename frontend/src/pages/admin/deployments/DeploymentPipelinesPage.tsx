@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Switch, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Switch, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page, StatusTag } from '@/components/layout';
+import { DataTable, Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   createDeploymentPipeline,
@@ -198,17 +198,14 @@ export function DeploymentPipelinesPage() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<DeploymentPipeline>
+          <DataTable<DeploymentPipeline>
             rowKey="id"
             dataSource={listQuery.data?.content ?? []}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('deploygov.pipelines.empty') }}
-            onRow={(row) => ({
-              onClick: () => navigate(`/admin/deployment-pipelines/${row.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            emptyTitle={t('deploygov.pipelines.empty')}
+            onRowActivate={(row) => navigate(`/admin/deployment-pipelines/${row.id}`)}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,

@@ -1,6 +1,7 @@
-import { Table } from 'antd';
+
 import type { TableColumnsType } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { Pill } from '@/components/common/Pill';
 import { EmptyState } from '@/components/common/EmptyState';
 import { routingActionLabel } from '@/utils/enumLabels';
@@ -71,7 +72,7 @@ export function RoutingPoliciesTraceTable({ policies }: Props) {
   ];
 
   return (
-    <Table<RoutingPolicyTraceEntry>
+    <DataTable<RoutingPolicyTraceEntry>
       size="small"
       rowKey="policy_id"
       columns={columns}

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, DatePicker, Form, Input, Modal, Popconfirm, Radio, Select, Switch, Table, TimePicker } from 'antd';
+import { App, Button, DatePicker, Form, Input, Modal, Popconfirm, Radio, Select, Switch, TimePicker } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import {
   createDeploymentFreezeWindow,
   deleteDeploymentFreezeWindow,
@@ -308,13 +308,13 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
           {t('deploygov.freezeWindows.add')}
         </Button>
       </div>
-      <Table<DeploymentFreezeWindow>
+      <DataTable<DeploymentFreezeWindow>
         rowKey="id"
         size="small"
         pagination={false}
         loading={windowsQuery.isLoading}
         dataSource={visible}
-        locale={{ emptyText: t('deploygov.freezeWindows.empty') }}
+        emptyTitle={t('deploygov.freezeWindows.empty')}
         columns={columns}
       />
       <WeekStrip windows={visible} />

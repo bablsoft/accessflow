@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Modal, Popconfirm, Select, Space, Table, Typography } from 'antd';
+import { App, Button, Form, Modal, Popconfirm, Select, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag, type StatusTone } from '@/components/layout';
+import { DataTable, StatusTag, type StatusTone } from '@/components/layout';
 import {
   grantDelegatedPrincipal,
   listDelegatedPrincipals,
@@ -128,14 +128,14 @@ export function ServiceAccountPrincipalsTab({ account }: { account: ServiceAccou
           {t('admin.service_accounts.principals.grant')}
         </Button>
       </div>
-      <Table<ServiceAccountDelegation>
+      <DataTable<ServiceAccountDelegation>
         rowKey="id"
         size="small"
         loading={listQuery.isLoading}
         columns={columns}
         dataSource={listQuery.data ?? []}
         pagination={false}
-        locale={{ emptyText: t('admin.service_accounts.principals.empty') }}
+        emptyTitle={t('admin.service_accounts.principals.empty')}
       />
       <Modal
         title={t('admin.service_accounts.principals.grant_title')}

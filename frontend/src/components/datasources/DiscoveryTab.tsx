@@ -1,22 +1,10 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Form,
-  InputNumber,
-  Segmented,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { Alert, App, Button, Card, Form, InputNumber, Segmented, Switch, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, RadarChartOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag, type StatusTone } from '@/components/layout';
+import { DataTable, StatusTag, type StatusTone } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   bulkDecideFindings,
@@ -461,7 +449,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             description={t('datasources.settings.discovery.empty_description')}
           />
         ) : (
-          <Table<DiscoveryFinding>
+          <DataTable<DiscoveryFinding>
             rowKey="id"
             size="middle"
             loading={findingsQuery.isLoading}

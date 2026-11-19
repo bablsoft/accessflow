@@ -1,6 +1,7 @@
-import { App, Button, Skeleton, Switch, Table } from 'antd';
+import { App, Button, Skeleton, Switch } from 'antd';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
 import {
@@ -72,7 +73,7 @@ export function SqlReviewCustomRulesTab({ onEdit }: SqlReviewCustomRulesTabProps
   }
 
   return (
-    <Table<SqlReviewCustomRule>
+    <DataTable<SqlReviewCustomRule>
       rowKey="id"
       size="middle"
       dataSource={rules}

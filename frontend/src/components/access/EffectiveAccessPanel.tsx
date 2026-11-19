@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { AutoComplete, Button, Form, Select, Skeleton, Space, Table } from 'antd';
+import { AutoComplete, Button, Form, Select, Skeleton, Space } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
 import {
   effectiveAccessKeys,
@@ -265,7 +266,7 @@ export function EffectiveAccessPanel() {
       ) : rows.length === 0 ? (
         <EmptyState size="sm" title={t('access.effective.empty')} />
       ) : (
-        <Table<EffectiveAccessRow>
+        <DataTable<EffectiveAccessRow>
           rowKey="user_id"
           size="middle"
           dataSource={rows}

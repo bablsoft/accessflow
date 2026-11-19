@@ -1,24 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Skeleton,
-  Space,
-  Table,
-  Tag,
-} from 'antd';
+import { Alert, App, Button, Card, Form, Input, Modal, Popconfirm, Skeleton, Space, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { EditOutlined, InboxOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { DataTable, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PromotionLadder } from '@/components/schemaChange/PromotionLadder';
@@ -414,7 +401,7 @@ export default function SchemaChangeSetDetailPage() {
             )}
           </Card>
           <Card size="small" title={t('schemaChange.promotions.title')}>
-            <Table<SchemaChangePromotion>
+            <DataTable<SchemaChangePromotion>
               rowKey="id"
               size="small"
               dataSource={promotions}
@@ -422,7 +409,7 @@ export default function SchemaChangeSetDetailPage() {
               loading={promotionsQuery.isLoading}
               pagination={false}
               scroll={{ x: 'max-content' }}
-              locale={{ emptyText: t('schemaChange.promotions.empty') }}
+              emptyTitle={t('schemaChange.promotions.empty')}
             />
           </Card>
         </div>

@@ -1,4 +1,4 @@
-import { Alert, App, Button, Card, Descriptions, Input, Modal, Popconfirm, Progress, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Input, Modal, Popconfirm, Progress, Skeleton, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ThunderboltOutlined } from '@ant-design/icons';
@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page, StatusTag } from '@/components/layout';
+import { DataTable, Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -578,7 +578,7 @@ export default function DeploymentDetailPage() {
                         })}
                       </span>
                     </div>
-                    <Table<DeploymentDecision>
+                    <DataTable<DeploymentDecision>
                       rowKey="id"
                       size="small"
                       pagination={false}
@@ -642,14 +642,14 @@ export default function DeploymentDetailPage() {
                           },
                         ]}
                       />
-                      <Table<DeploymentVerificationSample>
+                      <DataTable<DeploymentVerificationSample>
                         rowKey="id"
                         size="small"
                         pagination={false}
                         loading={samplesQuery.isLoading}
                         dataSource={samplesQuery.data ?? []}
                         columns={sampleColumns}
-                        locale={{ emptyText: t('deploygov.detail.verificationNoSamples') }}
+                        emptyTitle={t('deploygov.detail.verificationNoSamples')}
                         scroll={{ x: true }}
                       />
                     </div>

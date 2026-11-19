@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Card, Form, Input, Modal, Select, Skeleton, Table, Tag } from 'antd';
+import { App, Button, Card, Form, Input, Modal, Select, Skeleton, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page } from '@/components/layout';
+import { DataTable, FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LadderStrip } from '@/components/schemaChange/LadderStrip';
@@ -167,17 +167,14 @@ export default function SchemaChangeSetListPage() {
     );
   } else {
     body = (
-      <Table<SchemaChangeSet>
+      <DataTable<SchemaChangeSet>
         rowKey="id"
         dataSource={rows}
         columns={columns}
         size="middle"
         scroll={{ x: 'max-content' }}
-        locale={{ emptyText: t('schemaChange.list.emptyFiltered') }}
-        onRow={(row) => ({
-          onClick: () => navigate(`/schema-change-sets/${row.id}`),
-          style: { cursor: 'pointer' },
-        })}
+        emptyTitle={t('schemaChange.list.emptyFiltered')}
+        onRowActivate={(row) => navigate(`/schema-change-sets/${row.id}`)}
         pagination={{
           current: page + 1,
           pageSize: PAGE_SIZE,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, AutoComplete, Button, Flex, Form, Input, Modal, Select, Space, Switch, Table, Tooltip } from 'antd';
+import { App, AutoComplete, Button, Flex, Form, Input, Modal, Select, Space, Switch, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import { draftFingerprint, isRowSecurityDraftHighImpact }
   from '@/components/policies/policyImpact';
@@ -122,7 +122,7 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
           description={t('datasources.settings.row_security.empty_description')}
         />
       ) : (
-        <Table<RowSecurityPolicy>
+        <DataTable<RowSecurityPolicy>
           rowKey="id"
           size="middle"
           loading={policiesQuery.isLoading}

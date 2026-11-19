@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Form, Input, Select, Skeleton, Table } from 'antd';
+import { App, Button, Form, Input, Select, Skeleton } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, StatusTag } from '@/components/layout';
+import { DataTable, Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -179,7 +179,7 @@ export default function ErasureSubmitPage() {
             description={t('lifecycle.erasure.mine_empty_description')}
           />
         ) : (
-          <Table<ErasureRequest>
+          <DataTable<ErasureRequest>
             rowKey="id"
             size="middle"
             dataSource={requests}

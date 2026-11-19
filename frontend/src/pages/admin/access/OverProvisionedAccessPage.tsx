@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Select, Skeleton, Space, Table, Tooltip } from 'antd';
+import { App, Button, Input, Select, Skeleton, Space, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -255,7 +255,7 @@ export default function OverProvisionedAccessPage() {
             description={t('over_provisioned.empty_description')}
           />
         ) : (
-          <Table<OverProvisionedGrant>
+          <DataTable<OverProvisionedGrant>
             rowKey="id"
             size="middle"
             dataSource={rows}

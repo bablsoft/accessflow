@@ -1,16 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Button,
-  DatePicker,
-  Drawer,
-  Input,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-  message,
-} from 'antd';
+import { Alert, Button, DatePicker, Drawer, Input, Select, Skeleton, Space, message } from 'antd';
 import type { Dayjs } from 'dayjs';
 import {
   DownloadOutlined,
@@ -19,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -372,7 +361,7 @@ export function AuditLogPage() {
         ) : events.length === 0 ? (
           <EmptyState title={t('admin.audit.title')} description={t('admin.audit.empty')} />
         ) : (
-          <Table<AuditEvent>
+          <DataTable<AuditEvent>
             rowKey="id"
             size="middle"
             dataSource={events}
@@ -383,10 +372,7 @@ export function AuditLogPage() {
               total: auditQuery.data?.total_elements ?? 0,
               onChange: (p) => setPage(p - 1),
             }}
-            onRow={(record) => ({
-              onClick: () => setDetail(record),
-              style: { cursor: 'pointer' },
-            })}
+            onRowActivate={(record) => setDetail(record)}
             columns={[
               {
                 title: t('admin.audit.col_when'),

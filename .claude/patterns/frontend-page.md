@@ -57,7 +57,7 @@ Pages are assembled from `src/components/layout` — never from inline flex/padd
     <FilterBar.Count>{…}</FilterBar.Count>
   </FilterBar>
   <PageBody flush>
-    <DataTable rowKey="id" loading={isLoading} page={page} total={…}
+    <DataTable rowKey="id" skeleton={isLoading} page={page} total={…}
                onPageChange={setPage} onRowActivate={(r) => navigate(`/queries/${r.id}`)} />
   </PageBody>
 </Page>
@@ -67,6 +67,11 @@ Pages are assembled from `src/components/layout` — never from inline flex/padd
   pages), `form` (settings forms). It is the page's only scroll container.
 - Boxes are `SurfaceCard`; form groups are `Section`; status labels are a `*Pill` or `StatusTag`
   (never `Tag color=`); empty tables pass `emptyTitle` to `DataTable`.
+- Every table is a `DataTable` — never Ant Design's `Table` directly. It accepts every `Table`
+  prop; `skeleton` replaces the table while the first page loads (`loading` stays Ant Design's
+  overlay spinner, for refetches), `onRowActivate` makes rows open on click **and Enter**, and
+  `page` / `total` / `onPageChange` give zero-based server paging. It does not default
+  `scroll={{ x }}`: that makes Ant Design render a second header, so opt in per table.
 - **Drawer** for create/edit and read-only detail; **Modal** only for short confirmations and
   decisions. Destructive confirmation goes through `useConfirm()`. Tab state lives in the URL.
 - Sizes, spacing, durations and colours come from the tokens in `src/styles/tokens.css`

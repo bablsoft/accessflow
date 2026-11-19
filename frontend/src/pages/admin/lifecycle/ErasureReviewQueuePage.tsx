@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Skeleton, Tooltip } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -91,7 +91,7 @@ export default function ErasureReviewQueuePage() {
             description={t('lifecycle.erasure_review.empty_description')}
           />
         ) : (
-          <Table<ErasureRequest>
+          <DataTable<ErasureRequest>
             rowKey="id"
             size="middle"
             dataSource={requests}

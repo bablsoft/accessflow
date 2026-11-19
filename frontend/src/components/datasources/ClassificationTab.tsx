@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, AutoComplete, Button, Form, Input, Modal, Select, Switch, Table } from 'antd';
+import { App, AutoComplete, Button, Form, Input, Modal, Select, Switch } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createClassificationTags,
@@ -90,7 +90,7 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
           description={t('datasources.settings.classification.empty_description')}
         />
       ) : (
-        <Table<DataClassificationTag>
+        <DataTable<DataClassificationTag>
           rowKey="id"
           size="middle"
           loading={tagsQuery.isLoading}

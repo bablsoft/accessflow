@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, DatePicker, Form, Input, Modal, Select, Skeleton, Table } from 'antd';
+import { App, Button, DatePicker, Form, Input, Modal, Select, Skeleton } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -132,15 +132,12 @@ export default function CampaignListPage() {
             description={t('attestation.list.empty_description')}
           />
         ) : (
-          <Table<AttestationCampaign>
+          <DataTable<AttestationCampaign>
             rowKey="id"
             size="middle"
             dataSource={campaigns}
             scroll={{ x: 'max-content' }}
-            onRow={(record) => ({
-              onClick: () => navigate(`/admin/attestation/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            onRowActivate={(record) => navigate(`/admin/attestation/${record.id}`)}
             pagination={{
               pageSize: PAGE_SIZE,
               current: page + 1,

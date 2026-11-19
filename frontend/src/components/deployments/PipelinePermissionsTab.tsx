@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, DatePicker, Form, Modal, Popconfirm, Segmented, Select, Switch, Table, Tag } from 'antd';
+import { App, Button, DatePicker, Form, Modal, Popconfirm, Segmented, Select, Switch, Tag } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import {
   deploymentPipelineKeys,
   grantDeploymentGroupPermission,
@@ -308,14 +309,14 @@ export function PipelinePermissionsTab({ pipelineId }: { pipelineId: string }) {
           {t('deploygov.settings.grant')}
         </Button>
       </Form>
-      <Table<DeploymentPipelinePermission>
+      <DataTable<DeploymentPipelinePermission>
         rowKey="id"
         size="small"
         pagination={false}
         loading={permsQuery.isLoading}
         dataSource={permsQuery.data ?? []}
         title={() => t('deploygov.settings.userPermissionsTitle')}
-        locale={{ emptyText: t('deploygov.settings.permissionsEmpty') }}
+        emptyTitle={t('deploygov.settings.permissionsEmpty')}
         columns={[
           {
             title: t('deploygov.settings.userLabel'),
@@ -365,7 +366,7 @@ export function PipelinePermissionsTab({ pipelineId }: { pipelineId: string }) {
         ]}
       />
       {(groupPerms.length > 0 || groupPermsQuery.isLoading) && (
-        <Table<DeploymentPipelineGroupPermission>
+        <DataTable<DeploymentPipelineGroupPermission>
           rowKey="id"
           size="small"
           pagination={false}

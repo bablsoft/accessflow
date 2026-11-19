@@ -1,18 +1,9 @@
 import { useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Skeleton,
-  Space,
-  Table,
-} from 'antd';
+import { App, Button, Form, Input, Modal, Popconfirm, Skeleton, Space } from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -188,7 +179,7 @@ export function GroupsListPage() {
           }
         />
       ) : (
-        <Table
+        <DataTable
           rowKey="id"
           dataSource={groupsQuery.data?.content ?? []}
           columns={columns}

@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Dropdown,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Skeleton,
-  Switch,
-  Table,
-} from 'antd';
+import { App, Button, Dropdown, Form, Input, Modal, Select, Skeleton, Switch } from 'antd';
 import {
   DashboardOutlined,
   DeleteOutlined,
@@ -24,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -325,7 +314,7 @@ export function UsersPage() {
             description={t('admin.users.empty')}
           />
         ) : (
-          <Table<User>
+          <DataTable<User>
             rowKey="id"
             size="middle"
             dataSource={filtered}
@@ -857,7 +846,7 @@ function PendingInvitationsSection({
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         {t('admin.users.invitations_title')}
       </div>
-      <Table<UserInvitation>
+      <DataTable<UserInvitation>
         rowKey="id"
         size="small"
         dataSource={invitations}

@@ -1,8 +1,8 @@
-import { Table, Tag, Tooltip } from 'antd';
+import { Tag, Tooltip } from 'antd';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import {
   apiConnectorClassificationKeys,
   getApiConnectorDerivationPreview,
@@ -77,13 +77,13 @@ export function ApiConnectorClassificationDerivationPanel({ connectorId }: { con
       <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
         {t('apiGov.settings.classification.masking_suggestions_label')}
       </div>
-      <Table<ApiConnectorClassificationMaskingSuggestion>
+      <DataTable<ApiConnectorClassificationMaskingSuggestion>
         rowKey={(r) => `${r.matcher_type}:${r.operation_id ?? ''}:${r.field_ref}:${r.classification}`}
         size="small"
         loading={derivationQuery.isLoading}
         dataSource={derivation?.masking_suggestions ?? []}
         pagination={false}
-        locale={{ emptyText: t('apiGov.settings.classification.no_masking_suggestions') }}
+        emptyTitle={t('apiGov.settings.classification.no_masking_suggestions')}
         columns={[
           {
             title: t('apiGov.settings.classification.col_field'),

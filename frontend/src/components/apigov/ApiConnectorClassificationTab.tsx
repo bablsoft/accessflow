@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Switch, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Select, Switch, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   apiConnectorClassificationKeys,
@@ -97,7 +97,7 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
           description={t('apiGov.settings.classification.empty_description')}
         />
       ) : (
-        <Table<ApiConnectorClassificationTag>
+        <DataTable<ApiConnectorClassificationTag>
           rowKey="id"
           size="middle"
           loading={tagsQuery.isLoading}

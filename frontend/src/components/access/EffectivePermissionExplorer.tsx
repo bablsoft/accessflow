@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert, Card, Descriptions, Form, Skeleton, Space, Table, Tag } from 'antd';
+import { Alert, Card, Descriptions, Form, Skeleton, Space, Tag } from 'antd';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { effectiveAccessKeys, getEffectivePermission } from '@/api/accessSimulations';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -275,7 +275,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
       <RowCapCard data={data} grants={grants} />
 
       <Card size="small" title={t('access.explorer.section_capabilities')}>
-        <Table
+        <DataTable
           rowKey="capability"
           size="small"
           pagination={false}
@@ -480,7 +480,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
         {data.grants.length === 0 ? (
           <span className="muted">{t('access.explorer.none')}</span>
         ) : (
-          <Table<EffectivePermissionGrant>
+          <DataTable<EffectivePermissionGrant>
             rowKey="grant_id"
             size="small"
             pagination={false}

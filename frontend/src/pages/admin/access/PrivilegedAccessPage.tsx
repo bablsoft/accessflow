@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Select, Skeleton, Space, Table, Tooltip } from 'antd';
+import { Button, Input, Select, Skeleton, Space, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -225,7 +225,7 @@ export default function PrivilegedAccessPage() {
             description={t('privileged_access.empty_description')}
           />
         ) : (
-          <Table<PrivilegedAccessRow>
+          <DataTable<PrivilegedAccessRow>
             rowKey="user_id"
             size="middle"
             dataSource={rows}

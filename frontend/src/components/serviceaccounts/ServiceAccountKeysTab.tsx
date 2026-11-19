@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tooltip, Typography } from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Space, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import {
   issueServiceAccountKey,
   revokeServiceAccountKey,
@@ -246,13 +246,13 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
           {t('admin.service_accounts.keys.issue')}
         </Button>
       </div>
-      <Table<ServiceAccountKey>
+      <DataTable<ServiceAccountKey>
         rowKey="id"
         size="small"
         columns={columns}
         dataSource={account.api_keys}
         pagination={false}
-        locale={{ emptyText: t('admin.service_accounts.keys.empty') }}
+        emptyTitle={t('admin.service_accounts.keys.empty')}
       />
 
       <Modal

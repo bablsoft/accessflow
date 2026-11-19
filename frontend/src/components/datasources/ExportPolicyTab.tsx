@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  InputNumber,
-  Modal,
-  Select,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { App, Button, Form, InputNumber, Modal, Select, Switch, Tag, Tooltip, Typography } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -21,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createExportPolicy,
@@ -131,7 +120,7 @@ export function ExportPolicyTab({ dsId }: { dsId: string }) {
           description={t('datasources.settings.export_policies.empty_description')}
         />
       ) : (
-        <Table<ExportPolicy>
+        <DataTable<ExportPolicy>
           rowKey="id"
           size="middle"
           loading={policiesQuery.isLoading}

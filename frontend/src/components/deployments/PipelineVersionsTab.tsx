@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Button, Table } from 'antd';
+import { Button } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import {
   deploymentVersionKeys,
   listPipelineEnvironmentVersions,
@@ -100,7 +101,7 @@ export function PipelineVersionsTab({ pipelineId }: { pipelineId: string }) {
       {/* Every environment comes back, including ones never deployed to — those render "—" and a
           "Never deployed" chip. The empty state below only fires when the pipeline has no
           environments configured at all. Server order (sort_order, then name) is authoritative. */}
-      <Table<DeploymentEnvironmentVersion>
+      <DataTable<DeploymentEnvironmentVersion>
         rowKey={(row) => row.environment.id}
         size="small"
         pagination={false}
@@ -108,7 +109,7 @@ export function PipelineVersionsTab({ pipelineId }: { pipelineId: string }) {
         dataSource={matrixQuery.data ?? []}
         columns={columns}
         scroll={{ x: 'max-content' }}
-        locale={{ emptyText: t('deploygov.versions.tabEmpty') }}
+        emptyTitle={t('deploygov.versions.tabEmpty')}
       />
       <EnvironmentHistoryDrawer
         pipelineId={pipelineId}

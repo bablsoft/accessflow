@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  Space,
-  Switch,
-  Table,
-  Tooltip,
-} from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -21,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { BytesInput } from '@/components/common/BytesInput';
 import { renderUserOption } from '@/components/common/renderUserOption';
@@ -129,7 +118,7 @@ export function DataBudgetTab({ dsId }: { dsId: string }) {
           description={t('dataBudgets.tab.empty_description')}
         />
       ) : (
-        <Table<DataBudget>
+        <DataTable<DataBudget>
           rowKey="id"
           size="middle"
           loading={budgetsQuery.isLoading}

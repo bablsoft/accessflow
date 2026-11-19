@@ -1,7 +1,7 @@
-import { Skeleton, Table } from 'antd';
+import { Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -37,7 +37,7 @@ export function DataClassificationsPage() {
             description={t('admin.data_classifications.empty_description')}
           />
         ) : (
-          <Table<OrganizationDataClassification>
+          <DataTable<OrganizationDataClassification>
             rowKey="id"
             size="middle"
             dataSource={rows}

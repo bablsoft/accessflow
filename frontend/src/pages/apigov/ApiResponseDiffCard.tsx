@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Alert, Input, Skeleton, Table, Tag } from 'antd';
+import { Alert, Input, Skeleton, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DiffOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { isAxiosError } from 'axios';
 import { Link } from 'react-router-dom';
 import { json } from '@codemirror/lang-json';
@@ -168,13 +169,13 @@ export function ApiResponseDiffCard({ request }: Props) {
             {diff.either_response_truncated && (
               <Alert type="warning" showIcon title={t('apiGov.requests.diffEitherTruncated')} />
             )}
-            <Table<ApiResponseDiffEntry>
+            <DataTable<ApiResponseDiffEntry>
               rowKey={(e) => `${e.kind}:${e.path}`}
               size="small"
               pagination={diff.entries.length > 20 ? { pageSize: 20, size: 'small' } : false}
               dataSource={diff.entries}
               columns={columns}
-              locale={{ emptyText: t('apiGov.requests.diffNoChanges') }}
+              emptyTitle={t('apiGov.requests.diffNoChanges')}
             />
             <div className="muted" style={{ fontSize: 12 }}>
               {t('apiGov.requests.diffMaskingNote')}

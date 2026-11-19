@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert, App, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Popconfirm, Select, Space, Tag, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { TFunction } from 'i18next';
 import {
@@ -114,13 +114,13 @@ export function ApiConnectorDriftTab({
         {findingsQuery.isError ? (
           <LoadError error={findingsQuery.error} />
         ) : (
-          <Table<ApiDriftFinding>
+          <DataTable<ApiDriftFinding>
             rowKey="id"
             size="small"
             pagination={false}
             loading={findingsQuery.isLoading}
             dataSource={findingsQuery.data ?? []}
-            locale={{ emptyText: t('apiGov.drift.noFindings') }}
+            emptyTitle={t('apiGov.drift.noFindings')}
             columns={[
               {
                 title: t('apiGov.drift.kind'),
@@ -308,13 +308,13 @@ function SchemaRevisionsCard({ connectorId, schema }: { connectorId: string; sch
       {revisionsQuery.isError ? (
         <LoadError error={revisionsQuery.error} />
       ) : (
-        <Table<ApiSchemaRevision>
+        <DataTable<ApiSchemaRevision>
           rowKey="id"
           size="small"
           pagination={false}
           loading={revisionsQuery.isLoading}
           dataSource={revisions}
-          locale={{ emptyText: t('apiGov.drift.noRevisions') }}
+          emptyTitle={t('apiGov.drift.noRevisions')}
           columns={[
             {
               title: t('apiGov.drift.fetchedAt'),

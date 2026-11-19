@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Alert, App, Button, Dropdown, Segmented, Skeleton, Table, Tooltip } from 'antd';
+import { Alert, App, Button, Dropdown, Segmented, Skeleton, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, LockOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { getQueryResults, queryKeys } from '@/api/queries';
 import {
   downloadResultExport,
@@ -204,7 +205,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
   return (
     <div>
       {toggle}
-      <Table
+      <DataTable
         rowKey="__key"
         columns={columns}
         dataSource={dataSource}

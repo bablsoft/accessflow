@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Skeleton, Table } from 'antd';
+import { App, Button, Input, Modal, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
 import '@/components/review/triage/triage.css';
@@ -81,7 +81,7 @@ function ExpandedMembers({ groupId }: { groupId: string }) {
     },
   ];
   return (
-    <Table<RequestGroupItem>
+    <DataTable<RequestGroupItem>
       rowKey="id"
       size="small"
       pagination={false}
@@ -224,7 +224,7 @@ export default function RequestGroupReviewQueuePage() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<PendingGroupReview>
+          <DataTable<PendingGroupReview>
             rowKey="request_group_id"
             rowClassName={(row) =>
               row.request_group_id === active?.request_group_id ? 'af-triage-row-active' : ''
@@ -233,7 +233,7 @@ export default function RequestGroupReviewQueuePage() {
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('requestGroups.reviews.empty') }}
+            emptyTitle={t('requestGroups.reviews.empty')}
             expandable={{
               expandedRowRender: (record) => (
                 <ExpandedMembers groupId={record.request_group_id} />

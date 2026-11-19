@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Switch, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Select, Switch, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -198,13 +198,13 @@ export default function ApiConnectorsListPage() {
         }
       />
       <PageBody>
-        <Table<ApiConnector>
+        <DataTable<ApiConnector>
           rowKey="id"
           loading={connectorsQuery.isLoading}
           dataSource={connectorsQuery.data?.content ?? []}
           columns={columns}
           pagination={false}
-          locale={{ emptyText: t('apiGov.connectors.empty') }}
+          emptyTitle={t('apiGov.connectors.empty')}
         />
       </PageBody>
 

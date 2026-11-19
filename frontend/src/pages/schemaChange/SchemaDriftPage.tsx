@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Card, Select, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, Select, Skeleton, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, SyncOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page } from '@/components/layout';
+import { DataTable, FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -453,7 +453,7 @@ function EnvironmentCard({
           {reason && scan?.applicable && (
             <Alert type="info" showIcon style={{ marginBottom: 8 }} title={reason} />
           )}
-          <Table<SchemaDriftFinding>
+          <DataTable<SchemaDriftFinding>
             rowKey="id"
             size="small"
             dataSource={findings}

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Input, Select, Skeleton, Table } from 'antd';
+import { Input, Select, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page } from '@/components/layout';
+import { DataTable, FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -162,13 +162,13 @@ export default function DeploymentVersionsPage() {
       );
     }
     return (
-      <Table<DeploymentEnvironmentVersion>
+      <DataTable<DeploymentEnvironmentVersion>
         rowKey={(row) => row.environment.id}
         dataSource={rows}
         columns={columns}
         size="middle"
         scroll={{ x: 'max-content' }}
-        locale={{ emptyText: t('deploygov.versions.emptyFiltered') }}
+        emptyTitle={t('deploygov.versions.emptyFiltered')}
         pagination={{
           current: page + 1,
           pageSize: PAGE_SIZE,

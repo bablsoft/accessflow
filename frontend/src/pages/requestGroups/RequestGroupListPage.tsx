@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Select, Skeleton, Table } from 'antd';
+import { App, Button, Input, Select, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RequestGroupStatusPill } from '@/components/common/RequestGroupStatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -210,13 +210,13 @@ export default function RequestGroupListPage() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<RequestGroup>
+          <DataTable<RequestGroup>
             rowKey="id"
             dataSource={filtered}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('requestGroups.list.empty') }}
+            emptyTitle={t('requestGroups.list.empty')}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,
@@ -224,10 +224,7 @@ export default function RequestGroupListPage() {
               showSizeChanger: false,
               onChange: (p) => setPage(p - 1),
             }}
-            onRow={(record) => ({
-              onClick: () => navigate(`/request-groups/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            onRowActivate={(record) => navigate(`/request-groups/${record.id}`)}
           />
         )}
       </PageBody>

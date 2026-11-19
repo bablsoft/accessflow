@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { App, Button, Modal, Popconfirm, Skeleton, Table, Tag } from 'antd';
+import { App, Button, Modal, Popconfirm, Skeleton, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -204,7 +204,7 @@ export function AiConfigListPage() {
             }
           />
         ) : (
-          <Table<AiConfig>
+          <DataTable<AiConfig>
             rowKey="id"
             columns={columns}
             dataSource={configs}

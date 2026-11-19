@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { App, Button, DatePicker, Input, Select, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, DatePicker, Input, Select, Skeleton, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { ClockCircleOutlined, HourglassOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -310,13 +310,13 @@ export default function ApiRequestsListPage() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<ApiRequest>
+          <DataTable<ApiRequest>
             rowKey="id"
             dataSource={filtered}
             columns={cols}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('apiGov.requests.empty') }}
+            emptyTitle={t('apiGov.requests.empty')}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,
@@ -324,10 +324,7 @@ export default function ApiRequestsListPage() {
               showSizeChanger: false,
               onChange: (p) => setPage(p - 1),
             }}
-            onRow={(record) => ({
-              onClick: () => navigate(`/api-requests/${record.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            onRowActivate={(record) => navigate(`/api-requests/${record.id}`)}
           />
         )}
       </PageBody>

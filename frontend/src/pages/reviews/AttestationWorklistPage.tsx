@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Skeleton, Space, Table } from 'antd';
+import { App, Button, Skeleton, Space } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -291,7 +291,7 @@ export default function AttestationWorklistPage() {
             description={t('attestation.worklist.empty_description')}
           />
         ) : (
-          <Table<AttestationItem>
+          <DataTable<AttestationItem>
             rowKey="id"
             dataSource={items}
             columns={columns}

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, DatePicker, Form, Modal, Segmented, Select, Switch, Table, Tag } from 'antd';
+import { App, Button, DatePicker, Form, Modal, Segmented, Select, Switch, Tag } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import {
   apiConnectorKeys,
   grantApiConnectorGroupPermission,
@@ -355,13 +356,13 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
           {target === 'group' ? t('apiGov.settings.grantGroup') : t('apiGov.settings.grant')}
         </Button>
       </Form>
-      <Table<ApiConnectorPermission>
+      <DataTable<ApiConnectorPermission>
         rowKey="id"
         size="small"
         pagination={false}
         loading={permsQuery.isLoading}
         dataSource={permsQuery.data ?? []}
-        locale={{ emptyText: t('apiGov.settings.noPermissions') }}
+        emptyTitle={t('apiGov.settings.noPermissions')}
         columns={[
           { title: t('apiGov.settings.user'), dataIndex: 'user_email', render: (e: string | null, r: ApiConnectorPermission) => e ?? r.user_id },
           { title: t('apiGov.settings.canRead'), dataIndex: 'can_read', render: (v: boolean) => (v ? '✓' : '—') },
@@ -384,7 +385,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
         ]}
       />
       {(groupPerms.length > 0 || groupPermsQuery.isLoading) && (
-        <Table<ApiConnectorGroupPermission>
+        <DataTable<ApiConnectorGroupPermission>
           rowKey="id"
           size="small"
           pagination={false}

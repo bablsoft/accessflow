@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Space, Switch, Table, Typography } from 'antd';
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Space, Switch, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, Section } from '@/components/layout';
+import { DataTable, Page, PageBody, Section } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -307,7 +307,7 @@ export function ScimConfigPage() {
                   description={adminErrorMessage(tokensQuery.error)}
                 />
               ) : tokensQuery.data && tokensQuery.data.length > 0 ? (
-                <Table<ScimToken>
+                <DataTable<ScimToken>
                   dataSource={tokensQuery.data}
                   rowKey="id"
                   columns={tokenColumns}
