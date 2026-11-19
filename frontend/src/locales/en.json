@@ -41,7 +41,12 @@
     "skip_to_content": "Skip to content",
     "error_boundary_title": "Something went wrong on this page",
     "error_boundary_description": "The rest of AccessFlow still works. Try again, or open another page from the menu.",
-    "breadcrumb": "Breadcrumb"
+    "breadcrumb": "Breadcrumb",
+    "unsaved_title": "Discard unsaved changes?",
+    "unsaved_body": "You have edits on this page that were not saved. If you leave now they are lost.",
+    "unsaved_discard": "Discard changes",
+    "unsaved_stay": "Keep editing",
+    "unsaved_hint": "Unsaved changes"
   },
   "nav": {
     "editor": "Query editor",

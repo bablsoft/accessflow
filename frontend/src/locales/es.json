@@ -41,7 +41,12 @@
     "skip_to_content": "Saltar al contenido",
     "error_boundary_title": "Algo salió mal en esta página",
     "error_boundary_description": "El resto de AccessFlow sigue funcionando. Inténtalo de nuevo o abre otra página desde el menú.",
-    "breadcrumb": "Ruta de navegación"
+    "breadcrumb": "Ruta de navegación",
+    "unsaved_title": "¿Descartar los cambios sin guardar?",
+    "unsaved_body": "Hay cambios en esta página que no se han guardado. Si sales ahora, se perderán.",
+    "unsaved_discard": "Descartar cambios",
+    "unsaved_stay": "Seguir editando",
+    "unsaved_hint": "Cambios sin guardar"
   },
   "nav": {
     "editor": "Editor SQL",

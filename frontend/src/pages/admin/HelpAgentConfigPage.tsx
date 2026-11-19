@@ -14,7 +14,7 @@ import {
 import { ApiOutlined, CheckOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, Section } from '@/components/layout';
+import { FormActions, Page, PageBody, Section, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -50,6 +50,7 @@ export function HelpAgentConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<HelpAgentFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
 
   const cfgQuery = useQuery({
     queryKey: helpAgentKeys.config(),
@@ -90,6 +91,7 @@ export function HelpAgentConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateHelpAgentConfigInput) => updateHelpAgentConfig(payload),
     onSuccess: (saved) => {
+      markClean();
       queryClient.setQueryData(helpAgentKeys.config(), saved);
       message.success(t('admin.help_agent.save_success'));
     },
@@ -188,7 +190,7 @@ export function HelpAgentConfigPage() {
           />
         ) : null}
 
-        <Form<HelpAgentFormValues> form={form} layout="vertical" onFinish={onFinish}>
+        <Form<HelpAgentFormValues> form={form} layout="vertical" onFinish={onFinish} onValuesChange={markDirty}>
           <Section title={t('admin.help_agent.section_agent')}>
             <Form.Item
               name="enabled"
@@ -340,14 +342,8 @@ export function HelpAgentConfigPage() {
             </div>
           </Section>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -363,7 +359,7 @@ export function HelpAgentConfigPage() {
             >
               {t('admin.help_agent.test_button')}
             </Button>
-          </div>
+          </FormActions>
         </Form>
       </PageBody>
     </Page>

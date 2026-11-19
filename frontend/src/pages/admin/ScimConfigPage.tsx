@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody, Section } from '@/components/layout';
+import { DataTable, FormActions, Page, PageBody, Section, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -53,6 +53,7 @@ export function ScimConfigPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<ScimFormValues>();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const [tokenForm] = Form.useForm<CreateTokenFormValues>();
   const [createOpen, setCreateOpen] = useState(false);
   const [issuedToken, setIssuedToken] = useState<CreatedScimToken | null>(null);
@@ -81,6 +82,7 @@ export function ScimConfigPage() {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateScimConfigInput) => updateScimConfig(payload),
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: scimConfigKeys.all });
       message.success(t('admin.scim.save_success'));
     },
@@ -208,7 +210,7 @@ export function ScimConfigPage() {
         subtitle={t('admin.scim.subtitle')}
       />
       <PageBody width="form">
-        <Form<ScimFormValues> form={form} layout="vertical" onFinish={onFinish}>
+        <Form<ScimFormValues> form={form} layout="vertical" onFinish={onFinish} onValuesChange={markDirty}>
           <Section title={t('admin.scim.section_endpoint')}>
             <Form.Item label={t('admin.scim.label_base_url')}>
               <Typography.Paragraph
@@ -260,14 +262,8 @@ export function ScimConfigPage() {
             </Grid>
           </Section>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
-          >
+          <UnsavedChangesGuard when={dirty} />
+          <FormActions dirty={dirty}>
             <Button
               type="primary"
               icon={<CheckOutlined />}
@@ -276,7 +272,7 @@ export function ScimConfigPage() {
             >
               {t('admin.scim.save_button')}
             </Button>
-          </div>
+          </FormActions>
         </Form>
 
         <div style={{ marginTop: 40 }}>

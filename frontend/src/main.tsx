@@ -1,7 +1,7 @@
 import './i18n';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import enUS from 'antd/locale/en_US';
 import esES from 'antd/locale/es_ES';
@@ -88,13 +88,15 @@ function ThemedApp() {
   );
 }
 
+// A data router with one catch-all route: the route table stays the `<Routes>` tree in App.tsx,
+// and data-router-only hooks (`useBlocker`, behind UnsavedChangesGuard) become available.
+const router = createBrowserRouter([{ path: '*', element: <ThemedApp /> }]);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <ThemedApp />
-      </QueryClientProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>,
 );
 

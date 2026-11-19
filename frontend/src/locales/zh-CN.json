@@ -41,7 +41,12 @@
     "skip_to_content": "跳到正文",
     "error_boundary_title": "此页面出现问题",
     "error_boundary_description": "AccessFlow 的其他部分仍可正常使用。请重试，或从菜单打开其他页面。",
-    "breadcrumb": "面包屑导航"
+    "breadcrumb": "面包屑导航",
+    "unsaved_title": "放弃未保存的更改？",
+    "unsaved_body": "此页面有尚未保存的修改。如果现在离开，这些修改将会丢失。",
+    "unsaved_discard": "放弃更改",
+    "unsaved_stay": "继续编辑",
+    "unsaved_hint": "有未保存的更改"
   },
   "nav": {
     "editor": "SQL 编辑器",

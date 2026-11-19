@@ -41,7 +41,12 @@
     "skip_to_content": "Aller au contenu",
     "error_boundary_title": "Une erreur s'est produite sur cette page",
     "error_boundary_description": "Le reste d'AccessFlow fonctionne toujours. Réessayez ou ouvrez une autre page depuis le menu.",
-    "breadcrumb": "Fil d'Ariane"
+    "breadcrumb": "Fil d'Ariane",
+    "unsaved_title": "Abandonner les modifications non enregistrées ?",
+    "unsaved_body": "Cette page contient des modifications non enregistrées. Si vous quittez maintenant, elles seront perdues.",
+    "unsaved_discard": "Abandonner les modifications",
+    "unsaved_stay": "Continuer la modification",
+    "unsaved_hint": "Modifications non enregistrées"
   },
   "nav": {
     "editor": "Éditeur SQL",
