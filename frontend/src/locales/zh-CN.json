@@ -903,7 +903,8 @@
       "results_truncated_budget": "返回 {{count}} 行（受剩余数据预算限制）",
       "decision_hook_title": "决策钩子“{{name}}”：{{outcome}}",
       "decision_hook_body": "原因：{{reason}}",
-      "decision_hook_failed_body": "钩子失败（{{failure}}），因此该查询已转入人工审核。"
+      "decision_hook_failed_body": "钩子失败（{{failure}}），因此该查询已转入人工审核。",
+      "handling_title": "此请求的处理方式"
     }
   },
   "reviews": {

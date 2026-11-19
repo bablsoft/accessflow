@@ -316,6 +316,7 @@ Available to users holding `QUERY_REVIEW`:
 - The sub-filter offers *Assigned to you* and *All pending*. The former *Recently decided* option was removed: no endpoint backs it and it showed the same rows as *All pending*.
 - The ID column renders a small clock icon (with a "Scheduled to run at …" tooltip) when the row carries a non-null `scheduled_for`, so users can spot scheduled queries at a glance from `/queries` without opening the detail page. A sync/repeat icon renders the same way when the row is a recurring-series parent (#627, `recurring=true` on the list row).
 - `ApprovalTimeline` shows which reviewers in the plan have already decided
+- `QueryDetailPage` builds one `notices` list for everything about how the request was scheduled, routed and decided. A notice is a **banner** above the SQL when it reports a problem (`warning` / `error` severity: AI analysis failed, timed out, escalated, series halted, decision hook failed, bytes cap enforced or missing an estimate) or needs the viewer to act (`banner: true` — changes requested). Every other notice (scheduled run, active or ended series, occurrence of a series, matched routing policy, decision-hook result, bytes cap within limit, approved by grant) is a row of the **How this request was handled** card in the side column. Each keeps its `data-testid` in either place.
 - On `QueryDetailPage` the review decision panel is the first card of the side column (`.qd-decision`), so it is on screen without scrolling past the SQL, analysis and results.
 
 ### RequestAccessPage (`/access-requests`)

@@ -1,5 +1,6 @@
 import { dataBudgetKeys } from '@/api/dataBudgets';
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { hasPermission } from '@/utils/permissions';
 import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton } from 'antd';
 import {
@@ -76,6 +77,18 @@ import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 import { ClientApplicationTag } from '@/components/common/ClientApplicationTag';
+
+interface QueryNotice {
+  key: string;
+  severity: 'info' | 'success' | 'warning' | 'error';
+  /** Forces a banner for a notice the viewer must act on, whatever its severity. */
+  banner?: boolean;
+  icon?: ReactNode;
+  testId?: string;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}
 
 export function QueryDetailPage() {
   const { t } = useTranslation();
@@ -284,6 +297,200 @@ export function QueryDetailPage() {
   const canCollaborate =
     query.status === 'PENDING_REVIEW' && (submitterId === user.id || isReviewer);
 
+  // Every notice about how this request was scheduled, routed and decided. Problems and anything
+  // the viewer must act on stay banners above the SQL; the rest is context and goes into one
+  // compact card in the side column.
+  const notices: QueryNotice[] = [];
+  if (showScheduledBanner) {
+    notices.push({
+      key: 'scheduled',
+      severity: 'info',
+      icon: <ClockCircleOutlined />,
+      title: hasScheduledRun
+        ? t('queries.detail.scheduled_banner_title')
+        : t('queries.detail.scheduled_banner_title_pending'),
+      description: hasScheduledRun
+        ? t('queries.detail.scheduled_banner_body', { when: fmtDate(query.scheduled_for!) })
+        : t('queries.detail.scheduled_banner_body_pending', { when: fmtDate(query.scheduled_for!) }),
+    });
+  }
+  if (isRecurringParent && seriesState) {
+    notices.push({
+      key: 'series',
+      severity: seriesState === 'halted' ? 'warning' : 'info',
+      icon: <SyncOutlined />,
+      testId: 'recurrence-banner',
+      title: t(`queries.detail.series_banner_title_${seriesState}`),
+      description:
+        seriesState === 'active'
+          ? t('queries.detail.series_banner_body_active', {
+              rule: query.recurrence_rule,
+              next: fmtDate(query.recurrence_next_run_at!),
+              until: fmtDate(query.recurrence_until!),
+            })
+          : seriesState === 'halted'
+            ? t('queries.detail.series_banner_body_halted', {
+                reason: query.recurrence_halted_reason ?? '—',
+              })
+            : t('queries.detail.series_banner_body_ended'),
+    });
+  }
+  if (query.recurring_parent_id) {
+    notices.push({
+      key: 'occurrence',
+      severity: 'info',
+      icon: <SyncOutlined />,
+      testId: 'occurrence-banner',
+      title: t('queries.detail.occurrence_banner_title'),
+      action: (
+        <Button size="small" onClick={() => navigate(`/queries/${query.recurring_parent_id}`)}>
+          {t('queries.detail.occurrence_banner_link')}
+        </Button>
+      ),
+    });
+  }
+  if (changesRequested && latestDecision) {
+    notices.push({
+      key: 'changes_requested',
+      severity: 'info',
+      banner: true,
+      icon: <EditOutlined />,
+      title: t('queries.detail.changes_requested_banner_title'),
+      description: t('queries.detail.changes_requested_banner_body', {
+        reviewer: userDisplay(latestDecision.reviewer.display_name, latestDecision.reviewer.email),
+        when: timeAgo(latestDecision.decided_at),
+        comment: latestDecision.comment ?? '',
+      }),
+    });
+  }
+  if (aiFailed) {
+    notices.push({
+      key: 'ai_failed',
+      severity: 'warning',
+      icon: <ExclamationCircleOutlined />,
+      title: t('queries.detail.ai_failed_banner_title'),
+      description: t('queries.detail.ai_failed_banner_detail', { reason: aiFailureReason || '—' }),
+      action: canReanalyze ? (
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          loading={reanalyzeMutation.isPending}
+          onClick={() => reanalyzeMutation.mutate()}
+        >
+          {reanalyzeMutation.isPending
+            ? t('queries.detail.ai_failed_reanalyze_pending')
+            : t('queries.detail.ai_failed_reanalyze')}
+        </Button>
+      ) : undefined,
+    });
+  }
+  if (query.status === 'TIMED_OUT') {
+    notices.push({
+      key: 'timed_out',
+      severity: 'warning',
+      icon: <ClockCircleOutlined />,
+      title: t('queries.detail.timeout_title'),
+      description: query.review_plan_name
+        ? t('queries.detail.timeout_body_with_plan', {
+            plan: query.review_plan_name,
+            hours: query.approval_timeout_hours ?? '?',
+            when: timeAgo(query.updated_at),
+          })
+        : t('queries.detail.timeout_body_without_plan', {
+            hours: query.approval_timeout_hours ?? '?',
+            when: timeAgo(query.updated_at),
+          }),
+    });
+  }
+  if (query.escalated_at && query.status === 'PENDING_REVIEW') {
+    notices.push({
+      key: 'escalated',
+      severity: 'warning',
+      icon: <ClockCircleOutlined />,
+      testId: 'escalation-banner',
+      title: t('queries.detail.escalated_title'),
+      description: t('queries.detail.escalated_body', {
+        hours: query.escalation_after_hours ?? '?',
+        when: timeAgo(query.escalated_at),
+      }),
+    });
+  }
+  if (query.matched_policy && query.matched_policy.source !== 'DECISION_HOOK') {
+    notices.push({
+      key: 'matched_policy',
+      severity: 'info',
+      title: t('queries.detail.matched_policy_title', {
+        action: routingActionLabel(t, query.matched_policy.action),
+      }),
+      description: t('queries.detail.matched_policy_body', {
+        name: query.matched_policy.policy_name ?? t('queries.detail.matched_policy_deleted'),
+        reason: query.matched_policy.reason ?? t('queries.detail.matched_policy_no_reason'),
+      }),
+    });
+  }
+  if (query.decision_hook) {
+    notices.push({
+      key: 'decision_hook',
+      severity: query.decision_hook.outcome === 'FAILED' ? 'warning' : 'info',
+      testId: 'decision-hook-alert',
+      title: t('queries.detail.decision_hook_title', {
+        name: query.decision_hook.decision_hook_name,
+        outcome: decisionHookOutcomeLabel(t, query.decision_hook.outcome),
+      }),
+      description:
+        query.decision_hook.outcome === 'FAILED' && query.decision_hook.failure
+          ? t('queries.detail.decision_hook_failed_body', {
+              failure: decisionHookFailureLabel(t, query.decision_hook.failure),
+            })
+          : t('queries.detail.decision_hook_body', {
+              reason: query.decision_hook.reason ?? t('queries.detail.matched_policy_no_reason'),
+            }),
+    });
+  }
+  if (query.bytes_scanned_cap) {
+    const outcome = query.bytes_scanned_cap.outcome;
+    notices.push({
+      key: 'bytes_cap',
+      severity:
+        outcome === 'EXCEEDED' || outcome === 'NO_ESTIMATE_REJECTED'
+          ? 'error'
+          : outcome === 'NO_ESTIMATE_REVIEW'
+            ? 'warning'
+            : 'info',
+      testId: 'bytes-cap-banner',
+      title: bytesScannedCapOutcomeLabel(t, outcome),
+      description: t('queries.detail.bytes_cap_body', {
+        estimate:
+          formatBytes(query.cost_estimate?.estimated_bytes_scanned) ??
+          t('queries.detail.bytes_cap_no_estimate'),
+        limit: formatBytes(query.bytes_scanned_cap.limit),
+        source: bytesScannedCapSourceLabel(t, query.bytes_scanned_cap.source),
+      }),
+    });
+  }
+  if (query.approved_by_grant) {
+    notices.push({
+      key: 'approved_by_grant',
+      severity: 'success',
+      title: t('queries.detail.approved_by_grant_title'),
+      description: query.approved_by_grant.approver_email
+        ? t('queries.detail.approved_by_grant_body', {
+            grantId: query.approved_by_grant.grant_id,
+            approver: query.approved_by_grant.approver_email,
+            when: query.approved_by_grant.approved_at
+              ? fmtDate(query.approved_by_grant.approved_at)
+              : '—',
+          })
+        : t('queries.detail.approved_by_grant_body_no_approver', {
+            grantId: query.approved_by_grant.grant_id,
+          }),
+    });
+  }
+  const isBanner = (n: QueryNotice) =>
+    n.banner === true || n.severity === 'warning' || n.severity === 'error';
+  const banners = notices.filter(isBanner);
+  const contextNotices = notices.filter((n) => !isBanner(n));
+
   return (
     <Page>
       <PageHeader
@@ -420,220 +627,18 @@ export function QueryDetailPage() {
       </Modal>
       <div className="qd-grid">
         <div className="qd-main">
-          {showScheduledBanner && (
+          {banners.map((n) => (
             <Alert
-              type="info"
+              key={n.key}
+              type={n.severity}
               showIcon
-              icon={<ClockCircleOutlined />}
-              title={
-                hasScheduledRun
-                  ? t('queries.detail.scheduled_banner_title')
-                  : t('queries.detail.scheduled_banner_title_pending')
-              }
-              description={
-                hasScheduledRun
-                  ? t('queries.detail.scheduled_banner_body', {
-                      when: fmtDate(query.scheduled_for!),
-                    })
-                  : t('queries.detail.scheduled_banner_body_pending', {
-                      when: fmtDate(query.scheduled_for!),
-                    })
-              }
+              icon={n.icon}
+              data-testid={n.testId}
+              title={n.title}
+              description={n.description}
+              action={n.action}
             />
-          )}
-          {isRecurringParent && seriesState && (
-            <Alert
-              type={seriesState === 'halted' ? 'warning' : 'info'}
-              showIcon
-              icon={<SyncOutlined />}
-              data-testid="recurrence-banner"
-              title={t(`queries.detail.series_banner_title_${seriesState}`)}
-              description={
-                seriesState === 'active'
-                  ? t('queries.detail.series_banner_body_active', {
-                      rule: query.recurrence_rule,
-                      next: fmtDate(query.recurrence_next_run_at!),
-                      until: fmtDate(query.recurrence_until!),
-                    })
-                  : seriesState === 'halted'
-                    ? t('queries.detail.series_banner_body_halted', {
-                        reason: query.recurrence_halted_reason ?? '—',
-                      })
-                    : t('queries.detail.series_banner_body_ended')
-              }
-            />
-          )}
-          {query.recurring_parent_id && (
-            <Alert
-              type="info"
-              showIcon
-              icon={<SyncOutlined />}
-              data-testid="occurrence-banner"
-              title={t('queries.detail.occurrence_banner_title')}
-              action={
-                <Button
-                  size="small"
-                  onClick={() => navigate(`/queries/${query.recurring_parent_id}`)}
-                >
-                  {t('queries.detail.occurrence_banner_link')}
-                </Button>
-              }
-            />
-          )}
-          {changesRequested && latestDecision && (
-            <Alert
-              type="info"
-              showIcon
-              icon={<EditOutlined />}
-              title={t('queries.detail.changes_requested_banner_title')}
-              description={t('queries.detail.changes_requested_banner_body', {
-                reviewer: userDisplay(
-                  latestDecision.reviewer.display_name,
-                  latestDecision.reviewer.email,
-                ),
-                when: timeAgo(latestDecision.decided_at),
-                comment: latestDecision.comment ?? '',
-              })}
-            />
-          )}
-          {aiFailed && (
-            <Alert
-              type="warning"
-              showIcon
-              icon={<ExclamationCircleOutlined />}
-              title={t('queries.detail.ai_failed_banner_title')}
-              description={t('queries.detail.ai_failed_banner_detail', {
-                reason: aiFailureReason || '—',
-              })}
-              action={
-                canReanalyze ? (
-                  <Button
-                    size="small"
-                    icon={<ReloadOutlined />}
-                    loading={reanalyzeMutation.isPending}
-                    onClick={() => reanalyzeMutation.mutate()}
-                  >
-                    {reanalyzeMutation.isPending
-                      ? t('queries.detail.ai_failed_reanalyze_pending')
-                      : t('queries.detail.ai_failed_reanalyze')}
-                  </Button>
-                ) : undefined
-              }
-            />
-          )}
-          {query.status === 'TIMED_OUT' && (
-            <Alert
-              type="warning"
-              showIcon
-              icon={<ClockCircleOutlined />}
-              title={t('queries.detail.timeout_title')}
-              description={
-                query.review_plan_name
-                  ? t('queries.detail.timeout_body_with_plan', {
-                      plan: query.review_plan_name,
-                      hours: query.approval_timeout_hours ?? '?',
-                      when: timeAgo(query.updated_at),
-                    })
-                  : t('queries.detail.timeout_body_without_plan', {
-                      hours: query.approval_timeout_hours ?? '?',
-                      when: timeAgo(query.updated_at),
-                    })
-              }
-            />
-          )}
-          {query.escalated_at && query.status === 'PENDING_REVIEW' && (
-            <Alert
-              type="warning"
-              showIcon
-              icon={<ClockCircleOutlined />}
-              data-testid="escalation-banner"
-              title={t('queries.detail.escalated_title')}
-              description={t('queries.detail.escalated_body', {
-                hours: query.escalation_after_hours ?? '?',
-                when: timeAgo(query.escalated_at),
-              })}
-            />
-          )}
-          {query.matched_policy && query.matched_policy.source !== 'DECISION_HOOK' && (
-            <Alert
-              type="info"
-              showIcon
-              title={t('queries.detail.matched_policy_title', {
-                action: routingActionLabel(t, query.matched_policy.action),
-              })}
-              description={t('queries.detail.matched_policy_body', {
-                name:
-                  query.matched_policy.policy_name ??
-                  t('queries.detail.matched_policy_deleted'),
-                reason:
-                  query.matched_policy.reason ?? t('queries.detail.matched_policy_no_reason'),
-              })}
-            />
-          )}
-          {query.decision_hook && (
-            <Alert
-              type={query.decision_hook.outcome === 'FAILED' ? 'warning' : 'info'}
-              showIcon
-              data-testid="decision-hook-alert"
-              title={t('queries.detail.decision_hook_title', {
-                name: query.decision_hook.decision_hook_name,
-                outcome: decisionHookOutcomeLabel(t, query.decision_hook.outcome),
-              })}
-              description={
-                query.decision_hook.outcome === 'FAILED' && query.decision_hook.failure
-                  ? t('queries.detail.decision_hook_failed_body', {
-                      failure: decisionHookFailureLabel(t, query.decision_hook.failure),
-                    })
-                  : t('queries.detail.decision_hook_body', {
-                      reason:
-                        query.decision_hook.reason ??
-                        t('queries.detail.matched_policy_no_reason'),
-                    })
-              }
-            />
-          )}
-          {query.bytes_scanned_cap && (
-            <Alert
-              type={
-                query.bytes_scanned_cap.outcome === 'EXCEEDED' ||
-                query.bytes_scanned_cap.outcome === 'NO_ESTIMATE_REJECTED'
-                  ? 'error'
-                  : query.bytes_scanned_cap.outcome === 'NO_ESTIMATE_REVIEW'
-                    ? 'warning'
-                    : 'info'
-              }
-              showIcon
-              data-testid="bytes-cap-banner"
-              title={bytesScannedCapOutcomeLabel(t, query.bytes_scanned_cap.outcome)}
-              description={t('queries.detail.bytes_cap_body', {
-                estimate:
-                  formatBytes(query.cost_estimate?.estimated_bytes_scanned) ??
-                  t('queries.detail.bytes_cap_no_estimate'),
-                limit: formatBytes(query.bytes_scanned_cap.limit),
-                source: bytesScannedCapSourceLabel(t, query.bytes_scanned_cap.source),
-              })}
-            />
-          )}
-          {query.approved_by_grant && (
-            <Alert
-              type="success"
-              showIcon
-              title={t('queries.detail.approved_by_grant_title')}
-              description={
-                query.approved_by_grant.approver_email
-                  ? t('queries.detail.approved_by_grant_body', {
-                      grantId: query.approved_by_grant.grant_id,
-                      approver: query.approved_by_grant.approver_email,
-                      when: query.approved_by_grant.approved_at
-                        ? fmtDate(query.approved_by_grant.approved_at)
-                        : '—',
-                    })
-                  : t('queries.detail.approved_by_grant_body_no_approver', {
-                      grantId: query.approved_by_grant.grant_id,
-                    })
-              }
-            />
-          )}
+          ))}
           <DetailCard
             title={canCollaborate ? t('queries.detail.card_sql_collab') : t('queries.detail.card_sql')}
             icon={<FileTextOutlined />}
@@ -979,6 +984,19 @@ export function QueryDetailPage() {
             </div>
           )}
           <ApprovalTimeline stages={stages} />
+          {contextNotices.length > 0 && (
+            <DetailCard title={t('queries.detail.handling_title')} icon={<InfoCircleOutlined />}>
+              <ul className="qd-notices">
+                {contextNotices.map((n) => (
+                  <li key={n.key} className="qd-notice" data-testid={n.testId}>
+                    <div className="qd-notice-title">{n.title}</div>
+                    {n.description && <div className="qd-notice-body">{n.description}</div>}
+                    {n.action && <div className="qd-notice-action">{n.action}</div>}
+                  </li>
+                ))}
+              </ul>
+            </DetailCard>
+          )}
           {query.linked_tickets?.length > 0 && <LinkedTickets tickets={query.linked_tickets} />}
           <Metadata query={query} />
         </div>

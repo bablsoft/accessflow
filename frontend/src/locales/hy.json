@@ -903,7 +903,8 @@
       "results_truncated_budget": "Վերադարձվել է {{count}} տող (սահմանափակված ձեր մնացած տվյալների բյուջեով)",
       "decision_hook_title": "Որոշման hook «{{name}}»՝ {{outcome}}",
       "decision_hook_body": "Պատճառ՝ {{reason}}",
-      "decision_hook_failed_body": "Hook-ը ձախողվեց ({{failure}}), ուստի այս հարցումն ուղարկվեց մարդկային վերանայման։"
+      "decision_hook_failed_body": "Hook-ը ձախողվեց ({{failure}}), ուստի այս հարցումն ուղարկվեց մարդկային վերանայման։",
+      "handling_title": "Ինչպես է մշակվել այս հարցումը"
     }
   },
   "reviews": {
