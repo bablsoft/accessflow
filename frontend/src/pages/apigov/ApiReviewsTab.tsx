@@ -6,7 +6,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FilterBar, PageBody, StatusTag } from '@/components/layout';
-import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
+import {
+  ReviewPreview,
+  TriageShortcuts,
+  nextActiveId,
+  useOptimisticRemoval,
+  useTriageKeys,
+} from '@/components/review/triage';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
@@ -20,12 +27,20 @@ import { enumOptions, riskLevelLabel } from '@/utils/enumLabels';
 import { timeAgo } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
-import type { PendingApiReview, RiskLevel } from '@/types/api';
+import type { PendingApiReview, PendingApiReviewPage, RiskLevel } from '@/types/api';
 
 const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 const PAGE_SIZE = 20;
+
+interface DecisionVars {
+  id: string;
+  kind: 'approve' | 'reject';
+  comment: string;
+  /** The row to select once this one leaves the queue. */
+  nextId: string | null;
+}
 
 /**
  * The API requests tab of the unified review hub (#772) — formerly the `/api-reviews` page.
@@ -41,6 +56,8 @@ export function ApiReviewsTab() {
   const [comment, setComment] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Wide enough for the list and a preview side by side; below it a row click opens the detail page.
+  const split = useMediaQuery('(min-width: 1440px)');
 
   const [q, setQ] = useState('');
   const [connector, setConnector] = useState<string | 'all'>('all');
@@ -71,16 +88,31 @@ export function ApiReviewsTab() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: apiRequestKeys.reviewQueues() });
 
+  const { remove, restore } = useOptimisticRemoval<PendingApiReview, PendingApiReviewPage>(
+    apiRequestKeys.reviewQueue(filters),
+    (row) => row.api_request_id,
+  );
+
+  // The decided row leaves the queue at once and the selection moves to its neighbour; if the
+  // server refuses, the row comes back and the error explains why.
   const decideMutation = useMutation({
-    mutationFn: ({ id, kind }: { id: string; kind: 'approve' | 'reject' }) =>
-      kind === 'approve' ? approveApiReview(id, comment) : rejectApiReview(id, comment),
-    onSuccess: (_data, vars) => {
-      message.success(vars.kind === 'approve' ? t('apiGov.reviews.approved') : t('apiGov.reviews.rejected'));
+    mutationFn: ({ id, kind, comment: text }: DecisionVars) =>
+      kind === 'approve' ? approveApiReview(id, text) : rejectApiReview(id, text),
+    onMutate: async ({ id, nextId }) => {
       setDecisionFor(null);
       setComment('');
-      invalidate();
+      setActiveId(nextId);
+      return { ...(await remove(id)), id };
     },
-    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+    onSuccess: (_data, vars) => {
+      message.success(vars.kind === 'approve' ? t('apiGov.reviews.approved') : t('apiGov.reviews.rejected'));
+    },
+    onError: (err, _vars, context) => {
+      restore(context);
+      if (context) setActiveId(context.id);
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error')));
+    },
+    onSettled: () => invalidate(),
   });
 
   const rows = useMemo(() => queueQuery.data?.content ?? [], [queueQuery.data]);
@@ -104,6 +136,26 @@ export function ApiReviewsTab() {
   );
 
   const active = filtered.find((r) => r.api_request_id === activeId) ?? filtered[0] ?? null;
+  const previewContent = active && {
+    id: active.api_request_id,
+    heading: active.api_request_id.slice(0, 8),
+    badges:
+      active.ai_risk_level && active.ai_risk_score != null ? (
+        <RiskPill level={active.ai_risk_level} score={active.ai_risk_score} size="sm" />
+      ) : null,
+    meta: [
+      { label: t('apiGov.requests.connector'), value: active.connector_name ?? '—' },
+      { label: t('apiGov.requests.verb'), value: <span className="mono">{active.verb}</span> },
+      { label: t('apiGov.requests.path'), value: <span className="mono">{active.request_path}</span> },
+      { label: t('apiGov.reviews.overrides'), value: active.variable_override_count },
+      { label: t('reviews.col_created'), value: timeAgo(active.created_at) },
+    ],
+    sections: [
+      { label: t('reviews.preview.justification'), content: active.justification ?? '' },
+      { label: t('reviews.preview.ai_summary'), content: active.ai_summary ?? '' },
+    ],
+    detailsHref: `/api-requests/${active.api_request_id}`,
+  };
   useTriageKeys({
     ids: filtered.map((r) => r.api_request_id),
     activeId: active?.api_request_id ?? null,
@@ -230,6 +282,7 @@ export function ApiReviewsTab() {
           })}
         </span>
       </FilterBar>
+      <div className={`af-triage${filtered.length > 0 ? ' af-triage--split' : ''}`}>
       <PageBody flush>
         {queueQuery.isLoading ? (
           <div style={{ padding: 16 }}>
@@ -245,7 +298,9 @@ export function ApiReviewsTab() {
             scroll={{ x: 'max-content' }}
             locale={{ emptyText: t('apiGov.reviews.empty') }}
             onRow={(row) => ({
-              onClick: () => navigate(`/api-requests/${row.api_request_id}`),
+              onClick: () =>
+                split ? setActiveId(row.api_request_id) : navigate(`/api-requests/${row.api_request_id}`),
+              onDoubleClick: () => navigate(`/api-requests/${row.api_request_id}`),
               style: { cursor: 'pointer' },
             })}
             pagination={{
@@ -258,12 +313,29 @@ export function ApiReviewsTab() {
           />
         )}
       </PageBody>
+      {split && filtered.length > 0 && (
+        <aside className="af-triage-preview">
+          <ReviewPreview
+            content={previewContent}
+            onApprove={(id) => setDecisionFor({ id, kind: 'approve' })}
+            onReject={(id) => setDecisionFor({ id, kind: 'reject' })}
+          />
+        </aside>
+      )}
+      </div>
       <Modal
         open={decisionFor !== null}
         title={decisionFor?.kind === 'approve' ? t('apiGov.reviews.approve') : t('apiGov.reviews.reject')}
         onCancel={() => setDecisionFor(null)}
         confirmLoading={decideMutation.isPending}
-        onOk={() => decisionFor && decideMutation.mutate(decisionFor)}
+        onOk={() =>
+          decisionFor &&
+          decideMutation.mutate({
+            ...decisionFor,
+            comment,
+            nextId: nextActiveId(filtered.map((r) => r.api_request_id), decisionFor.id),
+          })
+        }
       >
         <Input.TextArea
           rows={3}

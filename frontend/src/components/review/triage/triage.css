@@ -3,6 +3,8 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  /* A bounded row, so the list scrolls inside it instead of stretching the grid. */
+  grid-template-rows: minmax(0, 1fr);
 }
 .af-triage-list {
   min-width: 0;
@@ -78,10 +80,14 @@
 }
 .af-preview-meta {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--sp-1) var(--sp-3);
+  gap: var(--sp-1);
   margin: 0;
   font-size: var(--text-xs);
+}
+.af-preview-meta-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--sp-3);
 }
 .af-preview-meta dt {
   color: var(--fg-subtle);
