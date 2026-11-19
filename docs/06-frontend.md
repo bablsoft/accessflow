@@ -104,6 +104,10 @@ accessflow-ui/
 │   │   │   ├── AuditLogTable.tsx   # Searchable audit event table
 │   │   │   └── AuditDetailDrawer.tsx # Slide-in detail for single event
 │   │   │
+│   │   ├── layout/                  # Page, PageBody, FilterBar, DataTable, SurfaceCard, Section, StatusTag, useConfirm, ErrorBoundary, RouteFallback
+│   │   ├── auth/                    # AuthLayout — the frame every signed-out page shares
+│   │   ├── command/                 # CommandPalette (cmdk) — Ctrl/Cmd+K search over the nav tree
+│   │   │
 │   │   └── help/                    # In-app documentation help chat (AF-906)
 │   │       ├── HelpChatLauncher.tsx  # Fixed launcher; renders null unless availability.enabled
 │   │       ├── HelpChatPanel.tsx     # Drawer shell (placement=right, mask={false})
@@ -130,6 +134,15 @@ accessflow-ui/
 │   │   ├── useHelpChat.ts          # Help chat availability + conversation + ask (AF-906)
 │   │   ├── useGovernanceDomains.ts # The org's governance-domain visibility flags (#926)
 │   │   └── useCurrentUser.ts       # Auth state, role checks
+│   │
+│   ├── theme/
+│   │   ├── palette.ts              # The colours Ant Design needs as literals; mirrored by styles/tokens.css
+│   │   └── antdTheme.ts            # Light and dark Ant Design themes built from palette.ts
+│   │
+│   ├── motion/
+│   │   ├── MotionProvider.tsx      # LazyMotion (domMax, loaded on demand) + reduced motion from the OS
+│   │   ├── transitions.ts          # Presets mirroring the --dur-* / --ease-* tokens
+│   │   └── useEnterAnimation.ts    # Fade-and-rise on a ref without remounting its children
 │   │
 │   ├── layouts/
 │   │   └── AppLayout.tsx           # Main app shell with sidebar nav (the signed-in layout — admin

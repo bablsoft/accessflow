@@ -529,6 +529,9 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | @codemirror/lint | 6.x | One diagnostics surface for live deterministic SQL review findings and AI issues — lint gutter + hover tooltips, pushed by `setDiagnostics` without rebuilding the view (#865) |
 | yjs + y-codemirror.next + y-protocols | 13.x / 0.3.x / 1.x | CRDT collaborative editing of a query in review — shared doc, remote cursors, awareness (AF-441) |
 | vite-plugin-pwa | 1.x | PWA build — `injectManifest` mode; Workbox precaches the offline review-queue shell, custom `src/sw.ts` owns the push / notificationclick handlers (AF-444) |
+| cmdk | 1.x | Command palette (`components/command/`) — Ctrl/Cmd+K search over the permission-filtered nav tree |
+| motion | 14.x | App-level animation through `src/motion/` (`LazyMotion`, `m` from `motion/react-m`); also used by the vendored charts |
+| @fontsource-variable/geist + geist-mono | 5.x | Self-hosted Geist — the app makes no font-CDN request |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |
@@ -547,7 +550,7 @@ Follow `docs/06-frontend.md` exactly. Key conventions:
 ```
 src/
 ├── api/          # One Axios module per domain (queries.ts, datasources.ts, etc.)
-├── components/   # Shared UI — common/, editor/, review/, datasources/, audit/
+├── components/   # Shared UI — common/, layout/ (page primitives), auth/, command/, editor/, review/, datasources/, audit/
 ├── hooks/        # Custom hooks — useQueryRequest, useWebSocket, useCurrentUser, etc.
 ├── layouts/      # AppLayout — the signed-in shell; signed-out pages use components/auth/AuthLayout
 ├── pages/        # One directory per route group (auth, editor, queries, reviews, admin)

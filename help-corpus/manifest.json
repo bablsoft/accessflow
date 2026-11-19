@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "0ec099866f93",
-  "generatedAt": "2026-11-19T08:20:33.667Z",
-  "sourceCommit": "c4620d1b0c04d9cfa25c1ebddb7dbe20c68439b1",
+  "corpusVersion": "d253a8030ff6",
+  "generatedAt": "2026-11-19T09:16:03.474Z",
+  "sourceCommit": "9ba34fcf88edbfde0658f824aefcc48f304a077a",
   "chunkCount": 615,
-  "sha256": "0ec099866f9303330a98f2f31a719c5ca9e63bd6d8a64d1d9bc7051cead46e35",
+  "sha256": "d253a8030ff62e0f17689f108bb3df0b5a89f1681573b43c043c79af67e6d039",
   "quickReferenceSha256": "2006608499b52b5406bba8db3000bdeeb47e71681f35947748099318a1cd9139",
   "sources": [
     {
@@ -357,7 +357,7 @@
       "url": "https://accessflow.io/docs/workflows/",
       "section": "Reference",
       "chunks": 13,
-      "sha256": "aa502607ac49e44ab4e384dea58149b3774703f6668ba470ed08f2887d21c4a4"
+      "sha256": "ae190b6e7953b4be0a7d0f2332b8e975621586684da7651ba867650661bf7f74"
     },
     {
       "path": "website/features/api-access-governance/index.html",
