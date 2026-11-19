@@ -240,3 +240,90 @@ describe('ApiReviewsTab (#772)', () => {
     expect(await screen.findByTestId('location')).toHaveTextContent('/api-requests/req-1');
   });
 });
+
+describe('ApiReviewsTab — optimistic decisions and preview', () => {
+  function stubWide(matches: boolean) {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  }
+
+  beforeEach(() => {
+    listPendingApiReviewsMock.mockReset();
+    approveApiReviewMock.mockReset();
+    rejectApiReviewMock.mockReset();
+    listApiConnectorsMock.mockReset().mockResolvedValue(connectorPage());
+  });
+
+  async function approveFirstRow() {
+    fireEvent.keyDown(window, { key: 'a' });
+    const dialog = await screen.findByRole('dialog');
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'OK' }));
+    });
+  }
+
+  it('removes the decided row at once and selects its neighbour', async () => {
+    listPendingApiReviewsMock.mockResolvedValue(reviewPage([baseRow, secondRow]));
+    approveApiReviewMock.mockReturnValue(new Promise(() => undefined));
+    const { container } = render(wrap(<ApiReviewsTab />));
+    await screen.findByText('/v1/refunds');
+
+    await approveFirstRow();
+
+    await waitFor(() => expect(screen.queryByText('/v1/refunds')).toBeNull());
+    expect(approveApiReviewMock).toHaveBeenCalledWith('req-1', '');
+    expect(container.querySelector('.af-triage-row-active')).toHaveTextContent('/v1/stock');
+  });
+
+  it('puts the row back when the server refuses', async () => {
+    listPendingApiReviewsMock.mockResolvedValue(reviewPage([baseRow, secondRow]));
+    approveApiReviewMock.mockRejectedValue(new Error('nope'));
+    const { container } = render(wrap(<ApiReviewsTab />));
+    await screen.findByText('/v1/refunds');
+
+    await approveFirstRow();
+
+    await waitFor(() => expect(approveApiReviewMock).toHaveBeenCalled());
+    expect(await screen.findByText('/v1/refunds')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(container.querySelector('.af-triage-row-active')).toHaveTextContent('/v1/refunds'),
+    );
+  });
+
+  it('previews the selected request on a wide screen and decides from the panel', async () => {
+    const restore = stubWide(true);
+    try {
+      listPendingApiReviewsMock.mockResolvedValue(
+        reviewPage([{ ...baseRow, ai_summary: 'Moves money' }, secondRow]),
+      );
+      render(wrap(<ApiReviewsTab />));
+      await screen.findByText('Moves money');
+      const preview = document.querySelector('.af-preview') as HTMLElement;
+      expect(preview).toHaveTextContent('refund a duplicate charge');
+      expect(preview).toHaveTextContent('Payments API');
+
+      // A click selects instead of navigating; the preview follows.
+      fireEvent.click(screen.getAllByText('/v1/stock')[0]!);
+      expect(preview).toHaveTextContent('Inventory API');
+      expect(screen.queryByTestId('location')).toBeNull();
+
+      fireEvent.click(preview.querySelector('.ant-btn-dangerous') as HTMLElement);
+      expect(await screen.findByRole('dialog')).toHaveTextContent('Reject');
+    } finally {
+      restore();
+    }
+  });
+});
+

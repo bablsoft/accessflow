@@ -221,3 +221,53 @@ describe('DeploymentReviewTabs', () => {
     expect(listDeploymentReviewsMock).not.toHaveBeenCalled();
   });
 });
+
+describe('PendingDeploymentsTab — triage', () => {
+  beforeEach(() => {
+    listDeploymentReviewsMock.mockReset();
+    approveDeploymentMock.mockReset();
+    rejectDeploymentMock.mockReset();
+    useAuthStore.setState({
+      user: {
+        id: 'u-reviewer',
+        email: 'reviewer@example.com',
+        display_name: 'Rev',
+        role: 'REVIEWER',
+        role_id: null,
+        permissions: ['DEPLOYMENT_REVIEW'],
+        auth_provider: 'LOCAL',
+        totp_enabled: false,
+        platform_admin: false,
+        preferred_language: 'en',
+      },
+      accessToken: 'token',
+    });
+  });
+
+  it("ignores the decision keys on the reviewer's own deployment", async () => {
+    listDeploymentReviewsMock.mockResolvedValue(
+      reviewPage([{ ...baseItem, submitted_by_user_id: 'u-reviewer' }]),
+    );
+    render(wrap(<PendingDeploymentsTab />));
+    await screen.findByRole('button', { name: 'Approve' });
+    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.keyDown(window, { key: 'r' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('removes a rejected row at once and restores it on failure', async () => {
+    listDeploymentReviewsMock.mockResolvedValue(reviewPage([baseItem]));
+    rejectDeploymentMock.mockRejectedValue(new Error('nope'));
+    render(wrap(<PendingDeploymentsTab />));
+    await screen.findByText(baseItem.version);
+
+    fireEvent.keyDown(window, { key: 'r' });
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reject' }));
+
+    await waitFor(() => expect(rejectDeploymentMock).toHaveBeenCalled());
+    expect(rejectDeploymentMock.mock.calls[0]![0]).toBe(baseItem.deployment_request_id);
+    expect(await screen.findByText(baseItem.version)).toBeInTheDocument();
+  });
+});
+

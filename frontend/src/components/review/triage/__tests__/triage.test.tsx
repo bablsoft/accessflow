@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import '@/i18n';
 import type { PendingReviewItem } from '@/types/api';
-import { QueryReviewPreview, TriageShortcuts, nextActiveId, useTriageKeys } from '..';
+import {
+  QueryReviewPreview,
+  ReviewPreview,
+  TriageShortcuts,
+  nextActiveId,
+  useOptimisticRemoval,
+  useTriageKeys,
+} from '..';
 
 const ids = ['a', 'b', 'c'];
 
@@ -167,3 +176,83 @@ describe('QueryReviewPreview', () => {
     expect(screen.queryByText('SQL review')).toBeNull();
   });
 });
+
+describe('ReviewPreview', () => {
+  const content = {
+    id: 'r1',
+    heading: 'v1.2.3',
+    meta: [{ label: 'Pipeline', value: 'checkout' }],
+    sections: [
+      { label: 'Justification', content: 'hotfix' },
+      { label: 'AI summary', content: '' },
+      { label: 'Diff', content: <code>+1</code> },
+    ],
+    detailsHref: '/deployments/r1',
+  };
+
+  it('renders meta, non-empty sections and the details link', () => {
+    render(
+      <MemoryRouter>
+        <ReviewPreview content={content} onApprove={vi.fn()} onReject={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('v1.2.3')).toBeInTheDocument();
+    expect(screen.getByText('checkout')).toBeInTheDocument();
+    expect(screen.getByText('hotfix')).toBeInTheDocument();
+    expect(screen.getByText('+1')).toBeInTheDocument();
+    expect(screen.queryByText('AI summary')).toBeNull();
+    expect(screen.getByText(/Open full details/).closest('a')).toHaveAttribute('href', '/deployments/r1');
+  });
+
+  it('hides the decision buttons when the request is not decidable', () => {
+    render(
+      <MemoryRouter>
+        <ReviewPreview content={{ ...content, decidable: false }} onApprove={vi.fn()} onReject={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Reject/ })).toBeNull();
+  });
+});
+
+describe('useOptimisticRemoval', () => {
+  interface Row { id: string }
+  interface RowPage { content: Row[]; total: number }
+  const KEY = ['queue', { page: 0 }];
+
+  function setup(seed?: RowPage) {
+    const client = new QueryClient();
+    if (seed) client.setQueryData(KEY, seed);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const view = renderHook(() => useOptimisticRemoval<Row, RowPage>(KEY, (r) => r.id), { wrapper });
+    return { client, ...view };
+  }
+
+  it('removes the row from the cached page and restores the snapshot', async () => {
+    const seed = { content: [{ id: 'a' }, { id: 'b' }], total: 2 };
+    const { client, result } = setup(seed);
+    let snapshot: Awaited<ReturnType<typeof result.current.remove>> | undefined;
+    await act(async () => {
+      snapshot = await result.current.remove('a');
+    });
+    expect(client.getQueryData<RowPage>(KEY)?.content).toEqual([{ id: 'b' }]);
+    expect(client.getQueryData<RowPage>(KEY)?.total).toBe(2);
+    act(() => result.current.restore(snapshot));
+    expect(client.getQueryData<RowPage>(KEY)).toEqual(seed);
+  });
+
+  it('is a no-op when nothing is cached yet', async () => {
+    const { client, result } = setup();
+    let snapshot: Awaited<ReturnType<typeof result.current.remove>> | undefined;
+    await act(async () => {
+      snapshot = await result.current.remove('a');
+    });
+    expect(snapshot?.previous).toBeUndefined();
+    act(() => result.current.restore(snapshot));
+    act(() => result.current.restore(undefined));
+    expect(client.getQueryData(KEY)).toBeUndefined();
+  });
+});
+

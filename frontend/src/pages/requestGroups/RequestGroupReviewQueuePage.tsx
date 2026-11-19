@@ -6,6 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
+import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
+import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
 import { RequestGroupItemStatusPill } from '@/components/common/RequestGroupItemStatusPill';
 import {
@@ -100,6 +102,8 @@ export default function RequestGroupReviewQueuePage() {
   );
   const [comment, setComment] = useState('');
   const [page, setPage] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const filters = useMemo(() => ({ page, size: PAGE_SIZE }), [page]);
 
@@ -196,9 +200,24 @@ export default function RequestGroupReviewQueuePage() {
     },
   ];
 
+  const active = rows.find((r) => r.request_group_id === activeId) ?? rows[0] ?? null;
+  useTriageKeys({
+    ids: rows.map((r) => r.request_group_id),
+    activeId: active?.request_group_id ?? null,
+    onActiveChange: setActiveId,
+    onOpen: (id) => navigate(`/request-groups/${id}`),
+    onApprove: (id) => setDecisionFor({ id, kind: 'approve' }),
+    onReject: (id) => setDecisionFor({ id, kind: 'reject' }),
+    onHelp: () => setHelpOpen((open) => !open),
+  });
+
   return (
     <Page>
-      <PageHeader title={t('requestGroups.reviews.title')} subtitle={t('requestGroups.reviews.subtitle')} />
+      <PageHeader
+        title={t('requestGroups.reviews.title')}
+        subtitle={t('requestGroups.reviews.subtitle')}
+        actions={<TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />}
+      />
       <PageBody flush>
         {queueQuery.isLoading ? (
           <div style={{ padding: 16 }}>
@@ -207,6 +226,9 @@ export default function RequestGroupReviewQueuePage() {
         ) : (
           <Table<PendingGroupReview>
             rowKey="request_group_id"
+            rowClassName={(row) =>
+              row.request_group_id === active?.request_group_id ? 'af-triage-row-active' : ''
+            }
             dataSource={rows}
             columns={columns}
             size="middle"
