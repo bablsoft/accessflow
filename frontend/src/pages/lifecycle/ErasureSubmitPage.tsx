@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Select, Skeleton, Table } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -210,7 +210,7 @@ export default function ErasureSubmitPage() {
                 dataIndex: 'status',
                 width: 150,
                 render: (status: ErasureRequest['status']) => (
-                  <Tag color={erasureStatusTagColor(status)}>{erasureStatusLabel(t, status)}</Tag>
+                  <StatusTag tone={erasureStatusTagColor(status)}>{erasureStatusLabel(t, status)}</StatusTag>
                 ),
               },
               {

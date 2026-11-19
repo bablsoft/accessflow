@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Card, Form, InputNumber, Segmented, Tag } from 'antd';
+import { App, Button, Card, Form, InputNumber, Segmented } from 'antd';
 import { LineChartOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { WidgetError } from '@/components/dashboard/WidgetError';
 import {
@@ -325,7 +326,7 @@ function BudgetSummary({ usage }: { usage: ApiConnectorUsage }) {
           budget: formatMicros(usage.monthly_budget_micros, i18n.language),
         })}
       </span>
-      {exceeded && <Tag color="error">{t('apiGov.usage.budgetExceeded')}</Tag>}
+      {exceeded && <StatusTag tone="danger">{t('apiGov.usage.budgetExceeded')}</StatusTag>}
       <span className="muted" style={{ fontSize: 11, textAlign: 'center', maxWidth: 220 }}>
         {t('apiGov.usage.budgetNeverBlocks')}
       </span>

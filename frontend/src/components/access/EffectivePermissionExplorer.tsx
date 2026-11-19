@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Card, Descriptions, Form, Skeleton, Space, Table, Tag } from 'antd';
 import { skipToken, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { effectiveAccessKeys, getEffectivePermission } from '@/api/accessSimulations';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -124,10 +125,10 @@ function SourceTags({ ids, grants }: { ids: string[]; grants: Map<string, Effect
       {ids.map((id) => {
         const grant = grants.get(id);
         return (
-          <Tag key={id} color={grant?.source_kind === 'GROUP' ? 'blue' : 'default'}>
+          <StatusTag tone={grant?.source_kind === 'GROUP' ? 'info' : 'neutral'} key={id}>
             {grantLabel(grant, t)}
             {grant?.expires_at ? ` · ${t('access.explorer.expires_on', { date: fmtDate(grant.expires_at) })}` : ''}
-          </Tag>
+          </StatusTag>
         );
       })}
     </Space>

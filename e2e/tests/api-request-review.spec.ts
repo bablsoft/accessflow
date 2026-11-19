@@ -110,10 +110,10 @@ test.describe.serial('api request review (#567)', () => {
       ).toBeVisible({ timeout: 10_000 });
 
       // After the detail refetch the status flips to APPROVED. Scope to the
-      // StatusPill (.af-pill) — "Approved" also appears in the decisions table.
+      // StatusPill in the summary (.ant-descriptions .af-pill) — the decisions table shows "Approved" as a pill too.
       await reviewerPage.reload();
       await expect(
-        reviewerPage.locator('.af-pill').getByText('Approved', { exact: true }),
+        reviewerPage.locator('.ant-descriptions .af-pill').getByText('Approved', { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(
         reviewerPage.getByRole('button', { name: 'Approve' }),

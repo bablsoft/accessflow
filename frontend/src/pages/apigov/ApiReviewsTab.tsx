@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Select, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, PageBody } from '@/components/layout';
+import { FilterBar, PageBody, StatusTag } from '@/components/layout';
 import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
 import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -131,7 +131,7 @@ export function ApiReviewsTab() {
       render: (count: number) =>
         count > 0 ? (
           <Tooltip title={t('apiGov.reviews.overridesHint')}>
-            <Tag color="blue">{count}</Tag>
+            <StatusTag tone="info">{count}</StatusTag>
           </Tooltip>
         ) : (
           <span className="muted">—</span>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Button, Drawer, Table, Tag, Tooltip, Typography } from 'antd';
+import { Button, Drawer, Table, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { apiConnectorKeys, getApiConnectorHealth } from '@/api/apiConnectors';
 import { Pill } from '@/components/common/Pill';
 import { apiConnectorHealthStatusLabel } from '@/utils/enumLabels';
@@ -88,9 +89,9 @@ export function ApiConnectorHealthBadge({ connectorId }: { connectorId: string }
               dataIndex: 'success',
               render: (success: boolean) =>
                 success ? (
-                  <Tag color="success">{t('apiGov.health.success')}</Tag>
+                  <StatusTag tone="success">{t('apiGov.health.success')}</StatusTag>
                 ) : (
-                  <Tag color="error">{t('apiGov.health.failure')}</Tag>
+                  <StatusTag tone="danger">{t('apiGov.health.failure')}</StatusTag>
                 ),
             },
             {

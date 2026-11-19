@@ -1,23 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Switch,
-  Table,
-  Tag,
-  TimePicker,
-} from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, Table, TimePicker } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   createDeploymentRoutingPolicy,
   deleteDeploymentRoutingPolicy,
@@ -209,7 +197,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {name}
           {p.pipeline_id == null && (
-            <Tag color="blue">{t('deploygov.routingPolicies.scopeGlobal')}</Tag>
+            <StatusTag tone="info">{t('deploygov.routingPolicies.scopeGlobal')}</StatusTag>
           )}
         </span>
       ),

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Input, Tag, Tooltip } from 'antd';
+import { Input, Tooltip } from 'antd';
 import {
   SearchOutlined,
   RightOutlined,
@@ -8,6 +8,7 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { filterSchema } from '@/utils/schemaFilter';
 import type { DataClassification, SchemaNamespace } from '@/types/api';
 
@@ -38,9 +39,9 @@ function ClassificationBadges({ classifications }: { classifications: DataClassi
   return (
     <>
       {classifications.map((c) => (
-        <Tag key={c} color="volcano" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '14px', padding: '0 4px' }}>
+        <StatusTag tone="danger" key={c} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '14px', padding: '0 4px' }}>
           {c}
-        </Tag>
+        </StatusTag>
       ))}
     </>
   );

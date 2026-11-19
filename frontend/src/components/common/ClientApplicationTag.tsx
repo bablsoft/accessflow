@@ -1,5 +1,6 @@
-import { Space, Tag, Tooltip, Typography } from 'antd';
+import { Space, Tooltip, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import type { ApplicationNameSource } from '@/types/api';
 
 interface ClientApplicationTagProps {
@@ -36,9 +37,9 @@ export function ClientApplicationTag({
         </Typography.Text>
       </Tooltip>
       {untrusted && (
-        <Tag color="warning" data-testid={`${testId}-untrusted`} style={{ marginInlineEnd: 0 }}>
+        <StatusTag tone="warning" data-testid={`${testId}-untrusted`} style={{ marginInlineEnd: 0 }}>
           {t('client_application.untrusted')}
-        </Tag>
+        </StatusTag>
       )}
     </Space>
   );

@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page } from '@/components/layout';
+import { Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -247,9 +247,9 @@ export default function DeploymentDetailPage() {
       title: t('deploygov.detail.decision'),
       dataIndex: 'decision',
       render: (d: DeploymentDecision['decision']) => (
-        <Tag color={d === 'APPROVED' ? 'green' : d === 'REJECTED' ? 'red' : 'gold'}>
+        <StatusTag tone={d === 'APPROVED' ? 'success' : d === 'REJECTED' ? 'danger' : 'warning'}>
           {reviewDecisionTypeLabel(t, d)}
-        </Tag>
+        </StatusTag>
       ),
     },
     { title: t('deploygov.detail.stage'), dataIndex: 'stage' },

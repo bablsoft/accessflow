@@ -1,6 +1,7 @@
-import { Skeleton, Table, Tag } from 'antd';
+import { Skeleton, Table } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -62,7 +63,7 @@ export function DataClassificationsPage() {
                 dataIndex: 'classification',
                 width: 150,
                 render: (v: DataClassification) => (
-                  <Tag color="volcano">{dataClassificationLabel(t, v)}</Tag>
+                  <StatusTag tone="danger">{dataClassificationLabel(t, v)}</StatusTag>
                 ),
               },
               {

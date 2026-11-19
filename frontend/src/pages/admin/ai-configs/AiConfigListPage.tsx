@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -79,9 +79,9 @@ export function AiConfigListPage() {
         <span className="mono">
           {name}
           {row.fallback_priority != null && (
-            <Tag color="orange" style={{ marginLeft: 8 }}>
+            <StatusTag tone="warning" style={{ marginLeft: 8 }}>
               {t('admin.ai_configs.fallback_tag', { priority: row.fallback_priority })}
-            </Tag>
+            </StatusTag>
           )}
         </span>
       ),

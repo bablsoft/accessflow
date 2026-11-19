@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Skeleton, Table, Tooltip } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -152,7 +152,7 @@ export default function ErasureReviewQueuePage() {
                 dataIndex: 'status',
                 width: 140,
                 render: (status: ErasureRequest['status']) => (
-                  <Tag color={erasureStatusTagColor(status)}>{erasureStatusLabel(t, status)}</Tag>
+                  <StatusTag tone={erasureStatusTagColor(status)}>{erasureStatusLabel(t, status)}</StatusTag>
                 ),
               },
               {

@@ -4,6 +4,7 @@ import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -55,18 +56,18 @@ export function AccessRequestsQueuePage() {
   const capabilityTags = (r: PendingAccessRequestItem) => (
     <Space size={4} wrap>
       {r.can_read && <Tag>{t('access.request.can_read')}</Tag>}
-      {r.can_write && <Tag color="orange">{t('access.request.can_write')}</Tag>}
-      {r.can_ddl && <Tag color="red">{t('access.request.can_ddl')}</Tag>}
+      {r.can_write && <StatusTag tone="warning">{t('access.request.can_write')}</StatusTag>}
+      {r.can_ddl && <StatusTag tone="danger">{t('access.request.can_ddl')}</StatusTag>}
       {r.pre_approve_queries && (
         <Tooltip title={t('access.queue.pre_approve_tooltip')}>
-          <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>
+          <StatusTag tone="info">{t('access.request.pre_approve_tag')}</StatusTag>
         </Tooltip>
       )}
       {(r.allowed_operations?.length ?? 0) > 0 && (
         <Tooltip title={(r.allowed_operations ?? []).join(', ')}>
-          <Tag color="purple">
+          <StatusTag tone="accent">
             {t('access.request.operations_tag', { count: r.allowed_operations?.length ?? 0 })}
-          </Tag>
+          </StatusTag>
         </Tooltip>
       )}
     </Space>
@@ -87,7 +88,7 @@ export function AccessRequestsQueuePage() {
       render: (_v, r) => (
         <Space size={6} wrap>
           {r.resource_kind === 'API_CONNECTOR' ? (
-            <Tag color="geekblue">{t('access.kind.api_connector')}</Tag>
+            <StatusTag tone="info">{t('access.kind.api_connector')}</StatusTag>
           ) : (
             <Tag>{t('access.kind.datasource')}</Tag>
           )}

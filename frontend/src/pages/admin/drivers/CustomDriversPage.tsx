@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Popconfirm, Skeleton, Table, Tag, Typography } from 'antd';
+import { App, Button, Popconfirm, Skeleton, Table, Typography, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

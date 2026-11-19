@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, App, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { TFunction } from 'i18next';
 import {
@@ -337,12 +338,12 @@ function SchemaRevisionsCard({ connectorId, schema }: { connectorId: string; sch
               render: (_: unknown, row: ApiSchemaRevision) => (
                 <Space size={4}>
                   {row.id === schema.current_revision_id && (
-                    <Tag color="blue">{t('apiGov.drift.current')}</Tag>
+                    <StatusTag tone="info">{t('apiGov.drift.current')}</StatusTag>
                 )}
                 {row.accepted_at != null ? (
-                  <Tag color="green">{t('apiGov.drift.acceptedOn', { time: fmtDate(row.accepted_at) })}</Tag>
+                  <StatusTag tone="success">{t('apiGov.drift.acceptedOn', { time: fmtDate(row.accepted_at) })}</StatusTag>
                 ) : (
-                  <Tag color="orange">{t('apiGov.drift.pending')}</Tag>
+                  <StatusTag tone="warning">{t('apiGov.drift.pending')}</StatusTag>
                 )}
               </Space>
             ),

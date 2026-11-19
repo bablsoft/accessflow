@@ -5,7 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   createDeploymentPipeline,
@@ -135,7 +135,7 @@ export function DeploymentPipelinesPage() {
       width: 100,
       render: (v: boolean) =>
         v ? (
-          <Tag color="green">{t('deploygov.pipelines.active')}</Tag>
+          <StatusTag tone="success">{t('deploygov.pipelines.active')}</StatusTag>
         ) : (
           <Tag>{t('deploygov.pipelines.inactive')}</Tag>
         ),

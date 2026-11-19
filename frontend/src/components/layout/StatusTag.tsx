@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import { Pill } from '@/components/common/Pill';
 import type { ColorTriple } from '@/utils/riskColors';
 
@@ -19,7 +19,8 @@ const TONES: Record<StatusTone, ColorTriple> = {
   accent: { fg: 'var(--accent-strong)', bg: 'var(--accent-bg)', border: 'var(--accent-border)' },
 };
 
-interface StatusTagProps {
+interface StatusTagProps extends Omit<HTMLAttributes<HTMLSpanElement>, 'children' | 'style'> {
+  style?: CSSProperties;
   tone?: StatusTone;
   size?: 'sm' | 'md';
   withDot?: boolean;
@@ -27,9 +28,9 @@ interface StatusTagProps {
 }
 
 /** A status label in one of six tones — use instead of an Ant Design `Tag color=`. */
-export function StatusTag({ tone = 'neutral', size, withDot, children }: StatusTagProps) {
+export function StatusTag({ tone = 'neutral', size, withDot, children, ...rest }: StatusTagProps) {
   return (
-    <Pill {...TONES[tone]} size={size} withDot={withDot}>
+    <Pill {...rest} {...TONES[tone]} size={size} withDot={withDot}>
       {children}
     </Pill>
   );

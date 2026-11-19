@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Skeleton, Space, Table, Tag } from 'antd';
+import { App, Button, Skeleton, Space, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -118,8 +118,8 @@ export default function AttestationWorklistPage() {
         : status === 'INVALID_STATE'
           ? 'attestation.worklist.bulk.row_status_invalid_state'
           : 'attestation.worklist.bulk.row_status_not_found';
-    const color = status === 'INVALID_STATE' ? 'warning' : 'error';
-    return <Tag color={color}>{t(labelKey)}</Tag>;
+    const color = status === 'INVALID_STATE' ? 'warning' : 'danger';
+    return <StatusTag tone={color}>{t(labelKey)}</StatusTag>;
   };
 
   const columns: TableColumnsType<AttestationItem> = useMemo(

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Button, Input, Tag } from 'antd';
+import { Button, Input } from 'antd';
 import { CheckOutlined, RollbackOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { commentStatusLabel } from '@/utils/enumLabels';
 import { timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
@@ -57,9 +58,9 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
             end: thread.root.anchor_end_line,
           })}
         </span>
-        <Tag color={resolved ? 'green' : 'blue'}>
+        <StatusTag tone={resolved ? 'success' : 'info'}>
           {commentStatusLabel(t, thread.root.status)}
-        </Tag>
+        </StatusTag>
       </div>
 
       <CommentBody comment={thread.root} />

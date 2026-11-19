@@ -1,5 +1,6 @@
-import { Form, Input, Select, Tag } from 'antd';
+import { Form, Input, Select } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   OAUTH2_CLIENT_AUTHS,
   OAUTH2_GRANT_TYPES,
@@ -33,7 +34,7 @@ export function Oauth2ConnectorFields({
 }: Oauth2ConnectorFieldsProps) {
   const { t } = useTranslation();
   const secretExtra = (configured?: boolean) =>
-    configured ? <Tag color="green">{t('apiGov.connectors.oauth2Configured')}</Tag> : t('apiGov.connectors.oauth2SecretHint');
+    configured ? <StatusTag tone="success">{t('apiGov.connectors.oauth2Configured')}</StatusTag> : t('apiGov.connectors.oauth2SecretHint');
   return (
     <>
       <Form.Item

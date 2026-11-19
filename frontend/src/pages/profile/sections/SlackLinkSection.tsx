@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, App, Button, Popconfirm, Skeleton, Space, Tag, Typography } from 'antd';
+import { Alert, App, Button, Popconfirm, Skeleton, Space, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import {
   createSlackLinkCode,
   getSlackLinkStatus,
@@ -47,7 +48,7 @@ export function SlackLinkSection() {
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Typography.Text>
           {t('profile.slack.linked_as')}{' '}
-          <Tag color="green">{statusQuery.data.slack_user_id}</Tag>
+          <StatusTag tone="success">{statusQuery.data.slack_user_id}</StatusTag>
         </Typography.Text>
         <Popconfirm
           title={t('profile.slack.unlink_confirm')}

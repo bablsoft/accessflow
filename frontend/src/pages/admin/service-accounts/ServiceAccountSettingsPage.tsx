@@ -2,7 +2,7 @@ import { Alert, App, Button, Popconfirm, Skeleton, Space, Tabs, Tag } from 'antd
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
@@ -73,7 +73,7 @@ export function ServiceAccountSettingsPage() {
               </span>
               <ManagedByTag managedBy={account.managed_by} />
               {account.active ? (
-                <Tag color="green">{t('admin.service_accounts.status_active')}</Tag>
+                <StatusTag tone="success">{t('admin.service_accounts.status_active')}</StatusTag>
               ) : (
                 <Tag>{t('admin.service_accounts.status_inactive')}</Tag>
               )}

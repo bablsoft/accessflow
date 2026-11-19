@@ -1,6 +1,7 @@
-import { Alert, Drawer, Progress, Skeleton, Tag } from 'antd';
+import { Alert, Drawer, Progress, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { dataBudgetKeys, getUserDataBudgetUsage } from '@/api/dataBudgets';
 import type { DataBudgetConsumption, DataBudgetStatus, User } from '@/types/api';
@@ -69,7 +70,7 @@ function DatasourceUsage({ status }: { status: DataBudgetStatus }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontWeight: 600 }}>{status.datasource_name ?? status.datasource_id}</span>
-        {status.exhausted && <Tag color="error">{t('dataBudgets.usage.exhausted')}</Tag>}
+        {status.exhausted && <StatusTag tone="danger">{t('dataBudgets.usage.exhausted')}</StatusTag>}
       </div>
       {status.budgets.map((budget) => (
         <BudgetUsage key={budget.id} budget={budget} />

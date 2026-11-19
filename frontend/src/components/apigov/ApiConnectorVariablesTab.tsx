@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   apiConnectorVariableKeys,
@@ -216,7 +217,7 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
                   )}
                   {variable.overridable && (
                     <Tooltip title={t('apiGov.settings.variables.overridable_hint')}>
-                      <Tag color="blue">{t('apiGov.settings.variables.overridable_tag')}</Tag>
+                      <StatusTag tone="info">{t('apiGov.settings.variables.overridable_tag')}</StatusTag>
                     </Tooltip>
                   )}
                 </>
