@@ -5,6 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
@@ -199,7 +200,7 @@ export function ServiceAccountsPage() {
   const content = listQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('admin.service_accounts.title')}
         subtitle={t('admin.service_accounts.subtitle')}
@@ -344,6 +345,6 @@ export function ServiceAccountsPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }

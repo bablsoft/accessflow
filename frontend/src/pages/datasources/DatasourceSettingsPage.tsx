@@ -31,7 +31,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Section } from '@/components/layout';
+import { Page, Section } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -310,7 +310,7 @@ export function DatasourceSettingsPage() {
     );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-datasources"
         breadcrumbs={[t('datasources.list.title'), ds.name]}
@@ -401,7 +401,7 @@ export function DatasourceSettingsPage() {
         )}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>
-    </div>
+    </Page>
   );
 }
 

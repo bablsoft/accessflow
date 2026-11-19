@@ -5,6 +5,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, PageBody } from '@/components/layout';
 import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
 import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -185,17 +186,7 @@ export function ApiReviewsTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
           placeholder={t('apiGov.reviews.searchPlaceholder')}
@@ -238,8 +229,8 @@ export function ApiReviewsTab() {
             total: queueQuery.data?.total_elements ?? 0,
           })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {queueQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -266,7 +257,7 @@ export function ApiReviewsTab() {
             }}
           />
         )}
-      </div>
+      </PageBody>
       <Modal
         open={decisionFor !== null}
         title={decisionFor?.kind === 'approve' ? t('apiGov.reviews.approve') : t('apiGov.reviews.reject')}

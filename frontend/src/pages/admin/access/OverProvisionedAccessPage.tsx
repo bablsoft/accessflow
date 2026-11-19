@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -172,7 +173,7 @@ export default function OverProvisionedAccessPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('over_provisioned.title')}
         subtitle={t('over_provisioned.subtitle')}
@@ -193,16 +194,7 @@ export default function OverProvisionedAccessPage() {
         }
       />
 
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}
-      >
+      <FilterBar>
         <Select<GrantResourceKind | 'all'>
           value={resourceKind}
           onChange={(v) => {
@@ -247,9 +239,9 @@ export default function OverProvisionedAccessPage() {
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
           {t('over_provisioned.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
-      </div>
+      </FilterBar>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {report.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
         ) : report.isError ? (
@@ -277,7 +269,7 @@ export default function OverProvisionedAccessPage() {
             }}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

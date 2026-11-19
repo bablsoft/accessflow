@@ -17,6 +17,7 @@ import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -97,7 +98,7 @@ export default function BreakGlassLogPage() {
   const events = eventsQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-break-glass"
         title={t('breakglass.title')}
@@ -110,17 +111,7 @@ export default function BreakGlassLogPage() {
           </Space>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={status}
           onChange={(v) => {
@@ -171,8 +162,8 @@ export default function BreakGlassLogPage() {
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
           {t('breakglass.count_label', { count: eventsQuery.data?.total_elements ?? 0 })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
+      </FilterBar>
+      <PageBody>
         {eventsQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : eventsQuery.isError ? (
@@ -297,7 +288,7 @@ export default function BreakGlassLogPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <Modal
         open={!!ackTarget}
@@ -390,7 +381,7 @@ export default function BreakGlassLogPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </Page>
   );
 }
 

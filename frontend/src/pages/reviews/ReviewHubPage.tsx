@@ -4,6 +4,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
 import { QueryReviewsTab } from '@/pages/reviews/QueryReviewsTab';
@@ -89,7 +90,7 @@ export function ReviewHubPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('reviews.title')}
         subtitle={t('reviews.hub.subtitle')}
@@ -128,6 +129,6 @@ export function ReviewHubPage() {
           {activeTab.element}
         </div>
       </Suspense>
-    </div>
+    </Page>
   );
 }

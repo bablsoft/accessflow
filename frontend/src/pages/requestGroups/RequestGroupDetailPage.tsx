@@ -13,6 +13,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RequestGroupStatusPill } from '@/components/common/RequestGroupStatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -98,7 +99,7 @@ export default function RequestGroupDetailPage() {
   const canEdit = group?.status === 'DRAFT' && group.submitted_by_user_id === userId;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={group?.name ?? t('requestGroups.detail.title')}
         subtitle={group?.description ?? undefined}
@@ -245,6 +246,6 @@ export default function RequestGroupDetailPage() {
           onChange={(e) => setComment(e.target.value)}
         />
       </Modal>
-    </div>
+    </Page>
   );
 }

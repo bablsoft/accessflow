@@ -2,6 +2,7 @@ import { Button, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PipelineVersionsTab } from '@/components/deployments/PipelineVersionsTab';
@@ -36,7 +37,7 @@ export default function PipelineVersionsPage() {
   const pipelineName = matrixQuery.data?.[0]?.pipeline_name;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="guide-deployment-approval"
         title={
@@ -47,7 +48,7 @@ export default function PipelineVersionsPage() {
         subtitle={t('deploygov.versions.pipelineSubtitle')}
         actions={<Button onClick={() => navigate('/deployments')}>{t('common.back')}</Button>}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 28px' }}>
+      <PageBody>
         {matrixQuery.isLoading && <Skeleton active paragraph={{ rows: 6 }} />}
         {matrixQuery.isError &&
           // 404 is the expected answer for a pipeline this caller may not see; anything else is a
@@ -66,7 +67,7 @@ export default function PipelineVersionsPage() {
         {!matrixQuery.isLoading && !matrixQuery.isError && (
           <PipelineVersionsTab pipelineId={pipelineId} />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

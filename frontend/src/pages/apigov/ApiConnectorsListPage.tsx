@@ -4,6 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -185,7 +186,7 @@ export default function ApiConnectorsListPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-api-connectors"
         title={t('apiGov.connectors.title')}
@@ -196,7 +197,7 @@ export default function ApiConnectorsListPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         <Table<ApiConnector>
           rowKey="id"
           loading={connectorsQuery.isLoading}
@@ -205,7 +206,7 @@ export default function ApiConnectorsListPage() {
           pagination={false}
           locale={{ emptyText: t('apiGov.connectors.empty') }}
         />
-      </div>
+      </PageBody>
 
       <Modal
         title={t('apiGov.connectors.new')}
@@ -324,6 +325,6 @@ export default function ApiConnectorsListPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }

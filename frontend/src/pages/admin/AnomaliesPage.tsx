@@ -16,6 +16,7 @@ import type { Dayjs } from 'dayjs';
 import { ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -139,7 +140,7 @@ export default function AnomaliesPage() {
   }, [anomalies]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-anomalies"
         title={t('anomalies.title')}
@@ -152,17 +153,7 @@ export default function AnomaliesPage() {
           </Space>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={status}
           onChange={(v) => {
@@ -223,8 +214,8 @@ export default function AnomaliesPage() {
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
           {t('anomalies.count_label', { count: anomaliesQuery.data?.total_elements ?? 0 })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
+      </FilterBar>
+      <PageBody>
         {anomaliesQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} />
         ) : anomaliesQuery.isError ? (
@@ -372,7 +363,7 @@ export default function AnomaliesPage() {
             />
           </Space>
         )}
-      </div>
+      </PageBody>
       <Drawer
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -429,7 +420,7 @@ export default function AnomaliesPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </Page>
   );
 }
 

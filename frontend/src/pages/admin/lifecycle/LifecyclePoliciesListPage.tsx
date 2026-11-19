@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Modal, Select, Skeleton, Switch, Table, Tag }
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -107,7 +108,7 @@ export default function LifecyclePoliciesListPage() {
   const policies = policiesQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-lifecycle"
         title={t('lifecycle.policies.title')}
@@ -125,7 +126,7 @@ export default function LifecyclePoliciesListPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {policiesQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : policiesQuery.isError ? (
@@ -228,7 +229,7 @@ export default function LifecyclePoliciesListPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <CreatePolicyModal
         open={creating}
@@ -270,7 +271,7 @@ export default function LifecyclePoliciesListPage() {
           </>
         )}
       </Modal>
-    </div>
+    </Page>
   );
 }
 

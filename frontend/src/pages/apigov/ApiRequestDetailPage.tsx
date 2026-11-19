@@ -6,6 +6,7 @@ import { DownloadOutlined, ExperimentOutlined, ThunderboltOutlined } from '@ant-
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -185,7 +186,7 @@ export default function ApiRequestDetailPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={request?.connector_name ?? t('apiGov.requests.title')}
         subtitle={request ? `${request.verb} ${request.request_path}` : undefined}
@@ -499,6 +500,6 @@ export default function ApiRequestDetailPage() {
       >
         <p>{t('apiGov.requests.replayModalBody')}</p>
       </Modal>
-    </div>
+    </Page>
   );
 }

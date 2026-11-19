@@ -1,6 +1,7 @@
 import { App, Button, Form, Skeleton, Switch } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -64,12 +65,12 @@ export function GovernanceDomainsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('admin.governance_domains.title')}
         subtitle={t('admin.governance_domains.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody>
         <p className="muted" style={{ maxWidth: 640 }}>
           {t('admin.governance_domains.description')}
         </p>
@@ -101,8 +102,8 @@ export function GovernanceDomainsPage() {
             </Button>
           </div>
         </Form>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

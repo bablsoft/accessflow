@@ -5,6 +5,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -180,23 +181,13 @@ export default function DeploymentVersionsPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-deployment-pipelines"
         title={t('deploygov.versions.title')}
         subtitle={t('deploygov.versions.subtitle')}
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={pipeline}
           aria-label={t('deploygov.versions.pipeline')}
@@ -254,8 +245,8 @@ export default function DeploymentVersionsPage() {
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('deploygov.versions.countLabel', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
-      </div>
+      </FilterBar>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>{body()}</div>
-    </div>
+    </Page>
   );
 }

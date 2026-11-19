@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -210,7 +211,7 @@ export function AuditLogPage() {
   const events = auditQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-audit-log"
         title={t('admin.audit.title')}
@@ -239,16 +240,7 @@ export function AuditLogPage() {
           </Space>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}
-      >
+      <FilterBar>
         <Select
           value={action}
           onChange={(v) => {
@@ -331,7 +323,7 @@ export function AuditLogPage() {
             count: auditQuery.data?.total_elements ?? 0,
           })}
         </span>
-      </div>
+      </FilterBar>
       {(chainResult || chainError) && (
         <div style={{ padding: '12px 28px 0' }}>
           {chainError ? (
@@ -369,7 +361,7 @@ export function AuditLogPage() {
           ) : null}
         </div>
       )}
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {auditQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
         ) : auditQuery.isError ? (
@@ -497,7 +489,7 @@ export function AuditLogPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
       <Drawer
         open={!!detail}
         onClose={() => setDetail(null)}
@@ -582,7 +574,7 @@ export function AuditLogPage() {
           </div>
         )}
       </Drawer>
-    </div>
+    </Page>
   );
 }
 

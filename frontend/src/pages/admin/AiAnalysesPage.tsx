@@ -5,6 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { BarChartOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { aiAnalysesKeys, fetchAiAnalysisStats } from '@/api/admin';
@@ -57,7 +58,7 @@ export default function AiAnalysesPage() {
     (stats.per_model_stats?.length ?? 0) === 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-ai-analyses"
         title={t('admin.ai_analyses.title')}
@@ -70,17 +71,7 @@ export default function AiAnalysesPage() {
           </Space>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('admin.ai_analyses.filter_range_label')}
         </span>
@@ -115,8 +106,8 @@ export default function AiAnalysesPage() {
             ]}
           />
         </div>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
+      </FilterBar>
+      <PageBody>
         {statsQuery.isLoading || !stats ? (
           <Space orientation="vertical" size={20} style={{ width: '100%' }}>
             <Skeleton active paragraph={{ rows: 6 }} />
@@ -163,8 +154,8 @@ export default function AiAnalysesPage() {
             </Card>
           </Space>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

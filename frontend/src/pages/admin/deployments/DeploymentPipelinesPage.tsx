@@ -5,6 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   createDeploymentPipeline,
@@ -180,7 +181,7 @@ export function DeploymentPipelinesPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('deploygov.pipelines.title')}
         subtitle={t('deploygov.pipelines.subtitle')}
@@ -290,6 +291,6 @@ export function DeploymentPipelinesPage() {
           )}
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }

@@ -2,6 +2,7 @@ import { Button, Skeleton } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { isAxiosError } from 'axios';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -34,7 +35,7 @@ export default function PipelineMetricsPage() {
   const pipelineName = matrixQuery.data?.[0]?.pipeline_name;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="guide-deployment-approval"
         title={
@@ -45,7 +46,7 @@ export default function PipelineMetricsPage() {
         subtitle={t('deploygov.metrics.pipelineSubtitle')}
         actions={<Button onClick={() => navigate('/deployments')}>{t('common.back')}</Button>}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px 28px' }}>
+      <PageBody>
         {matrixQuery.isLoading && <Skeleton active paragraph={{ rows: 6 }} />}
         {matrixQuery.isError &&
           (isNotFound(matrixQuery.error) ? (
@@ -62,7 +63,7 @@ export default function PipelineMetricsPage() {
         {!matrixQuery.isLoading && !matrixQuery.isError && (
           <DeploymentMetricsPanel pipelineId={pipelineId} />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

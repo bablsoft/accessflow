@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -172,7 +173,7 @@ export function AiConfigListPage() {
   const configs = listQuery.data ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-ai"
         title={t('admin.ai_configs.title')}
@@ -187,7 +188,7 @@ export function AiConfigListPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody>
         {configs.length === 0 ? (
           <EmptyState
             title={t('admin.ai_configs.empty_title')}
@@ -212,7 +213,7 @@ export function AiConfigListPage() {
             aria-label={t('admin.ai_configs.title')}
           />
         )}
-      </div>
+      </PageBody>
       <Modal
         open={inUseError !== null}
         title={t('admin.ai_configs.delete_in_use_title')}
@@ -227,7 +228,7 @@ export function AiConfigListPage() {
           ))}
         </ul>
       </Modal>
-    </div>
+    </Page>
   );
 }
 

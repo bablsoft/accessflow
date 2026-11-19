@@ -3,6 +3,7 @@ import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AccessStatusPill } from '@/components/common/AccessStatusPill';
@@ -262,10 +263,10 @@ export function RequestAccessPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('access.request.title')} subtitle={t('access.request.subtitle')} />
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         {activeRequest && (
           <Card
             title={t('access.request.active_title')}
@@ -469,7 +470,7 @@ export function RequestAccessPage() {
             </Button>
           </Form>
         </Card>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

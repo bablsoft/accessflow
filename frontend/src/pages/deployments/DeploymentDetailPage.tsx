@@ -19,6 +19,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -310,7 +311,7 @@ export default function DeploymentDetailPage() {
   const metadataEntries = Object.keys(request?.metadata ?? {});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={request?.pipeline_name ?? t('deploygov.detail.title')}
         subtitle={
@@ -761,6 +762,6 @@ export default function DeploymentDetailPage() {
           onChange={(e) => setComment(e.target.value)}
         />
       </Modal>
-    </div>
+    </Page>
   );
 }

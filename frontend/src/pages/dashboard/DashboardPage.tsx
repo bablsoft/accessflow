@@ -24,6 +24,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { DashboardWidgetCard } from '@/components/dashboard/DashboardWidgetCard';
@@ -321,7 +322,7 @@ export default function DashboardPage() {
       : t('dashboard.digest_never_sent');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
@@ -379,7 +380,7 @@ export default function DashboardPage() {
           </Space>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
+      <PageBody>
         <SummaryCounts
           summary={summary}
           loading={summaryQuery.isLoading}
@@ -412,8 +413,8 @@ export default function DashboardPage() {
             </div>
           </SortableContext>
         </DndContext>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

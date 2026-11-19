@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -237,7 +238,7 @@ export function UsersPage() {
     });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-users"
         title={t('admin.users.title')}
@@ -268,15 +269,7 @@ export function UsersPage() {
           </>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          gap: 8,
-        }}
-      >
+      <FilterBar>
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
           placeholder={t('admin.users.search_placeholder')}
@@ -317,8 +310,8 @@ export function UsersPage() {
             { value: 'SERVICE_ACCOUNT', label: t('admin.users.filter_principal_service_accounts') },
           ]}
         />
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {usersQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : usersQuery.isError ? (
@@ -490,26 +483,26 @@ export function UsersPage() {
             ]}
           />
         )}
-      </div>
+        {/* Inside the page's one scroller: as a sibling it squeezed the user table to nothing. */}
+        <PendingInvitationsSection
+          invitations={invitationsQuery.data?.content ?? []}
+          loading={invitationsQuery.isLoading}
+          onResend={(id) => resendMutation.mutate(id)}
+          onRevoke={(invitation) =>
+            modal.confirm({
+              title: t('admin.users.invite_revoke_confirm_title'),
+              content: t('admin.users.invite_revoke_confirm_body', { email: invitation.email }),
+              okType: 'danger',
+              okText: t('admin.users.invite_revoke'),
+              cancelText: t('common.cancel'),
+              onOk: () => revokeMutation.mutateAsync(invitation.id),
+            })
+          }
+        />
+      </PageBody>
 
       <UserDataBudgetDrawer user={usageOf} onClose={() => setUsageOf(null)} />
       <UserEffectiveAccessDrawer user={accessOf} onClose={() => setAccessOf(null)} />
-
-      <PendingInvitationsSection
-        invitations={invitationsQuery.data?.content ?? []}
-        loading={invitationsQuery.isLoading}
-        onResend={(id) => resendMutation.mutate(id)}
-        onRevoke={(invitation) =>
-          modal.confirm({
-            title: t('admin.users.invite_revoke_confirm_title'),
-            content: t('admin.users.invite_revoke_confirm_body', { email: invitation.email }),
-            okType: 'danger',
-            okText: t('admin.users.invite_revoke'),
-            cancelText: t('common.cancel'),
-            onOk: () => revokeMutation.mutateAsync(invitation.id),
-          })
-        }
-      />
 
       <InviteUserModal
         open={inviting}
@@ -546,7 +539,7 @@ export function UsersPage() {
         rolesLoading={rolesQuery.isLoading}
         roles={roles}
       />
-    </div>
+    </Page>
   );
 }
 

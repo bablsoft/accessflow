@@ -2,6 +2,7 @@ import { Alert, App, Button, Popconfirm, Skeleton, Space, Tabs, Tag } from 'antd
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ManagedByTag } from '@/components/common/ManagedByTag';
@@ -60,7 +61,7 @@ export function ServiceAccountSettingsPage() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-service-accounts"
         title={account?.display_name ?? t('admin.service_accounts.title')}
@@ -101,7 +102,7 @@ export function ServiceAccountSettingsPage() {
           </Space>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 28px' }}>
+      <PageBody>
         {accountQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {accountQuery.isError && (
           // A 500 or a network failure is not "gone": keep the server detail and offer a retry.
@@ -177,7 +178,7 @@ export function ServiceAccountSettingsPage() {
             ]}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

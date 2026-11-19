@@ -4,6 +4,7 @@ import { ArrowLeftOutlined, CheckOutlined, PlayCircleOutlined } from '@ant-desig
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   aiConfigKeys,
@@ -189,7 +190,7 @@ export default function AiConfigCreateWizardPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-ai"
         title={t('admin.ai_configs.wizard.title')}
@@ -402,6 +403,6 @@ export default function AiConfigCreateWizardPage() {
           )}
         </div>
       </div>
-    </div>
+    </Page>
   );
 }

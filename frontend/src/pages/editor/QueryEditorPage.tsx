@@ -14,6 +14,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { RouteFallback } from '@/components/layout/RouteFallback';
@@ -219,7 +220,7 @@ export function QueryEditorPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('editor.title')}
         subtitle={t('editor.subtitle')}
@@ -428,6 +429,6 @@ export function QueryEditorPage() {
           data-testid="break-glass-justification"
         />
       </Modal>
-    </div>
+    </Page>
   );
 }

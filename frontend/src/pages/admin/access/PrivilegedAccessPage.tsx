@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -168,7 +169,7 @@ export default function PrivilegedAccessPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('privileged_access.title')}
         subtitle={t('privileged_access.subtitle')}
@@ -179,16 +180,7 @@ export default function PrivilegedAccessPage() {
         }
       />
 
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}
-      >
+      <FilterBar>
         <Select<StandingBypassKind | 'all'>
           value={kind}
           onChange={(v) => {
@@ -217,9 +209,9 @@ export default function PrivilegedAccessPage() {
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
           {t('privileged_access.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
-      </div>
+      </FilterBar>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {report.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
         ) : report.isError ? (
@@ -248,8 +240,8 @@ export default function PrivilegedAccessPage() {
             }}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

@@ -5,6 +5,7 @@ import { DeploymentUnitOutlined, FundOutlined, SearchOutlined } from '@ant-desig
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -220,22 +221,12 @@ export default function DeploymentListPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('deploygov.deployments.title')}
         subtitle={t('deploygov.deployments.subtitle')}
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={status}
           aria-label={t('deploygov.deployments.status')}
@@ -308,8 +299,8 @@ export default function DeploymentListPage() {
             total: listQuery.data?.total_elements ?? 0,
           })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {listQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -335,7 +326,7 @@ export default function DeploymentListPage() {
             }}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

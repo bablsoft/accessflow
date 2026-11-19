@@ -21,6 +21,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -114,7 +115,7 @@ export function RolesPage() {
   const roles = rolesQuery.data ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-roles"
         title={t('admin.roles.title')}
@@ -134,7 +135,7 @@ export function RolesPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {rolesQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : rolesQuery.isError ? (
@@ -236,7 +237,7 @@ export function RolesPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <RoleDrawer
         state={drawer}
@@ -255,7 +256,7 @@ export function RolesPage() {
           }
         }}
       />
-    </div>
+    </Page>
   );
 }
 

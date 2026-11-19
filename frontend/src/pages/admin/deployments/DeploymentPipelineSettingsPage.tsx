@@ -3,6 +3,7 @@ import { App, Button, Empty, Form, Input, Select, Skeleton, Switch, Tabs } from 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   deploymentPipelineKeys,
@@ -195,7 +196,7 @@ export function DeploymentPipelineSettingsPage() {
   const pipeline = pipelineQuery.data;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="guide-deployment-approval"
         title={pipeline?.name ?? t('deploygov.pipelines.title')}
@@ -215,7 +216,7 @@ export function DeploymentPipelineSettingsPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 28px' }}>
+      <PageBody>
         {pipelineQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!pipelineQuery.isLoading && !pipeline && (
           <Empty description={t('deploygov.pipelines.notFound')} />
@@ -283,7 +284,7 @@ export function DeploymentPipelineSettingsPage() {
             ]}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

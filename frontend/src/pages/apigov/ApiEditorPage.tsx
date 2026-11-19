@@ -4,6 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
 import { submitApiRequest } from '@/api/apiRequests';
@@ -89,7 +90,7 @@ export default function ApiEditorPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('apiGov.editor.title')} />
       <ApiAuthoringPanel
         authoring={authoring}
@@ -153,6 +154,6 @@ export default function ApiEditorPage() {
           </>
         }
       />
-    </div>
+    </Page>
   );
 }

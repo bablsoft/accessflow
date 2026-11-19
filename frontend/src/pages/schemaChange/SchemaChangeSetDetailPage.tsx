@@ -18,6 +18,7 @@ import { EditOutlined, InboxOutlined, DeleteOutlined, SaveOutlined } from '@ant-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { PromotionLadder } from '@/components/schemaChange/PromotionLadder';
@@ -253,7 +254,7 @@ export default function SchemaChangeSetDetailPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
@@ -479,6 +480,6 @@ export default function SchemaChangeSetDetailPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }
