@@ -144,3 +144,94 @@
   font-size: var(--text-xs);
   color: var(--warning);
 }
+
+/* A settings page with a grouped tab list beside its content. */
+.af-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+.af-split-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+.af-grouped-tabs {
+  flex: none;
+  width: 220px;
+  overflow-y: auto;
+  padding: var(--sp-4) var(--sp-3);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.af-grouped-tabs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.af-grouped-tabs-heading {
+  padding: 0 var(--sp-2) var(--sp-1);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  white-space: nowrap;
+}
+.af-grouped-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  color: var(--fg-muted);
+  padding: 6px var(--sp-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.af-grouped-tab:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+.af-grouped-tab-active,
+.af-grouped-tab-active:hover {
+  background: var(--bg-active);
+  color: var(--fg);
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .af-split {
+    flex-direction: column;
+  }
+  .af-grouped-tabs {
+    width: auto;
+    flex-direction: row;
+    align-items: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--sp-2) var(--sp-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+    /* Fade the trailing edge, so it reads as a strip that scrolls. */
+    mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+  }
+  .af-grouped-tabs-group {
+    flex: none;
+    flex-flow: row wrap;
+    align-items: center;
+    width: max-content;
+  }
+  .af-grouped-tabs-heading {
+    flex-basis: 100%;
+  }
+}

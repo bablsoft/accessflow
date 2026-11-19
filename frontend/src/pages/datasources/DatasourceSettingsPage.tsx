@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Segmented, Select, Skeleton, Switch, Tabs, Tag, Tooltip } from 'antd';
+import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Segmented, Select, Skeleton, Switch, Tag, Tooltip } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, Section, StatusTag } from '@/components/layout';
+import { DataTable, GroupedTabs, Page, Section, StatusTag, groupedTabId } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -144,6 +144,8 @@ const SETTINGS_TABS = [
   'er-diagram',
   'activity',
 ] as const;
+
+const SETTINGS_PANEL_ID = 'datasource-settings-panel';
 
 export function DatasourceSettingsPage() {
   const { t } = useTranslation();
@@ -318,53 +320,91 @@ export function DatasourceSettingsPage() {
           </>
         }
       />
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        style={{ padding: '0 var(--gutter)' }}
-        items={[
-          { key: 'config', label: t('datasources.settings.tab_config') },
-          {
-            key: 'permissions',
-            label: t('datasources.settings.tab_permissions', { count: permissionsCount }),
-          },
-          ...(canExplainAccess
-            ? [{ key: 'effective-access', label: t('datasources.settings.tab_effective_access') }]
-            : []),
-          { key: 'schema', label: t('datasources.settings.tab_schema') },
-          {
-            key: 'masking',
-            label: t('datasources.settings.tab_masking', { count: maskingCount }),
-          },
-          {
-            key: 'row-security',
-            label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
-          },
-          {
-            key: 'row-limits',
-            label: t('datasources.settings.tab_row_limits', { count: rowLimitCount }),
-          },
-          {
-            key: 'data-budgets',
-            label: t('datasources.settings.tab_data_budgets', { count: dataBudgetCount }),
-          },
-          {
-            key: 'export-policy',
-            label: t('datasources.settings.tab_export_policy', { count: exportPolicyCount }),
-          },
-          {
-            key: 'classification',
-            label: t('datasources.settings.tab_classification', { count: classificationCount }),
-          },
-          {
-            key: 'discovery',
-            label: t('datasources.settings.tab_discovery', { count: discoveryPendingCount }),
-          },
-          { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
-          { key: 'activity', label: t('datasources.settings.tab_activity') },
-        ]}
-      />
-      <div style={{ flex: 1, overflow: 'auto' }}>
+      <div className="af-split">
+        <GroupedTabs
+          ariaLabel={t('datasources.settings.tabs_label')}
+          panelId={SETTINGS_PANEL_ID}
+          activeKey={tab}
+          onChange={setTab}
+          groups={[
+            {
+              key: 'general',
+              label: t('datasources.settings.group_general'),
+              items: [
+                { key: 'config', label: t('datasources.settings.tab_config') },
+                { key: 'schema', label: t('datasources.settings.tab_schema') },
+                { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
+                { key: 'activity', label: t('datasources.settings.tab_activity') },
+              ],
+            },
+            {
+              key: 'access',
+              label: t('datasources.settings.group_access'),
+              items: [
+                {
+                  key: 'permissions',
+                  label: t('datasources.settings.tab_permissions', { count: permissionsCount }),
+                },
+                ...(canExplainAccess
+                  ? [
+                      {
+                        key: 'effective-access',
+                        label: t('datasources.settings.tab_effective_access'),
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            {
+              key: 'protection',
+              label: t('datasources.settings.group_protection'),
+              items: [
+                {
+                  key: 'masking',
+                  label: t('datasources.settings.tab_masking', { count: maskingCount }),
+                },
+                {
+                  key: 'row-security',
+                  label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
+                },
+                {
+                  key: 'classification',
+                  label: t('datasources.settings.tab_classification', {
+                    count: classificationCount,
+                  }),
+                },
+                {
+                  key: 'discovery',
+                  label: t('datasources.settings.tab_discovery', { count: discoveryPendingCount }),
+                },
+              ],
+            },
+            {
+              key: 'limits',
+              label: t('datasources.settings.group_limits'),
+              items: [
+                {
+                  key: 'row-limits',
+                  label: t('datasources.settings.tab_row_limits', { count: rowLimitCount }),
+                },
+                {
+                  key: 'data-budgets',
+                  label: t('datasources.settings.tab_data_budgets', { count: dataBudgetCount }),
+                },
+                {
+                  key: 'export-policy',
+                  label: t('datasources.settings.tab_export_policy', { count: exportPolicyCount }),
+                },
+              ],
+            },
+          ]}
+        />
+      <div
+        className="af-split-panel"
+        role="tabpanel"
+        id={SETTINGS_PANEL_ID}
+        aria-labelledby={groupedTabId(SETTINGS_PANEL_ID, tab)}
+      >
         {tab === 'config' && <ConfigTab ds={ds} onDelete={onDelete} deletePending={deleteMutation.isPending} />}
         {tab === 'permissions' && (
           <PermissionMatrix dsId={ds.id} dbType={ds.db_type} maxRowsPerQuery={ds.max_rows_per_query} />
@@ -384,6 +424,7 @@ export function DatasourceSettingsPage() {
           </div>
         )}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
+      </div>
       </div>
     </Page>
   );
