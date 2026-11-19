@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Select, Skeleton, Table, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Select, Skeleton, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, FilterBar, PageBody, StatusTag } from '@/components/layout';
 import {
   ReviewPreview,
   TriageShortcuts,
@@ -289,14 +289,14 @@ export function ApiReviewsTab() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<PendingApiReview>
+          <DataTable<PendingApiReview>
             rowKey="api_request_id"
             rowClassName={(row) => (row.api_request_id === active?.api_request_id ? 'af-triage-row-active' : '')}
             dataSource={filtered}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('apiGov.reviews.empty') }}
+            emptyTitle={t('apiGov.reviews.empty')}
             onRow={(row) => ({
               onClick: () =>
                 split ? setActiveId(row.api_request_id) : navigate(`/api-requests/${row.api_request_id}`),

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Skeleton, Space, Table } from 'antd';
+import { App, Button, Skeleton, Space } from 'antd';
 import {
   ArrowLeftOutlined,
   CloseCircleOutlined,
@@ -10,7 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -224,7 +224,7 @@ export default function CampaignDetailPage() {
             description={t('attestation.detail.items_empty')}
           />
         ) : (
-          <Table<AttestationItem>
+          <DataTable<AttestationItem>
             rowKey="id"
             size="middle"
             dataSource={items}

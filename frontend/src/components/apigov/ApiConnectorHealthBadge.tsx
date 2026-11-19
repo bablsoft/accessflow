@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button, Drawer, Table, Tooltip, Typography } from 'antd';
+import { Button, Drawer, Tooltip, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { apiConnectorKeys, getApiConnectorHealth } from '@/api/apiConnectors';
 import { Pill } from '@/components/common/Pill';
 import { apiConnectorHealthStatusLabel } from '@/utils/enumLabels';
@@ -72,12 +72,12 @@ export function ApiConnectorHealthBadge({ connectorId }: { connectorId: string }
               })
             : t('apiGov.health.notMonitoredHint')}
         </Typography.Paragraph>
-        <Table<ApiConnectorHealthCheck>
+        <DataTable<ApiConnectorHealthCheck>
           rowKey="checked_at"
           size="small"
           pagination={false}
           dataSource={health.recent_checks}
-          locale={{ emptyText: t('apiGov.health.noChecks') }}
+          emptyTitle={t('apiGov.health.noChecks')}
           columns={[
             {
               title: t('apiGov.health.checkedAt'),

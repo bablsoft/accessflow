@@ -1,17 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  App,
-  Button,
-  Checkbox,
-  Drawer,
-  Form,
-  Input,
-  Skeleton,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, Button, Checkbox, Drawer, Form, Input, Skeleton, Space, Tag, Tooltip } from 'antd';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -21,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -146,7 +134,7 @@ export function RolesPage() {
         ) : roles.length === 0 ? (
           <EmptyState title={t('admin.roles.title')} description={t('admin.roles.empty')} />
         ) : (
-          <Table<RoleSummary>
+          <DataTable<RoleSummary>
             rowKey="id"
             size="middle"
             dataSource={roles}

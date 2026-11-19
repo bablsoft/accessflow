@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Skeleton, Table, Tag } from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Skeleton, Tag } from 'antd';
 import { CheckCircleOutlined, PlusOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -127,7 +127,7 @@ export function OrganizationsListPage() {
             description={t('admin.organizations.empty')}
           />
         ) : (
-          <Table<Organization>
+          <DataTable<Organization>
             rowKey="id"
             size="middle"
             dataSource={orgs}

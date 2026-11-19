@@ -1,10 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Card, DatePicker, Select, Skeleton, Table } from 'antd';
+import { Card, DatePicker, Select, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { BarChartOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import type { Dayjs } from 'dayjs';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -517,7 +518,7 @@ function BreakdownTable({ rows, loading, error, locale }: BreakdownTableProps) {
           description={apiErrorMessage(error, () => t('deploygov.error'))}
         />
       ) : (
-        <Table<DeploymentEnvironmentMetrics>
+        <DataTable<DeploymentEnvironmentMetrics>
           rowKey="environment_id"
           dataSource={rows}
           columns={columns}
@@ -525,7 +526,7 @@ function BreakdownTable({ rows, loading, error, locale }: BreakdownTableProps) {
           size="small"
           pagination={false}
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: t('deploygov.metrics.breakdownEmpty') }}
+          emptyTitle={t('deploygov.metrics.breakdownEmpty')}
         />
       )}
     </Card>

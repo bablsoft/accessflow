@@ -1,22 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Card,
-  DatePicker,
-  Drawer,
-  Input,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-} from 'antd';
+import { App, Button, Card, DatePicker, Drawer, Input, Select, Skeleton, Space } from 'antd';
 import { Column } from '@ant-design/charts';
 import type { Dayjs } from 'dayjs';
 import { ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -243,7 +232,7 @@ export default function AnomaliesPage() {
                 }}
               />
             </Card>
-            <Table<BehaviorAnomaly>
+            <DataTable<BehaviorAnomaly>
               rowKey="id"
               size="middle"
               dataSource={anomalies}
@@ -254,10 +243,7 @@ export default function AnomaliesPage() {
                 total: anomaliesQuery.data?.total_elements ?? 0,
                 onChange: (p) => setPage(p - 1),
               }}
-              onRow={(record) => ({
-                onClick: () => setDetail(record),
-                style: { cursor: 'pointer' },
-              })}
+              onRowActivate={(record) => setDetail(record)}
               columns={[
                 {
                   title: t('anomalies.col_detected'),

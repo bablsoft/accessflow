@@ -1,11 +1,11 @@
-import { App, Button, Segmented, Skeleton, Space, Table, Tooltip } from 'antd';
+import { App, Button, Segmented, Skeleton, Space, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -421,7 +421,7 @@ export function QueryReviewsTab() {
             description={t('reviews.empty_description')}
           />
         ) : (
-          <Table<PendingReviewItem>
+          <DataTable<PendingReviewItem>
             rowKey="id"
             dataSource={list}
             columns={columns}

@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, Button, Form, Input, Modal, Select, Switch, Tag, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -20,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { isValidMaskingFieldRef } from '@/utils/maskingFieldRef';
 import {
@@ -132,7 +122,7 @@ export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string })
           description={t('apiGov.settings.masking.empty_description')}
         />
       ) : (
-        <Table<ApiConnectorMaskingPolicy>
+        <DataTable<ApiConnectorMaskingPolicy>
           rowKey="id"
           size="middle"
           loading={policiesQuery.isLoading}

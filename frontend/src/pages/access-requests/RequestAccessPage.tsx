@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select, Skeleton, Space, Table, Tag } from 'antd';
+import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select, Skeleton, Space, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AccessStatusPill } from '@/components/common/AccessStatusPill';
@@ -294,7 +294,7 @@ export function RequestAccessPage() {
         ) : (mine.data?.content.length ?? 0) === 0 ? (
           <EmptyState title={t('access.request.empty')} />
         ) : (
-          <Table
+          <DataTable
             rowKey="id"
             columns={columns}
             dataSource={mine.data?.content ?? []}

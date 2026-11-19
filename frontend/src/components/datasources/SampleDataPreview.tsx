@@ -1,7 +1,8 @@
-import { Alert, Skeleton, Table, Tooltip } from 'antd';
+import { Alert, Skeleton, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { useTableSample } from '@/hooks/useTableSample';
 import type { TruncatedReason } from '@/types/api';
 
@@ -71,14 +72,14 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
         style={{ marginBottom: 12 }}
         title={t('datasources.settings.sample_governed_note')}
       />
-      <Table
+      <DataTable
         rowKey="__key"
         columns={columns}
         dataSource={dataSource}
         size="small"
         scroll={{ x: 'max-content' }}
         pagination={false}
-        locale={{ emptyText: t('datasources.settings.sample_empty') }}
+        emptyTitle={t('datasources.settings.sample_empty')}
         footer={() =>
           data.truncated ? (
             <span className="muted" style={{ fontSize: 11 }}>

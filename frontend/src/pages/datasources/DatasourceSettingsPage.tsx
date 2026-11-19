@@ -1,21 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  DatePicker,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Segmented,
-  Select,
-  Skeleton,
-  Switch,
-  Table,
-  Tabs,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Segmented, Select, Skeleton, Switch, Tabs, Tag, Tooltip } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -31,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, Section, StatusTag } from '@/components/layout';
+import { DataTable, Page, Section, StatusTag } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -1181,7 +1165,7 @@ function PermissionMatrix({
         existingGroupIds={groupPermissions.map((p) => p.group_id)}
         onClose={() => setGrantOpen(false)}
       />
-      <Table<DatasourcePermission>
+      <DataTable<DatasourcePermission>
         rowKey="id"
         size="middle"
         loading={permissionsQuery.isLoading}
@@ -1317,7 +1301,7 @@ function PermissionMatrix({
           <div style={{ fontWeight: 600, margin: '28px 0 12px' }}>
             {t('datasources.settings.group_permissions_title')}
           </div>
-          <Table<DatasourceGroupPermission>
+          <DataTable<DatasourceGroupPermission>
             rowKey="id"
             size="middle"
             loading={groupPermissionsQuery.isLoading}
@@ -2145,7 +2129,7 @@ function ActivityTab({ dsId }: { dsId: string }) {
       ) : rows.length === 0 ? (
         <EmptyState title={t('datasources.settings.activity_empty')} />
       ) : (
-        <Table
+        <DataTable
           rowKey="id"
           size="middle"
           dataSource={rows}

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Popconfirm, Table } from 'antd';
+import { App, Button, Form, Input, Modal, Popconfirm } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DeleteOutlined, ExperimentOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import {
   aiConfigKeys,
   createKnowledgeDocument,
@@ -162,7 +162,7 @@ export function KnowledgeDocumentsSection({
           : t('admin.ai_configs.rag.documents_save_first')}
       </p>
       {ragEnabled && (
-        <Table<KnowledgeDocument>
+        <DataTable<KnowledgeDocument>
           rowKey="id"
           size="small"
           columns={columns}

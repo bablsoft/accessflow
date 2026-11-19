@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Button, Input, Select, Skeleton, Table, Tag } from 'antd';
+import { Button, Input, Select, Skeleton, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DeploymentUnitOutlined, FundOutlined, SearchOutlined } from '@ant-design/icons';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -306,17 +306,14 @@ export default function DeploymentListPage() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<DeploymentRequest>
+          <DataTable<DeploymentRequest>
             rowKey="id"
             dataSource={rows}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('deploygov.deployments.empty') }}
-            onRow={(row) => ({
-              onClick: () => navigate(`/deployments/${row.id}`),
-              style: { cursor: 'pointer' },
-            })}
+            emptyTitle={t('deploygov.deployments.empty')}
+            onRowActivate={(row) => navigate(`/deployments/${row.id}`)}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,

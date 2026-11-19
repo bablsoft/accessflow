@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Button, Space, Table, Typography } from 'antd';
+import { Button, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { auditKeys, listAuditEvents } from '@/api/admin';
 import { OnBehalfOfTag } from '@/components/common/OnBehalfOfTag';
 import type { AuditEvent, ServiceAccount } from '@/types/api';
@@ -67,7 +68,7 @@ export function ServiceAccountActivityTab({ account }: { account: ServiceAccount
           <Button>{t('admin.service_accounts.activity.open_full')}</Button>
         </Link>
       </div>
-      <Table<AuditEvent>
+      <DataTable<AuditEvent>
         rowKey="id"
         size="small"
         loading={query.isLoading}

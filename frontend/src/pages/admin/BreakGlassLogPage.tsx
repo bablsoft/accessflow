@@ -1,23 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  DatePicker,
-  Drawer,
-  Input,
-  Modal,
-  Select,
-  Skeleton,
-  Space,
-  Table,
-  Tooltip,
-} from 'antd';
+import { App, Button, DatePicker, Drawer, Input, Modal, Select, Skeleton, Space, Tooltip } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, Page, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -178,7 +166,7 @@ export default function BreakGlassLogPage() {
             description={t('breakglass.empty_description')}
           />
         ) : (
-          <Table<BreakGlassEvent>
+          <DataTable<BreakGlassEvent>
             rowKey="id"
             size="middle"
             dataSource={events}
@@ -189,10 +177,7 @@ export default function BreakGlassLogPage() {
               total: eventsQuery.data?.total_elements ?? 0,
               onChange: (p) => setPage(p - 1),
             }}
-            onRow={(record) => ({
-              onClick: () => setDetail(record),
-              style: { cursor: 'pointer' },
-            })}
+            onRowActivate={(record) => setDetail(record)}
             columns={[
               {
                 title: t('breakglass.col_executed'),

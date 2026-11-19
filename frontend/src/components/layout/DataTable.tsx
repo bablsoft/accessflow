@@ -6,25 +6,32 @@ import './layout.css';
 
 const INTERACTIVE = 'a, button, input, select, textarea, label, [role="button"], [role="menuitem"]';
 
-export interface DataTableProps<T> extends Omit<TableProps<T>, 'loading' | 'pagination'> {
+export interface DataTableProps<T> extends TableProps<T> {
   /** Shows a skeleton instead of the table while the first page loads. */
-  loading?: boolean;
+  skeleton?: boolean;
   /** Title of the empty state; without it Ant Design's default placeholder is used. */
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
   /** Makes rows activatable by click and by Enter. */
   onRowActivate?: (record: T) => void;
-  /** Server pagination: zero-based `page`. Omit to show every row without a pager. */
+  /**
+   * Server pagination with a zero-based `page`. When set it replaces `pagination`; when omitted
+   * the `pagination` prop is passed through unchanged.
+   */
   page?: number;
   pageSize?: number;
   total?: number;
   onPageChange?: (page: number) => void;
 }
 
-/** Ant Design `Table` with the app's defaults: size, overflow, pager, empty state, keyboard rows. */
-export function DataTable<T extends object>({
-  loading = false,
+/**
+ * Ant Design `Table` with the app's defaults: size, pager, empty state, keyboard rows. Horizontal
+ * scrolling is not a default — `scroll={{ x }}` makes Ant Design render a second, measuring header,
+ * so a table opts in.
+ */
+export function DataTable<T>({
+  skeleton = false,
   emptyTitle,
   emptyDescription,
   emptyAction,
@@ -33,12 +40,13 @@ export function DataTable<T extends object>({
   pageSize = 20,
   total,
   onPageChange,
+  pagination: paginationProp,
   className,
   locale,
   onRow,
   ...rest
 }: DataTableProps<T>) {
-  if (loading) {
+  if (skeleton) {
     return (
       <div className="af-data-table-loading" aria-busy="true">
         <Skeleton active paragraph={{ rows: 8 }} />
@@ -48,7 +56,7 @@ export function DataTable<T extends object>({
 
   const pagination: TableProps<T>['pagination'] =
     page === undefined
-      ? false
+      ? paginationProp
       : {
           current: page + 1,
           pageSize,
@@ -60,7 +68,6 @@ export function DataTable<T extends object>({
   return (
     <Table<T>
       size="middle"
-      scroll={{ x: 'max-content' }}
       {...rest}
       className={['af-data-table', className].filter(Boolean).join(' ')}
       pagination={pagination}

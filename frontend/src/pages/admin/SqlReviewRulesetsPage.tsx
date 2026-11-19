@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Skeleton,
-  Switch,
-  Table,
-  Tabs,
-  Tooltip,
-} from 'antd';
+import { App, Button, Form, Input, Modal, Select, Skeleton, Switch, Tabs, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -22,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -353,7 +341,7 @@ export function SqlReviewRulesetsPage() {
                 ) : rulesets.length === 0 ? (
                   <EmptyState title={t('admin.sql_review.title')} description={t('admin.sql_review.empty')} />
                 ) : (
-                  <Table<SqlReviewRuleset>
+                  <DataTable<SqlReviewRuleset>
                     rowKey="id"
                     size="middle"
                     dataSource={rulesets}
@@ -513,7 +501,7 @@ export function SqlReviewRulesetsPage() {
           <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
             {t('admin.sql_review.rules_hint')}
           </div>
-          <Table<SqlReviewRule>
+          <DataTable<SqlReviewRule>
             rowKey="rule_id"
             size="small"
             dataSource={builtInRules}
@@ -529,7 +517,7 @@ export function SqlReviewRulesetsPage() {
                 {t('admin.sql_review.custom_rules_hint')}
               </div>
               <div data-testid="sql-review-custom-rule-severities">
-                <Table<SqlReviewRule>
+                <DataTable<SqlReviewRule>
                   rowKey="rule_id"
                   size="small"
                   dataSource={customRules}

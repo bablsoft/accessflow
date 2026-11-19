@@ -1,29 +1,10 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Checkbox,
-  Collapse,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Segmented,
-  Select,
-  Space,
-  Switch,
-  Table,
-  Tabs,
-  Tag,
-  Typography,
-  Upload,
-} from 'antd';
+import { Alert, App, Button, Checkbox, Collapse, Form, Input, InputNumber, Modal, Segmented, Select, Space, Switch, Tabs, Tag, Typography, Upload } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
 import { ApiConnectorLimitsTab } from '@/components/apigov/ApiConnectorLimitsTab';
 import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
@@ -772,7 +753,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
             {t('apiGov.settings.filterKeepsOf', { kept: preview.kept_count, total: preview.total_count })}
           </Typography.Text>
           {preview.excluded.length > 0 && (
-            <Table<ApiOperation>
+            <DataTable<ApiOperation>
               rowKey="operation_id"
               size="small"
               pagination={false}
@@ -805,7 +786,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
           {t('apiGov.settings.filterPreview')}
         </Button>
       </Space>
-      <Table<ApiSchema>
+      <DataTable<ApiSchema>
         rowKey="id"
         size="small"
         pagination={false}
@@ -873,13 +854,13 @@ function OperationsTab({ connectorId }: { connectorId: string }) {
     queryFn: () => listApiOperations(connectorId),
   });
   return (
-    <Table<ApiOperation>
+    <DataTable<ApiOperation>
       rowKey="operation_id"
       size="small"
       pagination={false}
       loading={opsQuery.isLoading}
       dataSource={opsQuery.data ?? []}
-      locale={{ emptyText: t('apiGov.settings.noOperations') }}
+      emptyTitle={t('apiGov.settings.noOperations')}
       columns={[
         { title: t('apiGov.settings.operationId'), dataIndex: 'operation_id' },
         { title: t('apiGov.settings.verb'), dataIndex: 'verb' },

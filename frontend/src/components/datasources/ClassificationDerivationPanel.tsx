@@ -1,8 +1,8 @@
-import { Table, Tag, Tooltip } from 'antd';
+import { Tag, Tooltip } from 'antd';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { dataClassificationKeys, getDerivationPreview } from '@/api/dataClassifications';
 import {
   dataClassificationLabel,
@@ -79,13 +79,13 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
       <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
         {t('datasources.settings.classification.masking_suggestions_label')}
       </div>
-      <Table<ClassificationMaskingSuggestion>
+      <DataTable<ClassificationMaskingSuggestion>
         rowKey={(r) => `${r.column_ref}:${r.classification}`}
         size="small"
         loading={derivationQuery.isLoading}
         dataSource={derivation?.masking_suggestions ?? []}
         pagination={false}
-        locale={{ emptyText: t('datasources.settings.classification.no_masking_suggestions') }}
+        emptyTitle={t('datasources.settings.classification.no_masking_suggestions')}
         columns={[
           {
             title: t('datasources.settings.classification.col_column'),

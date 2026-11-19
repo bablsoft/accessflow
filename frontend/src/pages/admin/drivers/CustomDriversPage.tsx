@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { App, Button, Popconfirm, Skeleton, Table, Typography, Tag } from 'antd';
+import { App, Button, Popconfirm, Skeleton, Typography, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -155,7 +156,7 @@ export default function CustomDriversPage() {
           }
         />
       ) : (
-        <Table<CustomDriver>
+        <DataTable<CustomDriver>
           rowKey="id"
           dataSource={listQuery.data ?? []}
           columns={columns}

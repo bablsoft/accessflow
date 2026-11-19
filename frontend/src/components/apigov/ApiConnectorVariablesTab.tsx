@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { App, Alert, Button, Form, Input, Modal, Select, Switch, Table, Tag, Tooltip } from 'antd';
+import { App, Alert, Button, Form, Input, Modal, Select, Switch, Tag, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   apiConnectorVariableKeys,
@@ -160,7 +160,7 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
           description={t('apiGov.settings.variables.empty_description')}
         />
       ) : (
-        <Table<ApiConnectorVariable>
+        <DataTable<ApiConnectorVariable>
           rowKey="id"
           size="middle"
           loading={variablesQuery.isLoading}

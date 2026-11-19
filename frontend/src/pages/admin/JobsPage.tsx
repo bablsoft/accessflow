@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Alert, Button, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { Alert, Button, Skeleton, Tag, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, StatusTag } from '@/components/layout';
+import { DataTable, Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { JobStatusPill } from '@/components/jobs/JobStatusPill';
@@ -48,16 +48,13 @@ export function JobsPage() {
     content = <EmptyState title={t('admin.jobs.empty')} />;
   } else {
     content = (
-      <Table<ScheduledJob>
+      <DataTable<ScheduledJob>
         rowKey="job_name"
         size="middle"
         dataSource={jobs}
         scroll={{ x: 'max-content' }}
         pagination={false}
-        onRow={(job) => ({
-          onClick: () => setSelectedJob(job.job_name),
-          style: { cursor: 'pointer' },
-        })}
+        onRowActivate={(job) => setSelectedJob(job.job_name)}
         columns={[
           {
             title: t('admin.jobs.col_job'),

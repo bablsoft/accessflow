@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { App, Alert, Button, DatePicker, Segmented, Skeleton, Space, Table, Typography } from 'antd';
+import { App, Alert, Button, DatePicker, Segmented, Skeleton, Space, Typography } from 'antd';
 import { DownloadOutlined, FilePdfOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -203,7 +203,7 @@ export default function AuditorDashboardPage() {
     switch (type) {
       case 'CLASSIFIED_ACCESS':
         return (
-          <Table<ClassifiedAccessRow>
+          <DataTable<ClassifiedAccessRow>
             rowKey="query_request_id"
             columns={classifiedColumns}
             dataSource={report.data?.classified_access ?? []}
@@ -213,7 +213,7 @@ export default function AuditorDashboardPage() {
         );
       case 'REGULATORY_AUDIT_TRAIL':
         return (
-          <Table<RegulatoryAuditTrailRow>
+          <DataTable<RegulatoryAuditTrailRow>
             rowKey="query_request_id"
             columns={trailColumns}
             dataSource={report.data?.audit_trail ?? []}
@@ -223,7 +223,7 @@ export default function AuditorDashboardPage() {
         );
       case 'DEPLOYMENT_METRICS':
         return (
-          <Table<DeploymentMetricsReportRow>
+          <DataTable<DeploymentMetricsReportRow>
             rowKey={(r) => `${r.pipeline_id}:${r.environment_id}`}
             columns={deploymentColumns}
             dataSource={report.data?.deployment_metrics ?? []}

@@ -1,7 +1,7 @@
 import { dataBudgetKeys } from '@/api/dataBudgets';
 import { useMemo, useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
-import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Table } from 'antd';
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -23,7 +23,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page } from '@/components/layout';
+import { DataTable, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -1122,11 +1122,11 @@ function OccurrencesCard({ queryId }: { queryId: string }) {
         {isLoading ? (
           <Skeleton active paragraph={{ rows: 3 }} />
         ) : (
-          <Table<QueryOccurrence>
+          <DataTable<QueryOccurrence>
             size="small"
             rowKey="id"
             dataSource={data?.items ?? []}
-            locale={{ emptyText: t('queries.detail.occurrences_empty') }}
+            emptyTitle={t('queries.detail.occurrences_empty')}
             pagination={{
               current: page + 1,
               pageSize: size,

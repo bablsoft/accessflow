@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  AutoComplete,
-  Button,
-  Flex,
-  Form,
-  Modal,
-  Select,
-  Space,
-  Switch,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { App, AutoComplete, Button, Flex, Form, Modal, Select, Space, Switch, Tag, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -22,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import { draftFingerprint, isMaskingDraftHighImpact }
   from '@/components/policies/policyImpact';
@@ -137,7 +125,7 @@ export function MaskingTab({ dsId }: { dsId: string }) {
           description={t('datasources.settings.masking.empty_description')}
         />
       ) : (
-        <Table<MaskingPolicy>
+        <DataTable<MaskingPolicy>
           rowKey="id"
           size="middle"
           loading={policiesQuery.isLoading}

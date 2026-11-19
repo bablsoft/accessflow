@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Drawer, Flex, Segmented, Skeleton, Space, Statistic, Table, Tabs } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { windowForDays } from './policyImpact';
@@ -125,7 +126,7 @@ function SimulationBody<TResult>({
                   key: 'users',
                   label: t('policySimulation.tab_users'),
                   children: (
-                    <Table
+                    <DataTable
                       size="small"
                       rowKey="key"
                       columns={summary.userColumns}
@@ -138,7 +139,7 @@ function SimulationBody<TResult>({
                   key: 'detail',
                   label: summary.detailLabel,
                   children: (
-                    <Table
+                    <DataTable
                       size="small"
                       rowKey="key"
                       columns={summary.detailColumns}

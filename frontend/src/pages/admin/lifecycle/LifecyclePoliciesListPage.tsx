@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Skeleton, Switch, Table } from 'antd';
+import { App, Button, Form, Input, Modal, Select, Skeleton, Switch } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -140,7 +140,7 @@ export default function LifecyclePoliciesListPage() {
             description={t('lifecycle.policies.empty_description')}
           />
         ) : (
-          <Table<RetentionPolicy>
+          <DataTable<RetentionPolicy>
             rowKey="id"
             size="middle"
             dataSource={policies}
@@ -252,7 +252,7 @@ export default function LifecyclePoliciesListPage() {
                 count: preview.total_estimated_rows,
               })}
             </p>
-            <Table
+            <DataTable
               rowKey={(r) => r.table ?? r.method}
               size="small"
               pagination={false}

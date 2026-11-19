@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Alert, App, Button, DatePicker, Form, Input, Modal, Popconfirm, Skeleton, Space, Table, Typography } from 'antd';
+import { Alert, App, Button, DatePicker, Form, Input, Modal, Popconfirm, Skeleton, Space, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { apiKeysKeys, createApiKey, listApiKeys, revokeApiKey } from '@/api/apiKeys';
 import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '@/types/api';
@@ -163,7 +164,7 @@ export function ApiKeysSection() {
       </div>
 
       {listQuery.data && listQuery.data.length > 0 ? (
-        <Table<ApiKey>
+        <DataTable<ApiKey>
           dataSource={listQuery.data}
           rowKey="id"
           columns={columns}

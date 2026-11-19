@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  Skeleton,
-  Switch,
-  Table,
-} from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, Modal, Select, Skeleton, Switch } from 'antd';
 import {
   DeleteOutlined,
   EditOutlined,
@@ -21,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -218,7 +206,7 @@ export function DecisionHooksPage() {
             description={t('admin.decision_hooks.empty')}
           />
         ) : (
-          <Table<DecisionHook>
+          <DataTable<DecisionHook>
             rowKey="id"
             size="middle"
             dataSource={hooks}

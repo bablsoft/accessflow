@@ -1,10 +1,10 @@
-import { App, Button, Input, Modal, Skeleton, Space, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Skeleton, Space, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
@@ -159,7 +159,7 @@ export function AccessRequestsQueuePage() {
       ) : (data?.content.length ?? 0) === 0 ? (
         <EmptyState title={t('access.queue.empty')} />
       ) : (
-        <Table
+        <DataTable
           rowKey="id"
           columns={columns}
           dataSource={data?.content ?? []}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { App, Button, Form, Modal, Popconfirm, Select, Skeleton, Space, Table, Tag } from 'antd';
+import { App, Button, Form, Modal, Popconfirm, Select, Skeleton, Space, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -185,7 +186,7 @@ export function GroupDetailPage() {
           }
         />
       ) : (
-        <Table
+        <DataTable
           rowKey="user_id"
           dataSource={membersQuery.data ?? []}
           columns={columns}

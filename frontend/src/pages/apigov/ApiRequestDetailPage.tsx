@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
-import { Alert, App, Button, Card, Descriptions, Input, Modal, Skeleton, Table } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Input, Modal, Skeleton } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ExperimentOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page, StatusTag } from '@/components/layout';
+import { DataTable, Page, StatusTag } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -359,7 +359,7 @@ export default function ApiRequestDetailPage() {
                   <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
                     {t('apiGov.requests.variableOverridesHint')}
                   </div>
-                  <Table
+                  <DataTable
                     rowKey="name"
                     size="small"
                     pagination={false}
@@ -462,7 +462,7 @@ export default function ApiRequestDetailPage() {
 
             <DetailCard title={t('apiGov.requests.decisions')}>
               <div style={{ padding: 14 }}>
-                <Table<ApiReviewDecision>
+                <DataTable<ApiReviewDecision>
                   rowKey="id"
                   size="small"
                   pagination={false}

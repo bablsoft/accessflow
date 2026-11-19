@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Dropdown,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  Skeleton,
-  Space,
-  Switch,
-  Table,
-} from 'antd';
+import { App, Button, Dropdown, Form, Input, InputNumber, Modal, Select, Skeleton, Space, Switch } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   DeleteOutlined,
@@ -24,7 +11,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -287,7 +274,7 @@ export function ReviewPlansPage() {
             description={t('admin.review_plans.empty')}
           />
         ) : (
-          <Table<ReviewPlan>
+          <DataTable<ReviewPlan>
             rowKey="id"
             size="middle"
             dataSource={plans}

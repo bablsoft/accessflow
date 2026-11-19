@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, Table, TimePicker } from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, TimePicker } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { DataTable, StatusTag } from '@/components/layout';
 import {
   createDeploymentRoutingPolicy,
   deleteDeploymentRoutingPolicy,
@@ -266,13 +266,13 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
           {t('deploygov.routingPolicies.add')}
         </Button>
       </div>
-      <Table<DeploymentRoutingPolicy>
+      <DataTable<DeploymentRoutingPolicy>
         rowKey="id"
         size="small"
         pagination={false}
         loading={policiesQuery.isLoading}
         dataSource={visible}
-        locale={{ emptyText: t('deploygov.routingPolicies.empty') }}
+        emptyTitle={t('deploygov.routingPolicies.empty')}
         columns={columns}
       />
       <Modal

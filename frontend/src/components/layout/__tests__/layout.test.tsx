@@ -72,7 +72,7 @@ describe('FilterBar', () => {
 
 describe('DataTable', () => {
   it('shows a skeleton while loading', () => {
-    const { container } = render(<DataTable<Row> loading rowKey="id" columns={columns} />);
+    const { container } = render(<DataTable<Row> skeleton rowKey="id" columns={columns} />);
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     expect(screen.queryByText('Name')).not.toBeInTheDocument();
   });
@@ -132,6 +132,13 @@ describe('DataTable', () => {
     const row = screen.getByText('alpha').closest('tr') as HTMLElement;
     expect(row).toHaveClass('plain');
     expect(row).not.toHaveAttribute('tabindex');
+  });
+
+  it('passes the pagination prop through when no page is given', () => {
+    const { container } = render(
+      <DataTable<Row> rowKey="id" columns={columns} dataSource={rows} pagination={false} />,
+    );
+    expect(container.querySelector('.ant-pagination')).toBeNull();
   });
 
   it('maps zero-based server pagination', () => {

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Select, Skeleton, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FilterBar, PageBody } from '@/components/layout';
+import { DataTable, FilterBar, PageBody } from '@/components/layout';
 import {
   ReviewPreview,
   TriageShortcuts,
@@ -352,14 +352,14 @@ export function PendingDeploymentsTab() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<DeploymentReviewItem>
+          <DataTable<DeploymentReviewItem>
             rowKey="deployment_request_id"
             rowClassName={(row) => (row.deployment_request_id === active?.deployment_request_id ? 'af-triage-row-active' : '')}
             dataSource={filtered}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('deploygov.reviews.empty') }}
+            emptyTitle={t('deploygov.reviews.empty')}
             onRow={(row) => ({
               onClick: () =>
                 split ? setActiveId(row.deployment_request_id) : navigate(`/deployments/${row.deployment_request_id}`),
@@ -575,13 +575,13 @@ export function RollbackReviewsTab() {
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
-          <Table<DeploymentRollbackReview>
+          <DataTable<DeploymentRollbackReview>
             rowKey="id"
             dataSource={listQuery.data?.content ?? []}
             columns={columns}
             size="middle"
             scroll={{ x: 'max-content' }}
-            locale={{ emptyText: t('deploygov.reviews.rollbackEmpty') }}
+            emptyTitle={t('deploygov.reviews.rollbackEmpty')}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,

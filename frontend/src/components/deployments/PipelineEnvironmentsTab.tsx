@@ -1,22 +1,11 @@
 import { useEffect, useState } from 'react';
-import {
-  App,
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Switch,
-  Table,
-  Tag,
-} from 'antd';
+import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, Tag } from 'antd';
 import type { FormInstance, TableColumnsType } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import {
   createDeploymentEnvironment,
   deleteDeploymentEnvironment,
@@ -312,13 +301,13 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           {t('deploygov.settings.envAdd')}
         </Button>
       </div>
-      <Table<DeploymentEnvironment>
+      <DataTable<DeploymentEnvironment>
         rowKey="id"
         size="small"
         pagination={false}
         loading={envsQuery.isLoading}
         dataSource={envsQuery.data ?? []}
-        locale={{ emptyText: t('deploygov.settings.envEmpty') }}
+        emptyTitle={t('deploygov.settings.envEmpty')}
         columns={columns}
       />
       <Modal

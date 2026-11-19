@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Alert, App, Button, DatePicker, Form, Input, Popconfirm, Select, Space, Table } from 'antd';
+import { Alert, App, Button, DatePicker, Form, Input, Popconfirm, Select, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag, type StatusTone } from '@/components/layout';
+import { DataTable, StatusTag, type StatusTone } from '@/components/layout';
 import type { Dayjs } from 'dayjs';
 import {
   createReviewDelegation,
@@ -268,7 +268,7 @@ export function ReviewDelegationSection() {
         </Form.Item>
       </Form>
 
-      <Table<ReviewDelegation>
+      <DataTable<ReviewDelegation>
         rowKey="id"
         size="small"
         title={() => t('profile.delegation.granted_title')}
@@ -276,10 +276,10 @@ export function ReviewDelegationSection() {
         columns={grantedColumns}
         dataSource={delegations.data?.granted ?? []}
         pagination={false}
-        locale={{ emptyText: t('profile.delegation.granted_empty') }}
+        emptyTitle={t('profile.delegation.granted_empty')}
       />
 
-      <Table<ReviewDelegation>
+      <DataTable<ReviewDelegation>
         rowKey="id"
         size="small"
         title={() => t('profile.delegation.received_title')}
@@ -287,7 +287,7 @@ export function ReviewDelegationSection() {
         columns={receivedColumns}
         dataSource={delegations.data?.received ?? []}
         pagination={false}
-        locale={{ emptyText: t('profile.delegation.received_empty') }}
+        emptyTitle={t('profile.delegation.received_empty')}
       />
     </Space>
   );

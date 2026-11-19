@@ -294,7 +294,8 @@ export function QueryListPage() {
       <PageBody flush>
         <DataTable
           rowKey="id"
-          loading={isLoading}
+          skeleton={isLoading}
+          scroll={{ x: 'max-content' }}
           dataSource={filtered}
           columns={cols}
           page={page}

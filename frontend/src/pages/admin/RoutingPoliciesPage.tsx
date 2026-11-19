@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Flex,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Select,
-  Skeleton,
-  Space,
-  Switch,
-  Table,
-} from 'antd';
+import { App, Button, Flex, Form, Input, InputNumber, Modal, Select, Skeleton, Space, Switch } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -23,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import {
   draftFingerprint,
@@ -368,7 +355,7 @@ export function RoutingPoliciesPage() {
             description={t('admin.routing_policies.empty')}
           />
         ) : (
-          <Table<RoutingPolicy>
+          <DataTable<RoutingPolicy>
             rowKey="id"
             size="middle"
             dataSource={policies}

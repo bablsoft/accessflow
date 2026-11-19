@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  App,
-  AutoComplete,
-  Button,
-  Form,
-  InputNumber,
-  Modal,
-  Select,
-  Switch,
-  Table,
-  Tooltip,
-} from 'antd';
+import { App, AutoComplete, Button, Form, InputNumber, Modal, Select, Switch, Tooltip } from 'antd';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -20,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createRowLimitPolicy,
@@ -116,7 +106,7 @@ export function RowLimitTab({ dsId }: { dsId: string }) {
           description={t('datasources.settings.row_limits.empty_description')}
         />
       ) : (
-        <Table<RowLimitPolicy>
+        <DataTable<RowLimitPolicy>
           rowKey="id"
           size="middle"
           loading={policiesQuery.isLoading}

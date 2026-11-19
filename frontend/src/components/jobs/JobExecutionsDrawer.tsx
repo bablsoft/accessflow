@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Drawer, Select, Skeleton, Table, Typography } from 'antd';
+import { Drawer, Select, Skeleton, Typography } from 'antd';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { DataTable } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { jobKeys, listJobExecutions } from '@/api/jobs';
 import { apiErrorMessage } from '@/utils/apiErrors';
@@ -59,7 +60,7 @@ function ExecutionsBody({ jobName }: { jobName: string }) {
     body = <EmptyState title={t('admin.jobs.history_empty')} size="sm" />;
   } else {
     body = (
-      <Table<JobExecution>
+      <DataTable<JobExecution>
         rowKey="id"
         size="small"
         dataSource={executionsQuery.data?.content ?? []}
