@@ -1,7 +1,8 @@
-import { Button, Empty, Tooltip } from 'antd';
+import { Button, Tooltip } from 'antd';
 import { BulbOutlined, WarningOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { fetchQuerySuggestions, querySuggestionKeys } from '@/api/querySuggestions';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import type { QuerySuggestion } from '@/types/api';
@@ -75,12 +76,7 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
           </div>
         )}
         {suggestionsQuery.isSuccess && suggestionsQuery.data.length === 0 && (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              <span style={{ fontSize: 12 }}>{t('editor.suggestions.empty')}</span>
-            }
-          />
+          <EmptyState size="sm" title={t('editor.suggestions.empty')} />
         )}
         {suggestionsQuery.data?.map((suggestion) => (
           <SuggestionCard key={suggestion.id} suggestion={suggestion} onApply={onApply} />
@@ -111,13 +107,13 @@ function SuggestionCard({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
+        <span className="mono" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
           {queryTypeLabel(t, suggestion.query_type)}
         </span>
         <Tooltip title={suggestion.referenced_tables.join(', ')}>
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               color: 'var(--fg-muted)',
               minWidth: 0,
               overflow: 'hidden',
@@ -144,7 +140,7 @@ function SuggestionCard({
         {suggestion.sql}
       </pre>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
+        <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
           {/* `times`, not `count`: a `count` option puts i18next into plural resolution, so the
               string would silently change meaning the day someone adds an `evidence_other` key —
               and `count` is auto-interpolated, which this sentence does not want. */}
@@ -156,7 +152,7 @@ function SuggestionCard({
         {/* Rendered outside the translated sentence: timeAgo() emits English ("3d ago"), which
             would read as a bug spliced into the middle of a localized string. */}
         <Tooltip title={fmtDate(suggestion.last_submitted_at)}>
-          <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>
+          <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>
             {timeAgo(suggestion.last_submitted_at)}
           </span>
         </Tooltip>

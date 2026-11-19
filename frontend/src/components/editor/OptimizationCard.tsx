@@ -62,7 +62,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <span
               className="mono"
-              style={{ fontSize: 10, fontWeight: 600, color: c.fg, textTransform: 'uppercase' }}
+              style={{ fontSize: 11, fontWeight: 600, color: c.fg, textTransform: 'uppercase' }}
             >
               {optimizationTypeLabel(t, optimization.type)}
             </span>
@@ -105,7 +105,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
                 background: 'var(--bg-sunken)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)',
-                fontSize: 11.5,
+                fontSize: 12,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }}

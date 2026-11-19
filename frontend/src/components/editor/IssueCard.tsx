@@ -59,11 +59,11 @@ export function IssueCard({ issue }: { issue: AiIssue }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <span
               className="mono"
-              style={{ fontSize: 10, fontWeight: 600, color: c.fg, textTransform: 'uppercase' }}
+              style={{ fontSize: 11, fontWeight: 600, color: c.fg, textTransform: 'uppercase' }}
             >
               {issue.severity}
             </span>
-            <span className="mono muted" style={{ fontSize: 10 }}>
+            <span className="mono muted" style={{ fontSize: 11 }}>
               · {issue.category}
             </span>
           </div>

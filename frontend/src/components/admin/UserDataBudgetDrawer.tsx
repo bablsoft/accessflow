@@ -1,6 +1,7 @@
-import { Alert, Drawer, Empty, Progress, Skeleton, Tag } from 'antd';
+import { Alert, Drawer, Progress, Skeleton, Tag } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { dataBudgetKeys, getUserDataBudgetUsage } from '@/api/dataBudgets';
 import type { DataBudgetConsumption, DataBudgetStatus, User } from '@/types/api';
 import { dataBudgetBreachActionLabel } from '@/utils/enumLabels';
@@ -45,7 +46,7 @@ export function UserDataBudgetDrawer({ user, onClose }: Props) {
       ) : usageQuery.isError ? (
         <Alert type="error" showIcon title={t('dataBudgets.usage.load_error')} />
       ) : (usageQuery.data ?? []).length === 0 ? (
-        <Empty description={t('dataBudgets.usage.empty')} />
+        <EmptyState size="sm" title={t('dataBudgets.usage.empty')} />
       ) : (
         (usageQuery.data ?? []).map((status) => (
           <DatasourceUsage key={status.datasource_id} status={status} />

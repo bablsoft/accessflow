@@ -93,7 +93,7 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
           background: 'var(--bg-elev)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
-          fontSize: 11.5,
+          fontSize: 12,
           fontFamily: 'var(--font-mono)',
         }}
       >

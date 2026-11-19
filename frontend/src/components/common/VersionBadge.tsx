@@ -30,7 +30,7 @@ export function VersionBadge() {
     return (
       <div
         className="mono muted"
-        style={{ fontSize: 9.5, textTransform: 'lowercase' }}
+        style={{ fontSize: 11, textTransform: 'lowercase' }}
         aria-label={t('nav.version', { version: APP_VERSION })}
       >
         v{APP_VERSION}

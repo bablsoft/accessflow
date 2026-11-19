@@ -390,7 +390,7 @@ export function Sidebar({
           <LogoMark size={26} className="af-logo-mark" />
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
                 {t('common.app_name')}
               </div>
               <VersionBadge />
@@ -486,7 +486,7 @@ export function Sidebar({
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div
                       style={{
-                        fontSize: 12.5,
+                        fontSize: 13,
                         fontWeight: 500,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -495,7 +495,7 @@ export function Sidebar({
                     >
                       {label}
                     </div>
-                    <div className="mono muted" style={{ fontSize: 10 }}>{role}</div>
+                    <div className="mono muted" style={{ fontSize: 11 }}>{role}</div>
                   </div>
                 )}
               </div>

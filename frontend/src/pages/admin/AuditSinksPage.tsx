@@ -308,7 +308,7 @@ function SinkCard({
           padding: 10,
           background: 'var(--bg-sunken)',
           borderRadius: 6,
-          fontSize: 11.5,
+          fontSize: 12,
           lineHeight: 1.5,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -384,7 +384,7 @@ function SinkCard({
           borderTop: '1px solid var(--border)',
         }}
       >
-        <span className="mono muted" style={{ fontSize: 10 }}>
+        <span className="mono muted" style={{ fontSize: 11 }}>
           {fmtDate(sink.created_at).split(',')[0]}
         </span>
         <div style={{ flex: 1 }} />
@@ -426,7 +426,7 @@ function HealthRow({
 }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div className="muted" style={{ fontSize: 10.5 }}>
+      <div className="muted" style={{ fontSize: 11 }}>
         {label}
       </div>
       <div

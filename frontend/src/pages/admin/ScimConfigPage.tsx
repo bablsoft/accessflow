@@ -1,20 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Skeleton,
-  Space,
-  Switch,
-  Table,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Space, Switch, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -332,7 +317,7 @@ export function ScimConfigPage() {
                   aria-label={t('admin.scim.section_tokens')}
                 />
               ) : (
-                <Empty description={t('admin.scim.tokens_empty')} />
+                <EmptyState size="sm" title={t('admin.scim.tokens_empty')} />
               )}
             </Space>
           </Section>

@@ -64,7 +64,7 @@ export function AiHintPanel({
               alignItems: 'center',
               gap: 4,
               marginLeft: 'auto',
-              fontSize: 10,
+              fontSize: 11,
               padding: '2px 6px',
               borderRadius: 999,
               color: 'var(--risk-med)',
@@ -81,7 +81,7 @@ export function AiHintPanel({
             className="mono muted"
             style={{
               marginLeft: 'auto',
-              fontSize: 10,
+              fontSize: 11,
               padding: '2px 6px',
               borderRadius: 999,
               background: 'var(--bg-elev)',
@@ -186,7 +186,7 @@ export function AiHintPanel({
                 borderRadius: 'var(--radius-md)',
                 padding: 12,
                 marginBottom: 16,
-                fontSize: 12.5,
+                fontSize: 13,
                 lineHeight: 1.55,
               }}
             >
@@ -268,7 +268,7 @@ export function AiHintPanel({
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 6,
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontFamily: 'var(--font-mono)',
                 }}
               >

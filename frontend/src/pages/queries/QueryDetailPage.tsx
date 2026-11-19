@@ -1,19 +1,7 @@
 import { dataBudgetKeys } from '@/api/dataBudgets';
 import { useMemo, useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
-import {
-  Alert,
-  App,
-  Button,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Select,
-  Skeleton,
-  Table,
-} from 'antd';
+import { Alert, App, Button, Form, Input, Modal, Popconfirm, Select, Skeleton, Table } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -34,6 +22,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -413,7 +402,7 @@ export function QueryDetailPage() {
       >
         <p>{t('queries.detail.replay_modal_body')}</p>
         {replayTargets.length === 0 ? (
-          <Empty description={t('queries.detail.replay_no_targets')} />
+          <EmptyState size="sm" title={t('queries.detail.replay_no_targets')} />
         ) : (
           <Form layout="vertical">
             <Form.Item label={t('queries.detail.replay_target_label')} required>
@@ -1004,7 +993,7 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div
         className="muted mono"
         style={{
-          fontSize: 10,
+          fontSize: 11,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
           marginBottom: 4,

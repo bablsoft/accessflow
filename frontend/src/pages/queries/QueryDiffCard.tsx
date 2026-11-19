@@ -132,7 +132,7 @@ function Label({ text }: { text: string }) {
     <div
       className="muted mono"
       style={{
-        fontSize: 10,
+        fontSize: 11,
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
         marginBottom: 4,

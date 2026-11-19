@@ -47,7 +47,7 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
               alignItems: 'center',
               gap: 4,
               marginLeft: 'auto',
-              fontSize: 10,
+              fontSize: 11,
               padding: '2px 6px',
               borderRadius: 999,
               color: 'var(--risk-med)',
@@ -102,7 +102,7 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
                 background: 'var(--bg-elev)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
-                fontSize: 11.5,
+                fontSize: 12,
                 fontFamily: 'var(--font-mono)',
               }}
             >

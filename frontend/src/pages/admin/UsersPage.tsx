@@ -853,7 +853,7 @@ function PendingInvitationsSection({
     return null;
   }
   return (
-    <div style={{ padding: '12px 28px 24px' }}>
+    <div style={{ padding: '12px var(--gutter) 24px' }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
         {t('admin.users.invitations_title')}
       </div>

@@ -69,7 +69,7 @@ export function ReviewPlanPreview({ ds }: Props) {
           <div className="muted" style={{ fontSize: 11 }}>{plan.description ?? ''}</div>
         </div>
         <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 10 }}>
+        <span className="mono muted" style={{ fontSize: 11 }}>
           timeout · {plan.approval_timeout_hours}h
         </span>
       </div>
@@ -87,7 +87,7 @@ export function ReviewPlanPreview({ ds }: Props) {
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
-              <div className="mono muted" style={{ fontSize: 10 }}>{s.detail}</div>
+              <div className="mono muted" style={{ fontSize: 11 }}>{s.detail}</div>
             </div>
             {i < stages.length - 1 && (
               <RightOutlined style={{ margin: '0 6px', color: 'var(--fg-faint)', fontSize: 11 }} />

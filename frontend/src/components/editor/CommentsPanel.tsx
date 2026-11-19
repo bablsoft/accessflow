@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { App, Button, Empty, Input, Skeleton } from 'antd';
+import { App, Button, Input, Skeleton } from 'antd';
 import { CommentOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import {
   commentKeys,
   createComment,
@@ -126,10 +127,7 @@ export function CommentsPanel({ queryId, selection, anchorSnapshot }: CommentsPa
           ))}
         </div>
       ) : (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={t('collab.no_comments')}
-        />
+        <EmptyState size="sm" title={t('collab.no_comments')} />
       )}
     </div>
   );

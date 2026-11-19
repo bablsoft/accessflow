@@ -193,7 +193,7 @@ export function QueryReviewsTab() {
           <Tooltip title={id} placement="topLeft">
             <div className="mono" style={{ fontSize: 11, lineHeight: 1.4 }}>
               <div style={{ fontWeight: 500 }}>{id.slice(0, 8)}</div>
-              <div className="muted" style={{ fontSize: 10 }}>{id}</div>
+              <div className="muted" style={{ fontSize: 11 }}>{id}</div>
             </div>
           </Tooltip>
         ),

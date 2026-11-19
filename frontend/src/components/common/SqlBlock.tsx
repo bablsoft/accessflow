@@ -12,7 +12,7 @@ export function SqlBlock({ sql, style }: { sql: string; style?: CSSProperties })
         borderRadius: 'var(--radius)',
         border: '1px solid var(--border)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 12.5,
+        fontSize: 13,
         lineHeight: 1.6,
         overflow: 'auto',
         whiteSpace: 'pre-wrap',

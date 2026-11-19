@@ -1,23 +1,10 @@
 import { useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  DatePicker,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Skeleton,
-  Space,
-  Table,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, DatePicker, Form, Input, Modal, Popconfirm, Skeleton, Space, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { apiKeysKeys, createApiKey, listApiKeys, revokeApiKey } from '@/api/apiKeys';
 import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '@/types/api';
 import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
@@ -186,7 +173,7 @@ export function ApiKeysSection() {
           aria-label={t('profile.api_keys.title')}
         />
       ) : (
-        <Empty description={t('profile.api_keys.empty')} />
+        <EmptyState size="sm" title={t('profile.api_keys.empty')} />
       )}
 
       <Modal

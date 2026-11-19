@@ -208,7 +208,7 @@ export function LoginPage() {
                     }}
                   >
                     <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                    <span className="muted mono" style={{ fontSize: 10 }}>
+                    <span className="muted mono" style={{ fontSize: 11 }}>
                       {t('auth.login.or_divider')}
                     </span>
                     <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />

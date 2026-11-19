@@ -324,7 +324,7 @@ export function QueryEditorPage() {
             <div>
               <label
                 className="muted"
-                style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+                style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
               >
                 {t('editor.justification_label')}{' '}
                 <span className="muted" style={{ fontWeight: 400 }}>
@@ -341,7 +341,7 @@ export function QueryEditorPage() {
             <div>
               <label
                 className="muted"
-                style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+                style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
               >
                 {t('editor.schedule_label')}{' '}
                 <span className="muted" style={{ fontWeight: 400 }}>
@@ -413,7 +413,7 @@ export function QueryEditorPage() {
         />
         <label
           className="muted"
-          style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+          style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
         >
           {t('editor.justification_label')}{' '}
           <span className="muted" style={{ fontWeight: 400 }}>

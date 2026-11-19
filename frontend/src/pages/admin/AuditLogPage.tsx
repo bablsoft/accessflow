@@ -325,7 +325,7 @@ export function AuditLogPage() {
         </span>
       </FilterBar>
       {(chainResult || chainError) && (
-        <div style={{ padding: '12px 28px 0' }}>
+        <div style={{ padding: '12px var(--gutter) 0' }}>
           {chainError ? (
             <Alert
               type="error"
@@ -407,12 +407,12 @@ export function AuditLogPage() {
                       <div>
                         <div style={{ fontSize: 12 }}>{name}</div>
                         {e.actor_email && (
-                          <div className="mono muted" style={{ fontSize: 10 }}>
+                          <div className="mono muted" style={{ fontSize: 11 }}>
                             {e.actor_email}
                           </div>
                         )}
                         {e.metadata.service_account === true && (
-                          <div className="muted" style={{ fontSize: 10 }}>
+                          <div className="muted" style={{ fontSize: 11 }}>
                             {t('admin.audit.via_service_account')}
                           </div>
                         )}
@@ -421,7 +421,7 @@ export function AuditLogPage() {
                           userId={typeof onBehalfOfId === 'string' ? onBehalfOfId : null}
                         />
                         {typeof e.metadata.application_name === 'string' && (
-                          <div style={{ fontSize: 10 }}>
+                          <div style={{ fontSize: 11 }}>
                             <ClientApplicationTag
                               name={e.metadata.application_name}
                               source={
@@ -445,7 +445,7 @@ export function AuditLogPage() {
                 render: (v) => (
                   <span
                     className="mono"
-                    style={{ fontSize: 11.5, fontWeight: 500, color: actionColor(v) }}
+                    style={{ fontSize: 12, fontWeight: 500, color: actionColor(v) }}
                   >
                     {v}
                   </span>
@@ -456,7 +456,7 @@ export function AuditLogPage() {
                 dataIndex: 'resource_type',
                 width: 150,
                 render: (v) => (
-                  <span className="mono" style={{ fontSize: 11.5 }}>
+                  <span className="mono" style={{ fontSize: 12 }}>
                     {v}
                   </span>
                 ),
@@ -466,7 +466,7 @@ export function AuditLogPage() {
                 dataIndex: 'resource_id',
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono muted" style={{ fontSize: 11.5 }}>
+                    <span className="mono muted" style={{ fontSize: 12 }}>
                       {v}
                     </span>
                   ) : (
@@ -479,7 +479,7 @@ export function AuditLogPage() {
                 width: 130,
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono muted" style={{ fontSize: 11.5 }}>
+                    <span className="mono muted" style={{ fontSize: 12 }}>
                       {v}
                     </span>
                   ) : (
@@ -562,7 +562,7 @@ export function AuditLogPage() {
                   margin: 0,
                   padding: 14,
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   lineHeight: 1.5,
                   background: 'var(--bg-code)',
                   borderRadius: '0 0 var(--radius-md) var(--radius-md)',

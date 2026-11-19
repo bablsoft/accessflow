@@ -213,7 +213,7 @@ export default function BreakGlassLogPage() {
                       <div>
                         <div style={{ fontSize: 12 }}>{name}</div>
                         {e.submitted_by_email && (
-                          <div className="mono muted" style={{ fontSize: 10 }}>
+                          <div className="mono muted" style={{ fontSize: 11 }}>
                             {e.submitted_by_email}
                           </div>
                         )}
@@ -228,7 +228,7 @@ export default function BreakGlassLogPage() {
                 width: 160,
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono" style={{ fontSize: 11.5 }}>
+                    <span className="mono" style={{ fontSize: 12 }}>
                       {v}
                     </span>
                   ) : (
@@ -350,7 +350,7 @@ export default function BreakGlassLogPage() {
                     margin: 0,
                     padding: 14,
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 11.5,
+                    fontSize: 12,
                     lineHeight: 1.5,
                     background: 'var(--bg-code)',
                     borderRadius: '0 0 var(--radius-md) var(--radius-md)',
