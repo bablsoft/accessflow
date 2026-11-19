@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Workflows",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-11-19",
       "url": "https://accessflow.io/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -268,7 +268,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>End-user workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-11-19">19 November 2026</time></p>
         </header>
 
 <section id="end-user" class="docs-section">
@@ -281,6 +281,14 @@
             The pages above configure the system. This section is the operator's view of how
             analysts and reviewers actually use it day-to-day — the editor, scheduled queries,
             and the bulk-approval review queue that landed in v1.1.
+          </p>
+          <p>
+            Two things help you move around the app. Press <kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">K</kbd>
+            (<kbd class="kbd">&#8984;</kbd><kbd class="kbd">K</kbd> on a Mac), or click <strong>Search</strong> in the top
+            bar, to open a search over every page you have access to, the pages you visited most
+            recently, and your latest queries. And each entry in the left menu has a pin button:
+            pinned pages are listed together near the top of the menu, so the handful you use every
+            day stay one click away.
           </p>
 
           <h3>How does a query get from submitted to executed?</h3>
@@ -301,6 +309,16 @@
             reviewer will have to look at the query rather than it being approved automatically. The
             submitter picks a datasource, writes SQL, fills in a justification, and submits — at
             which point the workflow takes over.
+          </p>
+          <p>
+            An unsent draft is kept while the browser tab stays open: if you leave the editor to look
+            something up and come back, the SQL, the justification and the chosen datasource are
+            restored, with a <strong>Discard draft</strong> button if you would rather start over.
+            The draft is dropped once the query is submitted, and it is not kept after the tab is
+            closed. The main actions also have keyboard shortcuts, shown on their buttons:
+            <kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Enter</kbd> submits, <kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd>
+            runs the AI analysis, and <kbd class="kbd">Alt</kbd>+<kbd class="kbd">Enter</kbd> runs a dry run
+            (<kbd class="kbd">&#8984;</kbd> and <kbd class="kbd">&#8997;</kbd> on a Mac).
           </p>
           <figure class="docs-figure">
             <picture>
@@ -496,9 +514,18 @@
             Reviewers land on <code>/reviews</code> — one review queue with a tab per kind of
             request they may decide (queries, API requests, deployments, rollbacks), each tab
             showing its pending count. On the <strong>Queries</strong> tab each row shows the
-            query id, classification, AI risk, datasource, submitter, and elapsed time. Three
-            views scope the list: <em>Assigned to you</em>, <em>All pending</em> (visible to
-            anyone the plan grants approver eligibility), and <em>Recently decided</em>.
+            query id, classification, AI risk, datasource, submitter, and elapsed time. Two
+            views scope the list: <em>Assigned to you</em> and <em>All pending</em> (visible to
+            anyone the plan grants approver eligibility).
+          </p>
+          <p>
+            The queue can be worked from the keyboard: <kbd class="kbd">J</kbd> and <kbd class="kbd">K</kbd> (or the arrow
+            keys) move between requests, <kbd class="kbd">Enter</kbd> opens the selected one, <kbd class="kbd">A</kbd>
+            approves it and <kbd class="kbd">R</kbd> rejects it, asking for the comment a rejection needs.
+            Press <kbd class="kbd">?</kbd> to see the list. The same keys work on the API requests and
+            Deployments tabs. On a wide screen the Queries tab also shows the selected request
+            beside the list — its SQL, justification and AI summary, with <em>Approve</em> and
+            <em>Reject</em> — so most decisions can be made without opening each query in turn.
           </p>
           <p>
             A row may also carry an <strong>approval likelihood</strong> — the probability, learned
@@ -513,7 +540,7 @@
             <picture>
               <source srcset="/images/docs/reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/reviews-queue-dark.webp"
-                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and a switch between Assigned to you, All pending, and Recently decided."
+                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and a switch between the Assigned to you and All pending views."
                    loading="lazy" width="1440" height="900" />
             </picture>
             <figcaption><code>/reviews</code> — reviewer queue, no rows selected.</figcaption>
