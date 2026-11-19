@@ -38,7 +38,7 @@ function ClassificationBadges({ classifications }: { classifications: DataClassi
   return (
     <>
       {classifications.map((c) => (
-        <Tag key={c} color="volcano" style={{ marginInlineEnd: 0, fontSize: 9, lineHeight: '14px', padding: '0 4px' }}>
+        <Tag key={c} color="volcano" style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '14px', padding: '0 4px' }}>
           {c}
         </Tag>
       ))}
@@ -131,7 +131,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                         >
                           <TableOutlined style={{ fontSize: 11, color: 'var(--sql-table)' }} />
                           <span>{tab.name}</span>
-                          <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>
+                          <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>
                             {tab.columns.length}
                           </span>
                         </button>
@@ -157,7 +157,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                         tab.columns.map((c) => (
                           <div key={c.name} style={columnRowStyle}>
                             {c.primary_key ? (
-                              <span style={{ color: 'var(--risk-med)', fontSize: 9 }}>PK</span>
+                              <span style={{ color: 'var(--risk-med)', fontSize: 11 }}>PK</span>
                             ) : (
                               <span style={{ width: 12 }} />
                             )}
@@ -168,7 +168,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                                 `${tab.name}.${c.name}`,
                               )}
                             />
-                            <span style={{ marginLeft: 'auto', color: 'var(--fg-faint)', fontSize: 10 }}>
+                            <span style={{ marginLeft: 'auto', color: 'var(--fg-faint)', fontSize: 11 }}>
                               {c.type}
                             </span>
                           </div>

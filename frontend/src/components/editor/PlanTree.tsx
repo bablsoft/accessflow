@@ -43,12 +43,12 @@ export function PlanTree({ plan }: PlanTreeProps) {
               )}
               <div style={{ flex: 1 }} />
               {rowsLabel && (
-                <span className="mono muted" style={{ fontSize: 10.5 }}>
+                <span className="mono muted" style={{ fontSize: 11 }}>
                   {t('dry_run_panel.rows_badge', { value: rowsLabel })}
                 </span>
               )}
               {costLabel && (
-                <span className="mono muted" style={{ fontSize: 10.5 }}>
+                <span className="mono muted" style={{ fontSize: 11 }}>
                   {t('dry_run_panel.cost_badge', { value: costLabel })}
                 </span>
               )}

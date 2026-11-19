@@ -109,7 +109,7 @@ export function ApprovalPredictionPanel({
         <span className="muted">{t('approval_prediction.value_label')}</span>
         <ApprovalPredictionBadge probability={prediction.probability} />
       </div>
-      <div className="muted" style={{ marginTop: 10, fontSize: 11.5, lineHeight: 1.5 }}>
+      <div className="muted" style={{ marginTop: 10, fontSize: 12, lineHeight: 1.5 }}>
         {t('approval_prediction.tooltip')}
       </div>
     </div>

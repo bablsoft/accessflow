@@ -1,24 +1,11 @@
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Descriptions,
-  Empty,
-  Input,
-  Modal,
-  Popconfirm,
-  Progress,
-  Skeleton,
-  Table,
-  Tag,
-} from 'antd';
+import { Alert, App, Button, Card, Descriptions, Input, Modal, Popconfirm, Progress, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailCard } from '@/components/common/DetailCard';
@@ -322,7 +309,7 @@ export default function DeploymentDetailPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && (
-          <Empty description={t('deploygov.deployments.notFound')} />
+          <EmptyState size="sm" title={t('deploygov.deployments.notFound')} />
         )}
         {request && (
           <>

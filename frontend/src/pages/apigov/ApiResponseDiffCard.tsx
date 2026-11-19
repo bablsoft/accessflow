@@ -258,7 +258,7 @@ function Label({ text }: { text: string }) {
   return (
     <div
       className="muted mono"
-      style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}
+      style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}
     >
       {text}
     </div>

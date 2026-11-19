@@ -1,19 +1,8 @@
 import { useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Empty,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Card, Popconfirm, Select, Space, Table, Tag, Typography } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import type { TFunction } from 'i18next';
 import {
   acceptApiSchemaRevision,
@@ -203,7 +192,7 @@ export function ApiConnectorDriftTab({
         {schemasQuery.isError ? (
           <LoadError error={schemasQuery.error} />
         ) : !schemasQuery.isLoading && refreshable.length === 0 ? (
-          <Empty description={t('apiGov.drift.noRefreshableSchema')} />
+          <EmptyState size="sm" title={t('apiGov.drift.noRefreshableSchema')} />
         ) : (
           refreshable.map((schema) => (
             <SchemaRevisionsCard key={schema.id} connectorId={connectorId} schema={schema} />

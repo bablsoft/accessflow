@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { App, Button, Empty, Form, Input, Select, Skeleton, Switch, Tabs } from 'antd';
+import { App, Button, Form, Input, Select, Skeleton, Switch, Tabs } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
@@ -219,7 +220,7 @@ export function DeploymentPipelineSettingsPage() {
       <PageBody>
         {pipelineQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!pipelineQuery.isLoading && !pipeline && (
-          <Empty description={t('deploygov.pipelines.notFound')} />
+          <EmptyState size="sm" title={t('deploygov.pipelines.notFound')} />
         )}
         {pipeline && (
           <Tabs

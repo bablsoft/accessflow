@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Descriptions, Drawer, Empty, List, Popconfirm, Select, Space, Tabs, Tag } from 'antd';
+import { App, Button, Descriptions, Drawer, List, Popconfirm, Select, Space, Tabs, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import {
   listTemplateVersions,
   queryTemplateKeys,
@@ -145,7 +146,7 @@ export function TemplateDetailDrawer({
   const historyTab = versionsQuery.isLoading ? (
     <List loading dataSource={[]} renderItem={() => null} />
   ) : versions.length === 0 ? (
-    <Empty description={t('editor.templates.history.empty_state')} />
+    <EmptyState size="sm" title={t('editor.templates.history.empty_state')} />
   ) : (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Space wrap>

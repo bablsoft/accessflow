@@ -95,7 +95,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
               </div>
               <div
                 style={{
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: 600,
                   color: isDanger ? 'var(--risk-crit)' : undefined,
                 }}
@@ -105,7 +105,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
               <div
                 className={isDanger ? undefined : 'muted'}
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 12,
                   marginTop: 2,
                   color: isDanger ? 'var(--risk-crit)' : undefined,
                 }}
@@ -116,7 +116,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
               {s.detail && (
                 <div
                   style={{
-                    fontSize: 11.5,
+                    fontSize: 12,
                     marginTop: 4,
                     color: 'var(--fg-muted)',
                     fontStyle: s.detail.startsWith('"') ? 'italic' : 'normal',

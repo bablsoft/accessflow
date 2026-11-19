@@ -75,7 +75,7 @@ function TableNode({ id, data }: NodeProps<Node<TableNodeData>>) {
               {c.primary_key && (
                 <span
                   className="muted"
-                  style={{ fontSize: 10, marginRight: 6, fontWeight: 600 }}
+                  style={{ fontSize: 11, marginRight: 6, fontWeight: 600 }}
                 >
                   {data.pkLabel}
                 </span>

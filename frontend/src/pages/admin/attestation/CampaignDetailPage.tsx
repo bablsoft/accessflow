@@ -190,7 +190,7 @@ export default function CampaignDetailPage() {
       />
       <div
         style={{
-          padding: '16px 28px',
+          padding: '16px var(--gutter)',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-elev)',
           display: 'flex',
@@ -299,7 +299,7 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
     <div>
       <div
         className="muted"
-        style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {label}
       </div>

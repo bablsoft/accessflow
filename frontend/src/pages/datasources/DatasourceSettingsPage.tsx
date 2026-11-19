@@ -337,7 +337,7 @@ export function DatasourceSettingsPage() {
       <Tabs
         activeKey={tab}
         onChange={setTab}
-        style={{ padding: '0 28px' }}
+        style={{ padding: '0 var(--gutter)' }}
         items={[
           { key: 'config', label: t('datasources.settings.tab_config') },
           {

@@ -278,7 +278,7 @@ export default function AnomaliesPage() {
                         <div>
                           <div style={{ fontSize: 12 }}>{name}</div>
                           {a.user_email && (
-                            <div className="mono muted" style={{ fontSize: 10 }}>
+                            <div className="mono muted" style={{ fontSize: 11 }}>
                               {a.user_email}
                             </div>
                           )}
@@ -292,14 +292,14 @@ export default function AnomaliesPage() {
                   dataIndex: 'datasource_name',
                   width: 160,
                   render: (v: string | null) =>
-                    v ? <span className="mono" style={{ fontSize: 11.5 }}>{v}</span> : <span className="muted">—</span>,
+                    v ? <span className="mono" style={{ fontSize: 12 }}>{v}</span> : <span className="muted">—</span>,
                 },
                 {
                   title: t('anomalies.col_feature'),
                   dataIndex: 'feature',
                   width: 180,
                   render: (v) => (
-                    <span className="mono" style={{ fontSize: 11.5, fontWeight: 500 }}>
+                    <span className="mono" style={{ fontSize: 12, fontWeight: 500 }}>
                       {v}
                     </span>
                   ),
@@ -407,7 +407,7 @@ export default function AnomaliesPage() {
                   margin: 0,
                   padding: 14,
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   lineHeight: 1.5,
                   background: 'var(--bg-code)',
                   borderRadius: '0 0 var(--radius-md) var(--radius-md)',

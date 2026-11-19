@@ -1,6 +1,6 @@
 import { Tabs } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { QueryTracePanel } from '@/components/access/QueryTracePanel';
 import { EffectiveAccessPanel } from '@/components/access/EffectiveAccessPanel';
@@ -42,9 +42,9 @@ export default function AccessSimulationPage() {
   return (
     <Page>
       <PageHeader title={t('access.simulation.title')} subtitle={t('access.simulation.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 28px 28px' }}>
+      <PageBody>
         <Tabs items={items} />
-      </div>
+      </PageBody>
     </Page>
   );
 }

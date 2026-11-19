@@ -110,7 +110,7 @@ export function ReviewHubPage() {
       <Tabs
         activeKey={active}
         onChange={(key) => setSearchParams({ tab: key }, { replace: true })}
-        style={{ padding: '0 28px' }}
+        style={{ padding: '0 var(--gutter)' }}
         items={tabs.map((tab) => ({
           key: tab.key,
           label: t(tab.labelKey, { count: counts[tab.key] }),

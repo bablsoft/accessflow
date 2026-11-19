@@ -31,7 +31,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
       <div style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
         <label
           className="muted"
-          style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+          style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
         >
           {t('editor.datasource_label')}
         </label>
@@ -45,7 +45,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
         />
         <div
           className="mono muted"
-          style={{ fontSize: 10, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+          style={{ fontSize: 11, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}
         >
           <span
             style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--risk-low)' }}

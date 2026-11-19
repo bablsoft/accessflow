@@ -85,7 +85,7 @@ export default function ConnectorsPage() {
       />
       <div
         style={{
-          padding: '12px 28px',
+          padding: '12px var(--gutter)',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-elev)',
         }}
@@ -182,7 +182,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
           }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15 }}>{connector.name}</div>
+          <div style={{ fontWeight: 600, fontSize: 16 }}>{connector.name}</div>
           <Tag color={DB_TYPE_COLOR[connector.db_type]} style={{ marginTop: 2 }}>
             {dbTypeLabel(t, connector.db_type)}
           </Tag>

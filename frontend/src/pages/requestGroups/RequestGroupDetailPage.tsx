@@ -1,18 +1,9 @@
 import { useState } from 'react';
-import {
-  App,
-  Button,
-  Card,
-  Descriptions,
-  Empty,
-  Input,
-  Modal,
-  Skeleton,
-  Space,
-} from 'antd';
+import { App, Button, Card, Descriptions, Input, Modal, Skeleton, Space } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RequestGroupStatusPill } from '@/components/common/RequestGroupStatusPill';
@@ -111,7 +102,7 @@ export default function RequestGroupDetailPage() {
         style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}
       >
         {groupQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
-        {!groupQuery.isLoading && !group && <Empty description={t('requestGroups.detail.notFound')} />}
+        {!groupQuery.isLoading && !group && <EmptyState size="sm" title={t('requestGroups.detail.notFound')} />}
         {group && (
           <>
             <Card size="small">

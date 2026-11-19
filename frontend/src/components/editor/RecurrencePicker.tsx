@@ -64,7 +64,7 @@ export function RecurrencePicker({
     <div>
       <label
         className="muted"
-        style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+        style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
       >
         {t('editor.recurrence_label')}{' '}
         <span className="muted" style={{ fontWeight: 400 }}>

@@ -33,7 +33,7 @@ export function TextToSqlBar({ datasourceId, onGenerated }: TextToSqlBarProps) {
     <div>
       <label
         className="muted"
-        style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+        style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
       >
         {t('editor.text_to_sql.label')}{' '}
         <span className="muted" style={{ fontWeight: 400 }}>

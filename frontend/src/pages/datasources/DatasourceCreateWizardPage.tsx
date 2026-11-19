@@ -1018,7 +1018,7 @@ export default function DatasourceCreateWizardPage() {
       />
       <div
         style={{
-          padding: '20px 28px',
+          padding: '20px var(--gutter)',
           background: 'var(--bg-elev)',
           borderBottom: '1px solid var(--border)',
         }}
@@ -1028,7 +1028,7 @@ export default function DatasourceCreateWizardPage() {
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>{stepBody}</div>
       <div
         style={{
-          padding: '12px 28px',
+          padding: '12px var(--gutter)',
           borderTop: '1px solid var(--border)',
           background: 'var(--bg-elev)',
           display: 'flex',

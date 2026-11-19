@@ -1,18 +1,8 @@
 import { useMemo, useState } from 'react';
-import {
-  App,
-  Button,
-  Drawer,
-  Empty,
-  Input,
-  List,
-  Popconfirm,
-  Segmented,
-  Space,
-  Tag,
-} from 'antd';
+import { App, Button, Drawer, Input, List, Popconfirm, Segmented, Space, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '@/components/common/EmptyState';
 import {
   deleteQueryTemplate,
   listQueryTemplates,
@@ -104,7 +94,7 @@ export function QueryTemplatesDrawer({
           ]}
         />
         {items.length === 0 && !templatesQuery.isLoading ? (
-          <Empty description={t('editor.templates.empty_state')} />
+          <EmptyState size="sm" title={t('editor.templates.empty_state')} />
         ) : (
           <List<QueryTemplate>
             loading={templatesQuery.isLoading}

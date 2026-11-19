@@ -384,7 +384,7 @@ function ChannelCard({
           padding: 10,
           background: 'var(--bg-sunken)',
           borderRadius: 6,
-          fontSize: 11.5,
+          fontSize: 12,
           fontFamily: 'var(--font-mono)',
           lineHeight: 1.5,
           maxHeight: 110,
@@ -403,7 +403,7 @@ function ChannelCard({
           borderTop: '1px solid var(--border)',
         }}
       >
-        <span className="mono muted" style={{ fontSize: 10 }}>
+        <span className="mono muted" style={{ fontSize: 11 }}>
           {fmtDate(ch.created_at).split(',')[0]}
         </span>
         <div style={{ flex: 1 }} />
