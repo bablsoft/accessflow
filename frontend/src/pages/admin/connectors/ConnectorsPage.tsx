@@ -3,6 +3,7 @@ import { App, Button, Input, Skeleton, Tag, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { DriverStatusBadge } from '@/components/datasources/DriverStatusBadge';
@@ -76,7 +77,7 @@ export default function ConnectorsPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-connectors"
         title={t('connectors.title')}
@@ -140,7 +141,7 @@ export default function ConnectorsPage() {
           ))
         )}
       </div>
-    </div>
+    </Page>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Alert, Card, Skeleton, Space } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { getCurrentUser, meKeys } from '@/api/me';
 import { PageHeader } from '@/components/common/PageHeader';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
@@ -37,9 +38,9 @@ export function ProfilePage() {
         : t('profile.totp.saml_disabled');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             {error && (() => {
@@ -91,7 +92,7 @@ export function ProfilePage() {
             </Card>
           </Space>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

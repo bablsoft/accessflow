@@ -5,6 +5,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -85,7 +86,7 @@ export default function CampaignListPage() {
   const campaigns = campaignsQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-attestation"
         title={t('attestation.list.title')}
@@ -103,15 +104,7 @@ export default function CampaignListPage() {
           </>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          gap: 8,
-        }}
-      >
+      <FilterBar>
         <Select
           value={statusFilter}
           onChange={(v) => {
@@ -124,8 +117,8 @@ export default function CampaignListPage() {
             ...enumOptions(ATTESTATION_CAMPAIGN_STATUSES, attestationCampaignStatusLabel, t),
           ]}
         />
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {campaignsQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : campaignsQuery.isError ? (
@@ -223,7 +216,7 @@ export default function CampaignListPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <CreateCampaignModal
         open={creating}
@@ -231,7 +224,7 @@ export default function CampaignListPage() {
         onSubmit={(values) => createMutation.mutate(values)}
         loading={createMutation.isPending}
       />
-    </div>
+    </Page>
   );
 }
 

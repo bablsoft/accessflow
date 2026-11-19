@@ -5,6 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LadderStrip } from '@/components/schemaChange/LadderStrip';
@@ -189,7 +190,7 @@ export default function SchemaChangeSetListPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('schemaChange.list.title')}
         subtitle={t('schemaChange.list.subtitle')}
@@ -200,17 +201,7 @@ export default function SchemaChangeSetListPage() {
           </Button>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={pipeline}
           aria-label={t('schemaChange.list.pipeline')}
@@ -238,7 +229,7 @@ export default function SchemaChangeSetListPage() {
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('schemaChange.list.count', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
-      </div>
+      </FilterBar>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>{body}</div>
 
       <Modal
@@ -306,6 +297,6 @@ export default function SchemaChangeSetListPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }

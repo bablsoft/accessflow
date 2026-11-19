@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import { RequestGroupItemStatusPill } from '@/components/common/RequestGroupItemStatusPill';
@@ -196,9 +197,9 @@ export default function RequestGroupReviewQueuePage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('requestGroups.reviews.title')} subtitle={t('requestGroups.reviews.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {queueQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -225,7 +226,7 @@ export default function RequestGroupReviewQueuePage() {
             }}
           />
         )}
-      </div>
+      </PageBody>
       <Modal
         open={decisionFor !== null}
         title={
@@ -244,6 +245,6 @@ export default function RequestGroupReviewQueuePage() {
           onChange={(e) => setComment(e.target.value)}
         />
       </Modal>
-    </div>
+    </Page>
   );
 }

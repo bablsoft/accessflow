@@ -34,6 +34,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -295,7 +296,7 @@ export function QueryDetailPage() {
     query.status === 'PENDING_REVIEW' && (submitterId === user.id || isReviewer);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         breadcrumbs={[t('queries.detail.breadcrumb_queries'), query.id]}
         title={
@@ -993,7 +994,7 @@ export function QueryDetailPage() {
           <Metadata query={query} />
         </div>
       </div>
-    </div>
+    </Page>
   );
 }
 

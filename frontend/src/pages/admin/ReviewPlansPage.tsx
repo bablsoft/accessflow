@@ -24,6 +24,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -239,7 +240,7 @@ export function ReviewPlansPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-review-plans"
         title={t('admin.review_plans.title')}
@@ -272,7 +273,7 @@ export function ReviewPlansPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {plansQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : plansQuery.isError ? (
@@ -366,7 +367,7 @@ export function ReviewPlansPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <Modal
         open={isOpen}
@@ -552,7 +553,7 @@ export function ReviewPlansPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }
 

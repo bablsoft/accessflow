@@ -5,6 +5,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RequestGroupStatusPill } from '@/components/common/RequestGroupStatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -172,7 +173,7 @@ export default function RequestGroupListPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('requestGroups.list.title')}
         subtitle={t('requestGroups.list.subtitle')}
@@ -182,17 +183,7 @@ export default function RequestGroupListPage() {
           </Button>
         }
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
           placeholder={t('requestGroups.list.searchPlaceholder')}
@@ -212,8 +203,8 @@ export default function RequestGroupListPage() {
           ]}
           style={{ width: 180 }}
         />
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {groupsQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -239,7 +230,7 @@ export default function RequestGroupListPage() {
             })}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

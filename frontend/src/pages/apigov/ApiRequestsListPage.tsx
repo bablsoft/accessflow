@@ -6,6 +6,7 @@ import { ClockCircleOutlined, HourglassOutlined, SearchOutlined } from '@ant-des
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -228,19 +229,9 @@ export default function ApiRequestsListPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('apiGov.requests.title')} subtitle={t('apiGov.requests.subtitle')} />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
           placeholder={t('apiGov.requests.searchPlaceholder')}
@@ -312,8 +303,8 @@ export default function ApiRequestsListPage() {
             total: requestsQuery.data?.total_elements ?? 0,
           })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {requestsQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -339,7 +330,7 @@ export default function ApiRequestsListPage() {
             })}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }

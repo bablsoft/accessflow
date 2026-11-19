@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { CheckOutlined, SyncOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -289,23 +290,13 @@ export default function SchemaDriftPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('schemaChange.drift.title')}
         subtitle={t('schemaChange.drift.subtitle')}
         docsAnchor="cfg-schema-changes"
       />
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={pipeline}
           aria-label={t('schemaChange.drift.pipeline')}
@@ -336,7 +327,7 @@ export default function SchemaDriftPage() {
           ]}
           style={{ width: 170 }}
         />
-      </div>
+      </FilterBar>
       <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Alert type="info" showIcon title={t('schemaChange.drift.fidelityNote')} />
         {truncated && (
@@ -349,7 +340,7 @@ export default function SchemaDriftPage() {
         )}
         {body}
       </div>
-    </div>
+    </Page>
   );
 }
 

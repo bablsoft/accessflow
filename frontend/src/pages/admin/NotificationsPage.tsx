@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SystemSmtpCard } from '@/components/admin/SystemSmtpCard';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -162,7 +163,7 @@ export function NotificationsPage() {
   const channels = channelsQuery.data ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-notification-channels"
         title={t('admin.notifications.title')}
@@ -178,7 +179,7 @@ export function NotificationsPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         <SystemSmtpCard />
         {channelsQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -221,7 +222,7 @@ export function NotificationsPage() {
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
       <ChannelFormModal
         open={creating || !!editing}
@@ -265,7 +266,7 @@ export function NotificationsPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }
 

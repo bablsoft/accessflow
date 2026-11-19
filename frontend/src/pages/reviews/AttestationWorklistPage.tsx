@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -219,7 +220,7 @@ export default function AttestationWorklistPage() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('attestation.worklist.title')}
         subtitle={t('attestation.worklist.subtitle')}
@@ -229,7 +230,7 @@ export default function AttestationWorklistPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         {selectedRowKeys.length > 0 && (
           <div
             role="toolbar"
@@ -314,7 +315,7 @@ export default function AttestationWorklistPage() {
             }}
           />
         )}
-      </div>
+      </PageBody>
       <AttestationRevokeModal
         open={revokeTargetId !== null}
         loading={revoke.isPending}
@@ -335,7 +336,7 @@ export default function AttestationWorklistPage() {
           bulk.mutate({ decision: bulkAction, comment });
         }}
       />
-    </div>
+    </Page>
   );
 }
 

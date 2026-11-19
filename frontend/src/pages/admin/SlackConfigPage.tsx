@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Popconfirm, Skeleton, Switch, Typography } fr
 import { CheckOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -112,13 +113,13 @@ export function SlackConfigPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-slack"
         title={t('admin.slack.title')}
         subtitle={t('admin.slack.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody>
         <Typography.Paragraph type="secondary">
           {configured ? t('admin.slack.status_configured') : t('admin.slack.status_unconfigured')}
         </Typography.Paragraph>
@@ -208,8 +209,8 @@ export function SlackConfigPage() {
             )}
           </div>
         </Form>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

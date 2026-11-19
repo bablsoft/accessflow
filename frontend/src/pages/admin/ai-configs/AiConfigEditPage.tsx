@@ -9,6 +9,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -238,7 +239,7 @@ export default function AiConfigEditPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-ai"
         title={t('admin.ai_configs.edit_title', { name: cfg.name })}
@@ -402,6 +403,6 @@ export default function AiConfigEditPage() {
         </Form>
         <KnowledgeDocumentsSection configId={cfg.id} ragEnabled={cfg.rag_enabled} />
       </div>
-    </div>
+    </Page>
   );
 }

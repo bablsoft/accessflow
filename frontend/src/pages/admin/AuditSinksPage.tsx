@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -130,7 +131,7 @@ export default function AuditSinksPage() {
   const sinks = sinksQuery.data ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-audit-sinks"
         title={t('admin.audit_sinks.title')}
@@ -146,7 +147,7 @@ export default function AuditSinksPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         {sinksQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
         ) : sinksQuery.isError ? (
@@ -184,7 +185,7 @@ export default function AuditSinksPage() {
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
       <SinkFormModal
         open={creating || !!editing}
@@ -202,7 +203,7 @@ export default function AuditSinksPage() {
         }}
         loading={createMutation.isPending || updateMutation.isPending}
       />
-    </div>
+    </Page>
   );
 }
 

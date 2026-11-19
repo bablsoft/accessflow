@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import {
   DndContext,
   KeyboardSensor,
@@ -222,7 +223,7 @@ export default function GroupBuilderPage() {
   const editingMember = members.find((m) => m.key === editingKey) ?? null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={editId ? t('requestGroups.builder.editTitle') : t('requestGroups.builder.title')}
         subtitle={t('requestGroups.builder.subtitle')}
@@ -398,6 +399,6 @@ export default function GroupBuilderPage() {
         onChange={(next) => updateMember(next.key, next)}
         onClose={() => setEditingKey(null)}
       />
-    </div>
+    </Page>
   );
 }

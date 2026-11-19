@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import {
   draftFingerprint,
@@ -330,7 +331,7 @@ export function RoutingPoliciesPage() {
       : t('admin.routing_policies.scope_org_wide');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-routing-policies"
         title={t('admin.routing_policies.title')}
@@ -353,7 +354,7 @@ export function RoutingPoliciesPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {policiesQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : policiesQuery.isError ? (
@@ -480,7 +481,7 @@ export function RoutingPoliciesPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <Modal
         open={isOpen}
@@ -611,6 +612,6 @@ export function RoutingPoliciesPage() {
         summarize={(result) => routingSimulationSummary(result, t)}
         onSimulated={setSimulatedKey}
       />
-    </div>
+    </Page>
   );
 }

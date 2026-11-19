@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { App, Button, Form, Input, Select, Skeleton, Table, Tag } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -84,7 +85,7 @@ export default function ErasureSubmitPage() {
   const requests = mineQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader title={t('lifecycle.erasure.title')} subtitle={t('lifecycle.erasure.subtitle')} />
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px', maxWidth: 1100 }}>
         <Form<ErasureFormValues>
@@ -239,6 +240,6 @@ export default function ErasureSubmitPage() {
           />
         )}
       </div>
-    </div>
+    </Page>
   );
 }

@@ -5,6 +5,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FilterBar, PageBody } from '@/components/layout';
 import { TriageShortcuts, useTriageKeys } from '@/components/review/triage';
 import '@/components/review/triage/triage.css';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -241,17 +242,7 @@ export function PendingDeploymentsTab() {
 
   return (
     <>
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
           placeholder={t('deploygov.reviews.searchPlaceholder')}
@@ -291,8 +282,8 @@ export function PendingDeploymentsTab() {
             total: queueQuery.data?.total_elements ?? 0,
           })}
         </span>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {queueQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -319,7 +310,7 @@ export function PendingDeploymentsTab() {
             }}
           />
         )}
-      </div>
+      </PageBody>
       {/* Dismissing clears the draft — a comment typed for one decision must never be carried
           into the next row's opposite decision. */}
       <Modal
@@ -481,16 +472,7 @@ export function RollbackReviewsTab() {
 
   return (
     <>
-      <div
-        style={{
-          padding: '12px 28px',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-        }}
-      >
+      <FilterBar>
         <Select
           value={status}
           aria-label={t('deploygov.reviews.rollbackStatus')}
@@ -504,8 +486,8 @@ export function RollbackReviewsTab() {
           ]}
           style={{ width: 170 }}
         />
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      </FilterBar>
+      <PageBody flush>
         {listQuery.isLoading ? (
           <div style={{ padding: 16 }}>
             <Skeleton active paragraph={{ rows: 8 }} />
@@ -527,7 +509,7 @@ export function RollbackReviewsTab() {
             }}
           />
         )}
-      </div>
+      </PageBody>
       <Modal
         open={ackFor !== null}
         title={t('deploygov.reviews.ackTitle')}

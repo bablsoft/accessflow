@@ -3,6 +3,7 @@ import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Space, S
 import { CheckOutlined, CopyOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -79,13 +80,13 @@ export function OAuth2ConfigPage() {
   const configs: OAuth2Config[] = listQuery.data ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-oauth"
         title={t('admin.oauth2.title')}
         subtitle={t('admin.oauth2.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -106,8 +107,8 @@ export function OAuth2ConfigPage() {
             ),
           }))}
         />
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

@@ -3,6 +3,7 @@ import { App, Button, Input, Modal, Skeleton, Table, Tag, Tooltip } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -63,7 +64,7 @@ export default function ErasureReviewQueuePage() {
   const requests = queueQuery.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-lifecycle"
         title={t('lifecycle.erasure_review.title')}
@@ -76,7 +77,7 @@ export default function ErasureReviewQueuePage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         {queueQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
         ) : queueQuery.isError ? (
@@ -197,7 +198,7 @@ export default function ErasureReviewQueuePage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <Modal
         open={rejectTarget !== null}
@@ -220,6 +221,6 @@ export default function ErasureReviewQueuePage() {
           placeholder={t('lifecycle.erasure_review.reject_comment_placeholder')}
         />
       </Modal>
-    </div>
+    </Page>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -173,7 +174,7 @@ export function DecisionHooksPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('admin.decision_hooks.title')}
         subtitle={t('admin.decision_hooks.subtitle')}
@@ -196,7 +197,7 @@ export function DecisionHooksPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         <Alert
           type="info"
           showIcon
@@ -317,7 +318,7 @@ export function DecisionHooksPage() {
             ]}
           />
         )}
-      </div>
+      </PageBody>
 
       <Modal
         open={isOpen}
@@ -423,7 +424,7 @@ export function DecisionHooksPage() {
           )}
         </Form>
       </Modal>
-    </div>
+    </Page>
   );
 }
 

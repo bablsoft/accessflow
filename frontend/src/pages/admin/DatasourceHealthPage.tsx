@@ -3,6 +3,7 @@ import { Pie } from '@ant-design/charts';
 import { DashboardOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { datasourceHealthKeys, fetchDatasourceHealth } from '@/api/datasourceHealth';
@@ -24,7 +25,7 @@ export default function DatasourceHealthPage() {
   const rows = query.data?.content ?? [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-datasource-health"
         title={t('admin.datasource_health.title')}
@@ -41,7 +42,7 @@ export default function DatasourceHealthPage() {
           </Space>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
+      <PageBody>
         {query.isLoading ? (
           <Row gutter={[16, 16]}>
             {[0, 1, 2, 3].map((i) => (
@@ -78,8 +79,8 @@ export default function DatasourceHealthPage() {
             ))}
           </Row>
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

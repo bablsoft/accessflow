@@ -15,6 +15,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -110,7 +111,7 @@ export function OrganizationDetailPage() {
   const org = orgQuery.data;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-organizations"
         title={org.name}
@@ -203,7 +204,7 @@ export function OrganizationDetailPage() {
           </Form>
         </Card>
       </div>
-    </div>
+    </Page>
   );
 }
 

@@ -3,6 +3,7 @@ import { Alert, Button, Skeleton, Table, Tag, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { JobStatusPill } from '@/components/jobs/JobStatusPill';
@@ -174,7 +175,7 @@ export function JobsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-job-monitoring"
         title={t('admin.jobs.title')}
@@ -199,6 +200,6 @@ export function JobsPage() {
         {content}
       </div>
       <JobExecutionsDrawer jobName={selectedJob} onClose={() => setSelectedJob(null)} />
-    </div>
+    </Page>
   );
 }

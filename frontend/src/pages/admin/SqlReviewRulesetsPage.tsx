@@ -22,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -288,7 +289,7 @@ export function SqlReviewRulesetsPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         title={t('admin.sql_review.title')}
         subtitle={t('admin.sql_review.subtitle')}
@@ -317,7 +318,7 @@ export function SqlReviewRulesetsPage() {
           )
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         <Tabs
           activeKey={activeTab}
           onChange={(key) =>
@@ -452,7 +453,7 @@ export function SqlReviewRulesetsPage() {
             },
           ]}
         />
-      </div>
+      </PageBody>
 
       <Modal
         open={isOpen}
@@ -546,7 +547,7 @@ export function SqlReviewRulesetsPage() {
         rule={ruleInDrawer ?? null}
         onClose={() => setRuleInDrawer(undefined)}
       />
-    </div>
+    </Page>
   );
 }
 

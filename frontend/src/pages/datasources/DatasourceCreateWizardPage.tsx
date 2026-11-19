@@ -4,6 +4,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -1002,7 +1003,7 @@ export default function DatasourceCreateWizardPage() {
     : t('datasources.create.save_and_test');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-datasources"
         title={t('datasources.create.title')}
@@ -1068,7 +1069,7 @@ export default function DatasourceCreateWizardPage() {
           </Button>
         )}
       </div>
-    </div>
+    </Page>
   );
 }
 

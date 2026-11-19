@@ -23,6 +23,7 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
 import { ApiConnectorLimitsTab } from '@/components/apigov/ApiConnectorLimitsTab';
 import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
@@ -114,7 +115,7 @@ export default function ApiConnectorSettingsPage() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-api-connectors"
         title={connectorQuery.data?.name ?? t('apiGov.settings.title')}
@@ -126,7 +127,7 @@ export default function ApiConnectorSettingsPage() {
           </Space>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+      <PageBody>
         <Tabs
           activeKey={activeTab}
           onChange={selectTab}
@@ -149,8 +150,8 @@ export default function ApiConnectorSettingsPage() {
             { key: 'limits', label: t('apiGov.settings.tabLimits'), children: <ApiConnectorLimitsTab connectorId={id} /> },
           ]}
         />
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 

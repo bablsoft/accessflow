@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -125,7 +126,7 @@ export default function CampaignDetailPage() {
   const statusColor = attestationCampaignStatusColor(campaign.status);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-attestation"
         breadcrumbs={[
@@ -211,7 +212,7 @@ export default function CampaignDetailPage() {
         <Stat label={t('attestation.detail.section_certified')}>{campaign.certified_items}</Stat>
         <Stat label={t('attestation.detail.section_revoked')}>{campaign.revoked_items}</Stat>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+      <PageBody flush>
         <div style={{ padding: '14px 16px 6px', fontWeight: 600, fontSize: 13 }}>
           {t('attestation.detail.items_title')}
         </div>
@@ -287,8 +288,8 @@ export default function CampaignDetailPage() {
             ]}
           />
         )}
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
