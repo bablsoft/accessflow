@@ -1004,7 +1004,9 @@
       "error": "Не удалось загрузить источники данных",
       "empty": "Источников данных пока нет — добавьте, чтобы начать.",
       "stat_plan": "план",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "активен",
+      "status_inactive": "неактивен"
     },
     "create": {
       "field_text_to_sql_enabled": "Включить генерацию SQL из текста",

@@ -1,0 +1,82 @@
+.af-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: var(--sp-6);
+}
+.af-auth-column {
+  width: 100%;
+  max-width: 380px;
+}
+.af-auth-column--wide {
+  max-width: 440px;
+}
+.af-auth-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.af-auth-logo {
+  display: inline-flex;
+  color: var(--fg);
+}
+.af-auth-name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.af-auth-version {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+}
+.af-auth-language {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.af-auth-column > .af-card {
+  padding: var(--sp-6);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  animation: af-auth-enter var(--dur-3) var(--ease-out);
+}
+.af-auth-heading {
+  margin-bottom: var(--sp-5);
+}
+.af-auth-title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.af-auth-subtitle {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+.af-auth-footer {
+  margin-top: var(--sp-5);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+}
+@keyframes af-auth-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (max-width: 480px) {
+  .af-auth {
+    padding: var(--sp-4);
+    align-items: flex-start;
+  }
+}

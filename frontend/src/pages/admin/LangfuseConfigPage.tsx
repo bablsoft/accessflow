@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Skeleton, Switch } from 'antd';
 import { ApiOutlined, CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody, Section } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -100,13 +101,13 @@ export function LangfuseConfigPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-langfuse"
         title={t('admin.langfuse.title')}
         subtitle={t('admin.langfuse.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody width="form">
         <Form<LangfuseFormValues> form={form} layout="vertical" onFinish={onFinish}>
           <Section title={t('admin.langfuse.section_connection')}>
             <Form.Item name="enabled" label={t('admin.langfuse.label_enabled')} valuePropName="checked">
@@ -186,19 +187,11 @@ export function LangfuseConfigPage() {
             </Button>
           </div>
         </Form>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (

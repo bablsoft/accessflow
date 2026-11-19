@@ -19,6 +19,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody, Section } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -215,13 +216,13 @@ export function ScimConfigPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-scim"
         title={t('admin.scim.title')}
         subtitle={t('admin.scim.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody width="form">
         <Form<ScimFormValues> form={form} layout="vertical" onFinish={onFinish}>
           <Section title={t('admin.scim.section_endpoint')}>
             <Form.Item label={t('admin.scim.label_base_url')}>
@@ -336,7 +337,7 @@ export function ScimConfigPage() {
             </Space>
           </Section>
         </div>
-      </div>
+      </PageBody>
 
       <Modal
         title={t('admin.scim.token_create_title')}
@@ -396,18 +397,10 @@ export function ScimConfigPage() {
           </Space>
         )}
       </Modal>
-    </div>
+    </Page>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (

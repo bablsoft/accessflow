@@ -3,6 +3,7 @@ import { App, Button, Form, Input, Select, Skeleton, Switch } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Page, PageBody, Section } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { getSamlConfig, samlConfigKeys, updateSamlConfig } from '@/api/admin';
@@ -102,13 +103,13 @@ export function SamlConfigPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Page>
       <PageHeader
         docsAnchor="cfg-saml"
         title={t('admin.saml.title')}
         subtitle={t('admin.saml.subtitle')}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
+      <PageBody width="form">
         <Form<SamlFormValues> form={form} layout="vertical" onFinish={onFinish}>
           <Section title={t('admin.saml.section_idp')}>
             <Form.Item
@@ -217,19 +218,11 @@ export function SamlConfigPage() {
             </Button>
           </div>
         </Form>
-      </div>
-    </div>
+      </PageBody>
+    </Page>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (

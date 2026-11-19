@@ -28,8 +28,10 @@ import {
 import { isAxiosError } from 'axios';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Section } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -143,13 +145,29 @@ import type {
 import { userSelectOptions } from '@/utils/userOptions';
 import { renderUserOption } from '@/components/common/renderUserOption';
 
+const SETTINGS_TABS = [
+  'config',
+  'permissions',
+  'effective-access',
+  'schema',
+  'masking',
+  'row-security',
+  'row-limits',
+  'data-budgets',
+  'export-policy',
+  'classification',
+  'discovery',
+  'er-diagram',
+  'activity',
+] as const;
+
 export function DatasourceSettingsPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState('config');
+  const [tab, setTab] = useUrlTab(SETTINGS_TABS, 'config');
   const canExplainAccess = usePermission('DATASOURCE_PERMISSION_MANAGE');
 
   const dsQuery = useQuery({
@@ -295,7 +313,7 @@ export function DatasourceSettingsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         docsAnchor="cfg-datasources"
-        breadcrumbs={['Datasources', ds.name]}
+        breadcrumbs={[t('datasources.list.title'), ds.name]}
         title={ds.name}
         subtitle={
           <>
@@ -1000,14 +1018,6 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (

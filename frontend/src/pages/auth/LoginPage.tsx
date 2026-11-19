@@ -1,3 +1,4 @@
+import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input } from 'antd';
 import {
@@ -15,8 +16,6 @@ import { useAuthStore } from '@/store/authStore';
 import { homePathForUser } from '@/utils/homePath';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
-import { LogoMark } from '@/components/common/LogoMark';
-import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {
   getSamlEnabled,
   listOAuth2Providers,
@@ -24,7 +23,6 @@ import {
   samlEnabledKeys,
 } from '@/api/auth';
 import { apiBaseUrl } from '@/api/client';
-import { APP_VERSION } from '@/config/version';
 import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
@@ -135,65 +133,11 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+    <AuthLayout
+      title={stage === 'TOTP' ? t('totp_login.title') : t('auth.login.title')}
+      subtitle={stage === 'TOTP' ? t('totp_login.subtitle') : t('auth.login.subtitle')}
+      languageSwitcher
     >
-      <div style={{ width: 380 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            marginBottom: 28,
-            justifyContent: 'center',
-            position: 'relative',
-          }}
-        >
-          <span style={{ color: 'var(--fg)', display: 'inline-flex' }}>
-            <LogoMark size={32} />
-          </span>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
-              {t('common.app_name')}
-            </div>
-            <div
-              className="mono muted"
-              style={{ fontSize: 10 }}
-              aria-label={t('nav.version', { version: APP_VERSION })}
-            >
-              v{APP_VERSION}
-            </div>
-          </div>
-          <div style={{ position: 'absolute', right: 0, top: 0 }}>
-            <LanguageSwitcher mode="public" />
-          </div>
-        </div>
-
-        <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {stage === 'TOTP' ? t('totp_login.title') : t('auth.login.title')}
-            </div>
-            <div className="muted" style={{ fontSize: 13 }}>
-              {stage === 'TOTP' ? t('totp_login.subtitle') : t('auth.login.subtitle')}
-            </div>
-          </div>
-
           {setupSuccess && (
             <Alert
               type="success"
@@ -404,8 +348,6 @@ export function LoginPage() {
               </Button>
             </Form>
           )}
-        </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

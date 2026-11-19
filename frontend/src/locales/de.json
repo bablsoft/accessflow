@@ -1004,7 +1004,9 @@
       "error": "Datenquellen konnten nicht geladen werden",
       "empty": "Noch keine Datenquellen — füge eine hinzu, um zu starten.",
       "stat_plan": "Plan",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "aktiv",
+      "status_inactive": "inaktiv"
     },
     "create": {
       "field_text_to_sql_enabled": "Text-zu-SQL aktivieren",

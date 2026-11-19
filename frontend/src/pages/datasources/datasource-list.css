@@ -1,0 +1,94 @@
+.af-ds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+  gap: 14px;
+  align-content: start;
+}
+.af-ds-card {
+  position: relative;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+.af-ds-card--link {
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.af-ds-card--link:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+.af-ds-card--link:focus-within {
+  border-color: var(--border-focus);
+}
+.af-ds-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.af-ds-card-icon {
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  padding: 4px;
+  flex-shrink: 0;
+}
+.af-ds-card-titles {
+  flex: 1;
+  min-width: 0;
+}
+.af-ds-card-name {
+  display: block;
+  margin-bottom: 2px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.af-ds-card-name::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.af-ds-card-name:focus-visible {
+  outline: none;
+}
+.af-ds-card-host {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.af-ds-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--sp-3);
+}
+.af-ds-card-plan {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.af-ds-card-plan-label {
+  margin-bottom: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+.af-ds-card-plan-link,
+.af-ds-card-plan-none {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+/* Above the stretched name link, so the plan stays its own target. */
+.af-ds-card-plan-link {
+  position: relative;
+  z-index: 1;
+  color: var(--accent);
+}

@@ -1004,7 +1004,9 @@
       "error": "加载数据源失败",
       "empty": "暂无数据源 — 添加一个开始使用。",
       "stat_plan": "计划",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "启用",
+      "status_inactive": "停用"
     },
     "create": {
       "field_text_to_sql_enabled": "启用文本转 SQL",

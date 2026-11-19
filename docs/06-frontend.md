@@ -132,7 +132,7 @@ accessflow-ui/
 │   │   └── useCurrentUser.ts       # Auth state, role checks
 │   │
 │   ├── layouts/
-│   │   └── AppLayout.tsx           # Main app shell with sidebar nav (the only layout — admin
+│   │   └── AppLayout.tsx           # Main app shell with sidebar nav (the signed-in layout — admin
 │   │                               # pages and the auth pages style themselves)
 │   │
 │   ├── pages/
@@ -1096,6 +1096,9 @@ The drawer / save modal / load modal / detail drawer / diff view each ship a Vit
 - `tokens.css` also carries the scales: type (`--text-2xs` 11px … `--text-2xl` 24px — nothing below 11px), spacing (`--sp-*`, 4px grid), layout (`--gutter`, `--w-form`, `--w-reading`), motion (`--dur-1/2/3` = 120/180/260ms, `--ease-out`, `--ease-in`, `--ease-in-out`) and stacking (`--z-*`). Use them instead of raw numbers.
 - Motion: CSS transitions use the `--dur-*` / `--ease-*` tokens. For JS-driven animation, `src/motion/MotionProvider.tsx` wraps the app in `LazyMotion` (`domAnimation`) and `MotionConfig reducedMotion="user"`; animate with `m` from `motion/react-m` (never the full `motion` component, which `LazyMotion strict` rejects) and the presets in `src/motion/transitions.ts`. Animate `transform` and `opacity` only; exits are shorter than enters; staggers use `staggerDelay()`.
 - Page structure comes from `src/components/layout`: `Page`, `PageBody` (`width="full|reading|form"`, the page's single scroller), `FilterBar` (+ `.Search`, `.Count`), `DataTable` (the Ant Design `Table` with the app's defaults, a skeleton, an `EmptyState` placeholder and rows that activate on click or Enter), `SurfaceCard`, `Section`, `StatusTag` and `useConfirm`. `AppLayout` renders the routed page inside `<main id="main-content">` behind a skip link and an `ErrorBoundary` that resets on navigation; lazy routes show `RouteFallback` while their chunk loads. An ESLint `no-restricted-syntax` warning flags hand-rolled page gutters and font sizes off the type scale.
+- Signed-out pages (login, first-run setup, invitation, forgot / reset password) share `components/auth/AuthLayout.tsx`: the brand row with the real `APP_VERSION`, one centred card (`.af-card`, also an e2e hook) headed by an `<h1>`, an optional public language switcher and footer. Pass `wide` for forms with more than a couple of fields.
+- Tabbed settings pages keep the active tab in `?tab=` through `hooks/useUrlTab` (an unknown value falls back to the first tab; the fallback is not written to the URL). `DatasourceSettingsPage` and `OAuth2ConfigPage` use it, alongside the pages that already read the parameter directly.
+- `DatasourceListPage` renders each datasource as an `<article>` whose name is a real link stretched over the card (`.af-ds-card-name::after`), so the card is reachable and activatable by keyboard; the review-plan link sits above it as its own target. Loading shows skeleton cards, a failed load an `EmptyState` with **Retry**.
 - Fonts are self-hosted through `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` (imported in `main.tsx`); the app makes no request to a font CDN.
 - Both themes carry WCAG AA contrast on the `--fg-*` text tiers (`--fg`, `--fg-muted`, `--fg-subtle`, `--fg-faint`) against `--bg`. Components must read text colour via these tokens — never hardcode hex.
 - The `<Avatar />` component picks its OKLCH lightness from `--avatar-bg-l` / `--avatar-fg-l` so initials remain legible in dark mode against the hue-rotated background. When introducing similar dynamic-colour components, follow the same token-layered pattern rather than branching on `theme` at runtime.

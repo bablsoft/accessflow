@@ -1004,7 +1004,9 @@
       "error": "Failed to load datasources",
       "empty": "No datasources yet — add one to get started.",
       "stat_plan": "plan",
-      "stat_plan_unknown": "—"
+      "stat_plan_unknown": "—",
+      "status_active": "active",
+      "status_inactive": "inactive"
     },
     "create": {
       "title": "Add datasource",

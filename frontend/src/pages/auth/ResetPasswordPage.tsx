@@ -1,3 +1,4 @@
+import { AuthLayout } from '@/components/auth/AuthLayout';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Spin } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -71,37 +72,11 @@ function ResetPasswordPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+    <AuthLayout
+      title={t('auth.password_reset.title')}
+      subtitle={preview ? t('auth.password_reset.subtitle', { email: preview.email }) : undefined}
+      wide
     >
-      <div style={{ width: 440 }}>
-        <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {t('auth.password_reset.title')}
-            </div>
-            {preview && (
-              <div className="muted" style={{ fontSize: 13 }}>
-                {t('auth.password_reset.subtitle', { email: preview.email })}
-              </div>
-            )}
-          </div>
-
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
               <Spin />
@@ -184,9 +159,7 @@ function ResetPasswordPage() {
               </Form>
             </>
           ) : null}
-        </div>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }
 
