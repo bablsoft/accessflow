@@ -7,3 +7,4 @@ export { useConfirm, type ConfirmDangerOptions } from './useConfirm';
 export { RouteFallback } from './RouteFallback';
 export { ErrorBoundary } from './ErrorBoundary';
 export { FormActions, UnsavedChangesGuard, useDirtyState } from './UnsavedChanges';
+export { GroupedTabs, groupedTabId, type TabGroup } from './GroupedTabs';
