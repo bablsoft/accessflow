@@ -654,7 +654,10 @@
     "sql_review_blocking_note_one": "Un hallazgo bloqueante no impide el envío — la consulta requerirá aprobación humana.",
     "sql_review_blocking_note_other": "Los hallazgos bloqueantes no impiden el envío — la consulta requerirá aprobación humana.",
     "submit_blocking_findings_tooltip_one": "{{count}} hallazgo de regla bloqueante — esta consulta requerirá aprobación humana.",
-    "submit_blocking_findings_tooltip_other": "{{count}} hallazgos de regla bloqueantes — esta consulta requerirá aprobación humana."
+    "submit_blocking_findings_tooltip_other": "{{count}} hallazgos de regla bloqueantes — esta consulta requerirá aprobación humana.",
+    "no_datasource_title": "No hay ninguna fuente de datos para consultar",
+    "draft_restored": "Borrador restaurado de tu última visita.",
+    "draft_discard": "Descartar borrador"
   },
   "dry_run_panel": {
     "title": "Plan de ejecución",

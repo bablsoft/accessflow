@@ -131,6 +131,10 @@ export function QueryDetailPage() {
         message.error(t('queries.detail.on_execute_error'));
       }
     },
+    onError: (err) =>
+      showApiError(message, err, (e) =>
+        apiErrorMessage(e, () => t('queries.detail.on_execute_error')),
+      ),
   });
 
   const { data: replayDatasources } = useQuery({
@@ -328,7 +332,16 @@ export function QueryDetailPage() {
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/queries')}>
               {t('common.back')}
             </Button>
-            <Button icon={<CopyOutlined />}>{t('common.duplicate')}</Button>
+            <Button
+              icon={<CopyOutlined />}
+              onClick={() =>
+                navigate('/editor', {
+                  state: { presetSql: query.sql_text, datasourceId: query.datasource.id },
+                })
+              }
+            >
+              {t('common.duplicate')}
+            </Button>
             {canCancel && (
               <Popconfirm
                 title={

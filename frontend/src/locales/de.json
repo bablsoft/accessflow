@@ -654,7 +654,10 @@
     "sql_review_blocking_note_one": "Ein blockierender Befund verhindert das Einreichen nicht — die Abfrage benötigt eine menschliche Freigabe.",
     "sql_review_blocking_note_other": "Blockierende Befunde verhindern das Einreichen nicht — die Abfrage benötigt eine menschliche Freigabe.",
     "submit_blocking_findings_tooltip_one": "{{count}} blockierender Regelbefund — diese Abfrage benötigt eine menschliche Freigabe.",
-    "submit_blocking_findings_tooltip_other": "{{count}} blockierende Regelbefunde — diese Abfrage benötigt eine menschliche Freigabe."
+    "submit_blocking_findings_tooltip_other": "{{count}} blockierende Regelbefunde — diese Abfrage benötigt eine menschliche Freigabe.",
+    "no_datasource_title": "Keine Datenquelle zum Abfragen",
+    "draft_restored": "Entwurf von Ihrem letzten Besuch wiederhergestellt.",
+    "draft_discard": "Entwurf verwerfen"
   },
   "dry_run_panel": {
     "title": "Ausführungsplan",

@@ -654,7 +654,10 @@
     "sql_review_blocking_note_one": "阻断性发现不会阻止提交——该查询将需要人工审批。",
     "sql_review_blocking_note_other": "阻断性发现不会阻止提交——该查询将需要人工审批。",
     "submit_blocking_findings_tooltip_one": "{{count}} 项阻断性规则发现——该查询将需要人工审批。",
-    "submit_blocking_findings_tooltip_other": "{{count}} 项阻断性规则发现——该查询将需要人工审批。"
+    "submit_blocking_findings_tooltip_other": "{{count}} 项阻断性规则发现——该查询将需要人工审批。",
+    "no_datasource_title": "没有可查询的数据源",
+    "draft_restored": "已恢复您上次访问时的草稿。",
+    "draft_discard": "放弃草稿"
   },
   "dry_run_panel": {
     "title": "执行计划",

@@ -654,7 +654,10 @@
     "sql_review_blocking_note_one": "Un constat bloquant n'empêche pas la soumission — la requête nécessitera une approbation humaine.",
     "sql_review_blocking_note_other": "Les constats bloquants n'empêchent pas la soumission — la requête nécessitera une approbation humaine.",
     "submit_blocking_findings_tooltip_one": "{{count}} constat de règle bloquant — cette requête nécessitera une approbation humaine.",
-    "submit_blocking_findings_tooltip_other": "{{count}} constats de règle bloquants — cette requête nécessitera une approbation humaine."
+    "submit_blocking_findings_tooltip_other": "{{count}} constats de règle bloquants — cette requête nécessitera une approbation humaine.",
+    "no_datasource_title": "Aucune source de données à interroger",
+    "draft_restored": "Brouillon restauré depuis votre dernière visite.",
+    "draft_discard": "Supprimer le brouillon"
   },
   "dry_run_panel": {
     "title": "Plan d'exécution",

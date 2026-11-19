@@ -51,3 +51,20 @@
     display: none;
   }
 }
+
+.af-editor-kbd {
+  margin-left: var(--sp-2);
+}
+.ant-btn-primary .af-editor-kbd {
+  background: transparent;
+  border-color: currentColor;
+  color: inherit;
+  opacity: 0.8;
+}
+.af-editor-submit-hint {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+.af-editor-toolbar-ds {
+  width: 180px;
+}
