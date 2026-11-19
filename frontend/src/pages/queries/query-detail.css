@@ -43,3 +43,28 @@
   flex-wrap: wrap;
   gap: var(--sp-2);
 }
+
+.qd-notices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.qd-notice {
+  padding: var(--sp-3) 14px;
+}
+.qd-notice + .qd-notice {
+  border-top: 1px solid var(--border);
+}
+.qd-notice-title {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.qd-notice-body {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+.qd-notice-action {
+  margin-top: var(--sp-2);
+}

@@ -1363,3 +1363,70 @@ describe('QueryDetailPage — SQL review findings (#865)', () => {
     expect(screen.queryByTestId('sql-review-findings-card')).not.toBeInTheDocument();
   });
 });
+
+describe('QueryDetailPage — notice placement', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    setUser('REVIEWER');
+  });
+
+  const policy = {
+    policy_id: 'p-1',
+    policy_name: 'Weekend freeze',
+    action: 'ESCALATE' as const,
+    reason: 'outside business hours',
+    source: 'POLICY' as const,
+    decision_hook_id: null,
+  };
+
+  it('keeps a problem as a banner and moves context into the side card', async () => {
+    const q = pendingReviewQuery();
+    q.escalated_at = '2026-08-17T09:00:00Z';
+    q.escalation_after_hours = 4;
+    getQueryMock.mockResolvedValue({ ...q, matched_policy: policy } as QueryDetail);
+
+    const { container } = render(wrap(<QueryDetailPage />));
+
+    const escalation = await screen.findByTestId('escalation-banner');
+    expect(escalation).toHaveClass('ant-alert');
+    expect(escalation.closest('.qd-main')).not.toBeNull();
+
+    const card = container.querySelector('.qd-side .qd-notices') as HTMLElement;
+    expect(card).toHaveTextContent('Weekend freeze');
+    expect(card).toHaveTextContent('outside business hours');
+    expect(card.querySelector('.ant-alert')).toBeNull();
+    expect(screen.getByText('How this request was handled')).toBeInTheDocument();
+  });
+
+  it('shows no side card when there is nothing to explain', async () => {
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+    const { container } = render(wrap(<QueryDetailPage />));
+    await waitFor(() => expect(getQueryMock).toHaveBeenCalled());
+    await screen.findAllByText(/Approve/);
+    expect(container.querySelector('.qd-notices')).toBeNull();
+    expect(screen.queryByText('How this request was handled')).toBeNull();
+  });
+
+  it('keeps a failed decision hook as a banner but lists a successful one as context', async () => {
+    const hook = {
+      decision_hook_id: 'dh-1',
+      decision_hook_name: 'OPA gate',
+      outcome: 'FAILED' as const,
+      failure: 'TIMEOUT' as const,
+      reason: null,
+    };
+    getQueryMock.mockResolvedValue({ ...pendingReviewQuery(), decision_hook: hook } as QueryDetail);
+    const first = render(wrap(<QueryDetailPage />));
+    expect(await screen.findByTestId('decision-hook-alert')).toHaveClass('ant-alert');
+    first.unmount();
+
+    getQueryMock.mockResolvedValue({
+      ...pendingReviewQuery(),
+      decision_hook: { ...hook, outcome: 'ESCALATE', failure: null, reason: 'pii' },
+    } as QueryDetail);
+    render(wrap(<QueryDetailPage />));
+    const row = await screen.findByTestId('decision-hook-alert');
+    expect(row).toHaveClass('qd-notice');
+    expect(row).toHaveTextContent('pii');
+  });
+});

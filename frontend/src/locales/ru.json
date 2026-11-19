@@ -903,7 +903,8 @@
       "results_truncated_budget": "Возвращено строк: {{count}} (ограничено оставшимся бюджетом данных)",
       "decision_hook_title": "Хук решений «{{name}}»: {{outcome}}",
       "decision_hook_body": "Причина: {{reason}}",
-      "decision_hook_failed_body": "Хук завершился ошибкой ({{failure}}), поэтому запрос отправлен на ручную проверку."
+      "decision_hook_failed_body": "Хук завершился ошибкой ({{failure}}), поэтому запрос отправлен на ручную проверку.",
+      "handling_title": "Как был обработан этот запрос"
     }
   },
   "reviews": {

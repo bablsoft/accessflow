@@ -903,7 +903,8 @@
       "results_truncated_budget": "{{count}} lignes renvoyées (plafonnées à votre budget de données restant)",
       "decision_hook_title": "Hook de décision « {{name}} » : {{outcome}}",
       "decision_hook_body": "Motif : {{reason}}",
-      "decision_hook_failed_body": "Le hook a échoué ({{failure}}), cette requête est donc partie en revue humaine."
+      "decision_hook_failed_body": "Le hook a échoué ({{failure}}), cette requête est donc partie en revue humaine.",
+      "handling_title": "Traitement de cette demande"
     }
   },
   "reviews": {

@@ -903,7 +903,8 @@
       "results_truncated_budget": "{{count}} filas devueltas (limitadas a tu presupuesto de datos restante)",
       "decision_hook_title": "Hook de decisión «{{name}}»: {{outcome}}",
       "decision_hook_body": "Motivo: {{reason}}",
-      "decision_hook_failed_body": "El hook falló ({{failure}}), por lo que esta consulta pasó a revisión humana."
+      "decision_hook_failed_body": "El hook falló ({{failure}}), por lo que esta consulta pasó a revisión humana.",
+      "handling_title": "Cómo se gestionó esta solicitud"
     }
   },
   "reviews": {

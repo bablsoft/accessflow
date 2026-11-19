@@ -903,7 +903,8 @@
       "results_truncated_budget": "{{count}} rows returned (capped at your remaining data budget)",
       "decision_hook_title": "Decision hook \"{{name}}\": {{outcome}}",
       "decision_hook_body": "Reason: {{reason}}",
-      "decision_hook_failed_body": "The hook failed ({{failure}}), so this query was sent to human review."
+      "decision_hook_failed_body": "The hook failed ({{failure}}), so this query was sent to human review.",
+      "handling_title": "How this request was handled"
     }
   },
   "reviews": {

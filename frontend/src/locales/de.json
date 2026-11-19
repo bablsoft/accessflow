@@ -903,7 +903,8 @@
       "results_truncated_budget": "{{count}} Zeilen zurückgegeben (auf Ihr verbleibendes Datenbudget begrenzt)",
       "decision_hook_title": "Entscheidungs-Hook „{{name}}“: {{outcome}}",
       "decision_hook_body": "Grund: {{reason}}",
-      "decision_hook_failed_body": "Der Hook ist fehlgeschlagen ({{failure}}), daher ging diese Abfrage in die manuelle Prüfung."
+      "decision_hook_failed_body": "Der Hook ist fehlgeschlagen ({{failure}}), daher ging diese Abfrage in die manuelle Prüfung.",
+      "handling_title": "So wurde diese Anfrage behandelt"
     }
   },
   "reviews": {
