@@ -191,7 +191,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       await reviewerPage.goto(`/deployments/${triggered.id}`);
       // Status pill flips to Approved and the gate banner reports releasability.
       await expect(
-        reviewerPage.locator('.af-pill').getByText('Approved', { exact: true }),
+        reviewerPage.locator('.ant-descriptions .af-pill').getByText('Approved', { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(
         reviewerPage.getByText(/Approved and releasable/),
@@ -288,7 +288,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       await expect(dialog).toBeHidden();
       // The page refreshes itself off the mutation's invalidation — no reload.
       await expect(
-        reviewerPage.locator('.af-pill').getByText('Approved', { exact: true }),
+        reviewerPage.locator('.ant-descriptions .af-pill').getByText('Approved', { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
       // Decided requests offer no further decision.
       await expect(reviewerPage.getByRole('button', { name: 'Approve' })).toHaveCount(0);
