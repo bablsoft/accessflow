@@ -68,12 +68,7 @@ export function MergeDiffView({
     <div
       ref={containerRef}
       data-testid={testId}
-      style={{
-        height,
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        overflow: 'auto',
-      }}
+      className="u-border u-rounded u-overflow-auto" style={{ height }}
     />
   );
 }

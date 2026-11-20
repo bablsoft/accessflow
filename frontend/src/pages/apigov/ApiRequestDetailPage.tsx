@@ -202,7 +202,7 @@ export default function ApiRequestDetailPage() {
           </>
         }
       />
-      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto">
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && <EmptyState size="sm" title={t('apiGov.requests.notFound')} />}
         {request && (
@@ -345,7 +345,7 @@ export default function ApiRequestDetailPage() {
 
             {request.justification && (
               <DetailCard title={t('apiGov.requests.justification')}>
-                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-text-sm u-p-4 u-leading-normal">
                   {request.justification}
                 </div>
               </DetailCard>
@@ -353,10 +353,10 @@ export default function ApiRequestDetailPage() {
 
             {Object.keys(request.variable_overrides ?? {}).length > 0 && (
               <DetailCard title={t('apiGov.requests.variableOverrides')}>
-                <div style={{ padding: 14 }}>
+                <div className="u-p-4">
                   {/* The signing *inputs* the submitter supplied. The resolved outputs (nonce,
                       signature) are execution-time only and are deliberately never surfaced. */}
-                  <div className="muted u-text-xs" style={{ marginBottom: 10 }}>
+                  <div className="muted u-text-xs u-mb-2">
                     {t('apiGov.requests.variableOverridesHint')}
                   </div>
                   <DataTable
@@ -396,7 +396,7 @@ export default function ApiRequestDetailPage() {
                 title={t('apiGov.requests.aiSummary')}
                 icon={<ThunderboltOutlined className="u-fg-accent" />}
               >
-                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-text-sm u-p-4 u-leading-normal">
                   {request.ai_summary}
                 </div>
               </DetailCard>
@@ -404,8 +404,8 @@ export default function ApiRequestDetailPage() {
 
             {request.error_message && (
               <DetailCard title={t('apiGov.requests.error')}>
-                <div style={{ padding: 14 }}>
-                  <span style={{ color: 'var(--risk-high)' }}>{request.error_message}</span>
+                <div className="u-p-4">
+                  <span className="u-fg-risk-high">{request.error_message}</span>
                 </div>
               </DetailCard>
             )}
@@ -427,7 +427,7 @@ export default function ApiRequestDetailPage() {
                   </span>
                 }
               >
-                <div style={{ padding: 14 }}>
+                <div className="u-p-4">
                   {request.response_snapshot_preview_truncated && (
                     <Alert
                       type="info"
@@ -437,7 +437,7 @@ export default function ApiRequestDetailPage() {
                     />
                   )}
                   <pre
-                    className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 360, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                    className="u-p-3 u-m-0 u-text-xs u-bg-sunken u-border u-rounded-md u-overflow-auto u-pre-wrap u-break-word" style={{ maxHeight: 360 }}
                   >
                     {request.response_snapshot}
                   </pre>
@@ -450,7 +450,7 @@ export default function ApiRequestDetailPage() {
             )}
 
             <DetailCard title={t('apiGov.requests.decisions')}>
-              <div style={{ padding: 14 }}>
+              <div className="u-p-4">
                 <DataTable<ApiReviewDecision>
                   rowKey="id"
                   size="small"

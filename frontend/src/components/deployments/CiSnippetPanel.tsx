@@ -131,8 +131,8 @@ export function CiSnippetPanel({ pipeline }: { pipeline: DeploymentPipeline }) {
   const snippet = SNIPPETS[platform](origin, pipeline.id);
 
   return (
-    <div className="u-flex u-col u-gap-3" style={{ maxWidth: 860 }}>
-      <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
+    <div className="u-flex u-col u-gap-3 u-max-w-reading">
+      <div className="muted u-text-xs u-leading-normal">
         {t('deploygov.settings.ciIntro')}
       </div>
       <Segmented<CiPlatform>
@@ -151,7 +151,7 @@ export function CiSnippetPanel({ pipeline }: { pipeline: DeploymentPipeline }) {
         data-testid="ci-snippet"
       >
         <pre
-          className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 420, overflow: 'auto', whiteSpace: 'pre' }}
+          className="u-p-3 u-m-0 u-text-xs u-bg-sunken u-border u-rounded-md u-overflow-auto" style={{ maxHeight: 420, whiteSpace: 'pre' }}
         >
           {snippet}
         </pre>

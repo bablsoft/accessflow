@@ -43,7 +43,7 @@ export function IssuedKeyModal({ issued, onClose }: IssuedKeyModalProps) {
           <Typography.Paragraph
             copyable={{ text: issued.raw_key }}
             code
-            style={{ wordBreak: 'break-all' }}
+            className="u-break-all"
             data-testid="issued-raw-key"
           >
             {issued.raw_key}

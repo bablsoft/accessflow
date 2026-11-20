@@ -84,7 +84,7 @@ export function ApiRequestComposer({
           {value.formFields.map((field, index) => (
             <Space key={index} align="start">
               <Input
-                style={{ width: 200 }}
+                className="u-w-md"
                 value={field.key}
                 placeholder={t('apiGov.editor.keyPlaceholder')}
                 aria-label={t('apiGov.editor.keyPlaceholder')}
@@ -100,7 +100,7 @@ export function ApiRequestComposer({
               />
               {field.type === 'TEXT' ? (
                 <Input
-                  style={{ width: 260 }}
+                  className="u-w-lg"
                   value={field.value}
                   placeholder={t('apiGov.editor.valuePlaceholder')}
                   aria-label={t('apiGov.editor.valuePlaceholder')}
@@ -132,7 +132,7 @@ export function ApiRequestComposer({
           ))}
           <Button
             icon={<PlusOutlined />}
-            style={{ alignSelf: 'flex-start' }}
+            className="u-self-start"
             onClick={() =>
               patch({ formFields: [...value.formFields, { key: '', type: 'TEXT', value: '' }] })
             }

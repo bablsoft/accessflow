@@ -109,7 +109,7 @@ function QueryMemberEditor({
   });
 
   return (
-    <div className="u-flex u-col" style={{ gap: 14 }}>
+    <div className="u-flex u-col u-gap-4">
       <div className="u-flex u-gap-2 u-items-end u-wrap">
         <label className="u-flex-1" style={{ minWidth: 260 }}>
           <div className="muted u-mb-1">
@@ -211,7 +211,7 @@ function ApiMemberEditor({
   const authoring = useApiAuthoring({ connector, value, onChange: handleChange });
 
   return (
-    <div className="u-flex u-col" style={{ gap: 14 }}>
+    <div className="u-flex u-col u-gap-4">
       <ApiAuthoringPanel
         authoring={authoring}
         connector={connector}

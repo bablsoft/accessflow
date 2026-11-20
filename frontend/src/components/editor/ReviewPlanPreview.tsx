@@ -77,9 +77,9 @@ export function ReviewPlanPreview({ ds }: Props) {
         {stages.map((s, i) => (
           <Fragment key={i}>
             <div
-              className="u-flex-1" style={{ minWidth: 120, padding: '8px 10px', background: 'var(--bg-sunken)', borderRadius: 6, border: '1px solid var(--border)' }}
+              className="u-flex-1 u-bg-sunken u-rounded u-border u-py-2 u-px-2" style={{ minWidth: 120 }}
             >
-              <div className="u-text-2xs u-fw-600" style={{ marginBottom: 2 }}>{s.label}</div>
+              <div className="u-text-2xs u-fw-600 u-mb-1">{s.label}</div>
               <div className="mono muted u-text-2xs">{s.detail}</div>
             </div>
             {i < stages.length - 1 && (

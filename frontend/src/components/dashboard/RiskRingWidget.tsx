@@ -74,13 +74,7 @@ export function RiskRingWidget() {
           >
             <span
               aria-hidden
-              style={{
-                width: 9,
-                height: 9,
-                borderRadius: '50%',
-                background: ring.color,
-                display: 'inline-block',
-              }}
+              className="u-rounded-full u-inline-block" style={{ width: 9, height: 9, background: ring.color }}
             />
             <span className="u-flex-1">{ring.label}</span>
             <span className="mono muted u-text-xs">

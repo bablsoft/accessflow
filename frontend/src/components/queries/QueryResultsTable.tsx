@@ -82,7 +82,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
           <Tooltip title={t('queries.detail.column_masked_tooltip')}>
             <LockOutlined
               aria-label={t('queries.detail.column_masked_tooltip')}
-              className="u-fg-warning" style={{ marginLeft: 6 }}
+              className="u-fg-warning u-ml-2"
             />
           </Tooltip>
         ) : null}
@@ -173,13 +173,13 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
       <div>
         {toggle}
         <pre
-          className="mono u-m-0 u-p-3 u-text-xs"
-          style={{ maxHeight: 480, overflow: 'auto', background: 'var(--bg-code)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+          className="mono u-m-0 u-p-3 u-text-xs u-overflow-auto u-bg-code u-border u-rounded"
+          style={{ maxHeight: 480 }}
         >
           {documentsToJson(data.columns, data.rows)}
         </pre>
         {data.truncated ? (
-          <div className="muted u-text-2xs" style={{ marginTop: 6 }}>
+          <div className="muted u-text-2xs u-mt-2">
             {t(truncatedMessageKey(data.truncated_reason), { count: data.row_count })}
           </div>
         ) : null}

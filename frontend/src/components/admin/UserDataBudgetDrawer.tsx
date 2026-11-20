@@ -61,7 +61,7 @@ function DatasourceUsage({ status }: { status: DataBudgetStatus }) {
   const { t } = useTranslation();
   return (
     <div
-      className="u-p-3 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="u-p-3 u-mb-3 u-border u-rounded-md"
     >
       <div className="u-flex u-items-center u-gap-2 u-mb-2">
         <span className="u-fw-600">{status.datasource_name ?? status.datasource_id}</span>

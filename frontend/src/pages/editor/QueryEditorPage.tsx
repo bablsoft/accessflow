@@ -323,8 +323,7 @@ export function QueryEditorPage() {
             )}
             <div>
               <label
-                className="muted u-block u-text-xs u-fw-500"
-                style={{ marginBottom: 5 }}
+                className="muted u-block u-text-xs u-fw-500 u-mb-1"
               >
                 {t('editor.justification_label')}{' '}
                 <span className="muted u-fw-400">
@@ -340,8 +339,7 @@ export function QueryEditorPage() {
             </div>
             <div>
               <label
-                className="muted u-block u-text-xs u-fw-500"
-                style={{ marginBottom: 5 }}
+                className="muted u-block u-text-xs u-fw-500 u-mb-1"
               >
                 {t('editor.schedule_label')}{' '}
                 <span className="muted u-fw-400">
@@ -362,7 +360,7 @@ export function QueryEditorPage() {
                 }}
                 placeholder={t('editor.schedule_placeholder')}
                 disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
-                style={{ width: 280 }}
+                className="u-w-xl"
               />
               <div className="muted u-text-2xs u-mt-1">
                 {scheduleInPast
@@ -412,8 +410,7 @@ export function QueryEditorPage() {
           className="u-mb-3"
         />
         <label
-          className="muted u-block u-text-xs u-fw-500"
-          style={{ marginBottom: 5 }}
+          className="muted u-block u-text-xs u-fw-500 u-mb-1"
         >
           {t('editor.justification_label')}{' '}
           <span className="muted u-fw-400">

@@ -238,7 +238,7 @@ export default function DeploymentListPage() {
             { value: 'all', label: t('deploygov.deployments.filterAllStatuses') },
             ...enumOptions(STATUSES, queryStatusLabel, t),
           ]}
-          style={{ width: 160 }}
+          className="u-w-sm"
         />
         <Select
           value={pipeline}
@@ -251,7 +251,7 @@ export default function DeploymentListPage() {
             { value: 'all', label: t('deploygov.deployments.filterAllPipelines') },
             ...pipelineOptions,
           ]}
-          style={{ width: 200 }}
+          className="u-w-md"
         />
         <Input
           prefix={<SearchOutlined className="u-fg-faint" />}
@@ -262,7 +262,7 @@ export default function DeploymentListPage() {
             setEnvironment(e.target.value);
             setPage(0);
           }}
-          style={{ width: 170 }}
+          className="u-w-sm"
           allowClear
         />
         <Input
@@ -273,7 +273,7 @@ export default function DeploymentListPage() {
             setVersion(e.target.value);
             setPage(0);
           }}
-          style={{ width: 150 }}
+          className="u-w-sm"
           allowClear
         />
         {/* The only route to a pipeline's matrix for a can_trigger-only user: the settings page

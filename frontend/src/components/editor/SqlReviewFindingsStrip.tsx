@@ -30,7 +30,7 @@ export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStrip
   return (
     <div
       data-testid="sql-review-strip"
-      className="u-mt-2 u-flex u-col" style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-sunken)', gap: 6 }}
+      className="u-mt-2 u-flex u-col u-border u-rounded u-bg-sunken u-py-2 u-px-2 u-gap-2"
     >
       <div className="u-flex u-items-center u-gap-2 u-text-xs">
         <span className="u-fw-600">{t('editor.sql_review_title')}</span>
@@ -43,7 +43,7 @@ export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStrip
         {hasFindings && (
           <span className="muted">
             {state.blockingCount > 0 && (
-              <span style={{ color: 'var(--risk-high)' }} data-testid="sql-review-blocking-count">
+              <span className="u-fg-risk-high" data-testid="sql-review-blocking-count">
                 {t('editor.sql_review_count_blocking', { count: state.blockingCount })}
               </span>
             )}

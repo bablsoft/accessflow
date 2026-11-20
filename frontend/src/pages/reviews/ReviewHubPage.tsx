@@ -125,7 +125,7 @@ export function ReviewHubPage() {
           </div>
         }
       >
-        <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
+        <div className="u-flex u-col u-flex-1 u-min-h-0">
           {activeTab.element}
         </div>
       </Suspense>

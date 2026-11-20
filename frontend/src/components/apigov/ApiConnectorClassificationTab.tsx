@@ -76,7 +76,7 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
       >
         <div>
           <div className="u-fw-600">{t('apiGov.settings.classification.title')}</div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('apiGov.settings.classification.description')}
           </div>
         </div>

@@ -160,7 +160,7 @@ export function ErasureConfigForm({
                     <AutoComplete
                       options={columnOptions}
                       placeholder={t('lifecycle.config.condition_column_placeholder')}
-                      style={{ width: 160 }}
+                      className="u-w-sm"
                       showSearch={{
                         filterOption: (input, option) =>
                         (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
@@ -168,7 +168,7 @@ export function ErasureConfigForm({
                     />
                   </Form.Item>
                   <Form.Item name={[field.name, 'operator']} initialValue="EQUALS" className="u-mb-0">
-                    <Select options={operatorOptions} style={{ width: 160 }} />
+                    <Select options={operatorOptions} className="u-w-sm" />
                   </Form.Item>
                   {op !== 'IS_NULL' && (
                     <Form.Item name={[field.name, 'values']} className="u-mb-0">

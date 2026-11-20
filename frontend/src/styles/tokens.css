@@ -34,8 +34,16 @@
 
   /* Layout */
   --gutter: 28px;
+  --w-narrow: 360px;
+  --w-text: 640px;
   --w-form: 760px;
   --w-reading: 960px;
+  /* Fixed widths for filter and inline controls */
+  --w-ctl-xs: 120px;
+  --w-ctl-sm: 160px;
+  --w-ctl-md: 200px;
+  --w-ctl-lg: 240px;
+  --w-ctl-xl: 320px;
 
   /* Motion — exits use --dur-1, enters --dur-2, overlays and layout --dur-3 */
   --dur-1: 120ms;

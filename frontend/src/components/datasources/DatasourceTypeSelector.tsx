@@ -69,10 +69,10 @@ export function DatasourceTypeSelector({
         onSelect={onSelect}
         emptyState={
           <div
-            className="muted u-text-xs u-p-3"
-            style={{ borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', background: 'var(--bg-sunken)' }}
+            className="muted u-text-xs u-p-3 u-rounded-md u-bg-sunken"
+            style={{ border: '1px dashed var(--border)' }}
           >
-            <div style={{ marginBottom: 6 }}>
+            <div className="u-mb-2">
               {t('datasources.create.no_custom_drivers_hint')}
             </div>
             <Link to="/admin/drivers">{t('datasources.create.manage_custom_drivers_link')}</Link>
@@ -98,9 +98,9 @@ function TypeGroup({
 }: TypeGroupProps) {
   const { t } = useTranslation();
   return (
-    <section className="u-flex u-col" style={{ gap: 10 }}>
+    <section className="u-flex u-col u-gap-2">
       <div className="u-flex u-items-baseline u-gap-2">
-        <h3 className="u-m-0 u-text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <h3 className="u-m-0 u-text-sm u-uppercase u-tracking-wide">
           {title}
         </h3>
         {helpText && (
@@ -110,7 +110,7 @@ function TypeGroup({
       {options.length === 0 && emptyState}
       {options.length > 0 && (
         <div
-          className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}
+          className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
         >
           {options.map((option) => {
             const key = optionKey(option);
@@ -125,7 +125,7 @@ function TypeGroup({
                 aria-checked={selected}
                 onClick={() => onSelect(option)}
                 key={key}
-                className="u-flex u-col u-gap-3 u-p-4" style={{ all: 'unset', borderRadius: 'var(--radius-md)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`, background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+                className="u-flex u-col u-gap-3 u-p-4 u-rounded-md u-pointer" style={{ all: 'unset', border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`, background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)', transition: 'border-color 0.15s, background 0.15s' }}
               >
                 <div className="u-flex u-items-center u-gap-3">
                   <img
@@ -133,7 +133,7 @@ function TypeGroup({
                     alt=""
                     width={36}
                     height={36}
-                    className="u-p-1" style={{ borderRadius: 8, background: 'var(--bg-sunken)', objectFit: 'contain' }}
+                    className="u-p-1 u-rounded-md u-bg-sunken" style={{ objectFit: 'contain' }}
                   />
                   <div className="u-flex-1 u-min-w-0">
                     <div className="u-fw-600 u-text-md">{option.display_name}</div>
@@ -145,8 +145,8 @@ function TypeGroup({
                   </div>
                 </div>
                 <div
-                  className="muted u-text-xs"
-                  style={{ lineHeight: 1.4, overflowWrap: 'anywhere' }}
+                  className="muted u-text-xs u-leading-normal"
+                  style={{ overflowWrap: 'anywhere' }}
                 >
                   {isUploaded
                     ? `${t('datasources.create.uploaded_vendor_label')}: ${option.vendor_name ?? '—'} · `

@@ -23,7 +23,7 @@ function CommentBody({ comment }: { comment: QueryComment }) {
         <strong>{userDisplay(comment.author.display_name, comment.author.email)}</strong>
         <span className="muted u-text-2xs">{timeAgo(comment.created_at)}</span>
       </div>
-      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{comment.body}</div>
+      <div className="u-pre-wrap u-break-word">{comment.body}</div>
     </div>
   );
 }
@@ -43,7 +43,7 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
 
   return (
     <div
-      className="u-p-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elev)', opacity: resolved ? 0.7 : 1 }}
+      className="u-p-3 u-border u-rounded-sm u-bg-elev" style={{ opacity: resolved ? 0.7 : 1 }}
     >
       <div className="u-flex u-justify-between u-mb-2">
         <span className="mono muted u-text-2xs">
@@ -69,7 +69,7 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
         </div>
       )}
 
-      <div className="u-flex u-gap-2" style={{ marginTop: 10 }}>
+      <div className="u-flex u-gap-2 u-mt-2">
         <Input
           size="small"
           placeholder={t('collab.reply_placeholder')}

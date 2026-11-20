@@ -165,7 +165,7 @@ export default function AuditSinksPage() {
         ) : (
           <div
             data-testid="audit-sinks-grid"
-            className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14, alignContent: 'start' }}
+            className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', alignContent: 'start' }}
           >
             {sinks.map((s) => (
               <SinkCard
@@ -205,15 +205,15 @@ export default function AuditSinksPage() {
 function sinkIcon(type: AuditSinkType) {
   switch (type) {
     case 'SPLUNK_HEC':
-      return <CloudServerOutlined style={{ fontSize: 18 }} />;
+      return <CloudServerOutlined className="u-text-xl" />;
     case 'SYSLOG_CEF':
-      return <SendOutlined style={{ fontSize: 18 }} />;
+      return <SendOutlined className="u-text-xl" />;
     case 'HTTPS_BATCH':
-      return <CloudUploadOutlined style={{ fontSize: 18 }} />;
+      return <CloudUploadOutlined className="u-text-xl" />;
     case 'S3_OBJECT_LOCK':
-      return <FileProtectOutlined style={{ fontSize: 18 }} />;
+      return <FileProtectOutlined className="u-text-xl" />;
     default:
-      return <DatabaseOutlined style={{ fontSize: 18 }} />;
+      return <DatabaseOutlined className="u-text-xl" />;
   }
 }
 
@@ -255,11 +255,11 @@ function SinkCard({
   return (
     <div
       data-testid="audit-sink-card"
-      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box u-p-4"
     >
       <div className="u-flex u-items-start u-gap-3">
         <div
-          className="u-flex u-items-center u-justify-center" style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-sunken)', flexShrink: 0 }}
+          className="u-flex u-items-center u-justify-center u-rounded-md u-bg-sunken u-shrink-0" style={{ width: 36, height: 36 }}
         >
           {sinkIcon(sink.type)}
         </div>
@@ -277,14 +277,13 @@ function SinkCard({
               </Pill>
             )}
           </div>
-          <div className="mono muted u-text-2xs" style={{ marginTop: 2 }}>
+          <div className="mono muted u-text-2xs u-mt-1">
             {auditSinkTypeLabel(t, sink.type)}
           </div>
         </div>
       </div>
       <div
-        className="mono u-mt-3 u-text-xs u-leading-normal u-nowrap"
-        style={{ padding: 10, background: 'var(--bg-sunken)', borderRadius: 6, overflow: 'hidden', textOverflow: 'ellipsis' }}
+        className="mono u-mt-3 u-text-xs u-leading-normal u-nowrap u-bg-sunken u-rounded u-overflow-hidden u-ellipsis u-p-2"
       >
         {destinationSummary(sink)}
       </div>
@@ -320,7 +319,7 @@ function SinkCard({
             sink.last_error ? (
               <Tooltip title={sink.last_error}>
                 <span
-                  className="u-nowrap" style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}
+                  className="u-nowrap u-inline-block u-overflow-hidden u-ellipsis" style={{ maxWidth: '100%', verticalAlign: 'bottom' }}
                 >
                   {sink.last_error}
                 </span>
@@ -333,7 +332,7 @@ function SinkCard({
         />
       </div>
       <div
-        className="u-flex u-items-center u-gap-2 u-mt-3" style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}
+        className="u-flex u-items-center u-gap-2 u-mt-3 u-pt-3 u-border-t"
       >
         <span className="mono muted u-text-2xs">
           {fmtDate(sink.created_at).split(',')[0]}
@@ -381,8 +380,8 @@ function HealthRow({
         {label}
       </div>
       <div
-        className="mono u-text-xs u-nowrap"
-        style={{ color: emphasis ? 'var(--danger)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis' }}
+        className="mono u-text-xs u-nowrap u-overflow-hidden u-ellipsis"
+        style={{ color: emphasis ? 'var(--danger)' : undefined }}
       >
         {value}
       </div>

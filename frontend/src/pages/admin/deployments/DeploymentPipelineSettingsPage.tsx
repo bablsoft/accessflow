@@ -204,7 +204,7 @@ export function DeploymentPipelineSettingsPage() {
         subtitle={
           pipeline ? (
             <span
-              className="u-inline-flex u-items-center u-wrap" style={{ gap: 10 }}
+              className="u-inline-flex u-items-center u-wrap u-gap-2"
             >
               {pipelineProviderLabel(t, pipeline.provider)}
               <PipelineIdCopy id={pipeline.id} />

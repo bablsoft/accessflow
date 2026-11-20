@@ -63,8 +63,7 @@ export function RecurrencePicker({
   return (
     <div>
       <label
-        className="muted u-block u-text-xs u-fw-500"
-        style={{ marginBottom: 5 }}
+        className="muted u-block u-text-xs u-fw-500 u-mb-1"
       >
         {t('editor.recurrence_label')}{' '}
         <span className="muted u-fw-400">
@@ -98,7 +97,7 @@ export function RecurrencePicker({
             aria-label={t('editor.recurrence_interval_aria')}
             data-testid="recurrence-interval"
             status={ruleMissing ? 'error' : undefined}
-            style={{ width: 200 }}
+            className="u-w-md"
             options={INTERVAL_PRESETS.map((preset) => ({
               value: preset,
               label: t(`editor.recurrence_interval_${preset}`),
@@ -113,7 +112,7 @@ export function RecurrencePicker({
             aria-label={t('editor.recurrence_cron_aria')}
             data-testid="recurrence-cron"
             status={cronInvalid || ruleMissing ? 'error' : undefined}
-            style={{ width: 200, fontFamily: 'monospace' }}
+            className="u-w-md u-mono"
           />
         )}
         {mode !== 'none' && (
@@ -126,7 +125,7 @@ export function RecurrencePicker({
             data-testid="recurrence-until"
             disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
             status={untilInPast || !until ? 'error' : undefined}
-            style={{ width: 240 }}
+            className="u-w-lg"
           />
         )}
       </div>

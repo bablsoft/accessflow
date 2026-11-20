@@ -311,7 +311,7 @@ export function PendingDeploymentsTab() {
           aria-label={t('deploygov.reviews.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={pipeline}
@@ -566,7 +566,7 @@ export function RollbackReviewsTab() {
             { value: 'all', label: t('deploygov.reviews.filterAllRollbackStatuses') },
             ...enumOptions(ROLLBACK_STATUSES, deploymentRollbackReviewStatusLabel, t),
           ]}
-          style={{ width: 170 }}
+          className="u-w-sm"
         />
       </FilterBar>
       <PageBody flush>

@@ -21,8 +21,8 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions, docsAnchor }
       {breadcrumbs && breadcrumbs.length > 0 && (
         <div className="af-page-breadcrumbs">
           {breadcrumbs.map((b, i) => (
-            <span key={i} className="u-inline-flex u-items-center" style={{ gap: 6 }}>
-              {i > 0 && <RightOutlined className="u-fg-faint" style={{ fontSize: 9 }} />}
+            <span key={i} className="u-inline-flex u-items-center u-gap-2">
+              {i > 0 && <RightOutlined className="u-fg-faint u-text-2xs" />}
               <span className={i === breadcrumbs.length - 1 ? '' : 'muted'}>{b}</span>
             </span>
           ))}

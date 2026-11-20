@@ -3,9 +3,7 @@ import { render } from '@testing-library/react';
 import { ApprovalTimeline, type TimelineStage } from './ApprovalTimeline';
 
 function dotStyleAt(container: HTMLElement, index: number): string {
-  const dots = container.querySelectorAll<HTMLElement>(
-    'div[style*="border-radius: 50%"]',
-  );
+  const dots = container.querySelectorAll<HTMLElement>('.af-timeline-dot');
   const dot = dots[index];
   if (!dot) throw new Error(`No dot at index ${index}`);
   return dot.getAttribute('style') ?? '';

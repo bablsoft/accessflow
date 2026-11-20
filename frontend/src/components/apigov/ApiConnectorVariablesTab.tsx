@@ -132,7 +132,7 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
       >
         <div>
           <div className="u-fw-600">{t('apiGov.settings.variables.title')}</div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('apiGov.settings.variables.description')}
           </div>
         </div>

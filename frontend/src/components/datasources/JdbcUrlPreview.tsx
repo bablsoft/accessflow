@@ -21,22 +21,16 @@ export function JdbcUrlPreview({ template, host, port, databaseName }: JdbcUrlPr
 
   return (
     <div
-      style={{
-        padding: '8px 12px',
-        background: 'var(--bg-sunken)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)',
-      }}
+      className="u-py-2 u-px-3 u-bg-sunken u-border u-rounded-sm"
     >
       <div
-        className="muted mono u-text-2xs u-mb-1"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        className="muted mono u-text-2xs u-mb-1 u-uppercase u-tracking-wide"
       >
         {t('datasources.create.connection_url_preview_label')}
       </div>
       <Typography.Paragraph
         copyable
-        className="u-mb-0 u-mono u-text-xs" style={{ wordBreak: 'break-all' }}
+        className="u-mb-0 u-mono u-text-xs u-break-all"
       >
         {url}
       </Typography.Paragraph>

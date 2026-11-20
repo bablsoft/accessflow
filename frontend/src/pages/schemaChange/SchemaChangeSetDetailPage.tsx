@@ -298,7 +298,7 @@ export default function SchemaChangeSetDetailPage() {
         }
       />
       <div
-        className="u-flex-1 u-p-6 u-grid u-gap-5" style={{ overflow: 'auto', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)', alignItems: 'start' }}
+        className="u-flex-1 u-p-6 u-grid u-gap-5 u-overflow-auto" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)', alignItems: 'start' }}
       >
         <Card size="small" title={t('schemaChange.statements.title')}>
           {archived && (
@@ -379,7 +379,7 @@ export default function SchemaChangeSetDetailPage() {
             )}
             {ladderQuery.data && ladderQuery.data.rungs.length > 0 && (
               <>
-                <div className="muted u-text-xs" style={{ marginBottom: 10 }}>
+                <div className="muted u-text-xs u-mb-2">
                   {t('schemaChange.ladder.hint')}
                 </div>
                 <PromotionLadder

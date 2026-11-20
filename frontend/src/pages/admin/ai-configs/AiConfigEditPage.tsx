@@ -257,7 +257,7 @@ export default function AiConfigEditPage() {
           </Button>
         }
       />
-      <div className="u-flex-1 u-p-gutter" style={{ overflow: 'auto', maxWidth: 760 }}>
+      <div className="u-flex-1 u-p-gutter u-overflow-auto u-max-w-form">
         <Form<FormValues> form={form} layout="vertical" onFinish={onSave}>
           <Form.Item
             name="name"
@@ -292,7 +292,7 @@ export default function AiConfigEditPage() {
           >
             <Input.Password className="mono" maxLength={4096} autoComplete="off" />
           </Form.Item>
-          <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="u-grid u-gap-3 u-cols-3">
             <Form.Item
               name="timeout_ms"
               label={t('admin.ai_configs.field_timeout_ms')}
@@ -321,7 +321,7 @@ export default function AiConfigEditPage() {
             extra={t('admin.ai_configs.fallback_priority_help')}
             rules={[{ type: 'number', min: 0, max: 100 }]}
           >
-            <InputNumber className="mono" min={0} max={100} style={{ width: 200 }} />
+            <InputNumber className="mono u-w-md" min={0} max={100} />
           </Form.Item>
           <Form.Item
             name="system_prompt_template"
@@ -367,7 +367,7 @@ export default function AiConfigEditPage() {
           <OrchestrationFormSection form={form} />
           <GuardrailsFormSection />
           <div
-            className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
+            className="u-flex u-gap-2 u-pt-4 u-border-t"
           >
             <Button
               type="primary"

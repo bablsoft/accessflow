@@ -657,7 +657,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   return (
-    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 700 }}>
+    <div className="u-flex u-col u-gap-4 u-max-w-form">
       <Select<ApiSchemaType>
         style={{ width: 240 }}
         value={schemaType}

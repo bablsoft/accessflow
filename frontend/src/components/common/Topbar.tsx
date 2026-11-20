@@ -131,7 +131,7 @@ export function Topbar({ onOpenMobileNav, onOpenCommandPalette }: TopbarProps) {
         >
           <UserOutlined />
           <span className="af-user-menu-name">{user?.display_name ?? user?.email ?? ''}</span>
-          <DownOutlined style={{ fontSize: 10 }} />
+          <DownOutlined className="u-text-2xs" />
         </button>
       </Dropdown>
     </header>

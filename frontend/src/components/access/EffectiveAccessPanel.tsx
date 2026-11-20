@@ -71,7 +71,7 @@ function SourceLine({ source }: { source: EffectiveAccessSource }) {
     <div className="u-text-xs">
       <span>{accessSourceKindLabel(t, source.kind)}</span>
       {parts.length > 0 && (
-        <span className="muted u-text-2xs" style={{ marginLeft: 6 }}>
+        <span className="muted u-text-2xs u-ml-2">
           {parts.join(' · ')}
         </span>
       )}
@@ -123,7 +123,7 @@ export function EffectiveAccessPanel() {
         title: t('access.effective.col_identity'),
         key: 'identity',
         render: (_: unknown, row) => (
-          <div className="u-flex u-items-center" style={{ gap: 10 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={row.email} size={24} />
             <div>
               <div className="u-text-sm">{row.display_name ?? row.email}</div>
@@ -220,7 +220,7 @@ export function EffectiveAccessPanel() {
           label={t('access.simulation.datasource')}
           rules={[{ required: true, message: t('access.simulation.datasource_required') }]}
           extra={canListAll ? undefined : t('access.simulation.datasource_scoped_hint')}
-          style={{ width: 280 }}
+          className="u-w-xl"
         >
           <SimulationDatasourceSelect onChange={() => form.setFieldValue('table', undefined)} />
         </Form.Item>
@@ -228,7 +228,7 @@ export function EffectiveAccessPanel() {
           name="table"
           label={t('access.effective.table')}
           rules={[{ required: true, whitespace: true, message: t('access.effective.table_required') }]}
-          style={{ width: 280 }}
+          className="u-w-xl"
         >
           <AutoComplete
             options={tableOptions}
@@ -239,7 +239,7 @@ export function EffectiveAccessPanel() {
             }}
           />
         </Form.Item>
-        <Form.Item name="capability" label={t('access.effective.capability')} style={{ width: 160 }}>
+        <Form.Item name="capability" label={t('access.effective.capability')} className="u-w-sm">
           <Select options={enumOptions(STATEMENT_CAPABILITIES, statementCapabilityLabel, t)} />
         </Form.Item>
         <Form.Item label=" " colon={false}>

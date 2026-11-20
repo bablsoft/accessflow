@@ -141,18 +141,11 @@ export function TrendsWidget({ kind }: TrendsWidgetProps) {
               {labels.map((label) => (
                 <span
                   key={label}
-                  style={{ gap: 6 }}
-                  className="muted u-inline-flex u-items-center u-text-xs"
+                  className="muted u-inline-flex u-items-center u-text-xs u-gap-2"
                 >
                   <span
                     aria-hidden
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: colors.get(label),
-                      display: 'inline-block',
-                    }}
+                    className="u-rounded-full u-inline-block" style={{ width: 8, height: 8, background: colors.get(label) }}
                   />
                   {label}
                 </span>

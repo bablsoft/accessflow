@@ -389,8 +389,7 @@ function GroupedPermissionPicker({
       {groups.map((group) => (
         <div key={group.group}>
           <div
-            className="mono muted u-text-2xs u-mb-1"
-            style={{ textTransform: 'uppercase' }}
+            className="mono muted u-text-2xs u-mb-1 u-uppercase"
           >
             {permissionGroupLabel(t, group.group)}
           </div>

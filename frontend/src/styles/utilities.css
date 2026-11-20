@@ -102,3 +102,81 @@
 .u-p-8 { padding: var(--sp-8) !important; }
 .u-p-10 { padding: var(--sp-10) !important; }
 .u-p-gutter { padding: var(--gutter) !important; }
+
+.u-pt-0 { padding-top: 0 !important; }
+.u-px-0 { padding-left: 0 !important; padding-right: 0 !important; }
+.u-py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
+.u-pt-1 { padding-top: var(--sp-1) !important; }
+.u-px-1 { padding-left: var(--sp-1) !important; padding-right: var(--sp-1) !important; }
+.u-py-1 { padding-top: var(--sp-1) !important; padding-bottom: var(--sp-1) !important; }
+.u-pt-2 { padding-top: var(--sp-2) !important; }
+.u-px-2 { padding-left: var(--sp-2) !important; padding-right: var(--sp-2) !important; }
+.u-py-2 { padding-top: var(--sp-2) !important; padding-bottom: var(--sp-2) !important; }
+.u-pt-3 { padding-top: var(--sp-3) !important; }
+.u-px-3 { padding-left: var(--sp-3) !important; padding-right: var(--sp-3) !important; }
+.u-py-3 { padding-top: var(--sp-3) !important; padding-bottom: var(--sp-3) !important; }
+.u-pt-4 { padding-top: var(--sp-4) !important; }
+.u-px-4 { padding-left: var(--sp-4) !important; padding-right: var(--sp-4) !important; }
+.u-py-4 { padding-top: var(--sp-4) !important; padding-bottom: var(--sp-4) !important; }
+.u-pt-5 { padding-top: var(--sp-5) !important; }
+.u-px-5 { padding-left: var(--sp-5) !important; padding-right: var(--sp-5) !important; }
+.u-py-5 { padding-top: var(--sp-5) !important; padding-bottom: var(--sp-5) !important; }
+.u-pt-6 { padding-top: var(--sp-6) !important; }
+.u-px-6 { padding-left: var(--sp-6) !important; padding-right: var(--sp-6) !important; }
+.u-py-6 { padding-top: var(--sp-6) !important; padding-bottom: var(--sp-6) !important; }
+.u-pt-8 { padding-top: var(--sp-8) !important; }
+.u-px-8 { padding-left: var(--sp-8) !important; padding-right: var(--sp-8) !important; }
+.u-py-8 { padding-top: var(--sp-8) !important; padding-bottom: var(--sp-8) !important; }
+.u-pt-10 { padding-top: var(--sp-10) !important; }
+.u-px-10 { padding-left: var(--sp-10) !important; padding-right: var(--sp-10) !important; }
+.u-py-10 { padding-top: var(--sp-10) !important; padding-bottom: var(--sp-10) !important; }
+.u-mx-auto { margin-left: auto !important; margin-right: auto !important; }
+
+.u-w-xs { width: var(--w-ctl-xs) !important; }
+.u-w-sm { width: var(--w-ctl-sm) !important; }
+.u-w-md { width: var(--w-ctl-md) !important; }
+.u-w-lg { width: var(--w-ctl-lg) !important; }
+.u-w-xl { width: var(--w-ctl-xl) !important; }
+.u-max-w-xs { max-width: var(--w-narrow) !important; }
+.u-max-w-text { max-width: var(--w-text) !important; }
+.u-max-w-form { max-width: var(--w-form) !important; }
+.u-max-w-reading { max-width: var(--w-reading) !important; }
+.u-h-full { height: 100% !important; }
+.u-min-h-0 { min-height: 0 !important; }
+.u-shrink-0 { flex-shrink: 0 !important; }
+.u-self-start { align-self: flex-start !important; }
+.u-self-center { align-self: center !important; }
+.u-inline-block { display: inline-block !important; }
+.u-relative { position: relative !important; }
+.u-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+.u-overflow-auto { overflow: auto !important; }
+.u-overflow-hidden { overflow: hidden !important; }
+
+.u-bg-elev { background: var(--bg-elev) !important; }
+.u-bg-sunken { background: var(--bg-sunken) !important; }
+.u-bg-code { background: var(--bg-code) !important; }
+.u-bg { background: var(--bg) !important; }
+.u-border { border: 1px solid var(--border) !important; }
+.u-border-t { border-top: 1px solid var(--border) !important; }
+.u-border-b { border-bottom: 1px solid var(--border) !important; }
+.u-rounded-sm { border-radius: var(--radius-sm) !important; }
+.u-rounded { border-radius: var(--radius) !important; }
+.u-rounded-md { border-radius: var(--radius-md) !important; }
+.u-rounded-full { border-radius: 50% !important; }
+.u-rounded-pill { border-radius: 999px !important; }
+.u-fg-risk-med { color: var(--risk-med) !important; }
+.u-fg-risk-high { color: var(--risk-high) !important; }
+.u-uppercase { text-transform: uppercase !important; }
+.u-tracking-wide { letter-spacing: 0.04em !important; }
+.u-pre-wrap { white-space: pre-wrap !important; }
+.u-break-word { word-break: break-word !important; }
+.u-break-all { word-break: break-all !important; }
+.u-ellipsis { text-overflow: ellipsis !important; }
+.u-pointer { cursor: pointer !important; }
+
+/* The plain bordered box: surface background, hairline border, card radius. */
+.af-box {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}

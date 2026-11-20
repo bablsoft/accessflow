@@ -594,7 +594,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       </Form.Item>
 
       <div
-        className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
+        className="u-flex u-gap-2 u-pt-4 u-border-t"
       >
         <Button
           type="primary"

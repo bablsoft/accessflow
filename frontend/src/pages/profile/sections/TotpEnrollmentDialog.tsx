@@ -113,10 +113,10 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
                 alt={t('profile.totp.step_scan')}
                 width={200}
                 height={200}
-                className="u-p-2" style={{ background: '#fff', borderRadius: 8 }}
+                className="u-p-2 u-rounded-md" style={{ background: '#fff' }}
               />
             ) : (
-              <div style={{ width: 200, height: 200 }} aria-hidden />
+              <div className="u-w-md" style={{ height: 200 }} aria-hidden />
             )}
           </div>
           {enrollment && (
@@ -128,7 +128,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
                 readOnly
                 value={enrollment.secret}
                 autoSize
-                className="u-mt-1" style={{ fontFamily: 'monospace' }}
+                className="u-mt-1 u-mono"
               />
             </div>
           )}
@@ -156,7 +156,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            className="u-text-center" style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+            className="u-text-center u-mono u-text-xl" style={{ letterSpacing: 4 }}
             aria-label={t('profile.totp.verify_placeholder')}
           />
           <Space>
@@ -177,7 +177,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
         <Space orientation="vertical" size="middle" className="u-w-full">
           <Alert type="warning" title={t('profile.totp.backup_codes_help')} showIcon />
           <pre
-            className="u-p-3 u-text-sm" style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.7 }}
+            className="u-p-3 u-text-sm u-bg u-border u-rounded-md u-mono u-leading-normal"
             aria-label="backup-codes"
           >
             {backupCodes.join('\n')}

@@ -65,7 +65,7 @@ export default function PushDecidePage() {
   const canDecide = credential.trim().length > 0 && !isOwnQuery && !notPending;
 
   return (
-    <div className="u-p-4" style={{ maxWidth: 520, margin: '0 auto' }}>
+    <div className="u-p-4 u-mx-auto" style={{ maxWidth: 520 }}>
       <PageHeader title={t('reviews.decide.title')} subtitle={t('reviews.decide.subtitle')} />
       {isLoading && <Skeleton active paragraph={{ rows: 6 }} />}
       {isError && (

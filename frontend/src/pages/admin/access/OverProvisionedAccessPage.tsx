@@ -84,7 +84,7 @@ export default function OverProvisionedAccessPage() {
         title: t('over_provisioned.col_subject'),
         key: 'subject',
         render: (_: unknown, row: OverProvisionedGrant) => (
-          <div className="u-flex u-items-center" style={{ gap: 10 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={row.user_email} size={24} />
             <div>
               <div className="u-text-sm">{row.user_display_name ?? row.user_email}</div>
@@ -231,12 +231,11 @@ export default function OverProvisionedAccessPage() {
             setUserId(e.target.value);
             setPage(0);
           }}
-          style={{ width: 260 }}
-          className="mono"
+          className="mono u-w-lg"
           aria-label={t('over_provisioned.filter_user_placeholder')}
         />
         <div className="u-flex-1" />
-        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
+        <span className="mono muted u-text-2xs u-self-center">
           {t('over_provisioned.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>

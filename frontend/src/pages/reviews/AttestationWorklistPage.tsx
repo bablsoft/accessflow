@@ -128,10 +128,10 @@ export default function AttestationWorklistPage() {
         title: t('attestation.worklist.col_subject'),
         key: 'subject',
         render: (_: unknown, item: AttestationItem) => (
-          <div className="u-flex u-items-center" style={{ gap: 10 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={item.subject_user_email} size={24} />
             <div>
-              <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
+              <div className="u-text-sm u-flex u-items-center u-gap-2">
                 {item.subject_user_display_name}
                 <PrincipalTypeTag principalType={item.subject_principal_type} />
               </div>
@@ -237,7 +237,7 @@ export default function AttestationWorklistPage() {
             aria-label={t('attestation.worklist.bulk.action_bar_count', {
               count: selectedRowKeys.length,
             })}
-            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
+            className="af-box u-mb-3 u-flex u-items-center u-gap-3 u-py-2 u-px-4" style={{ position: 'sticky', top: 0, zIndex: 10 }}
           >
             <strong>
               {t('attestation.worklist.bulk.action_bar_count', { count: selectedRowKeys.length })}

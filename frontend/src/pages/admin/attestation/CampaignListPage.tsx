@@ -111,7 +111,7 @@ export default function CampaignListPage() {
             setStatusFilter(v);
             setPage(0);
           }}
-          style={{ width: 180 }}
+          className="u-w-md"
           options={[
             { value: 'all', label: t('attestation.list.filter_all_statuses') },
             ...enumOptions(ATTESTATION_CAMPAIGN_STATUSES, attestationCampaignStatusLabel, t),

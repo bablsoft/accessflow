@@ -27,7 +27,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
         aria-controls={bodyId}
         aria-label={t(expanded ? 'requestGroups.detail.collapseStep' : 'requestGroups.detail.expandStep')}
         onClick={() => setExpanded((v) => !v)}
-        className="u-flex u-items-center u-wrap u-w-full u-p-3" style={{ gap: 10, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
+        className="u-flex u-items-center u-wrap u-w-full u-p-3 u-pointer u-gap-2" style={{ background: 'none', border: 'none', textAlign: 'left', font: 'inherit', color: 'inherit' }}
       >
         <span className="mono muted">#{item.sequence_order + 1}</span>
         <Tag>{targetKindLabel(t, item.target_kind)}</Tag>
@@ -35,7 +35,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
         {item.ai_risk_level != null && (
           <RiskPill level={item.ai_risk_level} score={item.ai_risk_score} size="sm" failed={aiFailed} />
         )}
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} className="mono muted u-flex-1 u-min-w-0 u-nowrap">
+        <span className="mono muted u-flex-1 u-min-w-0 u-nowrap u-overflow-hidden u-ellipsis">
           {item.target_kind === 'QUERY' ? item.sql_text : `${item.verb} ${item.request_path}`}
         </span>
         {item.duration_ms != null && (
@@ -56,7 +56,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
           className="u-flex u-col u-gap-3" style={{ padding: '0 12px 12px' }}
         >
           <DetailCard title={t('requestGroups.detail.stepRequest')}>
-            <div style={{ padding: 14 }}>
+            <div className="u-p-4">
               {item.target_kind === 'QUERY' ? (
                 <>
                   <div className="muted u-text-xs u-mb-2">
@@ -97,16 +97,16 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
               }
             >
               {!analysis ? (
-                <div className="u-text-sm" style={{ padding: 14 }}>
+                <div className="u-text-sm u-p-4">
                   <span className="muted">{t('requestGroups.detail.aiNotAvailable')}</span>
                 </div>
               ) : aiFailed ? (
-                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-text-sm u-p-4 u-leading-normal">
                   <div className="u-mb-3">
                     {t('queries.detail.ai_failed_accordion_body')}
                   </div>
                   <div
-                    className="u-mono u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}
+                    className="u-mono u-text-xs u-bg-sunken u-border u-rounded-sm u-py-2 u-px-3"
                   >
                     <span className="muted u-mr-2">
                       {t('queries.detail.ai_failed_reason_label')}:
@@ -116,7 +116,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
                 </div>
               ) : (
                 <>
-                  <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                  <div className="u-text-sm u-p-4 u-leading-normal">
                     {analysis.summary}
                   </div>
                   {analysis.issues.length > 0 && (
@@ -133,8 +133,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
                       className="u-flex u-col u-gap-2" style={{ padding: '0 14px 14px' }}
                     >
                       <div
-                        className="muted u-text-2xs u-fw-500"
-                        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                        className="muted u-text-2xs u-fw-500 u-uppercase u-tracking-wide"
                       >
                         {t('queries.detail.optimizations_title')}
                       </div>
@@ -150,7 +149,7 @@ export function RequestGroupMemberPanel({ item }: { item: RequestGroupItem }) {
 
           {item.error_message && (
             <DetailCard title={t('requestGroups.detail.error')}>
-              <div className="u-text-xs" style={{ padding: 14, color: 'var(--risk-high)' }}>
+              <div className="u-text-xs u-fg-risk-high u-p-4">
                 {item.error_message}
               </div>
             </DetailCard>

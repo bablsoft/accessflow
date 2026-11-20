@@ -192,7 +192,7 @@ export function QueryReviewsTab() {
         width: 220,
         render: (id: string) => (
           <Tooltip title={id} placement="topLeft">
-            <div className="mono u-text-2xs" style={{ lineHeight: 1.4 }}>
+            <div className="mono u-text-2xs u-leading-normal">
               <div className="u-fw-500">{id.slice(0, 8)}</div>
               <div className="muted u-text-2xs">{id}</div>
             </div>
@@ -216,7 +216,7 @@ export function QueryReviewsTab() {
           const ai = item.ai_analysis;
           const blocking = item.sql_review_blocking_count ?? 0;
           return (
-            <div className="u-flex u-items-center" style={{ gap: 6 }}>
+            <div className="u-flex u-items-center u-gap-2">
               {ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—'}
               {/* #865: a BLOCK rule fired — the reason this row could not auto-approve. */}
               {blocking > 0 && (
@@ -348,7 +348,7 @@ export function QueryReviewsTab() {
   });
 
   return (
-    <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
+    <div className="u-flex u-col u-flex-1 u-min-h-0">
       {/* A segmented sub-filter rather than a second tab strip under the hub's tabs. */}
       <div className="af-triage-toolbar">
         <Segmented
@@ -369,7 +369,7 @@ export function QueryReviewsTab() {
           <div
             role="toolbar"
             aria-label={t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}
-            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
+            className="af-box u-mb-3 u-flex u-items-center u-gap-3 u-py-2 u-px-4" style={{ position: 'sticky', top: 0, zIndex: 10 }}
           >
             <strong>{t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}</strong>
             <div className="u-flex-1" />

@@ -306,7 +306,7 @@ export default function DeploymentDetailPage() {
         }
         actions={<Button onClick={() => navigate('/deployments')}>{t('common.back')}</Button>}
       />
-      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto">
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && (
           <EmptyState size="sm" title={t('deploygov.deployments.notFound')} />
@@ -536,7 +536,7 @@ export default function DeploymentDetailPage() {
               <div className="u-flex u-col u-gap-4" style={{ flex: 2, minWidth: 320 }}>
                 {request.justification && (
                   <DetailCard title={t('deploygov.detail.justification')}>
-                    <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                    <div className="u-text-sm u-p-4 u-leading-normal">
                       {request.justification}
                     </div>
                   </DetailCard>
@@ -552,14 +552,14 @@ export default function DeploymentDetailPage() {
                       ) : undefined
                     }
                   >
-                    <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                    <div className="u-text-sm u-p-4 u-leading-normal">
                       {request.ai_summary ?? '—'}
                     </div>
                   </DetailCard>
                 )}
 
                 <DetailCard title={t('deploygov.detail.approvals')}>
-                  <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
+                  <div className="u-flex u-col u-gap-3 u-p-4">
                     <div className="u-flex u-items-center u-gap-3">
                       <Progress
                         type="circle"
@@ -594,7 +594,7 @@ export default function DeploymentDetailPage() {
                     title={t('deploygov.detail.verification')}
                     extra={<VerificationTag status={verificationStatus} />}
                   >
-                    <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
+                    <div className="u-flex u-col u-gap-3 u-p-4">
                       <Descriptions
                         size="small"
                         column={{ xs: 1, sm: 2, md: 3 }}
@@ -658,7 +658,7 @@ export default function DeploymentDetailPage() {
 
                 {(request.change_ticket_required || request.change_ticket) && (
                   <DetailCard title={t('deploygov.detail.changeTicket')}>
-                    <div className="u-flex u-col u-text-sm" style={{ padding: 14, gap: 6 }}>
+                    <div className="u-flex u-col u-text-sm u-p-4 u-gap-2">
                       {request.change_ticket ? (
                         <>
                           <div className="u-flex u-justify-between u-gap-2">
@@ -687,9 +687,9 @@ export default function DeploymentDetailPage() {
 
                 {metadataEntries.length > 0 && (
                   <DetailCard title={t('deploygov.detail.metadataJson')}>
-                    <div style={{ padding: 14 }}>
+                    <div className="u-p-4">
                       <pre
-                        className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 280, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        className="u-p-3 u-m-0 u-text-xs u-bg-sunken u-border u-rounded-md u-overflow-auto u-pre-wrap u-break-word" style={{ maxHeight: 280 }}
                       >
                         {JSON.stringify(request.metadata, null, 2)}
                       </pre>
@@ -699,7 +699,7 @@ export default function DeploymentDetailPage() {
               </div>
               <div className="u-flex-1" style={{ minWidth: 260 }}>
                 <DetailCard title={t('deploygov.detail.timelineTitle')}>
-                  <div style={{ padding: 14 }}>
+                  <div className="u-p-4">
                     <ApprovalTimeline stages={buildDeploymentTimelineStages(request, t)} />
                   </div>
                 </DetailCard>

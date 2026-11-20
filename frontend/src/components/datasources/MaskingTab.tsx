@@ -104,7 +104,7 @@ export function MaskingTab({ dsId }: { dsId: string }) {
       >
         <div>
           <div className="u-fw-600">{t('datasources.settings.masking.title')}</div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('datasources.settings.masking.description')}
           </div>
         </div>

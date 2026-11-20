@@ -157,7 +157,7 @@ export function StatementListEditor({
                   add({ sql_text: '' });
                   onStructureChange();
                 }}
-                style={{ alignSelf: 'flex-start' }}
+                className="u-self-start"
               >
                 {t('schemaChange.statements.add')}
               </Button>
@@ -251,7 +251,7 @@ function StatementProblems({ problems, index }: { problems: StatementProblem[]; 
           >
             {t(`schemaChange.statements.severity.${p.severity}`)}
           </Tag>
-          {p.ruleId && <span className="mono" style={{ marginRight: 6 }}>{p.ruleId}</span>}
+          {p.ruleId && <span className="mono u-mr-2">{p.ruleId}</span>}
           {p.message}
         </li>
       ))}

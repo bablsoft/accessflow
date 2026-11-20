@@ -58,21 +58,21 @@ export default tseslint.config(
       '@typescript-eslint/no-deprecated': 'error',
     },
   },
-  // Design-system guard (warning while pages migrate to src/components/layout): no hand-rolled
-  // page gutters, and no font sizes off the --text-* scale.
+  // Design-system guard: no hand-rolled page gutters, and no font sizes off the --text-* scale.
+  // Prefer the utility classes in src/styles/utilities.css over an inline style.
   {
     files: ['src/pages/**/*.tsx', 'src/components/**/*.tsx'],
     ignores: ['**/*.test.tsx', '**/__tests__/**'],
     rules: {
       'no-restricted-syntax': [
-        'warn',
+        'error',
         {
           selector: "JSXAttribute[name.name='style'] Property[key.name='padding'][value.value=/28px/]",
           message: 'Use <PageBody> / <FilterBar> from @/components/layout instead of a hand-rolled page gutter.',
         },
         {
           selector:
-            "JSXAttribute[name.name='style'] Property[key.name='fontSize'][value.raw=/^(9|9\\.5|10|10\\.5|11\\.5|12\\.5|13\\.5|15)$/]",
+            "JSXAttribute[name.name='style'] Property[key.name='fontSize'][value.raw=/^(9|9\\.5|10|10\\.5|11\\.5|12\\.5|13\\.5|15|17|18|19)$/]",
           message: 'Font size is off the type scale — use a --text-* token (11, 12, 13, 14, 16, 20, 24).',
         },
       ],

@@ -25,7 +25,7 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
   }, [account, form]);
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div className="u-max-w-text">
       <Typography.Paragraph type="secondary">{t('admin.service_accounts.tools.description')}</Typography.Paragraph>
       <Alert
         type="info"

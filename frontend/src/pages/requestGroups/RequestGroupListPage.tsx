@@ -189,7 +189,7 @@ export default function RequestGroupListPage() {
           placeholder={t('requestGroups.list.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={status}
@@ -201,7 +201,7 @@ export default function RequestGroupListPage() {
             { value: 'all', label: t('requestGroups.list.filterAllStatuses') },
             ...enumOptions(REQUEST_GROUP_STATUSES, requestGroupStatusLabel, t),
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
       </FilterBar>
       <PageBody flush>

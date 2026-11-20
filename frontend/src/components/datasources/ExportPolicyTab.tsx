@@ -99,7 +99,7 @@ export function ExportPolicyTab({ dsId }: { dsId: string }) {
           <div className="u-fw-600">
             {t('datasources.settings.export_policies.title')}
           </div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('datasources.settings.export_policies.description')}
           </div>
         </div>
@@ -430,7 +430,7 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
               },
             ]}
           >
-            <InputNumber min={1} max={1_000_000} style={{ width: 160 }} />
+            <InputNumber min={1} max={1_000_000} className="u-w-sm" />
           </Form.Item>
         )}
 
@@ -498,13 +498,9 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
 
         {watermarked && (
           <div
-            style={{
-              padding: '10px 12px',
-              background: 'var(--bg-sunken)',
-              borderRadius: 6,
-            }}
+            className="u-bg-sunken u-rounded u-py-2 u-px-3"
           >
-            <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+            <div className="muted u-text-2xs u-mb-2">
               {t('datasources.settings.export_policies.preview_label')}
             </div>
             <Typography.Text className="mono u-text-xs u-block">

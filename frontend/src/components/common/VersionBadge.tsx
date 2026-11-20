@@ -47,7 +47,7 @@ export function VersionBadge() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={label}
-        className="u-inline-flex" style={{ marginTop: 2 }}
+        className="u-inline-flex u-mt-1"
       >
         <Pill fg={color.fg} bg={color.bg} border={color.border} withDot size="sm">
           v{APP_VERSION}

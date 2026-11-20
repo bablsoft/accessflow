@@ -308,14 +308,14 @@ export default function SchemaDriftPage() {
             { value: 'all', label: t('schemaChange.list.allPipelines') },
             ...pipelines.map((p) => ({ value: p.id, label: p.name })),
           ]}
-          style={{ width: 220 }}
+          className="u-w-md"
         />
         <Select
           value={environment}
           aria-label={t('schemaChange.drift.environment')}
           onChange={setEnvironment}
           options={[{ value: 'all', label: t('schemaChange.drift.allEnvironments') }, ...environmentOptions]}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={status}
@@ -325,10 +325,10 @@ export default function SchemaDriftPage() {
             { value: 'all', label: t('schemaChange.drift.allStatuses') },
             ...enumOptions(SCHEMA_DRIFT_FINDING_STATUSES, schemaDriftFindingStatusLabel, t),
           ]}
-          style={{ width: 170 }}
+          className="u-w-sm"
         />
       </FilterBar>
-      <div className="u-flex-1 u-p-5 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-5 u-flex u-col u-gap-4 u-overflow-auto">
         <Alert type="info" showIcon title={t('schemaChange.drift.fidelityNote')} />
         {truncated && (
           <Alert
@@ -400,7 +400,7 @@ function EnvironmentCard({
   } else if (!scan.finished_at) {
     state = (
       <div className="muted">
-        <SyncOutlined spin style={{ marginRight: 6 }} />
+        <SyncOutlined spin className="u-mr-2" />
         {t('schemaChange.drift.scanRunning')}
       </div>
     );

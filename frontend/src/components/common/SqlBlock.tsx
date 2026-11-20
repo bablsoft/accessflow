@@ -5,7 +5,7 @@ export function SqlBlock({ sql, style }: { sql: string; style?: CSSProperties })
   const tokens = highlightSql(sql);
   return (
     <pre
-      className="u-m-0 u-mono u-text-sm" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', lineHeight: 1.6, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...style }}
+      className="u-m-0 u-mono u-text-sm u-bg-code u-rounded u-border u-overflow-auto u-pre-wrap u-break-word u-p-4 u-leading-normal" style={{ ...style }}
     >
       {tokens.map((tk, i) => (
         <span

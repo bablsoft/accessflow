@@ -101,7 +101,7 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
       >
         <div>
           <div className="u-fw-600">{t('datasources.settings.row_security.title')}</div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('datasources.settings.row_security.description')}
           </div>
         </div>

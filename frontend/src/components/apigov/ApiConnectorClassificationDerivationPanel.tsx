@@ -41,17 +41,17 @@ export function ApiConnectorClassificationDerivationPanel({ connectorId }: { con
   const posture = derivation?.suggested_review_posture;
 
   return (
-    <div className="u-mt-6" style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderRadius: 8 }}>
+    <div className="u-mt-6 u-bg-sunken u-rounded-md u-py-4 u-px-4">
       <div className="u-fw-600 u-mb-1">
         {t('apiGov.settings.classification.derivation_title')}
       </div>
-      <div className="muted u-text-xs u-mb-3" style={{ maxWidth: 640 }}>
+      <div className="muted u-text-xs u-mb-3 u-max-w-text">
         {t('apiGov.settings.classification.derivation_description')}
       </div>
 
       {posture && (
         <div className="u-mb-4">
-          <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+          <div className="muted u-text-2xs u-mb-2">
             {t('apiGov.settings.classification.review_posture_label')}
           </div>
           <div className="u-flex u-wrap u-gap-2 u-items-center">
@@ -74,7 +74,7 @@ export function ApiConnectorClassificationDerivationPanel({ connectorId }: { con
         </div>
       )}
 
-      <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+      <div className="muted u-text-2xs u-mb-2">
         {t('apiGov.settings.classification.masking_suggestions_label')}
       </div>
       <DataTable<ApiConnectorClassificationMaskingSuggestion>

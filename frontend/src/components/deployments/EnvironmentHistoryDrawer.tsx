@@ -83,7 +83,7 @@ function HistoryBody({
             key: entry.request_id,
             color: statusColor(entry.status).fg,
             children: (
-              <div className="u-flex u-col" style={{ gap: 6 }}>
+              <div className="u-flex u-col u-gap-2">
                 <div className="u-flex u-gap-2 u-items-center u-wrap">
                   <span className="mono u-text-sm u-fw-600">
                     {entry.version}

@@ -67,7 +67,7 @@ export function ServiceAccountSettingsPage() {
         title={account?.display_name ?? t('admin.service_accounts.title')}
         subtitle={
           account ? (
-            <span className="u-inline-flex u-items-center u-wrap" style={{ gap: 10 }}>
+            <span className="u-inline-flex u-items-center u-wrap u-gap-2">
               <span className="mono u-text-xs">
                 {account.email}
               </span>

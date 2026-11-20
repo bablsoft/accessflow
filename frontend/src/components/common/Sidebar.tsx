@@ -473,14 +473,14 @@ export function Sidebar({
             const role = roleLabel(t, user.role);
             return (
               <div
-                className="u-flex u-items-center" style={{ gap: 10, justifyContent: collapsed ? 'center' : 'flex-start' }}
+                className="u-flex u-items-center u-gap-2" style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
                 title={collapsed ? `${label} · ${role}` : undefined}
               >
                 <Avatar name={label} size={28} />
                 {!collapsed && (
                   <div className="u-min-w-0 u-flex-1">
                     <div
-                      className="u-text-sm u-fw-500 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      className="u-text-sm u-fw-500 u-nowrap u-overflow-hidden u-ellipsis"
                     >
                       {label}
                     </div>

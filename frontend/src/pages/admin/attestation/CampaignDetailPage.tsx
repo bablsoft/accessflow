@@ -189,7 +189,7 @@ export default function CampaignDetailPage() {
         }
       />
       <div
-        className="u-flex u-wrap u-items-center" style={{ padding: '16px var(--gutter)', borderBottom: '1px solid var(--border)', background: 'var(--bg-elev)', gap: 28 }}
+        className="u-flex u-wrap u-items-center u-border-b u-bg-elev" style={{ padding: '16px var(--gutter)', gap: 28 }}
       >
         <Pill fg={statusColor.fg} bg={statusColor.bg} border={statusColor.border} withDot>
           {attestationCampaignStatusLabel(t, campaign.status)}
@@ -232,10 +232,10 @@ export default function CampaignDetailPage() {
                 title: t('attestation.detail.col_subject'),
                 key: 'subject',
                 render: (_v, item) => (
-                  <div className="u-flex u-items-center" style={{ gap: 10 }}>
+                  <div className="u-flex u-items-center u-gap-2">
                     <Avatar name={item.subject_user_email} size={24} />
                     <div>
-                      <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
+                      <div className="u-text-sm u-flex u-items-center u-gap-2">
                         {item.subject_user_display_name}
                         <PrincipalTypeTag principalType={item.subject_principal_type} />
                       </div>
@@ -290,8 +290,7 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div>
       <div
-        className="muted u-text-2xs"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        className="muted u-text-2xs u-uppercase u-tracking-wide"
       >
         {label}
       </div>

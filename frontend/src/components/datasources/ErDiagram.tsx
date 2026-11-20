@@ -30,14 +30,14 @@ function TableNode({ id, data }: NodeProps<Node<TableNodeData>>) {
   return (
     <div
       onClick={() => data.onSelect(id)}
-      className="u-text-xs" style={{ width: NODE_WIDTH, border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 6, background: 'var(--bg)', boxShadow: isSelected
+      className="u-text-xs u-rounded u-bg u-overflow-hidden u-pointer" style={{ width: NODE_WIDTH, border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, boxShadow: isSelected
           ? '0 0 0 2px var(--accent-soft, rgba(99,102,241,0.18))'
-          : '0 1px 2px rgba(0,0,0,0.04)', overflow: 'hidden', cursor: 'pointer' }}
+          : '0 1px 2px rgba(0,0,0,0.04)' }}
     >
       <Handle type="target" position={Position.Left} style={{ background: 'var(--border)' }} />
       <Handle type="source" position={Position.Right} style={{ background: 'var(--border)' }} />
       <div
-        className="u-fw-600 u-mono u-text-xs" style={{ padding: '8px 12px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--border)' }}
+        className="u-fw-600 u-mono u-text-xs u-py-2 u-px-3 u-bg-sunken u-border-b"
       >
         <span className="muted u-fw-400">{data.schema}.</span>
         {data.table}
@@ -51,8 +51,7 @@ function TableNode({ id, data }: NodeProps<Node<TableNodeData>>) {
             <span>
               {c.primary_key && (
                 <span
-                  className="muted u-text-2xs u-fw-600"
-                  style={{ marginRight: 6 }}
+                  className="muted u-text-2xs u-fw-600 u-mr-2"
                 >
                   {data.pkLabel}
                 </span>
@@ -87,7 +86,7 @@ export function ErDiagram({ schemas, helpText }: ErDiagramProps) {
 
   return (
     <div
-      className="u-w-full" style={{ height: 560, border: '1px solid var(--border)', borderRadius: 8 }}
+      className="u-w-full u-border u-rounded-md" style={{ height: 560 }}
     >
       <ReactFlow
         nodes={nodes}
@@ -106,8 +105,7 @@ export function ErDiagram({ schemas, helpText }: ErDiagramProps) {
       </ReactFlow>
       {helpText && (
         <div
-          className="muted u-text-2xs"
-          style={{ padding: '6px 12px', borderTop: '1px solid var(--border)' }}
+          className="muted u-text-2xs u-border-t u-py-2 u-px-3"
         >
           {helpText}
         </div>

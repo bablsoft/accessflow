@@ -237,14 +237,14 @@ export function ApiReviewsTab() {
   ];
 
   return (
-    <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
+    <div className="u-flex u-col u-flex-1 u-min-h-0">
       <FilterBar>
         <Input
           prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('apiGov.reviews.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={connector}
@@ -253,7 +253,7 @@ export function ApiReviewsTab() {
             { value: 'all', label: t('apiGov.requests.filterAllConnectors') },
             ...(connectorsQuery.data?.content ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
         <Select
           value={verb}
@@ -262,7 +262,7 @@ export function ApiReviewsTab() {
             { value: 'all', label: t('apiGov.requests.filterAllVerbs') },
             ...VERBS.map((v) => ({ value: v, label: v })),
           ]}
-          style={{ width: 120 }}
+          className="u-w-xs"
         />
         <Select
           value={risk}
@@ -271,7 +271,7 @@ export function ApiReviewsTab() {
             { value: 'all', label: t('apiGov.requests.filterAllRisk') },
             ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
-          style={{ width: 130 }}
+          className="u-w-xs"
         />
         <div className="u-flex-1" />
         <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />

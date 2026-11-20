@@ -32,7 +32,7 @@ export function KeyValueEditor({
       {pairs.map((pair, index) => (
         <Space key={index} className="u-w-full" align="start">
           <Input
-            style={{ width: 220 }}
+            className="u-w-md"
             value={pair.key}
             disabled={disabled}
             placeholder={keyPlaceholder ?? t('apiGov.editor.keyPlaceholder')}
@@ -40,7 +40,7 @@ export function KeyValueEditor({
             onChange={(e) => update(index, { key: e.target.value })}
           />
           <Input
-            style={{ width: 280 }}
+            className="u-w-xl"
             value={pair.value}
             disabled={disabled}
             placeholder={valuePlaceholder ?? t('apiGov.editor.valuePlaceholder')}
@@ -60,7 +60,7 @@ export function KeyValueEditor({
         <Button
           icon={<PlusOutlined />}
           onClick={() => onChange([...pairs, { key: '', value: '' }])}
-          style={{ alignSelf: 'flex-start' }}
+          className="u-self-start"
         >
           {addLabel ?? t('apiGov.editor.addRow')}
         </Button>

@@ -80,7 +80,7 @@ function ExecutionsBody({ jobName }: { jobName: string }) {
                 <span className="mono muted u-text-xs">{row.error_class}</span>
               )}
               {row.error_message != null && (
-                <Typography.Paragraph className="mono u-text-xs u-m-0" style={{ whiteSpace: 'pre-wrap' }}>
+                <Typography.Paragraph className="mono u-text-xs u-m-0 u-pre-wrap">
                   {row.error_message}
                 </Typography.Paragraph>
               )}

@@ -60,7 +60,7 @@ function WeekStrip({ windows }: { windows: DeploymentFreezeWindow[] }) {
   if (segments.length === 0) return null;
   return (
     <div>
-      <div className="u-text-xs u-fw-600" style={{ marginBottom: 6 }}>
+      <div className="u-text-xs u-fw-600 u-mb-2">
         {t('deploygov.freezeWindows.weekTitle')}
       </div>
       <div
@@ -69,18 +69,11 @@ function WeekStrip({ windows }: { windows: DeploymentFreezeWindow[] }) {
       >
         {ISO_DAYS.map((day) => (
           <div key={day}>
-            <div className="muted u-text-2xs u-text-center" style={{ marginBottom: 2 }}>
+            <div className="muted u-text-2xs u-text-center u-mb-1">
               {isoWeekdayLabel(t, day)}
             </div>
             <div
-              style={{
-                position: 'relative',
-                height: 96,
-                background: 'var(--bg-sunken)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                overflow: 'hidden',
-              }}
+              className="u-relative u-bg-sunken u-border u-rounded-md u-overflow-hidden" style={{ height: 96 }}
             >
               {segments
                 .filter((s) => s.day === day)
@@ -295,8 +288,8 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
   ];
 
   return (
-    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 960 }}>
-      <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
+    <div className="u-flex u-col u-gap-4 u-max-w-reading">
+      <div className="muted u-text-xs u-leading-normal">
         {t('deploygov.freezeWindows.hint')}
       </div>
       <div>

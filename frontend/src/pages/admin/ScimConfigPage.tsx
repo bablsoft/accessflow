@@ -367,7 +367,7 @@ export function ScimConfigPage() {
             <Typography.Paragraph
               copyable={{ text: issuedToken.raw_token }}
               code
-              style={{ wordBreak: 'break-all' }}
+              className="u-break-all"
             >
               {issuedToken.raw_token}
             </Typography.Paragraph>

@@ -264,12 +264,12 @@ export function UsersPage() {
           placeholder={t('admin.users.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ width: 280 }}
+          className="u-w-xl"
         />
         <Select
           value={roleFilter}
           onChange={setRoleFilter}
-          style={{ width: 150 }}
+          className="u-w-sm"
           loading={rolesQuery.isLoading}
           options={[
             { value: 'all', label: t('admin.users.filter_all_roles') },
@@ -279,7 +279,7 @@ export function UsersPage() {
         <Select
           value={providerFilter}
           onChange={setProviderFilter}
-          style={{ width: 150 }}
+          className="u-w-sm"
           options={[
             { value: 'all', label: t('admin.users.filter_all_providers') },
             ...enumOptions(AUTH_PROVIDER_VALUES, authProviderLabel, t),
@@ -331,10 +331,10 @@ export function UsersPage() {
                 render: (_v, u) => {
                   const label = userDisplay(u.display_name, u.email);
                   return (
-                    <div className="u-flex u-items-center" style={{ gap: 10 }}>
+                    <div className="u-flex u-items-center u-gap-2">
                       <Avatar name={label} size={28} />
                       <div>
-                        <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
+                        <div className="u-text-sm u-flex u-items-center u-gap-2">
                           {label}
                           <PrincipalTypeTag principalType={u.principal_type} />
                         </div>

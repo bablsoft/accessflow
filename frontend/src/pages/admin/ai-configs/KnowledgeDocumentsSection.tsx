@@ -127,7 +127,7 @@ export function KnowledgeDocumentsSection({
   ];
 
   return (
-    <div className="u-mt-6" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+    <div className="u-mt-6 u-border-t u-pt-4">
       <div
         className="u-flex u-items-center u-justify-between u-mb-2"
       >

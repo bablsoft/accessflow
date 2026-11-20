@@ -201,11 +201,11 @@ export default function AiConfigCreateWizardPage() {
           </Button>
         }
       />
-      <div className="u-flex-1 u-p-gutter" style={{ overflow: 'auto', maxWidth: 760 }}>
+      <div className="u-flex-1 u-p-gutter u-overflow-auto u-max-w-form">
         <AiConfigWizardSteps current={currentStep} />
         <div className="u-mt-6">
           {currentStep === 'provider' && (
-            <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <div className="u-grid u-gap-3 u-cols-2">
               {PROVIDERS.map((p) => (
                 <button
                   key={p.id}
@@ -224,7 +224,7 @@ export default function AiConfigCreateWizardPage() {
                     });
                     setCurrentStep('connection');
                   }}
-                  className="u-p-4 u-fg" style={{ textAlign: 'left', background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
+                  className="af-box u-p-4 u-fg u-pointer" style={{ textAlign: 'left' }}
                 >
                   <div className="u-fw-600 u-text-md u-mb-1">{p.label}</div>
                   <div className="muted u-text-xs">{p.desc}</div>
@@ -284,7 +284,7 @@ export default function AiConfigCreateWizardPage() {
               >
                 <Input.Password className="mono" maxLength={4096} autoComplete="off" />
               </Form.Item>
-              <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              <div className="u-grid u-gap-3 u-cols-3">
                 <Form.Item
                   name="timeout_ms"
                   label={t('admin.ai_configs.field_timeout_ms')}
@@ -313,7 +313,7 @@ export default function AiConfigCreateWizardPage() {
                 extra={t('admin.ai_configs.fallback_priority_help')}
                 rules={[{ type: 'number', min: 0, max: 100 }]}
               >
-                <InputNumber className="mono" min={0} max={100} style={{ width: 200 }} />
+                <InputNumber className="mono u-w-md" min={0} max={100} />
               </Form.Item>
               <Form.Item
                 name="system_prompt_template"

@@ -122,7 +122,7 @@ export function OrganizationDetailPage() {
           </Button>
         }
       />
-      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px', maxWidth: 720 }}>
+      <div className="u-flex-1 u-overflow-auto u-py-0 u-px-3 u-max-w-form">
         <Card title={t('admin.organizations.usage_title')} className="u-mb-4">
           {usageQuery.isLoading || !usageQuery.data ? (
             <Skeleton active paragraph={{ rows: 3 }} />

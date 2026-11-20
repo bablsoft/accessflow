@@ -64,7 +64,7 @@ export function ApiConnectorSimulateTab({ connectorId }: { connectorId: string }
             name="user_id"
             label={t('decisionTrace.user')}
             rules={[{ required: true, message: t('apiGov.simulate.user_required') }]}
-            style={{ width: 320 }}
+            className="u-w-xl"
           >
             <SimulationUserSelect />
           </Form.Item>
@@ -92,7 +92,7 @@ export function ApiConnectorSimulateTab({ connectorId }: { connectorId: string }
                 message: t('apiGov.simulate.verb_too_long', { max: VERB_MAX_LENGTH }),
               },
             ]}
-            style={{ width: 160 }}
+            className="u-w-sm"
           >
             <Input className="mono" placeholder={t('apiGov.simulate.verb_placeholder')} />
           </Form.Item>
