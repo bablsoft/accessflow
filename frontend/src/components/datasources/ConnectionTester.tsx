@@ -49,17 +49,19 @@ export function ConnectionTester({
 
   return (
     <div className="u-flex u-col u-gap-3">
-      <Button
-        type="primary"
-        icon={<ThunderboltOutlined />}
-        onClick={onRunTest}
-        loading={pending}
-        disabled={pending}
-      >
-        {showResolving
-          ? t('datasources.create.test_resolving_driver')
-          : (buttonLabel ?? t('datasources.create.test_button'))}
-      </Button>
+      <div>
+        <Button
+          type="primary"
+          icon={<ThunderboltOutlined />}
+          onClick={onRunTest}
+          loading={pending}
+          disabled={pending}
+        >
+          {showResolving
+            ? t('datasources.create.test_resolving_driver')
+            : (buttonLabel ?? t('datasources.create.test_button'))}
+        </Button>
+      </div>
       {pending && showResolving && (
         <div className="muted u-text-xs u-flex u-gap-2 u-items-center">
           <Spin size="small" />

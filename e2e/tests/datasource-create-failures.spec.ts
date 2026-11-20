@@ -62,7 +62,7 @@ async function fillConnection(
 
 // AF-272 covers the three real-world failure modes the happy-path spec doesn't:
 //   1. Wrong password at the "Test" step → 422 failure Alert, Next stays disabled.
-//   2. Duplicate name at the "Connection" step → 409 toast, wizard stays put.
+//   2. Duplicate name at the "Connection" step → 409 shown on the Name field, wizard stays put.
 //   3. Non-admin (ANALYST) visiting /datasources/new → AuthGuard bounces to /editor.
 //
 // Wired as a serial describe block because tests 2 & 3 depend on state arranged
@@ -161,7 +161,7 @@ test.describe.serial('datasource create wizard — failure paths', () => {
     await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
-  test('duplicate name surfaces the 409 toast and stays on the connection step', async ({ page }) => {
+  test('duplicate name surfaces the 409 on the name field and stays on the connection step', async ({ page }) => {
     if (!arrangedDatasource) throw new Error('beforeAll did not arrange the duplicate-name target');
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -185,10 +185,9 @@ test.describe.serial('datasource create wizard — failure paths', () => {
     ]);
     expect(createResponse.status()).toBe(409);
 
-    // The 409 error code DATASOURCE_NAME_ALREADY_EXISTS is mapped to a
-    // toast via datasourceCreateErrorMessage → showApiError
-    // (apiErrors.ts:181-186, showApiError.tsx:24). The English copy is from
-    // i18n key errors.datasource_name_already_exists.
+    // The 409 error code DATASOURCE_NAME_ALREADY_EXISTS is shown under the Name field
+    // (datasourceCreateErrorMessage). The English copy is from i18n key
+    // errors.datasource_name_already_exists.
     await expect(
       page.getByText(
         'A datasource with that name already exists in your organization. Pick a different name.',
