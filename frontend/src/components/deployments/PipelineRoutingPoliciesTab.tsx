@@ -5,7 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, StatusTag } from '@/components/layout';
+import { DataTable, StatusTag, useDirtyClose } from '@/components/layout';
 import {
   createDeploymentRoutingPolicy,
   deleteDeploymentRoutingPolicy,
@@ -256,6 +256,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
     },
   ];
 
+  const discardGuard = useDirtyClose(modalFor !== null);
   return (
     <div className="u-flex u-col u-gap-3 u-max-w-reading">
       <div className="muted u-text-xs u-leading-normal">
@@ -282,7 +283,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
             ? t('deploygov.routingPolicies.createTitle')
             : t('deploygov.routingPolicies.editTitle')
         }
-        onCancel={() => setModalFor(null)}
+        onCancel={() => discardGuard.close(() => setModalFor(null))}
         okText={
           modalFor === 'create'
             ? t('deploygov.routingPolicies.create')
@@ -296,6 +297,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
             also declares a `name` field. */}
         <Form<PolicyFormValues>
           form={form}
+          onValuesChange={discardGuard.markDirty}
           name="deployment_routing_policy"
           layout="vertical"
           onFinish={(values) => saveMutation.mutate(values)}

@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, StatusTag } from '@/components/layout';
+import { DataTable, StatusTag, useDirtyClose } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   apiConnectorVariableKeys,
@@ -371,6 +371,7 @@ function VariableModal({ open, connectorId, variable, onClose }: VariableModalPr
     });
   };
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
@@ -379,7 +380,7 @@ function VariableModal({ open, connectorId, variable, onClose }: VariableModalPr
           ? t('apiGov.settings.variables.edit_title')
           : t('apiGov.settings.variables.create_title')
       }
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
@@ -389,6 +390,7 @@ function VariableModal({ open, connectorId, variable, onClose }: VariableModalPr
     >
       <Form<VariableFormValues>
         form={form}
+        onValuesChange={discardGuard.markDirty}
         // Namespaces the generated input ids (`connectorVariable_name`, …). Without it AntD emits a
         // bare `id="name"`, which collides with the Configuration tab's own name field — that tab
         // stays mounted behind this modal, so the duplicate id makes each `<label for>` resolve to

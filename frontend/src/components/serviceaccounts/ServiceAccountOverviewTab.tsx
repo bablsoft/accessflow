@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { App, Button, Descriptions, Form, Input, Select, Switch } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { listRoles, roleKeys } from '@/api/roles';
 import { renderUserOption } from '@/components/common/renderUserOption';
 import type { ServiceAccount } from '@/types/api';
@@ -20,6 +21,7 @@ import { useServiceAccountUpdate } from './useServiceAccountUpdate';
 
 export function ServiceAccountOverviewTab({ account }: { account: ServiceAccount }) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const [form] = Form.useForm<OverviewFormValues>();
   const selectedRoleId = Form.useWatch('role_id', form);
@@ -30,8 +32,9 @@ export function ServiceAccountOverviewTab({ account }: { account: ServiceAccount
   const saveMutation = useServiceAccountUpdate(account.id, t('admin.service_accounts.overview.success'));
 
   useEffect(() => {
+    markClean();
     form.setFieldsValue(overviewFormFromAccount(account));
-  }, [account, form]);
+  }, [account, form, markClean]);
 
   const ownerOptions =
     account.owner_user_id && !owners.options.some((o) => o.value === account.owner_user_id)
@@ -49,6 +52,7 @@ export function ServiceAccountOverviewTab({ account }: { account: ServiceAccount
     <div style={{ maxWidth: 560 }}>
       <Form<OverviewFormValues>
         form={form}
+        onValuesChange={markDirty}
         name="serviceAccountOverview"
         layout="vertical"
         onFinish={(values) => {
@@ -60,6 +64,7 @@ export function ServiceAccountOverviewTab({ account }: { account: ServiceAccount
           saveMutation.mutate(input);
         }}
       >
+        <UnsavedChangesGuard when={dirty} />
         <Form.Item label={t('admin.service_accounts.overview.label_email')}>
           <Input value={account.email} disabled data-testid="overview-email" />
         </Form.Item>

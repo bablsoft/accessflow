@@ -48,6 +48,7 @@
     "unsaved_stay": "Keep editing",
     "step_of": "Step {{current}} of {{total}}",
     "optional": "Optional",
+    "unsaved_close_body": "What you typed here has not been saved. If you close now it is lost.",
     "unsaved_hint": "Unsaved changes"
   },
   "nav": {

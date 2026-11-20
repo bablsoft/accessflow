@@ -15,7 +15,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -40,6 +40,7 @@ interface EditFormValues {
 
 export function OrganizationDetailPage() {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { id = '' } = useParams();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -74,6 +75,7 @@ export function OrganizationDetailPage() {
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateOrganizationInput) => updateOrganization(id, payload),
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: organizationKeys.all });
       message.success(t('admin.organizations.update_success'));
     },
@@ -151,7 +153,8 @@ export function OrganizationDetailPage() {
         </Card>
 
         <Card title={t('admin.organizations.settings_title')}>
-          <Form<EditFormValues> form={form} layout="vertical" onFinish={onSave}>
+          <Form<EditFormValues> form={form} onValuesChange={markDirty} layout="vertical" onFinish={onSave}>
+            <UnsavedChangesGuard when={dirty} />
             <Form.Item
               name="name"
               label={t('admin.organizations.label_name')}

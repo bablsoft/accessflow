@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable } from '@/components/layout';
+import { DataTable, useDirtyClose } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { isValidMaskingFieldRef } from '@/utils/maskingFieldRef';
 import {
@@ -365,6 +365,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
     });
   };
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
@@ -373,7 +374,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           ? t('apiGov.settings.masking.edit_title')
           : t('apiGov.settings.masking.create_title')
       }
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
@@ -383,6 +384,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
     >
       <Form<MaskingFormValues>
         form={form}
+        onValuesChange={discardGuard.markDirty}
         layout="vertical"
         initialValues={{ matcher_type: 'JSON_PATH', strategy: 'FULL', enabled: true }}
         onFinish={onFinish}

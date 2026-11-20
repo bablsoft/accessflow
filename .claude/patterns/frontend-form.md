@@ -58,6 +58,9 @@ Note the field names differ by convention — Java `camelCase`, wire/form `snake
       ([backend-i18n.md](backend-i18n.md)).
 - [ ] Field-level server errors surfaced when the `ProblemDetail` carries `error.path`.
 - [ ] Submit handler typed (`(values: UpdateReviewPlanRequest) => Promise<void>`), never `any`.
+- [ ] A form longer than a few fields guards unsaved input: `useDirtyState` +
+      `<UnsavedChangesGuard>` on a page (add `tabs` when the form's tab is unmounted on a switch),
+      `useDirtyClose(open)` in a modal or drawer. See `docs/06-frontend.md` → Unsaved changes.
 - [ ] Submit button disabled while pending, with the spinner *inside the button* — not a
       full-page loader.
 - [ ] Form state managed by AntD `Form`, never `useState`.

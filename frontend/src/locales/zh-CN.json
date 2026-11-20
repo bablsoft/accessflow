@@ -48,6 +48,7 @@
     "unsaved_stay": "继续编辑",
     "step_of": "第 {{current}} 步，共 {{total}} 步",
     "optional": "可选",
+    "unsaved_close_body": "你在此处输入的内容尚未保存。现在关闭将会丢失。",
     "unsaved_hint": "有未保存的更改"
   },
   "nav": {

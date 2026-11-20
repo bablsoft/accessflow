@@ -3,7 +3,7 @@ import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AccessStatusPill } from '@/components/common/AccessStatusPill';
@@ -39,6 +39,7 @@ interface RequestFormValues {
 
 export function RequestAccessPage() {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<RequestFormValues>();
@@ -171,6 +172,7 @@ export function RequestAccessPage() {
       ),
     onSuccess: () => {
       invalidateMine();
+      markClean();
       form.resetFields();
       message.success(t('access.request.submit_success'));
     },
@@ -307,6 +309,7 @@ export function RequestAccessPage() {
         <Card className="u-mb-6 u-max-w-text">
           <Form<RequestFormValues>
             form={form}
+            onValuesChange={markDirty}
             layout="vertical"
             onFinish={(values) => submit.mutate(values)}
             initialValues={{
@@ -315,6 +318,7 @@ export function RequestAccessPage() {
               requested_duration: 'PT4H',
             }}
           >
+            <UnsavedChangesGuard when={dirty} />
             <Form.Item name="resource_kind" label={t('access.request.resource_type')}>
               <Segmented
                 options={[

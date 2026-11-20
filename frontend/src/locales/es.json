@@ -48,6 +48,7 @@
     "unsaved_stay": "Seguir editando",
     "step_of": "Paso {{current}} de {{total}}",
     "optional": "Opcional",
+    "unsaved_close_body": "Lo que has escrito aquí no se ha guardado. Si cierras ahora, se perderá.",
     "unsaved_hint": "Cambios sin guardar"
   },
   "nav": {

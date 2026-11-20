@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody, useDirtyClose } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import {
   draftFingerprint,
@@ -317,6 +317,7 @@ export function RoutingPoliciesPage() {
       ? datasourcesQuery.data?.content.find((d) => d.id === id)?.name ?? id
       : t('admin.routing_policies.scope_org_wide');
 
+  const discardGuard = useDirtyClose(isOpen);
   return (
     <Page>
       <PageHeader
@@ -477,7 +478,7 @@ export function RoutingPoliciesPage() {
             ? t('admin.routing_policies.edit_modal_title', { name: editing.name })
             : t('admin.routing_policies.create_modal_title')
         }
-        onCancel={closeModal}
+        onCancel={() => discardGuard.close(closeModal)}
         onOk={() => confirmHighImpactSave(() => form.submit())}
         okText={
           editing
@@ -502,6 +503,7 @@ export function RoutingPoliciesPage() {
       >
         <Form<RoutingPolicyFormState>
           form={form}
+          onValuesChange={discardGuard.markDirty}
           layout="vertical"
           onFinish={onFinish}
         >

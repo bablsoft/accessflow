@@ -3,7 +3,7 @@ import { App, Button, Card, Form, InputNumber, Segmented } from 'antd';
 import { LineChartOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { StatusTag } from '@/components/layout';
+import { StatusTag, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { WidgetError } from '@/components/dashboard/WidgetError';
 import {
@@ -97,12 +97,14 @@ export function ApiConnectorLimitsTab({ connectorId }: ApiConnectorLimitsTabProp
 
 function LimitsForm({ connector }: { connector: ApiConnector }) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<LimitsFormValues>();
   const mutation = useMutation({
     mutationFn: (input: UpdateApiConnectorInput) => updateApiConnector(connector.id, input),
     onSuccess: () => {
+      markClean();
       message.success(t('apiGov.limits.saved'));
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connector.id) });
       // The list's Limits badge reads the same row.
@@ -115,12 +117,14 @@ function LimitsForm({ connector }: { connector: ApiConnector }) {
   return (
     <Form<LimitsFormValues>
       form={form}
+      onValuesChange={markDirty}
       name="connector-limits"
       layout="vertical"
       style={{ maxWidth: 560 }}
       initialValues={initialValues(connector)}
       onFinish={(values) => mutation.mutate(limitsPayload(values))}
     >
+      <UnsavedChangesGuard when={dirty} />
       <Form.Item
         name="calls_per_minute"
         label={t('apiGov.limits.callsPerMinute')}

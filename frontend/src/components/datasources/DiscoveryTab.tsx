@@ -4,7 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { CheckOutlined, CloseOutlined, RadarChartOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, StatusTag, type StatusTone } from '@/components/layout';
+import { DataTable, StatusTag, type StatusTone, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   bulkDecideFindings,
@@ -56,6 +56,7 @@ const STATUS_COLORS: Record<DiscoveryFindingStatus, StatusTone> = {
 
 export function DiscoveryTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<ConfigFormValues>();
@@ -88,6 +89,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
   const saveConfig = useMutation({
     mutationFn: (input: UpdateDiscoveryConfigInput) => updateDiscoveryConfig(dsId, input),
     onSuccess: (config) => {
+      markClean();
       queryClient.setQueryData(discoveryKeys.config(dsId), config);
       message.success(t('datasources.settings.discovery.config_save_success'));
     },
@@ -273,6 +275,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         {config && (
           <Form<ConfigFormValues>
             form={form}
+            onValuesChange={markDirty}
             layout="inline"
             initialValues={{
               enabled: config.enabled,
@@ -283,6 +286,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             onFinish={(values) => saveConfig.mutate(values)}
             style={{ rowGap: 12 }}
           >
+            <UnsavedChangesGuard when={dirty} tabs />
             <Form.Item
               name="enabled"
               label={t('datasources.settings.discovery.label_enabled')}

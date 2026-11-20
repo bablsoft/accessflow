@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, GroupedTabs, Page, Section, StatusTag, groupedTabId } from '@/components/layout';
+import { DataTable, GroupedTabs, Page, Section, StatusTag, groupedTabId, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import type { TFunction } from 'i18next';
 import { BytesInput } from '@/components/common/BytesInput';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -450,6 +450,7 @@ type SettingsFormValues = Omit<UpdateDatasourceInput, 'read_replicas' | 'environ
 
 function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<SettingsFormValues>();
@@ -568,6 +569,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const updateMutation = useMutation({
     mutationFn: (values: UpdateDatasourceInput) => updateDatasource(ds.id, values),
     onSuccess: (updated) => {
+      markClean();
       queryClient.setQueryData(datasourceKeys.detail(ds.id), updated);
       void queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
       message.success(t('datasources.settings.save_success'));
@@ -633,7 +635,8 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
 
   return (
     <div className="u-p-gutter u-max-w-form">
-      <Form form={form} layout="vertical" initialValues={initialValues} onFinish={onFinish}>
+      <Form form={form} onValuesChange={markDirty} layout="vertical" initialValues={initialValues} onFinish={onFinish}>
+        <UnsavedChangesGuard when={dirty} tabs />
         <Section title={t('datasources.settings.section_connection')}>
           <Grid>
             <Form.Item

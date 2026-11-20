@@ -5,7 +5,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, StatusTag } from '@/components/layout';
+import { DataTable, StatusTag, useDirtyClose } from '@/components/layout';
 import {
   createDeploymentFreezeWindow,
   deleteDeploymentFreezeWindow,
@@ -287,6 +287,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
     },
   ];
 
+  const discardGuard = useDirtyClose(modalFor !== null);
   return (
     <div className="u-flex u-col u-gap-4 u-max-w-reading">
       <div className="muted u-text-xs u-leading-normal">
@@ -314,7 +315,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
             ? t('deploygov.freezeWindows.createTitle')
             : t('deploygov.freezeWindows.editTitle')
         }
-        onCancel={() => setModalFor(null)}
+        onCancel={() => discardGuard.close(() => setModalFor(null))}
         okText={t('common.save')}
         confirmLoading={saveMutation.isPending}
         onOk={() => form.submit()}
@@ -322,6 +323,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
       >
         <Form<FreezeFormValues>
           form={form}
+          onValuesChange={discardGuard.markDirty}
           layout="vertical"
           onFinish={(values) => saveMutation.mutate(values)}
         >

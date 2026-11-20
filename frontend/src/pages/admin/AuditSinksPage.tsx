@@ -26,7 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, useDirtyClose } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -482,6 +482,7 @@ function SinkFormModal({
     }
   };
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
@@ -490,7 +491,7 @@ function SinkFormModal({
           ? t('admin.audit_sinks.modal_edit_title', { name: editing.name })
           : t('admin.audit_sinks.modal_create_title')
       }
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={editing ? t('admin.audit_sinks.save_update') : t('admin.audit_sinks.save_create')}
       cancelText={t('common.cancel')}
@@ -498,7 +499,7 @@ function SinkFormModal({
       destroyOnHidden
       width={640}
     >
-      <Form<SinkFormValues> form={form} layout="vertical" onFinish={onFinish}>
+      <Form<SinkFormValues> form={form} onValuesChange={discardGuard.markDirty} layout="vertical" onFinish={onFinish}>
         <Form.Item
           name="name"
           label={t('admin.audit_sinks.label_name')}

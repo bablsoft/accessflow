@@ -9,7 +9,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import { Page, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -72,6 +72,7 @@ interface FormValues {
 export default function AiConfigEditPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -128,6 +129,7 @@ export default function AiConfigEditPage() {
       return updateAiConfig(id, input);
     },
     onSuccess: () => {
+      markClean();
       void queryClient.invalidateQueries({ queryKey: aiConfigKeys.all });
       void queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       message.success(t('admin.ai_configs.save_success'));
@@ -258,7 +260,8 @@ export default function AiConfigEditPage() {
         }
       />
       <div className="u-flex-1 u-p-gutter u-overflow-auto u-max-w-form">
-        <Form<FormValues> form={form} layout="vertical" onFinish={onSave}>
+        <Form<FormValues> form={form} onValuesChange={markDirty} layout="vertical" onFinish={onSave}>
+          <UnsavedChangesGuard when={dirty} />
           <Form.Item
             name="name"
             label={t('admin.ai_configs.field_name')}
