@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +10,10 @@ import type {
   Datasource,
   DatasourceTypesResponse,
 } from '@/types/api';
+
+// These tests walk four steps with async form validation in between; the default 1s wait is
+// too tight on a loaded CI runner.
+configure({ asyncUtilTimeout: 5000 });
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {
