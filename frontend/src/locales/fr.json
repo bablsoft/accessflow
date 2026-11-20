@@ -48,6 +48,7 @@
     "unsaved_stay": "Continuer la modification",
     "step_of": "Étape {{current}} sur {{total}}",
     "optional": "Facultatif",
+    "unsaved_close_body": "Ce que vous avez saisi ici n'a pas été enregistré. Si vous fermez maintenant, ce sera perdu.",
     "unsaved_hint": "Modifications non enregistrées"
   },
   "nav": {

@@ -11,7 +11,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody } from '@/components/layout';
+import { DataTable, Page, PageBody, useDirtyClose } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -226,6 +226,7 @@ export function ReviewPlansPage() {
     }),
   );
 
+  const discardGuard = useDirtyClose(isOpen);
   return (
     <Page>
       <PageHeader
@@ -363,7 +364,7 @@ export function ReviewPlansPage() {
             ? t('admin.review_plans.edit_modal_title', { name: editing.name })
             : t('admin.review_plans.create_modal_title')
         }
-        onCancel={closeModal}
+        onCancel={() => discardGuard.close(closeModal)}
         onOk={() => form.submit()}
         okText={
           editing
@@ -377,6 +378,7 @@ export function ReviewPlansPage() {
       >
         <Form<PlanFormValues>
           form={form}
+          onValuesChange={discardGuard.markDirty}
           layout="vertical"
           initialValues={DEFAULT_VALUES}
           onFinish={onFinish}

@@ -149,6 +149,11 @@ test.describe.serial('deployment freeze windows (#696)', () => {
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog.getByText('End must be after start')).toBeVisible({ timeout: 10_000 });
     expect(posts).toHaveLength(0);
+    // The form has typed input, so closing it asks first.
     await dialog.getByRole('button', { name: 'Cancel' }).click();
+    const discard = page.getByRole('dialog').filter({ hasText: 'Discard unsaved changes?' });
+    await expect(discard).toBeVisible();
+    await discard.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(dialog).toBeHidden();
   });
 });

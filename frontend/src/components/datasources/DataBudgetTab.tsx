@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable } from '@/components/layout';
+import { DataTable, useDirtyClose } from '@/components/layout';
 import { EmptyState } from '@/components/common/EmptyState';
 import { BytesInput } from '@/components/common/BytesInput';
 import { renderUserOption } from '@/components/common/renderUserOption';
@@ -381,11 +381,12 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
         : Promise.resolve(),
   });
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
       title={budget ? t('dataBudgets.tab.edit_title') : t('dataBudgets.tab.create_title')}
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
@@ -395,6 +396,7 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
     >
       <Form<DataBudgetFormValues>
         form={form}
+        onValuesChange={discardGuard.markDirty}
         name="data-budget"
         layout="vertical"
         initialValues={DEFAULT_VALUES}

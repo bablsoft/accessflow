@@ -3,7 +3,7 @@ import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Space, S
 import { CheckOutlined, CopyOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -154,6 +154,7 @@ function scopesContain(scopes: string | undefined | null, token: string): boolea
 
 function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const [form] = Form.useForm<OAuth2FormValues>();
   const callbackUrl = useMemo(() => callbackUrlFor(provider), [provider]);
@@ -198,6 +199,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   const saveMutation = useMutation({
     mutationFn: (payload: UpdateOAuth2ConfigInput) => updateOAuth2Config(provider, payload),
     onSuccess: () => {
+      markClean();
       onSaved();
       message.success(t('admin.oauth2.save_success'));
     },
@@ -242,6 +244,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   return (
     <Form<OAuth2FormValues>
       form={form}
+      onValuesChange={markDirty}
       // Distinct form name per provider tab so input element IDs (Form.Item
       // generates `<form-name>_<item-name>`) don't collide once Ant Design
       // Tabs keeps previously-activated panes mounted in the DOM. Without
@@ -252,6 +255,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       onFinish={onFinish}
       initialValues={initialValues}
     >
+      <UnsavedChangesGuard when={dirty} />
       <Alert
         type="info"
         showIcon

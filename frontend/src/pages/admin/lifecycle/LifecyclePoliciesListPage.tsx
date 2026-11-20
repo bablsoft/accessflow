@@ -3,7 +3,7 @@ import { App, Button, Form, Input, Modal, Select, Skeleton, Switch } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag, useDirtyClose } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -307,11 +307,12 @@ function CreatePolicyModal({
     label: d.name,
   }));
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
       title={t('lifecycle.policies.create_modal_title')}
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={t('lifecycle.policies.create')}
       cancelText={t('common.cancel')}
@@ -320,6 +321,7 @@ function CreatePolicyModal({
     >
       <Form<PolicyFormValues>
         form={form}
+        onValuesChange={discardGuard.markDirty}
         layout="vertical"
         initialValues={{ action: 'HARD_DELETE', enabled: true, timestamp_column: 'created_at' }}
         onFinish={(values) => {

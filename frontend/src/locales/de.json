@@ -48,6 +48,7 @@
     "unsaved_stay": "Weiter bearbeiten",
     "step_of": "Schritt {{current}} von {{total}}",
     "optional": "Optional",
+    "unsaved_close_body": "Ihre Eingaben wurden nicht gespeichert. Wenn Sie jetzt schließen, gehen sie verloren.",
     "unsaved_hint": "Nicht gespeicherte Änderungen"
   },
   "nav": {

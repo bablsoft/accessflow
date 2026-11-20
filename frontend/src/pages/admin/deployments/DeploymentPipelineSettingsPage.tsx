@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   deploymentPipelineKeys,
@@ -40,6 +40,7 @@ interface GeneralFormValues {
 
 function GeneralTab({ pipeline }: { pipeline: DeploymentPipeline }) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<GeneralFormValues>();
@@ -84,6 +85,7 @@ function GeneralTab({ pipeline }: { pipeline: DeploymentPipeline }) {
         active: values.active,
       }),
     onSuccess: (updated) => {
+      markClean();
       message.success(t('deploygov.pipelines.updateSuccess'));
       queryClient.setQueryData(deploymentPipelineKeys.detail(pipeline.id), updated);
       void queryClient.invalidateQueries({ queryKey: deploymentPipelineKeys.lists() });
@@ -94,10 +96,12 @@ function GeneralTab({ pipeline }: { pipeline: DeploymentPipeline }) {
   return (
     <Form<GeneralFormValues>
       form={form}
+      onValuesChange={markDirty}
       layout="vertical"
       style={{ maxWidth: 520 }}
       onFinish={(values) => saveMutation.mutate(values)}
     >
+      <UnsavedChangesGuard when={dirty} />
       {/* Parity with UpdateDeploymentPipelineRequest: name @Size(3-255),
           repository_url @Size(max 2048), project_ref @Size(max 512). */}
       <Form.Item

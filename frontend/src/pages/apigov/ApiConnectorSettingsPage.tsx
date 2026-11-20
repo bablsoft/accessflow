@@ -4,7 +4,7 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag, UnsavedChangesGuard, useDirtyState } from '@/components/layout';
 import { ApiConnectorSimulateTab } from '@/components/apigov/ApiConnectorSimulateTab';
 import { ApiConnectorLimitsTab } from '@/components/apigov/ApiConnectorLimitsTab';
 import { ApiConnectorDriftTab } from '@/components/apigov/ApiConnectorDriftTab';
@@ -138,6 +138,7 @@ export default function ApiConnectorSettingsPage() {
 
 function ConfigTab({ connectorId }: { connectorId: string }) {
   const { t } = useTranslation();
+  const { dirty, markDirty, markClean } = useDirtyState();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
@@ -169,6 +170,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   const mutation = useMutation({
     mutationFn: (input: UpdateApiConnectorInput) => updateApiConnector(connectorId, input),
     onSuccess: () => {
+      markClean();
       message.success(t('apiGov.connectors.updated'));
       // detail(id) is the prefix of health(id); the list feeds the Health column.
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connectorId) });
@@ -181,6 +183,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   return (
     <Form
       form={form}
+      onValuesChange={markDirty}
       layout="vertical"
       style={{ maxWidth: 560 }}
       initialValues={{
@@ -218,6 +221,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         })
       }
     >
+      <UnsavedChangesGuard when={dirty} />
       <Form.Item name="name" label={t('apiGov.connectors.name')} rules={[{ required: true, min: 3, max: 255 }]}>
         <Input />
       </Form.Item>

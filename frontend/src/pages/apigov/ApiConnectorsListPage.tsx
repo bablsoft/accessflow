@@ -4,7 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, Page, PageBody, StatusTag } from '@/components/layout';
+import { DataTable, Page, PageBody, StatusTag, useDirtyClose } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   apiConnectorKeys,
@@ -185,6 +185,7 @@ export default function ApiConnectorsListPage() {
     },
   ];
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Page>
       <PageHeader
@@ -211,13 +212,14 @@ export default function ApiConnectorsListPage() {
       <Modal
         title={t('apiGov.connectors.new')}
         open={open}
-        onCancel={() => setOpen(false)}
+        onCancel={() => discardGuard.close(() => setOpen(false))}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending}
         okText={t('apiGov.connectors.save')}
       >
         <Form
           form={form}
+          onValuesChange={discardGuard.markDirty}
           layout="vertical"
           initialValues={{
             protocol: 'REST',

@@ -30,7 +30,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page, PageBody } from '@/components/layout';
+import { Page, PageBody, useDirtyClose } from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SystemSmtpCard } from '@/components/admin/SystemSmtpCard';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -623,6 +623,7 @@ function ChannelFormModal({
     }
   };
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
@@ -631,7 +632,7 @@ function ChannelFormModal({
           ? t('admin.notifications.modal_edit_title', { name: editing.name })
           : t('admin.notifications.modal_create_title')
       }
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={() => form.submit()}
       okText={
         editing ? t('admin.notifications.save_update') : t('admin.notifications.save_create')
@@ -641,7 +642,7 @@ function ChannelFormModal({
       destroyOnHidden
       width={640}
     >
-      <Form<ChannelFormValues> form={form} layout="vertical" onFinish={onFinish}>
+      <Form<ChannelFormValues> form={form} onValuesChange={discardGuard.markDirty} layout="vertical" onFinish={onFinish}>
         <Form.Item
           name="name"
           label={t('admin.notifications.label_name')}

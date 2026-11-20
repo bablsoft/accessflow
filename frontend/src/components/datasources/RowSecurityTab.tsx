@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { DataTable, StatusTag } from '@/components/layout';
+import { DataTable, StatusTag, useDirtyClose } from '@/components/layout';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
 import { draftFingerprint, isRowSecurityDraftHighImpact }
   from '@/components/policies/policyImpact';
@@ -410,6 +410,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
     });
   };
 
+  const discardGuard = useDirtyClose(open);
   return (
     <Modal
       open={open}
@@ -418,7 +419,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           ? t('datasources.settings.row_security.edit_title')
           : t('datasources.settings.row_security.create_title')
       }
-      onCancel={onClose}
+      onCancel={() => discardGuard.close(onClose)}
       onOk={confirmHighImpactSave}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
@@ -447,6 +448,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
     >
       <Form<RowSecurityFormValues>
         form={form}
+        onValuesChange={discardGuard.markDirty}
         layout="vertical"
         initialValues={{ operator: 'EQUALS', value_type: 'VARIABLE', enabled: true }}
         onFinish={onFinish}

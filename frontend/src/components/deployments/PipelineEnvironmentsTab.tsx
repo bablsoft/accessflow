@@ -5,7 +5,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { DataTable } from '@/components/layout';
+import { DataTable, useDirtyClose } from '@/components/layout';
 import {
   createDeploymentEnvironment,
   deleteDeploymentEnvironment,
@@ -294,6 +294,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     },
   ];
 
+  const discardGuard = useDirtyClose(modalFor !== null);
   return (
     <div className="u-flex u-col u-gap-3 u-max-w-reading">
       <div>
@@ -317,7 +318,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
             ? t('deploygov.settings.envCreateTitle')
             : t('deploygov.settings.envEditTitle')
         }
-        onCancel={() => setModalFor(null)}
+        onCancel={() => discardGuard.close(() => setModalFor(null))}
         okText={t('common.save')}
         confirmLoading={saveMutation.isPending}
         onOk={() => form.submit()}
@@ -328,6 +329,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
             mis-associate the labels. */}
         <Form<EnvironmentFormValues>
           form={form}
+          onValuesChange={discardGuard.markDirty}
           name="deployment_environment"
           layout="vertical"
           onFinish={(values) => saveMutation.mutate(values)}

@@ -193,7 +193,13 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     await expect(
       page.getByText('An environment with this sort order already exists on this pipeline'),
     ).toBeVisible();
+    // The order was edited and not saved, so closing the dialog asks first.
     await editDialog.getByRole('button', { name: 'Cancel' }).click();
+    await page
+      .getByRole('dialog')
+      .filter({ hasText: 'Discard unsaved changes?' })
+      .getByRole('button', { name: 'Discard changes' })
+      .click();
     await expect(editDialog).toBeHidden();
 
     // Permissions tab — grant the admin's own user can_trigger via the form.
