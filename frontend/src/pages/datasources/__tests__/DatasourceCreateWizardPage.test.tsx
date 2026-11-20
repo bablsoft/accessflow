@@ -453,21 +453,124 @@ describe('DatasourceCreateWizardPage', () => {
     );
   });
 
-  it('hides the Back button once the datasource is persisted (test step)', async () => {
+  async function reachTestStep() {
     createDatasource.mockResolvedValueOnce(baseDatasource);
-
     render(wrap(<DatasourceCreateWizardPage />));
-
     await screen.findByText('PostgreSQL');
     fireEvent.click(screen.getByText('PostgreSQL'));
-
     await screen.findByLabelText('Name');
-    expect(screen.queryByRole('button', { name: /Back/ })).toBeInTheDocument();
+    await fillConnectionAndSubmit('Save and test');
+    await screen.findByRole('button', { name: /Test connection/ });
+  }
 
+  it('goes back from the test step and continues without saving when nothing changed', async () => {
+    await reachTestStep();
+
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    await screen.findByLabelText('Name');
+    // The database type is fixed once the datasource exists.
+    expect(screen.queryByRole('button', { name: /Back/ })).toBeNull();
+    expect(screen.getByText('Prod PG is saved')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByRole('button', { name: /Test connection/ });
+    expect(updateDatasource).not.toHaveBeenCalled();
+    expect(createDatasource).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates the saved datasource instead of creating a second one after an edit', async () => {
+    await reachTestStep();
+    updateDatasource.mockResolvedValueOnce({ ...baseDatasource, host: 'db2.internal' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    fireEvent.change(await screen.findByLabelText('Host'), { target: { value: 'db2.internal' } });
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes and re-test' }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalledTimes(1));
+    expect(updateDatasource.mock.calls[0]![0]).toBe('ds-1');
+    expect(updateDatasource.mock.calls[0]![1]).toMatchObject({
+      host: 'db2.internal',
+      password: 'hunter2',
+    });
+    expect(createDatasource).toHaveBeenCalledTimes(1);
+    await screen.findByRole('button', { name: /Test connection/ });
+  });
+
+  it('offers to edit the connection when the test fails', async () => {
+    testConnection.mockResolvedValueOnce({
+      ok: false,
+      latency_ms: 0,
+      message: 'auth failed',
+    } satisfies ConnectionTestResult);
+    await reachTestStep();
+
+    fireEvent.click(screen.getByRole('button', { name: /Test connection/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Edit connection/ }));
+    expect(await screen.findByLabelText('Host')).toBeInTheDocument();
+  });
+
+  it('puts a taken name on the name field and stays on the connection step', async () => {
+    createDatasource.mockRejectedValueOnce(
+      Object.assign(new Error('conflict'), {
+        isAxiosError: true,
+        response: { status: 409, data: { error: 'DATASOURCE_NAME_ALREADY_EXISTS' } },
+      }),
+    );
+    render(wrap(<DatasourceCreateWizardPage />));
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+    await screen.findByLabelText('Name');
     await fillConnectionAndSubmit('Save and test');
 
-    await screen.findByRole('button', { name: /Test connection/ });
-    expect(screen.queryByRole('button', { name: /Back/ })).toBeNull();
+    await waitFor(() =>
+      expect(document.querySelector('.ant-form-item-explain-error')?.textContent).toMatch(
+        /already exists/,
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Save and test' })).toBeInTheDocument();
+  });
+
+  it('shows any other save failure above the form', async () => {
+    createDatasource.mockRejectedValueOnce(new Error('boom'));
+    render(wrap(<DatasourceCreateWizardPage />));
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+    await screen.findByLabelText('Name');
+    await fillConnectionAndSubmit('Save and test');
+
+    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('cancels straight to the list when nothing was entered', async () => {
+    render(wrap(<DatasourceCreateWizardPage />));
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(navigateMock).toHaveBeenCalledWith('/datasources');
+  });
+
+  it('asks before discarding typed connection details', async () => {
+    render(wrap(<DatasourceCreateWizardPage />));
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect((await screen.findAllByText('Discard unsaved changes?')).length).toBeGreaterThan(0);
+    expect(navigateMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/datasources'));
+  });
+
+  it('says the datasource is kept when cancelling after it was saved', async () => {
+    await reachTestStep();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect((await screen.findAllByText('Leave the wizard?')).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Prod PG is already saved/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/datasources'));
   });
 
   it('settings step PUTs and navigates to /datasources/:id/settings', async () => {

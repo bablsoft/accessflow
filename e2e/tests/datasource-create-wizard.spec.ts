@@ -81,6 +81,21 @@ test('admin creates a PostgreSQL datasource through the wizard', async ({ page }
   // Success Alert renders `Connected · {{ms}} ms` from `datasources.create.test_success`.
   await expect(page.getByText(/Connected · \d+ ms/)).toBeVisible({ timeout: 15_000 });
 
+  // ── 4b. Back to the connection step, edit, and re-test — a PUT, never a second POST ──
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.locator('#name')).toHaveValue(datasourceName);
+  await page.locator('#name').fill(`${datasourceName} edited`);
+  const [updateResponse] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && /\/api\/v1\/datasources\/[0-9a-f-]{36}$/.test(r.url()),
+      { timeout: 15_000 },
+    ),
+    page.getByRole('button', { name: 'Save changes and re-test' }).click(),
+  ]);
+  expect(updateResponse.status()).toBe(200);
+  await page.getByRole('button', { name: 'Test connection' }).click();
+  await expect(page.getByText(/Connected · \d+ ms/)).toBeVisible({ timeout: 15_000 });
+
   // ── 5. Settings step — Next is only enabled after a successful test ─────────────
   const nextButton = page.getByRole('button', { name: 'Next' });
   await expect(nextButton).toBeEnabled();

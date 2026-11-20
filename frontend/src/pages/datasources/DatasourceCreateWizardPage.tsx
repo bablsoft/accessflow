@@ -1,12 +1,23 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, App, Button, Form, Input, InputNumber, Radio, Select, Switch } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useCallback, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Alert, App, Button, Form } from 'antd';
+import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Page } from '@/components/layout';
+import axios from 'axios';
+import {
+  UnsavedChangesGuard,
+  WizardFooter,
+  WizardLayout,
+  WizardStep,
+  WizardSteps,
+  useConfirm,
+  type WizardStepDef,
+} from '@/components/layout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import {
   createDatasource,
   datasourceKeys,
@@ -14,118 +25,83 @@ import {
   testConnection,
   updateDatasource,
 } from '@/api/datasources';
-import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
-import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
-import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
-import {
-  BYTES_CAP_MISSING_ESTIMATE_ACTIONS,
-  aiProviderLabel,
-  bytesCapMissingEstimateLabel,
-  enumOptions,
-  sslModeLabel,
-} from '@/utils/enumLabels';
-import { BYTES_CAP_MIN, supportsBytesCap } from '@/utils/bytesCap';
-import { BytesInput } from '@/components/common/BytesInput';
-import {
-  datasourceEnvironmentOptions,
-  toEnvironmentCreate,
-  toEnvironmentFormValue,
-  type DatasourceEnvironmentFormValue,
-} from '@/utils/datasourceEnvironment';
-import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
-import { useSecretProviders } from '@/hooks/useSecretProviders';
-import { showApiError } from '@/utils/showApiError';
-import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
+import { setupProgressKeys } from '@/api/admin';
+import { apiErrorTraceId, datasourceCreateErrorMessage } from '@/utils/apiErrors';
+import { supportsBytesCap } from '@/utils/bytesCap';
+import { toEnvironmentCreate } from '@/utils/datasourceEnvironment';
+import { useWizardStep } from '@/hooks/useWizardStep';
 import type {
-  BytesCapMissingEstimateAction,
   ConnectionTestResult,
-  CreateDatasourceInput,
   Datasource,
   DatasourceTypeOption,
-  SslMode,
   UpdateDatasourceInput,
 } from '@/types/api';
 import { DatasourceTypeSelector, optionKey } from '@/components/datasources/DatasourceTypeSelector';
-import {
-  DatasourceWizardSteps,
-  type WizardStepKey,
-} from '@/components/datasources/DatasourceWizardSteps';
-import { JdbcUrlPreview } from '@/components/datasources/JdbcUrlPreview';
 import { ConnectionTester } from '@/components/datasources/ConnectionTester';
+import { ConnectionStep } from '@/components/datasources/wizard/ConnectionStep';
+import {
+  SettingsStep,
+  type SettingsFormValues,
+} from '@/components/datasources/wizard/SettingsStep';
+import {
+  toCreateInput,
+  toUpdateInput,
+  type ConnectionFormValues,
+} from '@/components/datasources/wizard/connectionPayload';
 
-type AuthMethod = 'basic' | 'api_key';
+type StepKey = 'type' | 'connection' | 'test' | 'settings';
+const STEP_KEYS: readonly StepKey[] = ['type', 'connection', 'test', 'settings'];
+const CONNECTION_FORM_ID = 'datasource-wizard-connection';
+const SETTINGS_FORM_ID = 'datasource-wizard-settings';
 
-interface ConnectionFormValues {
-  name: string;
-  host: string;
-  port: number;
-  database_name: string;
-  jdbc_url: string;
-  dynamodb_endpoint: string;
-  neo4j_bolt_uri: string;
-  snowflake_url_override: string;
-  bigquery_endpoint: string;
-  databricks_http_path: string;
-  local_datacenter: string;
-  auth_method: AuthMethod;
-  api_key: string;
-  username: string;
-  password: string;
-  private_key_passphrase: string;
-  ssl_mode: SslMode;
+interface SaveError {
+  text: string;
+  traceId: string | null;
 }
-
-interface SettingsFormValues {
-  connection_pool_size: number;
-  max_rows_per_query: number;
-  max_bytes_scanned_per_query?: number | null;
-  bytes_cap_missing_estimate?: BytesCapMissingEstimateAction;
-  review_plan_id: string | null;
-  environment: DatasourceEnvironmentFormValue;
-  require_review_reads: boolean;
-  require_review_writes: boolean;
-  ai_analysis_enabled: boolean;
-  ai_config_id: string | null;
-  text_to_sql_enabled: boolean;
-}
-
-const SSL_MODES: SslMode[] = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
 
 export default function DatasourceCreateWizardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
-  const [currentStep, setCurrentStep] = useState<WizardStepKey>('type');
+  const confirm = useConfirm();
   const [selectedType, setSelectedType] = useState<DatasourceTypeOption | null>(null);
   const [connectionForm] = Form.useForm<ConnectionFormValues>();
   const [settingsForm] = Form.useForm<SettingsFormValues>();
   const [createdDatasource, setCreatedDatasource] = useState<Datasource | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+  const [connectionDirty, setConnectionDirty] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [saveError, setSaveError] = useState<SaveError | null>(null);
+  const dirty = connectionDirty || settingsDirty;
+
+  // The database type is fixed once the datasource exists, so that step closes behind it.
+  const canShow = useCallback(
+    (key: StepKey) => {
+      if (key === 'type') return !createdDatasource;
+      if (key === 'connection') return !!selectedType;
+      return !!createdDatasource;
+    },
+    [createdDatasource, selectedType],
+  );
+  const [currentStep, goToStep] = useWizardStep(
+    STEP_KEYS,
+    createdDatasource ? 'connection' : 'type',
+    canShow,
+  );
+  const openStep = useCallback(
+    (key: StepKey) => {
+      setSaveError(null);
+      goToStep(key);
+    },
+    [goToStep],
+  );
 
   const typesQuery = useQuery({
     queryKey: datasourceKeys.types(),
     queryFn: getDatasourceTypes,
   });
-
-  const aiConfigsQuery = useQuery({
-    queryKey: aiConfigKeys.lists(),
-    queryFn: listAiConfigs,
-  });
-
-  const reviewPlansQuery = useQuery({
-    queryKey: reviewPlanKeys.lists(),
-    queryFn: listReviewPlans,
-  });
-
-  const secretProviders = useSecretProviders();
-  const secretRefHelp = secretReferenceHelp(secretProviders, t);
-  const secretRefRule = secretReferenceRule(secretProviders, t);
-
-  const connectionValues = Form.useWatch([], connectionForm);
-  const settingsValues = Form.useWatch([], settingsForm);
-  const previewedTemplate = selectedType?.jdbc_url_template ?? '';
 
   const handleSelectType = useCallback(
     (option: DatasourceTypeOption) => {
@@ -134,159 +110,47 @@ export default function DatasourceCreateWizardPage() {
         port: option.default_port,
         ssl_mode: option.default_ssl_mode,
       });
-      setCurrentStep('connection');
+      openStep('connection');
     },
-    [connectionForm],
+    [connectionForm, openStep],
   );
 
-  // CUSTOM via a connector uses host/port/database (URL built from the connector template);
-  // only an uploaded/bare CUSTOM driver needs the free-form JDBC URL field.
-  const dynamicMode =
-    selectedType?.code === 'CUSTOM' && selectedType?.source !== 'connector';
+  const reportSaveError = (err: unknown) => {
+    const text =
+      datasourceCreateErrorMessage(err) ?? extractDetail(err) ?? t('datasources.create.save_error');
+    setSaveError({ text, traceId: apiErrorTraceId(err) ?? null });
+  };
 
   const persistConnection = useMutation({
     mutationFn: async (values: ConnectionFormValues) => {
       if (!selectedType) {
         throw new Error('No datasource type selected');
       }
-      const isDynamic =
-        selectedType.code === 'CUSTOM' && selectedType.source !== 'connector';
-      const isCqlEngine =
-        selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
-      const isDynamoDb = selectedType.code === 'DYNAMODB';
-      const isNeo4j = selectedType.code === 'NEO4J';
-      const isSnowflake = selectedType.code === 'SNOWFLAKE';
-      const isBigQuery = selectedType.code === 'BIGQUERY';
-      const isDatabricks = selectedType.code === 'DATABRICKS';
-      const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
-      const useApiKey = isSearchEngine && values.auth_method === 'api_key';
-      // API-key auth replaces basic creds; send blank username/password (the backend keeps the
-      // NOT NULL columns satisfied) and the encrypted-at-rest API key. BigQuery (service-account
-      // JSON) and Databricks (PAT) have no username either.
-      const username = useApiKey || isBigQuery || isDatabricks ? '' : values.username;
-      const password = useApiKey ? '' : values.password;
-      if (createdDatasource) {
-        const input: UpdateDatasourceInput = {
-          name: values.name,
-          username,
-          password,
-          ssl_mode: values.ssl_mode,
-        };
-        if (isDynamic) {
-          input.jdbc_url_override = values.jdbc_url;
-        } else if (isDynamoDb) {
-          // Cloud-credentials model: database_name is the AWS region; the optional custom endpoint
-          // (DynamoDB Local / VPC) rides on jdbc_url_override. Host/port are unused.
-          input.database_name = values.database_name;
-          input.jdbc_url_override = values.dynamodb_endpoint || '';
-        } else if (isBigQuery) {
-          // Cloud-credentials model: database_name is the GCP project (optionally project.dataset)
-          // and the optional emulator endpoint rides on jdbc_url_override. Host/port are unused.
-          input.database_name = values.database_name;
-          input.jdbc_url_override = values.bigquery_endpoint || '';
-        } else if (isSnowflake || isDatabricks) {
-          // Warehouse hosts are HTTPS endpoints — port is always 443 and never sent.
-          input.host = values.host;
-          input.database_name = values.database_name;
-          input.jdbc_url_override = isSnowflake
-            ? values.snowflake_url_override || ''
-            : values.databricks_http_path;
-        } else {
-          input.host = values.host;
-          input.port = values.port;
-          input.database_name = values.database_name;
-        }
-        if (isCqlEngine) {
-          input.local_datacenter = values.local_datacenter;
-        }
-        if (isNeo4j) {
-          // Optional full bolt:// / neo4j+s:// URI (Aura / clustered routing) overrides host/port.
-          input.jdbc_url_override = values.neo4j_bolt_uri || '';
-        }
-        if (isSearchEngine) {
-          input.api_key = useApiKey ? values.api_key : '';
-        }
-        if (isSnowflake) {
-          // Blank clears a stored passphrase (the key is no longer encrypted). This branch owns a
-          // just-created row whose form state is authoritative, so it can use the API's
-          // blank-clears semantics; the settings page deliberately cannot — see onFinish there.
-          input.private_key_passphrase = values.private_key_passphrase || '';
-        }
-        return updateDatasource(createdDatasource.id, input);
-      }
-      const input: CreateDatasourceInput = {
-        name: values.name,
-        db_type: selectedType.code,
-        username,
-        password,
-        ssl_mode: values.ssl_mode,
-        ai_analysis_enabled: false,
-        ai_config_id: null,
-        custom_driver_id: selectedType.custom_driver_id ?? null,
-        connector_id: selectedType.connector_id ?? null,
-      };
-      if (isDynamic) {
-        input.jdbc_url_override = values.jdbc_url;
-      } else if (isDynamoDb) {
-        // Cloud-credentials model: database_name is the AWS region; the optional custom endpoint
-        // (DynamoDB Local / VPC) rides on jdbc_url_override. Host/port are unused.
-        input.database_name = values.database_name;
-        if (values.dynamodb_endpoint) {
-          input.jdbc_url_override = values.dynamodb_endpoint;
-        }
-      } else if (isBigQuery) {
-        // Cloud-credentials model: database_name is the GCP project (optionally project.dataset)
-        // and the optional emulator endpoint rides on jdbc_url_override. Host/port are unused.
-        input.database_name = values.database_name;
-        if (values.bigquery_endpoint) {
-          input.jdbc_url_override = values.bigquery_endpoint;
-        }
-      } else if (isSnowflake || isDatabricks) {
-        // Warehouse hosts are HTTPS endpoints — port is always 443 and never sent. Snowflake's
-        // override (warehouse/role/schema params) is optional; Databricks' warehouse HTTP path
-        // is required.
-        input.host = values.host;
-        input.database_name = values.database_name;
-        if (isDatabricks) {
-          input.jdbc_url_override = values.databricks_http_path;
-        } else if (values.snowflake_url_override) {
-          input.jdbc_url_override = values.snowflake_url_override;
-        }
-      } else {
-        input.host = values.host;
-        input.port = values.port;
-        input.database_name = values.database_name;
-      }
-      if (isCqlEngine) {
-        input.local_datacenter = values.local_datacenter;
-      }
-      if (isNeo4j && values.neo4j_bolt_uri) {
-        // Optional full bolt:// / neo4j+s:// URI (Aura / clustered routing) overrides host/port.
-        input.jdbc_url_override = values.neo4j_bolt_uri;
-      }
-      if (useApiKey) {
-        input.api_key = values.api_key;
-      }
-      if (isSnowflake && values.private_key_passphrase) {
-        // Only for a passphrase-protected PKCS#8 key; a password or plain PEM leaves it unset.
-        input.private_key_passphrase = values.private_key_passphrase;
-      }
-      return createDatasource(input);
+      return createdDatasource
+        ? updateDatasource(createdDatasource.id, toUpdateInput(selectedType, values))
+        : createDatasource(toCreateInput(selectedType, values));
     },
+    onMutate: () => setSaveError(null),
     onSuccess: (saved) => {
       setCreatedDatasource(saved);
+      setConnectionDirty(false);
       queryClient.setQueryData(datasourceKeys.detail(saved.id), saved);
       queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
       queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       setTestResult(null);
       setTestError(null);
-      setCurrentStep('test');
+      goToStep('test');
     },
     onError: (err: unknown) => {
-      const fallback = t('datasources.create.save_error');
-      showApiError(message, err, (e) =>
-        datasourceCreateErrorMessage(e) ?? extractDetail(e) ?? fallback,
-      );
+      // A taken name belongs on the name field, where the fix is made.
+      if (isNameConflict(err)) {
+        connectionForm.setFields([
+          { name: 'name', errors: [datasourceCreateErrorMessage(err) ?? ''] },
+        ]);
+        connectionForm.scrollToField('name');
+        return;
+      }
+      reportSaveError(err);
     },
   });
 
@@ -345,451 +209,219 @@ export default function DatasourceCreateWizardPage() {
       }
       return updateDatasource(createdDatasource.id, input);
     },
+    onMutate: () => setSaveError(null),
     onSuccess: (saved) => {
-      setCreatedDatasource(saved);
       queryClient.setQueryData(datasourceKeys.detail(saved.id), saved);
       queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
       message.success(t('datasources.create.save_success'));
-      navigate(`/datasources/${saved.id}/settings`);
+      leave(`/datasources/${saved.id}/settings`);
     },
-    onError: (err: unknown) => {
-      const fallback = t('datasources.create.save_error');
-      showApiError(message, err, (e) =>
-        datasourceCreateErrorMessage(e) ?? extractDetail(e) ?? fallback,
-      );
-    },
+    onError: reportSaveError,
   });
 
-  const submitConnectionForm = useCallback(
-    (values: ConnectionFormValues) => {
-      persistConnection.mutate(values);
-    },
-    [persistConnection],
-  );
-
-  const submitSettingsForm = useCallback(
-    (values: SettingsFormValues) => {
-      persistSettings.mutate(values);
-    },
-    [persistSettings],
-  );
-
-  const goBack = () => {
-    if (currentStep === 'type') {
-      navigate('/datasources');
-      return;
-    }
-    if (currentStep === 'connection') {
-      setCurrentStep('type');
-      return;
-    }
-    if (currentStep === 'test') {
-      setCurrentStep('connection');
-      return;
-    }
-    if (currentStep === 'settings') {
-      setCurrentStep('test');
-    }
+  // The unsaved-changes guard reads `dirty` during navigation, so it has to be cleared first.
+  const leave = (to: string) => {
+    flushSync(() => {
+      setConnectionDirty(false);
+      setSettingsDirty(false);
+    });
+    navigate(to);
   };
 
-  const stepBody = useMemo(() => {
-    if (currentStep === 'type') {
-      if (typesQuery.isLoading) {
-        return (
-          <div className="muted u-p-10 u-text-center">
-            {t('datasources.create.types_loading')}
-          </div>
-        );
-      }
-      if (typesQuery.isError || !typesQuery.data) {
-        return (
-          <EmptyState
-            title={t('datasources.create.types_error_title')}
-            description={t('datasources.create.types_error_body')}
-          />
-        );
-      }
-      return (
-        <div className="u-flex u-col u-gap-4">
-          <Alert
-            type="info"
-            showIcon
-            closable={false}
-            title={t('datasources.create.driver_policy_callout_title')}
-            description={t('datasources.create.driver_policy_callout_body')}
-          />
-          <DatasourceTypeSelector
-            types={typesQuery.data.types}
-            selectedKey={selectedType ? optionKey(selectedType) : null}
-            onSelect={handleSelectType}
-          />
-        </div>
-      );
+  const cancel = () => {
+    if (createdDatasource) {
+      confirm({
+        title: t('datasources.create.cancel_saved_title'),
+        content: t('datasources.create.cancel_saved_body', { name: createdDatasource.name }),
+        okText: t('datasources.create.cancel_leave'),
+        onOk: () => leave('/datasources'),
+      });
+      return;
     }
-    if (currentStep === 'connection' && selectedType) {
-      const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
-      const isDynamoDb = selectedType.code === 'DYNAMODB';
-      const isNeo4j = selectedType.code === 'NEO4J';
-      const isSnowflake = selectedType.code === 'SNOWFLAKE';
-      const isBigQuery = selectedType.code === 'BIGQUERY';
-      const isDatabricks = selectedType.code === 'DATABRICKS';
-      // Neo4j may connect via host/port OR a full bolt URI override; host/port stop being required
-      // once the operator supplies a URI (Aura / clustered routing has no separate host/port).
-      const neo4jHasUri = isNeo4j && !!connectionValues?.neo4j_bolt_uri?.trim();
-      const hostPortRequired = !neo4jHasUri;
-      const authMethod: AuthMethod =
-        (connectionValues?.auth_method as AuthMethod | undefined) ?? 'basic';
-      const showBasicCreds = !isSearchEngine || authMethod === 'basic';
-      return (
-        <Form<ConnectionFormValues>
-          form={connectionForm}
-          layout="vertical"
-          requiredMark
-          onFinish={submitConnectionForm}
-          initialValues={{
-            port: selectedType.default_port,
-            ssl_mode: selectedType.default_ssl_mode,
-            auth_method: 'basic',
-          }}
+    if (dirty) {
+      confirm({
+        title: t('common.unsaved_title'),
+        content: t('common.unsaved_body'),
+        okText: t('common.unsaved_discard'),
+        onOk: () => leave('/datasources'),
+      });
+      return;
+    }
+    navigate('/datasources');
+  };
+
+  const steps: WizardStepDef<StepKey>[] = [
+    { key: 'type', title: t('datasources.create.step_type') },
+    { key: 'connection', title: t('datasources.create.step_connection') },
+    { key: 'test', title: t('datasources.create.step_test'), optional: true },
+    { key: 'settings', title: t('datasources.create.step_settings') },
+  ];
+
+  const previousStep: StepKey | null =
+    currentStep === 'settings'
+      ? 'test'
+      : currentStep === 'test'
+        ? 'connection'
+        : currentStep === 'connection' && !createdDatasource
+          ? 'type'
+          : null;
+
+  const testFailed = !testMutation.isPending && (testError != null || testResult?.ok === false);
+
+  let status: string | null = null;
+  if (dirty) status = t('common.unsaved_hint');
+  else if (createdDatasource) {
+    status = t('datasources.create.saved_status', { name: createdDatasource.name });
+  }
+
+  const errorAlert = saveError && (
+    <Alert
+      type="error"
+      showIcon
+      closable={{ onClose: () => setSaveError(null) }}
+      className="u-mb-4"
+      title={saveError.text}
+      description={saveError.traceId ? <TraceIdFooter traceId={saveError.traceId} /> : undefined}
+    />
+  );
+
+  return (
+    <WizardLayout
+      stepKey={currentStep}
+      header={
+        <PageHeader
+          docsAnchor="cfg-datasources"
+          title={t('datasources.create.title')}
+          subtitle={t('datasources.create.subtitle')}
+        />
+      }
+      steps={
+        <WizardSteps
+          ariaLabel={t('datasources.create.steps_label')}
+          steps={steps}
+          current={currentStep}
+          canOpen={canShow}
+          onOpen={openStep}
+        />
+      }
+      footer={
+        <WizardFooter
+          start={
+            <>
+              {previousStep && (
+                <Button icon={<ArrowLeftOutlined />} onClick={() => openStep(previousStep)}>
+                  {t('datasources.create.back')}
+                </Button>
+              )}
+              <Button type="text" onClick={cancel}>
+                {t('common.cancel')}
+              </Button>
+            </>
+          }
+          status={status}
+          end={
+            <>
+              {currentStep === 'connection' &&
+                (createdDatasource && !connectionDirty ? (
+                  <Button type="primary" onClick={() => openStep('test')}>
+                    {t('datasources.create.next')}
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    form={CONNECTION_FORM_ID}
+                    loading={persistConnection.isPending}
+                  >
+                    {createdDatasource
+                      ? t('datasources.create.save_changes_and_retest')
+                      : t('datasources.create.save_and_test')}
+                  </Button>
+                ))}
+              {currentStep === 'test' && (
+                <>
+                  <Button onClick={() => openStep('settings')}>
+                    {t('datasources.create.skip_test')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    disabled={!testResult?.ok}
+                    onClick={() => openStep('settings')}
+                  >
+                    {t('datasources.create.next')}
+                  </Button>
+                </>
+              )}
+              {currentStep === 'settings' && (
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  form={SETTINGS_FORM_ID}
+                  loading={persistSettings.isPending}
+                >
+                  {t('datasources.create.save_and_finish')}
+                </Button>
+              )}
+            </>
+          }
+        />
+      }
+    >
+      <UnsavedChangesGuard when={dirty} />
+      {currentStep === 'type' && (
+        <WizardStep
+          title={t('datasources.create.step_type')}
+          description={t('datasources.create.type_step_subtitle')}
         >
-          {dynamicMode && (
-            <Alert
-              type="info"
-              showIcon
-              className="u-mb-3"
-              title={t('datasources.create.dynamic_mode_notice_title')}
-              description={t('datasources.create.dynamic_mode_notice_body')}
+          {typesQuery.isLoading && (
+            <div className="muted u-p-10 u-text-center">{t('datasources.create.types_loading')}</div>
+          )}
+          {!typesQuery.isLoading && (typesQuery.isError || !typesQuery.data) && (
+            <EmptyState
+              title={t('datasources.create.types_error_title')}
+              description={t('datasources.create.types_error_body')}
             />
           )}
-          <div
-            className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
-          >
-            <Form.Item
-              label={t('datasources.create.field_name')}
-              name="name"
-              rules={[{ required: true }, { max: 255 }]}
-            >
-              <Input autoFocus placeholder={t('datasources.create.field_name_placeholder')} />
-            </Form.Item>
-            {!dynamicMode && !isDynamoDb && !isBigQuery && (
-              <>
-                <Form.Item
-                  label={
-                    isSnowflake
-                      ? t('datasources.create.field_account_host')
-                      : isDatabricks
-                        ? t('datasources.create.field_workspace_host')
-                        : t('datasources.create.field_host')
-                  }
-                  name="host"
-                  rules={[{ required: hostPortRequired }, { max: 255 }]}
-                >
-                  <Input
-                    placeholder={
-                      isSnowflake
-                        ? 'xy12345.eu-central-1.snowflakecomputing.com'
-                        : isDatabricks
-                          ? 'adb-1234567890.1.azuredatabricks.net'
-                          : 'db.internal'
-                    }
-                  />
-                </Form.Item>
-                {/* Warehouse hosts are HTTPS endpoints — port is always 443 and never asked. */}
-                {!isSnowflake && !isDatabricks && (
-                  <Form.Item
-                    label={t('datasources.create.field_port')}
-                    name="port"
-                    rules={[{ required: hostPortRequired, type: 'number', min: 1, max: 65535 }]}
-                  >
-                    <InputNumber className="u-w-full" />
-                  </Form.Item>
-                )}
-              </>
-            )}
-            {!dynamicMode && (
-              <Form.Item
-                label={
-                  isDynamoDb
-                    ? t('datasources.create.field_region')
-                    : isBigQuery
-                      ? t('datasources.create.field_gcp_project')
-                      : isDatabricks
-                        ? t('datasources.create.field_catalog')
-                        : t('datasources.create.field_database')
-                }
-                name="database_name"
-                extra={
-                  isDynamoDb
-                    ? t('datasources.create.field_region_help')
-                    : isBigQuery
-                      ? t('datasources.create.field_gcp_project_help')
-                      : isDatabricks
-                        ? t('datasources.create.field_catalog_help')
-                        : undefined
-                }
-                rules={
-                  isSearchEngine || isDatabricks
-                    ? [{ max: 255 }]
-                    : isBigQuery
-                      ? [
-                          { required: true },
-                          { max: 255 },
-                          {
-                            pattern: /^[^.\s]+(\.[^.\s]+)?$/,
-                            message: t('datasources.create.field_gcp_project_help'),
-                          },
-                        ]
-                      : [{ required: true }, { max: 255 }]
-                }
-              >
-                <Input
-                  placeholder={
-                    isDynamoDb
-                      ? 'us-east-1'
-                      : isSearchEngine
-                        ? 'logs-*'
-                        : isBigQuery
-                          ? 'my-project.analytics'
-                          : isDatabricks
-                            ? 'main'
-                            : isSnowflake
-                              ? 'ANALYTICS'
-                              : 'appdb'
-                  }
-                />
-              </Form.Item>
-            )}
-            {isSnowflake && (
-              <Form.Item
-                label={t('datasources.create.field_snowflake_url_override')}
-                name="snowflake_url_override"
-                extra={t('datasources.create.field_snowflake_url_override_help')}
-                rules={[
-                  { max: 2048 },
-                  {
-                    pattern: /^jdbc:snowflake:\/\/.+$/,
-                    message: t('datasources.create.field_snowflake_url_override_help'),
-                  },
-                ]}
-              >
-                <Input placeholder="jdbc:snowflake://…/?warehouse=WH&role=GOV" />
-              </Form.Item>
-            )}
-            {isBigQuery && (
-              <Form.Item
-                label={t('datasources.create.field_bigquery_endpoint')}
-                name="bigquery_endpoint"
-                extra={t('datasources.create.field_bigquery_endpoint_help')}
-                rules={[{ max: 2048 }]}
-              >
-                <Input placeholder="http://localhost:9050" />
-              </Form.Item>
-            )}
-            {isDatabricks && (
-              <Form.Item
-                label={t('datasources.create.field_databricks_http_path')}
-                name="databricks_http_path"
-                extra={t('datasources.create.field_databricks_http_path_help')}
-                rules={[
-                  {
-                    required: true,
-                    message: t('datasources.create.field_databricks_http_path_help'),
-                  },
-                  { max: 2048 },
-                  {
-                    pattern: /^(https?:\/\/[^/\s]+)?\/sql\/[^/\s]+\/warehouses\/[A-Za-z0-9-]+\/?$/,
-                    message: t('datasources.create.field_databricks_http_path_help'),
-                  },
-                ]}
-              >
-                <Input placeholder="/sql/1.0/warehouses/abc123def456" />
-              </Form.Item>
-            )}
-            {isDynamoDb && (
-              <Form.Item
-                label={t('datasources.create.field_dynamodb_endpoint')}
-                name="dynamodb_endpoint"
-                extra={t('datasources.create.field_dynamodb_endpoint_help')}
-                rules={[{ max: 2048 }]}
-              >
-                <Input placeholder="http://localhost:8000" />
-              </Form.Item>
-            )}
-            {isNeo4j && (
-              <Form.Item
-                label={t('datasources.create.field_neo4j_bolt_uri')}
-                name="neo4j_bolt_uri"
-                extra={t('datasources.create.field_neo4j_bolt_uri_help')}
-                rules={[{ max: 2048 }]}
-              >
-                <Input placeholder="neo4j+s://xxxx.databases.neo4j.io" />
-              </Form.Item>
-            )}
-            {(selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB') && (
-              <Form.Item
-                label={t('datasources.create.field_local_datacenter')}
-                name="local_datacenter"
-                extra={t('datasources.create.field_local_datacenter_help')}
-                rules={[{ required: true }, { max: 255 }]}
-              >
-                <Input placeholder="datacenter1" />
-              </Form.Item>
-            )}
-            {isSearchEngine && (
-              <Form.Item label={t('datasources.create.field_auth_method')} name="auth_method">
-                <Radio.Group
-                  optionType="button"
-                  options={[
-                    {
-                      value: 'basic',
-                      label: t('datasources.create.field_auth_method_basic'),
-                    },
-                    {
-                      value: 'api_key',
-                      label: t('datasources.create.field_auth_method_api_key'),
-                    },
-                  ]}
-                />
-              </Form.Item>
-            )}
-            {showBasicCreds && (
-              <>
-                {/* BigQuery (service-account JSON) and Databricks (PAT) have no username. */}
-                {!isBigQuery && !isDatabricks && (
-                  <Form.Item
-                    label={
-                      isDynamoDb
-                        ? t('datasources.create.field_access_key_id')
-                        : t('datasources.create.field_username')
-                    }
-                    name="username"
-                    rules={[{ required: true }, { max: 255 }]}
-                  >
-                    <Input placeholder={isDynamoDb ? 'AKIA…' : 'accessflow_svc'} />
-                  </Form.Item>
-                )}
-                <Form.Item
-                  label={
-                    isDynamoDb
-                      ? t('datasources.create.field_secret_access_key')
-                      : isBigQuery
-                        ? t('datasources.create.field_service_account_json')
-                        : isDatabricks
-                          ? t('datasources.create.field_access_token')
-                          : isSnowflake
-                            ? t('datasources.create.field_password_or_key')
-                            : t('datasources.create.field_password')
-                  }
-                  name="password"
-                  extra={
-                    isSnowflake
-                      ? secretRefHelp
-                        ? `${t('datasources.create.field_password_or_key_help')} ${secretRefHelp}`
-                        : t('datasources.create.field_password_or_key_help')
-                      : secretRefHelp
-                  }
-                  rules={[{ required: true }, { max: 4096 }, secretRefRule]}
-                >
-                  {/* A service-account JSON / PKCS#8 PEM is multi-line — a password box can't hold it. */}
-                  {isBigQuery || isSnowflake ? (
-                    <Input.TextArea rows={3} className="mono" />
-                  ) : (
-                    <Input.Password />
-                  )}
-                </Form.Item>
-                {isSnowflake && (
-                  <Form.Item
-                    label={t('datasources.create.field_private_key_passphrase')}
-                    name="private_key_passphrase"
-                    extra={
-                      secretRefHelp
-                        ? `${t('datasources.create.field_private_key_passphrase_help')} ${secretRefHelp}`
-                        : t('datasources.create.field_private_key_passphrase_help')
-                    }
-                    rules={[{ max: 1024 }, secretRefRule]}
-                  >
-                    <Input.Password />
-                  </Form.Item>
-                )}
-              </>
-            )}
-            {isSearchEngine && authMethod === 'api_key' && (
-              <Form.Item
-                label={t('datasources.create.field_api_key')}
-                name="api_key"
-                extra={
-                  secretRefHelp
-                    ? `${t('datasources.create.field_api_key_help')} ${secretRefHelp}`
-                    : t('datasources.create.field_api_key_help')
-                }
-                rules={[
-                  { required: true, message: t('datasources.create.field_api_key_required') },
-                  { max: 4096 },
-                  secretRefRule,
-                ]}
-              >
-                <Input.Password />
-              </Form.Item>
-            )}
-            <Form.Item
-              label={t('datasources.create.field_ssl_mode')}
-              name="ssl_mode"
-              rules={[{ required: true }]}
-            >
-              <Select
-                options={enumOptions(SSL_MODES, sslModeLabel, t)}
+          {typesQuery.data && (
+            <div className="u-flex u-col u-gap-4">
+              <Alert
+                type="info"
+                showIcon
+                closable={false}
+                title={t('datasources.create.driver_policy_callout_title')}
+                description={t('datasources.create.driver_policy_callout_body')}
               />
-            </Form.Item>
-          </div>
-          {dynamicMode && (
-            <Form.Item
-              label={t('datasources.create.field_jdbc_url')}
-              name="jdbc_url"
-              extra={t('datasources.create.field_jdbc_url_help')}
-              rules={[
-                { required: true, message: t('datasources.create.field_jdbc_url_help') },
-                { max: 2048 },
-                {
-                  pattern: /^jdbc:[a-zA-Z][a-zA-Z0-9+\-.]*:.+$/,
-                  message: t('datasources.create.field_jdbc_url_placeholder'),
-                },
-              ]}
-            >
-              <Input.TextArea
-                rows={2}
-                className="mono"
-                placeholder={t('datasources.create.field_jdbc_url_placeholder')}
-              />
-            </Form.Item>
-          )}
-          {selectedType.code === 'MYSQL' && connectionValues?.ssl_mode === 'DISABLE' && (
-            <Alert
-              type="warning"
-              showIcon
-              className="u-mt-2"
-              title={t('datasources.create.mysql_public_key_retrieval_title')}
-              description={t('datasources.create.mysql_public_key_retrieval_body')}
-            />
-          )}
-          {!dynamicMode && (
-            <div className="u-mt-2">
-              <JdbcUrlPreview
-                template={previewedTemplate}
-                host={connectionValues?.host}
-                port={connectionValues?.port}
-                databaseName={connectionValues?.database_name}
+              <DatasourceTypeSelector
+                types={typesQuery.data.types}
+                selectedKey={selectedType ? optionKey(selectedType) : null}
+                onSelect={handleSelectType}
               />
             </div>
           )}
-        </Form>
-      );
-    }
-    if (currentStep === 'test' && selectedType && createdDatasource) {
-      return (
-        <div className="u-flex u-col u-gap-4">
-          <div className="muted u-text-sm">
-            {t('datasources.create.test_step_subtitle')}
-          </div>
+        </WizardStep>
+      )}
+      {currentStep === 'connection' && selectedType && (
+        <WizardStep
+          title={t('datasources.create.step_connection')}
+          description={t('datasources.create.connection_step_subtitle', {
+            type: selectedType.display_name,
+          })}
+        >
+          {errorAlert}
+          <ConnectionStep
+            form={connectionForm}
+            formId={CONNECTION_FORM_ID}
+            selectedType={selectedType}
+            onFinish={(values) => persistConnection.mutate(values)}
+            onValuesChange={() => setConnectionDirty(true)}
+          />
+        </WizardStep>
+      )}
+      {currentStep === 'test' && selectedType && createdDatasource && (
+        <WizardStep
+          title={t('datasources.create.step_test')}
+          description={t('datasources.create.test_step_subtitle')}
+        >
           <ConnectionTester
             driverStatus={selectedType.driver_status}
             pending={testMutation.isPending}
@@ -797,264 +429,40 @@ export default function DatasourceCreateWizardPage() {
             errorMessage={testError}
             onRunTest={() => testMutation.mutate()}
           />
-        </div>
-      );
-    }
-    if (currentStep === 'settings' && createdDatasource) {
-      return (
-        <Form<SettingsFormValues>
-          form={settingsForm}
-          layout="vertical"
-          requiredMark
-          onFinish={submitSettingsForm}
-          initialValues={{
-            connection_pool_size: createdDatasource.connection_pool_size,
-            max_rows_per_query: createdDatasource.max_rows_per_query,
-            review_plan_id: createdDatasource.review_plan_id ?? null,
-            environment: toEnvironmentFormValue(createdDatasource.environment),
-            max_bytes_scanned_per_query: createdDatasource.max_bytes_scanned_per_query ?? null,
-            bytes_cap_missing_estimate:
-              createdDatasource.bytes_cap_missing_estimate ?? 'REQUIRE_REVIEW',
-            require_review_reads: createdDatasource.require_review_reads,
-            require_review_writes: createdDatasource.require_review_writes,
-            ai_analysis_enabled: createdDatasource.ai_analysis_enabled,
-            ai_config_id: createdDatasource.ai_config_id ?? null,
-            text_to_sql_enabled: createdDatasource.text_to_sql_enabled,
-          }}
-        >
-          <div className="muted u-text-sm u-mb-4">
-            {t('datasources.create.settings_step_subtitle')}
-          </div>
-          <div
-            className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
-          >
-            <Form.Item
-              label={t('datasources.create.label_pool_size')}
-              name="connection_pool_size"
-              extra={t('datasources.create.label_pool_size_help')}
-              rules={[{ required: true, type: 'number', min: 1, max: 200 }]}
-            >
-              <InputNumber className="u-w-full" min={1} max={200} />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.label_max_rows')}
-              name="max_rows_per_query"
-              extra={t('datasources.create.label_max_rows_help')}
-              rules={[{ required: true, type: 'number', min: 1, max: 1_000_000 }]}
-            >
-              <InputNumber className="u-w-full" min={1} max={1_000_000} />
-            </Form.Item>
-            {createdDatasource && supportsBytesCap(createdDatasource.db_type) && (
-              <>
-                <Form.Item
-                  label={t('datasources.settings.label_max_bytes_scanned')}
-                  name="max_bytes_scanned_per_query"
-                  extra={t('datasources.settings.max_bytes_scanned_help')}
-                  rules={[
-                    {
-                      type: 'number',
-                      min: BYTES_CAP_MIN,
-                      message: t('datasources.settings.grant_bytes_cap_min'),
-                    },
-                  ]}
-                >
-                  <BytesInput placeholder={t('datasources.settings.max_bytes_scanned_placeholder')} />
-                </Form.Item>
-                <Form.Item
-                  label={t('datasources.settings.label_bytes_cap_missing_estimate')}
-                  name="bytes_cap_missing_estimate"
-                  extra={t('datasources.settings.bytes_cap_missing_estimate_help')}
-                >
-                  <Select
-                    options={BYTES_CAP_MISSING_ESTIMATE_ACTIONS.map((v) => ({
-                      value: v,
-                      label: bytesCapMissingEstimateLabel(t, v),
-                    }))}
-                  />
-                </Form.Item>
-              </>
-            )}
-            <Form.Item
-              label={t('datasources.create.label_review_plan')}
-              name="review_plan_id"
-            >
-              <Select
-                allowClear
-                loading={reviewPlansQuery.isLoading}
-                placeholder={
-                  reviewPlansQuery.isLoading
-                    ? t('datasources.create.review_plan_loading')
-                    : t('datasources.create.review_plan_placeholder')
-                }
-                options={(reviewPlansQuery.data ?? []).map((plan) => ({
-                  value: plan.id,
-                  label: plan.name,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.label_environment')}
-              name="environment"
-              extra={t('datasources.create.environment_help')}
-            >
-              <Select
-                options={datasourceEnvironmentOptions(t, t('datasources.create.environment_not_set'))}
-              />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.label_require_writes')}
-              name="require_review_writes"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.label_require_reads')}
-              name="require_review_reads"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_ai_analysis_enabled')}
-              name="ai_analysis_enabled"
-              valuePropName="checked"
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_text_to_sql_enabled')}
-              name="text_to_sql_enabled"
-              valuePropName="checked"
-              extra={t('datasources.create.field_text_to_sql_help')}
-            >
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_ai_config')}
-              name="ai_config_id"
-              dependencies={['ai_analysis_enabled', 'text_to_sql_enabled']}
-              rules={[
-                ({ getFieldValue }) => ({
-                  required:
-                    getFieldValue('ai_analysis_enabled') === true ||
-                    getFieldValue('text_to_sql_enabled') === true,
-                  message: t('datasources.create.field_ai_config_required'),
-                }),
-              ]}
-              extra={
-                <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
-                  {t('datasources.create.add_ai_config_link')}
-                </a>
-              }
-            >
-              <Select
-                allowClear
-                disabled={
-                  !settingsValues?.ai_analysis_enabled && !settingsValues?.text_to_sql_enabled
-                }
-                placeholder={t('datasources.create.field_ai_config_placeholder')}
-                options={(aiConfigsQuery.data ?? []).map((c) => ({
-                  value: c.id,
-                  label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
-                }))}
-              />
-            </Form.Item>
-          </div>
-        </Form>
-      );
-    }
-    return null;
-  }, [
-    currentStep,
-    typesQuery.isLoading,
-    typesQuery.isError,
-    typesQuery.data,
-    selectedType,
-    dynamicMode,
-    connectionForm,
-    settingsForm,
-    previewedTemplate,
-    connectionValues,
-    settingsValues,
-    createdDatasource,
-    testResult,
-    testError,
-    testMutation,
-    aiConfigsQuery.data,
-    reviewPlansQuery.isLoading,
-    reviewPlansQuery.data,
-    t,
-    submitConnectionForm,
-    submitSettingsForm,
-    handleSelectType,
-  ]);
-
-  const connectionPrimaryLabel = createdDatasource
-    ? t('datasources.create.save_and_continue')
-    : t('datasources.create.save_and_test');
-
-  return (
-    <Page>
-      <PageHeader
-        docsAnchor="cfg-datasources"
-        title={t('datasources.create.title')}
-        subtitle={t('datasources.create.subtitle')}
-        actions={
-          currentStep === 'type' || currentStep === 'connection' ? (
-            <Button icon={<ArrowLeftOutlined />} onClick={goBack}>
-              {t('datasources.create.back')}
-            </Button>
-          ) : null
-        }
-      />
-      <div
-        style={{
-          padding: '20px var(--gutter)',
-          background: 'var(--bg-elev)',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <DatasourceWizardSteps current={currentStep} />
-      </div>
-      <div className="u-flex-1 u-p-6" style={{ overflow: 'auto' }}>{stepBody}</div>
-      <div
-        className="u-flex u-justify-end u-gap-2" style={{ padding: '12px var(--gutter)', borderTop: '1px solid var(--border)', background: 'var(--bg-elev)' }}
-      >
-        {currentStep === 'connection' && (
-          <Button
-            type="primary"
-            onClick={() => connectionForm.submit()}
-            loading={persistConnection.isPending}
-          >
-            {connectionPrimaryLabel}
-          </Button>
-        )}
-        {currentStep === 'test' && (
-          <>
-            <Button onClick={() => setCurrentStep('settings')}>
-              {t('datasources.create.skip_test')}
-            </Button>
+          {testFailed && (
             <Button
-              type="primary"
-              disabled={!testResult?.ok}
-              onClick={() => setCurrentStep('settings')}
+              className="u-mt-3"
+              icon={<EditOutlined />}
+              onClick={() => openStep('connection')}
             >
-              {t('datasources.create.next')}
+              {t('datasources.create.edit_connection')}
             </Button>
-          </>
-        )}
-        {currentStep === 'settings' && (
-          <Button
-            type="primary"
-            onClick={() => settingsForm.submit()}
-            loading={persistSettings.isPending}
-          >
-            {t('datasources.create.save_and_finish')}
-          </Button>
-        )}
-      </div>
-    </Page>
+          )}
+        </WizardStep>
+      )}
+      {currentStep === 'settings' && createdDatasource && (
+        <WizardStep
+          title={t('datasources.create.step_settings')}
+          description={t('datasources.create.settings_step_subtitle')}
+        >
+          {errorAlert}
+          <SettingsStep
+            form={settingsForm}
+            formId={SETTINGS_FORM_ID}
+            createdDatasource={createdDatasource}
+            onFinish={(values) => persistSettings.mutate(values)}
+            onValuesChange={() => setSettingsDirty(true)}
+          />
+        </WizardStep>
+      )}
+    </WizardLayout>
+  );
+}
+
+function isNameConflict(err: unknown): boolean {
+  return (
+    axios.isAxiosError<{ error?: string }>(err) &&
+    err.response?.data?.error === 'DATASOURCE_NAME_ALREADY_EXISTS'
   );
 }
 
