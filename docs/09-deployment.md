@@ -340,14 +340,23 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 
    | Name | Kind | Value |
    |---|---|---|
-   | `DEMO_KUBECONFIG` | secret | kubeconfig of the cluster's `accessflow-deployer` account, base64-encoded or pasted raw; RBAC limited to the `accessflow` namespace (so the workflow never passes `--create-namespace`) |
+   | `DEMO_KUBECONFIG` | secret | kubeconfig of the cluster's `accessflow-deployer` account, base64-encoded or pasted raw, with `server:` set to the host's **tailnet** address (`https://<100.x.y.z or MagicDNS name>:6443`); RBAC limited to the `accessflow` namespace (so the workflow never passes `--create-namespace`) |
+   | `TS_OAUTH_CLIENT_ID` | secret | Tailscale OAuth client id (scope `auth_keys`, tag `tag:ci`) |
+   | `TS_OAUTH_SECRET` | secret | that OAuth client's secret |
    | `ACCESSFLOW_DEMO_API_KEY` | secret | the `af_…` key from step 2 |
    | `ACCESSFLOW_DEMO_URL` | variable | `https://demo.accessflow.bablsoft.com` |
    | `ACCESSFLOW_DEMO_PIPELINE_ID` | variable | the pipeline UUID from step 3 |
+   | `DEMO_K3S_TAILNET_HOST` | variable | optional — the k3s host's tailnet IP or MagicDNS name; the workflow `tailscale ping`s it right after joining, so an unreachable host fails fast |
 
-   The k3s API server must be reachable from GitHub-hosted runner IP ranges. The workflow
-   validates the kubeconfig and reaches the cluster **before** it opens a deployment request, so a
-   bad or expired credential fails the job without consuming anyone's approval.
+   The k3s API port is **not** exposed to the internet. The runner joins the tailnet for the length
+   of the job as an ephemeral `tag:ci` node (`tailscale/github-action`), so the tailnet policy must
+   grant `tag:ci` → the k3s host on `tcp:6443` (e.g. `{"src":["tag:ci"],"dst":["tag:k3s"],"ip":["tcp:6443"]}`
+   under `grants`, with both tags in `tagOwners`), and the k3s serving certificate must cover the
+   tailnet address — add it under `tls-san:` in `/etc/rancher/k3s/config.yaml` and restart k3s.
+   The demo URL itself stays public; only the cluster API goes over the tailnet. The workflow joins
+   the tailnet, validates the kubeconfig and reaches the cluster **before** it opens a deployment
+   request, so a bad or expired credential, or a tailnet/policy problem, fails the job without
+   consuming anyone's approval.
 
 Steps 1–2 can instead be provisioned declaratively through `bootstrap.serviceAccounts[]`
 (see [Bootstrap configuration](#bootstrap-configuration)), which creates the same kind of
