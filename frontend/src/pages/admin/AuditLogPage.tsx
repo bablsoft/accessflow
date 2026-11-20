@@ -249,7 +249,7 @@ export function AuditLogPage() {
             setResourceType(v);
             setPage(0);
           }}
-          style={{ width: 200 }}
+          className="u-w-md"
           showSearch={{ optionFilterProp: 'label' }}
           options={[
             { value: 'all', label: t('admin.audit.filter_all_resources') },
@@ -263,8 +263,7 @@ export function AuditLogPage() {
             setActorId(e.target.value);
             setPage(0);
           }}
-          style={{ width: 240 }}
-          className="mono"
+          className="mono u-w-lg"
         />
         <Input
           placeholder={t('admin.audit.filter_on_behalf_of_placeholder')}
@@ -274,8 +273,7 @@ export function AuditLogPage() {
             setOnBehalfOfUserId(e.target.value);
             setPage(0);
           }}
-          style={{ width: 240 }}
-          className="mono"
+          className="mono u-w-lg"
         />
         <Input
           placeholder={t('client_application.filter_placeholder')}
@@ -285,8 +283,7 @@ export function AuditLogPage() {
             setApplicationName(e.target.value);
             setPage(0);
           }}
-          style={{ width: 200 }}
-          className="mono"
+          className="mono u-w-md"
         />
         <Input
           placeholder={t('admin.audit.filter_resource_id_placeholder')}
@@ -295,8 +292,7 @@ export function AuditLogPage() {
             setResourceId(e.target.value);
             setPage(0);
           }}
-          style={{ width: 240 }}
-          className="mono"
+          className="mono u-w-lg"
         />
         <DatePicker.RangePicker
           showTime
@@ -307,7 +303,7 @@ export function AuditLogPage() {
           }}
         />
         <div className="u-flex-1" />
-        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
+        <span className="mono muted u-text-2xs u-self-center">
           {t('admin.audit.count_label', {
             count: auditQuery.data?.total_elements ?? 0,
           })}
@@ -486,8 +482,8 @@ export function AuditLogPage() {
           <div className="u-flex u-col" style={{ gap: 14 }}>
             <Card>
               <div
-                className="muted u-text-2xs"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}
+                className="muted u-text-2xs u-uppercase u-tracking-wide"
+                style={{ marginBottom: 6 }}
               >
                 {t('admin.audit.section_action')}
               </div>
@@ -533,7 +529,7 @@ export function AuditLogPage() {
             </Card>
             <Card title={t('admin.audit.section_metadata')}>
               <pre
-                className="u-m-0 u-mono u-text-xs u-leading-normal" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
+                className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code" style={{ padding: 14, borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
               >
                 {JSON.stringify(detail.metadata ?? {}, null, 2)}
               </pre>
@@ -548,15 +544,11 @@ export function AuditLogPage() {
 function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-      }}
+      className="af-box"
     >
       {title && (
         <div
-          className="u-fw-600 u-text-xs" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
+          className="u-fw-600 u-text-xs u-border-b" style={{ padding: '10px 14px' }}
         >
           {title}
         </div>

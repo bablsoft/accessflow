@@ -63,7 +63,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
   );
 
   return (
-    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+    <div className="u-mt-2 u-border-t u-pt-4">
       <h3 className="u-mb-1">{t('admin.ai_configs.rag.section_title')}</h3>
       <p className="muted u-mt-0">
         {t('admin.ai_configs.rag.section_help')}

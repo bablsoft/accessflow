@@ -60,7 +60,7 @@ export function KeyValueEditor({
         <Button
           icon={<PlusOutlined />}
           onClick={() => onChange([...pairs, { key: '', value: '' }])}
-          style={{ alignSelf: 'flex-start' }}
+          className="u-self-start"
         >
           {addLabel ?? t('apiGov.editor.addRow')}
         </Button>

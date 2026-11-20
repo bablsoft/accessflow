@@ -48,7 +48,7 @@ export function PromotionLadder({
           <li
             key={rung.environment_id}
             data-testid={`ladder-rung-${rung.environment_name}`}
-            className="u-flex u-gap-3 u-items-start" style={{ padding: '10px 12px', border: `1px solid ${color.border}`, borderRadius: 8, background: 'var(--bg-elev)' }}
+            className="u-flex u-gap-3 u-items-start u-rounded-md u-bg-elev" style={{ padding: '10px 12px', border: `1px solid ${color.border}` }}
           >
             <span
               aria-hidden

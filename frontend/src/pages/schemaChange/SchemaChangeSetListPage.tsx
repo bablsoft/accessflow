@@ -220,14 +220,14 @@ export default function SchemaChangeSetListPage() {
             { value: 'all', label: t('schemaChange.list.allStatuses') },
             ...enumOptions(SCHEMA_CHANGE_SET_STATUSES, schemaChangeSetStatusLabel, t),
           ]}
-          style={{ width: 160 }}
+          className="u-w-sm"
         />
         <div className="u-flex-1" />
         <span className="mono muted u-text-2xs">
           {t('schemaChange.list.count', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
-      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px' }}>{body}</div>
+      <div className="u-flex-1 u-overflow-auto u-py-0 u-px-3">{body}</div>
 
       <Modal
         open={creating}

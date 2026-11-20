@@ -189,7 +189,7 @@ export default function RequestGroupListPage() {
           placeholder={t('requestGroups.list.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={status}

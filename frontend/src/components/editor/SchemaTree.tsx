@@ -20,9 +20,9 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
 
   return (
     <div
-      className="u-flex u-col" style={{ borderRight: '1px solid var(--border)', background: 'var(--bg-sunken)', overflow: 'hidden' }}
+      className="u-flex u-col u-bg-sunken u-overflow-hidden" style={{ borderRight: '1px solid var(--border)' }}
     >
-      <div className="u-p-3" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="u-p-3 u-border-b">
         <label
           className="muted u-block u-text-xs u-fw-500"
           style={{ marginBottom: 5 }}
@@ -42,26 +42,25 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
           style={{ gap: 6 }}
         >
           <span
-            style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--risk-low)' }}
+            className="u-rounded-full" style={{ width: 6, height: 6, background: 'var(--risk-low)' }}
           />
           {dbTypeLabel(t, ds.db_type)} · {ds.host}:{ds.port}
         </div>
       </div>
       {schemaQuery.isLoading && (
-        <div className="muted u-text-2xs" style={{ padding: '8px 12px' }}>
+        <div className="muted u-text-2xs u-py-2 u-px-3">
           {t('datasources.settings.schema_loading')}
         </div>
       )}
       {schemaQuery.isError && (
         <div
-          className="muted u-text-2xs"
-          style={{ padding: '8px 12px', color: 'var(--risk-high)' }}
+          className="muted u-text-2xs u-py-2 u-px-3 u-fg-risk-high"
         >
           {t('datasources.settings.schema_error')}
         </div>
       )}
       {schemaQuery.data && (
-        <div className="u-flex-1" style={{ minHeight: 0 }}>
+        <div className="u-flex-1 u-min-h-0">
           <SchemaObjectTree
             schemas={schemaQuery.data.schemas}
             selected={preview}

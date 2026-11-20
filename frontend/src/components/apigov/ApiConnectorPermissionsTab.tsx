@@ -290,7 +290,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
   });
   const groupPerms = groupPermsQuery.data ?? [];
   return (
-    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 760 }}>
+    <div className="u-flex u-col u-gap-4 u-max-w-form">
       <Form
         form={form}
         layout="vertical"

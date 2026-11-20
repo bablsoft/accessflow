@@ -272,7 +272,7 @@ export function ApiKeysSection() {
             <Typography.Text strong>{t('profile.api_keys.name_label')}</Typography.Text>
             <Typography.Text>{issuedKey.api_key.name}</Typography.Text>
             <Typography.Text strong>{t('profile.api_keys.raw_key_label')}</Typography.Text>
-            <Typography.Paragraph copyable={{ text: issuedKey.raw_key }} code style={{ wordBreak: 'break-all' }}>
+            <Typography.Paragraph copyable={{ text: issuedKey.raw_key }} code className="u-break-all">
               {issuedKey.raw_key}
             </Typography.Paragraph>
           </Space>

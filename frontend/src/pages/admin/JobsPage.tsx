@@ -63,7 +63,7 @@ export function JobsPage() {
               <div className="u-flex u-col">
                 <Button
                   type="link"
-                  className="u-p-0 u-fw-500" style={{ height: 'auto', alignSelf: 'flex-start' }}
+                  className="u-p-0 u-fw-500 u-self-start" style={{ height: 'auto' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedJob(name);
@@ -187,7 +187,7 @@ export function JobsPage() {
           </Button>
         }
       />
-      <div className="u-flex-1 u-flex u-col u-gap-3" style={{ overflow: 'auto', padding: '0 12px' }}>
+      <div className="u-flex-1 u-flex u-col u-gap-3 u-overflow-auto u-py-0 u-px-3">
         {registry != null && !registry.recording_enabled && (
           <Alert type="warning" showIcon title={t('admin.jobs.recording_disabled')} />
         )}

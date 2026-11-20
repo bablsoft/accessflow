@@ -206,7 +206,7 @@ export default function PrivilegedAccessPage() {
           aria-label={t('privileged_access.filter_user_placeholder')}
         />
         <div className="u-flex-1" />
-        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
+        <span className="mono muted u-text-2xs u-self-center">
           {t('privileged_access.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>

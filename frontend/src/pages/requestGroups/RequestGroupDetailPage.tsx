@@ -99,7 +99,7 @@ export default function RequestGroupDetailPage() {
         }
       />
       <div
-        className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}
+        className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto"
       >
         {groupQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!groupQuery.isLoading && !group && <EmptyState size="sm" title={t('requestGroups.detail.notFound')} />}
@@ -165,7 +165,7 @@ export default function RequestGroupDetailPage() {
 
             {group.error_message && (
               <Card size="small" title={t('requestGroups.detail.error')}>
-                <span style={{ color: 'var(--risk-high)' }}>{group.error_message}</span>
+                <span className="u-fg-risk-high">{group.error_message}</span>
               </Card>
             )}
 

@@ -98,7 +98,7 @@ export function QueryTracePanel() {
             name="user_id"
             label={t('decisionTrace.user')}
             rules={[{ required: true, message: t('access.simulation.user_required') }]}
-            style={{ width: 320 }}
+            className="u-w-xl"
           >
             <SimulationUserSelect />
           </Form.Item>
@@ -107,7 +107,7 @@ export function QueryTracePanel() {
             label={t('access.simulation.datasource')}
             rules={[{ required: true, message: t('access.simulation.datasource_required') }]}
             extra={canListAll ? undefined : t('access.simulation.datasource_scoped_hint')}
-            style={{ width: 320 }}
+            className="u-w-xl"
           >
             <SimulationDatasourceSelect />
           </Form.Item>
@@ -138,7 +138,7 @@ export function QueryTracePanel() {
             label={t('decisionTrace.risk_level')}
             dependencies={['risk_score']}
             rules={[pairRule('risk_score')]}
-            style={{ width: 200 }}
+            className="u-w-md"
           >
             <Select allowClear options={enumOptions(RISK_LEVELS, riskLevelLabel, t)} />
           </Form.Item>
@@ -158,7 +158,7 @@ export function QueryTracePanel() {
                 }),
               },
             ]}
-            style={{ width: 200 }}
+            className="u-w-md"
           >
             <InputNumber
               min={RISK_SCORE_MIN}

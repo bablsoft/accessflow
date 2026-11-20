@@ -121,7 +121,7 @@ export function ConditionTreeEditor<O extends string>({
               {fields.map(({ key, name }) => (
                 <div
                   key={key}
-                  className="u-p-2 u-mb-2" style={{ border: '1px solid var(--border-subtle)', borderRadius: 6 }}
+                  className="u-p-2 u-mb-2 u-rounded" style={{ border: '1px solid var(--border-subtle)' }}
                 >
                   <div
                     className="u-grid u-gap-2 u-items-center" style={{ gridTemplateColumns: '1fr 90px 32px' }}

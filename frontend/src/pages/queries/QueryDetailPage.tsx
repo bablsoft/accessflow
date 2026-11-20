@@ -701,7 +701,7 @@ export function QueryDetailPage() {
                   {t('queries.detail.ai_failed_accordion_body')}
                 </div>
                 <div
-                  className="u-mb-3 u-mono u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}
+                  className="u-mb-3 u-mono u-text-xs u-bg-sunken u-border u-rounded-sm u-py-2 u-px-3"
                 >
                   <span className="muted u-mr-2">
                     {t('queries.detail.ai_failed_reason_label')}:
@@ -746,8 +746,7 @@ export function QueryDetailPage() {
                     className="u-flex u-col u-gap-2" style={{ padding: '0 14px 14px' }}
                   >
                     <div
-                      className="muted u-text-2xs u-fw-500"
-                      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                      className="muted u-text-2xs u-fw-500 u-uppercase u-tracking-wide"
                     >
                       {t('queries.detail.optimizations_title')}
                     </div>
@@ -807,7 +806,7 @@ export function QueryDetailPage() {
           {query.status === 'EXECUTED' && (
             <DetailCard title={t('queries.detail.card_execution')} icon={<CheckOutlined className="u-fg-success" />}>
               <div
-                className="u-grid u-gap-4" style={{ padding: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}
+                className="u-grid u-gap-4 u-cols-3" style={{ padding: 14 }}
               >
                 <Stat label={t('queries.detail.stat_rows')} value={fmtNum(query.rows_affected)} />
                 <Stat
@@ -832,19 +831,19 @@ export function QueryDetailPage() {
                   {t('queries.detail.execution_failed_body')}
                 </div>
                 <div
-                  className="u-mb-3 u-mono u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}
+                  className="u-mb-3 u-mono u-text-xs u-bg-sunken u-border u-rounded-sm u-py-2 u-px-3"
                 >
                   <div className="muted" style={{ marginBottom: 6 }}>
                     {t('queries.detail.execution_error_label')}
                   </div>
-                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <div className="u-pre-wrap u-break-word">
                     {query.error_message?.trim()
                       ? query.error_message
                       : t('queries.detail.execution_no_error')}
                   </div>
                 </div>
                 <div
-                  className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
+                  className="u-grid u-gap-4 u-cols-2"
                 >
                   <Stat
                     label={t('queries.detail.stat_duration')}
@@ -969,8 +968,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div
-        className="muted mono u-text-2xs u-mb-1"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        className="muted mono u-text-2xs u-mb-1 u-uppercase u-tracking-wide"
       >
         {label}
       </div>
@@ -983,7 +981,7 @@ function LinkedTickets({ tickets }: { tickets: LinkedTicketRef[] }) {
   const { t } = useTranslation();
   return (
     <div
-      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box u-p-4"
     >
       <div className="u-fw-600 u-text-sm u-mb-3">
         {t('queries.detail.linked_tickets_title')}
@@ -1019,7 +1017,7 @@ function Metadata({ query }: { query: QueryDetail }) {
   const { t } = useTranslation();
   return (
     <div
-      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box u-p-4"
     >
       <div className="u-fw-600 u-text-sm u-mb-3">
         {t('queries.detail.metadata_title')}
@@ -1147,7 +1145,7 @@ function Row({ k, v }: { k: string; v: string }) {
     <div className="u-flex u-justify-between u-gap-2">
       <span className="muted">{k}</span>
       <span
-        className="u-text-right u-min-w-0 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+        className="u-text-right u-min-w-0 u-nowrap u-overflow-hidden u-ellipsis"
       >
         {v}
       </span>

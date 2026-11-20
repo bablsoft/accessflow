@@ -21,10 +21,10 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
   const { t } = useTranslation();
   return (
     <div
-      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box u-p-4"
     >
       <div className="u-fw-600 u-text-sm" style={{ marginBottom: 14 }}>{t('timeline.title')}</div>
-      <div className="u-flex u-col" style={{ position: 'relative' }}>
+      <div className="u-flex u-col u-relative">
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
           const isDanger = !!(s.rejected || s.failed);
@@ -43,11 +43,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
           return (
             <div
               key={i}
-              style={{
-                position: 'relative',
-                paddingLeft: 24,
-                paddingBottom: last ? 0 : 18,
-              }}
+              className="u-relative" style={{ paddingLeft: 24, paddingBottom: last ? 0 : 18 }}
             >
               {!last && (
                 <div
@@ -62,7 +58,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                 />
               )}
               <div
-                className="u-flex u-items-center u-justify-center" style={{ position: 'absolute', left: 0, top: 4, width: 14, height: 14, borderRadius: '50%', background: 'var(--bg-elev)', border: `2px solid ${dotColor}` }}
+                className="u-flex u-items-center u-justify-center u-rounded-full u-bg-elev" style={{ position: 'absolute', left: 0, top: 4, width: 14, height: 14, border: `2px solid ${dotColor}` }}
               >
                 {(s.done || s.active) && (
                   <span

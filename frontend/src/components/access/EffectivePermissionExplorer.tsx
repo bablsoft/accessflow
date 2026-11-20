@@ -68,7 +68,7 @@ export function EffectivePermissionExplorer({ userId, datasourceId }: ExplorerPr
             <Form.Item
               label={t('access.explorer.pick_user')}
               htmlFor="effective-access-user"
-              style={{ width: 320 }}
+              className="u-w-xl"
             >
               <SimulationUserSelect
                 id="effective-access-user"
@@ -81,7 +81,7 @@ export function EffectivePermissionExplorer({ userId, datasourceId }: ExplorerPr
             <Form.Item
               label={t('access.explorer.pick_datasource')}
               htmlFor="effective-access-datasource"
-              style={{ width: 320 }}
+              className="u-w-xl"
             >
               <SimulationDatasourceSelect
                 id="effective-access-datasource"

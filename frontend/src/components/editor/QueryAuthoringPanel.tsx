@@ -133,10 +133,10 @@ export function QueryAuthoringPanel({
         </div>
       </div>
       <div
-        className="u-grid" style={{ gridTemplateRows: 'auto 1fr', minHeight: 0, borderLeft: '1px solid var(--border)' }}
+        className="u-grid u-min-h-0" style={{ gridTemplateRows: 'auto 1fr', borderLeft: '1px solid var(--border)' }}
       >
         <div
-          className="u-p-2" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
+          className="u-p-2 u-border-b u-bg-sunken"
         >
           <Segmented<RightPanel>
             size="small"

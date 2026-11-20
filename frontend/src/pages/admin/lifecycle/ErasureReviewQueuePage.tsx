@@ -100,7 +100,7 @@ export default function ErasureReviewQueuePage() {
               expandedRowRender: (r) => (
                 <div className="u-text-xs">
                   <div className="muted">{t('lifecycle.erasure_review.scope_label')}</div>
-                  <pre className="mono" style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>
+                  <pre className="mono u-pre-wrap" style={{ margin: '4px 0 0' }}>
                     {r.scope_snapshot ?? t('lifecycle.erasure_review.no_scope')}
                   </pre>
                 </div>

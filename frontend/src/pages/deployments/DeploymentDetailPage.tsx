@@ -306,7 +306,7 @@ export default function DeploymentDetailPage() {
         }
         actions={<Button onClick={() => navigate('/deployments')}>{t('common.back')}</Button>}
       />
-      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto">
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && (
           <EmptyState size="sm" title={t('deploygov.deployments.notFound')} />
@@ -689,7 +689,7 @@ export default function DeploymentDetailPage() {
                   <DetailCard title={t('deploygov.detail.metadataJson')}>
                     <div style={{ padding: 14 }}>
                       <pre
-                        className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 280, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                        className="u-p-3 u-m-0 u-text-xs u-bg-sunken u-border u-rounded-md u-overflow-auto u-pre-wrap u-break-word" style={{ maxHeight: 280 }}
                       >
                         {JSON.stringify(request.metadata, null, 2)}
                       </pre>

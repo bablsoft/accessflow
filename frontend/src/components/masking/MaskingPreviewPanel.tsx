@@ -24,7 +24,7 @@ export function MaskingPreviewPanel({
   const { t } = useTranslation();
   const preview = maskingPreview(strategy ?? 'FULL', sample, params);
   return (
-    <div style={{ padding: '10px 12px', background: 'var(--bg-sunken)', borderRadius: 6 }}>
+    <div className="u-bg-sunken u-rounded" style={{ padding: '10px 12px' }}>
       <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
         {label}
       </div>

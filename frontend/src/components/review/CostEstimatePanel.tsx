@@ -32,9 +32,9 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
     return (
       <div
         role="status"
-        className="u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+        className="af-box u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14 }}
       >
-        <WarningOutlined style={{ color: 'var(--risk-med)', marginTop: 2, flexShrink: 0 }} />
+        <WarningOutlined className="u-fg-risk-med u-shrink-0" style={{ marginTop: 2 }} />
         <span>
           {t('cost_estimate_panel.failed')}
           {estimate.error_message ? ` — ${estimate.error_message}` : ''}
@@ -50,9 +50,9 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
     return (
       <div
         role="status"
-        className="u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+        className="af-box u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14 }}
       >
-        <InfoCircleOutlined className="u-fg-faint" style={{ marginTop: 2, flexShrink: 0 }} />
+        <InfoCircleOutlined className="u-fg-faint u-shrink-0" style={{ marginTop: 2 }} />
         <span>{estimate.unsupported_reason ?? t('cost_estimate_panel.unavailable')}</span>
       </div>
     );
@@ -62,7 +62,7 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
   return (
     <div style={{ padding: 14 }}>
       <div
-        className="u-flex u-col u-p-3 u-text-xs u-mono" style={{ gap: 6, marginBottom: estimate.plan || estimate.raw_plan ? 14 : 0, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+        className="af-box u-flex u-col u-p-3 u-text-xs u-mono" style={{ gap: 6, marginBottom: estimate.plan || estimate.raw_plan ? 14 : 0 }}
       >
         {hasAffectedCount && (
           <div className="u-flex u-justify-between">
@@ -102,8 +102,7 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
         <PlanTree plan={estimate.plan} />
       ) : estimate.raw_plan ? (
         <pre
-          className="mono u-m-0 u-p-2 u-text-2xs"
-          style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+          className="mono u-m-0 u-p-2 u-text-2xs u-bg-elev u-border u-rounded-sm u-pre-wrap u-break-word"
         >
           <code>{estimate.raw_plan}</code>
         </pre>

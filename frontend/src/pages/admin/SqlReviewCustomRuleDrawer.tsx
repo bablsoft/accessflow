@@ -234,7 +234,7 @@ export function SqlReviewCustomRuleDrawer({
 
       <section
         aria-label={t('admin.sql_review.custom_rules.test_heading')}
-        className="u-mt-2" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}
+        className="u-mt-2 u-pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}
       >
         <div className="u-fw-600 u-mb-1">
           {t('admin.sql_review.custom_rules.test_heading')}

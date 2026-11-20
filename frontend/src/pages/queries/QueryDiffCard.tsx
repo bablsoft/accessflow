@@ -40,7 +40,7 @@ export function QueryDiffCard({ query }: Props) {
         {!isLoading && data && (
           <div className="u-flex u-col u-gap-3">
             <div
-              className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+              className="u-grid u-gap-4 u-cols-3"
             >
               <DeltaRow
                 label={t('queries.detail.diff_rows')}
@@ -126,8 +126,7 @@ function DeltaRow({
 function Label({ text }: { text: string }) {
   return (
     <div
-      className="muted mono u-text-2xs u-mb-1"
-      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+      className="muted mono u-text-2xs u-mb-1 u-uppercase u-tracking-wide"
     >
       {text}
     </div>
@@ -145,14 +144,10 @@ function Card({
 }) {
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-      }}
+      className="af-box"
     >
       <div
-        className="u-flex u-items-center u-gap-2" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
+        className="u-flex u-items-center u-gap-2 u-border-b" style={{ padding: '10px 14px' }}
       >
         {icon && <span className="u-fg-muted">{icon}</span>}
         <span className="u-fw-600 u-text-sm">{title}</span>

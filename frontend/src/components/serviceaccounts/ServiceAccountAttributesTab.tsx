@@ -29,7 +29,7 @@ export function ServiceAccountAttributesTab({ account }: { account: ServiceAccou
   }, [account, form]);
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div className="u-max-w-text">
       <Typography.Paragraph type="secondary">
         {t('admin.service_accounts.attributes.description')}
       </Typography.Paragraph>

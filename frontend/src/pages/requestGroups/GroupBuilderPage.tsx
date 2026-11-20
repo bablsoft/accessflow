@@ -232,7 +232,7 @@ export default function GroupBuilderPage() {
         }
       />
       <div
-        className="u-flex-1 u-p-6 u-grid u-gap-5" style={{ overflow: 'auto', gridTemplateColumns: '1fr 320px', alignItems: 'start' }}
+        className="u-flex-1 u-p-6 u-grid u-gap-5 u-overflow-auto" style={{ gridTemplateColumns: '1fr 320px', alignItems: 'start' }}
       >
         <div className="u-flex u-col u-gap-4">
           <Card size="small">

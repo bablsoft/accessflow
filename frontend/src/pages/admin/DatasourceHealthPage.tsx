@@ -157,7 +157,7 @@ function PoolRing({ row }: { row: DatasourceHealth }) {
     return (
       <div
         data-testid="datasource-health-pool-uninitialized"
-        className="u-flex u-items-center u-justify-center u-text-center u-fg-muted u-text-xs u-p-3" style={{ width: 160, minHeight: 120 }}
+        className="u-flex u-items-center u-justify-center u-text-center u-fg-muted u-text-xs u-p-3 u-w-sm" style={{ minHeight: 120 }}
       >
         {t('admin.datasource_health.pool_not_initialized')}
       </div>
@@ -171,7 +171,7 @@ function PoolRing({ row }: { row: DatasourceHealth }) {
     { type: t('admin.datasource_health.pool_free'), value: free },
   ];
   return (
-    <div data-testid="datasource-health-pool-ring" style={{ width: 160 }}>
+    <div data-testid="datasource-health-pool-ring" className="u-w-sm">
       <Pie
         data={data}
         angleField="value"

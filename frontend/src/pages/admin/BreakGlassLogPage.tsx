@@ -106,7 +106,7 @@ export default function BreakGlassLogPage() {
             setStatus(v);
             setPage(0);
           }}
-          style={{ width: 200 }}
+          className="u-w-md"
           data-testid="breakglass-status"
           options={[
             { value: 'all', label: t('breakglass.filter_status_all') },
@@ -119,7 +119,7 @@ export default function BreakGlassLogPage() {
             setDatasourceId(v);
             setPage(0);
           }}
-          style={{ width: 240 }}
+          className="u-w-lg"
           showSearch={{ optionFilterProp: 'label' }}
           loading={datasourcesQuery.isLoading}
           data-testid="breakglass-datasource"
@@ -135,8 +135,7 @@ export default function BreakGlassLogPage() {
             setUserId(e.target.value);
             setPage(0);
           }}
-          style={{ width: 240 }}
-          className="mono"
+          className="mono u-w-lg"
         />
         <DatePicker.RangePicker
           showTime
@@ -147,7 +146,7 @@ export default function BreakGlassLogPage() {
           }}
         />
         <div className="u-flex-1" />
-        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
+        <span className="mono muted u-text-2xs u-self-center">
           {t('breakglass.count_label', { count: eventsQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
@@ -331,7 +330,7 @@ export default function BreakGlassLogPage() {
             {detail.sql_text && (
               <DetailCard title={t('breakglass.section_query')}>
                 <pre
-                  className="u-m-0 u-mono u-text-xs u-leading-normal" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: '0 0 var(--radius-md) var(--radius-md)', overflow: 'auto' }}
+                  className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code u-overflow-auto" style={{ padding: 14, borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
                 >
                   {detail.sql_text}
                 </pre>
@@ -364,15 +363,11 @@ export default function BreakGlassLogPage() {
 function DetailCard({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-      }}
+      className="af-box"
     >
       {title && (
         <div
-          className="u-fw-600 u-text-xs" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
+          className="u-fw-600 u-text-xs u-border-b" style={{ padding: '10px 14px' }}
         >
           {title}
         </div>

@@ -124,7 +124,7 @@ export function ApiAuthoringPanel({
 
         <Space.Compact className="u-w-full">
           <Input
-            style={{ width: 120 }}
+            className="u-w-xs"
             value={value.verb}
             onChange={(e) => onChange({ ...value, verb: e.target.value })}
             aria-label={t('apiGov.editor.verb')}

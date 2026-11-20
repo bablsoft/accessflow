@@ -209,12 +209,7 @@ export function SqlEditor({
   return (
     <div
       ref={containerRef}
-      style={{
-        height,
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        overflow: 'hidden',
-      }}
+      className="u-border u-rounded u-overflow-hidden" style={{ height }}
     />
   );
 }

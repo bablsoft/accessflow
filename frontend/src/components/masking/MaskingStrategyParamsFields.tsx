@@ -47,7 +47,7 @@ export function MaskingStrategyParamsFields({ strategy }: MaskingStrategyParamsF
             },
           ]}
         >
-          <InputNumber min={1} max={MAX_VISIBLE_LENGTH} style={{ width: 160 }} />
+          <InputNumber min={1} max={MAX_VISIBLE_LENGTH} className="u-w-sm" />
         </Form.Item>
       );
     }
@@ -150,7 +150,7 @@ export function MaskingStrategyParamsFields({ strategy }: MaskingStrategyParamsF
                 },
               ]}
             >
-              <InputNumber min={0} style={{ width: 200 }} placeholder="10000" />
+              <InputNumber min={0} className="u-w-md" placeholder="10000" />
             </Form.Item>
           )}
         </>

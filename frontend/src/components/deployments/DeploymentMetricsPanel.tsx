@@ -179,7 +179,7 @@ export function DeploymentMetricsPanel({ pipelineId }: DeploymentMetricsPanelPro
             { value: ALL, label: t('deploygov.metrics.allPipelines') },
             ...(pipelinesQuery.data?.content ?? []).map((p) => ({ value: p.id, label: p.name })),
           ]}
-          style={{ width: 200 }}
+          className="u-w-md"
         />
       )}
       <Select
@@ -188,7 +188,7 @@ export function DeploymentMetricsPanel({ pipelineId }: DeploymentMetricsPanelPro
         showSearch
         onChange={setEnvironment}
         options={[{ value: ALL, label: t('deploygov.metrics.allEnvironments') }, ...environmentOptions]}
-        style={{ width: 200 }}
+        className="u-w-md"
       />
     </div>
   );
@@ -368,7 +368,7 @@ function DailyChart({ data }: { data: DeploymentMetrics }) {
     <div className="u-flex u-col" style={{ gap: 10 }}>
       {/* An aspect-ratio box takes a content-based min-height, so the rendered SVG would feed its
           own height back into the box on every resize; minHeight: 0 keeps the ratio authoritative. */}
-      <AreaChart data={rows} aspectRatio="2.6 / 1" style={{ minHeight: 0 }}>
+      <AreaChart data={rows} aspectRatio="2.6 / 1" className="u-min-h-0">
         <Grid horizontal />
         {series.map((s) => (
           <Area
@@ -441,13 +441,7 @@ function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
         >
           <span
             aria-hidden
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: item.color,
-              display: 'inline-block',
-            }}
+            className="u-rounded-full u-inline-block" style={{ width: 8, height: 8, background: item.color }}
           />
           {item.label}
         </span>

@@ -202,7 +202,7 @@ export default function ApiRequestDetailPage() {
           </>
         }
       />
-      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto">
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && <EmptyState size="sm" title={t('apiGov.requests.notFound')} />}
         {request && (
@@ -405,7 +405,7 @@ export default function ApiRequestDetailPage() {
             {request.error_message && (
               <DetailCard title={t('apiGov.requests.error')}>
                 <div style={{ padding: 14 }}>
-                  <span style={{ color: 'var(--risk-high)' }}>{request.error_message}</span>
+                  <span className="u-fg-risk-high">{request.error_message}</span>
                 </div>
               </DetailCard>
             )}
@@ -437,7 +437,7 @@ export default function ApiRequestDetailPage() {
                     />
                   )}
                   <pre
-                    className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 360, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                    className="u-p-3 u-m-0 u-text-xs u-bg-sunken u-border u-rounded-md u-overflow-auto u-pre-wrap u-break-word" style={{ maxHeight: 360 }}
                   >
                     {request.response_snapshot}
                   </pre>

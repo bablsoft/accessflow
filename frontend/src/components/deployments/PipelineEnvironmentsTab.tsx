@@ -612,7 +612,7 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
               <div
                 key={field.key}
                 data-testid={`verification-check-${index}`}
-                className="u-p-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+                className="u-p-3 u-border u-rounded-md"
               >
                 <div className="u-flex u-gap-3 u-items-start">
                   <Form.Item

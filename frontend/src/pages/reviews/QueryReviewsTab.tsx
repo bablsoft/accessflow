@@ -348,7 +348,7 @@ export function QueryReviewsTab() {
   });
 
   return (
-    <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
+    <div className="u-flex u-col u-flex-1 u-min-h-0">
       {/* A segmented sub-filter rather than a second tab strip under the hub's tabs. */}
       <div className="af-triage-toolbar">
         <Segmented
@@ -369,7 +369,7 @@ export function QueryReviewsTab() {
           <div
             role="toolbar"
             aria-label={t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}
-            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
+            className="af-box u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, padding: '10px 14px' }}
           >
             <strong>{t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}</strong>
             <div className="u-flex-1" />

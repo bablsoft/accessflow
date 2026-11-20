@@ -121,8 +121,7 @@ export function GroupMemberCard({
           </span>
           {preview ? (
             <span
-              className="mono u-text-xs u-nowrap"
-              style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+              className="mono u-text-xs u-nowrap u-overflow-hidden u-ellipsis"
             >
               {preview}
             </span>

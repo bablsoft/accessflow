@@ -254,7 +254,7 @@ export function LoginPage() {
                       type="button"
                       onClick={() => setShowPw(!showPw)}
                       aria-label={showPw ? t('auth.login.hide_password') : t('auth.login.show_password')}
-                      className="u-fg-muted" style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
+                      className="u-fg-muted u-pointer" style={{ background: 'transparent', border: 0 }}
                     >
                       {showPw ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                     </button>

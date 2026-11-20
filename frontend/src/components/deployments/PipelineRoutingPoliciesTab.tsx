@@ -257,7 +257,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
   ];
 
   return (
-    <div className="u-flex u-col u-gap-3" style={{ maxWidth: 960 }}>
+    <div className="u-flex u-col u-gap-3 u-max-w-reading">
       <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
         {t('deploygov.routingPolicies.hint')}
       </div>

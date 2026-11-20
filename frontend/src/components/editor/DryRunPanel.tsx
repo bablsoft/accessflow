@@ -20,24 +20,24 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
   const showStale = stale && !!result && !running;
   return (
     <div
-      className="u-flex u-col" style={{ background: 'var(--bg-sunken)', overflow: 'auto', minHeight: 0 }}
+      className="u-flex u-col u-bg-sunken u-overflow-auto u-min-h-0"
     >
       <div
-        className="u-flex u-items-center u-gap-2" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}
+        className="u-flex u-items-center u-gap-2 u-py-3 u-px-4 u-border-b"
       >
         <ExperimentOutlined className="u-fg-accent" />
         <span className="u-fw-600 u-text-sm">{t('dry_run_panel.title')}</span>
         {showStale && (
           <span
-            className="mono u-inline-flex u-items-center u-gap-1 u-ml-auto u-text-2xs"
-            style={{ padding: '2px 6px', borderRadius: 999, color: 'var(--risk-med)', background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
+            className="mono u-inline-flex u-items-center u-gap-1 u-ml-auto u-text-2xs u-rounded-pill u-fg-risk-med"
+            style={{ padding: '2px 6px', background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
           >
             <WarningOutlined style={{ fontSize: 10 }} />
             {t('dry_run_panel.stale_badge')}
           </span>
         )}
       </div>
-      <div className="u-flex-1 u-p-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-4 u-overflow-auto">
         {running ? (
           <div className="u-flex u-col" style={{ gap: 10 }}>
             <div className="skeleton" style={{ height: 14, width: '50%' }} />
@@ -46,25 +46,25 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
             <div className="skeleton" style={{ height: 40, width: '95%' }} />
           </div>
         ) : !result ? (
-          <div className="muted u-text-xs u-text-center" style={{ padding: '40px 0' }}>
+          <div className="muted u-text-xs u-text-center u-py-10 u-px-0">
             {t('dry_run_panel.empty_prompt')}
           </div>
         ) : !result.supported ? (
           <div
             role="status"
-            className="u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+            className="af-box u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10 }}
           >
-            <InfoCircleOutlined className="u-fg-faint" style={{ marginTop: 2, flexShrink: 0 }} />
+            <InfoCircleOutlined className="u-fg-faint u-shrink-0" style={{ marginTop: 2 }} />
             <span>{result.unsupported_reason ?? t('dry_run_panel.unsupported')}</span>
           </div>
         ) : (
           <>
             <div
-              className="u-flex u-col u-p-3 u-mb-4 u-text-xs u-mono" style={{ gap: 6, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+              className="af-box u-flex u-col u-p-3 u-mb-4 u-text-xs u-mono" style={{ gap: 6 }}
             >
               <div
-                className="muted u-text-2xs u-fw-500"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'inherit', marginBottom: 2 }}
+                className="muted u-text-2xs u-fw-500 u-uppercase u-tracking-wide"
+                style={{ fontFamily: 'inherit', marginBottom: 2 }}
               >
                 {t('dry_run_panel.estimated_impact_label')}
               </div>
@@ -95,8 +95,7 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
               <PlanTree plan={result.plan} />
             ) : result.raw_plan ? (
               <pre
-                className="mono u-m-0 u-p-2 u-text-2xs"
-                style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                className="mono u-m-0 u-p-2 u-text-2xs u-bg-elev u-border u-rounded-sm u-pre-wrap u-break-word"
               >
                 <code>{result.raw_plan}</code>
               </pre>
@@ -109,7 +108,7 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
         )}
       </div>
       {onRun && !running && (
-        <div className="u-p-3" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="u-p-3 u-border-t">
           <Button size="small" icon={<ExperimentOutlined />} onClick={onRun} block>
             {t('dry_run_panel.rerun_button')}
           </Button>

@@ -331,11 +331,11 @@ function ChannelCard({
   })();
   return (
     <div
-      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box u-p-4"
     >
       <div className="u-flex u-items-start u-gap-3">
         <div
-          className="u-flex u-items-center u-justify-center" style={{ width: 36, height: 36, borderRadius: 8, background: iconColor + '20', color: iconColor, flexShrink: 0 }}
+          className="u-flex u-items-center u-justify-center u-rounded-md u-shrink-0" style={{ width: 36, height: 36, background: iconColor + '20', color: iconColor }}
         >
           {icon}
         </div>
@@ -359,12 +359,12 @@ function ChannelCard({
         </div>
       </div>
       <div
-        className="u-mt-3 u-text-xs u-mono u-leading-normal" style={{ padding: 10, background: 'var(--bg-sunken)', borderRadius: 6, maxHeight: 110, overflow: 'auto' }}
+        className="u-mt-3 u-text-xs u-mono u-leading-normal u-bg-sunken u-rounded u-overflow-auto" style={{ padding: 10, maxHeight: 110 }}
       >
         <ConfigPreview channel={ch} />
       </div>
       <div
-        className="u-flex u-items-center u-gap-2 u-mt-3" style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}
+        className="u-flex u-items-center u-gap-2 u-mt-3 u-pt-3 u-border-t"
       >
         <span className="mono muted u-text-2xs">
           {fmtDate(ch.created_at).split(',')[0]}

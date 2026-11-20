@@ -211,7 +211,7 @@ export function ServiceAccountsPage() {
           </Button>
         }
       />
-      <div className="u-flex-1 u-p-3" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-3 u-overflow-auto">
         <div className="u-flex u-gap-2 u-mb-3">
           <Select<ServiceAccountSource | 'all'>
             aria-label={t('admin.service_accounts.col_managed_by')}

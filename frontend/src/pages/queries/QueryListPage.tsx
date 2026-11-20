@@ -237,7 +237,7 @@ export function QueryListPage() {
             { value: 'all', label: t('queries.list.filter_all_statuses') },
             ...enumOptions(STATUSES, queryStatusLabel, t),
           ]}
-          style={{ width: 160 }}
+          className="u-w-sm"
         />
         <Select
           value={type}
@@ -264,7 +264,7 @@ export function QueryListPage() {
             { value: 'all', label: t('queries.list.filter_all_datasources') },
             ...dsOpts.map(([id, name]) => ({ value: id, label: name })),
           ]}
-          style={{ width: 200 }}
+          className="u-w-md"
         />
         <Input
           placeholder={t('client_application.filter_placeholder')}

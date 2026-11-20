@@ -75,7 +75,7 @@ export function SlackLinkSection() {
           description={
             <Space orientation="vertical" className="u-w-full">
               <Typography.Paragraph copyable={{ text: `/accessflow link ${issued.code}` }} code
-                className="u-mb-0" style={{ wordBreak: 'break-all' }}>
+                className="u-mb-0 u-break-all">
                 /accessflow link {issued.code}
               </Typography.Paragraph>
               <Typography.Text type="secondary">{t('profile.slack.code_instructions')}</Typography.Text>

@@ -520,7 +520,7 @@ export function RoutingPoliciesPage() {
             <Input.TextArea rows={2} maxLength={2000} />
           </Form.Item>
 
-          <div className="u-grid u-gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+          <div className="u-grid u-gap-3 u-cols-3">
             <Form.Item
               name="datasource_id"
               label={t('admin.routing_policies.label_scope')}

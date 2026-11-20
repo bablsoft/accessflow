@@ -139,7 +139,7 @@ export function ApiResponseDiffCard({ request }: Props) {
         )}
         {!diffQuery.isLoading && diff && (
           <>
-            <div className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <div className="u-grid u-gap-4 u-cols-3">
               <div>
                 <Label text={t('apiGov.requests.diffStatusCode')} />
                 <span className="mono u-text-sm">
@@ -210,7 +210,7 @@ export function ApiResponseDiffCard({ request }: Props) {
 function ValueCell({ value }: { value: string | null | undefined }) {
   if (value == null) return <span className="muted">—</span>;
   return (
-    <span className="mono u-text-xs" style={{ wordBreak: 'break-word' }}>
+    <span className="mono u-text-xs u-break-word">
       {value}
     </span>
   );
@@ -258,8 +258,7 @@ function DeltaRow({
 function Label({ text }: { text: string }) {
   return (
     <div
-      className="muted mono u-text-2xs u-mb-1"
-      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+      className="muted mono u-text-2xs u-mb-1 u-uppercase u-tracking-wide"
     >
       {text}
     </div>

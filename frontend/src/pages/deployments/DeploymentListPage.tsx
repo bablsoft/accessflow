@@ -238,7 +238,7 @@ export default function DeploymentListPage() {
             { value: 'all', label: t('deploygov.deployments.filterAllStatuses') },
             ...enumOptions(STATUSES, queryStatusLabel, t),
           ]}
-          style={{ width: 160 }}
+          className="u-w-sm"
         />
         <Select
           value={pipeline}
@@ -251,7 +251,7 @@ export default function DeploymentListPage() {
             { value: 'all', label: t('deploygov.deployments.filterAllPipelines') },
             ...pipelineOptions,
           ]}
-          style={{ width: 200 }}
+          className="u-w-md"
         />
         <Input
           prefix={<SearchOutlined className="u-fg-faint" />}

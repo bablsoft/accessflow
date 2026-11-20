@@ -11,7 +11,7 @@ export function GuardrailsFormSection() {
   const { t } = useTranslation();
 
   return (
-    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+    <div className="u-mt-2 u-border-t u-pt-4">
       <h3 className="u-mb-1">{t('admin.ai_configs.guardrails.section_title')}</h3>
       <p className="muted u-mt-0">
         {t('admin.ai_configs.guardrails.section_help')}

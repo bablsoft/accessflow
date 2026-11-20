@@ -315,7 +315,7 @@ export default function SchemaDriftPage() {
           aria-label={t('schemaChange.drift.environment')}
           onChange={setEnvironment}
           options={[{ value: 'all', label: t('schemaChange.drift.allEnvironments') }, ...environmentOptions]}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={status}
@@ -328,7 +328,7 @@ export default function SchemaDriftPage() {
           style={{ width: 170 }}
         />
       </FilterBar>
-      <div className="u-flex-1 u-p-5 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-5 u-flex u-col u-gap-4 u-overflow-auto">
         <Alert type="info" showIcon title={t('schemaChange.drift.fidelityNote')} />
         {truncated && (
           <Alert

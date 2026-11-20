@@ -189,7 +189,7 @@ export default function CampaignDetailPage() {
         }
       />
       <div
-        className="u-flex u-wrap u-items-center" style={{ padding: '16px var(--gutter)', borderBottom: '1px solid var(--border)', background: 'var(--bg-elev)', gap: 28 }}
+        className="u-flex u-wrap u-items-center u-border-b u-bg-elev" style={{ padding: '16px var(--gutter)', gap: 28 }}
       >
         <Pill fg={statusColor.fg} bg={statusColor.bg} border={statusColor.border} withDot>
           {attestationCampaignStatusLabel(t, campaign.status)}
@@ -290,8 +290,7 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div>
       <div
-        className="muted u-text-2xs"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        className="muted u-text-2xs u-uppercase u-tracking-wide"
       >
         {label}
       </div>

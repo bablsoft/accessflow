@@ -257,13 +257,7 @@ function UsagePanel({ connectorId }: { connectorId: string }) {
                     >
                       <span
                         aria-hidden
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: color,
-                          display: 'inline-block',
-                        }}
+                        className="u-rounded-full u-inline-block" style={{ width: 8, height: 8, background: color }}
                       />
                       {label}
                     </span>

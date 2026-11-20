@@ -84,11 +84,7 @@ export default function ConnectorsPage() {
         subtitle={t('connectors.subtitle')}
       />
       <div
-        style={{
-          padding: '12px var(--gutter)',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-        }}
+        className="u-border-b u-bg-elev" style={{ padding: '12px var(--gutter)' }}
       >
         <Input.Search
           allowClear
@@ -96,11 +92,11 @@ export default function ConnectorsPage() {
           aria-label={t('connectors.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ maxWidth: 360 }}
+          className="u-max-w-xs"
         />
       </div>
       <div
-        className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}
+        className="u-flex-1 u-p-6 u-flex u-col u-gap-4 u-overflow-auto"
       >
         {listQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -147,7 +143,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
 
   return (
     <div
-      className="u-flex u-col u-gap-3 u-p-4" style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-elev)' }}
+      className="af-box u-flex u-col u-gap-3 u-p-4"
     >
       <div className="u-flex u-items-center u-gap-3">
         <img
@@ -155,7 +151,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
           alt=""
           width={40}
           height={40}
-          className="u-p-1" style={{ borderRadius: 8, background: 'var(--bg-sunken)', objectFit: 'contain' }}
+          className="u-p-1 u-rounded-md u-bg-sunken" style={{ objectFit: 'contain' }}
         />
         <div className="u-flex-1 u-min-w-0">
           <div className="u-fw-600 u-text-lg">{connector.name}</div>

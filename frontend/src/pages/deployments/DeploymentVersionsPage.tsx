@@ -199,7 +199,7 @@ export default function DeploymentVersionsPage() {
             { value: 'all', label: t('deploygov.versions.filterAllPipelines') },
             ...pipelineOptions,
           ]}
-          style={{ width: 200 }}
+          className="u-w-md"
         />
         <Select
           value={tag}
@@ -246,7 +246,7 @@ export default function DeploymentVersionsPage() {
           {t('deploygov.versions.countLabel', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
-      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px' }}>{body()}</div>
+      <div className="u-flex-1 u-overflow-auto u-py-0 u-px-3">{body()}</div>
     </Page>
   );
 }

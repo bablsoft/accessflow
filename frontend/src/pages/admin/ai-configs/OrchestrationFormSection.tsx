@@ -28,7 +28,7 @@ export function OrchestrationFormSection({ form }: { form: FormInstance }) {
   const enabled = Form.useWatch('orchestration_enabled', form) as boolean | undefined;
 
   return (
-    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+    <div className="u-mt-2 u-border-t u-pt-4">
       <h3 className="u-mb-1">{t('admin.ai_configs.orchestration.section_title')}</h3>
       <p className="muted u-mt-0">
         {t('admin.ai_configs.orchestration.section_help')}
@@ -118,7 +118,7 @@ function MemberRow({
 
   return (
     <div
-      className="u-p-3 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 8 }}
+      className="u-p-3 u-mb-3 u-border u-rounded-md"
       data-testid="orchestration-member"
     >
       <div className="u-flex u-justify-between u-items-center">

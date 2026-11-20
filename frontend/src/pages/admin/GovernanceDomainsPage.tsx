@@ -71,7 +71,7 @@ export function GovernanceDomainsPage() {
         subtitle={t('admin.governance_domains.subtitle')}
       />
       <PageBody>
-        <p className="muted" style={{ maxWidth: 640 }}>
+        <p className="muted u-max-w-text">
           {t('admin.governance_domains.description')}
         </p>
         <Form<GovernanceDomainsConfig>
@@ -96,7 +96,7 @@ export function GovernanceDomainsPage() {
           >
             <Switch aria-label={t('admin.governance_domains.label_deployments')} />
           </Form.Item>
-          <div style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <div className="u-pt-4 u-border-t">
             <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
               {t('admin.governance_domains.save_button')}
             </Button>

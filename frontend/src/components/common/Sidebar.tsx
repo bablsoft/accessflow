@@ -480,7 +480,7 @@ export function Sidebar({
                 {!collapsed && (
                   <div className="u-min-w-0 u-flex-1">
                     <div
-                      className="u-text-sm u-fw-500 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      className="u-text-sm u-fw-500 u-nowrap u-overflow-hidden u-ellipsis"
                     >
                       {label}
                     </div>

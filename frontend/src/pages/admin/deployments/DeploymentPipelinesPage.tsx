@@ -192,7 +192,7 @@ export function DeploymentPipelinesPage() {
           </Button>
         }
       />
-      <div className="u-flex-1 u-p-3" style={{ overflow: 'auto' }}>
+      <div className="u-flex-1 u-p-3 u-overflow-auto">
         {listQuery.isLoading ? (
           <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />

@@ -311,7 +311,7 @@ export function PendingDeploymentsTab() {
           aria-label={t('deploygov.reviews.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          style={{ width: 240 }}
+          className="u-w-lg"
         />
         <Select
           value={pipeline}

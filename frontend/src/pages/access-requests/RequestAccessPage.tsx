@@ -270,7 +270,7 @@ export function RequestAccessPage() {
         {activeRequest && (
           <Card
             title={t('access.request.active_title')}
-            className="u-mb-6" style={{ maxWidth: 640, borderLeft: '3px solid var(--accent)' }}
+            className="u-mb-6 u-max-w-text" style={{ borderLeft: '3px solid var(--accent)' }}
           >
             <Space orientation="vertical" size={8} className="u-w-full">
               <div className="u-flex u-items-center u-gap-3 u-wrap">
@@ -304,7 +304,7 @@ export function RequestAccessPage() {
         )}
 
         <h2 className="u-text-lg" style={{ margin: '32px 0 12px' }}>{t('access.request.new_heading')}</h2>
-        <Card className="u-mb-6" style={{ maxWidth: 640 }}>
+        <Card className="u-mb-6 u-max-w-text">
           <Form<RequestFormValues>
             form={form}
             layout="vertical"

@@ -71,7 +71,7 @@ export function ApprovalPredictionPanel({
     return (
       <div role="status" style={NOTICE_STYLE}>
         {/* --risk-med is this theme's amber; it colours the warning glyph, not the prediction. */}
-        <WarningOutlined style={{ color: 'var(--risk-med)', marginTop: 2, flexShrink: 0 }} />
+        <WarningOutlined className="u-fg-risk-med u-shrink-0" style={{ marginTop: 2 }} />
         <span>{t('approval_prediction.failed')}</span>
       </div>
     );
@@ -85,7 +85,7 @@ export function ApprovalPredictionPanel({
       'approval_prediction.unavailable';
     return (
       <div role="status" style={NOTICE_STYLE}>
-        <InfoCircleOutlined className="u-fg-faint" style={{ marginTop: 2, flexShrink: 0 }} />
+        <InfoCircleOutlined className="u-fg-faint u-shrink-0" style={{ marginTop: 2 }} />
         <span>{t(reasonKey)}</span>
       </div>
     );
@@ -94,7 +94,7 @@ export function ApprovalPredictionPanel({
   return (
     <div style={{ padding: 14 }}>
       <div
-        className="u-flex u-items-center u-justify-between u-gap-3 u-p-3 u-text-xs" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+        className="af-box u-flex u-items-center u-justify-between u-gap-3 u-p-3 u-text-xs"
       >
         <span className="muted">{t('approval_prediction.value_label')}</span>
         <ApprovalPredictionBadge probability={prediction.probability} />

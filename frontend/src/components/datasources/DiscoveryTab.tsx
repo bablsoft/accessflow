@@ -369,7 +369,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             <div className="u-fw-600">
               {t('datasources.settings.discovery.findings_title')}
             </div>
-            <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+            <div className="muted u-text-xs u-max-w-text">
               {t('datasources.settings.discovery.findings_description')}
             </div>
           </div>
@@ -393,7 +393,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             aria-label={t('datasources.settings.discovery.bulk_action_bar_count', {
               count: selectedRowKeys.length,
             })}
-            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
+            className="af-box u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, padding: '10px 14px' }}
           >
             <strong>
               {t('datasources.settings.discovery.bulk_action_bar_count', {

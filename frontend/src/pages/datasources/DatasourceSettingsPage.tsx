@@ -739,7 +739,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 {fields.map(({ key, name }) => (
                   <div
                     key={key}
-                    className="u-p-4 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+                    className="u-p-4 u-mb-3 u-border u-rounded"
                   >
                     <Form.Item name={[name, 'id']} hidden>
                       <Input type="hidden" />
@@ -1011,7 +1011,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
           </Grid>
         </Section>
         <div
-          className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
+          className="u-flex u-gap-2 u-pt-4 u-border-t"
         >
           <Button
             type="primary"
@@ -1799,7 +1799,7 @@ function GrantAccessModal({
             />
           </Form.Item>
         )}
-        <div className="u-grid u-gap-4" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+        <div className="u-grid u-gap-4 u-cols-3">
           <Form.Item
             name="can_read"
             label={t('datasources.settings.grant_perm_read_label')}
@@ -2048,19 +2048,13 @@ function GrantAccessModal({
 function PermCell({ on }: { on: boolean }) {
   return on ? (
     <span
-      className="u-inline-flex u-fg-success u-items-center u-justify-center" style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--risk-low-bg)' }}
+      className="u-inline-flex u-fg-success u-items-center u-justify-center u-rounded-sm" style={{ width: 20, height: 20, background: 'var(--risk-low-bg)' }}
     >
       <CheckOutlined className="u-text-xs" />
     </span>
   ) : (
     <span
-      style={{
-        display: 'inline-block',
-        width: 12,
-        height: 2,
-        background: 'var(--border-strong)',
-        borderRadius: 1,
-      }}
+      className="u-inline-block" style={{ width: 12, height: 2, background: 'var(--border-strong)', borderRadius: 1 }}
     />
   );
 }
@@ -2096,7 +2090,7 @@ function SchemaTab({ dsId }: { dsId: string }) {
 
   if (schemaQuery.isError || !schemaQuery.data) {
     return (
-      <div className="u-p-gutter" style={{ color: 'var(--risk-high)' }}>
+      <div className="u-p-gutter u-fg-risk-high">
         {t('datasources.settings.schema_error')}
       </div>
     );
@@ -2108,13 +2102,7 @@ function SchemaTab({ dsId }: { dsId: string }) {
         {t('datasources.settings.sample_select_prompt')}
       </p>
       <div
-        style={{
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          background: 'var(--bg-sunken)',
-          height: 520,
-          overflow: 'hidden',
-        }}
+        className="u-border u-rounded u-bg-sunken u-overflow-hidden" style={{ height: 520 }}
       >
         <SchemaObjectTree
           schemas={schemaQuery.data.schemas}

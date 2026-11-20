@@ -157,7 +157,7 @@ export function StatementListEditor({
                   add({ sql_text: '' });
                   onStructureChange();
                 }}
-                style={{ alignSelf: 'flex-start' }}
+                className="u-self-start"
               >
                 {t('schemaChange.statements.add')}
               </Button>

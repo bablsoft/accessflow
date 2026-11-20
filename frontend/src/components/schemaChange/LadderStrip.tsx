@@ -14,7 +14,7 @@ export function LadderStrip({ changeSetId }: { changeSetId: string }) {
   });
 
   if (ladderQuery.isLoading) {
-    return <Skeleton.Button active size="small" style={{ width: 120 }} />;
+    return <Skeleton.Button active size="small" className="u-w-xs" />;
   }
   if (ladderQuery.isError || !ladderQuery.data) {
     return <span className="muted">—</span>;
@@ -38,7 +38,7 @@ export function LadderStrip({ changeSetId }: { changeSetId: string }) {
             <span
               role="listitem"
               aria-label={label}
-              className="u-text-2xs u-nowrap" style={{ padding: '1px 6px', borderRadius: 4, color: color.fg, background: color.bg, border: `1px solid ${color.border}` }}
+              className="u-text-2xs u-nowrap u-rounded-sm" style={{ padding: '1px 6px', color: color.fg, background: color.bg, border: `1px solid ${color.border}` }}
             >
               {rung.environment_name}
             </span>

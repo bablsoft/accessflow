@@ -85,7 +85,7 @@ export function RowLimitTab({ dsId }: { dsId: string }) {
       >
         <div>
           <div className="u-fw-600">{t('datasources.settings.row_limits.title')}</div>
-          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
+          <div className="muted u-text-xs u-max-w-text">
             {t('datasources.settings.row_limits.description')}
           </div>
         </div>
@@ -421,7 +421,7 @@ function RowLimitPolicyModal({ open, dsId, policy, onClose }: RowLimitPolicyModa
             },
           ]}
         >
-          <InputNumber min={1} max={MAX_ROWS_CEILING} precision={0} style={{ width: 160 }} />
+          <InputNumber min={1} max={MAX_ROWS_CEILING} precision={0} className="u-w-sm" />
         </Form.Item>
 
         <Form.Item

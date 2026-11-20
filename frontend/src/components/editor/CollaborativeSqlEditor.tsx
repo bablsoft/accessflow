@@ -108,12 +108,7 @@ export function CollaborativeSqlEditor({
     <div
       ref={containerRef}
       data-testid="collaborative-sql-editor"
-      style={{
-        height,
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        overflow: 'hidden',
-      }}
+      className="u-border u-rounded u-overflow-hidden" style={{ height }}
     />
   );
 }

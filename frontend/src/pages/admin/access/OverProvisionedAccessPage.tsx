@@ -236,7 +236,7 @@ export default function OverProvisionedAccessPage() {
           aria-label={t('over_provisioned.filter_user_placeholder')}
         />
         <div className="u-flex-1" />
-        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
+        <span className="mono muted u-text-2xs u-self-center">
           {t('over_provisioned.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>

@@ -100,7 +100,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             name="environment_id"
             label={t('deploygov.simulate.environment')}
             rules={[{ required: true, message: t('deploygov.simulate.environment_required') }]}
-            style={{ width: 240 }}
+            className="u-w-lg"
           >
             <Select
               loading={environments.isLoading}
@@ -112,7 +112,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             name="user_id"
             label={t('decisionTrace.user')}
             rules={[{ required: true, message: t('deploygov.simulate.user_required') }]}
-            style={{ width: 320 }}
+            className="u-w-xl"
           >
             <SimulationUserSelect />
           </Form.Item>
@@ -127,7 +127,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
                 message: t('deploygov.simulate.version_too_long', { max: VERSION_MAX_LENGTH }),
               },
             ]}
-            style={{ width: 200 }}
+            className="u-w-md"
           >
             <Input className="mono" placeholder={t('deploygov.simulate.version_placeholder')} />
           </Form.Item>
@@ -138,7 +138,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             name="at"
             label={t('deploygov.simulate.at')}
             tooltip={t('deploygov.simulate.at_hint')}
-            style={{ width: 240 }}
+            className="u-w-lg"
           >
             <DatePicker showTime className="u-w-full" placeholder={t('deploygov.simulate.at_placeholder')} />
           </Form.Item>
@@ -146,7 +146,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             name="scheduled_for"
             label={t('deploygov.simulate.scheduled_for')}
             tooltip={t('deploygov.simulate.scheduled_for_hint')}
-            style={{ width: 240 }}
+            className="u-w-lg"
           >
             <DatePicker showTime className="u-w-full" />
           </Form.Item>

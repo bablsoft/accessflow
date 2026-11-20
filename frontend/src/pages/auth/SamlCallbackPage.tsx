@@ -56,12 +56,11 @@ export function SamlCallbackPage() {
 
   return (
     <div
-      className="u-flex u-items-center u-justify-center u-p-6" style={{ minHeight: '100vh', background: 'var(--bg)' }}
+      className="u-flex u-items-center u-justify-center u-p-6 u-bg" style={{ minHeight: '100vh' }}
     >
       <div style={{ width: 380 }}>
         <div
-          className="af-card u-p-6"
-          style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+          className="af-box af-card u-p-6"
         >
           {error ? (
             <>

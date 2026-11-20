@@ -237,7 +237,7 @@ export default function AttestationWorklistPage() {
             aria-label={t('attestation.worklist.bulk.action_bar_count', {
               count: selectedRowKeys.length,
             })}
-            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
+            className="af-box u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, padding: '10px 14px' }}
           >
             <strong>
               {t('attestation.worklist.bulk.action_bar_count', { count: selectedRowKeys.length })}

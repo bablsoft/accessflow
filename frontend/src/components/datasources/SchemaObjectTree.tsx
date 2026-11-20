@@ -39,7 +39,7 @@ function ClassificationBadges({ classifications }: { classifications: DataClassi
   return (
     <>
       {classifications.map((c) => (
-        <StatusTag tone="danger" key={c} className="u-text-2xs" style={{ marginInlineEnd: 0, lineHeight: '14px', padding: '0 4px' }}>
+        <StatusTag tone="danger" key={c} className="u-text-2xs u-py-0 u-px-1" style={{ marginInlineEnd: 0, lineHeight: '14px' }}>
           {c}
         </StatusTag>
       ))}
@@ -61,8 +61,8 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
   const filtering = filter.trim().length > 0;
 
   return (
-    <div className="u-flex u-col" style={{ minHeight: 0, height: '100%' }}>
-      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+    <div className="u-flex u-col u-min-h-0 u-h-full">
+      <div className="u-py-2 u-px-3 u-border-b">
         <Input
           size="small"
           allowClear
@@ -74,10 +74,10 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
         />
       </div>
       <div
-        className="u-flex-1 u-mono u-text-xs" style={{ overflow: 'auto', padding: '6px 0' }}
+        className="u-flex-1 u-mono u-text-xs u-overflow-auto" style={{ padding: '6px 0' }}
       >
         {filtered.length === 0 && (
-          <div className="muted u-text-2xs" style={{ padding: '8px 12px' }}>
+          <div className="muted u-text-2xs u-py-2 u-px-3">
             {t('datasources.settings.object_tree_no_match', { query: filter })}
           </div>
         )}
@@ -145,7 +145,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                         tab.columns.map((c) => (
                           <div key={c.name} style={columnRowStyle}>
                             {c.primary_key ? (
-                              <span className="u-text-2xs" style={{ color: 'var(--risk-med)' }}>PK</span>
+                              <span className="u-text-2xs u-fg-risk-med">PK</span>
                             ) : (
                               <span style={{ width: 12 }} />
                             )}

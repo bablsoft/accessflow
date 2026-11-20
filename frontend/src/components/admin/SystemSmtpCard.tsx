@@ -121,8 +121,7 @@ export function SystemSmtpCard() {
 
   return (
     <div
-      className="af-card u-p-4 u-mb-6"
-      style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
+      className="af-box af-card u-p-4 u-mb-6"
     >
       <div
         className="u-flex u-items-center u-justify-between u-mb-3"

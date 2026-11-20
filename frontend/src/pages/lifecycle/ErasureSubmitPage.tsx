@@ -87,7 +87,7 @@ export default function ErasureSubmitPage() {
   return (
     <Page>
       <PageHeader title={t('lifecycle.erasure.title')} subtitle={t('lifecycle.erasure.subtitle')} />
-      <div className="u-flex-1" style={{ overflow: 'auto', padding: '20px var(--gutter)', maxWidth: 1100 }}>
+      <div className="u-flex-1 u-overflow-auto" style={{ padding: '20px var(--gutter)', maxWidth: 1100 }}>
         <Form<ErasureFormValues>
           form={form}
           layout="vertical"

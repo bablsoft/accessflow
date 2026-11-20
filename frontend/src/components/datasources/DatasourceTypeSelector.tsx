@@ -69,8 +69,8 @@ export function DatasourceTypeSelector({
         onSelect={onSelect}
         emptyState={
           <div
-            className="muted u-text-xs u-p-3"
-            style={{ borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', background: 'var(--bg-sunken)' }}
+            className="muted u-text-xs u-p-3 u-rounded-md u-bg-sunken"
+            style={{ border: '1px dashed var(--border)' }}
           >
             <div style={{ marginBottom: 6 }}>
               {t('datasources.create.no_custom_drivers_hint')}
@@ -100,7 +100,7 @@ function TypeGroup({
   return (
     <section className="u-flex u-col" style={{ gap: 10 }}>
       <div className="u-flex u-items-baseline u-gap-2">
-        <h3 className="u-m-0 u-text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <h3 className="u-m-0 u-text-sm u-uppercase u-tracking-wide">
           {title}
         </h3>
         {helpText && (
@@ -125,7 +125,7 @@ function TypeGroup({
                 aria-checked={selected}
                 onClick={() => onSelect(option)}
                 key={key}
-                className="u-flex u-col u-gap-3 u-p-4" style={{ all: 'unset', borderRadius: 'var(--radius-md)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`, background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+                className="u-flex u-col u-gap-3 u-p-4 u-rounded-md u-pointer" style={{ all: 'unset', border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`, background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)', transition: 'border-color 0.15s, background 0.15s' }}
               >
                 <div className="u-flex u-items-center u-gap-3">
                   <img
@@ -133,7 +133,7 @@ function TypeGroup({
                     alt=""
                     width={36}
                     height={36}
-                    className="u-p-1" style={{ borderRadius: 8, background: 'var(--bg-sunken)', objectFit: 'contain' }}
+                    className="u-p-1 u-rounded-md u-bg-sunken" style={{ objectFit: 'contain' }}
                   />
                   <div className="u-flex-1 u-min-w-0">
                     <div className="u-fw-600 u-text-md">{option.display_name}</div>

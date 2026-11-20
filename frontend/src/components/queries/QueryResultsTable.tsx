@@ -173,8 +173,8 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
       <div>
         {toggle}
         <pre
-          className="mono u-m-0 u-p-3 u-text-xs"
-          style={{ maxHeight: 480, overflow: 'auto', background: 'var(--bg-code)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
+          className="mono u-m-0 u-p-3 u-text-xs u-overflow-auto u-bg-code u-border u-rounded"
+          style={{ maxHeight: 480 }}
         >
           {documentsToJson(data.columns, data.rows)}
         </pre>

@@ -298,7 +298,7 @@ export default function SchemaChangeSetDetailPage() {
         }
       />
       <div
-        className="u-flex-1 u-p-6 u-grid u-gap-5" style={{ overflow: 'auto', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)', alignItems: 'start' }}
+        className="u-flex-1 u-p-6 u-grid u-gap-5 u-overflow-auto" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)', alignItems: 'start' }}
       >
         <Card size="small" title={t('schemaChange.statements.title')}>
           {archived && (

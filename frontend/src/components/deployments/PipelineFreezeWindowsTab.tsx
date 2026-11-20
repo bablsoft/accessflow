@@ -73,14 +73,7 @@ function WeekStrip({ windows }: { windows: DeploymentFreezeWindow[] }) {
               {isoWeekdayLabel(t, day)}
             </div>
             <div
-              style={{
-                position: 'relative',
-                height: 96,
-                background: 'var(--bg-sunken)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                overflow: 'hidden',
-              }}
+              className="u-relative u-bg-sunken u-border u-rounded-md u-overflow-hidden" style={{ height: 96 }}
             >
               {segments
                 .filter((s) => s.day === day)
@@ -295,7 +288,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
   ];
 
   return (
-    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 960 }}>
+    <div className="u-flex u-col u-gap-4 u-max-w-reading">
       <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
         {t('deploygov.freezeWindows.hint')}
       </div>

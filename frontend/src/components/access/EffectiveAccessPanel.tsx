@@ -239,7 +239,7 @@ export function EffectiveAccessPanel() {
             }}
           />
         </Form.Item>
-        <Form.Item name="capability" label={t('access.effective.capability')} style={{ width: 160 }}>
+        <Form.Item name="capability" label={t('access.effective.capability')} className="u-w-sm">
           <Select options={enumOptions(STATEMENT_CAPABILITIES, statementCapabilityLabel, t)} />
         </Form.Item>
         <Form.Item label=" " colon={false}>

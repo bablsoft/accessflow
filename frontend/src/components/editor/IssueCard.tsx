@@ -22,27 +22,22 @@ export function IssueCard({ issue }: { issue: AiIssue }) {
   const c = sevColor(issue.severity);
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        overflow: 'hidden',
-      }}
+      className="af-box u-overflow-hidden"
     >
       <div
         onClick={() => setOpen(!open)}
-        className="u-flex u-items-start" style={{ padding: '10px 12px', gap: 10, cursor: 'pointer' }}
+        className="u-flex u-items-start u-pointer" style={{ padding: '10px 12px', gap: 10 }}
       >
         <div
-          className="u-flex u-items-center u-justify-center" style={{ width: 20, height: 20, borderRadius: 4, background: c.bg, color: c.fg, flexShrink: 0, marginTop: 1 }}
+          className="u-flex u-items-center u-justify-center u-rounded-sm u-shrink-0" style={{ width: 20, height: 20, background: c.bg, color: c.fg, marginTop: 1 }}
         >
           <WarningFilled className="u-text-2xs" />
         </div>
         <div className="u-flex-1 u-min-w-0">
           <div className="u-flex u-items-center" style={{ gap: 6, marginBottom: 2 }}>
             <span
-              className="mono u-text-2xs u-fw-600"
-              style={{ color: c.fg, textTransform: 'uppercase' }}
+              className="mono u-text-2xs u-fw-600 u-uppercase"
+              style={{ color: c.fg }}
             >
               {issue.severity}
             </span>
@@ -60,7 +55,7 @@ export function IssueCard({ issue }: { issue: AiIssue }) {
       </div>
       {open && (
         <div
-          className="u-text-xs u-fg-muted" style={{ padding: '10px 12px 12px 42px', borderTop: '1px solid var(--border)' }}
+          className="u-text-xs u-fg-muted u-border-t" style={{ padding: '10px 12px 12px 42px' }}
         >
           <div className="u-fw-500 u-fg u-mb-1">
             {t('ai_panel.issue_suggestion_label')}
