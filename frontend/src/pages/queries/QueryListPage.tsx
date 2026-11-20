@@ -132,7 +132,7 @@ export function QueryListPage() {
       dataIndex: 'id',
       width: 130,
       render: (v: string, r) => (
-        <span className="u-inline-flex u-items-center" style={{ gap: 6 }}>
+        <span className="u-inline-flex u-items-center u-gap-2">
           <span className="mono muted u-text-xs">{v.slice(0, 8)}</span>
           {r.scheduled_for && (
             <Tooltip
@@ -246,7 +246,7 @@ export function QueryListPage() {
             { value: 'all', label: t('queries.list.filter_all_types') },
             ...enumOptions(TYPES, queryTypeLabel, t),
           ]}
-          style={{ width: 130 }}
+          className="u-w-xs"
         />
         <Select
           value={risk}
@@ -255,7 +255,7 @@ export function QueryListPage() {
             { value: 'all', label: t('queries.list.filter_all_risk') },
             ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
-          style={{ width: 130 }}
+          className="u-w-xs"
         />
         <Select
           value={datasource}
@@ -275,7 +275,7 @@ export function QueryListPage() {
             setPage(0);
           }}
           allowClear
-          style={{ width: 180 }}
+          className="u-w-md"
         />
         <DatePicker.RangePicker
           value={range as [Dayjs | null, Dayjs | null]}

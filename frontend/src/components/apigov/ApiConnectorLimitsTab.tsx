@@ -252,8 +252,7 @@ function UsagePanel({ connectorId }: { connectorId: string }) {
                   {colors.map(({ label, color }) => (
                     <span
                       key={label}
-                      className="muted u-inline-flex u-items-center u-text-xs"
-                      style={{ gap: 6 }}
+                      className="muted u-inline-flex u-items-center u-text-xs u-gap-2"
                     >
                       <span
                         aria-hidden
@@ -306,7 +305,7 @@ function BudgetSummary({ usage }: { usage: ApiConnectorUsage }) {
       className="u-flex u-col u-items-center u-gap-2" style={{ minWidth: 190 }}
       data-testid="connector-usage-budget"
     >
-      <div style={{ width: 170, height: 170 }}>
+      <div className="u-w-sm" style={{ height: 170 }}>
         {/* geometryScrubbing: the vendored RingChart draws arcs only in this mode or from
             explicit <Ring> children, which the barrel does not export. */}
         <RingChart data={ring} strokeWidth={12} baseInnerRadius={52} geometryScrubbing>

@@ -236,7 +236,7 @@ export function AuditLogPage() {
             setAction(v);
             setPage(0);
           }}
-          style={{ width: 220 }}
+          className="u-w-md"
           showSearch={{ optionFilterProp: 'label' }}
           options={[
             { value: 'all', label: t('admin.audit.filter_all_actions') },
@@ -479,11 +479,10 @@ export function AuditLogPage() {
         size={520}
       >
         {detail && (
-          <div className="u-flex u-col" style={{ gap: 14 }}>
+          <div className="u-flex u-col u-gap-4">
             <Card>
               <div
-                className="muted u-text-2xs u-uppercase u-tracking-wide"
-                style={{ marginBottom: 6 }}
+                className="muted u-text-2xs u-uppercase u-tracking-wide u-mb-2"
               >
                 {t('admin.audit.section_action')}
               </div>
@@ -495,7 +494,7 @@ export function AuditLogPage() {
               </div>
             </Card>
             <Card>
-              <div className="u-flex u-col" style={{ gap: 10 }}>
+              <div className="u-flex u-col u-gap-2">
                 <Row k="audit.id" v={detail.id} />
                 <Row k="organization_id" v={detail.organization_id} />
                 <Row k="actor.id" v={detail.actor_id ?? '—'} />
@@ -529,7 +528,7 @@ export function AuditLogPage() {
             </Card>
             <Card title={t('admin.audit.section_metadata')}>
               <pre
-                className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code" style={{ padding: 14, borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
+                className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code u-p-4" style={{ borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
               >
                 {JSON.stringify(detail.metadata ?? {}, null, 2)}
               </pre>
@@ -548,12 +547,12 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
     >
       {title && (
         <div
-          className="u-fw-600 u-text-xs u-border-b" style={{ padding: '10px 14px' }}
+          className="u-fw-600 u-text-xs u-border-b u-py-2 u-px-4"
         >
           {title}
         </div>
       )}
-      {!title ? <div style={{ padding: 14 }}>{children}</div> : children}
+      {!title ? <div className="u-p-4">{children}</div> : children}
     </div>
   );
 }

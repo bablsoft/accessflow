@@ -32,14 +32,14 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
             className="mono u-inline-flex u-items-center u-gap-1 u-ml-auto u-text-2xs u-rounded-pill u-fg-risk-med"
             style={{ padding: '2px 6px', background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
           >
-            <WarningOutlined style={{ fontSize: 10 }} />
+            <WarningOutlined className="u-text-2xs" />
             {t('dry_run_panel.stale_badge')}
           </span>
         )}
       </div>
       <div className="u-flex-1 u-p-4 u-overflow-auto">
         {running ? (
-          <div className="u-flex u-col" style={{ gap: 10 }}>
+          <div className="u-flex u-col u-gap-2">
             <div className="skeleton" style={{ height: 14, width: '50%' }} />
             <div className="skeleton u-w-full" style={{ height: 40 }} />
             <div className="skeleton" style={{ height: 40, width: '90%' }} />
@@ -52,19 +52,19 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
         ) : !result.supported ? (
           <div
             role="status"
-            className="af-box u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10 }}
+            className="af-box u-flex u-items-start u-p-3 u-text-xs u-leading-normal u-gap-2"
           >
-            <InfoCircleOutlined className="u-fg-faint u-shrink-0" style={{ marginTop: 2 }} />
+            <InfoCircleOutlined className="u-fg-faint u-shrink-0 u-mt-1" />
             <span>{result.unsupported_reason ?? t('dry_run_panel.unsupported')}</span>
           </div>
         ) : (
           <>
             <div
-              className="af-box u-flex u-col u-p-3 u-mb-4 u-text-xs u-mono" style={{ gap: 6 }}
+              className="af-box u-flex u-col u-p-3 u-mb-4 u-text-xs u-mono u-gap-2"
             >
               <div
-                className="muted u-text-2xs u-fw-500 u-uppercase u-tracking-wide"
-                style={{ fontFamily: 'inherit', marginBottom: 2 }}
+                className="muted u-text-2xs u-fw-500 u-uppercase u-tracking-wide u-mb-1"
+                style={{ fontFamily: 'inherit' }}
               >
                 {t('dry_run_panel.estimated_impact_label')}
               </div>

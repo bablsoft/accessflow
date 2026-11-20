@@ -16,7 +16,7 @@ export function SimulationAssumptionFields() {
   const { t } = useTranslation();
   return (
     <>
-      <Form.Item name="ai_outcome" label={t('decisionTrace.ai_outcome')} style={{ width: 220 }}>
+      <Form.Item name="ai_outcome" label={t('decisionTrace.ai_outcome')} className="u-w-md">
         <Select options={enumOptions(SIMULATED_AI_OUTCOMES, simulatedAiOutcomeLabel, t)} />
       </Form.Item>
       <Form.Item name="risk_level" label={t('decisionTrace.risk_level')} className="u-w-md">

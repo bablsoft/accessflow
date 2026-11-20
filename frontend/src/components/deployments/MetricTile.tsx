@@ -29,8 +29,7 @@ export function MetricTile({ label, value, testId, caption }: MetricTileProps) {
       </div>
       {caption && (
         <div
-          className="muted u-text-2xs u-mt-1 u-flex u-col"
-          style={{ gap: 2 }}
+          className="muted u-text-2xs u-mt-1 u-flex u-col u-gap-1"
         >
           {caption}
         </div>

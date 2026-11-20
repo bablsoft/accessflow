@@ -39,7 +39,7 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
         <BulbOutlined className="u-fg-accent" />
         <span className="u-fw-600 u-text-sm">{t('editor.suggestions.title')}</span>
       </div>
-      <div className="u-p-3 u-flex u-col" style={{ gap: 10 }}>
+      <div className="u-p-3 u-flex u-col u-gap-2">
         <p className="u-m-0 u-text-2xs u-fg-muted">
           {t('editor.suggestions.subtitle')}
         </p>
@@ -51,7 +51,7 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
         )}
         {suggestionsQuery.isError && (
           <div
-            className="u-flex u-items-center u-text-xs u-fg-risk-med" style={{ gap: 6 }}
+            className="u-flex u-items-center u-text-xs u-fg-risk-med u-gap-2"
           >
             <WarningOutlined />
             {apiErrorMessage(suggestionsQuery.error, () => t('editor.suggestions.load_error'))}
@@ -78,9 +78,9 @@ function SuggestionCard({
   const { t } = useTranslation();
   return (
     <div
-      className="af-box u-flex u-col u-gap-2" style={{ padding: 10 }}
+      className="af-box u-flex u-col u-gap-2 u-p-2"
     >
-      <div className="u-flex u-items-center" style={{ gap: 6 }}>
+      <div className="u-flex u-items-center u-gap-2">
         <span className="mono u-text-2xs u-fg-muted">
           {queryTypeLabel(t, suggestion.query_type)}
         </span>

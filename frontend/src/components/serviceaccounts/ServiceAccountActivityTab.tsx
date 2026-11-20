@@ -41,7 +41,7 @@ export function ServiceAccountActivityTab({ account }: { account: ServiceAccount
         <span>
           {row.resource_type}
           {row.resource_id && (
-            <span className="mono muted u-text-xs" style={{ marginLeft: 6 }}>
+            <span className="mono muted u-text-xs u-ml-2">
               {row.resource_id}
             </span>
           )}

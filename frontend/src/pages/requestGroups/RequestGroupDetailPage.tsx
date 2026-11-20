@@ -208,7 +208,7 @@ export default function RequestGroupDetailPage() {
             )}
 
             <Card size="small" title={t('requestGroups.detail.sequence')}>
-              <div className="u-flex u-col" style={{ gap: 10 }}>
+              <div className="u-flex u-col u-gap-2">
                 {[...group.items]
                   .sort((a, b) => a.sequence_order - b.sequence_order)
                   .map((item) => (

@@ -101,7 +101,7 @@ export function ApiAuthoringPanel({
           : { display: 'flex', flexDirection: 'column', gap: 14 }
       }
     >
-      <div className="u-flex u-col" style={{ gap: 14 }}>
+      <div className="u-flex u-col u-gap-4">
         {header}
 
         {connector?.schema_present && (
@@ -148,7 +148,7 @@ export function ApiAuthoringPanel({
         {footer}
       </div>
 
-      <div className="u-flex u-col" style={{ gap: 14 }}>{cards}</div>
+      <div className="u-flex u-col u-gap-4">{cards}</div>
     </div>
   );
 }

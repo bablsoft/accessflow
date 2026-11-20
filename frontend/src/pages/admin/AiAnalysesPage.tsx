@@ -94,7 +94,7 @@ export default function AiAnalysesPage() {
           <Select
             value={datasourceId}
             onChange={setDatasourceId}
-            style={{ width: 260 }}
+            className="u-w-lg"
             showSearch={{ optionFilterProp: 'label' }}
             loading={datasourcesQuery.isLoading}
             options={[

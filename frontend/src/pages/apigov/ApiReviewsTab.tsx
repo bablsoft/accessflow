@@ -253,7 +253,7 @@ export function ApiReviewsTab() {
             { value: 'all', label: t('apiGov.requests.filterAllConnectors') },
             ...(connectorsQuery.data?.content ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
         <Select
           value={verb}
@@ -271,7 +271,7 @@ export function ApiReviewsTab() {
             { value: 'all', label: t('apiGov.requests.filterAllRisk') },
             ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
-          style={{ width: 130 }}
+          className="u-w-xs"
         />
         <div className="u-flex-1" />
         <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />

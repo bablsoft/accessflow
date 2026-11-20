@@ -24,7 +24,7 @@ export function PlanTree({ plan }: PlanTreeProps) {
             key={key}
             role="treeitem"
             aria-level={depth + 1}
-            className="u-bg-elev u-border u-rounded-sm" style={{ marginLeft: depth * 14, padding: '6px 8px' }}
+            className="u-bg-elev u-border u-rounded-sm u-py-2 u-px-2" style={{ marginLeft: depth * 14 }}
           >
             <div className="u-flex u-items-baseline u-gap-2 u-wrap">
               <span className="mono u-text-xs u-fw-600">

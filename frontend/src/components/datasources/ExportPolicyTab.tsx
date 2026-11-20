@@ -498,9 +498,9 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
 
         {watermarked && (
           <div
-            className="u-bg-sunken u-rounded" style={{ padding: '10px 12px' }}
+            className="u-bg-sunken u-rounded u-py-2 u-px-3"
           >
-            <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+            <div className="muted u-text-2xs u-mb-2">
               {t('datasources.settings.export_policies.preview_label')}
             </div>
             <Typography.Text className="mono u-text-xs u-block">

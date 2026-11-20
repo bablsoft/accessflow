@@ -75,7 +75,7 @@ Pages are assembled from `src/components/layout` — never from inline flex/padd
 - **Drawer** for create/edit and read-only detail; **Modal** only for short confirmations and
   decisions. Destructive confirmation goes through `useConfirm()`. Tab state lives in the URL.
 - Sizes, spacing, durations and colours come from the tokens in `src/styles/tokens.css`
-  (`--text-*`, `--sp-*`, `--dur-*`). ESLint warns on a hand-rolled page gutter or an off-scale
+  (`--text-*`, `--sp-*`, `--dur-*`). ESLint fails on a hand-rolled page gutter or an off-scale
   font size.
 - A multi-step flow uses `WizardLayout` / `WizardSteps` / `WizardStep` / `WizardFooter` and
   `useWizardStep` — Back and Cancel left, one primary action right, Enter submits, earlier steps

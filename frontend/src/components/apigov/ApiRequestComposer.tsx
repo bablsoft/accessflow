@@ -100,7 +100,7 @@ export function ApiRequestComposer({
               />
               {field.type === 'TEXT' ? (
                 <Input
-                  style={{ width: 260 }}
+                  className="u-w-lg"
                   value={field.value}
                   placeholder={t('apiGov.editor.valuePlaceholder')}
                   aria-label={t('apiGov.editor.valuePlaceholder')}

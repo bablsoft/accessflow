@@ -37,7 +37,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
 
   return (
     <div
-      className="u-mt-6 u-bg-sunken u-rounded-md" style={{ padding: '14px 16px' }}
+      className="u-mt-6 u-bg-sunken u-rounded-md u-py-4 u-px-4"
     >
       <div className="u-fw-600 u-mb-1">
         {t('datasources.settings.classification.derivation_title')}
@@ -48,7 +48,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
 
       {posture && (
         <div className="u-mb-4">
-          <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+          <div className="muted u-text-2xs u-mb-2">
             {t('datasources.settings.classification.review_posture_label')}
           </div>
           <div className="u-flex u-wrap u-gap-2 u-items-center">
@@ -71,7 +71,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
         </div>
       )}
 
-      <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+      <div className="muted u-text-2xs u-mb-2">
         {t('datasources.settings.classification.masking_suggestions_label')}
       </div>
       <DataTable<ClassificationMaskingSuggestion>

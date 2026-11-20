@@ -327,7 +327,7 @@ export default function GroupBuilderPage() {
           </Dropdown>
         </div>
 
-        <div className="u-flex u-col" style={{ gap: 14 }}>
+        <div className="u-flex u-col u-gap-4">
           <Card size="small" title={t('requestGroups.builder.aggregateRisk')}>
             {aggregate ? (
               <RiskPill level={aggregate.level} score={aggregate.score} />

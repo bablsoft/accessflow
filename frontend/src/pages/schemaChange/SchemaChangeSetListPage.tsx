@@ -207,7 +207,7 @@ export default function SchemaChangeSetListPage() {
             setPage(0);
           }}
           options={[{ value: 'all', label: t('schemaChange.list.allPipelines') }, ...pipelineOptions]}
-          style={{ width: 220 }}
+          className="u-w-md"
         />
         <Select
           value={status}

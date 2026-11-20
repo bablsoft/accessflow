@@ -130,7 +130,7 @@ export function QueryTracePanel() {
         </Form.Item>
 
         <Space wrap size="middle" align="start">
-          <Form.Item name="ai_outcome" label={t('decisionTrace.ai_outcome')} style={{ width: 220 }}>
+          <Form.Item name="ai_outcome" label={t('decisionTrace.ai_outcome')} className="u-w-md">
             <Select options={enumOptions(SIMULATED_AI_OUTCOMES, simulatedAiOutcomeLabel, t)} />
           </Form.Item>
           <Form.Item

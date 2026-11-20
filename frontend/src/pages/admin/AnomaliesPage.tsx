@@ -149,7 +149,7 @@ export default function AnomaliesPage() {
             setStatus(v);
             setPage(0);
           }}
-          style={{ width: 180 }}
+          className="u-w-md"
           data-testid="anomalies-status"
           options={[
             { value: 'all', label: t('anomalies.filter_status_all') },
@@ -355,7 +355,7 @@ export default function AnomaliesPage() {
         size={520}
       >
         {detail && (
-          <div className="u-flex u-col" style={{ gap: 14 }}>
+          <div className="u-flex u-col u-gap-4">
             <DetailCard>
               <Space orientation="vertical" size={6} className="u-w-full">
                 <div
@@ -367,7 +367,7 @@ export default function AnomaliesPage() {
               </Space>
             </DetailCard>
             <DetailCard title={t('anomalies.section_signal')}>
-              <div className="u-flex u-col" style={{ padding: 14, gap: 10 }}>
+              <div className="u-flex u-col u-p-4 u-gap-2">
                 <Row k={t('anomalies.field_score')} v={detail.score.toFixed(2)} />
                 <Row k={t('anomalies.field_observed')} v={fmtNum(detail.observed_value)} />
                 <Row k={t('anomalies.field_baseline_mean')} v={fmtNum(detail.baseline_mean)} />
@@ -381,12 +381,12 @@ export default function AnomaliesPage() {
             </DetailCard>
             {detail.ai_summary && (
               <DetailCard title={t('anomalies.section_summary')}>
-                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.6 }}>{detail.ai_summary}</div>
+                <div className="u-text-sm u-p-4 u-leading-normal">{detail.ai_summary}</div>
               </DetailCard>
             )}
             <DetailCard title={t('anomalies.section_detail')}>
               <pre
-                className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code u-overflow-auto" style={{ padding: 14, borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
+                className="u-m-0 u-mono u-text-xs u-leading-normal u-bg-code u-overflow-auto u-p-4" style={{ borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
               >
                 {JSON.stringify(detail.detail ?? {}, null, 2)}
               </pre>
@@ -405,12 +405,12 @@ function DetailCard({ title, children }: { title?: string; children: React.React
     >
       {title && (
         <div
-          className="u-fw-600 u-text-xs u-border-b" style={{ padding: '10px 14px' }}
+          className="u-fw-600 u-text-xs u-border-b u-py-2 u-px-4"
         >
           {title}
         </div>
       )}
-      {!title ? <div style={{ padding: 14 }}>{children}</div> : children}
+      {!title ? <div className="u-p-4">{children}</div> : children}
     </div>
   );
 }

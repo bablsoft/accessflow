@@ -63,8 +63,7 @@ export function RecurrencePicker({
   return (
     <div>
       <label
-        className="muted u-block u-text-xs u-fw-500"
-        style={{ marginBottom: 5 }}
+        className="muted u-block u-text-xs u-fw-500 u-mb-1"
       >
         {t('editor.recurrence_label')}{' '}
         <span className="muted u-fw-400">
@@ -113,7 +112,7 @@ export function RecurrencePicker({
             aria-label={t('editor.recurrence_cron_aria')}
             data-testid="recurrence-cron"
             status={cronInvalid || ruleMissing ? 'error' : undefined}
-            className="u-w-md" style={{ fontFamily: 'monospace' }}
+            className="u-w-md u-mono"
           />
         )}
         {mode !== 'none' && (

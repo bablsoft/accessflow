@@ -129,7 +129,7 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
       </div>
       {row.replicas.length > 0 && (
         <div className="u-mt-4" data-testid="replica-health-row">
-          <div className="muted u-text-xs" style={{ marginBottom: 6 }}>
+          <div className="muted u-text-xs u-mb-2">
             {t('admin.datasource_health.replicas_title', {
               healthy: row.replicas.filter((r) => r.healthy).length,
               total: row.replicas.length,

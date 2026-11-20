@@ -201,7 +201,7 @@ export default function RequestGroupListPage() {
             { value: 'all', label: t('requestGroups.list.filterAllStatuses') },
             ...enumOptions(REQUEST_GROUP_STATUSES, requestGroupStatusLabel, t),
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
       </FilterBar>
       <PageBody flush>

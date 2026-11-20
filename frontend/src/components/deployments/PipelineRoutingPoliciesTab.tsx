@@ -217,7 +217,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
         <span>
           {routingActionLabel(t, a)}
           {p.required_approvals != null && (
-            <span className="mono muted u-text-2xs" style={{ marginLeft: 6 }}>
+            <span className="mono muted u-text-2xs u-ml-2">
               ×{p.required_approvals}
             </span>
           )}
@@ -258,7 +258,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
 
   return (
     <div className="u-flex u-col u-gap-3 u-max-w-reading">
-      <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
+      <div className="muted u-text-xs u-leading-normal">
         {t('deploygov.routingPolicies.hint')}
       </div>
       <div>

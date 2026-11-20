@@ -165,7 +165,7 @@ export default function AuditSinksPage() {
         ) : (
           <div
             data-testid="audit-sinks-grid"
-            className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14, alignContent: 'start' }}
+            className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', alignContent: 'start' }}
           >
             {sinks.map((s) => (
               <SinkCard
@@ -205,15 +205,15 @@ export default function AuditSinksPage() {
 function sinkIcon(type: AuditSinkType) {
   switch (type) {
     case 'SPLUNK_HEC':
-      return <CloudServerOutlined style={{ fontSize: 18 }} />;
+      return <CloudServerOutlined className="u-text-xl" />;
     case 'SYSLOG_CEF':
-      return <SendOutlined style={{ fontSize: 18 }} />;
+      return <SendOutlined className="u-text-xl" />;
     case 'HTTPS_BATCH':
-      return <CloudUploadOutlined style={{ fontSize: 18 }} />;
+      return <CloudUploadOutlined className="u-text-xl" />;
     case 'S3_OBJECT_LOCK':
-      return <FileProtectOutlined style={{ fontSize: 18 }} />;
+      return <FileProtectOutlined className="u-text-xl" />;
     default:
-      return <DatabaseOutlined style={{ fontSize: 18 }} />;
+      return <DatabaseOutlined className="u-text-xl" />;
   }
 }
 
@@ -277,14 +277,13 @@ function SinkCard({
               </Pill>
             )}
           </div>
-          <div className="mono muted u-text-2xs" style={{ marginTop: 2 }}>
+          <div className="mono muted u-text-2xs u-mt-1">
             {auditSinkTypeLabel(t, sink.type)}
           </div>
         </div>
       </div>
       <div
-        className="mono u-mt-3 u-text-xs u-leading-normal u-nowrap u-bg-sunken u-rounded u-overflow-hidden u-ellipsis"
-        style={{ padding: 10 }}
+        className="mono u-mt-3 u-text-xs u-leading-normal u-nowrap u-bg-sunken u-rounded u-overflow-hidden u-ellipsis u-p-2"
       >
         {destinationSummary(sink)}
       </div>

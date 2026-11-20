@@ -155,7 +155,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
         />
         <div className="u-flex-1 u-min-w-0">
           <div className="u-fw-600 u-text-lg">{connector.name}</div>
-          <Tag color={DB_TYPE_COLOR[connector.db_type]} style={{ marginTop: 2 }}>
+          <Tag color={DB_TYPE_COLOR[connector.db_type]} className="u-mt-1">
             {dbTypeLabel(t, connector.db_type)}
           </Tag>
         </div>
@@ -163,7 +163,7 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
       </div>
 
       {connector.description && (
-        <div className="muted u-text-xs" style={{ lineHeight: 1.4 }}>
+        <div className="muted u-text-xs u-leading-normal">
           {connector.description}
         </div>
       )}

@@ -369,7 +369,7 @@ export function DecisionHooksPage() {
             extra={t('admin.decision_hooks.timeout_help')}
             rules={[{ required: true, type: 'number', min: TIMEOUT_MIN_MS, max: TIMEOUT_MAX_MS }]}
           >
-            <InputNumber min={TIMEOUT_MIN_MS} max={TIMEOUT_MAX_MS} step={100} style={{ width: 180 }} />
+            <InputNumber min={TIMEOUT_MIN_MS} max={TIMEOUT_MAX_MS} step={100} className="u-w-md" />
           </Form.Item>
           {/* secret ↔ @NotBlank on create, @Size(min = 32, max = 512) */}
           <Form.Item

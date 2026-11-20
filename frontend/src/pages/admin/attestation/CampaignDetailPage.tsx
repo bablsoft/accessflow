@@ -232,10 +232,10 @@ export default function CampaignDetailPage() {
                 title: t('attestation.detail.col_subject'),
                 key: 'subject',
                 render: (_v, item) => (
-                  <div className="u-flex u-items-center" style={{ gap: 10 }}>
+                  <div className="u-flex u-items-center u-gap-2">
                     <Avatar name={item.subject_user_email} size={24} />
                     <div>
-                      <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
+                      <div className="u-text-sm u-flex u-items-center u-gap-2">
                         {item.subject_user_display_name}
                         <PrincipalTypeTag principalType={item.subject_principal_type} />
                       </div>

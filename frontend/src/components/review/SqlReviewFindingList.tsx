@@ -34,7 +34,7 @@ export function SqlReviewFindingList({ findings, density = 'card' }: SqlReviewFi
             <Pill fg={colors.fg} bg={colors.bg} border={colors.border} size="sm">
               {sqlReviewSeverityLabel(t, finding.severity)}
             </Pill>
-            <span className="mono muted u-text-2xs u-shrink-0" style={{ marginTop: 2 }}>
+            <span className="mono muted u-text-2xs u-shrink-0 u-mt-1">
               {finding.line_number !== undefined
                 ? t('editor.sql_review_line', { line: finding.line_number })
                 : t('editor.sql_review_statement', { index: finding.statement_index + 1 })}

@@ -213,7 +213,7 @@ export default function DeploymentVersionsPage() {
             { value: 'all', label: t('deploygov.versions.filterAllTags') },
             ...tagFilterOptions,
           ]}
-          style={{ width: 170 }}
+          className="u-w-sm"
         />
         <Input
           prefix={<SearchOutlined className="u-fg-faint" />}
@@ -224,7 +224,7 @@ export default function DeploymentVersionsPage() {
             setEnvironment(e.target.value);
             setPage(0);
           }}
-          style={{ width: 170 }}
+          className="u-w-sm"
           allowClear
         />
         <Select
@@ -239,7 +239,7 @@ export default function DeploymentVersionsPage() {
             { value: 'drifted', label: t('deploygov.versions.filterDriftOnly') },
             { value: 'current', label: t('deploygov.versions.filterDriftNone') },
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
         <div className="u-flex-1" />
         <span className="mono muted u-text-2xs">

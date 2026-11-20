@@ -566,7 +566,7 @@ export function RollbackReviewsTab() {
             { value: 'all', label: t('deploygov.reviews.filterAllRollbackStatuses') },
             ...enumOptions(ROLLBACK_STATUSES, deploymentRollbackReviewStatusLabel, t),
           ]}
-          style={{ width: 170 }}
+          className="u-w-sm"
         />
       </FilterBar>
       <PageBody flush>

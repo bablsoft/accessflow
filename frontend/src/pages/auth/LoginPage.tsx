@@ -309,7 +309,7 @@ export function LoginPage() {
                   maxLength={6}
                   autoFocus
                   placeholder="123456"
-                  className="u-text-center" style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+                  className="u-text-center u-mono u-text-xl" style={{ letterSpacing: 4 }}
                 />
               </Form.Item>
               <Button

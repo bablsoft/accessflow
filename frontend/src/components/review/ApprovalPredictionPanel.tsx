@@ -59,7 +59,7 @@ export function ApprovalPredictionPanel({
     const awaitingScore =
       status === 'PENDING_AI' || (status === 'PENDING_REVIEW' && withinGrace);
     return (
-      <div className="muted u-text-sm" style={{ padding: 14 }}>
+      <div className="muted u-text-sm u-p-4">
         {awaitingScore
           ? t('approval_prediction.pending')
           : t('approval_prediction.unavailable')}
@@ -71,7 +71,7 @@ export function ApprovalPredictionPanel({
     return (
       <div role="status" style={NOTICE_STYLE}>
         {/* --risk-med is this theme's amber; it colours the warning glyph, not the prediction. */}
-        <WarningOutlined className="u-fg-risk-med u-shrink-0" style={{ marginTop: 2 }} />
+        <WarningOutlined className="u-fg-risk-med u-shrink-0 u-mt-1" />
         <span>{t('approval_prediction.failed')}</span>
       </div>
     );
@@ -85,21 +85,21 @@ export function ApprovalPredictionPanel({
       'approval_prediction.unavailable';
     return (
       <div role="status" style={NOTICE_STYLE}>
-        <InfoCircleOutlined className="u-fg-faint u-shrink-0" style={{ marginTop: 2 }} />
+        <InfoCircleOutlined className="u-fg-faint u-shrink-0 u-mt-1" />
         <span>{t(reasonKey)}</span>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 14 }}>
+    <div className="u-p-4">
       <div
         className="af-box u-flex u-items-center u-justify-between u-gap-3 u-p-3 u-text-xs"
       >
         <span className="muted">{t('approval_prediction.value_label')}</span>
         <ApprovalPredictionBadge probability={prediction.probability} />
       </div>
-      <div className="muted u-text-xs u-leading-normal" style={{ marginTop: 10 }}>
+      <div className="muted u-text-xs u-leading-normal u-mt-2">
         {t('approval_prediction.tooltip')}
       </div>
     </div>

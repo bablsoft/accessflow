@@ -51,8 +51,7 @@ function TableNode({ id, data }: NodeProps<Node<TableNodeData>>) {
             <span>
               {c.primary_key && (
                 <span
-                  className="muted u-text-2xs u-fw-600"
-                  style={{ marginRight: 6 }}
+                  className="muted u-text-2xs u-fw-600 u-mr-2"
                 >
                   {data.pkLabel}
                 </span>
@@ -106,8 +105,7 @@ export function ErDiagram({ schemas, helpText }: ErDiagramProps) {
       </ReactFlow>
       {helpText && (
         <div
-          className="muted u-text-2xs u-border-t"
-          style={{ padding: '6px 12px' }}
+          className="muted u-text-2xs u-border-t u-py-2 u-px-3"
         >
           {helpText}
         </div>

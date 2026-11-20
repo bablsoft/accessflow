@@ -30,7 +30,7 @@ export function WidgetError({ error, onRetry, messageFor = dashboardErrorMessage
         {messageFor(error)}
       </div>
       {onRetry && (
-        <Button size="small" icon={<ReloadOutlined />} onClick={onRetry} style={{ marginTop: 10 }}>
+        <Button size="small" icon={<ReloadOutlined />} onClick={onRetry} className="u-mt-2">
           {t('dashboard.retry')}
         </Button>
       )}

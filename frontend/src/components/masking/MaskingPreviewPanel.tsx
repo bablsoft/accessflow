@@ -24,8 +24,8 @@ export function MaskingPreviewPanel({
   const { t } = useTranslation();
   const preview = maskingPreview(strategy ?? 'FULL', sample, params);
   return (
-    <div className="u-bg-sunken u-rounded" style={{ padding: '10px 12px' }}>
-      <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
+    <div className="u-bg-sunken u-rounded u-py-2 u-px-3">
+      <div className="muted u-text-2xs u-mb-2">
         {label}
       </div>
       <Input
@@ -43,7 +43,7 @@ export function MaskingPreviewPanel({
         {preview == null ? t('maskingParams.preview_null') : preview === '' ? '—' : preview}
       </Typography.Text>
       {strategy === 'REGEX_REPLACE' && (
-        <div className="muted u-text-2xs" style={{ marginTop: 6 }}>
+        <div className="muted u-text-2xs u-mt-2">
           {sample.length > MAX_REGEX_PREVIEW_LENGTH
             ? t('maskingParams.preview_regex_too_long', { max: MAX_REGEX_PREVIEW_LENGTH })
             : t('maskingParams.preview_regex_note')}

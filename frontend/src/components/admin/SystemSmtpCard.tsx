@@ -164,7 +164,7 @@ export function SystemSmtpCard() {
       ) : config ? (
         <>
           <div
-            className="u-grid u-text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}
+            className="u-grid u-text-sm u-gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
           >
             <div>
               <div className="muted u-text-2xs">

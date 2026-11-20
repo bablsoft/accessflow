@@ -49,7 +49,7 @@ export function AiHintPanel({
             className="mono u-inline-flex u-items-center u-gap-1 u-ml-auto u-text-2xs u-rounded-pill u-fg-risk-med"
             style={{ padding: '2px 6px', background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
           >
-            <WarningOutlined style={{ fontSize: 10 }} />
+            <WarningOutlined className="u-text-2xs" />
             {t('ai_panel.stale_badge')}
           </span>
         )}
@@ -64,7 +64,7 @@ export function AiHintPanel({
       </div>
       <div className="u-flex-1 u-p-4 u-overflow-auto">
         {analyzing ? (
-          <div className="u-flex u-col" style={{ gap: 10 }}>
+          <div className="u-flex u-col u-gap-2">
             <div className="skeleton" style={{ height: 14, width: '60%' }} />
             <div className="skeleton u-w-full" style={{ height: 36 }} />
             <div className="skeleton" style={{ height: 14, width: '80%' }} />
@@ -80,9 +80,9 @@ export function AiHintPanel({
             {showStale && (
               <div
                 role="status"
-                className="u-flex u-items-start u-p-3 u-mb-4 u-text-xs u-leading-normal u-rounded-md" style={{ gap: 10, background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
+                className="u-flex u-items-start u-p-3 u-mb-4 u-text-xs u-leading-normal u-rounded-md u-gap-2" style={{ background: 'var(--risk-med-bg)', border: '1px solid var(--risk-med)' }}
               >
-                <WarningOutlined className="u-fg-risk-med u-shrink-0" style={{ marginTop: 2 }} />
+                <WarningOutlined className="u-fg-risk-med u-shrink-0 u-mt-1" />
                 <div className="u-flex u-col u-gap-2 u-min-w-0">
                   <span>{t('ai_panel.stale_banner')}</span>
                   {onReanalyze && (
@@ -118,7 +118,7 @@ export function AiHintPanel({
             </div>
 
             <div
-              className="af-box u-p-3 u-mb-4 u-text-sm" style={{ lineHeight: 1.55 }}
+              className="af-box u-p-3 u-mb-4 u-text-sm u-leading-normal"
             >
               {analysis.summary}
             </div>
@@ -164,7 +164,7 @@ export function AiHintPanel({
                 {t('ai_panel.metadata_label')}
               </div>
               <div
-                className="u-flex u-col u-text-xs u-mono" style={{ gap: 6 }}
+                className="u-flex u-col u-text-xs u-mono u-gap-2"
               >
                 <div className="u-flex u-justify-between">
                   <span className="muted">{t('ai_panel.metadata_provider')}</span>

@@ -29,7 +29,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
     >
       <div
         onClick={() => setOpen(!open)}
-        className="u-flex u-items-start u-pointer" style={{ padding: '10px 12px', gap: 10 }}
+        className="u-flex u-items-start u-pointer u-py-2 u-px-3 u-gap-2"
       >
         <div
           className="u-flex u-items-center u-justify-center u-rounded-sm u-shrink-0" style={{ width: 20, height: 20, background: c.bg, color: c.fg, marginTop: 1 }}
@@ -37,7 +37,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
           <BulbOutlined className="u-text-2xs" />
         </div>
         <div className="u-flex-1 u-min-w-0">
-          <div className="u-flex u-items-center" style={{ gap: 6, marginBottom: 2 }}>
+          <div className="u-flex u-items-center u-gap-2 u-mb-1">
             <span
               className="mono u-text-2xs u-fw-600 u-uppercase"
               style={{ color: c.fg }}
@@ -45,7 +45,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
               {optimizationTypeLabel(t, optimization.type)}
             </span>
           </div>
-          <div className="u-text-xs" style={{ lineHeight: 1.4 }}>{optimization.title}</div>
+          <div className="u-text-xs u-leading-normal">{optimization.title}</div>
         </div>
         {open ? (
           <UpOutlined className="u-text-2xs u-fg-faint u-mt-1" />
@@ -55,7 +55,7 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
       </div>
       {open && (
         <div
-          className="u-text-xs u-fg-muted u-flex u-col u-border-t" style={{ padding: '10px 12px 12px 42px', gap: 10 }}
+          className="u-text-xs u-fg-muted u-flex u-col u-border-t u-gap-2" style={{ padding: '10px 12px 12px 42px' }}
         >
           <div>
             <div className="u-fw-500 u-fg u-mb-1">

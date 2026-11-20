@@ -74,7 +74,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
         />
       </div>
       <div
-        className="u-flex-1 u-mono u-text-xs u-overflow-auto" style={{ padding: '6px 0' }}
+        className="u-flex-1 u-mono u-text-xs u-overflow-auto u-py-2 u-px-0"
       >
         {filtered.length === 0 && (
           <div className="muted u-text-2xs u-py-2 u-px-3">
@@ -92,9 +92,9 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                 style={schemaHeaderStyle}
               >
                 {open ? (
-                  <DownOutlined style={{ fontSize: 9 }} />
+                  <DownOutlined className="u-text-2xs" />
                 ) : (
-                  <RightOutlined style={{ fontSize: 9 }} />
+                  <RightOutlined className="u-text-2xs" />
                 )}
                 {s.name}
               </button>
@@ -106,7 +106,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                   return (
                     <div key={tab.name}>
                       <div
-                        className="u-flex u-items-center u-fg" style={{ gap: 6, padding: '3px 12px 3px 24px', background: isSelected ? 'var(--bg-hover)' : 'transparent' }}
+                        className="u-flex u-items-center u-fg u-gap-2" style={{ padding: '3px 12px 3px 24px', background: isSelected ? 'var(--bg-hover)' : 'transparent' }}
                       >
                         <button
                           type="button"

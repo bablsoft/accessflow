@@ -365,7 +365,7 @@ function DailyChart({ data }: { data: DeploymentMetrics }) {
     [series[2].label]: day.rolled_back,
   }));
   return (
-    <div className="u-flex u-col" style={{ gap: 10 }}>
+    <div className="u-flex u-col u-gap-2">
       {/* An aspect-ratio box takes a content-based min-height, so the rendered SVG would feed its
           own height back into the box on every resize; minHeight: 0 keeps the ratio authoritative. */}
       <AreaChart data={rows} aspectRatio="2.6 / 1" className="u-min-h-0">
@@ -407,7 +407,7 @@ function FailureRing({ data, locale }: { data: DeploymentMetrics; locale: string
   ];
   return (
     <div className="u-flex u-items-center u-gap-5 u-wrap">
-      <div style={{ width: 170, height: 170, flex: 'none' }}>
+      <div className="u-w-sm" style={{ height: 170, flex: 'none' }}>
         {/* geometryScrubbing draws the arcs straight from `data`; without it or explicit <Ring>
             children the vendored chart renders an empty SVG. RingCenter shows the failed count
             (it only renders custom content on hover), so the server's rate sits beside it. */}
@@ -436,8 +436,7 @@ function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
       {items.map((item) => (
         <span
           key={item.label}
-          className="muted u-inline-flex u-items-center u-text-xs"
-          style={{ gap: 6 }}
+          className="muted u-inline-flex u-items-center u-text-xs u-gap-2"
         >
           <span
             aria-hidden

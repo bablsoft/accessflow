@@ -215,21 +215,21 @@ function RowCapCard({
         {cap.source === 'GLOBAL_CEILING' && t('access.explorer.row_cap_from_global')}
       </div>
       {clamped && (
-        <div className="muted" style={{ marginTop: 6 }} data-testid="explorer-row-cap-clamped">
+        <div className="muted u-mt-2" data-testid="explorer-row-cap-clamped">
           {t('access.explorer.row_cap_clamped', {
             override: fmtNum(cap.override),
             cap: fmtNum(cap.value),
           })}
         </div>
       )}
-      <div className="muted u-text-xs" style={{ marginTop: 6 }}>
+      <div className="muted u-text-xs u-mt-2">
         {t('access.explorer.row_cap_bounds', {
           datasource: fmtNum(cap.datasource_cap),
           global: fmtNum(cap.global_ceiling),
         })}
       </div>
       {overrides.length > 1 || clamped ? (
-        <div style={{ marginTop: 10 }} data-testid="explorer-row-cap-contributions">
+        <div className="u-mt-2" data-testid="explorer-row-cap-contributions">
           <div className="u-fw-600 u-text-xs u-mb-1">
             {t('access.explorer.row_cap_contributions')}
           </div>
@@ -241,11 +241,11 @@ function RowCapCard({
         </div>
       ) : null}
       {data.table_row_limits.length > 0 && (
-        <div className="muted u-text-xs" style={{ marginTop: 10 }}>
+        <div className="muted u-text-xs u-mt-2">
           {t('access.explorer.row_cap_table_note')}
         </div>
       )}
-      <div className="muted u-text-xs" style={{ marginTop: 6 }}>
+      <div className="muted u-text-xs u-mt-2">
         {t('access.explorer.row_cap_budget_note')}
       </div>
     </Card>
@@ -387,7 +387,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
           </Space>
         )}
         {(data.retention_masks ?? []).length > 0 && (
-          <div style={{ marginTop: 10 }} data-testid="explorer-retention-masks">
+          <div className="u-mt-2" data-testid="explorer-retention-masks">
             <div className="u-fw-600 u-text-xs u-mb-1">
               {t('access.explorer.retention_masks')}
             </div>
@@ -400,7 +400,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
           </div>
         )}
         {data.revealed_masks.length > 0 && (
-          <div style={{ marginTop: 10 }}>
+          <div className="u-mt-2">
             <div className="u-fw-600 u-text-xs u-mb-1">
               {t('access.explorer.revealed')}
             </div>

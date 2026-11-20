@@ -43,7 +43,7 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
           <Tooltip title={t('datasources.settings.sample_masked_tooltip')}>
             <LockOutlined
               aria-label={t('datasources.settings.sample_masked_tooltip')}
-              className="u-fg-warning" style={{ marginLeft: 6 }}
+              className="u-fg-warning u-ml-2"
             />
           </Tooltip>
         ) : null}

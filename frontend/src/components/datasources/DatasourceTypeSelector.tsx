@@ -72,7 +72,7 @@ export function DatasourceTypeSelector({
             className="muted u-text-xs u-p-3 u-rounded-md u-bg-sunken"
             style={{ border: '1px dashed var(--border)' }}
           >
-            <div style={{ marginBottom: 6 }}>
+            <div className="u-mb-2">
               {t('datasources.create.no_custom_drivers_hint')}
             </div>
             <Link to="/admin/drivers">{t('datasources.create.manage_custom_drivers_link')}</Link>
@@ -98,7 +98,7 @@ function TypeGroup({
 }: TypeGroupProps) {
   const { t } = useTranslation();
   return (
-    <section className="u-flex u-col" style={{ gap: 10 }}>
+    <section className="u-flex u-col u-gap-2">
       <div className="u-flex u-items-baseline u-gap-2">
         <h3 className="u-m-0 u-text-sm u-uppercase u-tracking-wide">
           {title}
@@ -110,7 +110,7 @@ function TypeGroup({
       {options.length === 0 && emptyState}
       {options.length > 0 && (
         <div
-          className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}
+          className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
         >
           {options.map((option) => {
             const key = optionKey(option);
@@ -145,8 +145,8 @@ function TypeGroup({
                   </div>
                 </div>
                 <div
-                  className="muted u-text-xs"
-                  style={{ lineHeight: 1.4, overflowWrap: 'anywhere' }}
+                  className="muted u-text-xs u-leading-normal"
+                  style={{ overflowWrap: 'anywhere' }}
                 >
                   {isUploaded
                     ? `${t('datasources.create.uploaded_vendor_label')}: ${option.vendor_name ?? '—'} · `

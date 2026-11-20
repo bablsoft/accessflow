@@ -24,8 +24,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
     >
       <div className="u-p-3 u-border-b">
         <label
-          className="muted u-block u-text-xs u-fw-500"
-          style={{ marginBottom: 5 }}
+          className="muted u-block u-text-xs u-fw-500 u-mb-1"
         >
           {t('editor.datasource_label')}
         </label>
@@ -38,8 +37,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
           options={datasources.map((d) => ({ value: d.id, label: d.name }))}
         />
         <div
-          className="mono muted u-text-2xs u-mt-2 u-flex u-items-center"
-          style={{ gap: 6 }}
+          className="mono muted u-text-2xs u-mt-2 u-flex u-items-center u-gap-2"
         >
           <span
             className="u-rounded-full" style={{ width: 6, height: 6, background: 'var(--risk-low)' }}

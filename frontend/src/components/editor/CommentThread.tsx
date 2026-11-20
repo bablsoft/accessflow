@@ -69,7 +69,7 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
         </div>
       )}
 
-      <div className="u-flex u-gap-2" style={{ marginTop: 10 }}>
+      <div className="u-flex u-gap-2 u-mt-2">
         <Input
           size="small"
           placeholder={t('collab.reply_placeholder')}

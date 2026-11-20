@@ -34,7 +34,7 @@ export function PromotionLadder({
   return (
     <ol
       aria-label={t('schemaChange.ladder.ariaLabel')}
-      className="u-m-0 u-p-0 u-flex u-col" style={{ listStyle: 'none', gap: 10 }}
+      className="u-m-0 u-p-0 u-flex u-col u-gap-2" style={{ listStyle: 'none' }}
     >
       {ladder.rungs.map((rung, index) => {
         const color = schemaChangeLadderRungColor(rung.state);
@@ -48,7 +48,7 @@ export function PromotionLadder({
           <li
             key={rung.environment_id}
             data-testid={`ladder-rung-${rung.environment_name}`}
-            className="u-flex u-gap-3 u-items-start u-rounded-md u-bg-elev" style={{ padding: '10px 12px', border: `1px solid ${color.border}` }}
+            className="u-flex u-gap-3 u-items-start u-rounded-md u-bg-elev u-py-2 u-px-3" style={{ border: `1px solid ${color.border}` }}
           >
             <span
               aria-hidden
@@ -89,7 +89,7 @@ export function PromotionLadder({
                   data-testid={`ladder-reason-${rung.environment_name}`}
                   className="u-text-xs u-mt-1 u-fg-muted"
                 >
-                  <LockOutlined style={{ marginRight: 6 }} />
+                  <LockOutlined className="u-mr-2" />
                   {reason}
                 </div>
               )}

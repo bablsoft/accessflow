@@ -25,7 +25,7 @@ export function QueryDiffCard({ query }: Props) {
 
   return (
     <Card title={t('queries.detail.card_diff')} icon={<DiffOutlined />}>
-      <div style={{ padding: 14 }}>
+      <div className="u-p-4">
         {isLoading && <Skeleton active title={false} paragraph={{ rows: 2 }} />}
         {!isLoading && is404 && (
           <div className="muted u-text-sm">
@@ -147,7 +147,7 @@ function Card({
       className="af-box"
     >
       <div
-        className="u-flex u-items-center u-gap-2 u-border-b" style={{ padding: '10px 14px' }}
+        className="u-flex u-items-center u-gap-2 u-border-b u-py-2 u-px-4"
       >
         {icon && <span className="u-fg-muted">{icon}</span>}
         <span className="u-fw-600 u-text-sm">{title}</span>

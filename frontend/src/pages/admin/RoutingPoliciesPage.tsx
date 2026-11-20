@@ -366,7 +366,7 @@ export function RoutingPoliciesPage() {
                 title: t('admin.routing_policies.col_order'),
                 width: 90,
                 render: (_v, _p, index) => (
-                  <div className="u-flex" style={{ gap: 2 }}>
+                  <div className="u-flex u-gap-1">
                     <Button
                       size="small"
                       type="text"

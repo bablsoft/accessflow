@@ -23,7 +23,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
     <div
       className="af-box u-p-4"
     >
-      <div className="u-fw-600 u-text-sm" style={{ marginBottom: 14 }}>{t('timeline.title')}</div>
+      <div className="u-fw-600 u-text-sm u-mb-4">{t('timeline.title')}</div>
       <div className="u-flex u-col u-relative">
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
@@ -58,7 +58,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                 />
               )}
               <div
-                className="u-flex u-items-center u-justify-center u-rounded-full u-bg-elev" style={{ position: 'absolute', left: 0, top: 4, width: 14, height: 14, border: `2px solid ${dotColor}` }}
+                className="af-timeline-dot u-flex u-items-center u-justify-center u-rounded-full u-bg-elev" style={{ position: 'absolute', left: 0, top: 4, width: 14, height: 14, border: `2px solid ${dotColor}` }}
               >
                 {(s.done || s.active) && (
                   <span

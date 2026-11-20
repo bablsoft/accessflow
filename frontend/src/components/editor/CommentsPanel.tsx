@@ -83,7 +83,7 @@ export function CommentsPanel({ queryId, selection, anchorSnapshot }: CommentsPa
         {t('collab.comments_title')}
       </div>
 
-      <div className="u-flex u-col" style={{ gap: 6 }}>
+      <div className="u-flex u-col u-gap-2">
         <span className="muted u-text-2xs">
           {selection
             ? t('collab.comment_anchor', { start: selection.start, end: selection.end })

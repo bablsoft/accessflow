@@ -295,7 +295,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
   ];
 
   return (
-    <div className="u-flex u-col u-gap-3" style={{ maxWidth: 860 }}>
+    <div className="u-flex u-col u-gap-3 u-max-w-reading">
       <div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalFor('create')}>
           {t('deploygov.settings.envAdd')}
@@ -648,7 +648,7 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                     danger
                     icon={<DeleteOutlined />}
                     aria-label={t('deploygov.settings.verificationRemoveCheck')}
-                    style={{ marginTop: 30 }}
+                    className="u-mt-8"
                     onClick={() => remove(field.name)}
                   />
                 </div>

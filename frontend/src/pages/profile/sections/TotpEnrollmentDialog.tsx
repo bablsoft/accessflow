@@ -128,7 +128,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
                 readOnly
                 value={enrollment.secret}
                 autoSize
-                className="u-mt-1" style={{ fontFamily: 'monospace' }}
+                className="u-mt-1 u-mono"
               />
             </div>
           )}
@@ -156,7 +156,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            className="u-text-center" style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+            className="u-text-center u-mono u-text-xl" style={{ letterSpacing: 4 }}
             aria-label={t('profile.totp.verify_placeholder')}
           />
           <Space>
@@ -177,7 +177,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
         <Space orientation="vertical" size="middle" className="u-w-full">
           <Alert type="warning" title={t('profile.totp.backup_codes_help')} showIcon />
           <pre
-            className="u-p-3 u-text-sm u-bg u-border u-rounded-md" style={{ fontFamily: 'monospace', lineHeight: 1.7 }}
+            className="u-p-3 u-text-sm u-bg u-border u-rounded-md u-mono u-leading-normal"
             aria-label="backup-codes"
           >
             {backupCodes.join('\n')}

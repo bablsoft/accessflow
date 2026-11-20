@@ -33,7 +33,7 @@ export function DataBudgetIndicator({ dsId }: { dsId: string }) {
 
   return (
     <div style={CARD_STYLE} data-testid="data-budget-indicator">
-      <div className="u-flex u-items-center u-gap-2" style={{ marginBottom: 10 }}>
+      <div className="u-flex u-items-center u-gap-2 u-mb-2">
         <DashboardOutlined className="u-fg-muted" />
         <div className="u-fw-600 u-text-xs">{t('dataBudgets.indicator.title')}</div>
       </div>
@@ -41,7 +41,7 @@ export function DataBudgetIndicator({ dsId }: { dsId: string }) {
         <Alert
           type="error"
           showIcon
-          style={{ marginBottom: 10 }}
+          className="u-mb-2"
           title={t('dataBudgets.indicator.exhausted_title')}
           description={
             status.breach_action === 'REJECT'
@@ -53,7 +53,7 @@ export function DataBudgetIndicator({ dsId }: { dsId: string }) {
         <Alert
           type="warning"
           showIcon
-          style={{ marginBottom: 10 }}
+          className="u-mb-2"
           title={t('dataBudgets.indicator.nearly_used')}
         />
       ) : null}
@@ -86,7 +86,7 @@ function BudgetLine({ budget }: { budget: DataBudgetConsumption }) {
   }
   const percent = Math.min(100, budget.used_percent);
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div className="u-mb-2">
       <div className="u-flex u-justify-between u-gap-2 u-text-2xs">
         <span className="u-fw-500">{budget.name}</span>
         <span className="muted">{t('dataBudgets.indicator.per_window', { window })}</span>

@@ -195,7 +195,7 @@ export function NotificationsPage() {
           />
         ) : (
           <div
-            className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14, alignContent: 'start' }}
+            className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', alignContent: 'start' }}
           >
             {channels.map((c) => (
               <ChannelCard
@@ -284,25 +284,25 @@ function ChannelCard({
   const icon = (() => {
     switch (ch.channel_type) {
       case 'EMAIL':
-        return <MailOutlined style={{ fontSize: 18 }} />;
+        return <MailOutlined className="u-text-xl" />;
       case 'SLACK':
-        return <MessageOutlined style={{ fontSize: 18 }} />;
+        return <MessageOutlined className="u-text-xl" />;
       case 'WEBHOOK':
-        return <SendOutlined style={{ fontSize: 18 }} />;
+        return <SendOutlined className="u-text-xl" />;
       case 'DISCORD':
-        return <RocketOutlined style={{ fontSize: 18 }} />;
+        return <RocketOutlined className="u-text-xl" />;
       case 'TELEGRAM':
-        return <ApiOutlined style={{ fontSize: 18 }} />;
+        return <ApiOutlined className="u-text-xl" />;
       case 'MS_TEAMS':
-        return <TeamOutlined style={{ fontSize: 18 }} />;
+        return <TeamOutlined className="u-text-xl" />;
       case 'PAGERDUTY':
-        return <AlertOutlined style={{ fontSize: 18 }} />;
+        return <AlertOutlined className="u-text-xl" />;
       case 'SERVICENOW':
-        return <ToolOutlined style={{ fontSize: 18 }} />;
+        return <ToolOutlined className="u-text-xl" />;
       case 'JIRA':
-        return <BugOutlined style={{ fontSize: 18 }} />;
+        return <BugOutlined className="u-text-xl" />;
       default:
-        return <SendOutlined style={{ fontSize: 18 }} />;
+        return <SendOutlined className="u-text-xl" />;
     }
   })();
   const iconColor = (() => {
@@ -353,13 +353,13 @@ function ChannelCard({
               </Pill>
             )}
           </div>
-          <div className="mono muted u-text-2xs" style={{ marginTop: 2 }}>
+          <div className="mono muted u-text-2xs u-mt-1">
             {channelTypeLabel(t, ch.channel_type)}
           </div>
         </div>
       </div>
       <div
-        className="u-mt-3 u-text-xs u-mono u-leading-normal u-bg-sunken u-rounded u-overflow-auto" style={{ padding: 10, maxHeight: 110 }}
+        className="u-mt-3 u-text-xs u-mono u-leading-normal u-bg-sunken u-rounded u-overflow-auto u-p-2" style={{ maxHeight: 110 }}
       >
         <ConfigPreview channel={ch} />
       </div>

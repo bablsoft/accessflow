@@ -632,7 +632,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   };
 
   return (
-    <div className="u-p-gutter" style={{ maxWidth: 800 }}>
+    <div className="u-p-gutter u-max-w-form">
       <Form form={form} layout="vertical" initialValues={initialValues} onFinish={onFinish}>
         <Section title={t('datasources.settings.section_connection')}>
           <Grid>
@@ -1204,7 +1204,7 @@ function PermissionMatrix({
             render: (_v, p) => {
               const label = userDisplay(p.user_display_name, p.user_email);
               return (
-                <div className="u-flex u-items-center" style={{ gap: 10 }}>
+                <div className="u-flex u-items-center u-gap-2">
                   <Avatar name={label} size={24} />
                   <div>
                     <div className="u-text-sm">{label}</div>
@@ -1294,7 +1294,7 @@ function PermissionMatrix({
                 <span className="muted u-text-xs">
                   {fmtDate(p.expires_at)}
                   {ms !== null && (
-                    <StatusTag tone={ms > 0 ? 'success' : 'neutral'} style={{ marginLeft: 6 }}>
+                    <StatusTag tone={ms > 0 ? 'success' : 'neutral'} className="u-ml-2">
                       {ms > 0
                         ? t('access.ttl.remaining', { value: formatDurationCompact(ms) })
                         : t('access.ttl.expired')}
@@ -1338,7 +1338,7 @@ function PermissionMatrix({
                 title: t('datasources.settings.perm_col_group'),
                 dataIndex: 'group_name',
                 render: (_v, p) => (
-                  <div className="u-flex u-items-center" style={{ gap: 10 }}>
+                  <div className="u-flex u-items-center u-gap-2">
                     <Tag icon={<TeamOutlined />} color="blue">
                       {t('datasources.settings.perm_group_tag')}
                     </Tag>

@@ -647,7 +647,7 @@ export function QueryDetailPage() {
             {canCollaborate ? (
               <QueryCollaboration query={query} currentUser={user} />
             ) : (
-              <div style={{ padding: 14 }}>
+              <div className="u-p-4">
                 <QuerySqlView
                   sql={query.sql_text}
                   effectiveSql={query.effective_sql}
@@ -658,7 +658,7 @@ export function QueryDetailPage() {
           </DetailCard>
 
           <DetailCard title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
-            <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+            <div className="u-text-sm u-p-4 u-leading-normal">
               {query.justification?.trim() ? (
                 query.justification
               ) : (
@@ -696,7 +696,7 @@ export function QueryDetailPage() {
             }
           >
             {aiFailed ? (
-              <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+              <div className="u-text-sm u-p-4 u-leading-normal">
                 <div className="u-mb-3">
                   {t('queries.detail.ai_failed_accordion_body')}
                 </div>
@@ -723,7 +723,7 @@ export function QueryDetailPage() {
               </div>
             ) : (
               <>
-                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-text-sm u-p-4 u-leading-normal">
                   {query.ai_analysis?.summary ?? (
                     <span className="muted">
                       {aiSkipped
@@ -774,7 +774,7 @@ export function QueryDetailPage() {
               title={t('queries.detail.card_sql_review')}
               icon={<FileSearchOutlined className="u-fg-accent" />}
             >
-              <div data-testid="sql-review-findings-card" className="u-flex u-col" style={{ gap: 10 }}>
+              <div data-testid="sql-review-findings-card" className="u-flex u-col u-gap-2">
                 {sqlReviewBlocking > 0 && (
                   <div className="muted u-text-xs">
                     {t('queries.detail.sql_review_blocked_note', { count: sqlReviewBlocking })}
@@ -806,7 +806,7 @@ export function QueryDetailPage() {
           {query.status === 'EXECUTED' && (
             <DetailCard title={t('queries.detail.card_execution')} icon={<CheckOutlined className="u-fg-success" />}>
               <div
-                className="u-grid u-gap-4 u-cols-3" style={{ padding: 14 }}
+                className="u-grid u-gap-4 u-cols-3 u-p-4"
               >
                 <Stat label={t('queries.detail.stat_rows')} value={fmtNum(query.rows_affected)} />
                 <Stat
@@ -826,14 +826,14 @@ export function QueryDetailPage() {
               title={t('queries.detail.card_execution')}
               icon={<ExclamationCircleOutlined className="u-fg-danger" />}
             >
-              <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+              <div className="u-text-sm u-p-4 u-leading-normal">
                 <div className="u-mb-3">
                   {t('queries.detail.execution_failed_body')}
                 </div>
                 <div
                   className="u-mb-3 u-mono u-text-xs u-bg-sunken u-border u-rounded-sm u-py-2 u-px-3"
                 >
-                  <div className="muted" style={{ marginBottom: 6 }}>
+                  <div className="muted u-mb-2">
                     {t('queries.detail.execution_error_label')}
                   </div>
                   <div className="u-pre-wrap u-break-word">
@@ -864,7 +864,7 @@ export function QueryDetailPage() {
 
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (
             <DetailCard title={t('queries.detail.card_results')} icon={<FileTextOutlined />}>
-              <div style={{ padding: 14 }}>
+              <div className="u-p-4">
                 <QueryResultsTable
                   queryId={query.id}
                   defaultView={engineMode(query.db_type).defaultResultView}
@@ -972,7 +972,7 @@ function Stat({ label, value }: { label: string; value: string }) {
       >
         {label}
       </div>
-      <div className="u-fw-600 u-mono" style={{ fontSize: 18 }}>{value}</div>
+      <div className="u-fw-600 u-mono u-text-xl">{value}</div>
     </div>
   );
 }
@@ -986,7 +986,7 @@ function LinkedTickets({ tickets }: { tickets: LinkedTicketRef[] }) {
       <div className="u-fw-600 u-text-sm u-mb-3">
         {t('queries.detail.linked_tickets_title')}
       </div>
-      <div className="u-flex u-col" style={{ gap: 10 }}>
+      <div className="u-flex u-col u-gap-2">
         {tickets.map((ticket) => (
           <div key={ticket.id} className="u-text-xs u-mono">
             <div className="u-flex u-justify-between u-gap-2">
@@ -999,7 +999,7 @@ function LinkedTickets({ tickets }: { tickets: LinkedTicketRef[] }) {
               )}
               <span className="muted">{channelTypeLabel(t, ticket.system)}</span>
             </div>
-            <div className="muted" style={{ marginTop: 2 }}>
+            <div className="muted u-mt-1">
               {t('queries.detail.linked_tickets_status', {
                 status: ticket.resolution
                   ? `${ticket.status} (${ticket.resolution})`
@@ -1073,7 +1073,7 @@ function OccurrencesCard({ queryId }: { queryId: string }) {
   });
   return (
     <DetailCard title={t('queries.detail.card_occurrences')} icon={<SyncOutlined />}>
-      <div style={{ padding: 14 }} data-testid="occurrences-card">
+      <div className="u-p-4" data-testid="occurrences-card">
         {isLoading ? (
           <Skeleton active paragraph={{ rows: 3 }} />
         ) : (

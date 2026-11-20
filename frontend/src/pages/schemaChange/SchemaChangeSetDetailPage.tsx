@@ -379,7 +379,7 @@ export default function SchemaChangeSetDetailPage() {
             )}
             {ladderQuery.data && ladderQuery.data.rungs.length > 0 && (
               <>
-                <div className="muted u-text-xs" style={{ marginBottom: 10 }}>
+                <div className="muted u-text-xs u-mb-2">
                   {t('schemaChange.ladder.hint')}
                 </div>
                 <PromotionLadder

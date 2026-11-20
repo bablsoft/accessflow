@@ -69,7 +69,7 @@ export default function PrivilegedAccessPage() {
         title: t('privileged_access.col_identity'),
         key: 'identity',
         render: (_: unknown, row: PrivilegedAccessRow) => (
-          <div className="u-flex u-items-center" style={{ gap: 10 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={row.email} size={24} />
             <div>
               <div className="u-text-sm">{row.display_name ?? row.email}</div>
@@ -128,7 +128,7 @@ export default function PrivilegedAccessPage() {
               {row.break_glass_grants.map((g) => (
                 <div key={g.source_id} className="u-text-xs">
                   <span className="mono">{g.datasource_name}</span>
-                  <span className="muted u-text-2xs" style={{ marginLeft: 6 }}>
+                  <span className="muted u-text-2xs u-ml-2">
                     {g.source_kind === 'GROUP' && g.group_name
                       ? t('privileged_access.via_group', { group: g.group_name })
                       : permissionSourceKindLabel(t, g.source_kind)}

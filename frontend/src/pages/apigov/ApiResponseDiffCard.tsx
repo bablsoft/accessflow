@@ -105,7 +105,7 @@ export function ApiResponseDiffCard({ request }: Props) {
 
   return (
     <DetailCard title={t('apiGov.requests.diffTitle')} icon={<DiffOutlined />}>
-      <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
+      <div className="u-flex u-col u-gap-3 u-p-4">
         <Input.Search
           allowClear
           size="small"

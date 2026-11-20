@@ -136,7 +136,7 @@ export default function ApiRequestsListPage() {
       title: t('apiGov.requests.connector'),
       width: 160,
       render: (_v, r) => (
-        <span className="u-inline-flex u-items-center" style={{ gap: 6 }}>
+        <span className="u-inline-flex u-items-center u-gap-2">
           <span className="u-text-sm">{r.connector_name ?? r.connector_id.slice(0, 8)}</span>
           {r.scheduled_for && (
             <Tooltip title={t('apiGov.requests.scheduledFor', { when: fmtDate(r.scheduled_for) })}>
@@ -255,7 +255,7 @@ export default function ApiRequestsListPage() {
             { value: 'all', label: t('apiGov.requests.filterAllConnectors') },
             ...(connectorsQuery.data?.content ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
-          style={{ width: 180 }}
+          className="u-w-md"
         />
         <Select
           value={verb}
@@ -273,20 +273,20 @@ export default function ApiRequestsListPage() {
             { value: 'all', label: t('apiGov.requests.filterAllRisk') },
             ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
-          style={{ width: 130 }}
+          className="u-w-xs"
         />
         <Input
           placeholder={t('apiGov.requests.filterTraceId')}
           value={traceId}
           onChange={(e) => { setTraceId(e.target.value); setPage(0); }}
-          style={{ width: 150 }}
+          className="u-w-sm"
           aria-label={t('apiGov.requests.traceId')}
         />
         <Input
           placeholder={t('apiGov.requests.filterSpanId')}
           value={spanId}
           onChange={(e) => { setSpanId(e.target.value); setPage(0); }}
-          style={{ width: 130 }}
+          className="u-w-xs"
           aria-label={t('apiGov.requests.spanId')}
         />
         <DatePicker.RangePicker

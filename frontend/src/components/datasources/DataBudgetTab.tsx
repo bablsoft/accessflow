@@ -440,7 +440,7 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
         </div>
 
         <Form.Item label={t('dataBudgets.tab.label_window')} extra={t('dataBudgets.tab.window_hint')}>
-          <Space.Compact style={{ width: 260 }}>
+          <Space.Compact className="u-w-lg">
             <Form.Item
               name="window_amount"
               noStyle
