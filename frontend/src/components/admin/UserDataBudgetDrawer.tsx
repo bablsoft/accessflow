@@ -39,7 +39,7 @@ export function UserDataBudgetDrawer({ user, onClose }: Props) {
       }
       destroyOnHidden
     >
-      <div className="muted" style={{ fontSize: 12, marginBottom: 16 }}>
+      <div className="muted u-text-xs u-mb-4">
         {t('dataBudgets.usage.description')}
       </div>
       {usageQuery.isLoading ? (
@@ -61,15 +61,10 @@ function DatasourceUsage({ status }: { status: DataBudgetStatus }) {
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 12,
-        marginBottom: 12,
-      }}
+      className="u-p-3 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontWeight: 600 }}>{status.datasource_name ?? status.datasource_id}</span>
+      <div className="u-flex u-items-center u-gap-2 u-mb-2">
+        <span className="u-fw-600">{status.datasource_name ?? status.datasource_id}</span>
         {status.exhausted && <StatusTag tone="danger">{t('dataBudgets.usage.exhausted')}</StatusTag>}
       </div>
       {status.budgets.map((budget) => (
@@ -100,8 +95,8 @@ function BudgetUsage({ budget }: { budget: DataBudgetConsumption }) {
   }
   const percent = Math.min(100, budget.used_percent);
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+    <div className="u-mb-2">
+      <div className="u-flex u-justify-between u-gap-2 u-text-xs">
         <span>{budget.name}</span>
         <span className="muted">
           {t('dataBudgets.indicator.per_window', { window: formatWindow(t, budget.window_minutes) })}
@@ -115,7 +110,7 @@ function BudgetUsage({ budget }: { budget: DataBudgetConsumption }) {
         status={budget.exhausted ? 'exception' : 'normal'}
         aria-label={t('dataBudgets.indicator.used_aria', { name: budget.name, percent })}
       />
-      <div className="muted" style={{ fontSize: 11 }}>{parts.join(' · ')}</div>
+      <div className="muted u-text-2xs">{parts.join(' · ')}</div>
     </div>
   );
 }

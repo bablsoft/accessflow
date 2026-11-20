@@ -26,7 +26,7 @@ export function PrincipalTypeTag({ principalType, size = 'sm' }: PrincipalTypeTa
           border="var(--status-info-border)"
           size={size}
         >
-          <RobotOutlined aria-hidden style={{ marginRight: 4 }} />
+          <RobotOutlined aria-hidden className="u-mr-1" />
           {principalTypeLabel(t, principalType)}
         </Pill>
       </span>

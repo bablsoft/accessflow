@@ -96,7 +96,7 @@ export function GroupDetailPage() {
       dataIndex: 'display_name',
       key: 'display_name',
       render: (val: string | null, member: UserGroupMember) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span className="u-inline-flex u-items-center" style={{ gap: 6 }}>
           {val ?? '—'}
           <PrincipalTypeTag principalType={member.principal_type} />
         </span>

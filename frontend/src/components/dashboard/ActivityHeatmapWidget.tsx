@@ -50,7 +50,7 @@ export function ActivityHeatmapWidget() {
     return (
       <EmptyState
         size="sm"
-        icon={<CalendarOutlined style={{ fontSize: 16 }} />}
+        icon={<CalendarOutlined className="u-text-lg" />}
         title={t('dashboard.activity.empty')}
       />
     );
@@ -58,7 +58,7 @@ export function ActivityHeatmapWidget() {
   return (
     <HeatmapInteractionProvider>
       <HeatmapInteractionBoundary>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+        <div className="u-flex u-col u-gap-3 u-w-full">
           <HeatmapChart
             data={columns}
             layout="fluid"

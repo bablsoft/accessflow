@@ -172,7 +172,7 @@ export function MaskingStrategyParamsFields({ strategy }: MaskingStrategyParamsF
       );
     case 'NULLIFY':
       return (
-        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+        <Typography.Paragraph type="secondary" className="u-text-xs">
           {t('maskingParams.nullify_help')}
         </Typography.Paragraph>
       );

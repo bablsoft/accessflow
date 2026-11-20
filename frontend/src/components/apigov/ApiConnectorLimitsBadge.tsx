@@ -43,7 +43,7 @@ export function ApiConnectorLimitsBadge({ connector }: { connector: LimitFields 
   return (
     <Tooltip
       title={
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="u-flex u-col">
           {tooltip.map((line) => (
             <span key={line}>{line}</span>
           ))}

@@ -202,7 +202,7 @@ export default function ApiRequestDetailPage() {
           </>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && <EmptyState size="sm" title={t('apiGov.requests.notFound')} />}
         {request && (
@@ -246,7 +246,7 @@ export default function ApiRequestDetailPage() {
                     key: 'submitter',
                     label: t('apiGov.requests.submitter'),
                     children: (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span className="u-inline-flex u-items-center u-gap-2">
                         {request.submitted_by_email ?? request.submitted_by}
                         <OnBehalfOfTag
                           email={request.on_behalf_of_email}
@@ -263,12 +263,12 @@ export default function ApiRequestDetailPage() {
                   {
                     key: 'trace',
                     label: t('apiGov.requests.traceId'),
-                    children: <span className="mono" style={{ fontSize: 12 }}>{request.trace_id ?? '—'}</span>,
+                    children: <span className="mono u-text-xs">{request.trace_id ?? '—'}</span>,
                   },
                   {
                     key: 'span',
                     label: t('apiGov.requests.spanId'),
-                    children: <span className="mono" style={{ fontSize: 12 }}>{request.span_id ?? '—'}</span>,
+                    children: <span className="mono u-text-xs">{request.span_id ?? '—'}</span>,
                   },
                   {
                     key: 'code',
@@ -316,7 +316,7 @@ export default function ApiRequestDetailPage() {
             {(request.status === 'APPROVED' ||
               request.status === 'PENDING_AI' ||
               request.status === 'PENDING_REVIEW') && (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-flex u-gap-2">
                 {request.status === 'APPROVED' && (
                   <Button type="primary" loading={executeMutation.isPending} onClick={() => executeMutation.mutate()}>
                     {t('apiGov.requests.execute')}
@@ -345,7 +345,7 @@ export default function ApiRequestDetailPage() {
 
             {request.justification && (
               <DetailCard title={t('apiGov.requests.justification')}>
-                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
                   {request.justification}
                 </div>
               </DetailCard>
@@ -356,7 +356,7 @@ export default function ApiRequestDetailPage() {
                 <div style={{ padding: 14 }}>
                   {/* The signing *inputs* the submitter supplied. The resolved outputs (nonce,
                       signature) are execution-time only and are deliberately never surfaced. */}
-                  <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                  <div className="muted u-text-xs" style={{ marginBottom: 10 }}>
                     {t('apiGov.requests.variableOverridesHint')}
                   </div>
                   <DataTable
@@ -373,14 +373,14 @@ export default function ApiRequestDetailPage() {
                         dataIndex: 'name',
                         width: 220,
                         render: (v: string) => (
-                          <span className="mono" style={{ fontSize: 12 }}>{`{{${v}}}`}</span>
+                          <span className="mono u-text-xs">{`{{${v}}}`}</span>
                         ),
                       },
                       {
                         title: t('apiGov.requests.variableValue'),
                         dataIndex: 'value',
                         render: (v: string) => (
-                          <span className="mono" style={{ fontSize: 12 }}>
+                          <span className="mono u-text-xs">
                             {v}
                           </span>
                         ),
@@ -394,9 +394,9 @@ export default function ApiRequestDetailPage() {
             {request.ai_summary && (
               <DetailCard
                 title={t('apiGov.requests.aiSummary')}
-                icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
+                icon={<ThunderboltOutlined className="u-fg-accent" />}
               >
-                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
                   {request.ai_summary}
                 </div>
               </DetailCard>
@@ -414,7 +414,7 @@ export default function ApiRequestDetailPage() {
               <DetailCard
                 title={t('apiGov.requests.snapshot')}
                 extra={
-                  <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+                  <span className="u-inline-flex u-gap-2 u-items-center u-ml-auto">
                     {request.response_truncated && <StatusTag tone="warning">{t('apiGov.requests.truncated')}</StatusTag>}
                     <Button
                       size="small"
@@ -432,23 +432,12 @@ export default function ApiRequestDetailPage() {
                     <Alert
                       type="info"
                       showIcon
-                      style={{ marginBottom: 8 }}
+                      className="u-mb-2"
                       title={t('apiGov.requests.previewTruncated')}
                     />
                   )}
                   <pre
-                    style={{
-                      background: 'var(--bg-sunken)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 12,
-                      margin: 0,
-                      maxHeight: 360,
-                      overflow: 'auto',
-                      fontSize: 12,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
+                    className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 360, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                   >
                     {request.response_snapshot}
                   </pre>

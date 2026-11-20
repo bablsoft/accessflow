@@ -24,7 +24,7 @@ export function RecentQueriesWidget({ items, loading, error, onRetry }: Props) {
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyIcon={<UnorderedListOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<UnorderedListOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.recent.empty')}
       rowKey={(it) => it.id}
       viewAllTo="/queries"
@@ -41,7 +41,7 @@ export function RecentQueriesWidget({ items, loading, error, onRetry }: Props) {
             />
           </>
         ),
-        primary: <span style={{ fontWeight: 500 }}>{it.datasource_name ?? '—'}</span>,
+        primary: <span className="u-fw-500">{it.datasource_name ?? '—'}</span>,
         meta: timeAgo(it.created_at),
         action: <Link to={`/queries/${it.id}`}>{t('dashboard.recent.view')}</Link>,
       })}

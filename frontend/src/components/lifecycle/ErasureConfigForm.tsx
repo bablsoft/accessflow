@@ -139,7 +139,7 @@ export function ErasureConfigForm({
       </Form.Item>
 
       <Typography.Text strong>{t('lifecycle.config.conditions_title')}</Typography.Text>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+      <Typography.Paragraph type="secondary" className="u-mb-2">
         {t('lifecycle.config.conditions_help')}
       </Typography.Paragraph>
 
@@ -151,11 +151,11 @@ export function ErasureConfigForm({
                 | ErasureConditionOperator
                 | undefined;
               return (
-                <Space key={field.key} align="baseline" style={{ display: 'flex', marginBottom: 8 }} wrap>
+                <Space key={field.key} align="baseline" className="u-flex u-mb-2" wrap>
                   <Form.Item
                     name={[field.name, 'column']}
                     rules={[{ required: true, message: t('validation.lifecycle_condition_column_required') }]}
-                    style={{ marginBottom: 0 }}
+                    className="u-mb-0"
                   >
                     <AutoComplete
                       options={columnOptions}
@@ -167,11 +167,11 @@ export function ErasureConfigForm({
                       }}
                     />
                   </Form.Item>
-                  <Form.Item name={[field.name, 'operator']} initialValue="EQUALS" style={{ marginBottom: 0 }}>
+                  <Form.Item name={[field.name, 'operator']} initialValue="EQUALS" className="u-mb-0">
                     <Select options={operatorOptions} style={{ width: 160 }} />
                   </Form.Item>
                   {op !== 'IS_NULL' && (
-                    <Form.Item name={[field.name, 'values']} style={{ marginBottom: 0 }}>
+                    <Form.Item name={[field.name, 'values']} className="u-mb-0">
                       <Select
                         mode="tags"
                         tokenSeparators={[',']}
@@ -185,7 +185,7 @@ export function ErasureConfigForm({
                     valuePropName="checked"
                     initialValue={false}
                     label={t('lifecycle.config.condition_negate')}
-                    style={{ marginBottom: 0 }}
+                    className="u-mb-0"
                   >
                     <Switch size="small" />
                   </Form.Item>

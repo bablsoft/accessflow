@@ -31,7 +31,7 @@ export function DeploymentVersionsWidget() {
       loading={versionsQuery.isLoading}
       error={versionsQuery.error}
       onRetry={() => void versionsQuery.refetch()}
-      emptyIcon={<DeploymentUnitOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<DeploymentUnitOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.deployment_versions.empty')}
       rowKey={(it: DeploymentEnvironmentVersion) => `${it.pipeline_id}:${it.environment.id}`}
       viewAllTo="/deployment-versions"
@@ -39,12 +39,12 @@ export function DeploymentVersionsWidget() {
         pills: <DriftChip row={it} />,
         primary: (
           <>
-            <span style={{ fontWeight: 500 }}>{it.pipeline_name}</span>{' '}
+            <span className="u-fw-500">{it.pipeline_name}</span>{' '}
             <span className="muted">{it.environment.name}</span>
           </>
         ),
         meta: (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {it.current_version ?? '—'}
           </span>
         ),

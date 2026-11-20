@@ -87,7 +87,7 @@ export default function ErasureSubmitPage() {
   return (
     <Page>
       <PageHeader title={t('lifecycle.erasure.title')} subtitle={t('lifecycle.erasure.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px var(--gutter)', maxWidth: 1100 }}>
+      <div className="u-flex-1" style={{ overflow: 'auto', padding: '20px var(--gutter)', maxWidth: 1100 }}>
         <Form<ErasureFormValues>
           form={form}
           layout="vertical"
@@ -170,7 +170,7 @@ export default function ErasureSubmitPage() {
           </Button>
         </Form>
 
-        <h3 style={{ fontSize: 14, marginBottom: 12 }}>{t('lifecycle.erasure.mine_title')}</h3>
+        <h3 className="u-text-md u-mb-3">{t('lifecycle.erasure.mine_title')}</h3>
         {mineQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 4 }} />
         ) : requests.length === 0 ? (
@@ -196,9 +196,9 @@ export default function ErasureSubmitPage() {
                 dataIndex: 'subject_identifier',
                 render: (v: string | null, r) => (
                   <div>
-                    <div style={{ fontSize: 13 }}>{v ?? r.target_table ?? '—'}</div>
+                    <div className="u-text-sm">{v ?? r.target_table ?? '—'}</div>
                     {r.datasource_name && (
-                      <div className="mono muted" style={{ fontSize: 11 }}>
+                      <div className="mono muted u-text-2xs">
                         {r.datasource_name}
                       </div>
                     )}

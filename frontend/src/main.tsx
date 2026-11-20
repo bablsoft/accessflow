@@ -30,6 +30,7 @@ import type { Language } from './i18n';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import './styles/globals.css';
+import './styles/utilities.css';
 import './styles/bklit.css';
 
 const ANTD_LOCALES: Record<Language, Locale> = {

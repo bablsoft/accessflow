@@ -188,7 +188,7 @@ export function ScimConfigPage() {
 
   if (cfgQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 12 }} />
       </div>
     );
@@ -216,7 +216,7 @@ export function ScimConfigPage() {
               <Typography.Paragraph
                 copyable={{ text: baseUrl }}
                 code
-                style={{ marginBottom: 0 }}
+                className="u-mb-0"
               >
                 {baseUrl}
               </Typography.Paragraph>
@@ -275,15 +275,11 @@ export function ScimConfigPage() {
           </FormActions>
         </Form>
 
-        <div style={{ marginTop: 40 }}>
+        <div className="u-mt-10">
           <Section title={t('admin.scim.section_tokens')}>
-            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" className="u-w-full">
               <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
+                className="u-flex u-justify-between u-items-center"
               >
                 <Typography.Text type="secondary">
                   {t('admin.scim.tokens_description')}
@@ -363,7 +359,7 @@ export function ScimConfigPage() {
         destroyOnHidden
       >
         {issuedToken && (
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" className="u-w-full">
             <Alert type="warning" showIcon title={t('admin.scim.token_copy_once_warning')} />
             <Typography.Text strong>{t('admin.scim.token_name_label')}</Typography.Text>
             <Typography.Text>{issuedToken.token.name}</Typography.Text>
@@ -385,7 +381,7 @@ export function ScimConfigPage() {
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>{children}</div>
+    <div className="u-grid u-cols-2 u-gap-4">{children}</div>
   );
 }
 

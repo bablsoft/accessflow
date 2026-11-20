@@ -70,19 +70,13 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('apiGov.settings.classification.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('apiGov.settings.classification.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('apiGov.settings.classification.description')}
           </div>
         </div>
@@ -108,7 +102,7 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
             {
               title: t('apiGov.settings.classification.col_field'),
               render: (_v, tag) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {tag.operation_id ? `${tag.operation_id} · ` : ''}
                   {tag.field_ref}
                 </span>
@@ -130,7 +124,7 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
               title: t('apiGov.settings.classification.col_note'),
               dataIndex: 'note',
               render: (v: string | null) =>
-                v ? <span style={{ fontSize: 12 }}>{v}</span> : <span className="muted">—</span>,
+                v ? <span className="u-text-xs">{v}</span> : <span className="muted">—</span>,
             },
             {
               title: t('apiGov.settings.classification.col_actions'),

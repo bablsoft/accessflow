@@ -14,7 +14,7 @@ export function PlanTree({ plan }: PlanTreeProps) {
     <div
       role="tree"
       aria-label={t('dry_run_panel.plan_label')}
-      style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+      className="u-flex u-col u-gap-1"
     >
       {rows.map(({ node, depth, key }) => {
         const rowsLabel = formatEstimatedRows(node.estimated_rows);
@@ -32,31 +32,31 @@ export function PlanTree({ plan }: PlanTreeProps) {
               borderRadius: 'var(--radius-sm)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
+            <div className="u-flex u-items-baseline u-gap-2 u-wrap">
+              <span className="mono u-text-xs u-fw-600">
                 {node.operation}
               </span>
               {node.target && (
-                <span className="mono muted" style={{ fontSize: 11 }}>
+                <span className="mono muted u-text-2xs">
                   {node.target}
                 </span>
               )}
-              <div style={{ flex: 1 }} />
+              <div className="u-flex-1" />
               {rowsLabel && (
-                <span className="mono muted" style={{ fontSize: 11 }}>
+                <span className="mono muted u-text-2xs">
                   {t('dry_run_panel.rows_badge', { value: rowsLabel })}
                 </span>
               )}
               {costLabel && (
-                <span className="mono muted" style={{ fontSize: 11 }}>
+                <span className="mono muted u-text-2xs">
                   {t('dry_run_panel.cost_badge', { value: costLabel })}
                 </span>
               )}
             </div>
             {node.detail && (
               <div
-                className="mono muted"
-                style={{ fontSize: 11, marginTop: 4, wordBreak: 'break-word' }}
+                className="mono muted u-text-2xs u-mt-1"
+                style={{ wordBreak: 'break-word' }}
               >
                 {node.detail}
               </div>

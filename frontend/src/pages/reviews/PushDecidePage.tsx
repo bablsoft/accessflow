@@ -65,7 +65,7 @@ export default function PushDecidePage() {
   const canDecide = credential.trim().length > 0 && !isOwnQuery && !notPending;
 
   return (
-    <div style={{ maxWidth: 520, margin: '0 auto', padding: 16 }}>
+    <div className="u-p-4" style={{ maxWidth: 520, margin: '0 auto' }}>
       <PageHeader title={t('reviews.decide.title')} subtitle={t('reviews.decide.subtitle')} />
       {isLoading && <Skeleton active paragraph={{ rows: 6 }} />}
       {isError && (
@@ -73,7 +73,7 @@ export default function PushDecidePage() {
       )}
       {query && (
         <Card>
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" className="u-w-full">
             <Space wrap>
               <QueryTypePill type={query.query_type} />
               {query.ai_analysis && (
@@ -112,7 +112,7 @@ export default function PushDecidePage() {
                     }
                   />
                 </Form.Item>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space className="u-w-full u-justify-between">
                   <Button
                     danger
                     icon={<CloseOutlined />}

@@ -92,7 +92,7 @@ export function OrganizationDetailPage() {
   };
 
   if (orgQuery.isLoading) {
-    return <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />;
+    return <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />;
   }
   if (orgQuery.isError || !orgQuery.data) {
     return (
@@ -122,12 +122,12 @@ export function OrganizationDetailPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px', maxWidth: 720 }}>
-        <Card title={t('admin.organizations.usage_title')} style={{ marginBottom: 16 }}>
+      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px', maxWidth: 720 }}>
+        <Card title={t('admin.organizations.usage_title')} className="u-mb-4">
           {usageQuery.isLoading || !usageQuery.data ? (
             <Skeleton active paragraph={{ rows: 3 }} />
           ) : (
-            <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+            <Space orientation="vertical" className="u-w-full" size="middle">
               <UsageBar
                 label={t('admin.organizations.usage_datasources')}
                 used={usageQuery.data.datasource_count}
@@ -159,28 +159,28 @@ export function OrganizationDetailPage() {
             >
               <Input maxLength={255} />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid u-cols-2 u-gap-3">
               <Form.Item
                 name="max_datasources"
                 label={t('admin.organizations.label_max_datasources')}
                 rules={[{ type: 'number', min: 0 }]}
                 extra={t('admin.organizations.quota_help')}
               >
-                <InputNumber min={0} style={{ width: '100%' }} />
+                <InputNumber min={0} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="max_users"
                 label={t('admin.organizations.label_max_users')}
                 rules={[{ type: 'number', min: 0 }]}
               >
-                <InputNumber min={0} style={{ width: '100%' }} />
+                <InputNumber min={0} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="max_queries_per_day"
                 label={t('admin.organizations.label_max_queries')}
                 rules={[{ type: 'number', min: 0 }]}
               >
-                <InputNumber min={0} style={{ width: '100%' }} />
+                <InputNumber min={0} className="u-w-full" />
               </Form.Item>
             </div>
             <Form.Item
@@ -220,7 +220,7 @@ function UsageBar({
   const percent = hasLimit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+      <div className="u-flex u-justify-between u-mb-1">
         <span>{label}</span>
         <span className="mono muted">
           {used} / {unlimitedLabel}

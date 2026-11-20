@@ -22,7 +22,7 @@ export function ApproverRoleServiceAccountWarning({ name, countsByRole }: Props)
       type="warning"
       showIcon
       data-testid="approver-role-service-account-warning"
-      style={{ marginTop: 4 }}
+      className="u-mt-1"
       title={t('admin.review_plans.approver_role_service_account_warning', { count })}
     />
   );

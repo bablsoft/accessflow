@@ -242,10 +242,10 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         <KeyValueEditor pairs={traceMapping} onChange={setTraceMapping} />
       </Form.Item>
       <Form.Item name="timeout_ms" label={t('apiGov.connectors.timeoutMs')} rules={[{ type: 'number', min: 1 }]}>
-        <InputNumber style={{ width: '100%' }} />
+        <InputNumber className="u-w-full" />
       </Form.Item>
       <Form.Item name="max_response_bytes" label={t('apiGov.connectors.maxResponseBytes')} rules={[{ type: 'number', min: 1 }]}>
-        <InputNumber style={{ width: '100%' }} />
+        <InputNumber className="u-w-full" />
       </Form.Item>
       <Form.Item name="ai_analysis_enabled" label={t('apiGov.connectors.aiAnalysis')} valuePropName="checked">
         <Switch />
@@ -306,7 +306,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         rules={[{ type: 'number', min: 1, message: t('apiGov.settings.intervalMin') }]}
       >
         <InputNumber
-          style={{ width: '100%' }}
+          className="u-w-full"
           precision={0}
           placeholder={t('apiGov.settings.notMonitoredPlaceholder')}
         />
@@ -385,7 +385,7 @@ function OperationFilterFields({ value, onChange }: FilterFieldsProps) {
     label: string,
     placeholder?: string,
   ) => (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <label className="u-flex u-col u-gap-1">
       <span>{label}</span>
       <Select<string[]>
         mode="tags"
@@ -401,10 +401,10 @@ function OperationFilterFields({ value, onChange }: FilterFieldsProps) {
     </label>
   );
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size={12}>
+    <Space orientation="vertical" className="u-w-full" size={12}>
       {tagsInput('excludePaths', t('apiGov.settings.filterExcludePaths'), t('apiGov.settings.filterPathPlaceholder'))}
       {tagsInput('includePaths', t('apiGov.settings.filterIncludePaths'), t('apiGov.settings.filterPathPlaceholder'))}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label className="u-flex u-col u-gap-1">
         <span>{t('apiGov.settings.filterExcludeVerbs')}</span>
         <Select<string[]>
           mode="multiple"
@@ -487,7 +487,7 @@ function RefreshIntervalField() {
       rules={[{ type: 'number', min: 1, message: t('apiGov.settings.intervalMin') }]}
     >
       <InputNumber
-        style={{ width: '100%' }}
+        className="u-w-full"
         precision={0}
         placeholder={t('apiGov.settings.autoRefreshOffPlaceholder')}
       />
@@ -507,7 +507,7 @@ function AutoRefreshSummary({ schema }: { schema: ApiSchema }) {
           ` · ${t('apiGov.settings.lastRefreshed', { time: fmtDate(schema.last_refresh_at) })}`}
       </Typography.Text>
       {schema.last_refresh_error && (
-        <Typography.Text type="danger" style={{ display: 'block' }}>
+        <Typography.Text type="danger" className="u-block">
           {schema.last_refresh_error}
         </Typography.Text>
       )}
@@ -657,7 +657,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 700 }}>
+    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 700 }}>
       <Select<ApiSchemaType>
         style={{ width: 240 }}
         value={schemaType}

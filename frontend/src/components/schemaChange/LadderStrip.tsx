@@ -26,7 +26,7 @@ export function LadderStrip({ changeSetId }: { changeSetId: string }) {
     <div
       role="list"
       aria-label={t('schemaChange.ladder.ariaLabel')}
-      style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}
+      className="u-flex u-gap-1 u-wrap"
     >
       {ladderQuery.data.rungs.map((rung) => {
         const color = schemaChangeLadderRungColor(rung.state);
@@ -38,15 +38,7 @@ export function LadderStrip({ changeSetId }: { changeSetId: string }) {
             <span
               role="listitem"
               aria-label={label}
-              style={{
-                fontSize: 11,
-                padding: '1px 6px',
-                borderRadius: 4,
-                color: color.fg,
-                background: color.bg,
-                border: `1px solid ${color.border}`,
-                whiteSpace: 'nowrap',
-              }}
+              className="u-text-2xs u-nowrap" style={{ padding: '1px 6px', borderRadius: 4, color: color.fg, background: color.bg, border: `1px solid ${color.border}` }}
             >
               {rung.environment_name}
             </span>

@@ -61,7 +61,7 @@ export function AttestationBulkModal({
       }}
       destroyOnHidden
     >
-      <p style={{ marginTop: 0 }}>
+      <p className="u-mt-0">
         {t('attestation.worklist.bulk.modal_subtitle', { count: selectedCount })}
       </p>
       <Input.TextArea
@@ -76,7 +76,7 @@ export function AttestationBulkModal({
       {commentRequired && !trimmed && (
         <div
           role="alert"
-          style={{ marginTop: 8, color: 'var(--danger)', fontSize: 12 }}
+          className="u-mt-2 u-fg-danger u-text-xs"
         >
           {t('attestation.worklist.comment_required')}
         </div>

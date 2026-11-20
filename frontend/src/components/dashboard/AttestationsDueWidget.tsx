@@ -25,7 +25,7 @@ export function AttestationsDueWidget() {
       loading={worklistQuery.isLoading}
       error={worklistQuery.error}
       onRetry={() => void worklistQuery.refetch()}
-      emptyIcon={<SafetyCertificateOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<SafetyCertificateOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.attestations.empty')}
       rowKey={(it: AttestationItem) => it.id}
       viewAllTo="/reviews/attestations"
@@ -43,7 +43,7 @@ export function AttestationsDueWidget() {
             ) : undefined,
           primary: (
             <>
-              <span style={{ fontWeight: 500 }}>{it.subject_user_email}</span>{' '}
+              <span className="u-fw-500">{it.subject_user_email}</span>{' '}
               <span className="muted">{it.datasource_name ?? '—'}</span>
             </>
           ),

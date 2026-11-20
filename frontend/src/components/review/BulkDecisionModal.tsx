@@ -64,7 +64,7 @@ export function BulkDecisionModal({
       }}
       destroyOnHidden
     >
-      <p style={{ marginTop: 0 }}>
+      <p className="u-mt-0">
         {t('reviews.bulk.modal_subtitle', { count: selectedCount })}
       </p>
       <Input.TextArea
@@ -79,7 +79,7 @@ export function BulkDecisionModal({
       {commentRequired && !trimmed && (
         <div
           role="alert"
-          style={{ marginTop: 8, color: 'var(--danger)', fontSize: 12 }}
+          className="u-mt-2 u-fg-danger u-text-xs"
         >
           {t('reviews.bulk.comment_required')}
         </div>

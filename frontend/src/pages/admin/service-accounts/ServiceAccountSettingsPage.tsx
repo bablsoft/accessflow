@@ -67,8 +67,8 @@ export function ServiceAccountSettingsPage() {
         title={account?.display_name ?? t('admin.service_accounts.title')}
         subtitle={
           account ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span className="mono" style={{ fontSize: 12 }}>
+            <span className="u-inline-flex u-items-center u-wrap" style={{ gap: 10 }}>
+              <span className="mono u-text-xs">
                 {account.email}
               </span>
               <ManagedByTag managedBy={account.managed_by} />
@@ -120,7 +120,7 @@ export function ServiceAccountSettingsPage() {
             type="info"
             showIcon
             data-testid="bootstrap-banner"
-            style={{ marginBottom: 16 }}
+            className="u-mb-4"
             title={t('admin.service_accounts.settings.bootstrap_banner_title')}
             description={t('admin.service_accounts.settings.bootstrap_banner_body')}
           />

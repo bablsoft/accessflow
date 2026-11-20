@@ -125,7 +125,7 @@ export function RolesPage() {
       />
       <PageBody flush>
         {rolesQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : rolesQuery.isError ? (
           <EmptyState
             title={t('admin.roles.load_error')}
@@ -146,7 +146,7 @@ export function RolesPage() {
                 key: 'name',
                 render: (_v, role) => (
                   <Space size={8}>
-                    <span style={{ fontSize: 13 }}>{roleDisplayName(t, role)}</span>
+                    <span className="u-text-sm">{roleDisplayName(t, role)}</span>
                     {role.system && <Tag>{t('admin.roles.system_tag')}</Tag>}
                   </Space>
                 ),
@@ -156,7 +156,7 @@ export function RolesPage() {
                 dataIndex: 'description',
                 render: (v: string | null) =>
                   v ? (
-                    <span className="muted" style={{ fontSize: 12 }}>{v}</span>
+                    <span className="muted u-text-xs">{v}</span>
                   ) : (
                     <span className="muted">—</span>
                   ),
@@ -166,7 +166,7 @@ export function RolesPage() {
                 key: 'permissions',
                 width: 140,
                 render: (_v, role) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {t('admin.roles.permissions_count', { count: role.permissions.length })}
                   </span>
                 ),
@@ -176,7 +176,7 @@ export function RolesPage() {
                 dataIndex: 'assigned_user_count',
                 width: 140,
                 render: (v: number) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {t('admin.roles.users_count', { count: v })}
                   </span>
                 ),
@@ -302,7 +302,7 @@ function RoleDrawer({
       destroyOnHidden
       footer={
         readOnly ? null : (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <div className="u-flex u-justify-end u-gap-2">
             <Button onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="primary" loading={saving} onClick={() => form.submit()}>
               {t('common.save')}
@@ -385,17 +385,17 @@ function GroupedPermissionPicker({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-flex u-col u-gap-3">
       {groups.map((group) => (
         <div key={group.group}>
           <div
-            className="mono muted"
-            style={{ fontSize: 11, textTransform: 'uppercase', marginBottom: 4 }}
+            className="mono muted u-text-2xs u-mb-1"
+            style={{ textTransform: 'uppercase' }}
           >
             {permissionGroupLabel(t, group.group)}
           </div>
           <Checkbox.Group
-            style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+            className="u-flex u-col u-gap-1"
             options={group.permissions.map((p) => ({
               value: p,
               label: permissionLabel(t, p),

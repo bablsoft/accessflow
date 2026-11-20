@@ -142,7 +142,7 @@ export function LoginPage() {
             <Alert
               type="success"
               title={t('auth.login.setup_success_banner')}
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               showIcon
               closable={{ closeIcon: true, onClose: () => setSetupSuccess(false) }}
             />
@@ -152,7 +152,7 @@ export function LoginPage() {
             <Alert
               type="success"
               title={t('auth.login.password_reset_success_banner')}
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               showIcon
               closable={{ closeIcon: true, onClose: () => setPasswordResetSuccess(false) }}
             />
@@ -163,7 +163,7 @@ export function LoginPage() {
               type="error"
               title={error.message}
               description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               showIcon
               closable={{ closeIcon: true, onClose: () => setError(null) }}
             />
@@ -180,7 +180,7 @@ export function LoginPage() {
                     size="large"
                     block
                     onClick={samlLogin}
-                    style={{ marginBottom: 12 }}
+                    className="u-mb-3"
                     icon={<SafetyCertificateOutlined />}
                   >
                     {t('auth.login.saml_button')}
@@ -192,7 +192,7 @@ export function LoginPage() {
                     size="large"
                     block
                     onClick={() => startOAuth2(p.provider)}
-                    style={{ marginBottom: 12 }}
+                    className="u-mb-3"
                     icon={<LoginOutlined />}
                   >
                     {t('auth.login.oauth_button', { provider: p.display_name })}
@@ -200,18 +200,13 @@ export function LoginPage() {
                 ))}
                 {hasSso && (
                   <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      margin: '20px 0',
-                    }}
+                    className="u-flex u-items-center u-gap-3" style={{ margin: '20px 0' }}
                   >
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                    <span className="muted mono" style={{ fontSize: 11 }}>
+                    <div className="u-flex-1" style={{ height: 1, background: 'var(--border)' }} />
+                    <span className="muted mono u-text-2xs">
                       {t('auth.login.or_divider')}
                     </span>
-                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    <div className="u-flex-1" style={{ height: 1, background: 'var(--border)' }} />
                   </div>
                 )}
               </>
@@ -259,12 +254,7 @@ export function LoginPage() {
                       type="button"
                       onClick={() => setShowPw(!showPw)}
                       aria-label={showPw ? t('auth.login.hide_password') : t('auth.login.show_password')}
-                      style={{
-                        background: 'transparent',
-                        border: 0,
-                        color: 'var(--fg-muted)',
-                        cursor: 'pointer',
-                      }}
+                      className="u-fg-muted" style={{ background: 'transparent', border: 0, cursor: 'pointer' }}
                     >
                       {showPw ? <EyeInvisibleOutlined /> : <EyeOutlined />}
                     </button>
@@ -273,17 +263,12 @@ export function LoginPage() {
               </Form.Item>
 
               <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  marginTop: -8,
-                  marginBottom: 12,
-                }}
+                className="u-flex u-justify-end u-mb-3" style={{ marginTop: -8 }}
               >
                 <Link
                   to="/forgot-password"
-                  className="muted"
-                  style={{ fontSize: 11, textDecoration: 'none' }}
+                  className="muted u-text-2xs"
+                  style={{ textDecoration: 'none' }}
                 >
                   {t('auth.login.forgot_link')}
                 </Link>
@@ -324,7 +309,7 @@ export function LoginPage() {
                   maxLength={6}
                   autoFocus
                   placeholder="123456"
-                  style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+                  className="u-text-center" style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
                 />
               </Form.Item>
               <Button
@@ -342,7 +327,7 @@ export function LoginPage() {
                 block
                 onClick={backToCredentials}
                 disabled={loading}
-                style={{ marginTop: 8 }}
+                className="u-mt-2"
               >
                 {t('totp_login.back')}
               </Button>

@@ -336,7 +336,7 @@ export default function DashboardPage() {
                   onChange={(checked) => digestMutation.mutate(checked)}
                   aria-label={t('dashboard.weekly_digest')}
                 />
-                <span className="muted" style={{ fontSize: 12 }}>
+                <span className="muted u-text-xs">
                   {t('dashboard.weekly_digest')}
                 </span>
               </Space>
@@ -638,10 +638,10 @@ function SummaryCounts({
               {statusBreakdown.map((s) => (
                 <span
                   key={s.status}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  className="u-inline-flex u-items-center u-gap-1"
                 >
                   <StatusPill status={s.status} size="sm" />
-                  <span className="mono muted" style={{ fontSize: 11 }}>
+                  <span className="mono muted u-text-2xs">
                     {s.count}
                   </span>
                 </span>

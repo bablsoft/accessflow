@@ -63,19 +63,13 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('datasources.settings.classification.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('datasources.settings.classification.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('datasources.settings.classification.description')}
           </div>
         </div>
@@ -101,7 +95,7 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
             {
               title: t('datasources.settings.classification.col_object'),
               render: (_v, tag) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {tag.column_name ? `${tag.table_name}.${tag.column_name}` : tag.table_name}
                 </span>
               ),
@@ -110,7 +104,7 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
               title: t('datasources.settings.classification.col_scope'),
               width: 110,
               render: (_v, tag) => (
-                <span className="muted" style={{ fontSize: 12 }}>
+                <span className="muted u-text-xs">
                   {tag.column_name
                     ? t('datasources.settings.classification.scope_column')
                     : t('datasources.settings.classification.scope_table')}
@@ -127,7 +121,7 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
               title: t('datasources.settings.classification.col_note'),
               dataIndex: 'note',
               render: (v: string | null) =>
-                v ? <span style={{ fontSize: 12 }}>{v}</span> : <span className="muted">—</span>,
+                v ? <span className="u-text-xs">{v}</span> : <span className="muted">—</span>,
             },
             {
               title: t('datasources.settings.classification.col_actions'),

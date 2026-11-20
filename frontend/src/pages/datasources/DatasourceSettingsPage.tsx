@@ -254,7 +254,7 @@ export function DatasourceSettingsPage() {
 
   if (dsQuery.isLoading) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div className="u-p-10 u-text-center">
         <div className="muted">{t('datasources.settings.loading')}</div>
       </div>
     );
@@ -264,13 +264,13 @@ export function DatasourceSettingsPage() {
     const status = isAxiosError(dsQuery.error) ? dsQuery.error.response?.status : undefined;
     const isNotFound = status === 404;
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div className="u-p-10 u-text-center">
         <div className="muted">
           {isNotFound
             ? t('datasources.settings.not_found_message')
             : t('datasources.settings.load_error')}
         </div>
-        <Button onClick={() => navigate('/datasources')} style={{ marginTop: 12 }}>
+        <Button onClick={() => navigate('/datasources')} className="u-mt-3">
           {t('datasources.settings.back_to_list')}
         </Button>
       </div>
@@ -290,7 +290,7 @@ export function DatasourceSettingsPage() {
     testMutation.isPending ? (
       <LoadingOutlined />
     ) : testMutation.data?.ok ? (
-      <CheckOutlined style={{ color: 'var(--risk-low)' }} />
+      <CheckOutlined className="u-fg-success" />
     ) : (
       <PlayCircleOutlined />
     );
@@ -419,7 +419,7 @@ export function DatasourceSettingsPage() {
         {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
         {tab === 'effective-access' && canExplainAccess && (
-          <div style={{ padding: 28 }}>
+          <div className="u-p-gutter">
             <EffectivePermissionExplorer datasourceId={ds.id} />
           </div>
         )}
@@ -632,7 +632,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   };
 
   return (
-    <div style={{ padding: 28, maxWidth: 800 }}>
+    <div className="u-p-gutter" style={{ maxWidth: 800 }}>
       <Form form={form} layout="vertical" initialValues={initialValues} onFinish={onFinish}>
         <Section title={t('datasources.settings.section_connection')}>
           <Grid>
@@ -730,7 +730,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
           </Grid>
         </Section>
         <Section title={t('datasources.settings.section_read_replica')}>
-          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+          <p className="muted u-text-xs u-mt-0">
             {t('datasources.settings.replica_list_help')}
           </p>
           <Form.List name="read_replicas">
@@ -739,12 +739,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 {fields.map(({ key, name }) => (
                   <div
                     key={key}
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius)',
-                      padding: 16,
-                      marginBottom: 12,
-                    }}
+                    className="u-p-4 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
                   >
                     <Form.Item name={[name, 'id']} hidden>
                       <Input type="hidden" />
@@ -786,7 +781,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                         />
                       </Form.Item>
                     </Grid>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="u-flex u-gap-2 u-items-center">
                       <ConnectionTester
                         driverStatus="READY"
                         pending={
@@ -801,7 +796,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                           t('datasources.settings.replica_connection_ok', { ms })
                         }
                       />
-                      <div style={{ flex: 1 }} />
+                      <div className="u-flex-1" />
                       <Button
                         danger
                         size="small"
@@ -848,10 +843,9 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                   rules={[{ type: 'number', min: 1, max: 86_400 }]}
                 >
                   <InputNumber
-                    className="mono"
+                    className="mono u-w-full"
                     min={1}
                     max={86_400}
-                    style={{ width: '100%' }}
                     disabled={getFieldValue('result_cache_enabled') !== true}
                     placeholder={t('datasources.settings.cache_ttl_placeholder')}
                   />
@@ -1017,12 +1011,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
           </Grid>
         </Section>
         <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            paddingTop: 16,
-            borderTop: '1px solid var(--border)',
-          }}
+          className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
         >
           <Button
             type="primary"
@@ -1033,7 +1022,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             {t('common.save_changes')}
           </Button>
           <Button onClick={() => form.resetFields()}>{t('common.cancel')}</Button>
-          <div style={{ flex: 1 }} />
+          <div className="u-flex-1" />
           <Button danger icon={<DeleteOutlined />} onClick={onDelete} disabled={deletePending}>
             {t('datasources.settings.soft_delete')}
           </Button>
@@ -1046,7 +1035,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>{children}</div>
+    <div className="u-grid u-cols-2 u-gap-4">{children}</div>
   );
 }
 
@@ -1090,7 +1079,7 @@ function rowLimitColumn(
         <span>
           <span className="mono">{fmtNum(p.row_limit_override)}</span>
           {p.row_limit_override > maxRowsPerQuery && (
-            <div className="muted" style={{ fontSize: 11 }} data-testid="row-limit-clamped">
+            <div className="muted u-text-2xs" data-testid="row-limit-clamped">
               {t('datasources.settings.perm_row_limit_clamped', { cap: fmtNum(maxRowsPerQuery) })}
             </div>
           )}
@@ -1174,18 +1163,13 @@ function PermissionMatrix({
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
+        className="u-flex u-justify-between u-items-center u-mb-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('datasources.settings.permissions_title')}</div>
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="u-fw-600">{t('datasources.settings.permissions_title')}</div>
+          <div className="muted u-text-xs">
             {t('datasources.settings.permissions_subtitle')}
           </div>
         </div>
@@ -1220,11 +1204,11 @@ function PermissionMatrix({
             render: (_v, p) => {
               const label = userDisplay(p.user_display_name, p.user_email);
               return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="u-flex u-items-center" style={{ gap: 10 }}>
                   <Avatar name={label} size={24} />
                   <div>
-                    <div style={{ fontSize: 13 }}>{label}</div>
-                    <div className="mono muted" style={{ fontSize: 11 }}>{p.user_email}</div>
+                    <div className="u-text-sm">{label}</div>
+                    <div className="mono muted u-text-2xs">{p.user_email}</div>
                   </div>
                 </div>
               );
@@ -1259,7 +1243,7 @@ function PermissionMatrix({
           {
             title: t('datasources.settings.perm_col_schemas'),
             render: (_v, p) => (
-              <span className="mono" style={{ fontSize: 12 }}>
+              <span className="mono u-text-xs">
                 {p.allowed_schemas ? p.allowed_schemas.join(', ') : <span className="muted">all</span>}
               </span>
             ),
@@ -1273,7 +1257,7 @@ function PermissionMatrix({
               }
               return (
                 <Tooltip title={cols.join(', ')}>
-                  <span style={{ fontSize: 12 }}>
+                  <span className="u-text-xs">
                     {t('datasources.settings.perm_restricted_count', { count: cols.length })}
                   </span>
                 </Tooltip>
@@ -1300,14 +1284,14 @@ function PermissionMatrix({
             render: (_v, p) => {
               if (!p.expires_at) {
                 return (
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted u-text-xs">
                     {t('datasources.settings.perm_never_expires')}
                   </span>
                 );
               }
               const ms = remainingTtlMs(p.expires_at);
               return (
-                <span className="muted" style={{ fontSize: 12 }}>
+                <span className="muted u-text-xs">
                   {fmtDate(p.expires_at)}
                   {ms !== null && (
                     <StatusTag tone={ms > 0 ? 'success' : 'neutral'} style={{ marginLeft: 6 }}>
@@ -1339,7 +1323,7 @@ function PermissionMatrix({
       />
       {(groupPermissions.length > 0 || groupPermissionsQuery.isLoading) && (
         <>
-          <div style={{ fontWeight: 600, margin: '28px 0 12px' }}>
+          <div className="u-fw-600" style={{ margin: '28px 0 12px' }}>
             {t('datasources.settings.group_permissions_title')}
           </div>
           <DataTable<DatasourceGroupPermission>
@@ -1354,13 +1338,13 @@ function PermissionMatrix({
                 title: t('datasources.settings.perm_col_group'),
                 dataIndex: 'group_name',
                 render: (_v, p) => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="u-flex u-items-center" style={{ gap: 10 }}>
                     <Tag icon={<TeamOutlined />} color="blue">
                       {t('datasources.settings.perm_group_tag')}
                     </Tag>
                     <div>
-                      <div style={{ fontSize: 13 }}>{p.group_name}</div>
-                      <div className="muted" style={{ fontSize: 11 }}>
+                      <div className="u-text-sm">{p.group_name}</div>
+                      <div className="muted u-text-2xs">
                         {t('datasources.settings.perm_member_count', { count: p.member_count })}
                       </div>
                     </div>
@@ -1396,7 +1380,7 @@ function PermissionMatrix({
               {
                 title: t('datasources.settings.perm_col_schemas'),
                 render: (_v, p) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {p.allowed_schemas ? (
                       p.allowed_schemas.join(', ')
                     ) : (
@@ -1424,11 +1408,11 @@ function PermissionMatrix({
                 width: 170,
                 render: (_v, p) =>
                   p.expires_at ? (
-                    <span className="muted" style={{ fontSize: 12 }}>
+                    <span className="muted u-text-xs">
                       {fmtDate(p.expires_at)}
                     </span>
                   ) : (
-                    <span className="muted" style={{ fontSize: 12 }}>
+                    <span className="muted u-text-xs">
                       {t('datasources.settings.perm_never_expires')}
                     </span>
                   ),
@@ -1464,7 +1448,7 @@ function DeniedColumnsCell({ columns }: { columns: string[] | null | undefined }
   }
   return (
     <Tooltip title={cols.join(', ')}>
-      <StatusTag tone="danger" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" className="u-text-xs">
         {t('datasources.settings.perm_denied_count', { count: cols.length })}
       </StatusTag>
     </Tooltip>
@@ -1485,7 +1469,7 @@ function DeniedTablesCell({
   }
   return (
     <Tooltip title={entries.join(', ')}>
-      <StatusTag tone="danger" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" className="u-text-xs">
         {t('datasources.settings.perm_denied_tables_count', { count: entries.length })}
       </StatusTag>
     </Tooltip>
@@ -1500,7 +1484,7 @@ function DeniedShapesCell({ shapes }: { shapes: QueryShape[] | null | undefined 
   }
   return (
     <Tooltip title={entries.map((shape) => queryShapeLabel(t, shape)).join(', ')}>
-      <StatusTag tone="danger" style={{ fontSize: 12 }}>
+      <StatusTag tone="danger" className="u-text-xs">
         {t('datasources.settings.perm_denied_shapes_count', { count: entries.length })}
       </StatusTag>
     </Tooltip>
@@ -1815,7 +1799,7 @@ function GrantAccessModal({
             />
           </Form.Item>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+        <div className="u-grid u-gap-4" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <Form.Item
             name="can_read"
             label={t('datasources.settings.grant_perm_read_label')}
@@ -1870,7 +1854,7 @@ function GrantAccessModal({
         >
           <InputNumber
             min={1}
-            style={{ width: '100%' }}
+            className="u-w-full"
             placeholder={t('datasources.settings.grant_row_limit_placeholder')}
           />
         </Form.Item>
@@ -2052,7 +2036,7 @@ function GrantAccessModal({
         >
           <DatePicker
             showTime
-            style={{ width: '100%' }}
+            className="u-w-full"
             placeholder={t('datasources.settings.grant_expires_placeholder')}
           />
         </Form.Item>
@@ -2064,18 +2048,9 @@ function GrantAccessModal({
 function PermCell({ on }: { on: boolean }) {
   return on ? (
     <span
-      style={{
-        display: 'inline-flex',
-        width: 20,
-        height: 20,
-        borderRadius: 4,
-        background: 'var(--risk-low-bg)',
-        color: 'var(--risk-low)',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      className="u-inline-flex u-fg-success u-items-center u-justify-center" style={{ width: 20, height: 20, borderRadius: 4, background: 'var(--risk-low-bg)' }}
     >
-      <CheckOutlined style={{ fontSize: 12 }} />
+      <CheckOutlined className="u-text-xs" />
     </span>
   ) : (
     <span
@@ -2113,7 +2088,7 @@ function SchemaTab({ dsId }: { dsId: string }) {
 
   if (schemaQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }} className="muted">
+      <div className="muted u-p-gutter">
         {t('datasources.settings.schema_loading')}
       </div>
     );
@@ -2121,15 +2096,15 @@ function SchemaTab({ dsId }: { dsId: string }) {
 
   if (schemaQuery.isError || !schemaQuery.data) {
     return (
-      <div style={{ padding: 28, color: 'var(--risk-high)' }}>
+      <div className="u-p-gutter" style={{ color: 'var(--risk-high)' }}>
         {t('datasources.settings.schema_error')}
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 28 }}>
-      <p className="muted" style={{ fontSize: 12, marginTop: 0, marginBottom: 12 }}>
+    <div className="u-p-gutter">
+      <p className="muted u-text-xs u-mt-0 u-mb-3">
         {t('datasources.settings.sample_select_prompt')}
       </p>
       <div
@@ -2162,7 +2137,7 @@ function ActivityTab({ dsId }: { dsId: string }) {
   });
   const rows = queriesQuery.data?.content ?? [];
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       {queriesQuery.isLoading ? (
         <Skeleton active paragraph={{ rows: 6 }} />
       ) : queriesQuery.isError ? (

@@ -17,27 +17,16 @@ interface WidgetErrorProps {
 export function WidgetError({ error, onRetry, messageFor = dashboardErrorMessage }: WidgetErrorProps) {
   const { t } = useTranslation();
   return (
-    <div role="alert" style={{ padding: '20px 16px', textAlign: 'center' }}>
+    <div role="alert" className="u-text-center" style={{ padding: '20px 16px' }}>
       <div
-        style={{
-          width: 36,
-          height: 36,
-          margin: '0 auto 10px',
-          borderRadius: 10,
-          background: 'var(--status-warn-bg)',
-          border: '1px solid var(--status-warn-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--status-warn)',
-        }}
+        className="u-flex u-items-center u-justify-center u-fg-warning" style={{ width: 36, height: 36, margin: '0 auto 10px', borderRadius: 10, background: 'var(--status-warn-bg)', border: '1px solid var(--status-warn-border)' }}
       >
-        <WarningOutlined style={{ fontSize: 16 }} />
+        <WarningOutlined className="u-text-lg" />
       </div>
-      <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13 }}>
+      <div className="u-fw-600 u-mb-1 u-text-sm">
         {t('dashboard.error_title')}
       </div>
-      <div className="muted" style={{ fontSize: 12, maxWidth: 360, margin: '0 auto' }}>
+      <div className="muted u-text-xs" style={{ maxWidth: 360, margin: '0 auto' }}>
         {messageFor(error)}
       </div>
       {onRetry && (

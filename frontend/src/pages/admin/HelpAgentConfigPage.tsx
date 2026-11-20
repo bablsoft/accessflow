@@ -147,7 +147,7 @@ export function HelpAgentConfigPage() {
 
   if (cfgQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
@@ -173,7 +173,7 @@ export function HelpAgentConfigPage() {
       <PageBody width="form">
         {readiness === 'ready' ? null : (
           <Alert
-            style={{ marginBottom: 24 }}
+            className="u-mb-6"
             type="info"
             showIcon
             title={t(`admin.help_agent.retrieval_unavailable.${readiness}`)}
@@ -182,7 +182,7 @@ export function HelpAgentConfigPage() {
         )}
         {config?.index_error ? (
           <Alert
-            style={{ marginBottom: 24 }}
+            className="u-mb-6"
             type="warning"
             showIcon
             title={t('admin.help_agent.index_error')}
@@ -240,14 +240,14 @@ export function HelpAgentConfigPage() {
                 label={t('admin.help_agent.label_top_k')}
                 rules={[{ required: true, type: 'number', min: 1, max: 20 }]}
               >
-                <InputNumber min={1} max={20} style={{ width: '100%' }} />
+                <InputNumber min={1} max={20} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="similarity_threshold"
                 label={t('admin.help_agent.label_similarity_threshold')}
                 rules={[{ required: true, type: 'number', min: 0, max: 1 }]}
               >
-                <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
+                <InputNumber min={0} max={1} step={0.05} className="u-w-full" />
               </Form.Item>
             </Grid>
           </Section>
@@ -259,14 +259,14 @@ export function HelpAgentConfigPage() {
                 label={t('admin.help_agent.label_max_history_turns')}
                 rules={[{ required: true, type: 'number', min: 1, max: 50 }]}
               >
-                <InputNumber min={1} max={50} style={{ width: '100%' }} />
+                <InputNumber min={1} max={50} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="max_question_chars"
                 label={t('admin.help_agent.label_max_question_chars')}
                 rules={[{ required: true, type: 'number', min: 100, max: 10000 }]}
               >
-                <InputNumber min={100} max={10000} style={{ width: '100%' }} />
+                <InputNumber min={100} max={10000} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="retention_days"
@@ -274,14 +274,14 @@ export function HelpAgentConfigPage() {
                 extra={t('admin.help_agent.retention_days_help')}
                 rules={[{ required: true, type: 'number', min: 1, max: 3650 }]}
               >
-                <InputNumber min={1} max={3650} style={{ width: '100%' }} />
+                <InputNumber min={1} max={3650} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="per_user_requests_per_minute"
                 label={t('admin.help_agent.label_requests_per_minute')}
                 rules={[{ required: true, type: 'number', min: 1, max: 120 }]}
               >
-                <InputNumber min={1} max={120} style={{ width: '100%' }} />
+                <InputNumber min={1} max={120} className="u-w-full" />
               </Form.Item>
             </Grid>
           </Section>
@@ -331,7 +331,7 @@ export function HelpAgentConfigPage() {
                 },
               ]}
             />
-            <div style={{ marginTop: 12 }}>
+            <div className="u-mt-3">
               <Button
                 icon={<ReloadOutlined />}
                 onClick={() => reindexMutation.mutate()}
@@ -369,7 +369,7 @@ export function HelpAgentConfigPage() {
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>{children}</div>
+    <div className="u-grid u-cols-2 u-gap-4">{children}</div>
   );
 }
 

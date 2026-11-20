@@ -182,7 +182,7 @@ export default function SchemaChangeSetDetailPage() {
 
   if (setQuery.isLoading) {
     return (
-      <div style={{ padding: 24 }} data-testid="schema-change-detail-loading">
+      <div className="u-p-6" data-testid="schema-change-detail-loading">
         <Skeleton active paragraph={{ rows: 10 }} />
       </div>
     );
@@ -244,7 +244,7 @@ export default function SchemaChangeSetDetailPage() {
     <Page>
       <PageHeader
         title={
-          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+          <span className="u-inline-flex u-gap-2 u-items-center">
             {set.name}
             <Tag style={{ color: statusColor.fg, background: statusColor.bg, borderColor: statusColor.border }}>
               {schemaChangeSetStatusLabel(t, set.status)}
@@ -298,22 +298,14 @@ export default function SchemaChangeSetDetailPage() {
         }
       />
       <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: 24,
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)',
-          gap: 20,
-          alignItems: 'start',
-        }}
+        className="u-flex-1 u-p-6 u-grid u-gap-5" style={{ overflow: 'auto', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 380px)', alignItems: 'start' }}
       >
         <Card size="small" title={t('schemaChange.statements.title')}>
           {archived && (
             <Alert
               type="info"
               showIcon
-              style={{ marginBottom: 12 }}
+              className="u-mb-3"
               title={t('schemaChange.statements.archivedTitle')}
               description={t('schemaChange.statements.archivedBody')}
             />
@@ -322,7 +314,7 @@ export default function SchemaChangeSetDetailPage() {
             <Alert
               type="warning"
               showIcon
-              style={{ marginBottom: 12 }}
+              className="u-mb-3"
               data-testid="statements-promotions-error"
               title={t('schemaChange.statements.promotionsUnknown')}
               description={apiErrorMessage(promotionsQuery.error, () =>
@@ -334,7 +326,7 @@ export default function SchemaChangeSetDetailPage() {
             <Alert
               type="info"
               showIcon
-              style={{ marginBottom: 12 }}
+              className="u-mb-3"
               data-testid="statements-frozen"
               title={t('schemaChange.statements.frozenTitle')}
               description={t('schemaChange.statements.frozenBody', {
@@ -358,7 +350,7 @@ export default function SchemaChangeSetDetailPage() {
               onStructureChange={() => setProblems({})}
             />
             {!readOnly && (
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="u-mt-4 u-flex u-justify-end">
                 <Button
                   type="primary"
                   htmlType="submit"
@@ -372,7 +364,7 @@ export default function SchemaChangeSetDetailPage() {
           </Form>
         </Card>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-flex u-col u-gap-4">
           <Card size="small" title={t('schemaChange.ladder.title')}>
             {ladderQuery.isLoading && <Skeleton active paragraph={{ rows: 3 }} />}
             {ladderQuery.isError && (
@@ -387,7 +379,7 @@ export default function SchemaChangeSetDetailPage() {
             )}
             {ladderQuery.data && ladderQuery.data.rungs.length > 0 && (
               <>
-                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                <div className="muted u-text-xs" style={{ marginBottom: 10 }}>
                   {t('schemaChange.ladder.hint')}
                 </div>
                 <PromotionLadder

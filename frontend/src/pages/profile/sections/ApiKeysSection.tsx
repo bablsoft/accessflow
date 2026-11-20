@@ -145,7 +145,7 @@ export function ApiKeysSection() {
   }
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
       {error && (
         <Alert
           type="error"
@@ -156,7 +156,7 @@ export function ApiKeysSection() {
         />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="u-flex u-justify-between u-items-center">
         <Typography.Text type="secondary">{t('profile.api_keys.description')}</Typography.Text>
         <Button type="primary" onClick={() => setCreateOpen(true)}>
           {t('profile.api_keys.create')}
@@ -267,7 +267,7 @@ export function ApiKeysSection() {
         destroyOnHidden
       >
         {issuedKey && (
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" className="u-w-full">
             <Alert type="warning" showIcon title={t('profile.api_keys.copy_once_warning')} />
             <Typography.Text strong>{t('profile.api_keys.name_label')}</Typography.Text>
             <Typography.Text>{issuedKey.api_key.name}</Typography.Text>

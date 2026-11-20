@@ -9,18 +9,18 @@ export function ChangeTicketLink({ ticket }: { ticket: DeploymentTicketRef }) {
   const { t } = useTranslation();
   const color = ticket.decision ? deploymentTicketDecisionColor(ticket.decision) : null;
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <span className="u-inline-flex u-items-center u-gap-2">
       {ticket.url ? (
         <a
           href={ticket.url}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontFamily: 'var(--font-mono)' }}
+          className="u-mono"
         >
           {ticket.external_key}
         </a>
       ) : (
-        <span style={{ fontFamily: 'var(--font-mono)' }}>{ticket.external_key}</span>
+        <span className="u-mono">{ticket.external_key}</span>
       )}
       {ticket.decision && color && (
         <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>

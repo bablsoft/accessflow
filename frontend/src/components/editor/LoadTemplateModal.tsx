@@ -55,7 +55,7 @@ export function LoadTemplateModal({ template, onCancel, onConfirm }: LoadTemplat
       okText={t('editor.templates.load_button')}
       cancelText={t('common.cancel')}
     >
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted u-mt-0">
         {t('editor.templates.load_modal_intro', { count: placeholders.length })}
       </p>
       <Form layout="vertical" form={form} preserve={false}>
@@ -71,7 +71,7 @@ export function LoadTemplateModal({ template, onCancel, onConfirm }: LoadTemplat
               },
             ]}
           >
-            <Input style={{ fontFamily: 'var(--font-mono)' }} />
+            <Input className="u-mono" />
           </Form.Item>
         ))}
       </Form>

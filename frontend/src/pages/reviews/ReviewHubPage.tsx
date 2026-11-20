@@ -120,12 +120,12 @@ export function ReviewHubPage() {
       />
       <Suspense
         fallback={
-          <div style={{ padding: 24 }}>
+          <div className="u-p-6">
             <Skeleton active paragraph={{ rows: 6 }} />
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
           {activeTab.element}
         </div>
       </Suspense>

@@ -91,7 +91,7 @@ export default function RequestGroupListPage() {
     {
       title: t('requestGroups.list.name'),
       dataIndex: 'name',
-      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
+      render: (v: string) => <span className="u-fw-600">{v}</span>,
     },
     {
       title: t('requestGroups.list.members'),
@@ -111,7 +111,7 @@ export default function RequestGroupListPage() {
         r.ai_risk_level != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>
+          <span className="muted u-text-2xs">
             —
           </span>
         ),
@@ -121,7 +121,7 @@ export default function RequestGroupListPage() {
       width: 160,
       ellipsis: true,
       render: (_v, r) => (
-        <span style={{ fontSize: 12 }}>
+        <span className="u-text-xs">
           {r.submitted_by_display_name ?? r.submitted_by_user_id.slice(0, 8)}
         </span>
       ),
@@ -131,7 +131,7 @@ export default function RequestGroupListPage() {
       dataIndex: 'created_at',
       width: 110,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -141,7 +141,7 @@ export default function RequestGroupListPage() {
       key: 'actions',
       width: 200,
       render: (_v, r) => (
-        <span style={{ display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+        <span className="u-flex u-gap-2" onClick={(e) => e.stopPropagation()}>
           <Button size="small" onClick={() => navigate(`/request-groups/${r.id}`)}>
             {t('requestGroups.list.view')}
           </Button>
@@ -185,7 +185,7 @@ export default function RequestGroupListPage() {
       />
       <FilterBar>
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('requestGroups.list.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -206,7 +206,7 @@ export default function RequestGroupListPage() {
       </FilterBar>
       <PageBody flush>
         {groupsQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

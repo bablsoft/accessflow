@@ -107,7 +107,7 @@ export default function CampaignDetailPage() {
   const items = itemsQuery.data?.content ?? [];
 
   if (campaignQuery.isLoading) {
-    return <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />;
+    return <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />;
   }
   if (campaignQuery.isError || !campaign) {
     return (
@@ -189,15 +189,7 @@ export default function CampaignDetailPage() {
         }
       />
       <div
-        style={{
-          padding: '16px var(--gutter)',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 28,
-          alignItems: 'center',
-        }}
+        className="u-flex u-wrap u-items-center" style={{ padding: '16px var(--gutter)', borderBottom: '1px solid var(--border)', background: 'var(--bg-elev)', gap: 28 }}
       >
         <Pill fg={statusColor.fg} bg={statusColor.bg} border={statusColor.border} withDot>
           {attestationCampaignStatusLabel(t, campaign.status)}
@@ -213,11 +205,11 @@ export default function CampaignDetailPage() {
         <Stat label={t('attestation.detail.section_revoked')}>{campaign.revoked_items}</Stat>
       </div>
       <PageBody flush>
-        <div style={{ padding: '14px 16px 6px', fontWeight: 600, fontSize: 13 }}>
+        <div className="u-fw-600 u-text-sm" style={{ padding: '14px 16px 6px' }}>
           {t('attestation.detail.items_title')}
         </div>
         {itemsQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : items.length === 0 ? (
           <EmptyState
             title={t('attestation.detail.items_title')}
@@ -240,14 +232,14 @@ export default function CampaignDetailPage() {
                 title: t('attestation.detail.col_subject'),
                 key: 'subject',
                 render: (_v, item) => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="u-flex u-items-center" style={{ gap: 10 }}>
                     <Avatar name={item.subject_user_email} size={24} />
                     <div>
-                      <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
                         {item.subject_user_display_name}
                         <PrincipalTypeTag principalType={item.subject_principal_type} />
                       </div>
-                      <div className="mono muted" style={{ fontSize: 11 }}>
+                      <div className="mono muted u-text-2xs">
                         {item.subject_user_email}
                       </div>
                     </div>
@@ -298,12 +290,12 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div>
       <div
-        className="muted"
-        style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        className="muted u-text-2xs"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 14, fontWeight: 500 }}>{children}</div>
+      <div className="u-text-md u-fw-500">{children}</div>
     </div>
   );
 }

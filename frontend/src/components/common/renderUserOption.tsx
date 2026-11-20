@@ -10,7 +10,7 @@ export function renderUserOption(option: {
   data: { label?: ReactNode; principal_type?: PrincipalType };
 }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <span className="u-inline-flex u-items-center u-gap-2">
       <span>{option.data.label}</span>
       <PrincipalTypeTag principalType={option.data.principal_type} />
     </span>

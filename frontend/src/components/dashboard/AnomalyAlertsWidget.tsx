@@ -56,7 +56,7 @@ export function AnomalyAlertsWidget() {
     return (
       <EmptyState
         size="sm"
-        icon={<SafetyOutlined style={{ fontSize: 16 }} />}
+        icon={<SafetyOutlined className="u-text-lg" />}
         title={t('dashboard.anomalies.empty')}
       />
     );
@@ -92,7 +92,7 @@ export function AnomalyAlertsWidget() {
           <List.Item.Meta
             title={<span>{a.ai_summary ?? a.feature}</span>}
             description={
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="muted u-text-xs">
                 {a.datasource_name ?? '—'} · {t('dashboard.anomalies.score')}: {fmtNum(a.score)} ·{' '}
                 {timeAgo(a.detected_at)}
               </span>

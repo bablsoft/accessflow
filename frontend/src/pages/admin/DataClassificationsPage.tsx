@@ -53,7 +53,7 @@ export function DataClassificationsPage() {
               {
                 title: t('admin.data_classifications.col_object'),
                 render: (_v, row) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {row.column_name ? `${row.table_name}.${row.column_name}` : row.table_name}
                   </span>
                 ),
@@ -70,13 +70,13 @@ export function DataClassificationsPage() {
                 title: t('admin.data_classifications.col_note'),
                 dataIndex: 'note',
                 render: (v: string | null) =>
-                  v ? <span style={{ fontSize: 12 }}>{v}</span> : <span className="muted">—</span>,
+                  v ? <span className="u-text-xs">{v}</span> : <span className="muted">—</span>,
               },
               {
                 title: t('admin.data_classifications.col_created'),
                 dataIndex: 'created_at',
                 width: 180,
-                render: (v: string) => <span style={{ fontSize: 12 }}>{fmtDate(v)}</span>,
+                render: (v: string) => <span className="u-text-xs">{fmtDate(v)}</span>,
               },
             ]}
           />

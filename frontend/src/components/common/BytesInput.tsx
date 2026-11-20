@@ -35,7 +35,7 @@ export function BytesInput({
   };
 
   return (
-    <Space.Compact style={{ width: '100%' }}>
+    <Space.Compact className="u-w-full">
       <InputNumber<number>
         id={id}
         min={0}

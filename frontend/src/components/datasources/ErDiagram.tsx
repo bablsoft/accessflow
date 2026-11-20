@@ -30,59 +30,36 @@ function TableNode({ id, data }: NodeProps<Node<TableNodeData>>) {
   return (
     <div
       onClick={() => data.onSelect(id)}
-      style={{
-        width: NODE_WIDTH,
-        border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 6,
-        background: 'var(--bg)',
-        boxShadow: isSelected
+      className="u-text-xs" style={{ width: NODE_WIDTH, border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 6, background: 'var(--bg)', boxShadow: isSelected
           ? '0 0 0 2px var(--accent-soft, rgba(99,102,241,0.18))'
-          : '0 1px 2px rgba(0,0,0,0.04)',
-        fontSize: 12,
-        overflow: 'hidden',
-        cursor: 'pointer',
-      }}
+          : '0 1px 2px rgba(0,0,0,0.04)', overflow: 'hidden', cursor: 'pointer' }}
     >
       <Handle type="target" position={Position.Left} style={{ background: 'var(--border)' }} />
       <Handle type="source" position={Position.Right} style={{ background: 'var(--border)' }} />
       <div
-        style={{
-          padding: '8px 12px',
-          background: 'var(--bg-sunken)',
-          borderBottom: '1px solid var(--border)',
-          fontWeight: 600,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-        }}
+        className="u-fw-600 u-mono u-text-xs" style={{ padding: '8px 12px', background: 'var(--bg-sunken)', borderBottom: '1px solid var(--border)' }}
       >
-        <span className="muted" style={{ fontWeight: 400 }}>{data.schema}.</span>
+        <span className="muted u-fw-400">{data.schema}.</span>
         {data.table}
       </div>
       <div style={{ maxHeight: MAX_NODE_HEIGHT - HEADER_HEIGHT, overflowY: 'auto' }}>
         {data.columns.map((c) => (
           <div
             key={c.name}
-            style={{
-              padding: '3px 12px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 8,
-              fontFamily: 'var(--font-mono)',
-              borderBottom: '1px solid var(--border-faint, transparent)',
-            }}
+            className="u-flex u-justify-between u-gap-2 u-mono" style={{ padding: '3px 12px', borderBottom: '1px solid var(--border-faint, transparent)' }}
           >
             <span>
               {c.primary_key && (
                 <span
-                  className="muted"
-                  style={{ fontSize: 11, marginRight: 6, fontWeight: 600 }}
+                  className="muted u-text-2xs u-fw-600"
+                  style={{ marginRight: 6 }}
                 >
                   {data.pkLabel}
                 </span>
               )}
               {c.name}
             </span>
-            <span className="muted" style={{ fontSize: 11 }}>{c.type}</span>
+            <span className="muted u-text-2xs">{c.type}</span>
           </div>
         ))}
       </div>
@@ -110,7 +87,7 @@ export function ErDiagram({ schemas, helpText }: ErDiagramProps) {
 
   return (
     <div
-      style={{ width: '100%', height: 560, border: '1px solid var(--border)', borderRadius: 8 }}
+      className="u-w-full" style={{ height: 560, border: '1px solid var(--border)', borderRadius: 8 }}
     >
       <ReactFlow
         nodes={nodes}
@@ -129,8 +106,8 @@ export function ErDiagram({ schemas, helpText }: ErDiagramProps) {
       </ReactFlow>
       {helpText && (
         <div
-          className="muted"
-          style={{ fontSize: 11, padding: '6px 12px', borderTop: '1px solid var(--border)' }}
+          className="muted u-text-2xs"
+          style={{ padding: '6px 12px', borderTop: '1px solid var(--border)' }}
         >
           {helpText}
         </div>

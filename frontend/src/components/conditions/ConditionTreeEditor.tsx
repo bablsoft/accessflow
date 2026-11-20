@@ -121,25 +121,15 @@ export function ConditionTreeEditor<O extends string>({
               {fields.map(({ key, name }) => (
                 <div
                   key={key}
-                  style={{
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 6,
-                    padding: 8,
-                    marginBottom: 8,
-                  }}
+                  className="u-p-2 u-mb-2" style={{ border: '1px solid var(--border-subtle)', borderRadius: 6 }}
                 >
                   <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 90px 32px',
-                      gap: 8,
-                      alignItems: 'center',
-                    }}
+                    className="u-grid u-gap-2 u-items-center" style={{ gridTemplateColumns: '1fr 90px 32px' }}
                   >
                     <Form.Item
                       name={[name, 'operand']}
                       rules={[{ required: true }]}
-                      style={{ marginBottom: 0 }}
+                      className="u-mb-0"
                     >
                       <Select
                         aria-label={t('conditions.editor.operand_label')}
@@ -155,7 +145,7 @@ export function ConditionTreeEditor<O extends string>({
                       name={[name, 'negate']}
                       valuePropName="checked"
                       tooltip={t('conditions.editor.negate_hint')}
-                      style={{ marginBottom: 0 }}
+                      className="u-mb-0"
                     >
                       <Switch
                         checkedChildren={t('conditions.editor.not_prefix')}
@@ -169,7 +159,7 @@ export function ConditionTreeEditor<O extends string>({
                       onClick={() => remove(name)}
                     />
                   </div>
-                  <div style={{ marginTop: 8 }}>
+                  <div className="u-mt-2">
                     <Form.Item
                       noStyle
                       shouldUpdate={(prev, cur) =>
@@ -248,11 +238,7 @@ function ConditionValueEditor({ name, spec }: { name: number; spec: ConditionVal
     case 'comparison':
       return (
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: spec.input === 'bytes' ? '1fr 2fr' : '1fr 1fr',
-            gap: 8,
-          }}
+          className="u-grid u-gap-2" style={{ gridTemplateColumns: spec.input === 'bytes' ? '1fr 2fr' : '1fr 1fr' }}
         >
           <Form.Item name={[name, spec.operatorField]} rules={[{ required: true }]} style={FLUSH}>
             <Select options={enumOptions(COMPARISON_OPERATORS, comparisonOperatorLabel, t)} />
@@ -271,7 +257,7 @@ function ConditionValueEditor({ name, spec }: { name: number; spec: ConditionVal
                 precision={spec.precision}
                 suffix={spec.suffix}
                 aria-label={spec.ariaLabel}
-                style={{ width: '100%' }}
+                className="u-w-full"
               />
             )}
           </Form.Item>
@@ -280,7 +266,7 @@ function ConditionValueEditor({ name, spec }: { name: number; spec: ConditionVal
     case 'time-range':
       return (
         <Form.Item name={[name, spec.field]} rules={[{ required: true }]} style={FLUSH}>
-          <TimePicker.RangePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+          <TimePicker.RangePicker format="HH:mm" minuteStep={15} className="u-w-full" />
         </Form.Item>
       );
     case 'regex': {
@@ -295,13 +281,13 @@ function ConditionValueEditor({ name, spec }: { name: number; spec: ConditionVal
         });
       }
       return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'start' }}>
+        <div className="u-grid u-gap-2" style={{ gridTemplateColumns: '1fr auto', alignItems: 'start' }}>
           <Form.Item name={[name, spec.patternField]} rules={rules} style={FLUSH}>
             <Input
               aria-label={spec.patternLabel}
               placeholder={spec.placeholder}
               maxLength={spec.maxLength}
-              style={{ fontFamily: 'var(--font-mono)' }}
+              className="u-mono"
             />
           </Form.Item>
           <Form.Item

@@ -46,15 +46,7 @@ export function BootGate({ children }: BootGateProps) {
   if (!ready) {
     return (
       <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg)',
-          color: 'var(--fg-muted)',
-          fontSize: 24,
-        }}
+        className="u-flex u-items-center u-justify-center u-fg-muted u-text-2xl" style={{ minHeight: '100vh', background: 'var(--bg)' }}
         aria-label="Loading"
       >
         <LoadingOutlined />
@@ -66,31 +58,13 @@ export function BootGate({ children }: BootGateProps) {
     return (
       <div
         role="alert"
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 12,
-          background: 'var(--bg)',
-          color: 'var(--fg)',
-          padding: 24,
-          textAlign: 'center',
-        }}
+        className="u-flex u-col u-items-center u-justify-center u-gap-3 u-fg u-p-6 u-text-center" style={{ minHeight: '100vh', background: 'var(--bg)' }}
       >
-        <div style={{ fontSize: 16, fontWeight: 600 }}>{bootError}</div>
+        <div className="u-text-lg u-fw-600">{bootError}</div>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          style={{
-            padding: '8px 16px',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            background: 'var(--bg-elev)',
-            color: 'var(--fg)',
-            cursor: 'pointer',
-          }}
+          className="u-fg" style={{ padding: '8px 16px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-elev)', cursor: 'pointer' }}
         >
           {t('common.retry')}
         </button>

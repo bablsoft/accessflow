@@ -113,7 +113,7 @@ export function NotificationBell() {
         </span>
       </div>
       {listQuery.isLoading && open ? (
-        <div style={{ padding: 12 }}>
+        <div className="u-p-3">
           <Skeleton active paragraph={{ rows: 3 }} />
         </div>
       ) : items.length === 0 ? (

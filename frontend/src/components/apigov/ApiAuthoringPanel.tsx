@@ -52,10 +52,10 @@ export function ApiAuthoringPanel({
             <Tag>
               {riskLevelLabel(t, authoring.preview.risk_level)} · {authoring.preview.risk_score}
             </Tag>
-            <p style={{ marginTop: 8 }}>{authoring.preview.summary}</p>
-            <ul style={{ paddingLeft: 18, margin: 0 }}>
+            <p className="u-mt-2">{authoring.preview.summary}</p>
+            <ul className="u-m-0" style={{ paddingLeft: 18 }}>
               {authoring.preview.issues.map((issue, i) => (
-                <li key={i} style={{ fontSize: 12 }}>{issue}</li>
+                <li key={i} className="u-text-xs">{issue}</li>
               ))}
             </ul>
           </div>
@@ -73,7 +73,7 @@ export function ApiAuthoringPanel({
             placeholder={t('apiGov.editor.textToApiHint')}
           />
           <Button
-            style={{ marginTop: 8 }}
+            className="u-mt-2"
             onClick={authoring.generate}
             loading={authoring.generating}
             disabled={!authoring.prompt}
@@ -101,14 +101,14 @@ export function ApiAuthoringPanel({
           : { display: 'flex', flexDirection: 'column', gap: 14 }
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="u-flex u-col" style={{ gap: 14 }}>
         {header}
 
         {connector?.schema_present && (
           <label>
-            <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.operation')}</div>
+            <div className="muted u-mb-1">{t('apiGov.editor.operation')}</div>
             <Select
-              style={{ width: '100%' }}
+              className="u-w-full"
               allowClear
               showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('apiGov.editor.searchOperation')}
@@ -122,7 +122,7 @@ export function ApiAuthoringPanel({
           </label>
         )}
 
-        <Space.Compact style={{ width: '100%' }}>
+        <Space.Compact className="u-w-full">
           <Input
             style={{ width: 120 }}
             value={value.verb}
@@ -148,7 +148,7 @@ export function ApiAuthoringPanel({
         {footer}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>{cards}</div>
+      <div className="u-flex u-col" style={{ gap: 14 }}>{cards}</div>
     </div>
   );
 }

@@ -90,7 +90,7 @@ export function SamlConfigPage() {
 
   if (cfgQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 12 }} />
       </div>
     );
@@ -222,7 +222,7 @@ export function SamlConfigPage() {
 
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>{children}</div>
+    <div className="u-grid u-cols-2 u-gap-4">{children}</div>
   );
 }
 

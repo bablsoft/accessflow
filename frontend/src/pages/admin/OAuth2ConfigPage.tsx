@@ -63,7 +63,7 @@ export function OAuth2ConfigPage() {
 
   if (listQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 12 }} />
       </div>
     );
@@ -255,10 +255,10 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       <Alert
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        className="u-mb-4"
         title={t('admin.oauth2.setup_intro_title', { provider: PROVIDERS.find((p) => p.provider === provider)?.label })}
         description={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="u-flex u-col u-gap-2">
             <div>
               <Trans
                 i18nKey={`admin.oauth2.setup_intro.${provider.toLowerCase()}`}
@@ -278,10 +278,10 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
               />
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+              <div className="u-fw-600 u-text-xs u-mb-1">
                 {t('admin.oauth2.callback_url_label')}
               </div>
-              <Space.Compact style={{ width: '100%' }}>
+              <Space.Compact className="u-w-full">
                 <Input
                   value={callbackUrl}
                   readOnly
@@ -294,7 +294,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
                   aria-label={t('admin.oauth2.callback_url_copy')}
                 />
               </Space.Compact>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              <div className="muted u-text-xs u-mt-1">
                 {t('admin.oauth2.callback_url_help')}
               </div>
             </div>
@@ -307,7 +307,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           <span>
             {t('admin.oauth2.label_client_id')}{' '}
             <Tooltip title={t(`admin.oauth2.client_id_tooltip.${provider.toLowerCase()}`)}>
-              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              <QuestionCircleOutlined className="u-fg-muted" />
             </Tooltip>
           </span>
         }
@@ -321,7 +321,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           <span>
             {t('admin.oauth2.label_client_secret')}{' '}
             <Tooltip title={t(`admin.oauth2.client_secret_tooltip.${provider.toLowerCase()}`)}>
-              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              <QuestionCircleOutlined className="u-fg-muted" />
             </Tooltip>
           </span>
         }
@@ -336,7 +336,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           <span>
             {t('admin.oauth2.label_scopes')}{' '}
             <Tooltip title={t('admin.oauth2.scopes_tooltip', { defaults: defaultScopesFor(provider) })}>
-              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              <QuestionCircleOutlined className="u-fg-muted" />
             </Tooltip>
           </span>
         }
@@ -352,7 +352,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
             <span>
               {t('admin.oauth2.label_base_url')}{' '}
               <Tooltip title={t(`admin.oauth2.base_url_tooltip.${provider.toLowerCase()}`)}>
-                <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+                <QuestionCircleOutlined className="u-fg-muted" />
               </Tooltip>
             </span>
           }
@@ -381,7 +381,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
             <span>
               {t('admin.oauth2.label_tenant_id')}{' '}
               <Tooltip title={t('admin.oauth2.tenant_id_tooltip')}>
-                <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+                <QuestionCircleOutlined className="u-fg-muted" />
               </Tooltip>
             </span>
           }
@@ -465,7 +465,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           <Alert
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            className="u-mb-4"
             title={t('admin.oauth2.help_oidc_attribute_defaults')}
           />
           <Form.Item
@@ -514,7 +514,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
             <Tooltip
               title={t(`admin.oauth2.allowed_orgs_help.${provider.toLowerCase()}`)}
             >
-              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              <QuestionCircleOutlined className="u-fg-muted" />
             </Tooltip>
           </span>
         }
@@ -541,7 +541,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           <span>
             {t('admin.oauth2.label_allowed_email_domains')}{' '}
             <Tooltip title={t('admin.oauth2.allowed_domains_help')}>
-              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              <QuestionCircleOutlined className="u-fg-muted" />
             </Tooltip>
           </span>
         }
@@ -574,7 +574,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
               <Alert
                 type="warning"
                 showIcon
-                style={{ marginBottom: 16 }}
+                className="u-mb-4"
                 title={t('admin.oauth2.github_read_org_scope_warning_title')}
                 description={t('admin.oauth2.github_read_org_scope_warning')}
               />
@@ -594,12 +594,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       </Form.Item>
 
       <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          paddingTop: 16,
-          borderTop: '1px solid var(--border)',
-        }}
+        className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
       >
         <Button
           type="primary"

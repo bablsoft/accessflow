@@ -12,7 +12,7 @@ export function showApiError(
   if (traceId) {
     messageApi.error({
       content: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span className="u-inline-flex u-items-center u-gap-2">
           <span>{text}</span>
           <TraceIdFooter traceId={traceId} />
         </span>

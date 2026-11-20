@@ -29,19 +29,14 @@ export function JdbcUrlPreview({ template, host, port, databaseName }: JdbcUrlPr
       }}
     >
       <div
-        className="muted mono"
-        style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          marginBottom: 4,
-        }}
+        className="muted mono u-text-2xs u-mb-1"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {t('datasources.create.connection_url_preview_label')}
       </div>
       <Typography.Paragraph
         copyable
-        style={{ marginBottom: 0, fontFamily: 'var(--font-mono)', fontSize: 12, wordBreak: 'break-all' }}
+        className="u-mb-0 u-mono u-text-xs" style={{ wordBreak: 'break-all' }}
       >
         {url}
       </Typography.Paragraph>

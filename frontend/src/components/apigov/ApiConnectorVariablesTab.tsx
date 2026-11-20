@@ -126,19 +126,13 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('apiGov.settings.variables.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('apiGov.settings.variables.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('apiGov.settings.variables.description')}
           </div>
         </div>
@@ -172,7 +166,7 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
               title: t('apiGov.settings.variables.col_name'),
               width: 200,
               render: (_v, variable) => (
-                <span className="mono" style={{ fontSize: 12 }}>{`{{${variable.name}}}`}</span>
+                <span className="mono u-text-xs">{`{{${variable.name}}}`}</span>
               ),
             },
             {
@@ -184,7 +178,7 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
             {
               title: t('apiGov.settings.variables.col_expression'),
               render: (_v, variable) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {variable.expression ?? '—'}
                 </span>
               ),
@@ -194,11 +188,11 @@ export function ApiConnectorVariablesTab({ connectorId }: { connectorId: string 
               width: 180,
               render: (_v, variable) =>
                 variable.target ? (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {variable.target}
                   </span>
                 ) : (
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted u-text-xs">
                     {t('apiGov.settings.variables.target_none')}
                   </span>
                 ),
@@ -469,7 +463,7 @@ function VariableModal({ open, connectorId, variable, onClose }: VariableModalPr
           <Alert
             type="warning"
             showIcon
-            style={{ marginBottom: 16 }}
+            className="u-mb-4"
             title={t('apiGov.settings.variables.md5_warning')}
           />
         )}

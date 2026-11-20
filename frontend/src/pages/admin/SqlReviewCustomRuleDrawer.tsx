@@ -132,7 +132,7 @@ export function SqlReviewCustomRuleDrawer({
           : t('admin.sql_review.custom_rules.create_title')
       }
       footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div className="u-flex u-justify-end u-gap-2">
           <Button onClick={close}>{t('common.cancel')}</Button>
           <Button type="primary" loading={saving} onClick={() => form.submit()}>
             {rule
@@ -146,7 +146,7 @@ export function SqlReviewCustomRuleDrawer({
         <Alert
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          className="u-mb-4"
           title={t('admin.sql_review.custom_rules.condition_advanced_warning')}
         />
       )}
@@ -159,7 +159,7 @@ export function SqlReviewCustomRuleDrawer({
         initialValues={initial.values}
         onFinish={onFinish}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid u-cols-2 u-gap-3">
           {/* slug ↔ rule_id @Pattern ^custom_[a-z][a-z0-9_]{2,60}$ — immutable after create */}
           <Form.Item
             name="slug"
@@ -200,7 +200,7 @@ export function SqlReviewCustomRuleDrawer({
         >
           <Input.TextArea rows={2} maxLength={MAX_MESSAGE_LENGTH} />
         </Form.Item>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12 }}>
+        <div className="u-grid u-gap-3" style={{ gridTemplateColumns: '1fr 1fr auto' }}>
           <Form.Item
             name="category"
             label={t('admin.sql_review.custom_rules.label_category')}
@@ -234,12 +234,12 @@ export function SqlReviewCustomRuleDrawer({
 
       <section
         aria-label={t('admin.sql_review.custom_rules.test_heading')}
-        style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, marginTop: 8 }}
+        className="u-mt-2" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}
       >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+        <div className="u-fw-600 u-mb-1">
           {t('admin.sql_review.custom_rules.test_heading')}
         </div>
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+        <div className="muted u-text-xs u-mb-2">
           {t('admin.sql_review.custom_rules.test_hint')}
         </div>
         <Form<TestFormValues>
@@ -275,7 +275,7 @@ export function SqlReviewCustomRuleDrawer({
         >
           {t('admin.sql_review.custom_rules.run_test')}
         </Button>
-        <div style={{ marginTop: 12 }} data-testid="sql-review-rule-test-result">
+        <div className="u-mt-3" data-testid="sql-review-rule-test-result">
           {testMutation.isError && (
             <Alert type="error" showIcon title={sqlReviewRuleErrorMessage(testMutation.error)} />
           )}

@@ -37,26 +37,21 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
 
   return (
     <div
-      style={{
-        marginTop: 24,
-        padding: '14px 16px',
-        background: 'var(--bg-sunken)',
-        borderRadius: 8,
-      }}
+      className="u-mt-6" style={{ padding: '14px 16px', background: 'var(--bg-sunken)', borderRadius: 8 }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+      <div className="u-fw-600 u-mb-1">
         {t('datasources.settings.classification.derivation_title')}
       </div>
-      <div className="muted" style={{ fontSize: 12, marginBottom: 12, maxWidth: 640 }}>
+      <div className="muted u-text-xs u-mb-3" style={{ maxWidth: 640 }}>
         {t('datasources.settings.classification.derivation_description')}
       </div>
 
       {posture && (
-        <div style={{ marginBottom: 16 }}>
-          <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+        <div className="u-mb-4">
+          <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
             {t('datasources.settings.classification.review_posture_label')}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="u-flex u-wrap u-gap-2 u-items-center">
             <PostureFlag on={posture.requires_ai_review} label={t('datasources.settings.classification.posture_ai_review')} />
             <PostureFlag on={posture.requires_human_approval} label={t('datasources.settings.classification.posture_human_approval')} />
             <Tag>
@@ -64,7 +59,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
                 count: posture.min_approvals,
               })}
             </Tag>
-            <span className="muted" style={{ fontSize: 11 }}>
+            <span className="muted u-text-2xs">
               {t('datasources.settings.classification.driven_by')}:
             </span>
             {drivenBy.map((c: DataClassification) => (
@@ -76,7 +71,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
         </div>
       )}
 
-      <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+      <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
         {t('datasources.settings.classification.masking_suggestions_label')}
       </div>
       <DataTable<ClassificationMaskingSuggestion>
@@ -90,7 +85,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
           {
             title: t('datasources.settings.classification.col_column'),
             dataIndex: 'column_ref',
-            render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+            render: (v: string) => <span className="mono u-text-xs">{v}</span>,
           },
           {
             title: t('datasources.settings.classification.col_classification'),
@@ -116,7 +111,7 @@ export function ClassificationDerivationPanel({ dsId }: { dsId: string }) {
               return (
                 <Tooltip title={label}>
                   {applied ? (
-                    <CheckCircleOutlined aria-label={label} style={{ color: 'var(--risk-low)' }} />
+                    <CheckCircleOutlined aria-label={label} className="u-fg-success" />
                   ) : (
                     <MinusCircleOutlined aria-label={label} className="muted" />
                   )}

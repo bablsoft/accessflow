@@ -88,19 +88,13 @@ export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string })
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('apiGov.settings.masking.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('apiGov.settings.masking.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('apiGov.settings.masking.description')}
           </div>
         </div>
@@ -139,7 +133,7 @@ export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string })
             {
               title: t('apiGov.settings.masking.col_field'),
               render: (_v, p) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {p.operation_id ? `${p.operation_id} · ` : ''}
                   {p.field_ref}
                 </span>
@@ -166,7 +160,7 @@ export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string })
                 return (
                   <Tooltip title={label}>
                     {p.enabled ? (
-                      <CheckCircleOutlined aria-label={label} style={{ color: 'var(--risk-low)' }} />
+                      <CheckCircleOutlined aria-label={label} className="u-fg-success" />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
                     )}
@@ -230,12 +224,12 @@ function RevealSummary({ policy }: { policy: ApiConnectorMaskingPolicy }) {
   }
   if (parts.length === 0) {
     return (
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('apiGov.settings.masking.reveal_none')}
       </span>
     );
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface MaskingFormValues extends StrategyParamFormValues {

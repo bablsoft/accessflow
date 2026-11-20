@@ -52,7 +52,7 @@ export function ApiRequestComposer({
   };
 
   const bodyTab = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-flex u-col u-gap-3">
       <Radio.Group
         value={value.bodyType}
         onChange={(e) => patch({ bodyType: e.target.value as ApiBodyType })}
@@ -80,7 +80,7 @@ export function ApiRequestComposer({
         />
       )}
       {value.bodyType === 'FORM_DATA' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-flex u-col u-gap-2">
           {value.formFields.map((field, index) => (
             <Space key={index} align="start">
               <Input
@@ -175,11 +175,11 @@ export function ApiRequestComposer({
           key: 'headers',
           label: t('apiGov.editor.tabHeaders'),
           children: (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="u-flex u-col u-gap-3">
               <KeyValueEditor pairs={value.headers} onChange={(p) => patch({ headers: p })} />
               {defaultHeaderPairs.length > 0 && (
                 <div>
-                  <div className="muted" style={{ marginBottom: 4 }}>
+                  <div className="muted u-mb-1">
                     {t('apiGov.editor.defaultHeaders')} · {t('apiGov.editor.defaultHeadersHint')}
                   </div>
                   <KeyValueEditor pairs={defaultHeaderPairs} onChange={() => undefined} disabled />
@@ -195,11 +195,11 @@ export function ApiRequestComposer({
                 key: 'variables',
                 label: t('apiGov.editor.tabVariables'),
                 children: (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="u-flex u-col u-gap-3">
                     <div className="muted">{t('apiGov.editor.variablesHint')}</div>
                     {overridableVariables.length > 0 ? (
                       <div>
-                        <div className="muted" style={{ marginBottom: 4 }}>
+                        <div className="muted u-mb-1">
                           {t('apiGov.editor.variableOverrides')} ·{' '}
                           {t('apiGov.editor.variableOverridesHint')}
                         </div>
@@ -212,10 +212,10 @@ export function ApiRequestComposer({
                       <div className="muted">{t('apiGov.editor.noOverridableVariables')}</div>
                     )}
                     <div>
-                      <div className="muted" style={{ marginBottom: 4 }}>
+                      <div className="muted u-mb-1">
                         {t('apiGov.editor.availableVariables')}
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      <div className="u-flex u-wrap u-gap-2">
                         {connectorVariables.map((v) => (
                           <Tooltip key={v.name} title={v.description ?? undefined}>
                             <StatusTag tone={v.overridable ? 'info' : 'neutral'}>

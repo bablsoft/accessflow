@@ -60,20 +60,16 @@ function WeekStrip({ windows }: { windows: DeploymentFreezeWindow[] }) {
   if (segments.length === 0) return null;
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+      <div className="u-text-xs u-fw-600" style={{ marginBottom: 6 }}>
         {t('deploygov.freezeWindows.weekTitle')}
       </div>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: 4,
-        }}
+        className="u-grid u-gap-1" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}
         data-testid="freeze-week-strip"
       >
         {ISO_DAYS.map((day) => (
           <div key={day}>
-            <div className="muted" style={{ fontSize: 11, textAlign: 'center', marginBottom: 2 }}>
+            <div className="muted u-text-2xs u-text-center" style={{ marginBottom: 2 }}>
               {isoWeekdayLabel(t, day)}
             </div>
             <div
@@ -119,7 +115,7 @@ function WeekStrip({ windows }: { windows: DeploymentFreezeWindow[] }) {
           </div>
         ))}
       </div>
-      <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+      <div className="muted u-text-2xs u-mt-1">
         {t('deploygov.freezeWindows.weekHint')}
       </div>
     </div>
@@ -245,13 +241,13 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
         w.pipeline_id == null ? (
           <StatusTag tone="info">{t('deploygov.freezeWindows.scopeGlobal')}</StatusTag>
         ) : (
-          <span style={{ fontSize: 12 }}>{environmentName(w.environment_id)}</span>
+          <span className="u-text-xs">{environmentName(w.environment_id)}</span>
         ),
     },
     {
       title: t('deploygov.freezeWindows.schedule'),
       key: 'schedule',
-      render: (_v, w) => <span style={{ fontSize: 12 }}>{freezeWindowSummary(t, w)}</span>,
+      render: (_v, w) => <span className="u-text-xs">{freezeWindowSummary(t, w)}</span>,
     },
     {
       title: t('deploygov.freezeWindows.behavior'),
@@ -279,7 +275,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
       key: 'actions',
       width: 160,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button size="small" onClick={() => setModalFor(row)}>
             {t('common.edit')}
           </Button>
@@ -299,8 +295,8 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 960 }}>
-      <div className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
+    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 960 }}>
+      <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
         {t('deploygov.freezeWindows.hint')}
       </div>
       <div>
@@ -376,7 +372,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
                 label={t('deploygov.freezeWindows.labelStartsAt')}
                 rules={[{ required: true }]}
               >
-                <DatePicker showTime style={{ width: '100%' }} />
+                <DatePicker showTime className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="ends_at"
@@ -395,7 +391,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
                   }),
                 ]}
               >
-                <DatePicker showTime style={{ width: '100%' }} />
+                <DatePicker showTime className="u-w-full" />
               </Form.Item>
             </>
           ) : (
@@ -415,7 +411,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
                 label={t('deploygov.freezeWindows.labelStartTime')}
                 rules={[{ required: true }]}
               >
-                <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+                <TimePicker format="HH:mm" minuteStep={15} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="end_time"
@@ -434,7 +430,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
                   }),
                 ]}
               >
-                <TimePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+                <TimePicker format="HH:mm" minuteStep={15} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="timezone"

@@ -171,7 +171,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         title: t('datasources.settings.discovery.col_column'),
         key: 'column',
         render: (_: unknown, f: DiscoveryFinding) => (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {(f.schema_name ? `${f.schema_name}.` : '') + `${f.table_name}.${f.column_name}`}
           </span>
         ),
@@ -202,7 +202,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         dataIndex: 'confidence',
         width: 120,
         render: (v: number, f: DiscoveryFinding) => (
-          <span style={{ fontSize: 12 }}>
+          <span className="u-text-xs">
             {t('datasources.settings.discovery.confidence_value', { confidence: v })}
             {f.match_count > 0 && (
               <span className="muted">
@@ -218,7 +218,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         dataIndex: 'sample_redacted',
         render: (v: string | null) =>
           v ? (
-            <span className="mono muted" style={{ fontSize: 12 }}>
+            <span className="mono muted u-text-xs">
               {v}
             </span>
           ) : (
@@ -231,7 +231,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         width: 140,
         render: (v: string) => (
           <Tooltip title={fmtDate(v)}>
-            <span className="muted" style={{ fontSize: 12 }}>
+            <span className="muted u-text-xs">
               {timeAgo(v)}
             </span>
           </Tooltip>
@@ -265,9 +265,9 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
     statusFilter === 'PENDING' || statusFilter === 'STALE' || statusFilter === 'ALL';
 
   return (
-    <div style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="u-p-gutter u-flex u-col u-gap-5">
       <Card size="small" title={t('datasources.settings.discovery.settings_title')}>
-        <div className="muted" style={{ fontSize: 12, maxWidth: 720, marginBottom: 16 }}>
+        <div className="muted u-text-xs u-mb-4" style={{ maxWidth: 720 }}>
           {t('datasources.settings.discovery.settings_description')}
         </div>
         {config && (
@@ -343,7 +343,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
           </Form>
         )}
         {config?.last_scan_at && (
-          <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
+          <div className="muted u-text-xs u-mt-3">
             {t('datasources.settings.discovery.last_scan', {
               time: fmtDate(config.last_scan_at),
             })}
@@ -351,7 +351,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         )}
         {config?.last_scan_error && (
           <Alert
-            style={{ marginTop: 8 }}
+            className="u-mt-2"
             type="warning"
             showIcon
             title={t('datasources.settings.discovery.last_scan_error', {
@@ -363,19 +363,13 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
 
       <div>
         <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 12,
-            gap: 16,
-          }}
+          className="u-flex u-justify-between u-items-center u-mb-3 u-gap-4"
         >
           <div>
-            <div style={{ fontWeight: 600 }}>
+            <div className="u-fw-600">
               {t('datasources.settings.discovery.findings_title')}
             </div>
-            <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+            <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
               {t('datasources.settings.discovery.findings_description')}
             </div>
           </div>
@@ -399,26 +393,14 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             aria-label={t('datasources.settings.discovery.bulk_action_bar_count', {
               count: selectedRowKeys.length,
             })}
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-              background: 'var(--bg-elev)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 14px',
-              marginBottom: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
+            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
           >
             <strong>
               {t('datasources.settings.discovery.bulk_action_bar_count', {
                 count: selectedRowKeys.length,
               })}
             </strong>
-            <div style={{ flex: 1 }} />
+            <div className="u-flex-1" />
             <Button
               size="small"
               danger

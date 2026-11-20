@@ -224,16 +224,16 @@ export function QueryDetailPage() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
   }
   if (!query || !user) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div className="u-p-10 u-text-center">
         <div className="muted">{t('queries.detail.not_found_message')}</div>
-        <Button onClick={() => navigate('/queries')} style={{ marginTop: 12 }}>
+        <Button onClick={() => navigate('/queries')} className="u-mt-3">
           {t('queries.detail.back_to_history')}
         </Button>
       </div>
@@ -496,7 +496,7 @@ export function QueryDetailPage() {
       <PageHeader
         breadcrumbs={[t('queries.detail.breadcrumb_queries'), query.id]}
         title={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+          <span className="u-inline-flex u-items-center u-gap-3">
             <span className="mono">{query.id}</span>
             <StatusPill status={query.status} />
           </span>
@@ -619,7 +619,7 @@ export function QueryDetailPage() {
                 value={replayTarget}
                 onChange={setReplayTarget}
                 options={replayTargets.map((d) => ({ value: d.id, label: d.name }))}
-                style={{ width: '100%' }}
+                className="u-w-full"
               />
             </Form.Item>
           </Form>
@@ -658,7 +658,7 @@ export function QueryDetailPage() {
           </DetailCard>
 
           <DetailCard title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
-            <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+            <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
               {query.justification?.trim() ? (
                 query.justification
               ) : (
@@ -677,7 +677,7 @@ export function QueryDetailPage() {
                   ? t('queries.detail.card_ai_skipped')
                   : t('queries.detail.card_ai')
             }
-            icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
+            icon={<ThunderboltOutlined className="u-fg-accent" />}
             extra={
               query.ai_analysis ? (
                 <>
@@ -687,7 +687,7 @@ export function QueryDetailPage() {
                     failed={aiFailed}
                   />
                   {!aiFailed && (
-                    <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 11 }}>
+                    <span className="mono muted u-ml-auto u-text-2xs">
                       {query.ai_analysis.ai_provider.toLowerCase()} · {query.ai_analysis.ai_model}
                     </span>
                   )}
@@ -696,22 +696,14 @@ export function QueryDetailPage() {
             }
           >
             {aiFailed ? (
-              <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
-                <div style={{ marginBottom: 12 }}>
+              <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-mb-3">
                   {t('queries.detail.ai_failed_accordion_body')}
                 </div>
                 <div
-                  style={{
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '8px 12px',
-                    marginBottom: 12,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                  }}
+                  className="u-mb-3 u-mono u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}
                 >
-                  <span className="muted" style={{ marginRight: 8 }}>
+                  <span className="muted u-mr-2">
                     {t('queries.detail.ai_failed_reason_label')}:
                   </span>
                   {aiFailureReason || '—'}
@@ -731,7 +723,7 @@ export function QueryDetailPage() {
               </div>
             ) : (
               <>
-                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
                   {query.ai_analysis?.summary ?? (
                     <span className="muted">
                       {aiSkipped
@@ -742,12 +734,7 @@ export function QueryDetailPage() {
                 </div>
                 {query.ai_analysis && query.ai_analysis.issues.length > 0 && (
                   <div
-                    style={{
-                      padding: '0 14px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
+                    className="u-flex u-col u-gap-2" style={{ padding: '0 14px 14px' }}
                   >
                     {query.ai_analysis.issues.map((iss, i) => (
                       <IssueCard key={i} issue={iss} />
@@ -756,21 +743,11 @@ export function QueryDetailPage() {
                 )}
                 {query.ai_analysis && query.ai_analysis.optimizations.length > 0 && (
                   <div
-                    style={{
-                      padding: '0 14px 14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
+                    className="u-flex u-col u-gap-2" style={{ padding: '0 14px 14px' }}
                   >
                     <div
-                      className="muted"
-                      style={{
-                        fontSize: 11,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        fontWeight: 500,
-                      }}
+                      className="muted u-text-2xs u-fw-500"
+                      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
                     >
                       {t('queries.detail.optimizations_title')}
                     </div>
@@ -785,7 +762,7 @@ export function QueryDetailPage() {
 
           <DetailCard
             title={t('queries.detail.card_cost_estimate')}
-            icon={<ExperimentOutlined style={{ color: 'var(--accent)' }} />}
+            icon={<ExperimentOutlined className="u-fg-accent" />}
           >
             <CostEstimatePanel estimate={query.cost_estimate} status={query.status} />
           </DetailCard>
@@ -796,11 +773,11 @@ export function QueryDetailPage() {
           {sqlReviewFindings.length > 0 && (
             <DetailCard
               title={t('queries.detail.card_sql_review')}
-              icon={<FileSearchOutlined style={{ color: 'var(--accent)' }} />}
+              icon={<FileSearchOutlined className="u-fg-accent" />}
             >
-              <div data-testid="sql-review-findings-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div data-testid="sql-review-findings-card" className="u-flex u-col" style={{ gap: 10 }}>
                 {sqlReviewBlocking > 0 && (
-                  <div className="muted" style={{ fontSize: 12 }}>
+                  <div className="muted u-text-xs">
                     {t('queries.detail.sql_review_blocked_note', { count: sqlReviewBlocking })}
                   </div>
                 )}
@@ -817,7 +794,7 @@ export function QueryDetailPage() {
           {canSeeApprovalPrediction && (
             <DetailCard
               title={t('queries.detail.card_approval_prediction')}
-              icon={<InfoCircleOutlined style={{ color: 'var(--accent)' }} />}
+              icon={<InfoCircleOutlined className="u-fg-accent" />}
             >
               <ApprovalPredictionPanel
                 prediction={query.approval_prediction}
@@ -828,14 +805,9 @@ export function QueryDetailPage() {
           )}
 
           {query.status === 'EXECUTED' && (
-            <DetailCard title={t('queries.detail.card_execution')} icon={<CheckOutlined style={{ color: 'var(--risk-low)' }} />}>
+            <DetailCard title={t('queries.detail.card_execution')} icon={<CheckOutlined className="u-fg-success" />}>
               <div
-                style={{
-                  padding: 14,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 16,
-                }}
+                className="u-grid u-gap-4" style={{ padding: 14, gridTemplateColumns: 'repeat(3, 1fr)' }}
               >
                 <Stat label={t('queries.detail.stat_rows')} value={fmtNum(query.rows_affected)} />
                 <Stat
@@ -853,22 +825,14 @@ export function QueryDetailPage() {
           {query.status === 'FAILED' && (
             <DetailCard
               title={t('queries.detail.card_execution')}
-              icon={<ExclamationCircleOutlined style={{ color: 'var(--risk-crit)' }} />}
+              icon={<ExclamationCircleOutlined className="u-fg-danger" />}
             >
-              <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
-                <div style={{ marginBottom: 12 }}>
+              <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
+                <div className="u-mb-3">
                   {t('queries.detail.execution_failed_body')}
                 </div>
                 <div
-                  style={{
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '8px 12px',
-                    marginBottom: 12,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                  }}
+                  className="u-mb-3 u-mono u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}
                 >
                   <div className="muted" style={{ marginBottom: 6 }}>
                     {t('queries.detail.execution_error_label')}
@@ -880,11 +844,7 @@ export function QueryDetailPage() {
                   </div>
                 </div>
                 <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: 16,
-                  }}
+                  className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
                 >
                   <Stat
                     label={t('queries.detail.stat_duration')}
@@ -919,10 +879,10 @@ export function QueryDetailPage() {
         <div className="qd-side">
           {canDecide && (
             <div className="qd-decision">
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
+              <div className="u-fw-600 u-text-sm u-mb-1">
                 {t('queries.detail.review_required_title')}
               </div>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+              <div className="muted u-text-xs u-mb-3">
                 {t('queries.detail.review_required_subtitle')}
               </div>
               <Input.TextArea
@@ -930,7 +890,7 @@ export function QueryDetailPage() {
                 placeholder={t('queries.detail.review_comment_placeholder')}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                style={{ marginBottom: 12 }}
+                className="u-mb-3"
               />
               <div className="qd-decision-actions">
                 <Button
@@ -1009,17 +969,12 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div
-        className="muted mono"
-        style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          marginBottom: 4,
-        }}
+        className="muted mono u-text-2xs u-mb-1"
+        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {label}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{value}</div>
+      <div className="u-fw-600 u-mono" style={{ fontSize: 18 }}>{value}</div>
     </div>
   );
 }
@@ -1028,20 +983,15 @@ function LinkedTickets({ tickets }: { tickets: LinkedTicketRef[] }) {
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-      }}
+      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
+      <div className="u-fw-600 u-text-sm u-mb-3">
         {t('queries.detail.linked_tickets_title')}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="u-flex u-col" style={{ gap: 10 }}>
         {tickets.map((ticket) => (
-          <div key={ticket.id} style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div key={ticket.id} className="u-text-xs u-mono">
+            <div className="u-flex u-justify-between u-gap-2">
               {ticket.url ? (
                 <a href={ticket.url} target="_blank" rel="noopener noreferrer">
                   {ticket.external_key}
@@ -1069,24 +1019,13 @@ function Metadata({ query }: { query: QueryDetail }) {
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-      }}
+      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
+      <div className="u-fw-600 u-text-sm u-mb-3">
         {t('queries.detail.metadata_title')}
       </div>
       <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          fontSize: 12,
-          fontFamily: 'var(--font-mono)',
-        }}
+        className="u-flex u-col u-gap-2 u-text-xs u-mono"
       >
         <Row k="query.id" v={query.id} />
         <Row k="query.type" v={query.query_type} />
@@ -1160,8 +1099,7 @@ function OccurrencesCard({ queryId }: { queryId: string }) {
                   <Button
                     type="link"
                     size="small"
-                    className="mono"
-                    style={{ padding: 0 }}
+                    className="mono u-p-0"
                     onClick={() => navigate(`/queries/${id}`)}
                   >
                     {id.slice(0, 8)}
@@ -1206,16 +1144,10 @@ function OccurrencesCard({ queryId }: { queryId: string }) {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+    <div className="u-flex u-justify-between u-gap-2">
       <span className="muted">{k}</span>
       <span
-        style={{
-          textAlign: 'right',
-          minWidth: 0,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+        className="u-text-right u-min-w-0 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {v}
       </span>

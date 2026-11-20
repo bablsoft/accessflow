@@ -20,14 +20,7 @@ export function SqlReviewFindingList({ findings, density = 'card' }: SqlReviewFi
   const { t } = useTranslation();
   return (
     <ul
-      style={{
-        listStyle: 'none',
-        margin: 0,
-        padding: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: density === 'compact' ? 4 : 8,
-      }}
+      className="u-m-0 u-p-0 u-flex u-col" style={{ listStyle: 'none', gap: density === 'compact' ? 4 : 8 }}
     >
       {findings.map((finding, index) => {
         const colors = sqlReviewSeverityColor(finding.severity);
@@ -36,23 +29,17 @@ export function SqlReviewFindingList({ findings, density = 'card' }: SqlReviewFi
             key={`${finding.rule_id}-${finding.statement_index}-${finding.line_number ?? 'x'}-${index}`}
             data-testid="sql-review-finding"
             data-severity={finding.severity}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 8,
-              fontSize: density === 'compact' ? 12 : 13,
-              lineHeight: 1.5,
-            }}
+            className="u-flex u-items-start u-gap-2 u-leading-normal" style={{ fontSize: density === 'compact' ? 12 : 13 }}
           >
             <Pill fg={colors.fg} bg={colors.bg} border={colors.border} size="sm">
               {sqlReviewSeverityLabel(t, finding.severity)}
             </Pill>
-            <span className="mono muted" style={{ fontSize: 11, flexShrink: 0, marginTop: 2 }}>
+            <span className="mono muted u-text-2xs" style={{ flexShrink: 0, marginTop: 2 }}>
               {finding.line_number !== undefined
                 ? t('editor.sql_review_line', { line: finding.line_number })
                 : t('editor.sql_review_statement', { index: finding.statement_index + 1 })}
             </span>
-            <span style={{ minWidth: 0 }}>{finding.message}</span>
+            <span className="u-min-w-0">{finding.message}</span>
           </li>
         );
       })}

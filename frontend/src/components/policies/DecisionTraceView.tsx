@@ -38,7 +38,7 @@ export function DecisionTraceView<K extends string>({
   const status = resultingStatus == null ? null : statusColor(resultingStatus);
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }} data-testid="decision-trace">
+    <Space orientation="vertical" size="middle" className="u-w-full" data-testid="decision-trace">
       <div className="af-trace-result">
         <span className="muted">{t('decisionTrace.resulting_status')}</span>
         {status && resultingStatus != null ? (

@@ -47,7 +47,7 @@ export function DeltaBadge({
         border="var(--border)"
         size={size}
       >
-        <MinusOutlined aria-hidden style={{ marginRight: 4 }} />
+        <MinusOutlined aria-hidden className="u-mr-1" />
         {t('queries.detail.diff_no_change')}
       </Pill>
     );
@@ -78,7 +78,7 @@ export function DeltaBadge({
   const label = `${sign}${delta}${unit ? ` ${unit}` : ''}`;
   return (
     <Pill fg={palette.fg} bg={palette.bg} border={palette.border} size={size}>
-      <span style={{ marginRight: 4, display: 'inline-flex' }}>{arrow}</span>
+      <span className="u-mr-1 u-inline-flex">{arrow}</span>
       <span>{label}</span>
     </Pill>
   );

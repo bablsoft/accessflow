@@ -48,7 +48,7 @@ export function ConnectionTester({
   }, [pending, driverStatus]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-flex u-col u-gap-3">
       <Button
         type="primary"
         icon={<ThunderboltOutlined />}
@@ -61,7 +61,7 @@ export function ConnectionTester({
           : (buttonLabel ?? t('datasources.create.test_button'))}
       </Button>
       {pending && showResolving && (
-        <div className="muted" style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="muted u-text-xs u-flex u-gap-2 u-items-center">
           <Spin size="small" />
           {t('datasources.create.test_resolving_driver_hint')}
         </div>

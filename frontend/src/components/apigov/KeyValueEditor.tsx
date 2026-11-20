@@ -28,9 +28,9 @@ export function KeyValueEditor({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="u-flex u-col u-gap-2">
       {pairs.map((pair, index) => (
-        <Space key={index} style={{ width: '100%' }} align="start">
+        <Space key={index} className="u-w-full" align="start">
           <Input
             style={{ width: 220 }}
             value={pair.key}

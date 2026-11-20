@@ -152,25 +152,20 @@ export default function AuditSinksPage() {
           <Skeleton active paragraph={{ rows: 6 }} />
         ) : sinksQuery.isError ? (
           <EmptyState
-            icon={<CloudUploadOutlined style={{ fontSize: 20 }} />}
+            icon={<CloudUploadOutlined className="u-text-xl" />}
             title={t('admin.audit_sinks.load_error')}
             description={auditSinkErrorMessage(sinksQuery.error)}
           />
         ) : sinks.length === 0 ? (
           <EmptyState
-            icon={<CloudUploadOutlined style={{ fontSize: 20 }} />}
+            icon={<CloudUploadOutlined className="u-text-xl" />}
             title={t('admin.audit_sinks.title')}
             description={t('admin.audit_sinks.empty')}
           />
         ) : (
           <div
             data-testid="audit-sinks-grid"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-              gap: 14,
-              alignContent: 'start',
-            }}
+            className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14, alignContent: 'start' }}
           >
             {sinks.map((s) => (
               <SinkCard
@@ -260,31 +255,17 @@ function SinkCard({
   return (
     <div
       data-testid="audit-sink-card"
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-      }}
+      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div className="u-flex u-items-start u-gap-3">
         <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            background: 'var(--bg-sunken)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
+          className="u-flex u-items-center u-justify-center" style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-sunken)', flexShrink: 0 }}
         >
           {sinkIcon(sink.type)}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{sink.name}</div>
+        <div className="u-flex-1 u-min-w-0">
+          <div className="u-flex u-items-center u-gap-2">
+            <div className="u-fw-600 u-text-md">{sink.name}</div>
             {!sink.enabled && (
               <Pill
                 fg="var(--fg-muted)"
@@ -296,36 +277,20 @@ function SinkCard({
               </Pill>
             )}
           </div>
-          <div className="mono muted" style={{ fontSize: 11, marginTop: 2 }}>
+          <div className="mono muted u-text-2xs" style={{ marginTop: 2 }}>
             {auditSinkTypeLabel(t, sink.type)}
           </div>
         </div>
       </div>
       <div
-        className="mono"
-        style={{
-          marginTop: 12,
-          padding: 10,
-          background: 'var(--bg-sunken)',
-          borderRadius: 6,
-          fontSize: 12,
-          lineHeight: 1.5,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+        className="mono u-mt-3 u-text-xs u-leading-normal u-nowrap"
+        style={{ padding: 10, background: 'var(--bg-sunken)', borderRadius: 6, overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {destinationSummary(sink)}
       </div>
       <div
         data-testid="audit-sink-health"
-        style={{
-          marginTop: 12,
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '6px 12px',
-          fontSize: 12,
-        }}
+        className="u-mt-3 u-grid u-cols-2 u-text-xs" style={{ gap: '6px 12px' }}
       >
         <HealthRow
           label={t('admin.audit_sinks.health_behind')}
@@ -355,14 +320,7 @@ function SinkCard({
             sink.last_error ? (
               <Tooltip title={sink.last_error}>
                 <span
-                  style={{
-                    display: 'inline-block',
-                    maxWidth: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    verticalAlign: 'bottom',
-                  }}
+                  className="u-nowrap" style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' }}
                 >
                   {sink.last_error}
                 </span>
@@ -375,19 +333,12 @@ function SinkCard({
         />
       </div>
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: '1px solid var(--border)',
-        }}
+        className="u-flex u-items-center u-gap-2 u-mt-3" style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}
       >
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <span className="mono muted u-text-2xs">
           {fmtDate(sink.created_at).split(',')[0]}
         </span>
-        <div style={{ flex: 1 }} />
+        <div className="u-flex-1" />
         <Button size="small" icon={<PlayCircleOutlined />} onClick={onTest} loading={testing}>
           {t('common.test')}
         </Button>
@@ -425,19 +376,13 @@ function HealthRow({
   emphasis?: boolean;
 }) {
   return (
-    <div style={{ minWidth: 0 }}>
-      <div className="muted" style={{ fontSize: 11 }}>
+    <div className="u-min-w-0">
+      <div className="muted u-text-2xs">
         {label}
       </div>
       <div
-        className="mono"
-        style={{
-          fontSize: 12,
-          color: emphasis ? 'var(--danger)' : undefined,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
+        className="mono u-text-xs u-nowrap"
+        style={{ color: emphasis ? 'var(--danger)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis' }}
       >
         {value}
       </div>
@@ -595,7 +540,7 @@ function SinkFormModal({
             >
               <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid u-cols-2 u-gap-3">
               <Form.Item name="index" label={t('admin.audit_sinks.label_splunk_index')}>
                 <Input />
               </Form.Item>
@@ -607,7 +552,7 @@ function SinkFormModal({
         )}
 
         {sinkType === 'SYSLOG_CEF' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-gap-3" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
             <Form.Item
               name="host"
               label={t('admin.audit_sinks.label_syslog_host')}
@@ -620,7 +565,7 @@ function SinkFormModal({
               label={t('admin.audit_sinks.label_syslog_port')}
               rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
             >
-              <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+              <InputNumber min={1} max={65535} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="protocol"
@@ -658,7 +603,7 @@ function SinkFormModal({
 
         {sinkType === 'S3_OBJECT_LOCK' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid u-cols-2 u-gap-3">
               <Form.Item
                 name="bucket"
                 label={t('admin.audit_sinks.label_s3_bucket')}
@@ -692,7 +637,7 @@ function SinkFormModal({
                 label={t('admin.audit_sinks.label_s3_retention_days')}
                 rules={[{ required: true, type: 'number', min: 1 }]}
               >
-                <InputNumber min={1} style={{ width: '100%' }} />
+                <InputNumber min={1} className="u-w-full" />
               </Form.Item>
               <Form.Item
                 name="retention_mode"

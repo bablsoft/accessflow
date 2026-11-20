@@ -11,9 +11,9 @@ export function GuardrailsFormSection() {
   const { t } = useTranslation();
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
-      <h3 style={{ marginBottom: 4 }}>{t('admin.ai_configs.guardrails.section_title')}</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
+    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+      <h3 className="u-mb-1">{t('admin.ai_configs.guardrails.section_title')}</h3>
+      <p className="muted u-mt-0">
         {t('admin.ai_configs.guardrails.section_help')}
       </p>
       <Form.List name="guardrail_patterns">
@@ -22,12 +22,12 @@ export function GuardrailsFormSection() {
             {fields.map((field) => (
               <div
                 key={field.key}
-                style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}
+                className="u-flex u-gap-2 u-items-start"
                 data-testid="guardrail-pattern"
               >
                 <Form.Item
                   name={field.name}
-                  style={{ flex: 1 }}
+                  className="u-flex-1"
                   rules={[
                     { max: 500 },
                     {

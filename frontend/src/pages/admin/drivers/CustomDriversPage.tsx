@@ -119,7 +119,7 @@ export default function CustomDriversPage() {
   ];
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-p-6 u-flex u-col u-gap-4">
       <PageHeader
         docsAnchor="cfg-drivers"
         title={t('drivers.list.title')}

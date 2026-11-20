@@ -58,7 +58,7 @@ export function GovernanceDomainsPage() {
   }
   if (domainsQuery.isLoading || !domainsQuery.data) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 4 }} />
       </div>
     );

@@ -35,7 +35,7 @@ export function IssuedKeyModal({ issued, onClose }: IssuedKeyModalProps) {
       destroyOnHidden
     >
       {issued && (
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" className="u-w-full">
           <Alert type="warning" showIcon title={t('admin.service_accounts.keys.copy_once_warning')} />
           <Typography.Text strong>{t('admin.service_accounts.keys.name_label')}</Typography.Text>
           <Typography.Text>{issued.api_key.name}</Typography.Text>

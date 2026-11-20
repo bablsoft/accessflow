@@ -115,7 +115,7 @@ export function OrganizationsListPage() {
       />
       <PageBody flush>
         {orgsQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : orgsQuery.isError ? (
           <EmptyState
             title={t('admin.organizations.load_error')}
@@ -138,7 +138,7 @@ export function OrganizationsListPage() {
                 title: t('admin.organizations.col_name'),
                 dataIndex: 'name',
                 render: (v: string, org) => (
-                  <Button type="link" style={{ padding: 0, fontWeight: 500 }}
+                  <Button type="link" className="u-p-0 u-fw-500"
                     onClick={() => navigate(`/admin/organizations/${org.id}`)}>
                     {v}
                   </Button>
@@ -229,28 +229,28 @@ export function OrganizationsListPage() {
           >
             <Input maxLength={100} />
           </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-cols-2 u-gap-3">
             <Form.Item
               name="max_datasources"
               label={t('admin.organizations.label_max_datasources')}
               rules={[{ type: 'number', min: 0 }]}
               extra={t('admin.organizations.quota_help')}
             >
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <InputNumber min={0} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="max_users"
               label={t('admin.organizations.label_max_users')}
               rules={[{ type: 'number', min: 0 }]}
             >
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <InputNumber min={0} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="max_queries_per_day"
               label={t('admin.organizations.label_max_queries')}
               rules={[{ type: 'number', min: 0 }]}
             >
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <InputNumber min={0} className="u-w-full" />
             </Form.Item>
           </div>
         </Form>

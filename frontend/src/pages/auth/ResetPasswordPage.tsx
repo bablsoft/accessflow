@@ -78,7 +78,7 @@ function ResetPasswordPage() {
       wide
     >
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+            <div className="u-flex u-justify-center u-p-8">
               <Spin />
             </div>
           ) : loadError ? (
@@ -101,7 +101,7 @@ function ResetPasswordPage() {
                       <TraceIdFooter traceId={submitError.traceId} />
                     ) : undefined
                   }
-                  style={{ marginBottom: 16 }}
+                  className="u-mb-4"
                   showIcon
                   closable={{ closeIcon: true, onClose: () => setSubmitError(null) }}
                 />

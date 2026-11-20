@@ -82,7 +82,7 @@ function DrawerTitle({ member, index }: { member: DraftMember; index: number }) 
           : 'requestGroups.builder.drawerTitleApi',
         { index: index + 1 },
       )}{' '}
-      <span className="muted" style={{ fontWeight: 400 }}>
+      <span className="muted u-fw-400">
         · {targetKindLabel(t, member.targetKind)}
       </span>
     </span>
@@ -109,14 +109,14 @@ function QueryMemberEditor({
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <label style={{ flex: 1, minWidth: 260 }}>
-          <div className="muted" style={{ marginBottom: 4 }}>
+    <div className="u-flex u-col" style={{ gap: 14 }}>
+      <div className="u-flex u-gap-2 u-items-end u-wrap">
+        <label className="u-flex-1" style={{ minWidth: 260 }}>
+          <div className="muted u-mb-1">
             {t('requestGroups.builder.datasource')}
           </div>
           <Select
-            style={{ width: '100%' }}
+            className="u-w-full"
             showSearch={{ optionFilterProp: 'label' }}
             placeholder={t('requestGroups.builder.selectDatasource')}
             value={member.datasourceId ?? undefined}
@@ -172,7 +172,7 @@ function QueryMemberEditor({
           }
         />
       ) : (
-        <div className="muted" style={{ padding: 24, textAlign: 'center' }}>
+        <div className="muted u-p-6 u-text-center">
           {t('requestGroups.builder.pickDatasourceFirst')}
         </div>
       )}
@@ -211,7 +211,7 @@ function ApiMemberEditor({
   const authoring = useApiAuthoring({ connector, value, onChange: handleChange });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="u-flex u-col" style={{ gap: 14 }}>
       <ApiAuthoringPanel
         authoring={authoring}
         connector={connector}
@@ -219,13 +219,13 @@ function ApiMemberEditor({
         onChange={handleChange}
         layout="drawer"
         header={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <label style={{ flex: 1, minWidth: 260 }}>
-              <div className="muted" style={{ marginBottom: 4 }}>
+          <div className="u-flex u-gap-2 u-items-end u-wrap">
+            <label className="u-flex-1" style={{ minWidth: 260 }}>
+              <div className="muted u-mb-1">
                 {t('requestGroups.builder.connector')}
               </div>
               <Select
-                style={{ width: '100%' }}
+                className="u-w-full"
                 showSearch={{ optionFilterProp: 'label' }}
                 placeholder={t('requestGroups.builder.selectConnector')}
                 value={member.connectorId ?? undefined}
@@ -251,7 +251,7 @@ function ApiMemberEditor({
 function DrawerFooter({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div className="u-flex u-justify-end">
       <Button type="primary" onClick={onClose} data-testid="group-member-edit-done">
         {t('requestGroups.builder.done')}
       </Button>

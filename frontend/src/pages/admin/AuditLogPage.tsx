@@ -306,8 +306,8 @@ export function AuditLogPage() {
             setPage(0);
           }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
           {t('admin.audit.count_label', {
             count: auditQuery.data?.total_elements ?? 0,
           })}
@@ -352,7 +352,7 @@ export function AuditLogPage() {
       )}
       <PageBody flush>
         {auditQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />
         ) : auditQuery.isError ? (
           <EmptyState
             title={t('admin.audit.load_error')}
@@ -388,17 +388,17 @@ export function AuditLogPage() {
                     || t('admin.audit.actor_unknown');
                   const onBehalfOfId = e.metadata.on_behalf_of_user_id;
                   return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="u-flex u-items-center u-gap-2">
                       <Avatar name={name} size={20} />
                       <div>
-                        <div style={{ fontSize: 12 }}>{name}</div>
+                        <div className="u-text-xs">{name}</div>
                         {e.actor_email && (
-                          <div className="mono muted" style={{ fontSize: 11 }}>
+                          <div className="mono muted u-text-2xs">
                             {e.actor_email}
                           </div>
                         )}
                         {e.metadata.service_account === true && (
-                          <div className="muted" style={{ fontSize: 11 }}>
+                          <div className="muted u-text-2xs">
                             {t('admin.audit.via_service_account')}
                           </div>
                         )}
@@ -407,7 +407,7 @@ export function AuditLogPage() {
                           userId={typeof onBehalfOfId === 'string' ? onBehalfOfId : null}
                         />
                         {typeof e.metadata.application_name === 'string' && (
-                          <div style={{ fontSize: 11 }}>
+                          <div className="u-text-2xs">
                             <ClientApplicationTag
                               name={e.metadata.application_name}
                               source={
@@ -430,8 +430,8 @@ export function AuditLogPage() {
                 width: 230,
                 render: (v) => (
                   <span
-                    className="mono"
-                    style={{ fontSize: 12, fontWeight: 500, color: actionColor(v) }}
+                    className="mono u-text-xs u-fw-500"
+                    style={{ color: actionColor(v) }}
                   >
                     {v}
                   </span>
@@ -442,7 +442,7 @@ export function AuditLogPage() {
                 dataIndex: 'resource_type',
                 width: 150,
                 render: (v) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {v}
                   </span>
                 ),
@@ -452,7 +452,7 @@ export function AuditLogPage() {
                 dataIndex: 'resource_id',
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono muted" style={{ fontSize: 12 }}>
+                    <span className="mono muted u-text-xs">
                       {v}
                     </span>
                   ) : (
@@ -465,7 +465,7 @@ export function AuditLogPage() {
                 width: 130,
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono muted" style={{ fontSize: 12 }}>
+                    <span className="mono muted u-text-xs">
                       {v}
                     </span>
                   ) : (
@@ -483,28 +483,23 @@ export function AuditLogPage() {
         size={520}
       >
         {detail && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-flex u-col" style={{ gap: 14 }}>
             <Card>
               <div
-                className="muted"
-                style={{
-                  fontSize: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  marginBottom: 6,
-                }}
+                className="muted u-text-2xs"
+                style={{ textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}
               >
                 {t('admin.audit.section_action')}
               </div>
               <div
-                className="mono"
-                style={{ fontSize: 14, fontWeight: 600, color: actionColor(detail.action) }}
+                className="mono u-text-md u-fw-600"
+                style={{ color: actionColor(detail.action) }}
               >
                 {detail.action}
               </div>
             </Card>
             <Card>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-flex u-col" style={{ gap: 10 }}>
                 <Row k="audit.id" v={detail.id} />
                 <Row k="organization_id" v={detail.organization_id} />
                 <Row k="actor.id" v={detail.actor_id ?? '—'} />
@@ -512,13 +507,7 @@ export function AuditLogPage() {
                 <Row k="actor.display_name" v={detail.actor_display_name ?? '—'} />
                 <Row k="on_behalf_of.email" v={detail.on_behalf_of_email ?? '—'} />
                 <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                  }}
+                  className="u-flex u-justify-between u-gap-2 u-mono u-text-xs"
                 >
                   <span className="muted">application</span>
                   {typeof detail.metadata.application_name === 'string' ? (
@@ -544,15 +533,7 @@ export function AuditLogPage() {
             </Card>
             <Card title={t('admin.audit.section_metadata')}>
               <pre
-                style={{
-                  margin: 0,
-                  padding: 14,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  background: 'var(--bg-code)',
-                  borderRadius: '0 0 var(--radius-md) var(--radius-md)',
-                }}
+                className="u-m-0 u-mono u-text-xs u-leading-normal" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: '0 0 var(--radius-md) var(--radius-md)' }}
               >
                 {JSON.stringify(detail.metadata ?? {}, null, 2)}
               </pre>
@@ -575,12 +556,7 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
     >
       {title && (
         <div
-          style={{
-            padding: '10px 14px',
-            borderBottom: '1px solid var(--border)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
+          className="u-fw-600 u-text-xs" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
         >
           {title}
         </div>
@@ -593,16 +569,10 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 8,
-        fontFamily: 'var(--font-mono)',
-        fontSize: 12,
-      }}
+      className="u-flex u-justify-between u-gap-2 u-mono u-text-xs"
     >
       <span className="muted">{k}</span>
-      <span style={{ textAlign: 'right' }}>{v}</span>
+      <span className="u-text-right">{v}</span>
     </div>
   );
 }

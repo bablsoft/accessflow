@@ -99,7 +99,7 @@ export default function RequestGroupDetailPage() {
         }
       />
       <div
-        style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}
+        className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}
       >
         {groupQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!groupQuery.isLoading && !group && <EmptyState size="sm" title={t('requestGroups.detail.notFound')} />}
@@ -208,7 +208,7 @@ export default function RequestGroupDetailPage() {
             )}
 
             <Card size="small" title={t('requestGroups.detail.sequence')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-flex u-col" style={{ gap: 10 }}>
                 {[...group.items]
                   .sort((a, b) => a.sequence_order - b.sequence_order)
                   .map((item) => (

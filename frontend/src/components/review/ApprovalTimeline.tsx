@@ -21,15 +21,10 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-      }}
+      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{t('timeline.title')}</div>
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div className="u-fw-600 u-text-sm" style={{ marginBottom: 14 }}>{t('timeline.title')}</div>
+      <div className="u-flex u-col" style={{ position: 'relative' }}>
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
           const isDanger = !!(s.rejected || s.failed);
@@ -67,19 +62,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                 />
               )}
               <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 4,
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  background: 'var(--bg-elev)',
-                  border: `2px solid ${dotColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="u-flex u-items-center u-justify-center" style={{ position: 'absolute', left: 0, top: 4, width: 14, height: 14, borderRadius: '50%', background: 'var(--bg-elev)', border: `2px solid ${dotColor}` }}
               >
                 {(s.done || s.active) && (
                   <span
@@ -94,11 +77,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                 )}
               </div>
               <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: isDanger ? 'var(--risk-crit)' : undefined,
-                }}
+                className="u-text-sm u-fw-600" style={{ color: isDanger ? 'var(--risk-crit)' : undefined }}
               >
                 {s.label}
               </div>
@@ -115,12 +94,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
               </div>
               {s.detail && (
                 <div
-                  style={{
-                    fontSize: 12,
-                    marginTop: 4,
-                    color: 'var(--fg-muted)',
-                    fontStyle: s.detail.startsWith('"') ? 'italic' : 'normal',
-                  }}
+                  className="u-text-xs u-mt-1 u-fg-muted" style={{ fontStyle: s.detail.startsWith('"') ? 'italic' : 'normal' }}
                 >
                   {s.detail}
                 </div>

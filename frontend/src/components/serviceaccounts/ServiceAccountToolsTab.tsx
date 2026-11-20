@@ -31,11 +31,11 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
         type="info"
         showIcon
         data-testid="tools-enforcement-note"
-        style={{ marginBottom: 16 }}
+        className="u-mb-4"
         title={t('admin.service_accounts.tools.enforcement_note')}
       />
       {catalogQuery.isError && (
-        <Alert type="error" showIcon style={{ marginBottom: 16 }} title={t('admin.service_accounts.tools.catalog_error')} />
+        <Alert type="error" showIcon className="u-mb-4" title={t('admin.service_accounts.tools.catalog_error')} />
       )}
       <Form<ToolsFormValues>
         form={form}
@@ -58,12 +58,12 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
                 type="warning"
                 showIcon
                 data-testid="tools-none-warning"
-                style={{ marginBottom: 12 }}
+                className="u-mb-3"
                 title={t('admin.service_accounts.tools.none_selected_warning')}
               />
             )}
             <Form.Item name="tools" label={t('admin.service_accounts.tools.tools_label')}>
-              <Checkbox.Group style={{ width: '100%' }}>
+              <Checkbox.Group className="u-w-full">
                 <Space orientation="vertical" size={6}>
                   {(catalogQuery.data ?? []).map((tool) => {
                     const description = mcpToolDescription(t, tool);
@@ -71,7 +71,7 @@ export function ServiceAccountToolsTab({ account }: { account: ServiceAccount })
                       <Checkbox key={tool} value={tool}>
                         <Typography.Text code>{tool}</Typography.Text>
                         {description && (
-                          <span className="muted" style={{ marginLeft: 8 }}>
+                          <span className="muted u-ml-2">
                             {description}
                           </span>
                         )}

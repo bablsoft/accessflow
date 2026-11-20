@@ -62,7 +62,7 @@ export function DisplayNameForm({ profile }: DisplayNameFormProps) {
           type="error"
           title={error.message}
           description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-          style={{ marginBottom: 16 }}
+          className="u-mb-4"
           showIcon
           closable={{ closeIcon: true, onClose: () => setError(null) }}
         />

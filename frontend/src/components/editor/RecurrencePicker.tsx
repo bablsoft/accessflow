@@ -63,15 +63,15 @@ export function RecurrencePicker({
   return (
     <div>
       <label
-        className="muted"
-        style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+        className="muted u-block u-text-xs u-fw-500"
+        style={{ marginBottom: 5 }}
       >
         {t('editor.recurrence_label')}{' '}
-        <span className="muted" style={{ fontWeight: 400 }}>
+        <span className="muted u-fw-400">
           {t('editor.recurrence_optional_note')}
         </span>
       </label>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="u-flex u-gap-2 u-wrap">
         <Select<RecurrenceMode>
           value={mode}
           onChange={(next) => {
@@ -131,7 +131,7 @@ export function RecurrencePicker({
         )}
       </div>
       {mode !== 'none' && (
-        <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+        <div className="muted u-text-2xs u-mt-1">
           {helpText()}
         </div>
       )}

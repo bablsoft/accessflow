@@ -113,7 +113,7 @@ export function ServiceAccountOverviewTab({ account }: { account: ServiceAccount
           {t('admin.service_accounts.overview.save')}
         </Button>
       </Form>
-      <Descriptions size="small" column={1} style={{ marginTop: 24 }}>
+      <Descriptions size="small" column={1} className="u-mt-6">
         <Descriptions.Item label={t('admin.service_accounts.overview.label_created')}>
           {fmtDate(account.created_at)}
         </Descriptions.Item>

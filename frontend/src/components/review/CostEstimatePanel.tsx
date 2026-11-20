@@ -20,7 +20,7 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
 
   if (!estimate) {
     return (
-      <div className="muted" style={{ padding: 14, fontSize: 13 }}>
+      <div className="muted u-text-sm" style={{ padding: 14 }}>
         {status === 'PENDING_AI'
           ? t('cost_estimate_panel.pending')
           : t('cost_estimate_panel.unavailable')}
@@ -32,18 +32,7 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
     return (
       <div
         role="status"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-          margin: 14,
-          padding: 12,
-          background: 'var(--bg-elev)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 12,
-          lineHeight: 1.5,
-        }}
+        className="u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
       >
         <WarningOutlined style={{ color: 'var(--risk-med)', marginTop: 2, flexShrink: 0 }} />
         <span>
@@ -61,20 +50,9 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
     return (
       <div
         role="status"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-          margin: 14,
-          padding: 12,
-          background: 'var(--bg-elev)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 12,
-          lineHeight: 1.5,
-        }}
+        className="u-flex u-items-start u-p-3 u-text-xs u-leading-normal" style={{ gap: 10, margin: 14, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
       >
-        <InfoCircleOutlined style={{ color: 'var(--fg-faint)', marginTop: 2, flexShrink: 0 }} />
+        <InfoCircleOutlined className="u-fg-faint" style={{ marginTop: 2, flexShrink: 0 }} />
         <span>{estimate.unsupported_reason ?? t('cost_estimate_panel.unavailable')}</span>
       </div>
     );
@@ -84,26 +62,15 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
   return (
     <div style={{ padding: 14 }}>
       <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          padding: 12,
-          marginBottom: estimate.plan || estimate.raw_plan ? 14 : 0,
-          background: 'var(--bg-elev)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 12,
-          fontFamily: 'var(--font-mono)',
-        }}
+        className="u-flex u-col u-p-3 u-text-xs u-mono" style={{ gap: 6, marginBottom: estimate.plan || estimate.raw_plan ? 14 : 0, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
       >
         {hasAffectedCount && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="u-flex u-justify-between">
             <span className="muted">{t('cost_estimate_panel.affected_rows_label')}</span>
             <span>{fmtNum(estimate.affected_row_count as number)}</span>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="u-flex u-justify-between">
           <span className="muted">{t('cost_estimate_panel.est_rows_label')}</span>
           <span>
             {estimate.estimated_rows === null || estimate.estimated_rows === undefined
@@ -113,19 +80,19 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
         </div>
         {estimate.estimated_bytes_scanned !== null &&
           estimate.estimated_bytes_scanned !== undefined && (
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className="u-flex u-justify-between">
               <span className="muted">{t('cost_estimate_panel.est_bytes_label')}</span>
               <span>{formatBytes(estimate.estimated_bytes_scanned)}</span>
             </div>
           )}
         {estimate.scan_type && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="u-flex u-justify-between">
             <span className="muted">{t('cost_estimate_panel.scan_type_label')}</span>
             <span>{estimate.scan_type}</span>
           </div>
         )}
         {cost && (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="u-flex u-justify-between">
             <span className="muted">{t('cost_estimate_panel.cost_label')}</span>
             <span>{cost}</span>
           </div>
@@ -135,17 +102,8 @@ export function CostEstimatePanel({ estimate, status }: CostEstimatePanelProps) 
         <PlanTree plan={estimate.plan} />
       ) : estimate.raw_plan ? (
         <pre
-          className="mono"
-          style={{
-            margin: 0,
-            padding: 8,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: 11,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
+          className="mono u-m-0 u-p-2 u-text-2xs"
+          style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
         >
           <code>{estimate.raw_plan}</code>
         </pre>

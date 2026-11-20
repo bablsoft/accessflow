@@ -128,7 +128,7 @@ export default function LifecyclePoliciesListPage() {
       />
       <PageBody flush>
         {policiesQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : policiesQuery.isError ? (
           <EmptyState
             title={t('lifecycle.policies.load_error')}
@@ -157,9 +157,9 @@ export default function LifecyclePoliciesListPage() {
                 dataIndex: 'name',
                 render: (name: string, p) => (
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{name}</div>
+                    <div className="u-text-sm u-fw-500">{name}</div>
                     {p.datasource_name && (
-                      <div className="mono muted" style={{ fontSize: 11 }}>
+                      <div className="mono muted u-text-2xs">
                         {p.datasource_name}
                       </div>
                     )}
@@ -170,7 +170,7 @@ export default function LifecyclePoliciesListPage() {
                 title: t('lifecycle.policies.col_target'),
                 key: 'target',
                 render: (_v, p) => (
-                  <span className="mono" style={{ fontSize: 12 }}>
+                  <span className="mono u-text-xs">
                     {p.target_table ?? p.classification_tag ?? '—'}
                   </span>
                 ),
@@ -180,7 +180,7 @@ export default function LifecyclePoliciesListPage() {
                 dataIndex: 'action',
                 width: 150,
                 render: (action: LifecycleAction, p) => (
-                  <span style={{ fontSize: 12 }}>
+                  <span className="u-text-xs">
                     {lifecycleActionLabel(t, action)}
                     {p.transform_type && (
                       <span className="muted"> · {lifecycleTransformLabel(t, p.transform_type)}</span>
@@ -212,7 +212,7 @@ export default function LifecyclePoliciesListPage() {
                 width: 170,
                 align: 'right' as const,
                 render: (_v, p) => (
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <div className="u-flex u-gap-2 u-justify-end">
                     <Button
                       size="small"
                       loading={previewMutation.isPending && previewMutation.variables === p.id}

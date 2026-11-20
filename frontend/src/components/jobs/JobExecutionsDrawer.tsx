@@ -75,12 +75,12 @@ function ExecutionsBody({ jobName }: { jobName: string }) {
         expandable={{
           rowExpandable: (row) => row.error_message != null || row.error_class != null,
           expandedRowRender: (row) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="u-flex u-col u-gap-1">
               {row.error_class != null && (
-                <span className="mono muted" style={{ fontSize: 12 }}>{row.error_class}</span>
+                <span className="mono muted u-text-xs">{row.error_class}</span>
               )}
               {row.error_message != null && (
-                <Typography.Paragraph className="mono" style={{ fontSize: 12, whiteSpace: 'pre-wrap', margin: 0 }}>
+                <Typography.Paragraph className="mono u-text-xs u-m-0" style={{ whiteSpace: 'pre-wrap' }}>
                   {row.error_message}
                 </Typography.Paragraph>
               )}
@@ -98,20 +98,20 @@ function ExecutionsBody({ jobName }: { jobName: string }) {
           {
             title: t('admin.jobs.col_started'),
             dataIndex: 'started_at',
-            render: (v: string) => <span style={{ fontSize: 12 }}>{fmtDate(v)}</span>,
+            render: (v: string) => <span className="u-text-xs">{fmtDate(v)}</span>,
           },
           {
             title: t('admin.jobs.col_duration'),
             dataIndex: 'duration_ms',
             render: (v: number | null | undefined) => (
-              <span className="mono" style={{ fontSize: 12 }}>{formatDurationMs(t, v)}</span>
+              <span className="mono u-text-xs">{formatDurationMs(t, v)}</span>
             ),
           },
           {
             title: t('admin.jobs.col_instance'),
             dataIndex: 'instance_id',
             render: (v: string | null | undefined) => (
-              <span className="mono muted" style={{ fontSize: 12 }}>{v ?? '—'}</span>
+              <span className="mono muted u-text-xs">{v ?? '—'}</span>
             ),
           },
         ]}
@@ -120,7 +120,7 @@ function ExecutionsBody({ jobName }: { jobName: string }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-flex u-col u-gap-4">
       {filter}
       {body}
     </div>

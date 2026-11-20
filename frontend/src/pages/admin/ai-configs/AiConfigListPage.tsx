@@ -79,7 +79,7 @@ export function AiConfigListPage() {
         <span className="mono">
           {name}
           {row.fallback_priority != null && (
-            <StatusTag tone="warning" style={{ marginLeft: 8 }}>
+            <StatusTag tone="warning" className="u-ml-2">
               {t('admin.ai_configs.fallback_tag', { priority: row.fallback_priority })}
             </StatusTag>
           )}
@@ -115,7 +115,7 @@ export function AiConfigListPage() {
       key: 'actions',
       width: 220,
       render: (_value, row) => (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="u-flex u-gap-2">
           <Button
             size="small"
             icon={<EditOutlined />}
@@ -155,7 +155,7 @@ export function AiConfigListPage() {
 
   if (listQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );

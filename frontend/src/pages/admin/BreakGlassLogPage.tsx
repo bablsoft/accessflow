@@ -146,8 +146,8 @@ export default function BreakGlassLogPage() {
             setPage(0);
           }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
           {t('breakglass.count_label', { count: eventsQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
@@ -161,7 +161,7 @@ export default function BreakGlassLogPage() {
           />
         ) : events.length === 0 ? (
           <EmptyState
-            icon={<ThunderboltOutlined style={{ fontSize: 20 }} />}
+            icon={<ThunderboltOutlined className="u-text-xl" />}
             title={t('breakglass.empty_title')}
             description={t('breakglass.empty_description')}
           />
@@ -193,12 +193,12 @@ export default function BreakGlassLogPage() {
                     userDisplay(e.submitted_by_display_name, e.submitted_by_email) ||
                     t('breakglass.user_unknown');
                   return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="u-flex u-items-center u-gap-2">
                       <Avatar name={name} size={20} />
                       <div>
-                        <div style={{ fontSize: 12 }}>{name}</div>
+                        <div className="u-text-xs">{name}</div>
                         {e.submitted_by_email && (
-                          <div className="mono muted" style={{ fontSize: 11 }}>
+                          <div className="mono muted u-text-2xs">
                             {e.submitted_by_email}
                           </div>
                         )}
@@ -213,7 +213,7 @@ export default function BreakGlassLogPage() {
                 width: 160,
                 render: (v: string | null) =>
                   v ? (
-                    <span className="mono" style={{ fontSize: 12 }}>
+                    <span className="mono u-text-xs">
                       {v}
                     </span>
                   ) : (
@@ -224,7 +224,7 @@ export default function BreakGlassLogPage() {
                 title: t('breakglass.col_justification'),
                 dataIndex: 'justification',
                 render: (v: string) => (
-                  <span style={{ fontSize: 12 }}>
+                  <span className="u-text-xs">
                     {v.length > 80 ? `${v.slice(0, 80)}…` : v}
                   </span>
                 ),
@@ -304,9 +304,9 @@ export default function BreakGlassLogPage() {
         size={560}
       >
         {detail && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-flex u-col" style={{ gap: 14 }}>
             <DetailCard>
-              <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={8} className="u-w-full">
                 <BreakGlassStatusPill status={detail.status} size="sm" />
                 {detail.query_request_id && (
                   <Link to={`/queries/${detail.query_request_id}`}>
@@ -326,28 +326,19 @@ export default function BreakGlassLogPage() {
               </Space>
             </DetailCard>
             <DetailCard title={t('breakglass.section_justification')}>
-              <div style={{ padding: 14, fontSize: 13, lineHeight: 1.6 }}>{detail.justification}</div>
+              <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.6 }}>{detail.justification}</div>
             </DetailCard>
             {detail.sql_text && (
               <DetailCard title={t('breakglass.section_query')}>
                 <pre
-                  style={{
-                    margin: 0,
-                    padding: 14,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                    background: 'var(--bg-code)',
-                    borderRadius: '0 0 var(--radius-md) var(--radius-md)',
-                    overflow: 'auto',
-                  }}
+                  className="u-m-0 u-mono u-text-xs u-leading-normal" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: '0 0 var(--radius-md) var(--radius-md)', overflow: 'auto' }}
                 >
                   {detail.sql_text}
                 </pre>
               </DetailCard>
             )}
             <DetailCard title={t('breakglass.section_review')}>
-              <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-flex u-col" style={{ padding: 14, gap: 10 }}>
                 <Row k={t('breakglass.field_executed')} v={fmtDate(detail.created_at)} />
                 {detail.reviewed_at && (
                   <>
@@ -381,12 +372,7 @@ function DetailCard({ title, children }: { title?: string; children: React.React
     >
       {title && (
         <div
-          style={{
-            padding: '10px 14px',
-            borderBottom: '1px solid var(--border)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
+          className="u-fw-600 u-text-xs" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
         >
           {title}
         </div>
@@ -399,16 +385,10 @@ function DetailCard({ title, children }: { title?: string; children: React.React
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 8,
-        fontFamily: 'var(--font-mono)',
-        fontSize: 12,
-      }}
+      className="u-flex u-justify-between u-gap-2 u-mono u-text-xs"
     >
       <span className="muted">{k}</span>
-      <span style={{ textAlign: 'right' }}>{v}</span>
+      <span className="u-text-right">{v}</span>
     </div>
   );
 }

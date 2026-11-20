@@ -56,10 +56,10 @@ export function ServiceAccountAttributesTab({ account }: { account: ServiceAccou
                 </Typography.Paragraph>
               )}
               {fields.map((field) => (
-                <div key={field.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div key={field.key} className="u-flex u-gap-2 u-items-start">
                   <Form.Item
                     name={[field.name, 'key']}
-                    style={{ flex: 1 }}
+                    className="u-flex-1"
                     rules={[
                       ...fieldRules(t, { required: true, max: ATTRIBUTE_CONSTRAINTS.key_max }),
                       ({ getFieldValue }) => ({
@@ -82,7 +82,7 @@ export function ServiceAccountAttributesTab({ account }: { account: ServiceAccou
                   </Form.Item>
                   <Form.Item
                     name={[field.name, 'value']}
-                    style={{ flex: 1 }}
+                    className="u-flex-1"
                     rules={fieldRules(t, { max: ATTRIBUTE_CONSTRAINTS.value_max })}
                   >
                     <Input

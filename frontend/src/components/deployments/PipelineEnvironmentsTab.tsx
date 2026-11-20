@@ -275,7 +275,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
       key: 'actions',
       width: 160,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button size="small" onClick={() => setModalFor(row)}>
             {t('common.edit')}
           </Button>
@@ -295,7 +295,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 860 }}>
+    <div className="u-flex u-col u-gap-3" style={{ maxWidth: 860 }}>
       <div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalFor('create')}>
           {t('deploygov.settings.envAdd')}
@@ -378,7 +378,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
             }
             rules={[{ type: 'number', min: 0 }, { required: modalFor !== 'create' }]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} className="u-w-full" />
           </Form.Item>
           <Form.Item
             name="datasource_id"
@@ -407,7 +407,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           >
             <InputNumber
               min={1}
-              style={{ width: '100%' }}
+              className="u-w-full"
               placeholder={t('deploygov.settings.envInherited')}
             />
           </Form.Item>
@@ -455,7 +455,7 @@ function VerificationSection({ form }: { form: FormInstance<EnvironmentFormValue
   const { t } = useTranslation();
   return (
     <>
-      <div style={{ fontWeight: 600, margin: '16px 0 8px' }}>
+      <div className="u-fw-600" style={{ margin: '16px 0 8px' }}>
         {t('deploygov.settings.verificationSection')}
       </div>
       <Form.Item
@@ -504,11 +504,11 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className="u-flex u-gap-3 u-wrap">
         <Form.Item
           name={[VERIFICATION, 'window_minutes']}
           label={t('deploygov.settings.verificationWindow')}
-          style={{ flex: 1, minWidth: 140 }}
+          className="u-flex-1" style={{ minWidth: 140 }}
           rules={[
             { required: true, message: t('deploygov.settings.verificationWindowRange') },
             {
@@ -522,14 +522,14 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
           <InputNumber
             min={LIMITS.windowMinMinutes}
             max={LIMITS.windowMaxMinutes}
-            style={{ width: '100%' }}
+            className="u-w-full"
             suffix={t('deploygov.settings.verificationMinutes')}
           />
         </Form.Item>
         <Form.Item
           name={[VERIFICATION, 'interval_minutes']}
           label={t('deploygov.settings.verificationInterval')}
-          style={{ flex: 1, minWidth: 140 }}
+          className="u-flex-1" style={{ minWidth: 140 }}
           dependencies={[[VERIFICATION, 'window_minutes']]}
           rules={[
             { required: true, message: t('deploygov.settings.verificationIntervalRange') },
@@ -550,14 +550,14 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
           <InputNumber
             min={LIMITS.intervalMinMinutes}
             step={0.5}
-            style={{ width: '100%' }}
+            className="u-w-full"
             suffix={t('deploygov.settings.verificationMinutes')}
           />
         </Form.Item>
         <Form.Item
           name={[VERIFICATION, 'failure_threshold']}
           label={t('deploygov.settings.verificationThreshold')}
-          style={{ flex: 1, minWidth: 140 }}
+          className="u-flex-1" style={{ minWidth: 140 }}
           dependencies={[
             [VERIFICATION, 'window_minutes'],
             [VERIFICATION, 'interval_minutes'],
@@ -589,7 +589,7 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
             min={LIMITS.thresholdMin}
             max={LIMITS.thresholdMax}
             precision={0}
-            style={{ width: '100%' }}
+            className="u-w-full"
           />
         </Form.Item>
       </div>
@@ -607,22 +607,18 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
         ]}
       >
         {(fields, { add, remove }, { errors }) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="u-flex u-col u-gap-2">
             {fields.map((field, index) => (
               <div
                 key={field.key}
                 data-testid={`verification-check-${index}`}
-                style={{
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 12,
-                }}
+                className="u-p-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
               >
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <div className="u-flex u-gap-3 u-items-start">
                   <Form.Item
                     name={[field.name, 'kind']}
                     label={t('deploygov.settings.verificationCheckKind')}
-                    style={{ flex: 1 }}
+                    className="u-flex-1"
                     rules={[{ required: true }]}
                   >
                     <Select options={kindOptions} />
@@ -630,7 +626,7 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                   <Form.Item
                     name={[field.name, 'name']}
                     label={t('deploygov.settings.verificationCheckName')}
-                    style={{ flex: 1 }}
+                    className="u-flex-1"
                     rules={[
                       { required: true, whitespace: true, max: LIMITS.nameMax },
                       {
@@ -684,11 +680,11 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                         >
                           <Input.TextArea rows={2} className="mono" />
                         </Form.Item>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <div className="u-flex u-gap-3 u-wrap">
                           <Form.Item
                             name={[field.name, 'comparator']}
                             label={t('deploygov.settings.verificationComparator')}
-                            style={{ flex: 1, minWidth: 120 }}
+                            className="u-flex-1" style={{ minWidth: 120 }}
                             rules={[{ required: true }]}
                           >
                             <Select options={comparatorOptions} />
@@ -696,16 +692,16 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                           <Form.Item
                             name={[field.name, 'threshold']}
                             label={t('deploygov.settings.verificationValueThreshold')}
-                            style={{ flex: 1, minWidth: 120 }}
+                            className="u-flex-1" style={{ minWidth: 120 }}
                             rules={[{ required: true, type: 'number' }]}
                           >
-                            <InputNumber style={{ width: '100%' }} />
+                            <InputNumber className="u-w-full" />
                           </Form.Item>
                           <Form.Item
                             name={[field.name, 'no_data_is_failure']}
                             label={t('deploygov.settings.verificationNoDataIsFailure')}
                             valuePropName="checked"
-                            style={{ flex: 1, minWidth: 160 }}
+                            className="u-flex-1" style={{ minWidth: 160 }}
                           >
                             <Switch size="small" />
                           </Form.Item>
@@ -723,11 +719,11 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                         >
                           <Input placeholder={t('deploygov.settings.verificationUrlPlaceholder')} />
                         </Form.Item>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <div className="u-flex u-gap-3 u-wrap">
                           <Form.Item
                             name={[field.name, 'expected_status']}
                             label={t('deploygov.settings.verificationExpectedStatus')}
-                            style={{ flex: 1, minWidth: 120 }}
+                            className="u-flex-1" style={{ minWidth: 120 }}
                             rules={[
                               {
                                 type: 'number',
@@ -741,7 +737,7 @@ function VerificationFields({ form }: { form: FormInstance<EnvironmentFormValues
                               min={LIMITS.expectedStatusMin}
                               max={LIMITS.expectedStatusMax}
                               precision={0}
-                              style={{ width: '100%' }}
+                              className="u-w-full"
                             />
                           </Form.Item>
                           <Form.Item

@@ -37,13 +37,13 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
 
   const columns: TableColumnsType<Record<string, unknown>> = data.columns.map((col, idx) => ({
     title: (
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+      <span className="u-mono u-text-2xs">
         {col.name} <span className="muted">{col.type}</span>
         {col.restricted ? (
           <Tooltip title={t('datasources.settings.sample_masked_tooltip')}>
             <LockOutlined
               aria-label={t('datasources.settings.sample_masked_tooltip')}
-              style={{ marginLeft: 6, color: 'var(--warning)' }}
+              className="u-fg-warning" style={{ marginLeft: 6 }}
             />
           </Tooltip>
         ) : null}
@@ -69,7 +69,7 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
       <Alert
         type="info"
         showIcon
-        style={{ marginBottom: 12 }}
+        className="u-mb-3"
         title={t('datasources.settings.sample_governed_note')}
       />
       <DataTable
@@ -82,11 +82,11 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
         emptyTitle={t('datasources.settings.sample_empty')}
         footer={() =>
           data.truncated ? (
-            <span className="muted" style={{ fontSize: 11 }}>
+            <span className="muted u-text-2xs">
               {t(sampleTruncatedKey(data.truncated_reason), { count: data.row_count })}
             </span>
           ) : (
-            <span className="muted" style={{ fontSize: 11 }}>
+            <span className="muted u-text-2xs">
               {t('datasources.settings.sample_row_count', { count: data.row_count })}
             </span>
           )

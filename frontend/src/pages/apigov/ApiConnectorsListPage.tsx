@@ -159,7 +159,7 @@ export default function ApiConnectorsListPage() {
       title: t('apiGov.connectors.actions'),
       key: 'actions',
       render: (_: unknown, row: ApiConnector) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button
             size="small"
             loading={testMutation.isPending && testMutation.variables === row.id}

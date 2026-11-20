@@ -34,81 +34,47 @@ export function OptimizationCard({ optimization, onApply }: OptimizationCardProp
     >
       <div
         onClick={() => setOpen(!open)}
-        style={{
-          padding: '10px 12px',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-          cursor: 'pointer',
-        }}
+        className="u-flex u-items-start" style={{ padding: '10px 12px', gap: 10, cursor: 'pointer' }}
       >
         <div
-          style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-            background: c.bg,
-            color: c.fg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            marginTop: 1,
-          }}
+          className="u-flex u-items-center u-justify-center" style={{ width: 20, height: 20, borderRadius: 4, background: c.bg, color: c.fg, flexShrink: 0, marginTop: 1 }}
         >
-          <BulbOutlined style={{ fontSize: 11 }} />
+          <BulbOutlined className="u-text-2xs" />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <div className="u-flex-1 u-min-w-0">
+          <div className="u-flex u-items-center" style={{ gap: 6, marginBottom: 2 }}>
             <span
-              className="mono"
-              style={{ fontSize: 11, fontWeight: 600, color: c.fg, textTransform: 'uppercase' }}
+              className="mono u-text-2xs u-fw-600"
+              style={{ color: c.fg, textTransform: 'uppercase' }}
             >
               {optimizationTypeLabel(t, optimization.type)}
             </span>
           </div>
-          <div style={{ fontSize: 12, lineHeight: 1.4 }}>{optimization.title}</div>
+          <div className="u-text-xs" style={{ lineHeight: 1.4 }}>{optimization.title}</div>
         </div>
         {open ? (
-          <UpOutlined style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 4 }} />
+          <UpOutlined className="u-text-2xs u-fg-faint u-mt-1" />
         ) : (
-          <DownOutlined style={{ fontSize: 11, color: 'var(--fg-faint)', marginTop: 4 }} />
+          <DownOutlined className="u-text-2xs u-fg-faint u-mt-1" />
         )}
       </div>
       {open && (
         <div
-          style={{
-            padding: '10px 12px 12px 42px',
-            fontSize: 12,
-            color: 'var(--fg-muted)',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-          }}
+          className="u-text-xs u-fg-muted u-flex u-col" style={{ padding: '10px 12px 12px 42px', borderTop: '1px solid var(--border)', gap: 10 }}
         >
           <div>
-            <div style={{ fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>
+            <div className="u-fw-500 u-fg u-mb-1">
               {t('ai_panel.optimization_rationale_label')}
             </div>
-            <div style={{ lineHeight: 1.5 }}>{optimization.rationale}</div>
+            <div className="u-leading-normal">{optimization.rationale}</div>
           </div>
           <div>
-            <div style={{ fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>
+            <div className="u-fw-500 u-fg u-mb-1">
               {t('ai_panel.optimization_sql_label')}
             </div>
             <pre
-              className="mono"
-              style={{
-                margin: 0,
-                padding: 8,
-                background: 'var(--bg-sunken)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 12,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
+              className="mono u-m-0 u-p-2 u-text-xs"
+              style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
             >
               <code>{optimization.sql}</code>
             </pre>

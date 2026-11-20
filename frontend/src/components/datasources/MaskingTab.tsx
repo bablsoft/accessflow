@@ -98,19 +98,13 @@ export function MaskingTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('datasources.settings.masking.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('datasources.settings.masking.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('datasources.settings.masking.description')}
           </div>
         </div>
@@ -136,7 +130,7 @@ export function MaskingTab({ dsId }: { dsId: string }) {
             {
               title: t('datasources.settings.masking.col_column'),
               dataIndex: 'column_ref',
-              render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+              render: (v: string) => <span className="mono u-text-xs">{v}</span>,
             },
             {
               title: t('datasources.settings.masking.col_strategy'),
@@ -161,7 +155,7 @@ export function MaskingTab({ dsId }: { dsId: string }) {
                     {p.enabled ? (
                       <CheckCircleOutlined
                         aria-label={label}
-                        style={{ color: 'var(--risk-low)' }}
+                        className="u-fg-success"
                       />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
@@ -222,9 +216,9 @@ function RevealSummary({ policy }: { policy: MaskingPolicy }) {
     parts.push(t('datasources.settings.masking.reveal_users', { count: policy.reveal_to_user_ids.length }));
   }
   if (parts.length === 0) {
-    return <span className="muted" style={{ fontSize: 12 }}>{t('datasources.settings.masking.reveal_none')}</span>;
+    return <span className="muted u-text-xs">{t('datasources.settings.masking.reveal_none')}</span>;
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface MaskingFormValues extends StrategyParamFormValues {

@@ -39,7 +39,7 @@ function ClassificationBadges({ classifications }: { classifications: DataClassi
   return (
     <>
       {classifications.map((c) => (
-        <StatusTag tone="danger" key={c} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '14px', padding: '0 4px' }}>
+        <StatusTag tone="danger" key={c} className="u-text-2xs" style={{ marginInlineEnd: 0, lineHeight: '14px', padding: '0 4px' }}>
           {c}
         </StatusTag>
       ))}
@@ -61,12 +61,12 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
   const filtering = filter.trim().length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
+    <div className="u-flex u-col" style={{ minHeight: 0, height: '100%' }}>
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
         <Input
           size="small"
           allowClear
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('datasources.settings.object_tree_search_placeholder')}
           aria-label={t('datasources.settings.object_tree_search_placeholder')}
           value={filter}
@@ -74,16 +74,10 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
         />
       </div>
       <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '6px 0',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-        }}
+        className="u-flex-1 u-mono u-text-xs" style={{ overflow: 'auto', padding: '6px 0' }}
       >
         {filtered.length === 0 && (
-          <div className="muted" style={{ padding: '8px 12px', fontSize: 11 }}>
+          <div className="muted u-text-2xs" style={{ padding: '8px 12px' }}>
             {t('datasources.settings.object_tree_no_match', { query: filter })}
           </div>
         )}
@@ -112,14 +106,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                   return (
                     <div key={tab.name}>
                       <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          padding: '3px 12px 3px 24px',
-                          color: 'var(--fg)',
-                          background: isSelected ? 'var(--bg-hover)' : 'transparent',
-                        }}
+                        className="u-flex u-items-center u-fg" style={{ gap: 6, padding: '3px 12px 3px 24px', background: isSelected ? 'var(--bg-hover)' : 'transparent' }}
                       >
                         <button
                           type="button"
@@ -130,9 +117,9 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                           aria-label={tab.name}
                           style={tableButtonStyle}
                         >
-                          <TableOutlined style={{ fontSize: 11, color: 'var(--sql-table)' }} />
+                          <TableOutlined className="u-text-2xs" style={{ color: 'var(--sql-table)' }} />
                           <span>{tab.name}</span>
-                          <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>
+                          <span className="u-text-2xs u-fg-faint">
                             {tab.columns.length}
                           </span>
                         </button>
@@ -149,7 +136,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                               })}
                               style={previewButtonStyle}
                             >
-                              <EyeOutlined style={{ fontSize: 12 }} />
+                              <EyeOutlined className="u-text-xs" />
                             </button>
                           </Tooltip>
                         )}
@@ -158,7 +145,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                         tab.columns.map((c) => (
                           <div key={c.name} style={columnRowStyle}>
                             {c.primary_key ? (
-                              <span style={{ color: 'var(--risk-med)', fontSize: 11 }}>PK</span>
+                              <span className="u-text-2xs" style={{ color: 'var(--risk-med)' }}>PK</span>
                             ) : (
                               <span style={{ width: 12 }} />
                             )}
@@ -169,7 +156,7 @@ export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }:
                                 `${tab.name}.${c.name}`,
                               )}
                             />
-                            <span style={{ marginLeft: 'auto', color: 'var(--fg-faint)', fontSize: 11 }}>
+                            <span className="u-ml-auto u-fg-faint u-text-2xs">
                               {c.type}
                             </span>
                           </div>

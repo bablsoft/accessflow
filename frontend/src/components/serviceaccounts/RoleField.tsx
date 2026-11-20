@@ -39,7 +39,7 @@ export function RoleField({ roles, loading, selectedRoleId, disabled, extra }: R
           type="warning"
           showIcon
           data-testid="review-role-warning"
-          style={{ marginBottom: 16 }}
+          className="u-mb-4"
           title={t('admin.service_accounts.review_role_warning')}
         />
       )}

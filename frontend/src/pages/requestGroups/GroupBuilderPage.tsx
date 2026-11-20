@@ -214,7 +214,7 @@ export default function GroupBuilderPage() {
 
   if (editId && (editGroupQuery.isLoading || !groupId)) {
     return (
-      <div style={{ padding: 24 }} data-testid="group-builder-loading">
+      <div className="u-p-6" data-testid="group-builder-loading">
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
@@ -232,17 +232,9 @@ export default function GroupBuilderPage() {
         }
       />
       <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: 24,
-          display: 'grid',
-          gridTemplateColumns: '1fr 320px',
-          gap: 20,
-          alignItems: 'start',
-        }}
+        className="u-flex-1 u-p-6 u-grid u-gap-5" style={{ overflow: 'auto', gridTemplateColumns: '1fr 320px', alignItems: 'start' }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-flex u-col u-gap-4">
           <Card size="small">
             <Form layout="vertical">
               <Form.Item
@@ -277,7 +269,7 @@ export default function GroupBuilderPage() {
               >
                 {t('requestGroups.builder.continueOnError')}
               </Checkbox>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              <div className="muted u-text-xs u-mt-1">
                 {t('requestGroups.builder.continueOnErrorHint')}
               </div>
             </Form>
@@ -296,7 +288,7 @@ export default function GroupBuilderPage() {
                 items={members.map((m) => m.key)}
                 strategy={verticalListSortingStrategy}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="u-flex u-col u-gap-3">
                   {members.map((m, i) => (
                     <GroupMemberCard
                       key={m.key}
@@ -335,33 +327,33 @@ export default function GroupBuilderPage() {
           </Dropdown>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="u-flex u-col" style={{ gap: 14 }}>
           <Card size="small" title={t('requestGroups.builder.aggregateRisk')}>
             {aggregate ? (
               <RiskPill level={aggregate.level} score={aggregate.score} />
             ) : (
               <span className="muted">{t('requestGroups.builder.noRiskYet')}</span>
             )}
-            <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            <div className="muted u-text-xs u-mt-2">
               {t('requestGroups.builder.aggregateRiskHint')}
             </div>
           </Card>
 
           <Card size="small" title={t('requestGroups.builder.submitOptions')}>
-            <Space orientation="vertical" style={{ width: '100%' }} size={10}>
-              <label style={{ display: 'block' }}>
-                <div className="muted" style={{ marginBottom: 4 }}>
+            <Space orientation="vertical" className="u-w-full" size={10}>
+              <label className="u-block">
+                <div className="muted u-mb-1">
                   {t('requestGroups.builder.scheduleFor')}
                 </div>
                 <DatePicker
                   showTime
-                  style={{ width: '100%' }}
+                  className="u-w-full"
                   format="YYYY-MM-DD HH:mm"
                   value={scheduledFor}
                   onChange={setScheduledFor}
                 />
                 {scheduleInPast && (
-                  <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>
+                  <div className="u-fg-danger u-text-xs u-mt-1">
                     {t('requestGroups.builder.scheduleInPast')}
                   </div>
                 )}
