@@ -130,6 +130,60 @@ class DatasourceConnectionTestIntegrationTest {
         assertThat(result).hasStatus(422);
         assertThat(result).bodyJson().extractingPath("$.error").asString()
                 .isEqualTo("DATASOURCE_CONNECTION_TEST_FAILED");
+        assertThat(result).bodyJson().extractingPath("$.reason").asString()
+                .isEqualTo("AUTHENTICATION");
+        // The driver's message names the role; the response must not.
+        assertThat(result).bodyJson().extractingPath("$.detail").asString()
+                .doesNotContain(customerDb.getUsername());
+    }
+
+    @Test
+    void testConnectionToAMissingDatabaseNamesThatReason() {
+        var ds = saveDatasource(customerDb.getUsername(), customerDb.getPassword(), "no_such_db");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.reason").asString()
+                .isEqualTo("DATABASE_NOT_FOUND");
+    }
+
+    @Test
+    void testConnectionRequiringSslFromAPlainServerNamesThatReason() {
+        var ds = saveDatasource(customerDb.getUsername(), customerDb.getPassword(),
+                customerDb.getDatabaseName());
+        ds.setSslMode(SslMode.REQUIRE);
+        datasourceRepository.save(ds);
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.reason").asString().isEqualTo("SSL");
+    }
+
+    @Test
+    void testConnectionToAClosedPortNamesThatReason() throws Exception {
+        int closedPort;
+        try (var socket = new java.net.ServerSocket(0)) {
+            closedPort = socket.getLocalPort();
+        }
+        var ds = saveDatasource(customerDb.getUsername(), customerDb.getPassword(),
+                customerDb.getDatabaseName());
+        ds.setHost("127.0.0.1");
+        ds.setPort(closedPort);
+        datasourceRepository.save(ds);
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.reason").asString()
+                .isEqualTo("HOST_UNREACHABLE");
     }
 
     @Test

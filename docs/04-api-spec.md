@@ -525,7 +525,23 @@ Opens a transient JDBC connection to the customer database (no Hikari pool), exe
 ```
 
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
-**Response 422:** Connection failed. The body contains the vendor error message in `detail`. `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+**Response 422:** Connection failed. `error: DATASOURCE_CONNECTION_TEST_FAILED`, plus a `reason` naming the classified cause:
+
+| `reason` | Meaning |
+|---|---|
+| `SSL` | The TLS handshake failed, or the server and the configured `ssl_mode` disagree |
+| `AUTHENTICATION` | The server refused the credentials |
+| `HOST_UNREACHABLE` | The host did not resolve, or nothing accepted the connection |
+| `TIMEOUT` | The server did not answer within the login timeout |
+| `DATABASE_NOT_FOUND` | The server answered but has no database of that name |
+| `UNKNOWN` | None of the above could be established (always the case for an engine plugin) |
+
+`detail` is a localized sentence for that reason (the generic "Connection test failed" for `UNKNOWN`). The driver's own error text is **never** returned — it names hosts, users and server versions — and is written to the server log at `WARN` instead.
+
+```json
+{ "status": 422, "error": "DATASOURCE_CONNECTION_TEST_FAILED", "reason": "SSL",
+  "detail": "The server rejected the SSL settings. Try a different SSL mode, or check the server's certificate." }
+```
 
 ### POST /datasources/{id}/test-replica
 
@@ -551,7 +567,7 @@ Opens a transient JDBC connection to a candidate read-replica using the values s
 
 **Response 400:** Request body validation failed (blank `jdbc_url`, malformed URL, missing username/password fallback). `error: VALIDATION_ERROR` or `DATASOURCE_CONNECTION_TEST_FAILED`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
-**Response 422:** Replica connection failed. The body contains the vendor error message in `detail`. `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+**Response 422:** Replica connection failed. `error: DATASOURCE_CONNECTION_TEST_FAILED` with the same `reason` and `detail` contract as `POST /datasources/{id}/test`.
 
 ### GET /datasources/{id}/schema — Response
 

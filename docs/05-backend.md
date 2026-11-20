@@ -612,6 +612,8 @@ Any failure in this flow bubbles as `DriverResolutionException` and surfaces on 
 
 **Operational notes.** First datasource of a never-yet-resolved type incurs a one-time download latency of roughly 1–5 s depending on driver size and network. The wizard's "test connection" step (see `docs/06-frontend.md` → DatasourceCreateWizardPage) surfaces this so admins are not surprised by a longer first call. The 5 s login timeout on `POST /datasources/{id}/test` does **not** include driver download time.
 
+**Connection-test failures.** `DatasourceAdminServiceImpl` passes every `SQLException` from a connection test, a replica test or a live introspection through `core/internal/ConnectionFailureClassifier`, which maps it onto `core.api.ConnectionFailureReason` (`SSL`, `AUTHENTICATION`, `HOST_UNREACHABLE`, `TIMEOUT`, `DATABASE_NOT_FOUND`, `UNKNOWN`). It reads, in order: the cause chain (`SSLException`, `SocketTimeoutException`, `UnknownHostException`, `ConnectException`, …), the wording for SSL, the SQLSTATE class (`28` = invalid authorization, `3D000` = unknown catalog, `08` = connection exception), and a handful of vendor codes (MySQL 1045 / 1049, SQL Server 18456 / 4060, Oracle 1017 / 12514 / 12505). The reason rides on `DatasourceConnectionTestException` and `GlobalExceptionHandler` turns it into the `reason` property and a localized `detail` (`error.datasource_connection_test_failed.<reason>`). The driver's message itself is logged at `WARN` and never returned. Engine plugins throw the exception with a message only, so their failures stay `UNKNOWN`.
+
 #### Admin-uploaded drivers (#94 / #142)
 
 The bundled registry covers the five canonical engines. For everything else — community
