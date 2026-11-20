@@ -75,7 +75,7 @@ export default function ApiEditorPage() {
 
   if (connectorsQuery.isLoading) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div className="u-p-10 u-text-center">
         <div className="muted">{t('apiGov.editor.loading')}</div>
       </div>
     );
@@ -83,7 +83,7 @@ export default function ApiEditorPage() {
 
   if ((connectorsQuery.data?.content ?? []).length === 0) {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div className="u-p-10 u-text-center">
         <div className="muted">{t('apiGov.editor.noConnectors')}</div>
       </div>
     );
@@ -100,9 +100,9 @@ export default function ApiEditorPage() {
         connectorVariables={variablesQuery.data ?? []}
         header={
           <label>
-            <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.connector')}</div>
+            <div className="muted u-mb-1">{t('apiGov.editor.connector')}</div>
             <Select
-              style={{ width: '100%' }}
+              className="u-w-full"
               placeholder={t('apiGov.editor.selectConnector')}
               value={connectorId}
               onChange={(v) => {
@@ -116,21 +116,21 @@ export default function ApiEditorPage() {
         footer={
           <>
             <label>
-              <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.scheduleFor')}</div>
+              <div className="muted u-mb-1">{t('apiGov.editor.scheduleFor')}</div>
               <DatePicker
                 showTime
-                style={{ width: '100%' }}
+                className="u-w-full"
                 format="YYYY-MM-DD HH:mm"
                 value={scheduledFor}
                 onChange={setScheduledFor}
               />
-              <div className="muted" style={{ marginTop: 4, color: scheduleInPast ? 'var(--danger)' : undefined }}>
+              <div className="muted u-mt-1" style={{ color: scheduleInPast ? 'var(--danger)' : undefined }}>
                 {scheduleInPast ? t('apiGov.editor.scheduleInPast') : t('apiGov.editor.scheduleHint')}
               </div>
             </label>
 
             <label>
-              <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.justification')}</div>
+              <div className="muted u-mb-1">{t('apiGov.editor.justification')}</div>
               <Input.TextArea rows={2} value={justification} onChange={(e) => setJustification(e.target.value)} />
             </label>
 

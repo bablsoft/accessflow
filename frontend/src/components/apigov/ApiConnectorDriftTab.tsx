@@ -96,11 +96,11 @@ export function ApiConnectorDriftTab({
   const refreshable = (schemasQuery.data ?? []).filter((s) => !!s.source_url);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="u-flex u-col u-gap-6">
       <Alert type="info" showIcon title={t('apiGov.drift.explainer')} />
       <section>
-        <Space style={{ marginBottom: 12, justifyContent: 'space-between', width: '100%' }}>
-          <Typography.Title level={5} style={{ margin: 0 }}>
+        <Space className="u-mb-3 u-justify-between u-w-full">
+          <Typography.Title level={5} className="u-m-0">
             {t('apiGov.drift.findingsTitle')}
           </Typography.Title>
           <Select<ApiDriftFindingStatus>
@@ -145,7 +145,7 @@ export function ApiConnectorDriftTab({
                 dataIndex: 'affected_grant_count',
                 render: (count: number) =>
                   count > 0 ? (
-                    <Button type="link" size="small" style={{ padding: 0 }} onClick={onOpenPermissions}>
+                    <Button type="link" size="small" className="u-p-0" onClick={onOpenPermissions}>
                       {t('apiGov.drift.affectedGrantsLink', { count })}
                     </Button>
                   ) : (
@@ -182,12 +182,12 @@ export function ApiConnectorDriftTab({
             ]}
           />
         )}
-        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+        <Typography.Text type="secondary" className="u-block u-mt-2">
           {t('apiGov.drift.grantImpactHint')}
         </Typography.Text>
       </section>
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
+      <section className="u-flex u-col u-gap-4">
+        <Typography.Title level={5} className="u-m-0">
           {t('apiGov.drift.revisionsTitle')}
         </Typography.Title>
         {schemasQuery.isError ? (
@@ -295,7 +295,7 @@ function SchemaRevisionsCard({ connectorId, schema }: { connectorId: string; sch
         </Button>
       }
     >
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+      <Typography.Paragraph type="secondary" className="u-mb-2">
         {schema.refresh_interval_minutes != null
           ? t('apiGov.settings.autoRefreshEvery', { minutes: schema.refresh_interval_minutes })
           : t('apiGov.settings.autoRefreshOff')}
@@ -303,7 +303,7 @@ function SchemaRevisionsCard({ connectorId, schema }: { connectorId: string; sch
           ` · ${t('apiGov.settings.lastRefreshed', { time: fmtDate(schema.last_refresh_at) })}`}
       </Typography.Paragraph>
       {schema.last_refresh_error && (
-        <Alert type="error" showIcon style={{ marginBottom: 8 }} title={schema.last_refresh_error} />
+        <Alert type="error" showIcon className="u-mb-2" title={schema.last_refresh_error} />
       )}
       {revisionsQuery.isError ? (
         <LoadError error={revisionsQuery.error} />

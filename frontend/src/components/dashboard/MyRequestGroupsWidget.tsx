@@ -27,7 +27,7 @@ export function MyRequestGroupsWidget() {
       loading={groupsQuery.isLoading}
       error={groupsQuery.error}
       onRetry={() => void groupsQuery.refetch()}
-      emptyIcon={<GroupOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<GroupOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.request_groups.empty')}
       rowKey={(it: RequestGroup) => it.id}
       viewAllTo="/request-groups"
@@ -35,7 +35,7 @@ export function MyRequestGroupsWidget() {
         pills: <RequestGroupStatusPill status={it.status} size="sm" />,
         primary: (
           <>
-            <span style={{ fontWeight: 500 }}>{it.name}</span>{' '}
+            <span className="u-fw-500">{it.name}</span>{' '}
             <span className="muted">
               {t('dashboard.request_groups.item_count', { count: it.items.length })}
             </span>

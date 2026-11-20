@@ -14,9 +14,9 @@ export function ErDiagramTab({ dsId }: ErDiagramTabProps) {
 
   if (schemaQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }} data-testid="er-diagram-skeleton">
-        <Skeleton.Node active style={{ width: '100%', height: 560 }} />
-        <div className="muted" style={{ marginTop: 12, fontSize: 12 }}>
+      <div className="u-p-gutter" data-testid="er-diagram-skeleton">
+        <Skeleton.Node active className="u-w-full" style={{ height: 560 }} />
+        <div className="muted u-mt-3 u-text-xs">
           {t('datasources.settings.er_diagram_loading')}
         </div>
       </div>
@@ -25,7 +25,7 @@ export function ErDiagramTab({ dsId }: ErDiagramTabProps) {
 
   if (schemaQuery.isError || !schemaQuery.data) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <EmptyState title={t('datasources.settings.er_diagram_error')} />
       </div>
     );
@@ -37,7 +37,7 @@ export function ErDiagramTab({ dsId }: ErDiagramTabProps) {
 
   if (!hasForeignKeys) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <EmptyState
           title={t('datasources.settings.er_diagram_empty_title')}
           description={t('datasources.settings.er_diagram_empty_description')}
@@ -47,7 +47,7 @@ export function ErDiagramTab({ dsId }: ErDiagramTabProps) {
   }
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <ErDiagram
         schemas={schemaQuery.data.schemas}
         helpText={t('datasources.settings.er_diagram_help')}

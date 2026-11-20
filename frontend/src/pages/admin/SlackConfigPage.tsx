@@ -100,7 +100,7 @@ export function SlackConfigPage() {
 
   if (cfgQuery.isLoading) {
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );

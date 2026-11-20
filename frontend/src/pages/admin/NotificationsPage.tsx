@@ -195,12 +195,7 @@ export function NotificationsPage() {
           />
         ) : (
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-              gap: 14,
-              alignContent: 'start',
-            }}
+            className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14, alignContent: 'start' }}
           >
             {channels.map((c) => (
               <ChannelCard
@@ -336,32 +331,17 @@ function ChannelCard({
   })();
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-      }}
+      className="u-p-4" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div className="u-flex u-items-start u-gap-3">
         <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            background: iconColor + '20',
-            color: iconColor,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
+          className="u-flex u-items-center u-justify-center" style={{ width: 36, height: 36, borderRadius: 8, background: iconColor + '20', color: iconColor, flexShrink: 0 }}
         >
           {icon}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{ch.name}</div>
+        <div className="u-flex-1 u-min-w-0">
+          <div className="u-flex u-items-center u-gap-2">
+            <div className="u-fw-600 u-text-md">{ch.name}</div>
             {!ch.active && (
               <Pill
                 fg="var(--fg-muted)"
@@ -373,40 +353,23 @@ function ChannelCard({
               </Pill>
             )}
           </div>
-          <div className="mono muted" style={{ fontSize: 11, marginTop: 2 }}>
+          <div className="mono muted u-text-2xs" style={{ marginTop: 2 }}>
             {channelTypeLabel(t, ch.channel_type)}
           </div>
         </div>
       </div>
       <div
-        style={{
-          marginTop: 12,
-          padding: 10,
-          background: 'var(--bg-sunken)',
-          borderRadius: 6,
-          fontSize: 12,
-          fontFamily: 'var(--font-mono)',
-          lineHeight: 1.5,
-          maxHeight: 110,
-          overflow: 'auto',
-        }}
+        className="u-mt-3 u-text-xs u-mono u-leading-normal" style={{ padding: 10, background: 'var(--bg-sunken)', borderRadius: 6, maxHeight: 110, overflow: 'auto' }}
       >
         <ConfigPreview channel={ch} />
       </div>
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: '1px solid var(--border)',
-        }}
+        className="u-flex u-items-center u-gap-2 u-mt-3" style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}
       >
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <span className="mono muted u-text-2xs">
           {fmtDate(ch.created_at).split(',')[0]}
         </span>
-        <div style={{ flex: 1 }} />
+        <div className="u-flex-1" />
         <Button size="small" icon={<PlayCircleOutlined />} onClick={onTest} loading={testing}>
           {t('common.test')}
         </Button>
@@ -705,7 +668,7 @@ function ChannelFormModal({
         </Form.Item>
 
         {channelType === 'EMAIL' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-cols-2 u-gap-3">
             <Form.Item
               name="smtp_host"
               label={t('admin.notifications.label_smtp_host')}
@@ -718,7 +681,7 @@ function ChannelFormModal({
               label={t('admin.notifications.label_smtp_port')}
               rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
             >
-              <InputNumber min={1} max={65535} style={{ width: '100%' }} />
+              <InputNumber min={1} max={65535} className="u-w-full" />
             </Form.Item>
             <Form.Item name="smtp_user" label={t('admin.notifications.label_smtp_user')}>
               <Input autoComplete="off" />
@@ -786,7 +749,7 @@ function ChannelFormModal({
               label={t('admin.notifications.label_timeout_seconds')}
               rules={[{ type: 'number', min: 1, max: 120 }]}
             >
-              <InputNumber min={1} max={120} style={{ width: '100%' }} />
+              <InputNumber min={1} max={120} className="u-w-full" />
             </Form.Item>
           </>
         )}
@@ -918,7 +881,7 @@ function ChannelFormModal({
             >
               <Input placeholder="https://company.service-now.com" />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid u-cols-2 u-gap-3">
               <Form.Item
                 name="sn_username"
                 label={t('admin.notifications.label_servicenow_username')}
@@ -944,7 +907,7 @@ function ChannelFormModal({
                 label={t('admin.notifications.label_servicenow_urgency')}
                 rules={[{ type: 'number', min: 1, max: 3 }]}
               >
-                <InputNumber min={1} max={3} style={{ width: '100%' }} />
+                <InputNumber min={1} max={3} className="u-w-full" />
               </Form.Item>
             </div>
           </>
@@ -959,7 +922,7 @@ function ChannelFormModal({
             >
               <Input placeholder="https://company.atlassian.net" />
             </Form.Item>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="u-grid u-cols-2 u-gap-3">
               <Form.Item
                 name="user_email"
                 label={t('admin.notifications.label_jira_user_email')}
@@ -1033,7 +996,7 @@ function ChannelFormModal({
                 >
                   <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
                 </Form.Item>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="u-grid u-cols-2 u-gap-3">
                   <Form.Item
                     name="approve_statuses"
                     label={t('admin.notifications.label_ticketing_approve_statuses')}

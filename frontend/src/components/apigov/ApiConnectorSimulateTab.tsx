@@ -50,7 +50,7 @@ export function ApiConnectorSimulateTab({ connectorId }: { connectorId: string }
   };
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="u-w-full">
       <Alert type="info" showIcon title={t('apiGov.simulate.read_only_notice')} />
       <Form<FormValues>
         name="api-call-simulation"

@@ -199,8 +199,8 @@ export default function AnomaliesPage() {
             setPage(0);
           }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
           {t('anomalies.count_label', { count: anomaliesQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
@@ -214,12 +214,12 @@ export default function AnomaliesPage() {
           />
         ) : anomalies.length === 0 ? (
           <EmptyState
-            icon={<WarningOutlined style={{ fontSize: 20 }} />}
+            icon={<WarningOutlined className="u-text-xl" />}
             title={t('anomalies.empty_title')}
             description={t('anomalies.empty_description')}
           />
         ) : (
-          <Space orientation="vertical" size={20} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={20} className="u-w-full">
             <Card title={t('anomalies.chart_by_feature_title')} data-testid="anomalies-feature-chart">
               <Column
                 data={byFeature}
@@ -259,12 +259,12 @@ export default function AnomaliesPage() {
                       userDisplay(a.user_display_name, a.user_email) ||
                       t('anomalies.user_unknown');
                     return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="u-flex u-items-center u-gap-2">
                         <Avatar name={name} size={20} />
                         <div>
-                          <div style={{ fontSize: 12 }}>{name}</div>
+                          <div className="u-text-xs">{name}</div>
                           {a.user_email && (
-                            <div className="mono muted" style={{ fontSize: 11 }}>
+                            <div className="mono muted u-text-2xs">
                               {a.user_email}
                             </div>
                           )}
@@ -278,14 +278,14 @@ export default function AnomaliesPage() {
                   dataIndex: 'datasource_name',
                   width: 160,
                   render: (v: string | null) =>
-                    v ? <span className="mono" style={{ fontSize: 12 }}>{v}</span> : <span className="muted">—</span>,
+                    v ? <span className="mono u-text-xs">{v}</span> : <span className="muted">—</span>,
                 },
                 {
                   title: t('anomalies.col_feature'),
                   dataIndex: 'feature',
                   width: 180,
                   render: (v) => (
-                    <span className="mono" style={{ fontSize: 12, fontWeight: 500 }}>
+                    <span className="mono u-text-xs u-fw-500">
                       {v}
                     </span>
                   ),
@@ -295,7 +295,7 @@ export default function AnomaliesPage() {
                   dataIndex: 'score',
                   width: 90,
                   render: (v: number) => (
-                    <span className="mono" style={{ fontWeight: 600 }}>
+                    <span className="mono u-fw-600">
                       {v.toFixed(1)}
                     </span>
                   ),
@@ -311,7 +311,7 @@ export default function AnomaliesPage() {
                   dataIndex: 'ai_summary',
                   render: (v: string | null) =>
                     v ? (
-                      <span style={{ fontSize: 12 }}>
+                      <span className="u-text-xs">
                         {v.length > 90 ? `${v.slice(0, 90)}…` : v}
                       </span>
                     ) : (
@@ -357,12 +357,11 @@ export default function AnomaliesPage() {
         size={520}
       >
         {detail && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="u-flex u-col" style={{ gap: 14 }}>
             <DetailCard>
-              <Space orientation="vertical" size={6} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={6} className="u-w-full">
                 <div
-                  className="mono"
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--risk-crit)' }}
+                  className="mono u-text-md u-fw-600 u-fg-danger"
                 >
                   {detail.feature}
                 </div>
@@ -370,7 +369,7 @@ export default function AnomaliesPage() {
               </Space>
             </DetailCard>
             <DetailCard title={t('anomalies.section_signal')}>
-              <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="u-flex u-col" style={{ padding: 14, gap: 10 }}>
                 <Row k={t('anomalies.field_score')} v={detail.score.toFixed(2)} />
                 <Row k={t('anomalies.field_observed')} v={fmtNum(detail.observed_value)} />
                 <Row k={t('anomalies.field_baseline_mean')} v={fmtNum(detail.baseline_mean)} />
@@ -384,21 +383,12 @@ export default function AnomaliesPage() {
             </DetailCard>
             {detail.ai_summary && (
               <DetailCard title={t('anomalies.section_summary')}>
-                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.6 }}>{detail.ai_summary}</div>
+                <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.6 }}>{detail.ai_summary}</div>
               </DetailCard>
             )}
             <DetailCard title={t('anomalies.section_detail')}>
               <pre
-                style={{
-                  margin: 0,
-                  padding: 14,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  background: 'var(--bg-code)',
-                  borderRadius: '0 0 var(--radius-md) var(--radius-md)',
-                  overflow: 'auto',
-                }}
+                className="u-m-0 u-mono u-text-xs u-leading-normal" style={{ padding: 14, background: 'var(--bg-code)', borderRadius: '0 0 var(--radius-md) var(--radius-md)', overflow: 'auto' }}
               >
                 {JSON.stringify(detail.detail ?? {}, null, 2)}
               </pre>
@@ -421,12 +411,7 @@ function DetailCard({ title, children }: { title?: string; children: React.React
     >
       {title && (
         <div
-          style={{
-            padding: '10px 14px',
-            borderBottom: '1px solid var(--border)',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
+          className="u-fw-600 u-text-xs" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
         >
           {title}
         </div>
@@ -439,16 +424,10 @@ function DetailCard({ title, children }: { title?: string; children: React.React
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 8,
-        fontFamily: 'var(--font-mono)',
-        fontSize: 12,
-      }}
+      className="u-flex u-justify-between u-gap-2 u-mono u-text-xs"
     >
       <span className="muted">{k}</span>
-      <span style={{ textAlign: 'right' }}>{v}</span>
+      <span className="u-text-right">{v}</span>
     </div>
   );
 }

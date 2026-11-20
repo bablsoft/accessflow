@@ -194,7 +194,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
       dataIndex: 'name',
       width: 200,
       render: (name: string, p) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span className="u-inline-flex u-items-center u-gap-2">
           {name}
           {p.pipeline_id == null && (
             <StatusTag tone="info">{t('deploygov.routingPolicies.scopeGlobal')}</StatusTag>
@@ -206,7 +206,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
       title: t('deploygov.routingPolicies.conditions'),
       key: 'conditions',
       render: (_v, p) => (
-        <span style={{ fontSize: 12 }}>{deploymentConditionsSummary(t, p.conditions)}</span>
+        <span className="u-text-xs">{deploymentConditionsSummary(t, p.conditions)}</span>
       ),
     },
     {
@@ -217,7 +217,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
         <span>
           {routingActionLabel(t, a)}
           {p.required_approvals != null && (
-            <span className="mono muted" style={{ fontSize: 11, marginLeft: 6 }}>
+            <span className="mono muted u-text-2xs" style={{ marginLeft: 6 }}>
               ×{p.required_approvals}
             </span>
           )}
@@ -237,7 +237,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
       key: 'actions',
       width: 160,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button size="small" onClick={() => setModalFor(row)}>
             {t('common.edit')}
           </Button>
@@ -257,8 +257,8 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 960 }}>
-      <div className="muted" style={{ fontSize: 12, lineHeight: 1.55 }}>
+    <div className="u-flex u-col u-gap-3" style={{ maxWidth: 960 }}>
+      <div className="muted u-text-xs" style={{ lineHeight: 1.55 }}>
         {t('deploygov.routingPolicies.hint')}
       </div>
       <div>
@@ -333,11 +333,11 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
               label={t('deploygov.routingPolicies.labelRequiredApprovals')}
               rules={[{ required: true, type: 'number', min: 1 }]}
             >
-              <InputNumber min={1} style={{ width: '100%' }} />
+              <InputNumber min={1} className="u-w-full" />
             </Form.Item>
           )}
           <Form.Item name="priority" label={t('deploygov.routingPolicies.labelPriority')}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} className="u-w-full" />
           </Form.Item>
           <Form.Item name="environments" label={t('deploygov.routingPolicies.labelEnvironments')}>
             <Select
@@ -381,7 +381,7 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
             />
           </Form.Item>
           <Form.Item name="time_range" label={t('deploygov.routingPolicies.labelTimeRange')}>
-            <TimePicker.RangePicker format="HH:mm" minuteStep={15} style={{ width: '100%' }} />
+            <TimePicker.RangePicker format="HH:mm" minuteStep={15} className="u-w-full" />
           </Form.Item>
           <Form.Item name="timezone" label={t('deploygov.routingPolicies.labelTimezone')}>
             <Select

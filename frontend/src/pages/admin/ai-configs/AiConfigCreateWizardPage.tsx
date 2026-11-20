@@ -201,11 +201,11 @@ export default function AiConfigCreateWizardPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
+      <div className="u-flex-1 u-p-gutter" style={{ overflow: 'auto', maxWidth: 760 }}>
         <AiConfigWizardSteps current={currentStep} />
-        <div style={{ marginTop: 24 }}>
+        <div className="u-mt-6">
           {currentStep === 'provider' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
               {PROVIDERS.map((p) => (
                 <button
                   key={p.id}
@@ -224,18 +224,10 @@ export default function AiConfigCreateWizardPage() {
                     });
                     setCurrentStep('connection');
                   }}
-                  style={{
-                    padding: 16,
-                    textAlign: 'left',
-                    background: 'var(--bg-elev)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    color: 'var(--fg)',
-                  }}
+                  className="u-p-4 u-fg" style={{ textAlign: 'left', background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{p.label}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{p.desc}</div>
+                  <div className="u-fw-600 u-text-md u-mb-1">{p.label}</div>
+                  <div className="muted u-text-xs">{p.desc}</div>
                 </button>
               ))}
             </div>
@@ -292,27 +284,27 @@ export default function AiConfigCreateWizardPage() {
               >
                 <Input.Password className="mono" maxLength={4096} autoComplete="off" />
               </Form.Item>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                 <Form.Item
                   name="timeout_ms"
                   label={t('admin.ai_configs.field_timeout_ms')}
                   rules={[{ required: true, type: 'number', min: 1000, max: 600000 }]}
                 >
-                  <InputNumber className="mono" min={1000} max={600000} style={{ width: '100%' }} />
+                  <InputNumber className="mono u-w-full" min={1000} max={600000} />
                 </Form.Item>
                 <Form.Item
                   name="max_prompt_tokens"
                   label={t('admin.ai_configs.field_max_prompt_tokens')}
                   rules={[{ required: true, type: 'number', min: 100, max: 200000 }]}
                 >
-                  <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
+                  <InputNumber className="mono u-w-full" min={100} max={200000} />
                 </Form.Item>
                 <Form.Item
                   name="max_completion_tokens"
                   label={t('admin.ai_configs.field_max_completion_tokens')}
                   rules={[{ required: true, type: 'number', min: 100, max: 200000 }]}
                 >
-                  <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
+                  <InputNumber className="mono u-w-full" min={100} max={200000} />
                 </Form.Item>
               </div>
               <Form.Item
@@ -342,11 +334,11 @@ export default function AiConfigCreateWizardPage() {
               <Button
                 onClick={() => void loadDefaultPrompt()}
                 loading={defaultPromptQuery.isFetching}
-                style={{ marginBottom: 16 }}
+                className="u-mb-4"
               >
                 {t('admin.ai_configs.system_prompt_load_default')}
               </Button>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="u-grid u-cols-2 u-gap-4">
                 <Form.Item
                   name="langfuse_prompt_name"
                   label={t('admin.ai_configs.field_langfuse_prompt_name')}
@@ -364,7 +356,7 @@ export default function AiConfigCreateWizardPage() {
                 </Form.Item>
               </div>
               <RagFormSection form={form} />
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <div className="u-flex u-gap-2 u-mt-4">
                 <Button onClick={() => setCurrentStep('provider')}>{t('common.back')}</Button>
                 <Button type="primary" htmlType="submit" loading={createMutation.isPending}>
                   {t('admin.ai_configs.wizard.save_and_test')}
@@ -373,7 +365,7 @@ export default function AiConfigCreateWizardPage() {
             </Form>
           )}
           {currentStep === 'test' && createdId && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="u-flex u-col u-gap-4">
               <Button
                 icon={<PlayCircleOutlined />}
                 onClick={() => testMutation.mutate()}

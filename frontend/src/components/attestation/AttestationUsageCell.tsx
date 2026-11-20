@@ -23,7 +23,7 @@ export function AttestationUsageCell({ item }: { item: AttestationItem }) {
   if (item.usage_recommendation === null) {
     return (
       <Tooltip title={t('attestation.usage.no_data_hint')}>
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {t('attestation.usage.no_data')}
         </span>
       </Tooltip>
@@ -40,11 +40,11 @@ export function AttestationUsageCell({ item }: { item: AttestationItem }) {
         });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div className="u-flex u-col u-gap-1">
       <Pill fg={color.fg} bg={color.bg} border={color.border} withDot size="sm">
         {grantUsageRecommendationLabel(t, item.usage_recommendation)}
       </Pill>
-      <span className="muted" style={{ fontSize: 11 }}>
+      <span className="muted u-text-2xs">
         {item.usage_last_used_at !== null
           ? t('attestation.usage.last_used', { date: fmtDate(item.usage_last_used_at) })
           : item.usage_recommendation === 'INSUFFICIENT_DATA'

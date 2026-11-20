@@ -59,7 +59,7 @@ export function DashboardWidgetCard({
       <Card
         styles={{ body: { padding: collapsed ? 0 : 16 } }}
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <button
               type="button"
               className="af-icon-btn"
@@ -79,21 +79,20 @@ export function DashboardWidgetCard({
             >
               {collapsed ? <RightOutlined /> : <DownOutlined />}
             </button>
-            <span style={{ fontWeight: 600 }}>{title}</span>
+            <span className="u-fw-600">{title}</span>
             {typeof badge === 'number' && badge > 0 && (
-              <span className="af-sidebar-badge mono" style={{ marginLeft: 4 }}>
+              <span className="af-sidebar-badge mono u-ml-1">
                 {badge}
               </span>
             )}
             <button
               type="button"
-              className="af-icon-btn af-widget-size-toggle"
+              className="af-icon-btn af-widget-size-toggle u-ml-auto"
               aria-label={
                 size === 'half'
                   ? t('dashboard.widen', { title })
                   : t('dashboard.narrow', { title })
               }
-              style={{ marginLeft: 'auto' }}
               onClick={onToggleSize}
             >
               {size === 'half' ? <ExpandOutlined /> : <CompressOutlined />}

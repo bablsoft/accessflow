@@ -29,8 +29,8 @@ export function VersionBadge() {
   if (!data?.update_available || !data.latest_version) {
     return (
       <div
-        className="mono muted"
-        style={{ fontSize: 11, textTransform: 'lowercase' }}
+        className="mono muted u-text-2xs"
+        style={{ textTransform: 'lowercase' }}
         aria-label={t('nav.version', { version: APP_VERSION })}
       >
         v{APP_VERSION}
@@ -47,7 +47,7 @@ export function VersionBadge() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={label}
-        style={{ display: 'inline-flex', marginTop: 2 }}
+        className="u-inline-flex" style={{ marginTop: 2 }}
       >
         <Pill fg={color.fg} bg={color.bg} border={color.border} withDot size="sm">
           v{APP_VERSION}

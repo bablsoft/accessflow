@@ -127,17 +127,12 @@ export function KnowledgeDocumentsSection({
   ];
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 24 }}>
+    <div className="u-mt-6" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 8,
-        }}
+        className="u-flex u-items-center u-justify-between u-mb-2"
       >
-        <h3 style={{ margin: 0 }}>{t('admin.ai_configs.rag.documents_title')}</h3>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <h3 className="u-m-0">{t('admin.ai_configs.rag.documents_title')}</h3>
+        <div className="u-flex u-gap-2">
           <Button
             icon={<ExperimentOutlined />}
             onClick={() => testMutation.mutate()}
@@ -156,7 +151,7 @@ export function KnowledgeDocumentsSection({
           </Button>
         </div>
       </div>
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted u-mt-0">
         {ragEnabled
           ? t('admin.ai_configs.rag.documents_help')
           : t('admin.ai_configs.rag.documents_save_first')}

@@ -77,8 +77,8 @@ export function TrendsWidget({ kind }: TrendsWidgetProps) {
   const labels = [...colors.keys()];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+    <div className="u-flex u-col u-gap-3">
+      <div className="u-flex u-items-center u-gap-2 u-wrap">
         <Segmented<TrendMetric>
           size="small"
           value={metric}
@@ -98,7 +98,7 @@ export function TrendsWidget({ kind }: TrendsWidgetProps) {
             { value: '90d', label: t('dashboard.trends.range_90d') },
           ]}
         />
-        <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>
+        <span className="muted u-text-2xs u-ml-auto">
           {t('dashboard.trends.window', {
             from: fmtDateOnly(filters.from ?? '', { utc: true }),
             // `to` is the exclusive start of tomorrow; display the inclusive last day instead.
@@ -111,7 +111,7 @@ export function TrendsWidget({ kind }: TrendsWidgetProps) {
       ) : !trendsQuery.isLoading && labels.length === 0 ? (
         <EmptyState
           size="sm"
-          icon={<LineChartOutlined style={{ fontSize: 16 }} />}
+          icon={<LineChartOutlined className="u-text-lg" />}
           title={t(emptyKey)}
         />
       ) : (
@@ -137,12 +137,12 @@ export function TrendsWidget({ kind }: TrendsWidgetProps) {
             <ChartTooltip />
           </AreaChart>
           {labels.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+            <div className="u-flex u-wrap" style={{ gap: '4px 14px' }}>
               {labels.map((label) => (
                 <span
                   key={label}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-                  className="muted"
+                  style={{ gap: 6 }}
+                  className="muted u-inline-flex u-items-center u-text-xs"
                 >
                   <span
                     aria-hidden

@@ -76,13 +76,13 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
 
   const columns: TableColumnsType<Record<string, unknown>> = data.columns.map((col, idx) => ({
     title: (
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+      <span className="u-mono u-text-2xs">
         {col.name} <span className="muted">{col.type}</span>
         {col.restricted ? (
           <Tooltip title={t('queries.detail.column_masked_tooltip')}>
             <LockOutlined
               aria-label={t('queries.detail.column_masked_tooltip')}
-              style={{ marginLeft: 6, color: 'var(--warning)' }}
+              className="u-fg-warning" style={{ marginLeft: 6 }}
             />
           </Tooltip>
         ) : null}
@@ -152,13 +152,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
 
   const toggle = (
     <div
-      style={{
-        marginBottom: 8,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 8,
-      }}
+      className="u-mb-2 u-flex u-justify-between u-items-center u-gap-2"
     >
       <Segmented<ResultView>
         size="small"
@@ -179,22 +173,13 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
       <div>
         {toggle}
         <pre
-          className="mono"
-          style={{
-            margin: 0,
-            padding: 12,
-            maxHeight: 480,
-            overflow: 'auto',
-            background: 'var(--bg-code)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            fontSize: 12,
-          }}
+          className="mono u-m-0 u-p-3 u-text-xs"
+          style={{ maxHeight: 480, overflow: 'auto', background: 'var(--bg-code)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}
         >
           {documentsToJson(data.columns, data.rows)}
         </pre>
         {data.truncated ? (
-          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+          <div className="muted u-text-2xs" style={{ marginTop: 6 }}>
             {t(truncatedMessageKey(data.truncated_reason), { count: data.row_count })}
           </div>
         ) : null}
@@ -224,7 +209,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
         }}
         footer={() =>
           data.truncated ? (
-            <span className="muted" style={{ fontSize: 11 }}>
+            <span className="muted u-text-2xs">
               {t(truncatedMessageKey(data.truncated_reason), { count: data.row_count })}
             </span>
           ) : null

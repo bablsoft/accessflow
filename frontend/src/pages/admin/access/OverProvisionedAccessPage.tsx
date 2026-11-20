@@ -84,11 +84,11 @@ export default function OverProvisionedAccessPage() {
         title: t('over_provisioned.col_subject'),
         key: 'subject',
         render: (_: unknown, row: OverProvisionedGrant) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-flex u-items-center" style={{ gap: 10 }}>
             <Avatar name={row.user_email} size={24} />
             <div>
-              <div style={{ fontSize: 13 }}>{row.user_display_name ?? row.user_email}</div>
-              <div className="mono muted" style={{ fontSize: 11 }}>
+              <div className="u-text-sm">{row.user_display_name ?? row.user_email}</div>
+              <div className="mono muted u-text-2xs">
                 {row.user_email}
               </div>
             </div>
@@ -100,10 +100,10 @@ export default function OverProvisionedAccessPage() {
         key: 'resource',
         render: (_: unknown, row: OverProvisionedGrant) => (
           <div>
-            <div className="mono" style={{ fontSize: 12 }}>
+            <div className="mono u-text-xs">
               {row.resource_name}
             </div>
-            <div className="muted" style={{ fontSize: 11 }}>
+            <div className="muted u-text-2xs">
               {grantResourceKindLabel(t, row.resource_kind)}
             </div>
           </div>
@@ -123,7 +123,7 @@ export default function OverProvisionedAccessPage() {
           return row.recommendation === 'INSUFFICIENT_DATA' ? (
             <span className="muted">{t('over_provisioned.not_yet_observed')}</span>
           ) : (
-            <span style={{ color: 'var(--risk-crit)' }}>{t('over_provisioned.never_used')}</span>
+            <span className="u-fg-danger">{t('over_provisioned.never_used')}</span>
           );
         },
       },
@@ -137,7 +137,7 @@ export default function OverProvisionedAccessPage() {
               <span className="muted">{t('over_provisioned.unrestricted')}</span>
             </Tooltip>
           ) : (
-            <span className="mono" style={{ fontSize: 12 }}>
+            <span className="mono u-text-xs">
               {t('over_provisioned.scope_ratio', {
                 used: row.used_target_count,
                 granted: row.granted_target_count,
@@ -150,7 +150,7 @@ export default function OverProvisionedAccessPage() {
         key: 'usage',
         width: 120,
         render: (_: unknown, row: OverProvisionedGrant) => (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {row.usage_count}
           </span>
         ),
@@ -235,15 +235,15 @@ export default function OverProvisionedAccessPage() {
           className="mono"
           aria-label={t('over_provisioned.filter_user_placeholder')}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
           {t('over_provisioned.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
 
       <PageBody flush>
         {report.isLoading ? (
-          <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />
         ) : report.isError ? (
           <EmptyState
             title={t('over_provisioned.load_error')}

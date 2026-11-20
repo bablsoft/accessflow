@@ -78,9 +78,9 @@ export function StatementListEditor({
           onStructureChange();
         };
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="u-flex u-col u-gap-3">
             {fields.length === 0 && (
-              <div className="muted" style={{ fontSize: 13 }}>
+              <div className="muted u-text-sm">
                 {t('schemaChange.statements.empty')}
               </div>
             )}
@@ -92,7 +92,7 @@ export function StatementListEditor({
                       <Card
                         size="small"
                         title={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="u-flex u-items-center u-gap-2">
                             {handle}
                             <span className="mono muted">#{index + 1}</span>
                             <Form.Item noStyle shouldUpdate>
@@ -137,7 +137,7 @@ export function StatementListEditor({
                               }),
                             },
                           ]}
-                          style={{ marginBottom: 0 }}
+                          className="u-mb-0"
                         >
                           <SqlEditorControl readOnly={readOnly} />
                         </Form.Item>
@@ -163,7 +163,7 @@ export function StatementListEditor({
               </Button>
             )}
             {!readOnly && fields.length >= maxStatements && (
-              <div className="muted" style={{ fontSize: 12 }}>
+              <div className="muted u-text-xs">
                 {t('schemaChange.statements.capReached', { max: maxStatements })}
               </div>
             )}
@@ -235,15 +235,12 @@ function StatementProblems({ problems, index }: { problems: StatementProblem[]; 
     <ul
       aria-label={t('schemaChange.statements.problemsLabel', { index: index + 1 })}
       data-testid={`statement-problems-${index}`}
-      style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}
+      className="u-p-0 u-flex u-col u-gap-1" style={{ listStyle: 'none', margin: '8px 0 0' }}
     >
       {problems.map((p, i) => (
         <li
           key={`${p.severity}-${p.ruleId ?? ''}-${p.datasourceId ?? ''}-${i}`}
-          style={{
-            fontSize: 12,
-            color: p.severity === 'WARN' ? 'var(--status-warn)' : 'var(--risk-crit)',
-          }}
+          className="u-text-xs" style={{ color: p.severity === 'WARN' ? 'var(--status-warn)' : 'var(--risk-crit)' }}
         >
           <Tag
             style={{

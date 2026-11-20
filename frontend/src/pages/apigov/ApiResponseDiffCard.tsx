@@ -66,7 +66,7 @@ export function ApiResponseDiffCard({ request }: Props) {
     {
       title: t('apiGov.requests.diffPath'),
       dataIndex: 'path',
-      render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+      render: (v: string) => <span className="mono u-text-xs">{v}</span>,
     },
     {
       title: t('apiGov.requests.diffKind'),
@@ -105,7 +105,7 @@ export function ApiResponseDiffCard({ request }: Props) {
 
   return (
     <DetailCard title={t('apiGov.requests.diffTitle')} icon={<DiffOutlined />}>
-      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
         <Input.Search
           allowClear
           size="small"
@@ -117,7 +117,7 @@ export function ApiResponseDiffCard({ request }: Props) {
         />
         {diffQuery.isLoading && <Skeleton active title={false} paragraph={{ rows: 2 }} />}
         {!diffQuery.isLoading && isEmpty && (
-          <div className="muted" style={{ fontSize: 13 }}>
+          <div className="muted u-text-sm">
             {t('apiGov.requests.diffEmpty')}
           </div>
         )}
@@ -139,10 +139,10 @@ export function ApiResponseDiffCard({ request }: Props) {
         )}
         {!diffQuery.isLoading && diff && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
               <div>
                 <Label text={t('apiGov.requests.diffStatusCode')} />
-                <span className="mono" style={{ fontSize: 13 }}>
+                <span className="mono u-text-sm">
                   {`${diff.status_code_previous ?? '—'} → ${diff.status_code_current ?? '—'}`}
                 </span>
               </div>
@@ -158,7 +158,7 @@ export function ApiResponseDiffCard({ request }: Props) {
                 current={request.response_bytes}
               />
             </div>
-            <div style={{ fontSize: 13 }}>
+            <div className="u-text-sm">
               {t('apiGov.requests.diffCounts', {
                 added: diff.added_count,
                 removed: diff.removed_count,
@@ -177,7 +177,7 @@ export function ApiResponseDiffCard({ request }: Props) {
               columns={columns}
               emptyTitle={t('apiGov.requests.diffNoChanges')}
             />
-            <div className="muted" style={{ fontSize: 12 }}>
+            <div className="muted u-text-xs">
               {t('apiGov.requests.diffMaskingNote')}
             </div>
             {panes && (
@@ -196,7 +196,7 @@ export function ApiResponseDiffCard({ request }: Props) {
             )}
             <Link
               to={`/api-requests/${diff.previous_id}`}
-              style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}
+              className="u-text-xs u-mono"
             >
               {t('apiGov.requests.diffPreviousLink')}
             </Link>
@@ -210,7 +210,7 @@ export function ApiResponseDiffCard({ request }: Props) {
 function ValueCell({ value }: { value: string | null | undefined }) {
   if (value == null) return <span className="muted">—</span>;
   return (
-    <span className="mono" style={{ fontSize: 12, wordBreak: 'break-word' }}>
+    <span className="mono u-text-xs" style={{ wordBreak: 'break-word' }}>
       {value}
     </span>
   );
@@ -232,11 +232,11 @@ function DeltaRow({
     <div>
       <Label text={label} />
       {delta == null ? (
-        <div className="muted" style={{ fontSize: 13 }}>
+        <div className="muted u-text-sm">
           {t('apiGov.requests.diffUnavailable')}
         </div>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="u-flex u-items-center u-gap-2">
           <DeltaBadge
             delta={delta}
             previous={current != null ? current - delta : null}
@@ -244,7 +244,7 @@ function DeltaRow({
             positiveIsGood={false}
           />
           {current != null && (
-            <span className="mono muted" style={{ fontSize: 12 }}>
+            <span className="mono muted u-text-xs">
               {current}
               {unit ? ` ${unit}` : ''}
             </span>
@@ -258,8 +258,8 @@ function DeltaRow({
 function Label({ text }: { text: string }) {
   return (
     <div
-      className="muted mono"
-      style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}
+      className="muted mono u-text-2xs u-mb-1"
+      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
     >
       {text}
     </div>

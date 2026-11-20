@@ -389,8 +389,8 @@ export function Sidebar({
         <div className="af-sidebar-brand">
           <LogoMark size={26} className="af-logo-mark" />
           {!collapsed && (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
+            <div className="u-flex-1 u-min-w-0">
+              <div className="u-text-md u-fw-600" style={{ letterSpacing: '-0.01em' }}>
                 {t('common.app_name')}
               </div>
               <VersionBadge />
@@ -473,29 +473,18 @@ export function Sidebar({
             const role = roleLabel(t, user.role);
             return (
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                }}
+                className="u-flex u-items-center" style={{ gap: 10, justifyContent: collapsed ? 'center' : 'flex-start' }}
                 title={collapsed ? `${label} · ${role}` : undefined}
               >
                 <Avatar name={label} size={28} />
                 {!collapsed && (
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="u-min-w-0 u-flex-1">
                     <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
+                      className="u-text-sm u-fw-500 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
                       {label}
                     </div>
-                    <div className="mono muted" style={{ fontSize: 11 }}>{role}</div>
+                    <div className="mono muted u-text-2xs">{role}</div>
                   </div>
                 )}
               </div>

@@ -62,35 +62,28 @@ export function ReviewPlanPreview({ ds }: Props) {
 
   return (
     <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <ApartmentOutlined style={{ color: 'var(--fg-muted)' }} />
+      <div className="u-flex u-items-center u-gap-2 u-mb-3">
+        <ApartmentOutlined className="u-fg-muted" />
         <div>
-          <div style={{ fontWeight: 600, fontSize: 12 }}>Review plan: {plan.name}</div>
-          <div className="muted" style={{ fontSize: 11 }}>{plan.description ?? ''}</div>
+          <div className="u-fw-600 u-text-xs">Review plan: {plan.name}</div>
+          <div className="muted u-text-2xs">{plan.description ?? ''}</div>
         </div>
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs">
           timeout · {plan.approval_timeout_hours}h
         </span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+      <div className="u-flex u-items-center u-gap-0 u-wrap">
         {stages.map((s, i) => (
           <Fragment key={i}>
             <div
-              style={{
-                flex: 1,
-                minWidth: 120,
-                padding: '8px 10px',
-                background: 'var(--bg-sunken)',
-                borderRadius: 6,
-                border: '1px solid var(--border)',
-              }}
+              className="u-flex-1" style={{ minWidth: 120, padding: '8px 10px', background: 'var(--bg-sunken)', borderRadius: 6, border: '1px solid var(--border)' }}
             >
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 2 }}>{s.label}</div>
-              <div className="mono muted" style={{ fontSize: 11 }}>{s.detail}</div>
+              <div className="u-text-2xs u-fw-600" style={{ marginBottom: 2 }}>{s.label}</div>
+              <div className="mono muted u-text-2xs">{s.detail}</div>
             </div>
             {i < stages.length - 1 && (
-              <RightOutlined style={{ margin: '0 6px', color: 'var(--fg-faint)', fontSize: 11 }} />
+              <RightOutlined className="u-fg-faint u-text-2xs" style={{ margin: '0 6px' }} />
             )}
           </Fragment>
         ))}

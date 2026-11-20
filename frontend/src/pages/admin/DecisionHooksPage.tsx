@@ -194,7 +194,7 @@ export function DecisionHooksPage() {
           description={t('admin.decision_hooks.trust_body')}
         />
         {hooksQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 4 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 4 }} className="u-p-6" />
         ) : hooksQuery.isError ? (
           <EmptyState
             title={t('admin.decision_hooks.load_error')}
@@ -218,8 +218,8 @@ export function DecisionHooksPage() {
                 dataIndex: 'name',
                 render: (v: string, hook) => (
                   <div>
-                    <div style={{ fontWeight: 500 }}>{v}</div>
-                    <div className="muted mono" style={{ fontSize: 12 }}>
+                    <div className="u-fw-500">{v}</div>
+                    <div className="muted mono u-text-xs">
                       {hook.endpoint_url}
                     </div>
                   </div>
@@ -274,7 +274,7 @@ export function DecisionHooksPage() {
                 title: t('admin.decision_hooks.col_actions'),
                 width: 140,
                 render: (_v, hook) => (
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="u-flex u-gap-1">
                     <Button
                       size="small"
                       type="text"
@@ -387,7 +387,7 @@ export function DecisionHooksPage() {
               placeholder={editing ? '********' : ''}
             />
           </Form.Item>
-          <div style={{ display: 'flex', gap: 32 }}>
+          <div className="u-flex u-gap-8">
             <Form.Item
               name="include_sql"
               label={t('admin.decision_hooks.label_include_sql')}

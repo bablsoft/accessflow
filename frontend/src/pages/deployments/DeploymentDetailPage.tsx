@@ -179,7 +179,7 @@ export default function DeploymentDetailPage() {
       key: 'drift',
       label,
       children: (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {t('deploygov.versions.superseded', {
             environment: environmentVersion.environment.name,
             version: environmentVersion.current_version ?? '—',
@@ -238,7 +238,7 @@ export default function DeploymentDetailPage() {
       title: t('deploygov.detail.reviewer'),
       dataIndex: 'reviewer_id',
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {v}
         </span>
       ),
@@ -283,7 +283,7 @@ export default function DeploymentDetailPage() {
       title: t('deploygov.detail.verificationObserved'),
       dataIndex: 'observed_value',
       render: (v: string | null | undefined) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {v ?? '—'}
         </span>
       ),
@@ -306,7 +306,7 @@ export default function DeploymentDetailPage() {
         }
         actions={<Button onClick={() => navigate('/deployments')}>{t('common.back')}</Button>}
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
         {requestQuery.isLoading && <Skeleton active paragraph={{ rows: 8 }} />}
         {!requestQuery.isLoading && !request && (
           <EmptyState size="sm" title={t('deploygov.deployments.notFound')} />
@@ -357,7 +357,7 @@ export default function DeploymentDetailPage() {
                 description={
                   <>
                     {request.verification_detail && (
-                      <div className="mono" style={{ fontSize: 12, marginBottom: 4 }}>
+                      <div className="mono u-text-xs u-mb-1">
                         {request.verification_detail}
                       </div>
                     )}
@@ -409,10 +409,10 @@ export default function DeploymentDetailPage() {
                           label: t('deploygov.detail.verification'),
                           // With no card to carry it, an unsampled request's reason sits here.
                           children: (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <span className="u-inline-flex u-items-center u-gap-2">
                               <VerificationTag status={verificationStatus} />
                               {!verificationSampled && verificationDetail && (
-                                <span className="muted" style={{ fontSize: 12 }}>
+                                <span className="muted u-text-xs">
                                   {verificationDetail}
                                 </span>
                               )}
@@ -425,7 +425,7 @@ export default function DeploymentDetailPage() {
                     key: 'commit',
                     label: t('deploygov.detail.commit'),
                     children: request.commit_sha ? (
-                      <span className="mono" style={{ fontSize: 12 }}>
+                      <span className="mono u-text-xs">
                         {request.commit_sha}
                       </span>
                     ) : (
@@ -436,7 +436,7 @@ export default function DeploymentDetailPage() {
                     key: 'artifact',
                     label: t('deploygov.detail.artifact'),
                     children: request.artifact_ref ? (
-                      <span className="mono" style={{ fontSize: 12 }}>
+                      <span className="mono u-text-xs">
                         {request.artifact_ref}
                       </span>
                     ) : (
@@ -458,7 +458,7 @@ export default function DeploymentDetailPage() {
                     key: 'externalRun',
                     label: t('deploygov.detail.externalRunId'),
                     children: request.external_run_id ? (
-                      <span className="mono" style={{ fontSize: 12 }}>
+                      <span className="mono u-text-xs">
                         {request.external_run_id}
                       </span>
                     ) : (
@@ -469,7 +469,7 @@ export default function DeploymentDetailPage() {
                     key: 'submitter',
                     label: t('deploygov.detail.submitter'),
                     children: (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span className="u-inline-flex u-items-center u-gap-2">
                         {request.submitted_by_email ?? request.submitted_by}
                         <OnBehalfOfTag
                           email={request.on_behalf_of_email}
@@ -498,7 +498,7 @@ export default function DeploymentDetailPage() {
             </Card>
 
             {(canCancel || canDecide) && (
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="u-flex u-gap-3 u-items-center u-wrap">
                 {canDecide && (
                   <>
                     <Button type="primary" onClick={() => setDecisionFor('approve')}>
@@ -525,18 +525,18 @@ export default function DeploymentDetailPage() {
                 {/* The submitter never gets decide buttons; say why rather than leave the
                     absence unexplained. */}
                 {isOwnPendingRequest && (
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted u-text-xs">
                     {t('deploygov.reviews.selfSubmissionHint')}
                   </span>
                 )}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div style={{ flex: 2, minWidth: 320, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="u-flex u-gap-4 u-items-start u-wrap">
+              <div className="u-flex u-col u-gap-4" style={{ flex: 2, minWidth: 320 }}>
                 {request.justification && (
                   <DetailCard title={t('deploygov.detail.justification')}>
-                    <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                    <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
                       {request.justification}
                     </div>
                   </DetailCard>
@@ -545,22 +545,22 @@ export default function DeploymentDetailPage() {
                 {(request.ai_risk_level != null || request.ai_summary) && (
                   <DetailCard
                     title={t('deploygov.detail.aiSummary')}
-                    icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
+                    icon={<ThunderboltOutlined className="u-fg-accent" />}
                     extra={
                       request.ai_risk_level != null && request.ai_risk_score != null ? (
                         <RiskPill level={request.ai_risk_level} score={request.ai_risk_score} />
                       ) : undefined
                     }
                   >
-                    <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                    <div className="u-text-sm" style={{ padding: 14, lineHeight: 1.55 }}>
                       {request.ai_summary ?? '—'}
                     </div>
                   </DetailCard>
                 )}
 
                 <DetailCard title={t('deploygov.detail.approvals')}>
-                  <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
+                    <div className="u-flex u-items-center u-gap-3">
                       <Progress
                         type="circle"
                         size={44}
@@ -571,7 +571,7 @@ export default function DeploymentDetailPage() {
                         }
                         format={() => `${approvalsGranted}/${request.required_approvals}`}
                       />
-                      <span style={{ fontSize: 13 }}>
+                      <span className="u-text-sm">
                         {t('deploygov.detail.approvalsProgress', {
                           granted: approvalsGranted,
                           required: request.required_approvals,
@@ -594,7 +594,7 @@ export default function DeploymentDetailPage() {
                     title={t('deploygov.detail.verification')}
                     extra={<VerificationTag status={verificationStatus} />}
                   >
-                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="u-flex u-col u-gap-3" style={{ padding: 14 }}>
                       <Descriptions
                         size="small"
                         column={{ xs: 1, sm: 2, md: 3 }}
@@ -658,10 +658,10 @@ export default function DeploymentDetailPage() {
 
                 {(request.change_ticket_required || request.change_ticket) && (
                   <DetailCard title={t('deploygov.detail.changeTicket')}>
-                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+                    <div className="u-flex u-col u-text-sm" style={{ padding: 14, gap: 6 }}>
                       {request.change_ticket ? (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <div className="u-flex u-justify-between u-gap-2">
                             <ChangeTicketLink ticket={request.change_ticket} />
                             <span className="muted">
                               {channelTypeLabel(t, request.change_ticket.system)}
@@ -689,18 +689,7 @@ export default function DeploymentDetailPage() {
                   <DetailCard title={t('deploygov.detail.metadataJson')}>
                     <div style={{ padding: 14 }}>
                       <pre
-                        style={{
-                          background: 'var(--bg-sunken)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: 12,
-                          margin: 0,
-                          maxHeight: 280,
-                          overflow: 'auto',
-                          fontSize: 12,
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                        }}
+                        className="u-p-3 u-m-0 u-text-xs" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', maxHeight: 280, overflow: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                       >
                         {JSON.stringify(request.metadata, null, 2)}
                       </pre>
@@ -708,7 +697,7 @@ export default function DeploymentDetailPage() {
                   </DetailCard>
                 )}
               </div>
-              <div style={{ flex: 1, minWidth: 260 }}>
+              <div className="u-flex-1" style={{ minWidth: 260 }}>
                 <DetailCard title={t('deploygov.detail.timelineTitle')}>
                   <div style={{ padding: 14 }}>
                     <ApprovalTimeline stages={buildDeploymentTimelineStages(request, t)} />

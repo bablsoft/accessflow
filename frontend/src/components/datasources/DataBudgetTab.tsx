@@ -91,19 +91,13 @@ export function DataBudgetTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('dataBudgets.tab.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('dataBudgets.tab.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('dataBudgets.tab.description')}
           </div>
         </div>
@@ -156,7 +150,7 @@ export function DataBudgetTab({ dsId }: { dsId: string }) {
                 return (
                   <Tooltip title={label}>
                     {b.enabled ? (
-                      <CheckCircleOutlined aria-label={label} style={{ color: 'var(--risk-low)' }} />
+                      <CheckCircleOutlined aria-label={label} className="u-fg-success" />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
                     )}
@@ -215,7 +209,7 @@ function LimitsSummary({ budget }: { budget: DataBudget }) {
   if (budget.max_bytes != null) {
     parts.push(formatBytes(budget.max_bytes) ?? '');
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 function AppliesToSummary({ budget }: { budget: DataBudget }) {
@@ -232,12 +226,12 @@ function AppliesToSummary({ budget }: { budget: DataBudget }) {
   }
   if (parts.length === 0) {
     return (
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('dataBudgets.tab.applies_everyone')}
       </span>
     );
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface DataBudgetFormValues {
@@ -417,10 +411,10 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
           <Input />
         </Form.Item>
 
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+        <div className="muted u-text-xs u-mb-2">
           {t('dataBudgets.tab.limits_hint')}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="u-grid u-cols-2 u-gap-3">
           <Form.Item
             name="max_rows"
             label={t('dataBudgets.tab.label_max_rows')}
@@ -430,7 +424,7 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
               limitRequiredRule,
             ]}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            <InputNumber min={1} precision={0} className="u-w-full" />
           </Form.Item>
           <Form.Item
             name="max_bytes"
@@ -457,7 +451,7 @@ function DataBudgetModal({ open, dsId, budget, onClose }: DataBudgetModalProps) 
                 min={1}
                 precision={0}
                 aria-label={t('dataBudgets.tab.label_window')}
-                style={{ width: '100%' }}
+                className="u-w-full"
               />
             </Form.Item>
             <Form.Item name="window_unit" noStyle>

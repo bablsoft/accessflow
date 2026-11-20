@@ -237,8 +237,8 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
   );
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
+      <Typography.Paragraph type="secondary" className="u-mb-0">
         {t('admin.service_accounts.keys.description')}
       </Typography.Paragraph>
       <div>
@@ -308,7 +308,7 @@ export function ServiceAccountKeysTab({ account }: { account: ServiceAccount }) 
             label={t('admin.service_accounts.keys.label_grace_hours')}
             extra={t('admin.service_accounts.keys.grace_default_help', { hours: DEFAULT_GRACE_HOURS })}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder={String(DEFAULT_GRACE_HOURS)} />
+            <InputNumber min={1} precision={0} className="u-w-full" placeholder={String(DEFAULT_GRACE_HOURS)} />
           </Form.Item>
         </Form>
       </Modal>

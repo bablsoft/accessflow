@@ -45,7 +45,7 @@ export function DatasourceTypeSelector({
 
   return (
     <div role="radiogroup" aria-label={t('datasources.create.select_database')}
-      style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+      className="u-flex u-col u-gap-5"
     >
       <TypeGroup
         title={t('datasources.create.source_bundled')}
@@ -69,14 +69,8 @@ export function DatasourceTypeSelector({
         onSelect={onSelect}
         emptyState={
           <div
-            className="muted"
-            style={{
-              fontSize: 12,
-              padding: 12,
-              borderRadius: 'var(--radius-md)',
-              border: '1px dashed var(--border)',
-              background: 'var(--bg-sunken)',
-            }}
+            className="muted u-text-xs u-p-3"
+            style={{ borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', background: 'var(--bg-sunken)' }}
           >
             <div style={{ marginBottom: 6 }}>
               {t('datasources.create.no_custom_drivers_hint')}
@@ -104,23 +98,19 @@ function TypeGroup({
 }: TypeGroupProps) {
   const { t } = useTranslation();
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+    <section className="u-flex u-col" style={{ gap: 10 }}>
+      <div className="u-flex u-items-baseline u-gap-2">
+        <h3 className="u-m-0 u-text-sm" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {title}
         </h3>
         {helpText && (
-          <span className="muted" style={{ fontSize: 12 }}>{helpText}</span>
+          <span className="muted u-text-xs">{helpText}</span>
         )}
       </div>
       {options.length === 0 && emptyState}
       {options.length > 0 && (
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: 14,
-          }}
+          className="u-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}
         >
           {options.map((option) => {
             const key = optionKey(option);
@@ -135,35 +125,19 @@ function TypeGroup({
                 aria-checked={selected}
                 onClick={() => onSelect(option)}
                 key={key}
-                style={{
-                  all: 'unset',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                  padding: 16,
-                  borderRadius: 'var(--radius-md)',
-                  border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
-                  background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s, background 0.15s',
-                }}
+                className="u-flex u-col u-gap-3 u-p-4" style={{ all: 'unset', borderRadius: 'var(--radius-md)', border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`, background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="u-flex u-items-center u-gap-3">
                   <img
                     src={option.icon_url}
                     alt=""
                     width={36}
                     height={36}
-                    style={{
-                      borderRadius: 8,
-                      background: 'var(--bg-sunken)',
-                      padding: 4,
-                      objectFit: 'contain',
-                    }}
+                    className="u-p-1" style={{ borderRadius: 8, background: 'var(--bg-sunken)', objectFit: 'contain' }}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{option.display_name}</div>
-                    <div className="muted mono" style={{ fontSize: 11 }}>
+                  <div className="u-flex-1 u-min-w-0">
+                    <div className="u-fw-600 u-text-md">{option.display_name}</div>
+                    <div className="muted mono u-text-2xs">
                       {option.default_port > 0
                         ? t('datasources.create.default_port_label', { port: option.default_port })
                         : option.code}
@@ -171,8 +145,8 @@ function TypeGroup({
                   </div>
                 </div>
                 <div
-                  className="muted"
-                  style={{ fontSize: 12, lineHeight: 1.4, overflowWrap: 'anywhere' }}
+                  className="muted u-text-xs"
+                  style={{ lineHeight: 1.4, overflowWrap: 'anywhere' }}
                 >
                   {isUploaded
                     ? `${t('datasources.create.uploaded_vendor_label')}: ${option.vendor_name ?? '—'} · `

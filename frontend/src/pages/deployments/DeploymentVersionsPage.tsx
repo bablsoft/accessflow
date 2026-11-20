@@ -138,7 +138,7 @@ export default function DeploymentVersionsPage() {
   const body = () => {
     if (listQuery.isLoading) {
       return (
-        <div style={{ padding: 16 }}>
+        <div className="u-p-4">
           <Skeleton active paragraph={{ rows: 8 }} />
         </div>
       );
@@ -216,7 +216,7 @@ export default function DeploymentVersionsPage() {
           style={{ width: 170 }}
         />
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('deploygov.versions.environmentFilterPlaceholder')}
           aria-label={t('deploygov.versions.environment')}
           value={environment}
@@ -241,12 +241,12 @@ export default function DeploymentVersionsPage() {
           ]}
           style={{ width: 180 }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs">
           {t('deploygov.versions.countLabel', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>{body()}</div>
+      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px' }}>{body()}</div>
     </Page>
   );
 }

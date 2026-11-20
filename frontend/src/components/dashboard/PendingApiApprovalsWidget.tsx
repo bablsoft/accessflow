@@ -23,14 +23,14 @@ export function PendingApiApprovalsWidget({ items, loading, error, onRetry }: Pr
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyIcon={<InboxOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<InboxOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.pending_api_approvals.empty')}
       rowKey={(it) => it.api_request_id}
       viewAllTo={reviewHubPath('api')}
       renderRow={(it) => ({
         pills: (
           <>
-            <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
+            <span className="mono u-text-xs u-fw-600">
               {it.verb}
             </span>
             <RiskPill level={it.ai_risk_level ?? 'LOW'} score={it.ai_risk_score} size="sm" />
@@ -38,10 +38,10 @@ export function PendingApiApprovalsWidget({ items, loading, error, onRetry }: Pr
         ),
         primary: (
           <>
-            <span className="mono" style={{ fontSize: 12 }}>
+            <span className="mono u-text-xs">
               {it.request_path}
             </span>{' '}
-            <span style={{ fontWeight: 500 }}>{it.connector_name ?? '—'}</span>
+            <span className="u-fw-500">{it.connector_name ?? '—'}</span>
           </>
         ),
         meta: timeAgo(it.created_at),

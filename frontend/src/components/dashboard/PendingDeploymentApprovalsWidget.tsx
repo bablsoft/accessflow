@@ -23,14 +23,14 @@ export function PendingDeploymentApprovalsWidget({ items, loading, error, onRetr
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyIcon={<InboxOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<InboxOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.pending_deployment_approvals.empty')}
       rowKey={(it) => it.deployment_request_id}
       viewAllTo={reviewHubPath('deployments')}
       renderRow={(it) => ({
         pills: (
           <>
-            <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
+            <span className="mono u-text-xs u-fw-600">
               {it.version}
             </span>
             <RiskPill level={it.ai_risk_level ?? 'LOW'} score={it.ai_risk_score} size="sm" />
@@ -38,7 +38,7 @@ export function PendingDeploymentApprovalsWidget({ items, loading, error, onRetr
         ),
         primary: (
           <>
-            <span style={{ fontWeight: 500 }}>{it.pipeline_name ?? '—'}</span>{' '}
+            <span className="u-fw-500">{it.pipeline_name ?? '—'}</span>{' '}
             <span className="muted">{it.environment_name ?? '—'}</span>
           </>
         ),

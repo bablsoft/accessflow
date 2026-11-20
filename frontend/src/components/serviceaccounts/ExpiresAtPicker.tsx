@@ -15,7 +15,7 @@ export function ExpiresAtPicker(props: DatePickerProps) {
     <DatePicker
       showTime
       needConfirm={false}
-      style={{ width: '100%' }}
+      className="u-w-full"
       disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
       disabledTime={(d) => {
         const now = dayjs();

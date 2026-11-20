@@ -143,7 +143,7 @@ export function DeploymentMetricsPanel({ pipelineId }: DeploymentMetricsPanelPro
   }, [breakdownQuery.data, environmentFilter]);
 
   const filters = (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="u-flex u-gap-2 u-wrap u-items-center">
       <Select<MetricsPeriodPreset>
         value={preset}
         aria-label={t('deploygov.metrics.period')}
@@ -194,7 +194,7 @@ export function DeploymentMetricsPanel({ pipelineId }: DeploymentMetricsPanelPro
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-flex u-col u-gap-4">
       {filters}
       <MetricsBody
         query={metricsQuery}
@@ -246,7 +246,7 @@ function MetricsBody({ query, locale, breakdown }: MetricsBodyProps) {
   return (
     <>
       <MetricTiles data={data} locale={locale} />
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <div className="u-flex u-gap-4 u-wrap">
         <Card size="small" title={t('deploygov.metrics.dailyTitle')} style={{ flex: '2 1 420px' }}>
           <DailyChart data={data} />
         </Card>
@@ -267,7 +267,7 @@ function MetricTiles({ data, locale }: { data: DeploymentMetrics; locale: string
   const approval = data.approval_latency;
   const timeout = data.timeout_rate;
   return (
-    <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}>
+    <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}>
       <MetricTile
         testId="metric-frequency"
         label={t('deploygov.metrics.frequency')}
@@ -365,7 +365,7 @@ function DailyChart({ data }: { data: DeploymentMetrics }) {
     [series[2].label]: day.rolled_back,
   }));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="u-flex u-col" style={{ gap: 10 }}>
       {/* An aspect-ratio box takes a content-based min-height, so the rendered SVG would feed its
           own height back into the box on every resize; minHeight: 0 keeps the ratio authoritative. */}
       <AreaChart data={rows} aspectRatio="2.6 / 1" style={{ minHeight: 0 }}>
@@ -406,7 +406,7 @@ function FailureRing({ data, locale }: { data: DeploymentMetrics; locale: string
     },
   ];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+    <div className="u-flex u-items-center u-gap-5 u-wrap">
       <div style={{ width: 170, height: 170, flex: 'none' }}>
         {/* geometryScrubbing draws the arcs straight from `data`; without it or explicit <Ring>
             children the vendored chart renders an empty SVG. RingCenter shows the failed count
@@ -415,12 +415,12 @@ function FailureRing({ data, locale }: { data: DeploymentMetrics; locale: string
           <RingCenter defaultLabel={t('deploygov.metrics.ringTotal')} />
         </RingChart>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="u-flex u-col u-gap-2">
         <div data-testid="metric-ring-rate">
-          <div className="mono" style={{ fontSize: 20, fontWeight: 600 }}>
+          <div className="mono u-text-xl u-fw-600">
             {formatRate(cfr.rate, locale)}
           </div>
-          <div className="muted" style={{ fontSize: 11 }}>
+          <div className="muted u-text-2xs">
             {t('deploygov.metrics.ringCenter')}
           </div>
         </div>
@@ -432,12 +432,12 @@ function FailureRing({ data, locale }: { data: DeploymentMetrics; locale: string
 
 function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+    <div className="u-flex u-wrap" style={{ gap: '4px 14px' }}>
       {items.map((item) => (
         <span
           key={item.label}
-          className="muted"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+          className="muted u-inline-flex u-items-center u-text-xs"
+          style={{ gap: 6 }}
         >
           <span
             aria-hidden

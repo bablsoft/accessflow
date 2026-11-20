@@ -82,7 +82,7 @@ export function QueryTracePanel() {
     });
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="u-w-full">
       <Alert type="info" showIcon title={t('access.simulation.read_only_notice')} />
 
       <Form<FormValues>
@@ -93,7 +93,7 @@ export function QueryTracePanel() {
         onFinish={onFinish}
         requiredMark="optional"
       >
-        <Space wrap size="middle" style={{ width: '100%' }} align="start">
+        <Space wrap size="middle" className="u-w-full" align="start">
           <Form.Item
             name="user_id"
             label={t('decisionTrace.user')}
@@ -164,11 +164,11 @@ export function QueryTracePanel() {
               min={RISK_SCORE_MIN}
               max={RISK_SCORE_MAX}
               precision={0}
-              style={{ width: '100%' }}
+              className="u-w-full"
             />
           </Form.Item>
         </Space>
-        <div className="muted" style={{ fontSize: 12, marginTop: -8, marginBottom: 16 }}>
+        <div className="muted u-text-xs u-mb-4" style={{ marginTop: -8 }}>
           {t('access.simulation.risk_pair_hint')}
         </div>
 

@@ -69,7 +69,7 @@ function HistoryBody({
   const total = historyQuery.data?.total_elements ?? 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-flex u-col u-gap-4">
       <Timeline
         items={entries.map((entry) => {
           const outcomeColor =
@@ -83,9 +83,9 @@ function HistoryBody({
             key: entry.request_id,
             color: statusColor(entry.status).fg,
             children: (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>
+              <div className="u-flex u-col" style={{ gap: 6 }}>
+                <div className="u-flex u-gap-2 u-items-center u-wrap">
+                  <span className="mono u-text-sm u-fw-600">
                     {entry.version}
                   </span>
                   <StatusPill status={entry.status} size="sm" />
@@ -101,35 +101,35 @@ function HistoryBody({
                     </Tag>
                   )}
                 </div>
-                <span className="muted" style={{ fontSize: 12 }}>
+                <span className="muted u-text-xs">
                   {deployedLabel}: {fmtDate(deployed)}
                 </span>
-                <span className="muted" style={{ fontSize: 12 }}>
+                <span className="muted u-text-xs">
                   {submissionReasonLabel(t, entry.submission_reason)}
                 </span>
                 {entry.commit_sha != null && (
-                  <span className="muted mono" style={{ fontSize: 11 }}>
+                  <span className="muted mono u-text-2xs">
                     {t('deploygov.versions.historyCommit')}: {entry.commit_sha.slice(0, 7)}
                   </span>
                 )}
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div className="u-flex u-gap-3 u-wrap">
                   {entry.run_url != null && (
                     <a
                       href={entry.run_url}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontSize: 12 }}
+                      className="u-text-xs"
                     >
                       {t('deploygov.versions.historyRun')}
                     </a>
                   )}
                   {canOpen(entry) ? (
-                    <Link to={`/deployments/${entry.request_id}`} style={{ fontSize: 12 }}>
+                    <Link to={`/deployments/${entry.request_id}`} className="u-text-xs">
                       {t('deploygov.versions.openRequest')}
                     </Link>
                   ) : (
                     <Tooltip title={t('deploygov.versions.noDrilldown')}>
-                      <span className="muted" style={{ fontSize: 12 }}>
+                      <span className="muted u-text-xs">
                         {t('deploygov.versions.openRequest')}
                       </span>
                     </Tooltip>

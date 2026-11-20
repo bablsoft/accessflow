@@ -100,14 +100,7 @@ export default function ConnectorsPage() {
         />
       </div>
       <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
+        className="u-flex-1 u-p-6 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}
       >
         {listQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
@@ -117,16 +110,12 @@ export default function ConnectorsPage() {
           <EmptyState title={t('connectors.empty_title')} description={t('connectors.empty_description')} />
         ) : (
           groups.map((group) => (
-            <section key={group.category} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Typography.Title level={5} style={{ margin: 0 }}>
+            <section key={group.category} className="u-flex u-col u-gap-3">
+              <Typography.Title level={5} className="u-m-0">
                 {group.label}
               </Typography.Title>
               <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-                  gap: 16,
-                }}
+                className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}
               >
                 {group.items.map((connector) => (
                   <ConnectorCard
@@ -158,31 +147,18 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        padding: 16,
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--border)',
-        background: 'var(--bg-elev)',
-      }}
+      className="u-flex u-col u-gap-3 u-p-4" style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-elev)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="u-flex u-items-center u-gap-3">
         <img
           src={connector.icon_url}
           alt=""
           width={40}
           height={40}
-          style={{
-            borderRadius: 8,
-            background: 'var(--bg-sunken)',
-            padding: 4,
-            objectFit: 'contain',
-          }}
+          className="u-p-1" style={{ borderRadius: 8, background: 'var(--bg-sunken)', objectFit: 'contain' }}
         />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 16 }}>{connector.name}</div>
+        <div className="u-flex-1 u-min-w-0">
+          <div className="u-fw-600 u-text-lg">{connector.name}</div>
           <Tag color={DB_TYPE_COLOR[connector.db_type]} style={{ marginTop: 2 }}>
             {dbTypeLabel(t, connector.db_type)}
           </Tag>
@@ -191,12 +167,12 @@ function ConnectorCard({ connector, installing, onInstall }: ConnectorCardProps)
       </div>
 
       {connector.description && (
-        <div className="muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
+        <div className="muted u-text-xs" style={{ lineHeight: 1.4 }}>
           {connector.description}
         </div>
       )}
 
-      <div className="muted" style={{ fontSize: 12 }}>
+      <div className="muted u-text-xs">
         {connector.vendor && <span>{connector.vendor}</span>}
         {connector.documentation_url && (
           <>

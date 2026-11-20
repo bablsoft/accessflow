@@ -77,7 +77,7 @@ export function LanguagesConfigPage() {
       );
     }
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
@@ -171,7 +171,7 @@ function AvailableLanguagesField({ value = [], onChange }: AvailableLanguagesFie
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="u-flex u-col u-gap-2">
       {SUPPORTED_LANGUAGES.map((code) => (
         <Checkbox key={code} checked={value.includes(code)} onChange={handleToggle(code)}>
           {LANGUAGE_DISPLAY_NAMES[code]} ({code})

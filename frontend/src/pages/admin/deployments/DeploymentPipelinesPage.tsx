@@ -115,7 +115,7 @@ export function DeploymentPipelinesPage() {
       ellipsis: true,
       render: (v: string | null) =>
         v ? (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {v}
           </span>
         ) : (
@@ -154,7 +154,7 @@ export function DeploymentPipelinesPage() {
       // actions past the right edge on a 1440px viewport.
       fixed: 'right' as const,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button
             size="small"
             onClick={(e) => {
@@ -192,9 +192,9 @@ export function DeploymentPipelinesPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+      <div className="u-flex-1 u-p-3" style={{ overflow: 'auto' }}>
         {listQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

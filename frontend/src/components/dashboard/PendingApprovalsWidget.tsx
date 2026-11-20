@@ -23,7 +23,7 @@ export function PendingApprovalsWidget({ items, loading, error, onRetry }: Props
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyIcon={<InboxOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<InboxOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.pending.empty')}
       rowKey={(it) => it.query_request_id}
       viewAllTo="/reviews"
@@ -34,7 +34,7 @@ export function PendingApprovalsWidget({ items, loading, error, onRetry }: Props
             <RiskPill level={it.ai_risk_level ?? 'LOW'} score={it.ai_risk_score} size="sm" />
           </>
         ),
-        primary: <span style={{ fontWeight: 500 }}>{it.datasource_name ?? '—'}</span>,
+        primary: <span className="u-fw-500">{it.datasource_name ?? '—'}</span>,
         meta: `${it.submitted_by_email ?? '—'} · ${timeAgo(it.created_at)}`,
         action: <Link to="/reviews">{t('dashboard.pending.review')}</Link>,
       })}

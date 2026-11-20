@@ -45,7 +45,7 @@ export function StatTile({ label, value, testId, onOpen, trend, children }: Stat
         }
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+      <div className="u-flex u-items-start u-justify-between u-gap-2">
         <Statistic title={label} value={value} />
         {trend && <DeltaBadge delta={trend.delta} previous={trend.previous} size="sm" positiveIsGood />}
       </div>

@@ -20,15 +20,11 @@ function Chip({ openCount, maxScore }: { openCount: number; maxScore: number }) 
   return (
     <Tooltip title={t('anomalies.badge.tooltip', { count: openCount, score: maxScore.toFixed(1) })}>
       <span
-        className="af-pill af-pill-sm"
-        style={{
-          color: 'var(--risk-crit)',
-          background: 'var(--risk-crit-bg)',
-          borderColor: 'var(--risk-crit-border)',
-        }}
+        className="af-pill af-pill-sm u-fg-danger"
+        style={{ background: 'var(--risk-crit-bg)', borderColor: 'var(--risk-crit-border)' }}
         data-testid="anomaly-badge"
       >
-        <WarningFilled style={{ fontSize: 11 }} />
+        <WarningFilled className="u-text-2xs" />
         {t('anomalies.badge.label', { count: openCount })}
       </span>
     </Tooltip>

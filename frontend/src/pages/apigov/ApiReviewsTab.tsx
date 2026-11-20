@@ -168,12 +168,12 @@ export function ApiReviewsTab() {
 
   const columns: TableColumnsType<PendingApiReview> = [
     { title: t('apiGov.requests.connector'), dataIndex: 'connector_name', width: 160 },
-    { title: t('apiGov.requests.verb'), dataIndex: 'verb', width: 80, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
+    { title: t('apiGov.requests.verb'), dataIndex: 'verb', width: 80, render: (v: string) => <span className="mono u-text-xs">{v}</span> },
     {
       title: t('apiGov.requests.path'),
       dataIndex: 'request_path',
       ellipsis: true,
-      render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+      render: (v: string) => <span className="mono u-text-xs">{v}</span>,
     },
     {
       title: t('apiGov.reviews.overrides'),
@@ -196,21 +196,21 @@ export function ApiReviewsTab() {
         r.ai_risk_level != null && r.ai_risk_score != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>—</span>
+          <span className="muted u-text-2xs">—</span>
         ),
     },
     {
       title: t('apiGov.requests.created'),
       dataIndex: 'created_at',
       width: 110,
-      render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span>,
+      render: (v: string) => <span className="muted u-text-xs">{timeAgo(v)}</span>,
     },
     {
       title: t('apiGov.reviews.actions'),
       key: 'actions',
       width: 180,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }}>
+        <span className="u-flex u-gap-2">
           <Button
             size="small"
             type="primary"
@@ -237,10 +237,10 @@ export function ApiReviewsTab() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
       <FilterBar>
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('apiGov.reviews.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -273,9 +273,9 @@ export function ApiReviewsTab() {
           ]}
           style={{ width: 130 }}
         />
-        <div style={{ flex: 1 }} />
+        <div className="u-flex-1" />
         <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <span className="mono muted u-text-2xs">
           {t('apiGov.requests.countLabel', {
             filtered: filtered.length,
             total: queueQuery.data?.total_elements ?? 0,
@@ -285,7 +285,7 @@ export function ApiReviewsTab() {
       <div className={`af-triage${filtered.length > 0 ? ' af-triage--split' : ''}`}>
       <PageBody flush>
         {queueQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

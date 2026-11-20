@@ -121,28 +121,17 @@ export function SystemSmtpCard() {
 
   return (
     <div
-      className="af-card"
-      style={{
-        padding: 16,
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        marginBottom: 24,
-      }}
+      className="af-card u-p-4 u-mb-6"
+      style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
     >
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-        }}
+        className="u-flex u-items-center u-justify-between u-mb-3"
       >
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>
+          <div className="u-text-md u-fw-600">
             {t('admin.notifications.system_smtp.title')}
           </div>
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="muted u-text-xs">
             {t('admin.notifications.system_smtp.subtitle')}
           </div>
         </div>
@@ -176,15 +165,10 @@ export function SystemSmtpCard() {
       ) : config ? (
         <>
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 10,
-              fontSize: 13,
-            }}
+            className="u-grid u-text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}
           >
             <div>
-              <div className="muted" style={{ fontSize: 11 }}>
+              <div className="muted u-text-2xs">
                 {t('admin.notifications.system_smtp.host_label')}
               </div>
               <div>
@@ -192,7 +176,7 @@ export function SystemSmtpCard() {
               </div>
             </div>
             <div>
-              <div className="muted" style={{ fontSize: 11 }}>
+              <div className="muted u-text-2xs">
                 {t('admin.notifications.system_smtp.from_label')}
               </div>
               <div>
@@ -200,7 +184,7 @@ export function SystemSmtpCard() {
               </div>
             </div>
             <div>
-              <div className="muted" style={{ fontSize: 11 }}>
+              <div className="muted u-text-2xs">
                 {t('admin.notifications.system_smtp.tls_label')}
               </div>
               <div>
@@ -210,7 +194,7 @@ export function SystemSmtpCard() {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
+          <div className="u-flex u-gap-2 u-items-center u-mt-3">
             <Input
               size="small"
               style={{ maxWidth: 280 }}
@@ -229,7 +213,7 @@ export function SystemSmtpCard() {
           </div>
         </>
       ) : (
-        <div className="muted" style={{ fontSize: 13 }}>
+        <div className="muted u-text-sm">
           {t('admin.notifications.system_smtp.not_configured')}
         </div>
       )}

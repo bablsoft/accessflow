@@ -32,15 +32,15 @@ export function TextToSqlBar({ datasourceId, onGenerated }: TextToSqlBarProps) {
   return (
     <div>
       <label
-        className="muted"
-        style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+        className="muted u-block u-text-xs u-fw-500"
+        style={{ marginBottom: 5 }}
       >
         {t('editor.text_to_sql.label')}{' '}
-        <span className="muted" style={{ fontWeight: 400 }}>
+        <span className="muted u-fw-400">
           {t('editor.text_to_sql.hint')}
         </span>
       </label>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      <div className="u-flex u-gap-2 u-items-start">
         <Input.TextArea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}

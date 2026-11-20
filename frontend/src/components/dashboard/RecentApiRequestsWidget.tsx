@@ -23,14 +23,14 @@ export function RecentApiRequestsWidget({ items, loading, error, onRetry }: Prop
       loading={loading}
       error={error}
       onRetry={onRetry}
-      emptyIcon={<ApiOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<ApiOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.recent_api_requests.empty')}
       rowKey={(it) => it.id}
       viewAllTo="/api-requests"
       renderRow={(it) => ({
         pills: (
           <>
-            <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>
+            <span className="mono u-text-xs u-fw-600">
               {it.verb}
             </span>
             <StatusPill status={it.status} size="sm" />
@@ -39,10 +39,10 @@ export function RecentApiRequestsWidget({ items, loading, error, onRetry }: Prop
         ),
         primary: (
           <>
-            <span className="mono" style={{ fontSize: 12 }}>
+            <span className="mono u-text-xs">
               {it.request_path}
             </span>{' '}
-            <span style={{ fontWeight: 500 }}>{it.connector_name ?? '—'}</span>
+            <span className="u-fw-500">{it.connector_name ?? '—'}</span>
           </>
         ),
         meta: timeAgo(it.created_at),

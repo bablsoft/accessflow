@@ -97,7 +97,7 @@ export function PipelineVersionsTab({ pipelineId }: { pipelineId: string }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-flex u-col u-gap-3">
       {/* Every environment comes back, including ones never deployed to — those render "—" and a
           "Never deployed" chip. The empty state below only fires when the pipeline has no
           environments configured at all. Server order (sort_order, then name) is authoritative. */}

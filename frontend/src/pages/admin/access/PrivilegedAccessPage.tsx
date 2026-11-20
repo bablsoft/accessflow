@@ -69,11 +69,11 @@ export default function PrivilegedAccessPage() {
         title: t('privileged_access.col_identity'),
         key: 'identity',
         render: (_: unknown, row: PrivilegedAccessRow) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-flex u-items-center" style={{ gap: 10 }}>
             <Avatar name={row.email} size={24} />
             <div>
-              <div style={{ fontSize: 13 }}>{row.display_name ?? row.email}</div>
-              <div className="mono muted" style={{ fontSize: 11 }}>
+              <div className="u-text-sm">{row.display_name ?? row.email}</div>
+              <div className="mono muted u-text-2xs">
                 {row.email}
               </div>
             </div>
@@ -91,8 +91,8 @@ export default function PrivilegedAccessPage() {
             <span className="muted">{t('privileged_access.none')}</span>
           ) : (
             <div>
-              <div style={{ fontSize: 13 }}>{row.role_name}</div>
-              <div className="muted" style={{ fontSize: 11 }}>
+              <div className="u-text-sm">{row.role_name}</div>
+              <div className="muted u-text-2xs">
                 {row.system_role
                   ? t('privileged_access.system_role')
                   : t('privileged_access.custom_role')}
@@ -124,11 +124,11 @@ export default function PrivilegedAccessPage() {
           row.break_glass_grants.length === 0 ? (
             <span className="muted">{t('privileged_access.none')}</span>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="u-flex u-col u-gap-1">
               {row.break_glass_grants.map((g) => (
-                <div key={g.source_id} style={{ fontSize: 12 }}>
+                <div key={g.source_id} className="u-text-xs">
                   <span className="mono">{g.datasource_name}</span>
-                  <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>
+                  <span className="muted u-text-2xs" style={{ marginLeft: 6 }}>
                     {g.source_kind === 'GROUP' && g.group_name
                       ? t('privileged_access.via_group', { group: g.group_name })
                       : permissionSourceKindLabel(t, g.source_kind)}
@@ -205,15 +205,15 @@ export default function PrivilegedAccessPage() {
           className="mono"
           aria-label={t('privileged_access.filter_user_placeholder')}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs" style={{ alignSelf: 'center' }}>
           {t('privileged_access.count_label', { count: report.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
 
       <PageBody flush>
         {report.isLoading ? (
-          <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />
         ) : report.isError ? (
           <EmptyState
             title={t('privileged_access.load_error')}
@@ -250,17 +250,17 @@ function EvidenceCell({ count, lastAt }: { count: number; lastAt: string | null 
   const { t } = useTranslation();
   return (
     <div>
-      <div className="mono" style={{ fontSize: 12 }}>
+      <div className="mono u-text-xs">
         {fmtNum(count)}
       </div>
       {lastAt ? (
         <Tooltip title={fmtDate(lastAt)}>
-          <span className="muted" style={{ fontSize: 11 }}>
+          <span className="muted u-text-2xs">
             {t('privileged_access.last_at', { ago: timeAgo(lastAt) })}
           </span>
         </Tooltip>
       ) : (
-        <span className="muted" style={{ fontSize: 11 }}>
+        <span className="muted u-text-2xs">
           {t('privileged_access.never')}
         </span>
       )}

@@ -323,11 +323,11 @@ export function QueryEditorPage() {
             )}
             <div>
               <label
-                className="muted"
-                style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+                className="muted u-block u-text-xs u-fw-500"
+                style={{ marginBottom: 5 }}
               >
                 {t('editor.justification_label')}{' '}
-                <span className="muted" style={{ fontWeight: 400 }}>
+                <span className="muted u-fw-400">
                   {t('editor.justification_required_note')}
                 </span>
               </label>
@@ -340,11 +340,11 @@ export function QueryEditorPage() {
             </div>
             <div>
               <label
-                className="muted"
-                style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+                className="muted u-block u-text-xs u-fw-500"
+                style={{ marginBottom: 5 }}
               >
                 {t('editor.schedule_label')}{' '}
-                <span className="muted" style={{ fontWeight: 400 }}>
+                <span className="muted u-fw-400">
                   {t('editor.schedule_optional_note')}
                 </span>
               </label>
@@ -364,7 +364,7 @@ export function QueryEditorPage() {
                 disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
                 style={{ width: 280 }}
               />
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+              <div className="muted u-text-2xs u-mt-1">
                 {scheduleInPast
                   ? t('editor.schedule_in_past_error')
                   : recurring
@@ -409,14 +409,14 @@ export function QueryEditorPage() {
           showIcon
           title={t('editor.break_glass_modal_warning_title')}
           description={t('editor.break_glass_modal_warning_body')}
-          style={{ marginBottom: 12 }}
+          className="u-mb-3"
         />
         <label
-          className="muted"
-          style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+          className="muted u-block u-text-xs u-fw-500"
+          style={{ marginBottom: 5 }}
         >
           {t('editor.justification_label')}{' '}
-          <span className="muted" style={{ fontWeight: 400 }}>
+          <span className="muted u-fw-400">
             {t('editor.justification_required_note')}
           </span>
         </label>

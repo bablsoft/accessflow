@@ -16,8 +16,8 @@ export function AttestationCapabilities({ item }: { item: AttestationItem }) {
   if (item.can_ddl) caps.push(t('attestation.detail.cap_ddl'));
   if (item.can_break_glass) caps.push(t('attestation.detail.cap_break_glass'));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
+    <div className="u-flex u-col u-gap-1">
+      <span className="u-inline-flex u-wrap" style={{ gap: 6 }}>
         {caps.map((c) => (
           <Pill key={c} size="sm">
             {c}

@@ -28,9 +28,9 @@ export function OrchestrationFormSection({ form }: { form: FormInstance }) {
   const enabled = Form.useWatch('orchestration_enabled', form) as boolean | undefined;
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
-      <h3 style={{ marginBottom: 4 }}>{t('admin.ai_configs.orchestration.section_title')}</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
+    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+      <h3 className="u-mb-1">{t('admin.ai_configs.orchestration.section_title')}</h3>
+      <p className="muted u-mt-0">
         {t('admin.ai_configs.orchestration.section_help')}
       </p>
       <Form.Item
@@ -64,10 +64,10 @@ export function OrchestrationFormSection({ form }: { form: FormInstance }) {
                 },
               ]}
             >
-              <InputNumber className="mono" min={0} step={0.5} style={{ width: '100%' }} />
+              <InputNumber className="mono u-w-full" min={0} step={0.5} />
             </Form.Item>
           </div>
-          <h4 style={{ marginBottom: 8 }}>
+          <h4 className="u-mb-2">
             {t('admin.ai_configs.orchestration.members_section')}
           </h4>
           <Form.List name="models">
@@ -118,16 +118,11 @@ function MemberRow({
 
   return (
     <div
-      style={{
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 12,
-      }}
+      className="u-p-3 u-mb-3" style={{ border: '1px solid var(--border)', borderRadius: 8 }}
       data-testid="orchestration-member"
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ ...GRID_TWO, flex: 1 }}>
+      <div className="u-flex u-justify-between u-items-center">
+        <div className="u-flex-1" style={{ ...GRID_TWO }}>
           <Form.Item
             name={[field.name, 'provider']}
             label={t('admin.ai_configs.orchestration.member_provider')}
@@ -154,7 +149,7 @@ function MemberRow({
           icon={<DeleteOutlined />}
           aria-label={t('admin.ai_configs.orchestration.remove_member')}
           onClick={onRemove}
-          style={{ marginLeft: 8 }}
+          className="u-ml-2"
         />
       </div>
       {needsEndpoint && (
@@ -191,7 +186,7 @@ function MemberRow({
             },
           ]}
         >
-          <InputNumber className="mono" min={0} step={0.5} style={{ width: '100%' }} />
+          <InputNumber className="mono u-w-full" min={0} step={0.5} />
         </Form.Item>
       </div>
       <Form.Item

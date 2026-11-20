@@ -242,7 +242,7 @@ export default function SchemaDriftPage() {
   let body;
   if (loading) {
     body = (
-      <div style={{ padding: 16 }} data-testid="schema-drift-loading">
+      <div className="u-p-4" data-testid="schema-drift-loading">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
@@ -328,7 +328,7 @@ export default function SchemaDriftPage() {
           style={{ width: 170 }}
         />
       </FilterBar>
-      <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="u-flex-1 u-p-5 u-flex u-col u-gap-4" style={{ overflow: 'auto' }}>
         <Alert type="info" showIcon title={t('schemaChange.drift.fidelityNote')} />
         {truncated && (
           <Alert
@@ -438,20 +438,20 @@ function EnvironmentCard({
       }
     >
       {scan?.finished_at && (
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+        <div className="muted u-text-xs u-mb-2">
           {t('schemaChange.drift.lastScan', {
             when: timeAgo(scan.finished_at),
             baseline: schemaDriftBaselineLabel(t, scan.baseline),
             count: scan.findings_count,
           })}
-          {scan.partial && <Tag style={{ marginLeft: 8 }}>{t('schemaChange.drift.partial')}</Tag>}
+          {scan.partial && <Tag className="u-ml-2">{t('schemaChange.drift.partial')}</Tag>}
         </div>
       )}
       {state}
       {findings.length > 0 && (
         <>
           {reason && scan?.applicable && (
-            <Alert type="info" showIcon style={{ marginBottom: 8 }} title={reason} />
+            <Alert type="info" showIcon className="u-mb-2" title={reason} />
           )}
           <DataTable<SchemaDriftFinding>
             rowKey="id"

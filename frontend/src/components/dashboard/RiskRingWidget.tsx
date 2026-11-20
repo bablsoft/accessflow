@@ -52,13 +52,13 @@ export function RiskRingWidget() {
     return (
       <EmptyState
         size="sm"
-        icon={<SafetyOutlined style={{ fontSize: 16 }} />}
+        icon={<SafetyOutlined className="u-text-lg" />}
         title={t('dashboard.risk_mix.empty')}
       />
     );
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+    <div className="u-flex u-items-center u-gap-5 u-wrap">
       <div style={{ width: 190, height: 190, flex: 'none' }}>
         {/* geometryScrubbing: the vendored RingChart draws arcs only in this mode or from
             explicit <Ring> children, which the barrel does not export. */}
@@ -66,11 +66,11 @@ export function RiskRingWidget() {
           <RingCenter defaultLabel={t('dashboard.risk_mix.total')} />
         </RingChart>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 120 }}>
+      <div className="u-flex u-col u-gap-2" style={{ minWidth: 120 }}>
         {rings.map((ring) => (
           <span
             key={ring.label}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+            className="u-inline-flex u-items-center u-gap-2 u-text-sm"
           >
             <span
               aria-hidden
@@ -82,8 +82,8 @@ export function RiskRingWidget() {
                 display: 'inline-block',
               }}
             />
-            <span style={{ flex: 1 }}>{ring.label}</span>
-            <span className="mono muted" style={{ fontSize: 12 }}>
+            <span className="u-flex-1">{ring.label}</span>
+            <span className="mono muted u-text-xs">
               {ring.value}
             </span>
           </span>

@@ -343,7 +343,7 @@ export function RoutingPoliciesPage() {
       />
       <PageBody flush>
         {policiesQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : policiesQuery.isError ? (
           <EmptyState
             title={t('admin.routing_policies.load_error')}
@@ -366,7 +366,7 @@ export function RoutingPoliciesPage() {
                 title: t('admin.routing_policies.col_order'),
                 width: 90,
                 render: (_v, _p, index) => (
-                  <div style={{ display: 'flex', gap: 2 }}>
+                  <div className="u-flex" style={{ gap: 2 }}>
                     <Button
                       size="small"
                       type="text"
@@ -395,7 +395,7 @@ export function RoutingPoliciesPage() {
               {
                 title: t('admin.routing_policies.col_name'),
                 dataIndex: 'name',
-                render: (v) => <span style={{ fontWeight: 500 }}>{v}</span>,
+                render: (v) => <span className="u-fw-500">{v}</span>,
               },
               {
                 title: t('admin.routing_policies.col_action'),
@@ -444,7 +444,7 @@ export function RoutingPoliciesPage() {
                 title: t('admin.routing_policies.col_actions'),
                 width: 110,
                 render: (_v, policy) => (
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="u-flex u-gap-1">
                     <Button
                       size="small"
                       type="text"
@@ -520,7 +520,7 @@ export function RoutingPoliciesPage() {
             <Input.TextArea rows={2} maxLength={2000} />
           </Form.Item>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <Form.Item
               name="datasource_id"
               label={t('admin.routing_policies.label_scope')}
@@ -539,7 +539,7 @@ export function RoutingPoliciesPage() {
               label={t('admin.routing_policies.label_priority')}
               rules={[{ required: true, type: 'number', min: 0 }]}
             >
-              <InputNumber min={0} style={{ width: '100%' }} />
+              <InputNumber min={0} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="enabled"
@@ -550,7 +550,7 @@ export function RoutingPoliciesPage() {
             </Form.Item>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-cols-2 u-gap-3">
             <Form.Item
               name="action"
               label={t('admin.routing_policies.label_action')}
@@ -569,7 +569,7 @@ export function RoutingPoliciesPage() {
                     label={t('admin.routing_policies.label_required_approvals')}
                     rules={[{ required: true, type: 'number', min: 1, max: 10 }]}
                   >
-                    <InputNumber min={1} max={10} style={{ width: '100%' }} />
+                    <InputNumber min={1} max={10} className="u-w-full" />
                   </Form.Item>
                 ) : null
               }

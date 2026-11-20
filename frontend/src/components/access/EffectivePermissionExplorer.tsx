@@ -60,7 +60,7 @@ export function EffectivePermissionExplorer({ userId, datasourceId }: ExplorerPr
   });
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="u-w-full">
       <Alert type="info" showIcon title={t('access.explorer.intro')} />
       <Form layout="vertical" name="effective-permission-explorer">
         <Space wrap size="middle" align="start">
@@ -192,10 +192,10 @@ function RowCapCard({
   const clamped = cap.override != null && cap.override > cap.value;
   return (
     <Card size="small" title={t('access.explorer.section_row_cap')} data-testid="explorer-row-cap">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+      <div className="u-flex u-items-baseline u-gap-3 u-wrap">
         <span
-          className="mono"
-          style={{ fontSize: 28, fontWeight: 600 }}
+          className="mono u-fw-600"
+          style={{ fontSize: 28 }}
           data-testid="explorer-row-cap-value"
         >
           {fmtNum(cap.value)}
@@ -204,7 +204,7 @@ function RowCapCard({
           {rowCapSourceLabel(t, cap.source)}
         </Tag>
       </div>
-      <div style={{ marginTop: 8 }} data-testid="explorer-row-cap-explanation">
+      <div className="u-mt-2" data-testid="explorer-row-cap-explanation">
         {cap.source === 'OVERRIDE' && (
           <Space size={6} wrap>
             <span>{t('access.explorer.row_cap_from_override')}</span>
@@ -222,7 +222,7 @@ function RowCapCard({
           })}
         </div>
       )}
-      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+      <div className="muted u-text-xs" style={{ marginTop: 6 }}>
         {t('access.explorer.row_cap_bounds', {
           datasource: fmtNum(cap.datasource_cap),
           global: fmtNum(cap.global_ceiling),
@@ -230,22 +230,22 @@ function RowCapCard({
       </div>
       {overrides.length > 1 || clamped ? (
         <div style={{ marginTop: 10 }} data-testid="explorer-row-cap-contributions">
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+          <div className="u-fw-600 u-text-xs u-mb-1">
             {t('access.explorer.row_cap_contributions')}
           </div>
           {overrides.map((g) => (
-            <div key={g.grant_id} style={{ fontSize: 12 }}>
+            <div key={g.grant_id} className="u-text-xs">
               {grantLabel(g, t)}: <span className="mono">{fmtNum(g.row_limit_override)}</span>
             </div>
           ))}
         </div>
       ) : null}
       {data.table_row_limits.length > 0 && (
-        <div className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+        <div className="muted u-text-xs" style={{ marginTop: 10 }}>
           {t('access.explorer.row_cap_table_note')}
         </div>
       )}
-      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+      <div className="muted u-text-xs" style={{ marginTop: 6 }}>
         {t('access.explorer.row_cap_budget_note')}
       </div>
     </Card>
@@ -257,7 +257,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
   const grants = new Map(data.grants.map((g) => [g.grant_id, g]));
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }} data-testid="effective-permission">
+    <Space orientation="vertical" size="middle" className="u-w-full" data-testid="effective-permission">
       {data.query_admin && (
         <Alert type="warning" showIcon title={t('access.explorer.query_admin')} />
       )}
@@ -388,11 +388,11 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
         )}
         {(data.retention_masks ?? []).length > 0 && (
           <div style={{ marginTop: 10 }} data-testid="explorer-retention-masks">
-            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+            <div className="u-fw-600 u-text-xs u-mb-1">
               {t('access.explorer.retention_masks')}
             </div>
             {(data.retention_masks ?? []).map((m) => (
-              <div key={m.policy_id} style={{ fontSize: 12 }}>
+              <div key={m.policy_id} className="u-text-xs">
                 <span className="mono">{m.column_ref}</span> ·{' '}
                 {maskingStrategyLabel(t, m.strategy)}
               </div>
@@ -401,11 +401,11 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
         )}
         {data.revealed_masks.length > 0 && (
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+            <div className="u-fw-600 u-text-xs u-mb-1">
               {t('access.explorer.revealed')}
             </div>
             {data.revealed_masks.map((m) => (
-              <div key={m.policy_id} style={{ fontSize: 12 }}>
+              <div key={m.policy_id} className="u-text-xs">
                 <span className="mono">{m.column_ref}</span> ·{' '}
                 {t('access.explorer.revealed_by', { reasons: matchesText(m.revealed_by, t) })}
               </div>
@@ -431,7 +431,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
                         r.values,
                       )}
                 </div>
-                <div className="muted" style={{ fontSize: 12 }}>
+                <div className="muted u-text-xs">
                   {r.value_type === 'VARIABLE' &&
                     (r.values.length === 0
                       ? t('access.explorer.predicate_fail_closed', { expression: r.value_expression })
@@ -447,7 +447,7 @@ export function EffectivePermissionView({ data }: { data: EffectivePermission })
                   <span className="muted">{f.table_ref}: </span>
                   {`${f.column_name} IS NULL`}
                 </div>
-                <div className="muted" style={{ fontSize: 12 }}>
+                <div className="muted u-text-xs">
                   {t('access.explorer.soft_delete_filter')}
                 </div>
               </div>

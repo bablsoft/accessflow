@@ -25,7 +25,7 @@ export function MaskingPreviewPanel({
   const preview = maskingPreview(strategy ?? 'FULL', sample, params);
   return (
     <div style={{ padding: '10px 12px', background: 'var(--bg-sunken)', borderRadius: 6 }}>
-      <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+      <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
         {label}
       </div>
       <Input
@@ -33,7 +33,7 @@ export function MaskingPreviewPanel({
         value={sample}
         onChange={(e) => onSampleChange(e.target.value)}
         aria-label={sampleAriaLabel}
-        style={{ marginBottom: 8 }}
+        className="u-mb-2"
       />
       <Typography.Text
         className="mono"
@@ -43,7 +43,7 @@ export function MaskingPreviewPanel({
         {preview == null ? t('maskingParams.preview_null') : preview === '' ? '—' : preview}
       </Typography.Text>
       {strategy === 'REGEX_REPLACE' && (
-        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+        <div className="muted u-text-2xs" style={{ marginTop: 6 }}>
           {sample.length > MAX_REGEX_PREVIEW_LENGTH
             ? t('maskingParams.preview_regex_too_long', { max: MAX_REGEX_PREVIEW_LENGTH })
             : t('maskingParams.preview_regex_note')}

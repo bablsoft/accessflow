@@ -80,7 +80,7 @@ function AcceptInvitePage() {
       wide
     >
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
+            <div className="u-flex u-justify-center u-p-8">
               <Spin />
             </div>
           ) : loadError ? (
@@ -94,7 +94,7 @@ function AcceptInvitePage() {
             />
           ) : preview ? (
             <>
-              <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+              <div className="muted u-text-sm u-mb-4">
                 {t('auth.invitation.greeting', {
                   organization: preview.organization_name,
                   role: preview.role,
@@ -112,7 +112,7 @@ function AcceptInvitePage() {
                       <TraceIdFooter traceId={submitError.traceId} />
                     ) : undefined
                   }
-                  style={{ marginBottom: 16 }}
+                  className="u-mb-4"
                   showIcon
                   closable={{ closeIcon: true, onClose: () => setSubmitError(null) }}
                 />

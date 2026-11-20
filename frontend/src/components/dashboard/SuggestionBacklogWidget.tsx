@@ -57,7 +57,7 @@ export function SuggestionBacklogWidget() {
     return (
       <EmptyState
         size="sm"
-        icon={<BulbOutlined style={{ fontSize: 16 }} />}
+        icon={<BulbOutlined className="u-text-lg" />}
         title={t('dashboard.suggestions.empty')}
       />
     );
@@ -91,14 +91,14 @@ export function SuggestionBacklogWidget() {
         >
           <List.Item.Meta
             title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div className="u-flex u-items-center u-gap-2 u-wrap">
                 <Tag>{optimizationTypeLabel(t, s.type)}</Tag>
                 <span>{s.title}</span>
                 <RiskPill level={s.risk_level} size="sm" />
               </div>
             }
             description={
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="muted u-text-xs">
                 {s.datasource_name ?? '—'} · {s.rationale}
               </span>
             }

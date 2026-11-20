@@ -77,6 +77,9 @@ Pages are assembled from `src/components/layout` — never from inline flex/padd
 - Sizes, spacing, durations and colours come from the tokens in `src/styles/tokens.css`
   (`--text-*`, `--sp-*`, `--dur-*`). ESLint warns on a hand-rolled page gutter or an off-scale
   font size.
+- Prefer the token-backed utility classes in `src/styles/utilities.css` (`u-text-xs`, `u-flex`,
+  `u-gap-2`, `u-mb-4`, `u-fg-muted`, `u-w-full`, …) over an inline `style={{ … }}`. Inline styles are
+  for values computed at runtime or genuinely one-off dimensions.
 
 ## Required (acceptance checklist)
 

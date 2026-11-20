@@ -89,7 +89,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
           { title: t('profile.totp.step_verify') },
           { title: t('profile.totp.step_codes') },
         ]}
-        style={{ marginBottom: 24 }}
+        className="u-mb-6"
       />
 
       {error && (
@@ -97,23 +97,23 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
           type="error"
           title={error.message}
           description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-          style={{ marginBottom: 16 }}
+          className="u-mb-4"
           showIcon
           closable={{ closeIcon: true, onClose: () => setError(null) }}
         />
       )}
 
       {step === 0 && (
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" className="u-w-full">
           <Typography.Paragraph>{t('profile.totp.step_scan_help')}</Typography.Paragraph>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="u-flex u-justify-center">
             {enrollment ? (
               <img
                 src={enrollment.qr_data_uri}
                 alt={t('profile.totp.step_scan')}
                 width={200}
                 height={200}
-                style={{ background: '#fff', padding: 8, borderRadius: 8 }}
+                className="u-p-2" style={{ background: '#fff', borderRadius: 8 }}
               />
             ) : (
               <div style={{ width: 200, height: 200 }} aria-hidden />
@@ -128,7 +128,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
                 readOnly
                 value={enrollment.secret}
                 autoSize
-                style={{ marginTop: 4, fontFamily: 'monospace' }}
+                className="u-mt-1" style={{ fontFamily: 'monospace' }}
               />
             </div>
           )}
@@ -147,7 +147,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       )}
 
       {step === 1 && (
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" className="u-w-full">
           <Typography.Paragraph>{t('profile.totp.step_verify_help')}</Typography.Paragraph>
           <Input
             placeholder={t('profile.totp.verify_placeholder')}
@@ -156,7 +156,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+            className="u-text-center" style={{ fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
             aria-label={t('profile.totp.verify_placeholder')}
           />
           <Space>
@@ -174,18 +174,10 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       )}
 
       {step === 2 && (
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" className="u-w-full">
           <Alert type="warning" title={t('profile.totp.backup_codes_help')} showIcon />
           <pre
-            style={{
-              background: 'var(--bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: 12,
-              fontFamily: 'monospace',
-              fontSize: 13,
-              lineHeight: 1.7,
-            }}
+            className="u-p-3 u-text-sm" style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.7 }}
             aria-label="backup-codes"
           >
             {backupCodes.join('\n')}

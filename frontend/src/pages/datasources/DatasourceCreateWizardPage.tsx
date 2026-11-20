@@ -396,7 +396,7 @@ export default function DatasourceCreateWizardPage() {
     if (currentStep === 'type') {
       if (typesQuery.isLoading) {
         return (
-          <div className="muted" style={{ padding: 40, textAlign: 'center' }}>
+          <div className="muted u-p-10 u-text-center">
             {t('datasources.create.types_loading')}
           </div>
         );
@@ -410,7 +410,7 @@ export default function DatasourceCreateWizardPage() {
         );
       }
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="u-flex u-col u-gap-4">
           <Alert
             type="info"
             showIcon
@@ -456,17 +456,13 @@ export default function DatasourceCreateWizardPage() {
             <Alert
               type="info"
               showIcon
-              style={{ marginBottom: 12 }}
+              className="u-mb-3"
               title={t('datasources.create.dynamic_mode_notice_title')}
               description={t('datasources.create.dynamic_mode_notice_body')}
             />
           )}
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: 12,
-            }}
+            className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
           >
             <Form.Item
               label={t('datasources.create.field_name')}
@@ -505,7 +501,7 @@ export default function DatasourceCreateWizardPage() {
                     name="port"
                     rules={[{ required: hostPortRequired, type: 'number', min: 1, max: 65535 }]}
                   >
-                    <InputNumber style={{ width: '100%' }} />
+                    <InputNumber className="u-w-full" />
                   </Form.Item>
                 )}
               </>
@@ -770,13 +766,13 @@ export default function DatasourceCreateWizardPage() {
             <Alert
               type="warning"
               showIcon
-              style={{ marginTop: 8 }}
+              className="u-mt-2"
               title={t('datasources.create.mysql_public_key_retrieval_title')}
               description={t('datasources.create.mysql_public_key_retrieval_body')}
             />
           )}
           {!dynamicMode && (
-            <div style={{ marginTop: 8 }}>
+            <div className="u-mt-2">
               <JdbcUrlPreview
                 template={previewedTemplate}
                 host={connectionValues?.host}
@@ -790,8 +786,8 @@ export default function DatasourceCreateWizardPage() {
     }
     if (currentStep === 'test' && selectedType && createdDatasource) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="muted" style={{ fontSize: 13 }}>
+        <div className="u-flex u-col u-gap-4">
+          <div className="muted u-text-sm">
             {t('datasources.create.test_step_subtitle')}
           </div>
           <ConnectionTester
@@ -826,15 +822,11 @@ export default function DatasourceCreateWizardPage() {
             text_to_sql_enabled: createdDatasource.text_to_sql_enabled,
           }}
         >
-          <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+          <div className="muted u-text-sm u-mb-4">
             {t('datasources.create.settings_step_subtitle')}
           </div>
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-              gap: 12,
-            }}
+            className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}
           >
             <Form.Item
               label={t('datasources.create.label_pool_size')}
@@ -842,7 +834,7 @@ export default function DatasourceCreateWizardPage() {
               extra={t('datasources.create.label_pool_size_help')}
               rules={[{ required: true, type: 'number', min: 1, max: 200 }]}
             >
-              <InputNumber style={{ width: '100%' }} min={1} max={200} />
+              <InputNumber className="u-w-full" min={1} max={200} />
             </Form.Item>
             <Form.Item
               label={t('datasources.create.label_max_rows')}
@@ -850,7 +842,7 @@ export default function DatasourceCreateWizardPage() {
               extra={t('datasources.create.label_max_rows_help')}
               rules={[{ required: true, type: 'number', min: 1, max: 1_000_000 }]}
             >
-              <InputNumber style={{ width: '100%' }} min={1} max={1_000_000} />
+              <InputNumber className="u-w-full" min={1} max={1_000_000} />
             </Form.Item>
             {createdDatasource && supportsBytesCap(createdDatasource.db_type) && (
               <>
@@ -1025,16 +1017,9 @@ export default function DatasourceCreateWizardPage() {
       >
         <DatasourceWizardSteps current={currentStep} />
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>{stepBody}</div>
+      <div className="u-flex-1 u-p-6" style={{ overflow: 'auto' }}>{stepBody}</div>
       <div
-        style={{
-          padding: '12px var(--gutter)',
-          borderTop: '1px solid var(--border)',
-          background: 'var(--bg-elev)',
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: 8,
-        }}
+        className="u-flex u-justify-end u-gap-2" style={{ padding: '12px var(--gutter)', borderTop: '1px solid var(--border)', background: 'var(--bg-elev)' }}
       >
         {currentStep === 'connection' && (
           <Button

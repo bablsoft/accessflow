@@ -55,11 +55,11 @@ function ExpandedMembers({ groupId }: { groupId: string }) {
       title: t('requestGroups.reviews.target'),
       render: (_v, r) =>
         r.target_kind === 'QUERY' ? (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {r.datasource_name ?? r.datasource_id}
           </span>
         ) : (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {r.verb} {r.request_path}
           </span>
         ),
@@ -137,7 +137,7 @@ export default function RequestGroupReviewQueuePage() {
     {
       title: t('requestGroups.reviews.name'),
       dataIndex: 'name',
-      render: (v: string) => <span style={{ fontWeight: 600 }}>{v}</span>,
+      render: (v: string) => <span className="u-fw-600">{v}</span>,
     },
     { title: t('requestGroups.reviews.members'), dataIndex: 'member_count', width: 100 },
     {
@@ -147,7 +147,7 @@ export default function RequestGroupReviewQueuePage() {
         r.ai_risk_level != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>
+          <span className="muted u-text-2xs">
             —
           </span>
         ),
@@ -157,7 +157,7 @@ export default function RequestGroupReviewQueuePage() {
       width: 160,
       ellipsis: true,
       render: (_v, r) => (
-        <span style={{ fontSize: 12 }}>
+        <span className="u-text-xs">
           {r.submitted_by_display_name ?? r.submitted_by_user_id.slice(0, 8)}
         </span>
       ),
@@ -167,7 +167,7 @@ export default function RequestGroupReviewQueuePage() {
       dataIndex: 'created_at',
       width: 110,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -177,7 +177,7 @@ export default function RequestGroupReviewQueuePage() {
       key: 'actions',
       width: 220,
       render: (_v, row) => (
-        <span style={{ display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+        <span className="u-flex u-gap-2" onClick={(e) => e.stopPropagation()}>
           <Button size="small" onClick={() => navigate(`/request-groups/${row.request_group_id}`)}>
             {t('requestGroups.reviews.view')}
           </Button>
@@ -220,7 +220,7 @@ export default function RequestGroupReviewQueuePage() {
       />
       <PageBody flush>
         {queueQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

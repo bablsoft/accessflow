@@ -105,7 +105,7 @@ export function TemplateDetailDrawer({
   if (!template) return null;
 
   const detailsTab = (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
       <Descriptions column={1} size="small" bordered>
         <Descriptions.Item label={t('editor.templates.fields.name')}>{template.name}</Descriptions.Item>
         <Descriptions.Item label={t('editor.templates.fields.visibility')}>
@@ -149,7 +149,7 @@ export function TemplateDetailDrawer({
   ) : versions.length === 0 ? (
     <EmptyState size="sm" title={t('editor.templates.history.empty_state')} />
   ) : (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
       <Space wrap>
         <Space size={4}>
           <span className="muted">{t('editor.templates.history.compare_base')}</span>
@@ -219,7 +219,7 @@ export function TemplateDetailDrawer({
                 </Space>
               }
               description={
-                <span className="muted" style={{ fontSize: 11 }}>
+                <span className="muted u-text-2xs">
                   {t('editor.templates.history.version_meta', {
                     author: v.author_display_name ?? t('editor.templates.history.author_unknown'),
                     when: fmtDate(v.created_at),

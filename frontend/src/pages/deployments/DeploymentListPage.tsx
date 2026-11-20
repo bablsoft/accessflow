@@ -124,7 +124,7 @@ export default function DeploymentListPage() {
       dataIndex: 'version',
       width: 140,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {v}
         </span>
       ),
@@ -142,7 +142,7 @@ export default function DeploymentListPage() {
         r.ai_risk_level != null && r.ai_risk_score != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>
+          <span className="muted u-text-2xs">
             —
           </span>
         ),
@@ -159,7 +159,7 @@ export default function DeploymentListPage() {
         const color = outcome == null ? null : deploymentOutcomeColor(outcome);
         const verificationColor = verificationStatusColor(verification);
         return (
-          <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4 }}>
+          <span className="u-inline-flex u-wrap u-gap-1">
             {outcome != null && color && (
               <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
                 {deploymentOutcomeLabel(t, outcome)}
@@ -213,7 +213,7 @@ export default function DeploymentListPage() {
       dataIndex: 'created_at',
       width: 110,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -254,7 +254,7 @@ export default function DeploymentListPage() {
           style={{ width: 200 }}
         />
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('deploygov.deployments.environmentFilterPlaceholder')}
           aria-label={t('deploygov.deployments.environment')}
           value={environment}
@@ -293,8 +293,8 @@ export default function DeploymentListPage() {
         >
           {t('deploygov.metrics.viewMetrics')}
         </Button>
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs">
           {t('deploygov.deployments.countLabel', {
             total: listQuery.data?.total_elements ?? 0,
           })}
@@ -302,7 +302,7 @@ export default function DeploymentListPage() {
       </FilterBar>
       <PageBody flush>
         {listQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

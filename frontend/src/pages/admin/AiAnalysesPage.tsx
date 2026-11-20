@@ -72,7 +72,7 @@ export default function AiAnalysesPage() {
         }
       />
       <FilterBar>
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <span className="mono muted u-text-2xs">
           {t('admin.ai_analyses.filter_range_label')}
         </span>
         <div data-testid="ai-analyses-range">
@@ -87,7 +87,7 @@ export default function AiAnalysesPage() {
             }}
           />
         </div>
-        <span className="mono muted" style={{ fontSize: 11, marginLeft: 12 }}>
+        <span className="mono muted u-text-2xs u-ml-3">
           {t('admin.ai_analyses.filter_datasource_label')}
         </span>
         <div data-testid="ai-analyses-datasource">
@@ -109,19 +109,19 @@ export default function AiAnalysesPage() {
       </FilterBar>
       <PageBody>
         {statsQuery.isLoading || !stats ? (
-          <Space orientation="vertical" size={20} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={20} className="u-w-full">
             <Skeleton active paragraph={{ rows: 6 }} />
             <Skeleton active paragraph={{ rows: 4 }} />
             <Skeleton active paragraph={{ rows: 4 }} />
           </Space>
         ) : hasNoData ? (
           <EmptyState
-            icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+            icon={<BarChartOutlined className="u-text-xl" />}
             title={t('admin.ai_analyses.empty_title')}
             description={t('admin.ai_analyses.empty_description')}
           />
         ) : (
-          <Space orientation="vertical" size={20} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={20} className="u-w-full">
             <Card
               title={t('admin.ai_analyses.chart_risk_score_title')}
               data-testid="ai-analyses-risk-chart"
@@ -164,7 +164,7 @@ function RiskScoreChart({ points }: { points: AiAnalysisRiskScorePoint[] }) {
   if (points.length === 0) {
     return (
       <EmptyState
-        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        icon={<BarChartOutlined className="u-text-xl" />}
         title={t('admin.ai_analyses.empty_title')}
       />
     );
@@ -204,7 +204,7 @@ function IssueCategoriesChart({ rows }: { rows: AiAnalysisIssueCategory[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        icon={<BarChartOutlined className="u-text-xl" />}
         title={t('admin.ai_analyses.empty_title')}
       />
     );
@@ -229,7 +229,7 @@ function CostPerModelChart({ rows }: { rows: AiAnalysisModelStat[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        icon={<BarChartOutlined className="u-text-xl" />}
         title={t('admin.ai_analyses.empty_title')}
       />
     );
@@ -269,7 +269,7 @@ function LatencyPerModelChart({ rows }: { rows: AiAnalysisModelStat[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        icon={<BarChartOutlined className="u-text-xl" />}
         title={t('admin.ai_analyses.empty_title')}
       />
     );
@@ -298,7 +298,7 @@ function TopSubmittersChart({ rows }: { rows: AiAnalysisTopSubmitter[] }) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        icon={<BarChartOutlined className="u-text-xl" />}
         title={t('admin.ai_analyses.empty_title')}
       />
     );

@@ -63,9 +63,9 @@ export function RagFormSection({ form }: { form: FormInstance }) {
   );
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
-      <h3 style={{ marginBottom: 4 }}>{t('admin.ai_configs.rag.section_title')}</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
+    <div className="u-mt-2" style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+      <h3 className="u-mb-1">{t('admin.ai_configs.rag.section_title')}</h3>
+      <p className="muted u-mt-0">
         {t('admin.ai_configs.rag.section_help')}
       </p>
       <Form.Item
@@ -81,7 +81,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
             <Alert
               type="warning"
               showIcon
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               title={t('admin.ai_configs.rag.pgvector_unavailable_warning')}
               description={t('admin.ai_configs.rag.pgvector_unavailable_help')}
             />
@@ -104,7 +104,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
                 { type: 'number', min: 1, max: 20, message: t('admin.ai_configs.rag.top_k_range') },
               ]}
             >
-              <InputNumber className="mono" min={1} max={20} style={{ width: '100%' }} />
+              <InputNumber className="mono u-w-full" min={1} max={20} />
             </Form.Item>
           </div>
           <Form.Item
@@ -119,7 +119,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
               },
             ]}
           >
-            <InputNumber className="mono" min={0} max={1} step={0.05} style={{ width: '100%' }} />
+            <InputNumber className="mono u-w-full" min={0} max={1} step={0.05} />
           </Form.Item>
           {storeType === 'QDRANT' && (
             <>
@@ -154,7 +154,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
               </div>
             </>
           )}
-          <h4 style={{ marginBottom: 8 }}>{t('admin.ai_configs.rag.embedding_section')}</h4>
+          <h4 className="u-mb-2">{t('admin.ai_configs.rag.embedding_section')}</h4>
           <div style={GRID_TWO}>
             <Form.Item
               name="embedding_provider"
@@ -237,10 +237,9 @@ export function RagFormSection({ form }: { form: FormInstance }) {
                 />
               ) : (
                 <InputNumber
-                  className="mono"
+                  className="mono u-w-full"
                   min={1}
                   max={4096}
-                  style={{ width: '100%' }}
                   placeholder={t('admin.ai_configs.rag.embedding_dimensions_placeholder')}
                 />
               )}
@@ -250,7 +249,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
             <Alert
               type="warning"
               showIcon
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               title={t('admin.ai_configs.rag.voyage_pgvector_warning')}
               description={t('admin.ai_configs.rag.voyage_pgvector_help')}
             />

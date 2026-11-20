@@ -124,7 +124,7 @@ export default function SchemaChangeSetListPage() {
       dataIndex: 'updated_at',
       width: 120,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -137,7 +137,7 @@ export default function SchemaChangeSetListPage() {
   let body;
   if (listQuery.isLoading) {
     body = (
-      <div style={{ padding: 16 }} data-testid="schema-change-list-loading">
+      <div className="u-p-4" data-testid="schema-change-list-loading">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
@@ -222,12 +222,12 @@ export default function SchemaChangeSetListPage() {
           ]}
           style={{ width: 160 }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs">
           {t('schemaChange.list.count', { total: listQuery.data?.total_elements ?? 0 })}
         </span>
       </FilterBar>
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>{body}</div>
+      <div className="u-flex-1" style={{ overflow: 'auto', padding: '0 12px' }}>{body}</div>
 
       <Modal
         open={creating}

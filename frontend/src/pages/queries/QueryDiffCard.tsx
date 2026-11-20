@@ -28,23 +28,19 @@ export function QueryDiffCard({ query }: Props) {
       <div style={{ padding: 14 }}>
         {isLoading && <Skeleton active title={false} paragraph={{ rows: 2 }} />}
         {!isLoading && is404 && (
-          <div className="muted" style={{ fontSize: 13 }}>
+          <div className="muted u-text-sm">
             {t('queries.detail.diff_empty')}
           </div>
         )}
         {!isLoading && isError && !is404 && (
-          <div className="muted" style={{ fontSize: 13 }}>
+          <div className="muted u-text-sm">
             {t('queries.detail.diff_error')}
           </div>
         )}
         {!isLoading && data && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="u-flex u-col u-gap-3">
             <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 16,
-              }}
+              className="u-grid u-gap-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
             >
               <DeltaRow
                 label={t('queries.detail.diff_rows')}
@@ -68,7 +64,7 @@ export function QueryDiffCard({ query }: Props) {
             </div>
             <Link
               to={`/queries/${data.previous_run_id}`}
-              style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}
+              className="u-text-xs u-mono"
             >
               {t('queries.detail.diff_previous_link')}
             </Link>
@@ -97,7 +93,7 @@ function DeltaRow({
     return (
       <div>
         <Label text={label} />
-        <div className="muted" style={{ fontSize: 13 }}>
+        <div className="muted u-text-sm">
           {t('queries.detail.diff_unavailable')}
         </div>
       </div>
@@ -106,7 +102,7 @@ function DeltaRow({
   return (
     <div>
       <Label text={label} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="u-flex u-items-center u-gap-2">
         <DeltaBadge
           delta={delta}
           previous={previous}
@@ -117,7 +113,7 @@ function DeltaRow({
           positiveIsGood={false}
         />
         {current != null && (
-          <span className="mono muted" style={{ fontSize: 12 }}>
+          <span className="mono muted u-text-xs">
             {current}
             {unit ? ` ${unit}` : ''}
           </span>
@@ -130,13 +126,8 @@ function DeltaRow({
 function Label({ text }: { text: string }) {
   return (
     <div
-      className="muted mono"
-      style={{
-        fontSize: 11,
-        textTransform: 'uppercase',
-        letterSpacing: '0.04em',
-        marginBottom: 4,
-      }}
+      className="muted mono u-text-2xs u-mb-1"
+      style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
     >
       {text}
     </div>
@@ -161,16 +152,10 @@ function Card({
       }}
     >
       <div
-        style={{
-          padding: '10px 14px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
+        className="u-flex u-items-center u-gap-2" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
       >
-        {icon && <span style={{ color: 'var(--fg-muted)' }}>{icon}</span>}
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{title}</span>
+        {icon && <span className="u-fg-muted">{icon}</span>}
+        <span className="u-fw-600 u-text-sm">{title}</span>
       </div>
       {children}
     </div>

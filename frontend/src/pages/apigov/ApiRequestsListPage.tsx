@@ -130,19 +130,19 @@ export default function ApiRequestsListPage() {
       title: t('apiGov.requests.id'),
       dataIndex: 'id',
       width: 90,
-      render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v.slice(0, 8)}</span>,
+      render: (v: string) => <span className="mono muted u-text-xs">{v.slice(0, 8)}</span>,
     },
     {
       title: t('apiGov.requests.connector'),
       width: 160,
       render: (_v, r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13 }}>{r.connector_name ?? r.connector_id.slice(0, 8)}</span>
+        <span className="u-inline-flex u-items-center" style={{ gap: 6 }}>
+          <span className="u-text-sm">{r.connector_name ?? r.connector_id.slice(0, 8)}</span>
           {r.scheduled_for && (
             <Tooltip title={t('apiGov.requests.scheduledFor', { when: fmtDate(r.scheduled_for) })}>
               <ClockCircleOutlined
                 aria-label={t('apiGov.requests.scheduledForAria')}
-                style={{ color: 'var(--accent)', fontSize: 12 }}
+                className="u-fg-accent u-text-xs"
               />
             </Tooltip>
           )}
@@ -150,19 +150,19 @@ export default function ApiRequestsListPage() {
             <Tooltip title={t('apiGov.requests.throttledTooltip', { when: fmtDate(r.throttled_until) })}>
               <HourglassOutlined
                 aria-label={t('apiGov.requests.throttledAria')}
-                style={{ color: 'var(--status-warn)', fontSize: 12 }}
+                className="u-fg-warning u-text-xs"
               />
             </Tooltip>
           )}
         </span>
       ),
     },
-    { title: t('apiGov.requests.verb'), dataIndex: 'verb', width: 80, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
+    { title: t('apiGov.requests.verb'), dataIndex: 'verb', width: 80, render: (v: string) => <span className="mono u-text-xs">{v}</span> },
     {
       title: t('apiGov.requests.path'),
       dataIndex: 'request_path',
       ellipsis: true,
-      render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+      render: (v: string) => <span className="mono u-text-xs">{v}</span>,
     },
     {
       title: t('apiGov.requests.status'),
@@ -177,7 +177,7 @@ export default function ApiRequestsListPage() {
         r.ai_risk_level != null && r.ai_risk_score != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>—</span>
+          <span className="muted u-text-2xs">—</span>
         ),
     },
     {
@@ -185,21 +185,21 @@ export default function ApiRequestsListPage() {
       width: 160,
       ellipsis: true,
       render: (_v, r) => (
-        <span style={{ fontSize: 12 }}>{r.submitted_by_email ?? r.submitted_by.slice(0, 8)}</span>
+        <span className="u-text-xs">{r.submitted_by_email ?? r.submitted_by.slice(0, 8)}</span>
       ),
     },
     {
       title: t('apiGov.requests.created'),
       dataIndex: 'created_at',
       width: 110,
-      render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span>,
+      render: (v: string) => <span className="muted u-text-xs">{timeAgo(v)}</span>,
     },
     {
       title: t('apiGov.requests.actions'),
       key: 'actions',
       width: 160,
       render: (_v, r) => (
-        <span style={{ display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+        <span className="u-flex u-gap-2" onClick={(e) => e.stopPropagation()}>
           <Button size="small" onClick={() => navigate(`/api-requests/${r.id}`)}>
             {t('apiGov.requests.view')}
           </Button>
@@ -233,7 +233,7 @@ export default function ApiRequestsListPage() {
       <PageHeader title={t('apiGov.requests.title')} subtitle={t('apiGov.requests.subtitle')} />
       <FilterBar>
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('apiGov.requests.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -296,8 +296,8 @@ export default function ApiRequestsListPage() {
             setPage(0);
           }}
         />
-        <div style={{ flex: 1 }} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <div className="u-flex-1" />
+        <span className="mono muted u-text-2xs">
           {t('apiGov.requests.countLabel', {
             filtered: filtered.length,
             total: requestsQuery.data?.total_elements ?? 0,
@@ -306,7 +306,7 @@ export default function ApiRequestsListPage() {
       </FilterBar>
       <PageBody flush>
         {requestsQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

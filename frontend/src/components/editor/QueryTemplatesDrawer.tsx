@@ -77,7 +77,7 @@ export function QueryTemplatesDrawer({
       size="large"
       destroyOnHidden
     >
-      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" className="u-w-full" size="middle">
         <Input.Search
           allowClear
           value={search}
@@ -137,7 +137,7 @@ export function QueryTemplatesDrawer({
                     <Space size="small" wrap>
                       <Button
                         type="link"
-                        style={{ padding: 0, height: 'auto', fontWeight: 600 }}
+                        className="u-p-0 u-fw-600" style={{ height: 'auto' }}
                         onClick={() => setDetail({ template: item, tab: 'details' })}
                       >
                         {item.name}
@@ -153,7 +153,7 @@ export function QueryTemplatesDrawer({
                     </Space>
                   }
                   description={
-                    <Space orientation="vertical" size={2} style={{ width: '100%' }}>
+                    <Space orientation="vertical" size={2} className="u-w-full">
                       {item.description ? <span>{item.description}</span> : null}
                       {item.tags.length ? (
                         <Space size={4} wrap>
@@ -162,7 +162,7 @@ export function QueryTemplatesDrawer({
                           ))}
                         </Space>
                       ) : null}
-                      <span className="muted" style={{ fontSize: 11 }}>
+                      <span className="muted u-text-2xs">
                         {t('editor.templates.owner_label', {
                           name: item.owner_display_name ?? '',
                         })}

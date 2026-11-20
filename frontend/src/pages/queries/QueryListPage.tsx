@@ -132,15 +132,15 @@ export function QueryListPage() {
       dataIndex: 'id',
       width: 130,
       render: (v: string, r) => (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span className="mono muted" style={{ fontSize: 12 }}>{v.slice(0, 8)}</span>
+        <span className="u-inline-flex u-items-center" style={{ gap: 6 }}>
+          <span className="mono muted u-text-xs">{v.slice(0, 8)}</span>
           {r.scheduled_for && (
             <Tooltip
               title={t('queries.list.scheduled_for_tooltip', { when: fmtDate(r.scheduled_for) })}
             >
               <ClockCircleOutlined
                 aria-label={t('queries.list.scheduled_for_aria')}
-                style={{ color: 'var(--accent)', fontSize: 12 }}
+                className="u-fg-accent u-text-xs"
               />
             </Tooltip>
           )}
@@ -148,7 +148,7 @@ export function QueryListPage() {
             <Tooltip title={t('queries.list.recurring_tooltip')}>
               <SyncOutlined
                 aria-label={t('queries.list.recurring_aria')}
-                style={{ color: 'var(--accent)', fontSize: 12 }}
+                className="u-fg-accent u-text-xs"
               />
             </Tooltip>
           )}
@@ -177,14 +177,14 @@ export function QueryListPage() {
         if (r.risk_level != null && r.risk_score != null) {
           return <RiskPill level={r.risk_level} score={r.risk_score} />;
         }
-        return <span className="muted" style={{ fontSize: 11 }}>—</span>;
+        return <span className="muted u-text-2xs">—</span>;
       },
     },
     {
       title: t('queries.list.col_datasource'),
       width: 200,
       render: (_v, r) => (
-        <span className="mono" style={{ fontSize: 12 }}>{r.datasource.name}</span>
+        <span className="mono u-text-xs">{r.datasource.name}</span>
       ),
     },
     {
@@ -193,9 +193,9 @@ export function QueryListPage() {
       render: (_v, r) => {
         const label = userDisplay(r.submitted_by.display_name, r.submitted_by.email);
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={label} size={20} />
-            <span style={{ fontSize: 12 }}>{label}</span>
+            <span className="u-text-xs">{label}</span>
           </div>
         );
       },
@@ -204,7 +204,7 @@ export function QueryListPage() {
       title: t('queries.list.col_created'),
       dataIndex: 'created_at',
       width: 110,
-      render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span>,
+      render: (v: string) => <span className="muted u-text-xs">{timeAgo(v)}</span>,
     },
   ];
 

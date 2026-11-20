@@ -48,7 +48,7 @@ export function ServiceAccountLimitsTab({ account }: { account: ServiceAccount }
           <InputNumber
             min={1}
             precision={0}
-            style={{ width: '100%' }}
+            className="u-w-full"
             placeholder={t('admin.service_accounts.limits.placeholder_default')}
           />
         </Form.Item>
@@ -60,7 +60,7 @@ export function ServiceAccountLimitsTab({ account }: { account: ServiceAccount }
           <InputNumber
             min={1}
             precision={0}
-            style={{ width: '100%' }}
+            className="u-w-full"
             placeholder={t('admin.service_accounts.limits.placeholder_default')}
           />
         </Form.Item>

@@ -20,32 +20,26 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
 
   return (
     <div
-      style={{
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--bg-sunken)',
-        overflow: 'hidden',
-      }}
+      className="u-flex u-col" style={{ borderRight: '1px solid var(--border)', background: 'var(--bg-sunken)', overflow: 'hidden' }}
     >
-      <div style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
+      <div className="u-p-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <label
-          className="muted"
-          style={{ display: 'block', fontSize: 12, fontWeight: 500, marginBottom: 5 }}
+          className="muted u-block u-text-xs u-fw-500"
+          style={{ marginBottom: 5 }}
         >
           {t('editor.datasource_label')}
         </label>
         <Select
           size="small"
-          style={{ width: '100%' }}
+          className="u-w-full"
           showSearch={{ optionFilterProp: 'label' }}
           value={ds.id}
           onChange={onChangeDs}
           options={datasources.map((d) => ({ value: d.id, label: d.name }))}
         />
         <div
-          className="mono muted"
-          style={{ fontSize: 11, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+          className="mono muted u-text-2xs u-mt-2 u-flex u-items-center"
+          style={{ gap: 6 }}
         >
           <span
             style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--risk-low)' }}
@@ -54,20 +48,20 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
         </div>
       </div>
       {schemaQuery.isLoading && (
-        <div className="muted" style={{ padding: '8px 12px', fontSize: 11 }}>
+        <div className="muted u-text-2xs" style={{ padding: '8px 12px' }}>
           {t('datasources.settings.schema_loading')}
         </div>
       )}
       {schemaQuery.isError && (
         <div
-          className="muted"
-          style={{ padding: '8px 12px', fontSize: 11, color: 'var(--risk-high)' }}
+          className="muted u-text-2xs"
+          style={{ padding: '8px 12px', color: 'var(--risk-high)' }}
         >
           {t('datasources.settings.schema_error')}
         </div>
       )}
       {schemaQuery.data && (
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div className="u-flex-1" style={{ minHeight: 0 }}>
           <SchemaObjectTree
             schemas={schemaQuery.data.schemas}
             selected={preview}

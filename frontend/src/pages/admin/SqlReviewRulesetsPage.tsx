@@ -166,8 +166,8 @@ export function SqlReviewRulesetsPage() {
       title: t('admin.sql_review.rules_col_rule'),
       render: (_v, rule) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{rule.name}</div>
-          <div className="muted" style={{ fontSize: 12 }}>
+          <div className="u-fw-500">{rule.name}</div>
+          <div className="muted u-text-xs">
             {rule.description}
           </div>
         </div>
@@ -177,7 +177,7 @@ export function SqlReviewRulesetsPage() {
       title: t('admin.sql_review.rules_col_category'),
       width: 150,
       render: (_v, rule) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {sqlReviewRuleCategoryLabel(t, rule.category)}
         </span>
       ),
@@ -188,10 +188,10 @@ export function SqlReviewRulesetsPage() {
       render: (_v, rule) => (
         <Form.Item
           name={['rules', rule.rule_id, 'severity']}
-          style={{ marginBottom: 0 }}
+          className="u-mb-0"
           extra={
             <Tooltip title={t('admin.sql_review.default_severity_hint')}>
-              <span style={{ fontSize: 11 }}>
+              <span className="u-text-2xs">
                 {t('admin.sql_review.default_severity', {
                   severity: sqlReviewSeverityLabel(t, rule.default_severity),
                 })}
@@ -220,7 +220,7 @@ export function SqlReviewRulesetsPage() {
       width: 260,
       render: (_v, rule) =>
         rule.params.length === 0 ? (
-          <span className="muted" style={{ fontSize: 12 }}>
+          <span className="muted u-text-xs">
             {t('admin.sql_review.params_none')}
           </span>
         ) : (
@@ -228,7 +228,7 @@ export function SqlReviewRulesetsPage() {
             <Form.Item
               key={param.key}
               name={['rules', rule.rule_id, 'params', param.key]}
-              style={{ marginBottom: 0 }}
+              className="u-mb-0"
               // Re-validate when the severity moves the row in or out of "stored".
               dependencies={[['rules', rule.rule_id, 'severity']]}
               rules={[
@@ -327,7 +327,7 @@ export function SqlReviewRulesetsPage() {
               children: (
                 <>
                 {rulesetsQuery.isLoading || rulesQuery.isLoading ? (
-                  <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+                  <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
                 ) : rulesetsQuery.isError ? (
                   <EmptyState
                     title={t('admin.sql_review.load_error')}
@@ -353,9 +353,9 @@ export function SqlReviewRulesetsPage() {
                         dataIndex: 'name',
                         render: (v: string, ruleset) => (
                           <div>
-                            <div style={{ fontWeight: 500 }}>{v}</div>
+                            <div className="u-fw-500">{v}</div>
                             {ruleset.description && (
-                              <div className="muted" style={{ fontSize: 12 }}>
+                              <div className="muted u-text-xs">
                                 {ruleset.description}
                               </div>
                             )}
@@ -407,7 +407,7 @@ export function SqlReviewRulesetsPage() {
                         title: t('admin.sql_review.col_actions'),
                         width: 110,
                         render: (_v, ruleset) => (
-                          <div style={{ display: 'flex', gap: 4 }}>
+                          <div className="u-flex u-gap-1">
                             <Button
                               size="small"
                               type="text"
@@ -479,7 +479,7 @@ export function SqlReviewRulesetsPage() {
           >
             <Input.TextArea rows={2} />
           </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16 }}>
+          <div className="u-grid u-gap-4" style={{ gridTemplateColumns: '1fr auto' }}>
             <Form.Item
               name="environment"
               label={t('admin.sql_review.label_environment')}
@@ -497,8 +497,8 @@ export function SqlReviewRulesetsPage() {
             </Form.Item>
           </div>
 
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('admin.sql_review.rules_heading')}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          <div className="u-fw-600 u-mb-1">{t('admin.sql_review.rules_heading')}</div>
+          <div className="muted u-text-xs u-mb-2">
             {t('admin.sql_review.rules_hint')}
           </div>
           <DataTable<SqlReviewRule>
@@ -510,10 +510,10 @@ export function SqlReviewRulesetsPage() {
           />
           {customRules.length > 0 && (
             <>
-              <div style={{ fontWeight: 600, margin: '16px 0 4px' }}>
+              <div className="u-fw-600" style={{ margin: '16px 0 4px' }}>
                 {t('admin.sql_review.custom_rules_heading')}
               </div>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+              <div className="muted u-text-xs u-mb-2">
                 {t('admin.sql_review.custom_rules_hint')}
               </div>
               <div data-testid="sql-review-custom-rule-severities">

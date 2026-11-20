@@ -217,7 +217,7 @@ export function PendingDeploymentsTab() {
       dataIndex: 'version',
       width: 130,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {v}
         </span>
       ),
@@ -227,7 +227,7 @@ export function PendingDeploymentsTab() {
       width: 110,
       align: 'center' as const,
       render: (_v, r) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {r.required_approvals}
         </span>
       ),
@@ -239,7 +239,7 @@ export function PendingDeploymentsTab() {
         r.ai_risk_level != null && r.ai_risk_score != null ? (
           <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          <span className="muted" style={{ fontSize: 11 }}>
+          <span className="muted u-text-2xs">
             —
           </span>
         ),
@@ -249,14 +249,14 @@ export function PendingDeploymentsTab() {
       dataIndex: 'scheduled_for',
       width: 140,
       render: (v: string | null) =>
-        v ? <span style={{ fontSize: 12 }}>{fmtDate(v)}</span> : <span className="muted">—</span>,
+        v ? <span className="u-text-xs">{fmtDate(v)}</span> : <span className="muted">—</span>,
     },
     {
       title: t('deploygov.deployments.created'),
       dataIndex: 'created_at',
       width: 110,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -268,7 +268,7 @@ export function PendingDeploymentsTab() {
       render: (_v, row) => {
         const own = row.submitted_by_user_id === user?.id;
         const buttons = (
-          <span style={{ display: 'flex', gap: 8 }}>
+          <span className="u-flex u-gap-2">
             <Button
               size="small"
               type="primary"
@@ -306,7 +306,7 @@ export function PendingDeploymentsTab() {
     <>
       <FilterBar>
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('deploygov.reviews.searchPlaceholder')}
           aria-label={t('deploygov.reviews.searchPlaceholder')}
           value={q}
@@ -336,9 +336,9 @@ export function PendingDeploymentsTab() {
           ]}
           style={{ width: 140 }}
         />
-        <div style={{ flex: 1 }} />
+        <div className="u-flex-1" />
         <TriageShortcuts open={helpOpen} onOpenChange={setHelpOpen} />
-        <span className="mono muted" style={{ fontSize: 11 }}>
+        <span className="mono muted u-text-2xs">
           {t('deploygov.reviews.countLabel', {
             filtered: filtered.length,
             total: queueQuery.data?.total_elements ?? 0,
@@ -348,7 +348,7 @@ export function PendingDeploymentsTab() {
       <div className={`af-triage${filtered.length > 0 ? ' af-triage--split' : ''}`}>
       <PageBody flush>
         {queueQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (
@@ -492,7 +492,7 @@ export function RollbackReviewsTab() {
       width: 160,
       render: (v: string | null) =>
         v ? (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {v}
           </span>
         ) : (
@@ -516,7 +516,7 @@ export function RollbackReviewsTab() {
       dataIndex: 'created_at',
       width: 110,
       render: (v: string) => (
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted u-text-xs">
           {timeAgo(v)}
         </span>
       ),
@@ -530,7 +530,7 @@ export function RollbackReviewsTab() {
         // pending tab and disable rather than surfacing the conflict as a toast.
         const own = row.submitted_by === user?.id;
         return (
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="u-flex u-gap-2 u-items-center">
             {row.status === 'PENDING_REVIEW' &&
               (own ? (
                 <Tooltip title={t('deploygov.reviews.selfSubmissionHint')}>
@@ -571,7 +571,7 @@ export function RollbackReviewsTab() {
       </FilterBar>
       <PageBody flush>
         {listQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : (

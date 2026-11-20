@@ -41,7 +41,7 @@ function ForgotPasswordPage() {
               type="error"
               title={error.message}
               description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               showIcon
               closable={{ closeIcon: true, onClose: () => setError(null) }}
             />
@@ -85,8 +85,8 @@ function ForgotPasswordPage() {
             </Form>
           )}
 
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <Link to="/login" className="muted" style={{ fontSize: 12 }}>
+          <div className="u-mt-4 u-text-center">
+            <Link to="/login" className="muted u-text-xs">
               {t('auth.forgot_password.back_to_login')}
             </Link>
           </div>

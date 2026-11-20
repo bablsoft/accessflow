@@ -270,12 +270,12 @@ export function RequestAccessPage() {
         {activeRequest && (
           <Card
             title={t('access.request.active_title')}
-            style={{ marginBottom: 24, maxWidth: 640, borderLeft: '3px solid var(--accent)' }}
+            className="u-mb-6" style={{ maxWidth: 640, borderLeft: '3px solid var(--accent)' }}
           >
-            <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Space orientation="vertical" size={8} className="u-w-full">
+              <div className="u-flex u-items-center u-gap-3 u-wrap">
                 {kindTag(activeRequest)}
-                <span style={{ fontWeight: 600 }}>{resourceName(activeRequest)}</span>
+                <span className="u-fw-600">{resourceName(activeRequest)}</span>
                 <AccessStatusPill status={activeRequest.status} size="sm" />
               </div>
               {capabilityTags(activeRequest)}
@@ -288,7 +288,7 @@ export function RequestAccessPage() {
           </Card>
         )}
 
-        <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
+        <h2 className="u-text-lg" style={{ margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
         {mine.isLoading ? (
           <Skeleton active />
         ) : (mine.data?.content.length ?? 0) === 0 ? (
@@ -303,8 +303,8 @@ export function RequestAccessPage() {
           />
         )}
 
-        <h2 style={{ fontSize: 16, margin: '32px 0 12px' }}>{t('access.request.new_heading')}</h2>
-        <Card style={{ marginBottom: 24, maxWidth: 640 }}>
+        <h2 className="u-text-lg" style={{ margin: '32px 0 12px' }}>{t('access.request.new_heading')}</h2>
+        <Card className="u-mb-6" style={{ maxWidth: 640 }}>
           <Form<RequestFormValues>
             form={form}
             layout="vertical"
@@ -433,7 +433,7 @@ export function RequestAccessPage() {
                   name="pre_approve_queries"
                   valuePropName="checked"
                   extra={t('access.request.pre_approve_hint')}
-                  style={{ marginBottom: 12 }}
+                  className="u-mb-3"
                 >
                   <Checkbox>{t('access.request.pre_approve_label')}</Checkbox>
                 </Form.Item>

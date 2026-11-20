@@ -16,7 +16,7 @@ export function TwoFactorSection({ profile }: TwoFactorSectionProps) {
   const [disableOpen, setDisableOpen] = useState(false);
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
       {profile.totp_enabled ? (
         <>
           <Space>

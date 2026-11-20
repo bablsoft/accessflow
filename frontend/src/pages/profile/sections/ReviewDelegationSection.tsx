@@ -183,7 +183,7 @@ export function ReviewDelegationSection() {
   ];
 
   return (
-    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" className="u-w-full" size="middle">
       <Alert type="info" showIcon title={t('profile.delegation.explainer')} />
 
       {error && (
@@ -245,7 +245,7 @@ export function ReviewDelegationSection() {
           label={t('profile.delegation.label_window')}
           rules={[{ required: true, message: t('profile.delegation.validation_window') }]}
         >
-          <DatePicker.RangePicker showTime style={{ width: '100%' }} />
+          <DatePicker.RangePicker showTime className="u-w-full" />
         </Form.Item>
 
         <Form.Item

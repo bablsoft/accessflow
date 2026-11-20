@@ -128,20 +128,20 @@ export default function AttestationWorklistPage() {
         title: t('attestation.worklist.col_subject'),
         key: 'subject',
         render: (_: unknown, item: AttestationItem) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-flex u-items-center" style={{ gap: 10 }}>
             <Avatar name={item.subject_user_email} size={24} />
             <div>
-              <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
                 {item.subject_user_display_name}
                 <PrincipalTypeTag principalType={item.subject_principal_type} />
               </div>
-              <div className="mono muted" style={{ fontSize: 11 }}>
+              <div className="mono muted u-text-2xs">
                 {item.subject_user_email}
               </div>
               {item.subject_principal_type === 'SERVICE_ACCOUNT' && (
                 // A reviewer must see the person accountable for a robot's grant (#875), or
                 // they revoke what they do not recognise.
-                <div className="muted" style={{ fontSize: 11 }} data-testid="subject-owner">
+                <div className="muted u-text-2xs" data-testid="subject-owner">
                   {item.subject_owner_email
                     ? t('attestation.worklist.owned_by', {
                         name: userDisplay(item.subject_owner_display_name, item.subject_owner_email),
@@ -157,7 +157,7 @@ export default function AttestationWorklistPage() {
         title: t('attestation.worklist.col_datasource'),
         key: 'datasource',
         render: (_: unknown, item: AttestationItem) => (
-          <span className="mono" style={{ fontSize: 12 }}>
+          <span className="mono u-text-xs">
             {item.datasource_name ?? '—'}
           </span>
         ),
@@ -237,24 +237,12 @@ export default function AttestationWorklistPage() {
             aria-label={t('attestation.worklist.bulk.action_bar_count', {
               count: selectedRowKeys.length,
             })}
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-              background: 'var(--bg-elev)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 14px',
-              marginBottom: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
+            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
           >
             <strong>
               {t('attestation.worklist.bulk.action_bar_count', { count: selectedRowKeys.length })}
             </strong>
-            <div style={{ flex: 1 }} />
+            <div className="u-flex-1" />
             <Button size="small" danger icon={<CloseOutlined />} onClick={() => setBulkAction('REVOKED')}>
               {t('attestation.worklist.bulk.revoke_selected')}
             </Button>

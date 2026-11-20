@@ -22,10 +22,10 @@ export function PresenceBar({ members }: PresenceBarProps) {
   if (members.length === 0) return null;
   return (
     <div
-      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+      className="u-flex u-items-center u-gap-2"
       aria-label={t('collab.presence_label', { count: members.length })}
     >
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('collab.present', { count: members.length })}
       </span>
       <Avatar.Group max={{ count: 5 }} size="small">

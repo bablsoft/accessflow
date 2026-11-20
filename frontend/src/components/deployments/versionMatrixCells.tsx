@@ -16,7 +16,7 @@ export function Dash() {
 export function VersionCell({ value }: { value: string | null }) {
   if (value == null) return <Dash />;
   return (
-    <span className="mono" style={{ fontSize: 12 }}>
+    <span className="mono u-text-xs">
       {value}
     </span>
   );
@@ -25,12 +25,12 @@ export function VersionCell({ value }: { value: string | null }) {
 export function EnvironmentCell({ environment }: { environment: DeploymentVersionEnvironmentRef }) {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div className="u-flex u-col u-gap-1">
       <span>{environment.name}</span>
       {environment.tags.length > 0 && (
         <span
           aria-label={t('deploygov.versions.tags')}
-          style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}
+          className="u-flex u-gap-1 u-wrap"
         >
           {environment.tags.map((tag) => (
             <Tag key={tag} style={{ marginInlineEnd: 0 }}>
@@ -47,7 +47,7 @@ export function DeployedAtCell({ value }: { value: string | null }) {
   if (value == null) return <Dash />;
   return (
     <Tooltip title={fmtDate(value)}>
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {timeAgo(value)}
       </span>
     </Tooltip>
@@ -60,12 +60,12 @@ export function OutcomeCell({ row }: { row: DeploymentEnvironmentVersion }) {
   if (row.last_outcome == null) return <Dash />;
   const color = deploymentOutcomeColor(row.last_outcome);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+    <div className="u-flex u-col u-gap-1 u-items-start">
       <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
         {deploymentOutcomeLabel(t, row.last_outcome)}
       </Tag>
       {rollback.kind !== 'none' && (
-        <span className="muted" style={{ fontSize: 11 }}>
+        <span className="muted u-text-2xs">
           {rollbackBadgeText(t, rollback)}
         </span>
       )}

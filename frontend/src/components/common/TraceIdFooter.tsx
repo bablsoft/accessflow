@@ -22,13 +22,13 @@ export function TraceIdFooter({ traceId }: TraceIdFooterProps) {
   const truncated = traceId.length > 12 ? `${traceId.slice(0, 8)}…${traceId.slice(-4)}` : traceId;
 
   return (
-    <span className="af-trace-id" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ color: 'var(--fg-muted)', fontSize: 12 }}>
+    <span className="af-trace-id u-inline-flex u-items-center u-gap-1">
+      <span className="u-fg-muted u-text-xs">
         {t('errors.trace_id_label')}:
       </span>
       <code
         title={traceId}
-        style={{ fontSize: 12, color: 'var(--fg-muted)' }}
+        className="u-text-xs u-fg-muted"
       >
         {truncated}
       </code>

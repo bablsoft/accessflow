@@ -192,9 +192,9 @@ export function QueryReviewsTab() {
         width: 220,
         render: (id: string) => (
           <Tooltip title={id} placement="topLeft">
-            <div className="mono" style={{ fontSize: 11, lineHeight: 1.4 }}>
-              <div style={{ fontWeight: 500 }}>{id.slice(0, 8)}</div>
-              <div className="muted" style={{ fontSize: 11 }}>{id}</div>
+            <div className="mono u-text-2xs" style={{ lineHeight: 1.4 }}>
+              <div className="u-fw-500">{id.slice(0, 8)}</div>
+              <div className="muted u-text-2xs">{id}</div>
             </div>
           </Tooltip>
         ),
@@ -216,7 +216,7 @@ export function QueryReviewsTab() {
           const ai = item.ai_analysis;
           const blocking = item.sql_review_blocking_count ?? 0;
           return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="u-flex u-items-center" style={{ gap: 6 }}>
               {ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—'}
               {/* #865: a BLOCK rule fired — the reason this row could not auto-approve. */}
               {blocking > 0 && (
@@ -261,16 +261,16 @@ export function QueryReviewsTab() {
         title: t('reviews.col_datasource'),
         key: 'datasource',
         render: (_: unknown, item: PendingReviewItem) => (
-          <span className="mono" style={{ fontSize: 12 }}>{item.datasource.name}</span>
+          <span className="mono u-text-xs">{item.datasource.name}</span>
         ),
       },
       {
         title: t('reviews.col_submitter'),
         key: 'submitter',
         render: (_: unknown, item: PendingReviewItem) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-flex u-items-center u-gap-2">
             <Avatar name={item.submitted_by.email} size={22} />
-            <span style={{ fontSize: 12 }}>{item.submitted_by.email}</span>
+            <span className="u-text-xs">{item.submitted_by.email}</span>
           </div>
         ),
       },
@@ -292,7 +292,7 @@ export function QueryReviewsTab() {
         key: 'created_at',
         width: 140,
         render: (value: string) => (
-          <span className="muted" style={{ fontSize: 12 }}>{timeAgo(value)}</span>
+          <span className="muted u-text-xs">{timeAgo(value)}</span>
         ),
       },
       {
@@ -348,7 +348,7 @@ export function QueryReviewsTab() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <div className="u-flex u-col u-flex-1" style={{ minHeight: 0 }}>
       {/* A segmented sub-filter rather than a second tab strip under the hub's tabs. */}
       <div className="af-triage-toolbar">
         <Segmented
@@ -369,22 +369,10 @@ export function QueryReviewsTab() {
           <div
             role="toolbar"
             aria-label={t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-              background: 'var(--bg-elev)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '10px 14px',
-              marginBottom: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
+            className="u-mb-3 u-flex u-items-center u-gap-3" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}
           >
             <strong>{t('reviews.bulk.action_bar_count', { count: selectedRowKeys.length })}</strong>
-            <div style={{ flex: 1 }} />
+            <div className="u-flex-1" />
             <Button
               size="small"
               icon={<EditOutlined />}

@@ -61,7 +61,7 @@ function SimulationBody<TResult>({
   const summary = simulation.data ? summarize(simulation.data) : null;
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
       <Segmented<RangeDays>
         value={days}
         onChange={(value) => setDays(value)}

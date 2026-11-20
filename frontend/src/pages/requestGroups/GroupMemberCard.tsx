@@ -63,7 +63,7 @@ export function GroupMemberCard({
         size="small"
         styles={{ body: { padding: 14 } }}
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="u-flex u-items-center u-gap-2">
             {!readOnly && (
               <button
                 type="button"
@@ -84,7 +84,7 @@ export function GroupMemberCard({
             {incomplete && (
               <Tooltip title={t('requestGroups.builder.stepIncomplete')}>
                 <WarningOutlined
-                  style={{ color: 'var(--warning)' }}
+                  className="u-fg-warning"
                   aria-label={t('requestGroups.builder.stepIncomplete')}
                 />
               </Tooltip>
@@ -93,7 +93,7 @@ export function GroupMemberCard({
         }
         extra={
           !readOnly && (
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="u-flex u-gap-1">
               <Button
                 size="small"
                 icon={<EditOutlined />}
@@ -115,24 +115,19 @@ export function GroupMemberCard({
           )
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          <span className="muted" style={{ fontSize: 12 }}>
+        <div className="u-flex u-col u-gap-1 u-min-w-0">
+          <span className="muted u-text-xs">
             {targetName ?? t('requestGroups.builder.noTargetYet')}
           </span>
           {preview ? (
             <span
-              className="mono"
-              style={{
-                fontSize: 12,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
+              className="mono u-text-xs u-nowrap"
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
             >
               {preview}
             </span>
           ) : (
-            <span className="muted" style={{ fontSize: 12 }}>
+            <span className="muted u-text-xs">
               {t('requestGroups.builder.emptyStepPreview')}
             </span>
           )}

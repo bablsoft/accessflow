@@ -65,7 +65,7 @@ function PermissionCapabilityFields({ operations }: { operations: ApiOperation[]
         <Switch size="small" />
       </Form.Item>
       <Form.Item name="expires_at" label={t('apiGov.settings.expiresAt')}>
-        <DatePicker showTime style={{ width: '100%' }} />
+        <DatePicker showTime className="u-w-full" />
       </Form.Item>
       <Form.Item name="allowed_operations" label={t('apiGov.settings.allowedOperations')}>
         <Select<string[]>
@@ -290,7 +290,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
   });
   const groupPerms = groupPermsQuery.data ?? [];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
+    <div className="u-flex u-col u-gap-4" style={{ maxWidth: 760 }}>
       <Form
         form={form}
         layout="vertical"
@@ -373,7 +373,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
           { title: t('apiGov.settings.allowedOperations'), dataIndex: 'allowed_operations', render: (v: string[]) => (v.length ? v.length : t('apiGov.settings.allOperations')) },
           { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },
           { title: '', key: 'a', render: (_: unknown, row: ApiConnectorPermission) => (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="u-flex u-gap-2">
               <Button size="small" onClick={() => setEditing({ kind: 'user', permission: row })}>
                 {t('apiGov.settings.edit')}
               </Button>
@@ -397,12 +397,12 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
               title: t('apiGov.settings.group'),
               dataIndex: 'group_name',
               render: (name: string, r: ApiConnectorGroupPermission) => (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <span className="u-inline-flex u-items-center u-gap-2">
                   <Tag icon={<TeamOutlined />} color="blue">
                     {t('apiGov.settings.groupTag')}
                   </Tag>
                   {name}
-                  <span className="muted" style={{ fontSize: 11 }}>
+                  <span className="muted u-text-2xs">
                     {t('apiGov.settings.memberCount', { count: r.member_count })}
                   </span>
                 </span>
@@ -417,7 +417,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
             { title: t('apiGov.settings.allowedOperations'), dataIndex: 'allowed_operations', render: (v: string[]) => (v.length ? v.length : t('apiGov.settings.allOperations')) },
             { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },
             { title: '', key: 'a', render: (_: unknown, row: ApiConnectorGroupPermission) => (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-flex u-gap-2">
                 <Button size="small" onClick={() => setEditing({ kind: 'group', permission: row })}>
                   {t('apiGov.settings.edit')}
                 </Button>

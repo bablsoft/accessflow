@@ -91,21 +91,15 @@ export function ExportPolicyTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>
+          <div className="u-fw-600">
             {t('datasources.settings.export_policies.title')}
           </div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('datasources.settings.export_policies.description')}
           </div>
         </div>
@@ -155,7 +149,7 @@ export function ExportPolicyTab({ dsId }: { dsId: string }) {
                     {p.enabled ? (
                       <CheckCircleOutlined
                         aria-label={label}
-                        style={{ color: 'var(--risk-low)' }}
+                        className="u-fg-success"
                       />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
@@ -207,7 +201,7 @@ function PolicyDetails({ policy }: { policy: ExportPolicy }) {
   const { t } = useTranslation();
   if (policy.mode === 'ROW_CAP' && policy.row_cap != null) {
     return (
-      <span style={{ fontSize: 12 }}>
+      <span className="u-text-xs">
         {t('datasources.settings.export_policies.detail_row_cap', { count: policy.row_cap })}
       </span>
     );
@@ -215,20 +209,20 @@ function PolicyDetails({ policy }: { policy: ExportPolicy }) {
   if (policy.mode === 'DENY_CLASSIFIED') {
     if (policy.deny_classifications.length === 0) {
       return (
-        <span style={{ fontSize: 12 }}>
+        <span className="u-text-xs">
           {t('datasources.settings.export_policies.detail_deny_any')}
         </span>
       );
     }
     return (
-      <span style={{ fontSize: 12 }}>
+      <span className="u-text-xs">
         {policy.deny_classifications.map((c) => (
           <Tag key={c}>{dataClassificationLabel(t, c)}</Tag>
         ))}
       </span>
     );
   }
-  return <span className="muted" style={{ fontSize: 12 }}>—</span>;
+  return <span className="muted u-text-xs">—</span>;
 }
 
 function AppliesToSummary({ policy }: { policy: ExportPolicy }) {
@@ -257,12 +251,12 @@ function AppliesToSummary({ policy }: { policy: ExportPolicy }) {
   }
   if (parts.length === 0) {
     return (
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('datasources.settings.export_policies.applies_everyone')}
       </span>
     );
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface ExportPolicyFormValues {
@@ -510,13 +504,13 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
               borderRadius: 6,
             }}
           >
-            <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+            <div className="muted u-text-2xs" style={{ marginBottom: 6 }}>
               {t('datasources.settings.export_policies.preview_label')}
             </div>
-            <Typography.Text className="mono" style={{ fontSize: 12, display: 'block' }}>
+            <Typography.Text className="mono u-text-xs u-block">
               {watermarkHeader(previewEmail, new Date(), PREVIEW_QUERY_ID)}
             </Typography.Text>
-            <Typography.Text className="mono" style={{ fontSize: 12, display: 'block' }}>
+            <Typography.Text className="mono u-text-xs u-block">
               {watermarkFooter(
                 PREVIEW_ROW_COUNT,
                 mode === 'ROW_CAP' && rowCap != null ? rowCap : null,

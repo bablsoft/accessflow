@@ -262,7 +262,7 @@ export function ReviewPlansPage() {
       />
       <PageBody flush>
         {plansQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : plansQuery.isError ? (
           <EmptyState
             title={t('admin.review_plans.load_error')}
@@ -284,7 +284,7 @@ export function ReviewPlansPage() {
               {
                 title: t('admin.review_plans.col_name'),
                 dataIndex: 'name',
-                render: (v) => <span style={{ fontWeight: 500 }}>{v}</span>,
+                render: (v) => <span className="u-fw-500">{v}</span>,
               },
               {
                 title: t('admin.review_plans.col_description'),
@@ -330,7 +330,7 @@ export function ReviewPlansPage() {
                 title: t('admin.review_plans.col_actions'),
                 width: 110,
                 render: (_v, plan) => (
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="u-flex u-gap-1">
                     <Button
                       size="small"
                       type="text"
@@ -396,7 +396,7 @@ export function ReviewPlansPage() {
             <Input.TextArea rows={2} maxLength={2000} />
           </Form.Item>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="u-grid u-cols-2 u-gap-3">
             <Form.Item
               name="requires_ai_review"
               label={t('admin.review_plans.label_requires_ai')}
@@ -416,14 +416,14 @@ export function ReviewPlansPage() {
               label={t('admin.review_plans.label_min_approvals')}
               rules={[{ required: true, type: 'number', min: 1, max: 10 }]}
             >
-              <InputNumber min={1} max={10} style={{ width: '100%' }} />
+              <InputNumber min={1} max={10} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="approval_timeout_hours"
               label={t('admin.review_plans.label_timeout_h')}
               rules={[{ required: true, type: 'number', min: 1, max: 8760 }]}
             >
-              <InputNumber min={1} max={8760} style={{ width: '100%' }} />
+              <InputNumber min={1} max={8760} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="escalation_after_hours"
@@ -431,7 +431,7 @@ export function ReviewPlansPage() {
               tooltip={t('admin.review_plans.tooltip_escalation')}
               rules={[{ type: 'number', min: 1, max: 8760 }]}
             >
-              <InputNumber min={1} max={8760} style={{ width: '100%' }} />
+              <InputNumber min={1} max={8760} className="u-w-full" />
             </Form.Item>
             <Form.Item
               name="nudge_interval_hours"
@@ -439,7 +439,7 @@ export function ReviewPlansPage() {
               tooltip={t('admin.review_plans.tooltip_nudge')}
               rules={[{ type: 'number', min: 1, max: 8760 }]}
             >
-              <InputNumber min={1} max={8760} style={{ width: '100%' }} />
+              <InputNumber min={1} max={8760} className="u-w-full" />
             </Form.Item>
           </div>
 
@@ -468,13 +468,9 @@ export function ReviewPlansPage() {
               {(fields, { add, remove }, { errors }) => (
                 <>
                   {fields.map(({ key, name }) => (
-                    <div key={key} style={{ marginBottom: 8 }}>
+                    <div key={key} className="u-mb-2">
                       <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 90px 32px',
-                          gap: 8,
-                        }}
+                        className="u-grid u-gap-2" style={{ gridTemplateColumns: '1fr 1fr 90px 32px' }}
                       >
                         <Form.Item
                           name={[name, 'user_id']}
@@ -490,14 +486,14 @@ export function ReviewPlansPage() {
                               },
                             },
                           ]}
-                          style={{ marginBottom: 0 }}
+                          className="u-mb-0"
                         >
                           <Input
                             placeholder={t('admin.review_plans.select_user_placeholder')}
                             allowClear
                           />
                         </Form.Item>
-                        <Form.Item name={[name, 'role']} style={{ marginBottom: 0 }}>
+                        <Form.Item name={[name, 'role']} className="u-mb-0">
                           <Select
                             allowClear
                             placeholder={t('admin.review_plans.select_role_placeholder')}
@@ -508,9 +504,9 @@ export function ReviewPlansPage() {
                         <Form.Item
                           name={[name, 'stage']}
                           rules={[{ required: true, type: 'number', min: 1 }]}
-                          style={{ marginBottom: 0 }}
+                          className="u-mb-0"
                         >
-                          <InputNumber min={1} style={{ width: '100%' }} />
+                          <InputNumber min={1} className="u-w-full" />
                         </Form.Item>
                         <Button
                           type="text"

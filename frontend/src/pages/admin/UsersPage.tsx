@@ -260,7 +260,7 @@ export function UsersPage() {
       />
       <FilterBar>
         <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          prefix={<SearchOutlined className="u-fg-faint" />}
           placeholder={t('admin.users.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -302,7 +302,7 @@ export function UsersPage() {
       </FilterBar>
       <PageBody flush>
         {usersQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : usersQuery.isError ? (
           <EmptyState
             title={t('admin.users.load_error')}
@@ -331,14 +331,14 @@ export function UsersPage() {
                 render: (_v, u) => {
                   const label = userDisplay(u.display_name, u.email);
                   return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div className="u-flex u-items-center" style={{ gap: 10 }}>
                       <Avatar name={label} size={28} />
                       <div>
-                        <div style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div className="u-text-sm u-flex u-items-center" style={{ gap: 6 }}>
                           {label}
                           <PrincipalTypeTag principalType={u.principal_type} />
                         </div>
-                        <div className="mono muted" style={{ fontSize: 11 }}>
+                        <div className="mono muted u-text-2xs">
                           {u.email}
                         </div>
                       </div>
@@ -360,7 +360,7 @@ export function UsersPage() {
                 dataIndex: 'auth_provider',
                 width: 110,
                 render: (v: AuthProvider) => (
-                  <span className="mono" style={{ fontSize: 11 }}>
+                  <span className="mono u-text-2xs">
                     {authProviderLabel(t, v)}
                   </span>
                 ),
@@ -704,7 +704,7 @@ function EditUserModal({
             {(fields, { add, remove }) => (
               <>
                 {fields.map((field) => (
-                  <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <div key={field.key} className="u-flex u-gap-2 u-mb-2">
                     <Form.Item
                       name={[field.name, 'key']}
                       noStyle
@@ -836,14 +836,14 @@ function PendingInvitationsSection({
 }) {
   const { t } = useTranslation();
   if (loading) {
-    return <Skeleton active paragraph={{ rows: 2 }} style={{ padding: 24 }} />;
+    return <Skeleton active paragraph={{ rows: 2 }} className="u-p-6" />;
   }
   if (invitations.length === 0) {
     return null;
   }
   return (
     <div style={{ padding: '12px var(--gutter) 24px' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+      <div className="u-text-sm u-fw-600 u-mb-2">
         {t('admin.users.invitations_title')}
       </div>
       <DataTable<UserInvitation>

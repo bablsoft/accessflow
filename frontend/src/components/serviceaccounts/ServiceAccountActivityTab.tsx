@@ -41,7 +41,7 @@ export function ServiceAccountActivityTab({ account }: { account: ServiceAccount
         <span>
           {row.resource_type}
           {row.resource_id && (
-            <span className="mono muted" style={{ fontSize: 12, marginLeft: 6 }}>
+            <span className="mono muted u-text-xs" style={{ marginLeft: 6 }}>
               {row.resource_id}
             </span>
           )}
@@ -59,8 +59,8 @@ export function ServiceAccountActivityTab({ account }: { account: ServiceAccount
   ];
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
+      <Typography.Paragraph type="secondary" className="u-mb-0">
         {t('admin.service_accounts.activity.description')}
       </Typography.Paragraph>
       <div>

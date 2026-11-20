@@ -86,7 +86,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
   const envs = [...(environments.data ?? [])].sort((a, b) => a.sort_order - b.sort_order);
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="u-w-full">
       <Alert type="info" showIcon title={t('deploygov.simulate.read_only_notice')} />
       <Form<FormValues>
         name="deployment-simulation"
@@ -140,7 +140,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             tooltip={t('deploygov.simulate.at_hint')}
             style={{ width: 240 }}
           >
-            <DatePicker showTime style={{ width: '100%' }} placeholder={t('deploygov.simulate.at_placeholder')} />
+            <DatePicker showTime className="u-w-full" placeholder={t('deploygov.simulate.at_placeholder')} />
           </Form.Item>
           <Form.Item
             name="scheduled_for"
@@ -148,7 +148,7 @@ export function PipelineSimulateTab({ pipelineId }: { pipelineId: string }) {
             tooltip={t('deploygov.simulate.scheduled_for_hint')}
             style={{ width: 240 }}
           >
-            <DatePicker showTime style={{ width: '100%' }} />
+            <DatePicker showTime className="u-w-full" />
           </Form.Item>
         </Space>
         <Button type="primary" htmlType="submit" loading={trace.isPending}>

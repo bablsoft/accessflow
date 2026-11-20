@@ -180,7 +180,7 @@ export default function AiConfigEditPage() {
       );
     }
     return (
-      <div style={{ padding: 28 }}>
+      <div className="u-p-gutter">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
@@ -246,7 +246,7 @@ export default function AiConfigEditPage() {
         subtitle={
           <span>
             <Tag>{aiProviderLabel(t, cfg.provider)}</Tag>
-            <span className="mono muted" style={{ marginLeft: 8 }}>
+            <span className="mono muted u-ml-2">
               {cfg.model}
             </span>
           </span>
@@ -257,7 +257,7 @@ export default function AiConfigEditPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
+      <div className="u-flex-1 u-p-gutter" style={{ overflow: 'auto', maxWidth: 760 }}>
         <Form<FormValues> form={form} layout="vertical" onFinish={onSave}>
           <Form.Item
             name="name"
@@ -292,27 +292,27 @@ export default function AiConfigEditPage() {
           >
             <Input.Password className="mono" maxLength={4096} autoComplete="off" />
           </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <div className="u-grid u-gap-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
             <Form.Item
               name="timeout_ms"
               label={t('admin.ai_configs.field_timeout_ms')}
               rules={[{ required: true, type: 'number', min: 1000, max: 600000 }]}
             >
-              <InputNumber className="mono" min={1000} max={600000} style={{ width: '100%' }} />
+              <InputNumber className="mono u-w-full" min={1000} max={600000} />
             </Form.Item>
             <Form.Item
               name="max_prompt_tokens"
               label={t('admin.ai_configs.field_max_prompt_tokens')}
               rules={[{ required: true, type: 'number', min: 100, max: 200000 }]}
             >
-              <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
+              <InputNumber className="mono u-w-full" min={100} max={200000} />
             </Form.Item>
             <Form.Item
               name="max_completion_tokens"
               label={t('admin.ai_configs.field_max_completion_tokens')}
               rules={[{ required: true, type: 'number', min: 100, max: 200000 }]}
             >
-              <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
+              <InputNumber className="mono u-w-full" min={100} max={200000} />
             </Form.Item>
           </div>
           <Form.Item
@@ -342,11 +342,11 @@ export default function AiConfigEditPage() {
           <Button
             onClick={() => void loadDefaultPrompt()}
             loading={defaultPromptQuery.isFetching}
-            style={{ marginBottom: 16 }}
+            className="u-mb-4"
           >
             {t('admin.ai_configs.system_prompt_load_default')}
           </Button>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="u-grid u-cols-2 u-gap-4">
             <Form.Item
               name="langfuse_prompt_name"
               label={t('admin.ai_configs.field_langfuse_prompt_name')}
@@ -367,12 +367,7 @@ export default function AiConfigEditPage() {
           <OrchestrationFormSection form={form} />
           <GuardrailsFormSection />
           <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
-            }}
+            className="u-flex u-gap-2" style={{ paddingTop: 16, borderTop: '1px solid var(--border)' }}
           >
             <Button
               type="primary"
@@ -387,7 +382,7 @@ export default function AiConfigEditPage() {
                 testing === 'running' ? (
                   <LoadingOutlined />
                 ) : testing === 'ok' ? (
-                  <CheckOutlined style={{ color: 'var(--risk-low)' }} />
+                  <CheckOutlined className="u-fg-success" />
                 ) : (
                   <PlayCircleOutlined />
                 )

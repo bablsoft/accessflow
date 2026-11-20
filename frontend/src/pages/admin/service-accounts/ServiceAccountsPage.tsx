@@ -110,7 +110,7 @@ export function ServiceAccountsPage() {
       dataIndex: 'email',
       ellipsis: true,
       render: (v: string) => (
-        <span className="mono" style={{ fontSize: 12 }}>
+        <span className="mono u-text-xs">
           {v}
         </span>
       ),
@@ -211,8 +211,8 @@ export function ServiceAccountsPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div className="u-flex-1 u-p-3" style={{ overflow: 'auto' }}>
+        <div className="u-flex u-gap-2 u-mb-3">
           <Select<ServiceAccountSource | 'all'>
             aria-label={t('admin.service_accounts.col_managed_by')}
             value={managedBy ?? 'all'}
@@ -228,7 +228,7 @@ export function ServiceAccountsPage() {
           />
         </div>
         {listQuery.isLoading ? (
-          <div style={{ padding: 16 }}>
+          <div className="u-p-4">
             <Skeleton active paragraph={{ rows: 8 }} />
           </div>
         ) : listQuery.isError ? (
@@ -331,14 +331,14 @@ export function ServiceAccountsPage() {
             extra={t('admin.service_accounts.create_modal.rate_limit_help')}
             rules={fieldRules(t, CREATE_FORM_CONSTRAINTS.rate_limit_per_minute)}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            <InputNumber min={1} precision={0} className="u-w-full" />
           </Form.Item>
           <Form.Item
             name="rate_limit_per_day"
             label={t('admin.service_accounts.create_modal.label_rate_limit_per_day')}
             rules={fieldRules(t, CREATE_FORM_CONSTRAINTS.rate_limit_per_day)}
           >
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            <InputNumber min={1} precision={0} className="u-w-full" />
           </Form.Item>
         </Form>
       </Modal>

@@ -55,7 +55,7 @@ export default function DatasourceHealthPage() {
           </Row>
         ) : query.isError ? (
           <EmptyState
-            icon={<DashboardOutlined style={{ fontSize: 20 }} />}
+            icon={<DashboardOutlined className="u-text-xl" />}
             title={t('admin.datasource_health.error_title')}
             description={t('admin.datasource_health.error_description')}
             action={
@@ -66,7 +66,7 @@ export default function DatasourceHealthPage() {
           />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={<DashboardOutlined style={{ fontSize: 20 }} />}
+            icon={<DashboardOutlined className="u-text-xl" />}
             title={t('admin.datasource_health.empty_title')}
             description={t('admin.datasource_health.empty_description')}
           />
@@ -97,16 +97,10 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
         </Space>
       }
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center' }}>
+      <div className="u-flex u-wrap u-gap-6 u-items-center">
         <PoolRing row={row} />
         <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            gap: 16,
-          }}
+          className="u-flex-1 u-grid u-gap-4" style={{ minWidth: 200, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
         >
           <Statistic
             title={t('admin.datasource_health.queries_last_24h')}
@@ -134,8 +128,8 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
         </div>
       </div>
       {row.replicas.length > 0 && (
-        <div style={{ marginTop: 16 }} data-testid="replica-health-row">
-          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+        <div className="u-mt-4" data-testid="replica-health-row">
+          <div className="muted u-text-xs" style={{ marginBottom: 6 }}>
             {t('admin.datasource_health.replicas_title', {
               healthy: row.replicas.filter((r) => r.healthy).length,
               total: row.replicas.length,
@@ -163,17 +157,7 @@ function PoolRing({ row }: { row: DatasourceHealth }) {
     return (
       <div
         data-testid="datasource-health-pool-uninitialized"
-        style={{
-          width: 160,
-          minHeight: 120,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          color: 'var(--fg-muted)',
-          fontSize: 12,
-          padding: 12,
-        }}
+        className="u-flex u-items-center u-justify-center u-text-center u-fg-muted u-text-xs u-p-3" style={{ width: 160, minHeight: 120 }}
       >
         {t('admin.datasource_health.pool_not_initialized')}
       </div>
@@ -198,7 +182,7 @@ function PoolRing({ row }: { row: DatasourceHealth }) {
         legend={false}
         label={false}
       />
-      <div className="mono muted" style={{ fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+      <div className="mono muted u-text-2xs u-text-center u-mt-1">
         {t('admin.datasource_health.pool_caption', {
           active: row.pool_active,
           idle: row.pool_idle,

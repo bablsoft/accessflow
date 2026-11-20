@@ -34,7 +34,7 @@ export function PromotionLadder({
   return (
     <ol
       aria-label={t('schemaChange.ladder.ariaLabel')}
-      style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
+      className="u-m-0 u-p-0 u-flex u-col" style={{ listStyle: 'none', gap: 10 }}
     >
       {ladder.rungs.map((rung, index) => {
         const color = schemaChangeLadderRungColor(rung.state);
@@ -48,35 +48,17 @@ export function PromotionLadder({
           <li
             key={rung.environment_id}
             data-testid={`ladder-rung-${rung.environment_name}`}
-            style={{
-              display: 'flex',
-              gap: 12,
-              alignItems: 'flex-start',
-              padding: '10px 12px',
-              border: `1px solid ${color.border}`,
-              borderRadius: 8,
-              background: 'var(--bg-elev)',
-            }}
+            className="u-flex u-gap-3 u-items-start" style={{ padding: '10px 12px', border: `1px solid ${color.border}`, borderRadius: 8, background: 'var(--bg-elev)' }}
           >
             <span
               aria-hidden
-              className="mono"
-              style={{
-                minWidth: 26,
-                height: 26,
-                borderRadius: 13,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: color.fg,
-                background: color.bg,
-                fontSize: 12,
-              }}
+              className="mono u-inline-flex u-items-center u-justify-center u-text-xs"
+              style={{ minWidth: 26, height: 26, borderRadius: 13, color: color.fg, background: color.bg }}
             >
               {rung.state === 'APPLIED' ? <CheckCircleFilled /> : index + 1}
             </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="u-flex-1 u-min-w-0">
+              <div className="u-flex u-gap-2 u-items-center u-wrap">
                 <strong>{rung.environment_name}</strong>
                 <Tag style={{ color: color.fg, background: color.bg, borderColor: color.border }}>
                   {t(`schemaChange.ladder.state.${rung.state}`)}
@@ -97,7 +79,7 @@ export function PromotionLadder({
                   </Tooltip>
                 )}
                 {promotion?.request_group_id && (
-                  <Link to={`/request-groups/${promotion.request_group_id}`} style={{ fontSize: 12 }}>
+                  <Link to={`/request-groups/${promotion.request_group_id}`} className="u-text-xs">
                     {t('schemaChange.ladder.openGroup')}
                   </Link>
                 )}
@@ -105,20 +87,20 @@ export function PromotionLadder({
               {reason && (
                 <div
                   data-testid={`ladder-reason-${rung.environment_name}`}
-                  style={{ fontSize: 12, marginTop: 4, color: 'var(--fg-muted)' }}
+                  className="u-text-xs u-mt-1 u-fg-muted"
                 >
                   <LockOutlined style={{ marginRight: 6 }} />
                   {reason}
                 </div>
               )}
               {promotion?.status === 'APPROVED' && (
-                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                <div className="muted u-text-xs u-mt-1">
                   {t('schemaChange.ladder.approvedQueued')}
                 </div>
               )}
               {promotion?.error_message &&
                 (promotion.status === 'FAILED' || promotion.status === 'PARTIALLY_APPLIED') && (
-                  <div style={{ fontSize: 12, marginTop: 4, color: 'var(--risk-crit)' }}>
+                  <div className="u-text-xs u-mt-1 u-fg-danger">
                     {promotion.error_message}
                   </div>
                 )}

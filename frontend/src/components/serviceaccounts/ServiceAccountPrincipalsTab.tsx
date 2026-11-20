@@ -119,8 +119,8 @@ export function ServiceAccountPrincipalsTab({ account }: { account: ServiceAccou
   ];
 
   return (
-    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+    <Space orientation="vertical" size="middle" className="u-w-full">
+      <Typography.Paragraph type="secondary" className="u-mb-0">
         {t('admin.service_accounts.principals.description')}
       </Typography.Paragraph>
       <div>

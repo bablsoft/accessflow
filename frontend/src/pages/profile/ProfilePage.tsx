@@ -42,7 +42,7 @@ export function ProfilePage() {
       <PageHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
       <PageBody>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" className="u-w-full">
             {error && (() => {
               const traceId = apiErrorTraceId(error);
               return (

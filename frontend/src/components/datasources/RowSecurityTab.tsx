@@ -95,19 +95,13 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('datasources.settings.row_security.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('datasources.settings.row_security.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('datasources.settings.row_security.description')}
           </div>
         </div>
@@ -133,12 +127,12 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
             {
               title: t('datasources.settings.row_security.col_table'),
               dataIndex: 'table_name',
-              render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+              render: (v: string) => <span className="mono u-text-xs">{v}</span>,
             },
             {
               title: t('datasources.settings.row_security.col_predicate'),
               render: (_v, p) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {`${p.column_name} ${rowSecurityOperatorLabel(t, p.operator)} ${p.value_expression}`}
                 </span>
               ),
@@ -160,7 +154,7 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
                     {p.enabled ? (
                       <CheckCircleOutlined
                         aria-label={label}
-                        style={{ color: 'var(--risk-low)' }}
+                        className="u-fg-success"
                       />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
@@ -231,7 +225,7 @@ function AppliesSummary({ policy }: { policy: RowSecurityPolicy }) {
       <StatusTag tone="warning">{t('datasources.settings.row_security.applies_everyone')}</StatusTag>
     );
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface RowSecurityFormValues {

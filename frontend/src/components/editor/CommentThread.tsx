@@ -18,10 +18,10 @@ interface CommentThreadProps {
 
 function CommentBody({ comment }: { comment: QueryComment }) {
   return (
-    <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+    <div className="u-text-sm u-leading-normal">
+      <div className="u-flex u-gap-2 u-items-baseline">
         <strong>{userDisplay(comment.author.display_name, comment.author.email)}</strong>
-        <span className="muted" style={{ fontSize: 11 }}>{timeAgo(comment.created_at)}</span>
+        <span className="muted u-text-2xs">{timeAgo(comment.created_at)}</span>
       </div>
       <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{comment.body}</div>
     </div>
@@ -43,16 +43,10 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
 
   return (
     <div
-      style={{
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)',
-        padding: 12,
-        background: 'var(--bg-elev)',
-        opacity: resolved ? 0.7 : 1,
-      }}
+      className="u-p-3" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elev)', opacity: resolved ? 0.7 : 1 }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span className="mono muted" style={{ fontSize: 11 }}>
+      <div className="u-flex u-justify-between u-mb-2">
+        <span className="mono muted u-text-2xs">
           {t('collab.comment_anchor', {
             start: thread.root.anchor_start_line,
             end: thread.root.anchor_end_line,
@@ -67,14 +61,7 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
 
       {thread.replies.length > 0 && (
         <div
-          style={{
-            marginTop: 8,
-            paddingLeft: 12,
-            borderLeft: '2px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
+          className="u-mt-2 u-flex u-col u-gap-2" style={{ paddingLeft: 12, borderLeft: '2px solid var(--border)' }}
         >
           {thread.replies.map((reply) => (
             <CommentBody key={reply.id} comment={reply} />
@@ -82,7 +69,7 @@ export function CommentThread({ thread, onReply, onResolve, onReopen, busy }: Co
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+      <div className="u-flex u-gap-2" style={{ marginTop: 10 }}>
         <Input
           size="small"
           placeholder={t('collab.reply_placeholder')}

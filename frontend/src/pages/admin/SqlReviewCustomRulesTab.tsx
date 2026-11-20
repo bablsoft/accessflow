@@ -52,7 +52,7 @@ export function SqlReviewCustomRulesTab({ onEdit }: SqlReviewCustomRulesTabProps
     });
 
   if (rulesQuery.isLoading) {
-    return <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />;
+    return <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />;
   }
   if (rulesQuery.isError) {
     return (
@@ -85,9 +85,9 @@ export function SqlReviewCustomRulesTab({ onEdit }: SqlReviewCustomRulesTabProps
           dataIndex: 'name',
           render: (v: string, rule) => (
             <div>
-              <div style={{ fontWeight: 500 }}>{v}</div>
+              <div className="u-fw-500">{v}</div>
               {rule.description && (
-                <div className="muted" style={{ fontSize: 12 }}>
+                <div className="muted u-text-xs">
                   {rule.description}
                 </div>
               )}
@@ -97,7 +97,7 @@ export function SqlReviewCustomRulesTab({ onEdit }: SqlReviewCustomRulesTabProps
         {
           title: t('admin.sql_review.custom_rules.col_rule_id'),
           dataIndex: 'rule_id',
-          render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+          render: (v: string) => <span className="mono u-text-xs">{v}</span>,
         },
         {
           title: t('admin.sql_review.custom_rules.col_category'),
@@ -148,7 +148,7 @@ export function SqlReviewCustomRulesTab({ onEdit }: SqlReviewCustomRulesTabProps
           title: t('admin.sql_review.col_actions'),
           width: 110,
           render: (_v, rule) => (
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="u-flex u-gap-1">
               <Button
                 size="small"
                 type="text"

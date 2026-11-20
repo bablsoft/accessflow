@@ -23,14 +23,14 @@ export function MyAccessRequestsWidget() {
       loading={requestsQuery.isLoading}
       error={requestsQuery.error}
       onRetry={() => void requestsQuery.refetch()}
-      emptyIcon={<KeyOutlined style={{ fontSize: 16 }} />}
+      emptyIcon={<KeyOutlined className="u-text-lg" />}
       emptyTitle={t('dashboard.access_requests.empty')}
       rowKey={(it: AccessRequest) => it.id}
       viewAllTo="/access-requests"
       renderRow={(it) => ({
         pills: <AccessStatusPill status={it.status} size="sm" />,
         primary: (
-          <span style={{ fontWeight: 500 }}>
+          <span className="u-fw-500">
             {it.datasource_name ?? it.connector_name ?? '—'}
           </span>
         ),

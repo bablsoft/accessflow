@@ -31,28 +31,16 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
 
   return (
     <div
-      style={{
-        background: 'var(--bg-sunken)',
-        overflow: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-      }}
+      className="u-flex u-col" style={{ background: 'var(--bg-sunken)', overflow: 'auto', minHeight: 0 }}
     >
       <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
+        className="u-flex u-items-center u-gap-2" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}
       >
-        <BulbOutlined style={{ color: 'var(--accent)' }} />
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{t('editor.suggestions.title')}</span>
+        <BulbOutlined className="u-fg-accent" />
+        <span className="u-fw-600 u-text-sm">{t('editor.suggestions.title')}</span>
       </div>
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-muted)' }}>
+      <div className="u-p-3 u-flex u-col" style={{ gap: 10 }}>
+        <p className="u-m-0 u-text-2xs u-fg-muted">
           {t('editor.suggestions.subtitle')}
         </p>
         {suggestionsQuery.isPending && (
@@ -63,13 +51,7 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
         )}
         {suggestionsQuery.isError && (
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12,
-              color: 'var(--risk-med)',
-            }}
+            className="u-flex u-items-center u-text-xs" style={{ gap: 6, color: 'var(--risk-med)' }}
           >
             <WarningOutlined />
             {apiErrorMessage(suggestionsQuery.error, () => t('editor.suggestions.load_error'))}
@@ -96,51 +78,28 @@ function SuggestionCard({
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: 10,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
+      className="u-flex u-col u-gap-2" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 10 }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
+      <div className="u-flex u-items-center" style={{ gap: 6 }}>
+        <span className="mono u-text-2xs u-fg-muted">
           {queryTypeLabel(t, suggestion.query_type)}
         </span>
         <Tooltip title={suggestion.referenced_tables.join(', ')}>
           <span
-            style={{
-              fontSize: 11,
-              color: 'var(--fg-muted)',
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+            className="u-text-2xs u-fg-muted u-min-w-0 u-nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
           >
             {suggestion.referenced_tables.join(', ')}
           </span>
         </Tooltip>
       </div>
       <pre
-        className="mono"
-        style={{
-          margin: 0,
-          fontSize: 11,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          maxHeight: 140,
-          overflow: 'auto',
-          color: 'var(--fg)',
-        }}
+        className="mono u-m-0 u-text-2xs u-fg"
+        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 140, overflow: 'auto' }}
       >
         {suggestion.sql}
       </pre>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
+      <div className="u-flex u-items-center u-gap-2">
+        <span className="u-text-2xs u-fg-muted">
           {/* `times`, not `count`: a `count` option puts i18next into plural resolution, so the
               string would silently change meaning the day someone adds an `evidence_other` key —
               and `count` is auto-interpolated, which this sentence does not want. */}
@@ -152,14 +111,14 @@ function SuggestionCard({
         {/* Rendered outside the translated sentence: timeAgo() emits English ("3d ago"), which
             would read as a bug spliced into the middle of a localized string. */}
         <Tooltip title={fmtDate(suggestion.last_submitted_at)}>
-          <span style={{ fontSize: 11, color: 'var(--fg-faint)' }}>
+          <span className="u-text-2xs u-fg-faint">
             {timeAgo(suggestion.last_submitted_at)}
           </span>
         </Tooltip>
         <Button
           size="small"
           type="primary"
-          style={{ marginLeft: 'auto' }}
+          className="u-ml-auto"
           onClick={() => onApply(suggestion.sql)}
         >
           {t('editor.suggestions.apply')}

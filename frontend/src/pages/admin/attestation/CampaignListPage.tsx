@@ -120,7 +120,7 @@ export default function CampaignListPage() {
       </FilterBar>
       <PageBody flush>
         {campaignsQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : campaignsQuery.isError ? (
           <EmptyState
             title={t('attestation.list.load_error')}
@@ -150,9 +150,9 @@ export default function CampaignListPage() {
                 dataIndex: 'name',
                 render: (name: string, c) => (
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{name}</div>
+                    <div className="u-text-sm u-fw-500">{name}</div>
                     {c.datasource_name && (
-                      <div className="mono muted" style={{ fontSize: 11 }}>
+                      <div className="mono muted u-text-2xs">
                         {c.datasource_name}
                       </div>
                     )}
@@ -164,7 +164,7 @@ export default function CampaignListPage() {
                 dataIndex: 'scope',
                 width: 130,
                 render: (scope: AttestationCampaignScope) => (
-                  <span style={{ fontSize: 12 }}>{attestationCampaignScopeLabel(t, scope)}</span>
+                  <span className="u-text-xs">{attestationCampaignScopeLabel(t, scope)}</span>
                 ),
               },
               {
@@ -337,7 +337,7 @@ function CreateCampaignModal({
           label={t('attestation.create.label_scheduled_open_at')}
           rules={[{ required: true, message: t('validation.attestation_scheduled_open_required') }]}
         >
-          <DatePicker showTime style={{ width: '100%' }} />
+          <DatePicker showTime className="u-w-full" />
         </Form.Item>
         <Form.Item
           name="due_at"
@@ -356,7 +356,7 @@ function CreateCampaignModal({
             }),
           ]}
         >
-          <DatePicker showTime style={{ width: '100%' }} />
+          <DatePicker showTime className="u-w-full" />
         </Form.Item>
       </Form>
     </Modal>

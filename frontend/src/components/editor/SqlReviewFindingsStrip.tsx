@@ -30,22 +30,13 @@ export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStrip
   return (
     <div
       data-testid="sql-review-strip"
-      style={{
-        marginTop: 8,
-        padding: '8px 10px',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
-        background: 'var(--bg-sunken)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-      }}
+      className="u-mt-2 u-flex u-col" style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg-sunken)', gap: 6 }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-        <span style={{ fontWeight: 600 }}>{t('editor.sql_review_title')}</span>
+      <div className="u-flex u-items-center u-gap-2 u-text-xs">
+        <span className="u-fw-600">{t('editor.sql_review_title')}</span>
         {state.evaluating && (
           <span className="muted" data-testid="sql-review-evaluating">
-            <LoadingOutlined style={{ marginRight: 4 }} />
+            <LoadingOutlined className="u-mr-1" />
             {t('editor.sql_review_evaluating')}
           </span>
         )}
@@ -62,13 +53,13 @@ export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStrip
         )}
       </div>
       {state.unparseable && (
-        <div className="muted" style={{ fontSize: 12 }} data-testid="sql-review-unparseable">
+        <div className="muted u-text-xs" data-testid="sql-review-unparseable">
           {t('editor.sql_review_unparseable')}
         </div>
       )}
       {hasFindings && <SqlReviewFindingList findings={state.findings} density="compact" />}
       {state.blockingCount > 0 && (
-        <div className="muted" style={{ fontSize: 11 }}>
+        <div className="muted u-text-2xs">
           {t('editor.sql_review_blocking_note', { count: state.blockingCount })}
         </div>
       )}

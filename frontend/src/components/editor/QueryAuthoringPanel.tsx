@@ -76,18 +76,18 @@ export function QueryAuthoringPanel({
               options={datasources.map((d) => ({ value: d.id, label: d.name }))}
             />
           )}
-          <span className="mono muted" style={{ fontSize: 11 }}>
+          <span className="mono muted u-text-2xs">
             {ds.database_name}
           </span>
-          <span style={{ color: 'var(--fg-faint)' }}>·</span>
-          <span className="mono muted" style={{ fontSize: 11 }}>
+          <span className="u-fg-faint">·</span>
+          <span className="mono muted u-text-2xs">
             {t('editor.lines_count', { count: lineCount })}
           </span>
-          <span style={{ color: 'var(--fg-faint)' }}>·</span>
-          <span className="mono muted" style={{ fontSize: 11 }}>
+          <span className="u-fg-faint">·</span>
+          <span className="mono muted u-text-2xs">
             {t('editor.chars_count', { count: sql.length })}
           </span>
-          <div style={{ flex: 1 }} />
+          <div className="u-flex-1" />
           {authoring.analysis && !authoring.analyzing ? (
             <RiskPill
               level={authoring.analysis.risk_level}
@@ -110,7 +110,7 @@ export function QueryAuthoringPanel({
           {authoring.canFormat && (
             <Button size="small" icon={<ThunderboltOutlined />} onClick={authoring.format}>
               {t('editor.format_button')}{' '}
-              <span className="kbd" style={{ marginLeft: 4 }}>⌘⇧F</span>
+              <span className="kbd u-ml-1">⌘⇧F</span>
             </Button>
           )}
         </div>
@@ -133,19 +133,10 @@ export function QueryAuthoringPanel({
         </div>
       </div>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: 'auto 1fr',
-          minHeight: 0,
-          borderLeft: '1px solid var(--border)',
-        }}
+        className="u-grid" style={{ gridTemplateRows: 'auto 1fr', minHeight: 0, borderLeft: '1px solid var(--border)' }}
       >
         <div
-          style={{
-            padding: 8,
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-sunken)',
-          }}
+          className="u-p-2" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
         >
           <Segmented<RightPanel>
             size="small"

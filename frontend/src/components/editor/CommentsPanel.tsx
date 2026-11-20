@@ -77,14 +77,14 @@ export function CommentsPanel({ queryId, selection, anchorSnapshot }: CommentsPa
     replyMutation.isPending || resolveMutation.isPending || reopenMutation.isPending;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div className="u-flex u-col u-gap-3">
+      <div className="u-fw-600 u-text-sm u-flex u-gap-2 u-items-center">
         <CommentOutlined />
         {t('collab.comments_title')}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span className="muted" style={{ fontSize: 11 }}>
+      <div className="u-flex u-col" style={{ gap: 6 }}>
+        <span className="muted u-text-2xs">
           {selection
             ? t('collab.comment_anchor', { start: selection.start, end: selection.end })
             : t('collab.select_lines_hint')}
@@ -112,7 +112,7 @@ export function CommentsPanel({ queryId, selection, anchorSnapshot }: CommentsPa
       {isLoading ? (
         <Skeleton active paragraph={{ rows: 3 }} />
       ) : threads && threads.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="u-flex u-col u-gap-2">
           {threads.map((thread) => (
             <CommentThread
               key={thread.root.id}

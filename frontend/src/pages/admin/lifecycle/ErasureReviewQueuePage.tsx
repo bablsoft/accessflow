@@ -79,7 +79,7 @@ export default function ErasureReviewQueuePage() {
       />
       <PageBody flush>
         {queueQuery.isLoading ? (
-          <Skeleton active paragraph={{ rows: 6 }} style={{ padding: 24 }} />
+          <Skeleton active paragraph={{ rows: 6 }} className="u-p-6" />
         ) : queueQuery.isError ? (
           <EmptyState
             title={t('lifecycle.erasure_review.load_error')}
@@ -98,7 +98,7 @@ export default function ErasureReviewQueuePage() {
             scroll={{ x: 'max-content' }}
             expandable={{
               expandedRowRender: (r) => (
-                <div style={{ fontSize: 12 }}>
+                <div className="u-text-xs">
                   <div className="muted">{t('lifecycle.erasure_review.scope_label')}</div>
                   <pre className="mono" style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>
                     {r.scope_snapshot ?? t('lifecycle.erasure_review.no_scope')}
@@ -125,15 +125,15 @@ export default function ErasureReviewQueuePage() {
                   if (r.raw_where) scopeBits.push(t('lifecycle.config.has_raw_where'));
                   return (
                     <div>
-                      <div style={{ fontSize: 13 }}>{v ?? r.target_table ?? '—'}</div>
-                      <div className="mono muted" style={{ fontSize: 11 }}>
+                      <div className="u-text-sm">{v ?? r.target_table ?? '—'}</div>
+                      <div className="mono muted u-text-2xs">
                         {r.subject_type
                           ? lifecycleSubjectTypeLabel(t, r.subject_type)
                           : t('lifecycle.config.custom_scope')}
                         {r.datasource_name ? ` · ${r.datasource_name}` : ''}
                       </div>
                       {scopeBits.length > 0 && (
-                        <div className="mono muted" style={{ fontSize: 11 }}>
+                        <div className="mono muted u-text-2xs">
                           {scopeBits.join(' · ')}
                         </div>
                       )}
@@ -167,7 +167,7 @@ export default function ErasureReviewQueuePage() {
                 width: 180,
                 align: 'right' as const,
                 render: (_v, r) => (
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <div className="u-flex u-gap-2 u-justify-end">
                     <Tooltip title={t('lifecycle.erasure_review.approve')}>
                       <Button
                         size="small"

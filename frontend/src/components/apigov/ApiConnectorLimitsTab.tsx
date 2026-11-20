@@ -84,7 +84,7 @@ export function ApiConnectorLimitsTab({ connectorId }: ApiConnectorLimitsTabProp
     queryFn: () => getApiConnector(connectorId),
   });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="u-flex u-col u-gap-4">
       <Card size="small" title={t('apiGov.limits.title')}>
         {connectorQuery.data && <LimitsForm connector={connectorQuery.data} />}
       </Card>
@@ -200,7 +200,7 @@ function UsagePanel({ connectorId }: { connectorId: string }) {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="u-flex u-col u-gap-3">
       <Segmented<ConnectorUsageRange>
         size="small"
         value={range}
@@ -218,12 +218,12 @@ function UsagePanel({ connectorId }: { connectorId: string }) {
           messageFor={(e) => apiErrorMessage(e, () => t('apiGov.error'))}
         />
       ) : (
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div style={{ flex: '1 1 420px', minWidth: 0 }}>
+        <div className="u-flex u-gap-6 u-wrap u-items-start">
+          <div className="u-min-w-0" style={{ flex: '1 1 420px' }}>
             {!usageQuery.isLoading && noActivity(usageQuery.data) ? (
               <EmptyState
                 size="sm"
-                icon={<LineChartOutlined style={{ fontSize: 16 }} />}
+                icon={<LineChartOutlined className="u-text-lg" />}
                 title={t('apiGov.usage.empty')}
               />
             ) : (
@@ -248,12 +248,12 @@ function UsagePanel({ connectorId }: { connectorId: string }) {
                   <XAxis />
                   <ChartTooltip />
                 </AreaChart>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginTop: 8 }}>
+                <div className="u-flex u-wrap u-mt-2" style={{ gap: '4px 14px' }}>
                   {colors.map(({ label, color }) => (
                     <span
                       key={label}
-                      className="muted"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}
+                      className="muted u-inline-flex u-items-center u-text-xs"
+                      style={{ gap: 6 }}
                     >
                       <span
                         aria-hidden
@@ -286,11 +286,11 @@ function BudgetSummary({ usage }: { usage: ApiConnectorUsage }) {
   if (percent === null) {
     return (
       <div style={{ minWidth: 190 }} data-testid="connector-usage-spend">
-        <div className="muted" style={{ fontSize: 12 }}>
+        <div className="muted u-text-xs">
           {t('apiGov.usage.monthToDate')}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 600 }}>{t('apiGov.usage.units', { value: spend })}</div>
-        <div className="muted" style={{ fontSize: 12 }}>
+        <div className="u-text-xl u-fw-600">{t('apiGov.usage.units', { value: spend })}</div>
+        <div className="muted u-text-xs">
           {usage.monthly_budget_micros != null
             ? t('apiGov.usage.noPrice')
             : t('apiGov.usage.noBudget')}
@@ -309,7 +309,7 @@ function BudgetSummary({ usage }: { usage: ApiConnectorUsage }) {
   ];
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 190 }}
+      className="u-flex u-col u-items-center u-gap-2" style={{ minWidth: 190 }}
       data-testid="connector-usage-budget"
     >
       <div style={{ width: 170, height: 170 }}>
@@ -320,14 +320,14 @@ function BudgetSummary({ usage }: { usage: ApiConnectorUsage }) {
         </RingChart>
       </div>
       <span>{t('apiGov.usage.percentUsed', { percent })}</span>
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('apiGov.usage.spendOfBudget', {
           spend,
           budget: formatMicros(usage.monthly_budget_micros, i18n.language),
         })}
       </span>
       {exceeded && <StatusTag tone="danger">{t('apiGov.usage.budgetExceeded')}</StatusTag>}
-      <span className="muted" style={{ fontSize: 11, textAlign: 'center', maxWidth: 220 }}>
+      <span className="muted u-text-2xs u-text-center" style={{ maxWidth: 220 }}>
         {t('apiGov.usage.budgetNeverBlocks')}
       </span>
     </div>

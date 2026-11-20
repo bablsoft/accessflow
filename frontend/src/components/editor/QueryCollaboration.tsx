@@ -75,7 +75,7 @@ export function QueryCollaboration({ query, currentUser }: QueryCollaborationPro
           showIcon
           title={t('collab.denied_title')}
           description={t('collab.denied_body')}
-          style={{ marginBottom: 12 }}
+          className="u-mb-3"
         />
         <div style={{ padding: 14 }}>
           <SqlBlock sql={query.sql_text} />
@@ -87,13 +87,7 @@ export function QueryCollaboration({ query, currentUser }: QueryCollaborationPro
   return (
     <div className="qd-collab">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '10px 14px',
-          gap: 12,
-        }}
+        className="u-flex u-justify-between u-items-center u-gap-3" style={{ padding: '10px 14px' }}
       >
         <PresenceBar members={members} />
         <Button

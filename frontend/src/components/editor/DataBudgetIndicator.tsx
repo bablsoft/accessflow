@@ -33,9 +33,9 @@ export function DataBudgetIndicator({ dsId }: { dsId: string }) {
 
   return (
     <div style={CARD_STYLE} data-testid="data-budget-indicator">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <DashboardOutlined style={{ color: 'var(--fg-muted)' }} />
-        <div style={{ fontWeight: 600, fontSize: 12 }}>{t('dataBudgets.indicator.title')}</div>
+      <div className="u-flex u-items-center u-gap-2" style={{ marginBottom: 10 }}>
+        <DashboardOutlined className="u-fg-muted" />
+        <div className="u-fw-600 u-text-xs">{t('dataBudgets.indicator.title')}</div>
       </div>
       {status.exhausted ? (
         <Alert
@@ -87,8 +87,8 @@ function BudgetLine({ budget }: { budget: DataBudgetConsumption }) {
   const percent = Math.min(100, budget.used_percent);
   return (
     <div style={{ marginBottom: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 11 }}>
-        <span style={{ fontWeight: 500 }}>{budget.name}</span>
+      <div className="u-flex u-justify-between u-gap-2 u-text-2xs">
+        <span className="u-fw-500">{budget.name}</span>
         <span className="muted">{t('dataBudgets.indicator.per_window', { window })}</span>
       </div>
       <Progress
@@ -97,7 +97,7 @@ function BudgetLine({ budget }: { budget: DataBudgetConsumption }) {
         status={budget.exhausted ? 'exception' : 'normal'}
         aria-label={t('dataBudgets.indicator.used_aria', { name: budget.name, percent })}
       />
-      <div className="muted" style={{ fontSize: 11 }}>{parts.join(' · ')}</div>
+      <div className="muted u-text-2xs">{parts.join(' · ')}</div>
     </div>
   );
 }

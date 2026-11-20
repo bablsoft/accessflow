@@ -59,7 +59,7 @@ export function ApprovalPredictionPanel({
     const awaitingScore =
       status === 'PENDING_AI' || (status === 'PENDING_REVIEW' && withinGrace);
     return (
-      <div className="muted" style={{ padding: 14, fontSize: 13 }}>
+      <div className="muted u-text-sm" style={{ padding: 14 }}>
         {awaitingScore
           ? t('approval_prediction.pending')
           : t('approval_prediction.unavailable')}
@@ -85,7 +85,7 @@ export function ApprovalPredictionPanel({
       'approval_prediction.unavailable';
     return (
       <div role="status" style={NOTICE_STYLE}>
-        <InfoCircleOutlined style={{ color: 'var(--fg-faint)', marginTop: 2, flexShrink: 0 }} />
+        <InfoCircleOutlined className="u-fg-faint" style={{ marginTop: 2, flexShrink: 0 }} />
         <span>{t(reasonKey)}</span>
       </div>
     );
@@ -94,22 +94,12 @@ export function ApprovalPredictionPanel({
   return (
     <div style={{ padding: 14 }}>
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: 12,
-          background: 'var(--bg-elev)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 12,
-        }}
+        className="u-flex u-items-center u-justify-between u-gap-3 u-p-3 u-text-xs" style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
       >
         <span className="muted">{t('approval_prediction.value_label')}</span>
         <ApprovalPredictionBadge probability={prediction.probability} />
       </div>
-      <div className="muted" style={{ marginTop: 10, fontSize: 12, lineHeight: 1.5 }}>
+      <div className="muted u-text-xs u-leading-normal" style={{ marginTop: 10 }}>
         {t('approval_prediction.tooltip')}
       </div>
     </div>

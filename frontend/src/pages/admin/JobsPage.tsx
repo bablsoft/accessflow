@@ -29,7 +29,7 @@ export function JobsPage() {
 
   let content;
   if (registryQuery.isLoading) {
-    content = <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />;
+    content = <Skeleton active paragraph={{ rows: 8 }} className="u-p-6" />;
   } else if (registryQuery.isError) {
     content = (
       <EmptyState
@@ -60,10 +60,10 @@ export function JobsPage() {
             title: t('admin.jobs.col_job'),
             dataIndex: 'job_name',
             render: (name: string, job) => (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="u-flex u-col">
                 <Button
                   type="link"
-                  style={{ padding: 0, height: 'auto', fontWeight: 500, alignSelf: 'flex-start' }}
+                  className="u-p-0 u-fw-500" style={{ height: 'auto', alignSelf: 'flex-start' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedJob(name);
@@ -72,7 +72,7 @@ export function JobsPage() {
                   {name}
                 </Button>
                 {job.lock_name != null && (
-                  <span className="mono muted" style={{ fontSize: 11 }}>{job.lock_name}</span>
+                  <span className="mono muted u-text-2xs">{job.lock_name}</span>
                 )}
               </div>
             ),
@@ -150,7 +150,7 @@ export function JobsPage() {
             title: t('admin.jobs.col_window', { window: formatIsoDuration(t, registry?.summary_window) }),
             key: 'window',
             render: (_v, job) => (
-              <span className="mono" style={{ fontSize: 12 }}>
+              <span className="mono u-text-xs">
                 {t('admin.jobs.window_counts', {
                   success: job.health.window_success_count,
                   failed: job.health.window_failure_count,
@@ -187,7 +187,7 @@ export function JobsPage() {
           </Button>
         }
       />
-      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="u-flex-1 u-flex u-col u-gap-3" style={{ overflow: 'auto', padding: '0 12px' }}>
         {registry != null && !registry.recording_enabled && (
           <Alert type="warning" showIcon title={t('admin.jobs.recording_disabled')} />
         )}

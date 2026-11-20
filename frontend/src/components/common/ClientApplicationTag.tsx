@@ -32,7 +32,7 @@ export function ClientApplicationTag({
             : t('client_application.trusted_tooltip')
         }
       >
-        <Typography.Text code style={{ whiteSpace: 'nowrap' }}>
+        <Typography.Text code className="u-nowrap">
           {trimmed}
         </Typography.Text>
       </Tooltip>

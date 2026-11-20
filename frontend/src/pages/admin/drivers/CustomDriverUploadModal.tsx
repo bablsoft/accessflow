@@ -103,7 +103,7 @@ export function CustomDriverUploadModal({ open, onClose }: Props) {
         </Button>,
       ]}
     >
-      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+      <p className="muted u-text-sm u-mt-0">
         {t('drivers.upload.subtitle')}
       </p>
       <Form<FormValues>

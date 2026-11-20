@@ -57,24 +57,12 @@ export function OAuthCallbackPage() {
 
   return (
     <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: 24,
-      }}
+      className="u-flex u-items-center u-justify-center u-p-6" style={{ minHeight: '100vh', background: 'var(--bg)' }}
     >
       <div style={{ width: 380 }}>
         <div
-          className="af-card"
-          style={{
-            padding: 24,
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)',
-          }}
+          className="af-card u-p-6"
+          style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
         >
           {error ? (
             <>
@@ -88,7 +76,7 @@ export function OAuthCallbackPage() {
                     {error.traceId && <TraceIdFooter traceId={error.traceId} />}
                   </>
                 }
-                style={{ marginBottom: 16 }}
+                className="u-mb-4"
               />
               <Button block size="large" type="primary" onClick={() => navigate('/login')}>
                 {t('auth.oauth_callback.back_to_login')}
@@ -96,14 +84,9 @@ export function OAuthCallbackPage() {
             </>
           ) : (
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                justifyContent: 'center',
-              }}
+              className="u-flex u-items-center u-gap-3 u-justify-center"
             >
-              <LoadingOutlined style={{ fontSize: 20 }} />
+              <LoadingOutlined className="u-text-xl" />
               <span>{t('auth.oauth_callback.exchanging')}</span>
             </div>
           )}

@@ -40,7 +40,7 @@ export function QuerySqlView({ sql, effectiveSql, dbType }: QuerySqlViewProps) {
           { value: 'diff', label: t('queries.detail.effective_sql.view_diff') },
         ]}
       />
-      <div className="muted" style={{ fontSize: 12, margin: '8px 0' }}>
+      <div className="muted u-text-xs" style={{ margin: '8px 0' }}>
         {t('queries.detail.effective_sql.hint')}
       </div>
       {view === 'submitted' && <SqlBlock sql={sql} />}

@@ -21,15 +21,15 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions, docsAnchor }
       {breadcrumbs && breadcrumbs.length > 0 && (
         <div className="af-page-breadcrumbs">
           {breadcrumbs.map((b, i) => (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {i > 0 && <RightOutlined style={{ fontSize: 9, color: 'var(--fg-faint)' }} />}
+            <span key={i} className="u-inline-flex u-items-center" style={{ gap: 6 }}>
+              {i > 0 && <RightOutlined className="u-fg-faint" style={{ fontSize: 9 }} />}
               <span className={i === breadcrumbs.length - 1 ? '' : 'muted'}>{b}</span>
             </span>
           ))}
         </div>
       )}
       <div className="af-page-header-row">
-        <div style={{ minWidth: 0 }}>
+        <div className="u-min-w-0">
           <h1 className="af-page-title">{title}</h1>
           {subtitle && <div className="muted af-page-subtitle">{subtitle}</div>}
         </div>

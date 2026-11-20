@@ -49,7 +49,7 @@ export function ApiConnectorHealthBadge({ connectorId }: { connectorId: string }
             {label}
           </Pill>
           {monitored && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary" className="u-text-xs">
               {health.last_probe_at
                 ? t('apiGov.health.lastProbed', { time: fmtDate(health.last_probe_at) })
                 : t('apiGov.health.neverProbed')}

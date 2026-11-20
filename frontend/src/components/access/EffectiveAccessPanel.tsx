@@ -68,10 +68,10 @@ function SourceLine({ source }: { source: EffectiveAccessSource }) {
   }
   if (!source.grants_capability) parts.push(t('access.effective.not_this_capability'));
   return (
-    <div style={{ fontSize: 12 }}>
+    <div className="u-text-xs">
       <span>{accessSourceKindLabel(t, source.kind)}</span>
       {parts.length > 0 && (
-        <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>
+        <span className="muted u-text-2xs" style={{ marginLeft: 6 }}>
           {parts.join(' · ')}
         </span>
       )}
@@ -123,11 +123,11 @@ export function EffectiveAccessPanel() {
         title: t('access.effective.col_identity'),
         key: 'identity',
         render: (_: unknown, row) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="u-flex u-items-center" style={{ gap: 10 }}>
             <Avatar name={row.email} size={24} />
             <div>
-              <div style={{ fontSize: 13 }}>{row.display_name ?? row.email}</div>
-              <div className="mono muted" style={{ fontSize: 11 }}>
+              <div className="u-text-sm">{row.display_name ?? row.email}</div>
+              <div className="mono muted u-text-2xs">
                 {row.email}
                 {row.role_name != null && ` · ${row.role_name}`}
               </div>
@@ -155,7 +155,7 @@ export function EffectiveAccessPanel() {
           row.sources.length === 0 ? (
             <span className="muted">{t('decisionTrace.none')}</span>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="u-flex u-col u-gap-1">
               {row.sources.map((s, i) => (
                 <SourceLine key={`${s.kind}-${s.source_id ?? i}`} source={s} />
               ))}
@@ -207,7 +207,7 @@ export function EffectiveAccessPanel() {
   const rows = index.data?.content ?? [];
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" className="u-w-full">
       <Form<LookupValues>
         form={form}
         name="effective-access"

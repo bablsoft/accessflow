@@ -150,7 +150,7 @@ export function SetupPage() {
               type="error"
               title={error.message}
               description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-              style={{ marginBottom: 16 }}
+              className="u-mb-4"
               showIcon
               closable={{ closeIcon: true, onClose: () => setError(null) }}
             />
@@ -256,7 +256,7 @@ export function SetupPage() {
               disabled={submitting}
               initialValues={{ governs_apis: false, governs_deployments: false }}
             >
-              <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+              <div className="muted u-text-sm u-mb-4">
                 {t('auth.setup.domains.always_on')}
               </div>
 
@@ -292,7 +292,7 @@ export function SetupPage() {
                 <Switch />
               </Form.Item>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <div className="u-flex u-gap-2 u-mt-5">
                 <Button onClick={onDomainsBack} disabled={submitting}>
                   {t('auth.setup.domains.back')}
                 </Button>
@@ -342,7 +342,7 @@ export function SetupPage() {
                   min={1}
                   max={65535}
                   placeholder="587"
-                  style={{ width: '100%' }}
+                  className="u-w-full"
                 />
               </Form.Item>
 
@@ -392,7 +392,7 @@ export function SetupPage() {
                 <Input placeholder="AccessFlow" />
               </Form.Item>
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="u-flex u-gap-2">
                 <Button block onClick={onSmtpSkip} disabled={submitting}>
                   {t('auth.setup.smtp.skip')}
                 </Button>

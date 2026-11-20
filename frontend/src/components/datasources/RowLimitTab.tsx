@@ -79,19 +79,13 @@ export function RowLimitTab({ dsId }: { dsId: string }) {
   };
 
   return (
-    <div style={{ padding: 28 }}>
+    <div className="u-p-gutter">
       <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 16,
-          gap: 16,
-        }}
+        className="u-flex u-justify-between u-items-start u-mb-4 u-gap-4"
       >
         <div>
-          <div style={{ fontWeight: 600 }}>{t('datasources.settings.row_limits.title')}</div>
-          <div className="muted" style={{ fontSize: 12, maxWidth: 640 }}>
+          <div className="u-fw-600">{t('datasources.settings.row_limits.title')}</div>
+          <div className="muted u-text-xs" style={{ maxWidth: 640 }}>
             {t('datasources.settings.row_limits.description')}
           </div>
         </div>
@@ -117,7 +111,7 @@ export function RowLimitTab({ dsId }: { dsId: string }) {
             {
               title: t('datasources.settings.row_limits.col_table'),
               render: (_v, p) => (
-                <span className="mono" style={{ fontSize: 12 }}>
+                <span className="mono u-text-xs">
                   {p.schema_name ? `${p.schema_name}.${p.table_name}` : p.table_name}
                 </span>
               ),
@@ -145,7 +139,7 @@ export function RowLimitTab({ dsId }: { dsId: string }) {
                     {p.enabled ? (
                       <CheckCircleOutlined
                         aria-label={label}
-                        style={{ color: 'var(--risk-low)' }}
+                        className="u-fg-success"
                       />
                     ) : (
                       <MinusCircleOutlined aria-label={label} className="muted" />
@@ -219,12 +213,12 @@ function AppliesToSummary({ policy }: { policy: RowLimitPolicy }) {
   }
   if (parts.length === 0) {
     return (
-      <span className="muted" style={{ fontSize: 12 }}>
+      <span className="muted u-text-xs">
         {t('datasources.settings.row_limits.applies_everyone')}
       </span>
     );
   }
-  return <span style={{ fontSize: 12 }}>{parts.join(' · ')}</span>;
+  return <span className="u-text-xs">{parts.join(' · ')}</span>;
 }
 
 interface RowLimitFormValues {
