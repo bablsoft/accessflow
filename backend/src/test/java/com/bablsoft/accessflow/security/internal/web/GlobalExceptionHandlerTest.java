@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.ConnectionFailureReason;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
@@ -230,7 +231,32 @@ class GlobalExceptionHandlerTest {
 
         assertThat(pd.getStatus()).isEqualTo(422);
         assertThat(pd.getProperties())
-                .containsEntry("error", "DATASOURCE_CONNECTION_TEST_FAILED");
+                .containsEntry("error", "DATASOURCE_CONNECTION_TEST_FAILED")
+                .containsEntry("reason", "UNKNOWN");
+        assertThat(pd.getDetail()).isEqualTo("error.datasource_connection_test_failed");
+    }
+
+    @Test
+    void datasourceConnectionTestNamesTheClassifiedReasonAndNeverTheDriverMessage() {
+        for (var reason : ConnectionFailureReason.values()) {
+            if (reason == ConnectionFailureReason.UNKNOWN) {
+                continue;
+            }
+            var pd = handler.handleDatasourceConnectionTest(
+                    new DatasourceConnectionTestException("FATAL: role \"svc\" at 10.0.0.5", reason));
+
+            assertThat(pd.getStatus()).isEqualTo(422);
+            assertThat(pd.getDetail()).isEqualTo(
+                    "error.datasource_connection_test_failed." + reason.name().toLowerCase());
+            assertThat(pd.getDetail()).doesNotContain("10.0.0.5");
+            assertThat(pd.getProperties()).containsEntry("reason", reason.name());
+        }
+    }
+
+    @Test
+    void datasourceConnectionTestExceptionDefaultsANullReasonToUnknown() {
+        assertThat(new DatasourceConnectionTestException("x", null).reason())
+                .isEqualTo(ConnectionFailureReason.UNKNOWN);
     }
 
     @Test

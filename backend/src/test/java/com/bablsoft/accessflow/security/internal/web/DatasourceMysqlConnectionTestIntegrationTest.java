@@ -133,6 +133,8 @@ class DatasourceMysqlConnectionTestIntegrationTest {
         assertThat(result).hasStatus(422);
         assertThat(result).bodyJson().extractingPath("$.error").asString()
                 .isEqualTo("DATASOURCE_CONNECTION_TEST_FAILED");
+        assertThat(result).bodyJson().extractingPath("$.reason").asString()
+                .isEqualTo("AUTHENTICATION");
     }
 
     @Test

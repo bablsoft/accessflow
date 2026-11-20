@@ -94,9 +94,10 @@ async function waitForListReady(page: Page): Promise<void> {
 //   * Test 3 ("Test-connection with wrong password → failure alert"). The
 //     wizard renders an AntD Alert, but the settings page's testMutation
 //     onError shows a message.error toast. Since AF-556 that toast surfaces the
-//     backend ProblemDetail `detail` ("Connection test failed") via
-//     showApiError + apiErrorMessage, not the frontend `connection_failed`
-//     copy. We assert the backend detail toast.
+//     backend ProblemDetail `detail` via showApiError + apiErrorMessage, not
+//     the frontend `connection_failed` copy. The backend names the classified
+//     cause (a wrong password → "The database refused the credentials…"), and
+//     we assert that toast.
 //
 //   * Test 5 ("Grant a permission that already exists → 409"). PermissionMatrix's
 //     eligible-users filter strips already-granted users from the dropdown
@@ -265,13 +266,11 @@ test.describe.serial('datasource settings — config + permissions', () => {
     ]);
     expect(testResponse.status()).toBe(422);
 
-    // testMutation.onError surfaces the backend ProblemDetail `detail` via
-    // showApiError + apiErrorMessage (AF-556); the 422
-    // DATASOURCE_CONNECTION_TEST_FAILED detail is the localized
-    // `error.datasource_connection_test_failed` = "Connection test failed". See
-    // deviation note in the file-level comment for why we assert a toast rather
-    // than an Alert.
-    await expect(page.getByText('Connection test failed')).toBeVisible({
+    // The backend classifies the failure and names the cause instead of returning the driver's
+    // message: a wrong password is `reason: AUTHENTICATION`. testMutation.onError shows that
+    // localized `detail` as a toast (showApiError + apiErrorMessage, AF-556).
+    expect(((await testResponse.json()) as { reason?: string }).reason).toBe('AUTHENTICATION');
+    await expect(page.getByText(/refused the credentials/)).toBeVisible({
       timeout: 10_000,
     });
   });

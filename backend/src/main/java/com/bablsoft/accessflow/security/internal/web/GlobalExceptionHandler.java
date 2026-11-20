@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.CustomDriverInUseException;
 import com.bablsoft.accessflow.core.api.CustomDriverInvalidJarException;
 import com.bablsoft.accessflow.core.api.CustomDriverNotFoundException;
 import com.bablsoft.accessflow.core.api.CustomDriverTooLargeException;
+import com.bablsoft.accessflow.core.api.ConnectionFailureReason;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException;
@@ -115,6 +116,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -375,8 +377,15 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceConnectionTestException.class)
     ProblemDetail handleDatasourceConnectionTest(DatasourceConnectionTestException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.datasource_connection_test_failed"));
+        // The driver's own message names hosts, users and server versions, so it is logged where
+        // it is raised and never returned; the classified reason picks the wording instead.
+        var reason = ex.reason();
+        var key = reason == ConnectionFailureReason.UNKNOWN
+                ? "error.datasource_connection_test_failed"
+                : "error.datasource_connection_test_failed." + reason.name().toLowerCase(Locale.ROOT);
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg(key));
         pd.setProperty("error", "DATASOURCE_CONNECTION_TEST_FAILED");
+        pd.setProperty("reason", reason.name());
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

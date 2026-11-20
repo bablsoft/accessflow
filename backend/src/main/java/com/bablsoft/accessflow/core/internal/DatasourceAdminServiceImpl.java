@@ -526,7 +526,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             return new ConnectionTestResult(true, latency, "ok");
         } catch (SQLException e) {
             log.warn("Connection test failed for datasource {}: {}", id, e.getMessage());
-            throw new DatasourceConnectionTestException(e.getMessage());
+            throw new DatasourceConnectionTestException(e.getMessage(),
+                    ConnectionFailureClassifier.classify(e));
         }
     }
 
@@ -578,7 +579,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             return new ConnectionTestResult(true, latency, "ok");
         } catch (SQLException e) {
             log.warn("Replica connection test failed for datasource {}: {}", id, e.getMessage());
-            throw new DatasourceConnectionTestException(e.getMessage());
+            throw new DatasourceConnectionTestException(e.getMessage(),
+                    ConnectionFailureClassifier.classify(e));
         }
     }
 
@@ -634,7 +636,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             return readSchema(connection, entity.getDbType());
         } catch (SQLException e) {
             log.warn("Schema introspection failed for datasource {}: {}", id, e.getMessage());
-            throw new DatasourceConnectionTestException(e.getMessage());
+            throw new DatasourceConnectionTestException(e.getMessage(),
+                    ConnectionFailureClassifier.classify(e));
         }
     }
 
