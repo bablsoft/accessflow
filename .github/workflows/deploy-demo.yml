@@ -42,6 +42,28 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
+      # The k3s API port is closed to the internet; the runner reaches it over the tailnet as an
+      # ephemeral tag:ci node. Like the cluster check below, this runs before the gate so a tailnet
+      # failure never consumes an approval.
+      - name: Check Tailscale credentials
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          if [ -z "${TS_OAUTH_CLIENT_ID:-}" ] || [ -z "${TS_OAUTH_SECRET:-}" ]; then
+            echo "::error::TS_OAUTH_CLIENT_ID / TS_OAUTH_SECRET are empty. Set them on the 'demo' environment."
+            exit 1
+          fi
+
+      - name: Join the tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+          # Optional: the k3s host's tailnet IP or MagicDNS name; fails fast when it is unreachable.
+          ping: ${{ vars.DEMO_K3S_TAILNET_HOST }}
+
       # Runs BEFORE the gate on purpose: the gate confirms execution as its last act, so anything
       # that can fail without asking a human must fail first. A bad credential here used to burn a
       # real approval and mark the request FAILED for a reason unrelated to the deployment.
@@ -69,7 +91,7 @@ jobs:
           # Cheapest call that actually reaches the API server, so an unreachable or unauthorized
           # cluster fails now rather than after someone has approved the release.
           if ! KUBECONFIG="$RUNNER_TEMP/kubeconfig" helm list --namespace accessflow > /dev/null; then
-            echo "::error::Cannot reach the cluster with DEMO_KUBECONFIG (unreachable API server, expired credential, or missing RBAC on namespace accessflow)."
+            echo "::error::Cannot reach the cluster with DEMO_KUBECONFIG (server not set to the host's tailnet address, tailnet policy missing the tag:ci → k3s tcp:6443 grant, certificate lacking a tls-san for that address, expired credential, or missing RBAC on namespace accessflow)."
             exit 1
           fi
           echo "Cluster reachable; credentials accepted."
