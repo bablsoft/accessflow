@@ -57,7 +57,7 @@
     "react-dom": "^19.3.0",
     "react-i18next": "^18.0.0",
     "react-router-dom": "^7.18.4",
-    "sql-formatter": "^15.8.2",
+    "sql-formatter": "^15.10.0",
     "tailwind-merge": "^3.6.0",
     "y-codemirror.next": "^0.3.6",
     "y-protocols": "^1.0.7",
