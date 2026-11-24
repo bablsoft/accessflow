@@ -29,6 +29,9 @@
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <archiunit.version>1.5.1</archiunit.version>
+        <!-- Overrides Boot 4.2.0's managed 1.22.1 (CVE-2026-124077, pulled in via totp). Drop once
+             Boot manages 1.23.0 or later. -->
+        <commons-codec.version>1.23.0</commons-codec.version>
         <!-- Code style. Measured 2026-08-04: no google-java-format profile matches this
              codebase — even the 4-space AOSP profile rewrites 2,351 of 2,654 sources
              (import ordering + line wrapping). So Spotless runs style-neutral hygiene
