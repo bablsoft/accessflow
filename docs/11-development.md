@@ -333,6 +333,8 @@ The repository ships two GitHub Actions workflows:
 
 [`.github/dependabot.yml`](../.github/dependabot.yml) watches three ecosystems weekly: `maven` (`/backend`), `npm` (`/frontend`), and `github-actions` (`/`). Action bumps are **grouped into a single PR** — they tend to move together (the Node 20 → 24 runner deprecation majored most of them at once) and are cheaper to review as one batch than as a dozen separate PRs.
 
+The `maven` and `npm` entries may hold up to 15 open PRs each (10 for actions) and group related updates. Libraries released as a family share a group that takes every update type — `spring-ai`, `spring-modulith`, `aws-sdk`, `testcontainers`, `jdbc-drivers` and `build-plugins` on the backend; `react`, `antd`, `codemirror`, `charts` (keeps the pinned `@visx` alpha line together), `vite`, `test-tooling`, `lint-and-types` and others on the frontend. Anything else lands in a trailing minor/patch catch-all, so an unrelated **major** still arrives as its own PR. `spring-boot` is deliberately its own group: a Boot bump is the one most likely to need code changes, and bundling it would hold every other update hostage to it.
+
 Two blind spots to know about, both consequences of Dependabot scanning only `/.github/workflows` plus a root-level `action.yml` for this ecosystem:
 
 - The composite actions in [`.github/actions/`](../.github/actions/) are pure `run:` steps with no `uses:` pins, so there is nothing there to update.

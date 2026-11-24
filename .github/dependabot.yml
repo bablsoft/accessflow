@@ -1,13 +1,118 @@
 version: 2
+# Grouping rules: a dependency joins the FIRST group whose patterns match it, so the
+# family groups come before the catch-all. Family groups take every update type
+# (their members are released together and only make sense bumped together); the
+# trailing catch-all takes only minor/patch, so an unrelated major still gets its own
+# PR and its own CI run. Spring Boot stays a group of its own: a Boot bump is the one
+# most likely to need code changes, and bundling it would block everything else.
 updates:
   - package-ecosystem: "maven"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot:*"
+      spring-ai:
+        patterns:
+          - "org.springframework.ai:*"
+      spring-modulith:
+        patterns:
+          - "org.springframework.modulith:*"
+      aws-sdk:
+        patterns:
+          - "software.amazon.awssdk:*"
+      azure-sdk:
+        patterns:
+          - "com.azure:*"
+      testcontainers:
+        patterns:
+          - "org.testcontainers:*"
+      jdbc-drivers:
+        patterns:
+          - "org.postgresql:*"
+          - "com.mysql:*"
+          - "com.microsoft.sqlserver:*"
+      build-plugins:
+        patterns:
+          - "org.apache.maven.plugins:*"
+          - "org.jacoco:*"
+          - "com.diffplug.spotless:*"
+          - "com.puppycrawl.tools:*"
+      maven-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 15
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      antd:
+        patterns:
+          - "antd"
+          - "@ant-design/*"
+      codemirror:
+        patterns:
+          - "codemirror"
+          - "@codemirror/*"
+          - "y-codemirror.next"
+          - "yjs"
+          - "y-protocols"
+      # The vendored Bklit charts pin @visx to the 4.0.1 alpha line (see CLAUDE.md);
+      # move them as one unit so the charts never see mixed visx versions.
+      charts:
+        patterns:
+          - "@visx/*"
+          - "d3-*"
+          - "motion"
+      dnd-kit:
+        patterns:
+          - "@dnd-kit/*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vite-plugin-pwa"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+      test-tooling:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "jsdom"
+      lint-and-types:
+        patterns:
+          - "typescript"
+          - "typescript-eslint"
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-plugin-*"
+          - "globals"
+          - "@types/node"
+      fonts:
+        patterns:
+          - "@fontsource-variable/*"
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   # Dependabot's github-actions ecosystem only ever scans `/.github/workflows` plus a
   # root-level action.yml, so `/` is the only meaningful directory value here. Two
   # consequences worth knowing:
@@ -20,6 +125,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
     # One PR for all action bumps instead of one per action — these move together
     # (the Node 20 -> 24 runner deprecation majored most of them at once) and are
     # cheap to review as a batch.
