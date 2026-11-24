@@ -468,9 +468,9 @@ describe('DashboardPage', () => {
   it('toggles the widget size preference from the card header', async () => {
     renderPage();
     await screen.findByTestId('dashboard-widget-trends');
-    const widen = within(screen.getByTestId('dashboard-widget-trends')).getByRole('button', {
-      name: /widen/i,
-    });
+    // jsdom's 1024px viewport is under the 1100px breakpoint whose CSS hides the toggle, so it
+    // has no accessible name there; match its aria-label instead.
+    const widen = within(screen.getByTestId('dashboard-widget-trends')).getByLabelText(/widen/i);
     fireEvent.click(widen);
     expect(usePreferencesStore.getState().dashboardWidgets.size.trends).toBe('full');
     expect(screen.getByTestId('dashboard-widget-trends')).toHaveClass('af-widget--full');
