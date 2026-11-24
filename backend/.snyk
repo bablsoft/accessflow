@@ -1,0 +1,13 @@
+# Snyk (https://snyk.io) policy file for backend/pom.xml.
+version: v1.25.0
+ignore:
+  SNYK-JAVA-COMMONSCODEC-22391319:
+    - '*':
+        reason: >-
+          CVE-2026-124077 is fixed in commons-codec 1.23.0, but 1.23.0 makes STRICT Base64
+          decoding reject line-wrapped input (CODEC-348), and OpenSAML 5.2.3 decodes IdP
+          metadata certificates in strict mode, so SAML SSO breaks. Stay on Boot's managed
+          1.22.1 until OpenSAML supports 1.23, then drop this ignore and pin 1.23.0+.
+        expires: 2027-01-23T00:00:00.000Z
+        created: 2026-11-24T00:00:00.000Z
+patch: {}

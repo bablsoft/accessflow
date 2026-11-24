@@ -16,7 +16,7 @@
     "type": "maven",
     "groupId": "com.mysql",
     "artifactId": "mysql-connector-j",
-    "version": "9.7.0",
-    "sha256": "0353648eaa1c91e0f4020c959abf756bc866ffd583df22ae6b6f6e0cbd43eb44"
+    "version": "26.10.0",
+    "sha256": "cef70caf532833c9ab8f41f74773ce22c08bf503fad215c9c2ee1e9db87e759e"
   }
 }
