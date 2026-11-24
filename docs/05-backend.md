@@ -3360,7 +3360,7 @@ before creating their first datasource (the onboarding widget lists AI as step 2
 
 `spring.ai.anthropic.*`, `spring.ai.openai.*`, `spring.ai.ollama.*` and `accessflow.ai.provider`
 are **not** read. `application.yml` sets `spring.ai.model.{chat,embedding,image,audio.speech,
-audio.transcription,moderation}=none` to disable every Spring AI startup auto-config — the
+audio.transcription,moderation,decision}=none` to disable every Spring AI startup auto-config — the
 context still holds `AnthropicApi` / `OpenAIClient` / `OllamaApi` classes on the classpath, but
 no `ChatModel` is auto-built. All connection settings come from the DB row via the holder.
 

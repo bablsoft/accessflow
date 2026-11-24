@@ -85,6 +85,7 @@ spring:
         speech: none
         transcription: none
       moderation: none
+      decision: none
     mcp:
       server:
         name: accessflow-mcp
