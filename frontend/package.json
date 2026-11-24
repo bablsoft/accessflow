@@ -41,7 +41,7 @@
     "@visx/responsive": "^4.0.1-alpha.0",
     "@visx/scale": "^4.0.1-alpha.0",
     "@visx/shape": "^4.0.1-alpha.0",
-    "@xyflow/react": "^12.12.0",
+    "@xyflow/react": "^13.0.2",
     "antd": "^6.6.7",
     "axios": "^1.21.0",
     "clsx": "^2.1.1",
