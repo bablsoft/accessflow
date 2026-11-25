@@ -43,11 +43,9 @@ describe('WizardSteps on a narrow screen', () => {
       media: query,
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
       onchange: null,
       dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
+    })) as unknown as typeof window.matchMedia;
     try {
       render(<WizardSteps steps={steps} current="b" ariaLabel="Progress" />);
       expect(screen.getByText('Step 2 of 3')).toBeInTheDocument();

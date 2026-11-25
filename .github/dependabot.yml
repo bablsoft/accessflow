@@ -52,6 +52,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 15
+    # typescript-eslint 8.x peers on typescript <6.1.0, so a TS 7 bump breaks
+    # `npm ci`. Drop this once typescript-eslint supports TypeScript 7.
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
     groups:
       react:
         patterns:
