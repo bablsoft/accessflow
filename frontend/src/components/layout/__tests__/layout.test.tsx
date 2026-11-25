@@ -154,7 +154,7 @@ describe('DataTable', () => {
         onPageChange={onPageChange}
       />,
     );
-    fireEvent.click(screen.getByTitle('3'));
+    fireEvent.click(screen.getByRole('button', { name: 'Page 3' }));
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 });
