@@ -59,15 +59,17 @@ export async function findRowAcrossPages(
     // dispatchEvent rather than click: a table refresh overlays the pager
     // with an .ant-spin blur that intercepts pointer events, and a physical
     // click retries against it until the test times out (same trick as
-    // clickTab above).
-    const next = page.locator('.ant-pagination-next:not(.ant-pagination-disabled)');
+    // clickTab above). Target the control inside the <li>: since
+    // @rc-component/pagination 1.7 (antd 6.7) the handler sits on the inner
+    // <button>/<a>, so an event dispatched on the <li> never reaches it.
+    const next = page.locator('.ant-pagination-next:not(.ant-pagination-disabled) button');
     if (await next.count()) {
       await next.dispatchEvent('click');
     } else {
       // Sweep exhausted without a hit. The row may have landed on an earlier
       // page after we moved past it (fresh data still loading), so wrap back
       // to page 1 — or, with no pagination at all, just retry in place.
-      const first = page.locator('.ant-pagination-item-1');
+      const first = page.locator('.ant-pagination-item-1 a');
       if (await first.count()) await first.dispatchEvent('click');
     }
   }
