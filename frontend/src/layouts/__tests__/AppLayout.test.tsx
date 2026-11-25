@@ -266,12 +266,10 @@ describe('AppLayout — shell behaviour', () => {
       matches: query.includes('max-width: 1024px'),
       media: query,
       onchange: null,
-      addListener: () => undefined,
-      removeListener: () => undefined,
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
       dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
+    })) as unknown as typeof window.matchMedia;
     try {
       render(wrap(<AppLayout />));
       expect(screen.getByTestId('sidebar-mock').dataset.collapsed).toBe('true');
